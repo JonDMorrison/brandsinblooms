@@ -1,11 +1,13 @@
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Dashboard } from "@/components/Dashboard";
 import { LandingPage } from "@/components/LandingPage";
 
 const Index = () => {
-  const [showLanding, setShowLanding] = useState(true);
+  const { user } = useAuth();
+  const [showLanding, setShowLanding] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "Green Thumb Garden Center has been serving the Springfield community since 1985.",
@@ -14,25 +16,31 @@ const Index = () => {
   });
 
   useEffect(() => {
-    // Check if user has completed onboarding
-    const savedData = localStorage.getItem('garden-center-onboarding');
-    if (savedData) {
-      setOnboardingData(JSON.parse(savedData));
-      setIsOnboarded(true);
-      setShowLanding(false);
+    if (user) {
+      // Check if user has completed onboarding
+      const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
+      if (savedData) {
+        setOnboardingData(JSON.parse(savedData));
+        setIsOnboarded(true);
+      }
     }
-  }, []);
+  }, [user]);
 
   const handleOnboardingComplete = (data: any) => {
-    localStorage.setItem('garden-center-onboarding', JSON.stringify(data));
-    setOnboardingData(data);
-    setIsOnboarded(true);
-    setShowLanding(false);
+    if (user) {
+      localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
+      setOnboardingData(data);
+      setIsOnboarded(true);
+    }
   };
 
   const handleGetStarted = () => {
     setShowLanding(false);
   };
+
+  if (!user) {
+    return null; // This shouldn't happen due to ProtectedRoute, but just in case
+  }
 
   return (
     <div className="min-h-screen bg-garden-background">

@@ -8,6 +8,7 @@ import { KanbanBoard } from "@/components/KanbanBoard";
 import { CalendarView } from "@/components/CalendarView";
 import { LandingPage } from "@/components/LandingPage";
 import { ContentSidebar } from "@/components/ContentSidebar";
+import { UserMenu } from "@/components/UserMenu";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -105,10 +106,13 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
     <div className="min-h-screen bg-garden-background">
       <Tabs defaultValue="app" className="w-full">
         <div className="border-b border-green-200 bg-white px-6 py-2">
-          <TabsList className="grid w-fit grid-cols-2">
-            <TabsTrigger value="app">App View</TabsTrigger>
-            <TabsTrigger value="landing">Landing Preview</TabsTrigger>
-          </TabsList>
+          <div className="flex justify-between items-center">
+            <TabsList className="grid w-fit grid-cols-2">
+              <TabsTrigger value="app">App View</TabsTrigger>
+              <TabsTrigger value="landing">Landing Preview</TabsTrigger>
+            </TabsList>
+            <UserMenu />
+          </div>
         </div>
 
         <TabsContent value="app" className="mt-0">
