@@ -1,4 +1,5 @@
 
+
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Calendar, Users, Settings, BarChart3, Home, Leaf } from "lucide-react";
@@ -16,6 +17,28 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
     { title: "Campaign Calendar", view: "calendar", icon: Calendar },
   ];
 
+  // Extract business name from onboarding data
+  const getBusinessName = () => {
+    if (!onboardingData?.aboutBusiness) return "Garden Center";
+    
+    // Try to extract business name from the first sentence or line
+    const aboutText = onboardingData.aboutBusiness;
+    const firstSentence = aboutText.split('.')[0] || aboutText.split('\n')[0];
+    
+    // Look for common patterns like "Business Name has been..." or "Business Name is..."
+    const nameMatch = firstSentence.match(/^([^,]+(?:Garden Center|Nursery|Gardens?))/i) || 
+                     firstSentence.match(/^([A-Za-z\s]+(?:Garden Center|Nursery|Gardens?))/i) ||
+                     firstSentence.match(/^([A-Za-z\s&'-]+)/);
+    
+    if (nameMatch && nameMatch[1]) {
+      return nameMatch[1].trim();
+    }
+    
+    return "Garden Center";
+  };
+
+  const businessName = getBusinessName();
+
   return (
     <Sidebar className="w-64 border-r border-green-200 bg-garden-sage">
       <SidebarContent>
@@ -24,7 +47,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
             <Leaf className="w-6 h-6 text-primary" />
             <h2 className="text-xl font-bold text-garden-green-dark">Marketing Hub</h2>
           </div>
-          <p className="text-sm text-garden-green font-semibold">Garden Center</p>
+          <p className="text-sm text-garden-green font-semibold">{businessName}</p>
         </div>
 
         <SidebarGroup>
@@ -78,3 +101,4 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
     </Sidebar>
   );
 };
+
