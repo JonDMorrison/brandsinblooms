@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Copy, Instagram, Facebook, Mail, CheckCircle } from "lucide-react";
+import { Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +68,7 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate }: ContentS
       case "instagram": return <Instagram className="w-4 h-4" />;
       case "facebook": return <Facebook className="w-4 h-4" />;
       case "email": return <Mail className="w-4 h-4" />;
+      case "newsletter": return <BookOpen className="w-4 h-4" />;
       default: return <Mail className="w-4 h-4" />;
     }
   };
@@ -209,6 +210,16 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate }: ContentS
                 >
                   <Mail className="w-4 h-4 mr-2" />
                   Copy for Email
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => copyToClipboard(editedContent, "Newsletter")}
+                  disabled={!editedContent.trim()}
+                >
+                  <BookOpen className="w-4 h-4 mr-2" />
+                  Copy for Newsletter
                 </Button>
               </div>
             </div>

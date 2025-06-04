@@ -50,9 +50,9 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         return {
           campaign_id: campaignId,
           post_type: post.type,
-          status: index === 0 ? 'review' : index === 1 ? 'generating' : 'planned',
+          status: 'review', // All tasks now start with review status and content
           scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: index === 0 ? post.content : null, // Only first post has content ready
+          ai_output: post.content, // All posts now have content ready
           hashtags: post.hashtags,
           image_idea: post.imageIdea
         };

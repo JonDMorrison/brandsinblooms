@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Plus, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle } from "lucide-react";
+import { Calendar, Clock, Plus, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen } from "lucide-react";
 import { getStatusColor } from './homepageUtils';
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -72,6 +72,7 @@ export const WeekCampaignCard = ({
       case 'instagram': return <Instagram className="w-4 h-4" />;
       case 'facebook': return <Facebook className="w-4 h-4" />;
       case 'email': return <Mail className="w-4 h-4" />;
+      case 'newsletter': return <BookOpen className="w-4 h-4" />;
       default: return <FileText className="w-4 h-4" />;
     }
   };
