@@ -95,6 +95,13 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       const campaign = campaigns.find(c => c.id === campaignId);
       if (!campaign) return;
 
+      // Check if tasks already exist for this campaign to prevent duplicates
+      const existingTasks = getTasksForCampaign(tasks, campaignId);
+      if (existingTasks.length > 0) {
+        console.log('Tasks already exist for this campaign, skipping generation');
+        return;
+      }
+
       const today = new Date();
       const seasonalContent = getSeasonalContent();
       
@@ -125,18 +132,16 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
 
       console.log('Auto-generating tasks with proper content mapping:', sampleTasks);
 
-      // Insert tasks into the database
-      for (const task of sampleTasks) {
-        const { data, error } = await supabase
-          .from('content_tasks')
-          .insert(task)
-          .select();
-        
-        if (error) {
-          console.error('Error creating task:', error);
-        } else {
-          console.log('Task created successfully:', data);
-        }
+      // Insert tasks into the database in a single batch to prevent duplicates
+      const { data, error } = await supabase
+        .from('content_tasks')
+        .insert(sampleTasks)
+        .select();
+      
+      if (error) {
+        console.error('Error creating tasks:', error);
+      } else {
+        console.log('Tasks created successfully:', data);
       }
 
       // Refresh the page to show new tasks
