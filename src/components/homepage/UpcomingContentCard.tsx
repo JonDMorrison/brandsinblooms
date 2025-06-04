@@ -11,9 +11,9 @@ export const UpcomingContentCard = ({ upcomingContent }: UpcomingContentCardProp
   if (upcomingContent.length === 0) return null;
 
   return (
-    <Card className="shadow-lg border-blue-200 rounded-xl bg-blue-50">
+    <Card className="shadow-lg border-green-200 rounded-xl bg-green-50">
       <CardHeader>
-        <CardTitle className="text-lg font-bold flex items-center gap-2 text-blue-800">
+        <CardTitle className="text-lg font-bold flex items-center gap-2 text-black">
           <Calendar className="w-5 h-5" />
           Coming Up This Month
         </CardTitle>
@@ -23,16 +23,16 @@ export const UpcomingContentCard = ({ upcomingContent }: UpcomingContentCardProp
           <div key={task.id} className="flex items-center gap-3">
             <span className="text-sm">📅</span>
             <div>
-              <p className="text-sm font-semibold text-blue-800">
+              <p className="text-sm font-semibold text-black">
                 {task.campaigns?.title} - {task.post_type}
               </p>
-              <p className="text-xs text-blue-600">
+              <p className="text-xs text-gray-600">
                 {new Date(task.scheduled_date).toLocaleDateString()}
               </p>
             </div>
           </div>
         ))}
-        <Button variant="outline" className="w-full border-blue-300 text-blue-700 hover:bg-blue-100">
+        <Button variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-100">
           <Calendar className="w-4 h-4 mr-2" />
           View Calendar
         </Button>
