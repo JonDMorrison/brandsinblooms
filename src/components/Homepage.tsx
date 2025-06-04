@@ -145,7 +145,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
           </div>
         </div>
 
-        <AnalyticsSnapshot />
+        <AnalyticsSnapshot campaigns={campaigns} tasks={tasks} />
       </div>
     </div>
   );

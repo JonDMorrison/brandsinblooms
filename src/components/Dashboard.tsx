@@ -10,6 +10,8 @@ import { LandingPage } from "@/components/LandingPage";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { UserMenu } from "@/components/UserMenu";
 import { CampaignDialog } from "@/components/CampaignDialog";
+import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
+import { ContentLibrary } from "@/components/content-library/ContentLibrary";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardProps {
