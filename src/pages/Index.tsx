@@ -7,7 +7,7 @@ import { LandingPage } from "@/components/LandingPage";
 
 const Index = () => {
   const { user } = useAuth();
-  const [showLanding, setShowLanding] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "Green Thumb Garden Center has been serving the Springfield community since 1985.",
@@ -23,6 +23,8 @@ const Index = () => {
         setOnboardingData(JSON.parse(savedData));
         setIsOnboarded(true);
       }
+      // Don't automatically hide landing page when user logs in
+      // Let them click "Get Started" to proceed
     }
   }, [user]);
 
