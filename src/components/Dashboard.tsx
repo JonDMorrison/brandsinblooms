@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Homepage } from "@/components/Homepage";
 import { KanbanBoard } from "@/components/KanbanBoard";
@@ -16,7 +17,7 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ onboardingData }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar" | "landing-preview">("home");
+  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar">("home");
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -76,7 +77,6 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
       case "home": return "Dashboard Overview";
       case "kanban": return "Content Pipeline";
       case "calendar": return "Campaign Calendar";
-      case "landing-preview": return "Landing Page Preview";
       default: return "Dashboard";
     }
   };
@@ -86,7 +86,6 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
       case "home": return "Your marketing hub at a glance";
       case "kanban": return "Manage your content creation workflow";
       case "calendar": return "View and schedule your marketing campaigns";
-      case "landing-preview": return "Preview how new clients see our platform";
       default: return "";
     }
   };
@@ -103,82 +102,81 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
   }
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-garden-background">
-        <AppSidebar 
-          currentView={currentView} 
-          onViewChange={setCurrentView}
-          onboardingData={onboardingData}
-        />
-        
-        <main className="flex-1 flex">
-          <div className="flex-1">
-            {currentView !== "home" && currentView !== "landing-preview" && (
-              <div className="p-6 border-b border-green-200 bg-white">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h1 className="text-3xl font-bold text-garden-green-dark">
-                      {getViewTitle()}
-                    </h1>
-                    <p className="text-garden-green font-medium">
-                      {getViewDescription()}
-                    </p>
-                  </div>
-                  <Button className="bg-primary hover:bg-primary-600 text-white shadow-md">
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Campaign
-                  </Button>
-                </div>
-              </div>
-            )}
+    <div className="min-h-screen bg-garden-background">
+      <Tabs defaultValue="app" className="w-full">
+        <div className="border-b border-green-200 bg-white px-6 py-2">
+          <TabsList className="grid w-fit grid-cols-2">
+            <TabsTrigger value="app">App View</TabsTrigger>
+            <TabsTrigger value="landing">Landing Preview</TabsTrigger>
+          </TabsList>
+        </div>
 
-            {currentView === "landing-preview" && (
-              <div className="p-6 border-b border-green-200 bg-white">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h1 className="text-3xl font-bold text-garden-green-dark">
-                      {getViewTitle()}
-                    </h1>
-                    <p className="text-garden-green font-medium">
-                      {getViewDescription()}
-                    </p>
+        <TabsContent value="app" className="mt-0">
+          <SidebarProvider>
+            <div className="min-h-screen flex w-full bg-garden-background">
+              <AppSidebar 
+                currentView={currentView} 
+                onViewChange={setCurrentView}
+                onboardingData={onboardingData}
+              />
+              
+              <main className="flex-1 flex">
+                <div className="flex-1">
+                  {currentView !== "home" && (
+                    <div className="p-6 border-b border-green-200 bg-white">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h1 className="text-3xl font-bold text-garden-green-dark">
+                            {getViewTitle()}
+                          </h1>
+                          <p className="text-garden-green font-medium">
+                            {getViewDescription()}
+                          </p>
+                        </div>
+                        <Button className="bg-primary hover:bg-primary-600 text-white shadow-md">
+                          <Plus className="w-4 h-4 mr-2" />
+                          New Campaign
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={currentView !== "home" ? "p-6" : ""}>
+                    {currentView === "home" && (
+                      <Homepage 
+                        onboardingData={onboardingData}
+                        onNavigateToKanban={() => setCurrentView("kanban")}
+                        onTaskClick={handleTaskClick}
+                        campaigns={campaigns}
+                        tasks={tasks}
+                      />
+                    )}
+                    {currentView === "kanban" && (
+                      <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
+                    )}
+                    {currentView === "calendar" && (
+                      <CalendarView campaigns={campaigns} />
+                    )}
                   </div>
                 </div>
-              </div>
-            )}
 
-            <div className={currentView !== "home" && currentView !== "landing-preview" ? "p-6" : ""}>
-              {currentView === "home" && (
-                <Homepage 
-                  onboardingData={onboardingData}
-                  onNavigateToKanban={() => setCurrentView("kanban")}
-                  onTaskClick={handleTaskClick}
-                  campaigns={campaigns}
-                  tasks={tasks}
-                />
-              )}
-              {currentView === "kanban" && (
-                <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
-              )}
-              {currentView === "calendar" && (
-                <CalendarView campaigns={campaigns} />
-              )}
-              {currentView === "landing-preview" && (
-                <div className="overflow-auto">
-                  <LandingPage />
-                </div>
-              )}
+                {isSidebarOpen && selectedTask && (
+                  <ContentSidebar 
+                    task={selectedTask} 
+                    onClose={() => setIsSidebarOpen(false)}
+                  />
+                )}
+              </main>
             </div>
-          </div>
+          </SidebarProvider>
+        </TabsContent>
 
-          {isSidebarOpen && selectedTask && (
-            <ContentSidebar 
-              task={selectedTask} 
-              onClose={() => setIsSidebarOpen(false)}
-            />
-          )}
-        </main>
-      </div>
-    </SidebarProvider>
+        <TabsContent value="landing" className="mt-0">
+          <div className="min-h-screen overflow-auto">
+            <LandingPage />
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };

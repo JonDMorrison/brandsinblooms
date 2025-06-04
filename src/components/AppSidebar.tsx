@@ -1,11 +1,10 @@
-
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, BarChart3, Home, Leaf, Eye } from "lucide-react";
+import { Calendar, Users, Settings, BarChart3, Home, Leaf } from "lucide-react";
 
 interface AppSidebarProps {
-  currentView: "home" | "kanban" | "calendar" | "landing-preview";
-  onViewChange: (view: "home" | "kanban" | "calendar" | "landing-preview") => void;
+  currentView: "home" | "kanban" | "calendar";
+  onViewChange: (view: "home" | "kanban" | "calendar") => void;
   onboardingData: any;
 }
 
@@ -14,7 +13,6 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
     { title: "Dashboard", view: "home", icon: Home },
     { title: "Content Pipeline", view: "kanban", icon: BarChart3 },
     { title: "Campaign Calendar", view: "calendar", icon: Calendar },
-    { title: "Landing Preview", view: "landing-preview", icon: Eye },
   ];
 
   return (
@@ -39,7 +37,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
                     className={currentView === item.view ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" : "hover:bg-green-100 text-garden-green-dark"}
                   >
                     <button
-                      onClick={() => onViewChange(item.view as "home" | "kanban" | "calendar" | "landing-preview")}
+                      onClick={() => onViewChange(item.view as "home" | "kanban" | "calendar")}
                       className="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200"
                     >
                       <item.icon className="w-5 h-5" />
