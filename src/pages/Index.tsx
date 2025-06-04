@@ -1,12 +1,34 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import { useState, useEffect } from "react";
+import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { Dashboard } from "@/components/Dashboard";
 
 const Index = () => {
+  const [isOnboarded, setIsOnboarded] = useState(false);
+  const [onboardingData, setOnboardingData] = useState(null);
+
+  useEffect(() => {
+    // Check if user has completed onboarding
+    const savedData = localStorage.getItem('garden-center-onboarding');
+    if (savedData) {
+      setOnboardingData(JSON.parse(savedData));
+      setIsOnboarded(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = (data: any) => {
+    localStorage.setItem('garden-center-onboarding', JSON.stringify(data));
+    setOnboardingData(data);
+    setIsOnboarded(true);
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50">
+      {!isOnboarded ? (
+        <OnboardingFlow onComplete={handleOnboardingComplete} />
+      ) : (
+        <Dashboard onboardingData={onboardingData} />
+      )}
     </div>
   );
 };
