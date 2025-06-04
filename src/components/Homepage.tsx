@@ -2,7 +2,6 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
 import { WelcomeSection } from "./homepage/WelcomeSection";
-import { NextStepBanner } from "./homepage/NextStepBanner";
 import { WeekCampaignCard } from "./homepage/WeekCampaignCard";
 import { SetupProgressCard } from "./homepage/SetupProgressCard";
 import { CampaignTasksCard } from "./homepage/CampaignTasksCard";
@@ -13,7 +12,6 @@ import { AnalyticsSnapshot } from "./homepage/AnalyticsSnapshot";
 import { getSeasonalContent } from "./homepage/SeasonalContent";
 import { 
   getCurrentWeekCampaign,
-  getNextStepGuidance,
   getSetupProgress,
   getUpcomingContent,
   getTasksForCampaign,
@@ -83,26 +81,13 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
   const currentCampaign = getCurrentWeekCampaign(campaigns);
   const campaignTasks = currentCampaign ? getTasksForCampaign(tasks, currentCampaign.id) : [];
   const overdueTasks = getOverdueTasks(tasks);
-  const nextStep = getNextStepGuidance(campaigns, tasks, currentCampaign);
   const setupProgress = getSetupProgress(onboardingData, campaigns, tasks);
   const upcomingContent = getUpcomingContent(tasks);
-
-  const handleNextStepAction = () => {
-    if (nextStep.action === "Generate Content" && currentCampaign) {
-      generateSampleTasks(currentCampaign.id);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-garden-background p-6">
       <div className="max-w-7xl mx-auto space-y-8">
         <WelcomeSection />
-
-        <NextStepBanner 
-          nextStep={nextStep}
-          isGeneratingTasks={isGeneratingTasks}
-          onActionClick={handleNextStepAction}
-        />
 
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
