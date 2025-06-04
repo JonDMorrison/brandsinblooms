@@ -18,6 +18,7 @@ interface ContentSidebarProps {
 export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate }: ContentSidebarProps) => {
   const [editedContent, setEditedContent] = useState("");
   const [isApproving, setIsApproving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Update editedContent when task changes
   useEffect(() => {
@@ -34,6 +35,40 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate }: ContentS
       title: "Copied!",
       description: `Content copied for ${platform}`,
     });
+  };
+
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ ai_output: editedContent })
+        .eq('id', task.id);
+
+      if (error) {
+        console.error('Error saving content:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save content. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Content Saved! ✅",
+          description: "Your changes have been saved successfully.",
+        });
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error saving content:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save content. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -236,9 +271,10 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate }: ContentS
           <div className="flex gap-3 pt-4 border-t">
             <Button 
               className="flex-1 bg-green-600 hover:bg-green-700"
-              disabled={!editedContent.trim() || task.status === 'generating'}
+              disabled={!editedContent.trim() || task.status === 'generating' || isSaving}
+              onClick={handleSaveChanges}
             >
-              Save Changes
+              {isSaving ? "Saving..." : "Save Changes"}
             </Button>
             <Button 
               variant="outline"
