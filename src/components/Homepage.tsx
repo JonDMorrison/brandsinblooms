@@ -163,15 +163,24 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       
       console.log('Seasonal content structure:', seasonalContent);
       
-      // Generate exactly 4 tasks - one for each required type
+      // Generate exactly 4 tasks - one for each required type INCLUDING newsletter
       const requiredTypes = ['instagram', 'facebook', 'email', 'newsletter'];
       const sampleTasks = requiredTypes.map((postType, index) => {
         const scheduledDate = new Date(today);
         // Spread posts across the week: today, +1 day, +3 days, +5 days
         scheduledDate.setDate(today.getDate() + index + (index > 0 ? index : 0));
         
-        // Find the matching content for this post type
-        const postContent = seasonalContent.posts.find(post => post.type === postType);
+        // Find the matching content for this post type or use newsletter-specific content
+        let postContent;
+        if (postType === 'newsletter') {
+          postContent = {
+            content: `📬 Weekly Garden Newsletter - Week ${getCurrentWeekNumber()}\n\nThis week's highlights:\n• ${seasonalContent.theme} tips and tricks\n• Seasonal plant care guide\n• Upcoming workshops and events\n• Expert gardening advice\n\nStay connected with your garden community!`,
+            hashtags: '#WeeklyNewsletter #GardenTips #Community',
+            imageIdea: 'Newsletter header with seasonal garden imagery'
+          };
+        } else {
+          postContent = seasonalContent.posts.find(post => post.type === postType);
+        }
         
         console.log(`Finding content for ${postType}:`, postContent);
         
@@ -186,7 +195,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         };
       });
 
-      console.log('Auto-generating tasks with proper content mapping:', sampleTasks);
+      console.log('Auto-generating tasks with proper content mapping including newsletter:', sampleTasks);
 
       // Insert tasks into the database in a single batch to prevent duplicates
       const { data, error } = await supabase

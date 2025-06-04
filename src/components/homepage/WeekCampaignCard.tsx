@@ -120,14 +120,14 @@ export const WeekCampaignCard = ({
               </span>
             </div>
             
-            {/* Newsletter Section */}
-            {newsletterTasks.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-purple-600" />
-                  Weekly Newsletter
-                </h3>
-                {newsletterTasks.map((task) => {
+            {/* Newsletter Section - Always show */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-purple-600" />
+                Weekly Newsletter
+              </h3>
+              {newsletterTasks.length > 0 ? (
+                newsletterTasks.map((task) => {
                   const taskIdString = String(task.id);
                   return (
                     <div key={task.id} className="border border-purple-200 rounded-xl p-5 hover:bg-purple-50 cursor-pointer transition-all duration-200 hover:shadow-md bg-gradient-to-r from-purple-50 to-indigo-50" onClick={() => onTaskClick(task)}>
@@ -177,9 +177,25 @@ export const WeekCampaignCard = ({
                       )}
                     </div>
                   );
-                })}
-              </div>
-            )}
+                })
+              ) : isGeneratingTasks ? (
+                <div className="border border-purple-200 rounded-xl p-5 bg-gradient-to-r from-purple-50 to-indigo-50">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                    <span className="font-semibold text-purple-800">Generating Newsletter...</span>
+                  </div>
+                  <p className="text-sm text-gray-500 italic">Your weekly newsletter content is being created...</p>
+                </div>
+              ) : (
+                <div className="border border-purple-200 rounded-xl p-5 bg-gradient-to-r from-purple-50 to-indigo-50">
+                  <div className="flex items-center gap-3 mb-3">
+                    <BookOpen className="w-5 h-5 text-purple-600" />
+                    <span className="font-semibold text-purple-800">Newsletter Ready to Generate</span>
+                  </div>
+                  <p className="text-sm text-gray-500 italic">Newsletter content will be generated automatically...</p>
+                </div>
+              )}
+            </div>
 
             {/* Other Content Tasks */}
             {otherTasks.length > 0 ? (
