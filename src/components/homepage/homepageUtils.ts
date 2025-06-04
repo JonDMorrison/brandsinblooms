@@ -1,16 +1,21 @@
-
 export const getCurrentWeekCampaign = (campaigns: any[]) => {
   if (campaigns.length === 0) return null;
   
   const today = new Date();
   const currentWeekNumber = getCurrentWeekNumber();
   
+  console.log('Looking for current week:', currentWeekNumber);
+  console.log('Available campaigns:', campaigns.map(c => ({ id: c.id, week: c.week_number, title: c.title })));
+  
   // First, try to find a campaign for the current week number
   const currentWeekCampaign = campaigns.find(campaign => {
     return campaign.week_number === currentWeekNumber;
   });
   
-  if (currentWeekCampaign) return currentWeekCampaign;
+  if (currentWeekCampaign) {
+    console.log('Found current week campaign:', currentWeekCampaign);
+    return currentWeekCampaign;
+  }
   
   // If no current week campaign, try to find one within the current week by date
   const currentWeekByDateCampaign = campaigns.find(campaign => {
@@ -19,10 +24,14 @@ export const getCurrentWeekCampaign = (campaigns: any[]) => {
     return daysDiff <= 7; // Within a week
   });
   
-  if (currentWeekByDateCampaign) return currentWeekByDateCampaign;
+  if (currentWeekByDateCampaign) {
+    console.log('Found campaign by date:', currentWeekByDateCampaign);
+    return currentWeekByDateCampaign;
+  }
   
-  // If still no match, return null to trigger auto-creation
-  return null;
+  // If still no match, just use the first available campaign for testing
+  console.log('No current week campaign found, using first available:', campaigns[0]);
+  return campaigns[0];
 };
 
 // Calculate the actual week number of the year from today's date
@@ -30,7 +39,9 @@ export const getCurrentWeekNumber = () => {
   const today = new Date();
   const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
   const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  console.log('Current week number calculated:', weekNumber);
+  return weekNumber;
 };
 
 export const getNextStepGuidance = (campaigns: any[], tasks: any[], currentCampaign: any) => {

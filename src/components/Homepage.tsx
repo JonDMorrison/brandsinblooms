@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -80,54 +79,21 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
   // Auto-create current week campaign if none exists
   useEffect(() => {
     const autoCreateCurrentWeekCampaign = async () => {
+      console.log('Auto-create effect running with campaigns:', campaigns.length);
       let currentCampaign = getCurrentWeekCampaign(campaigns);
+      console.log('Current campaign found:', currentCampaign);
       
-      // If no current campaign exists, create one for this week
-      if (!currentCampaign && campaigns.length >= 0) {
-        setIsCreatingCampaign(true);
-        
-        try {
-          const today = new Date();
-          const weekNumber = getCurrentWeekNumber();
-          const seasonalContent = getSeasonalContent();
-          
-          // Create a new campaign for the current week
-          const { data: newCampaign, error } = await supabase
-            .from('campaigns')
-            .insert({
-              title: seasonalContent.theme,
-              week_number: weekNumber,
-              start_date: today.toISOString().split('T')[0],
-              prompt: `Weekly campaign for ${seasonalContent.theme} - Week ${weekNumber}`
-            })
-            .select()
-            .single();
-
-          if (error) {
-            console.error('Error creating campaign:', error);
-          } else {
-            console.log('Created new current week campaign:', newCampaign);
-            // Update the campaigns list and set as current
-            if (onTaskUpdate) {
-              onTaskUpdate();
-            }
-            currentCampaign = newCampaign;
-          }
-        } catch (error) {
-          console.error('Error creating current week campaign:', error);
-        } finally {
-          setIsCreatingCampaign(false);
-        }
-      }
-
-      // Auto-generate content tasks for campaigns that don't have any
+      // If we have a campaign, check if it needs content generation
       if (currentCampaign) {
         // First clean up any existing duplicates
         await cleanupDuplicatesForCampaign(currentCampaign.id);
         
         // Then check if we need to generate tasks
         const campaignTasks = getTasksForCampaign(tasks, currentCampaign.id);
+        console.log('Campaign tasks found:', campaignTasks.length);
+        
         if (campaignTasks.length === 0) {
+          console.log('No tasks found, generating sample tasks...');
           await generateSampleTasks(currentCampaign.id.toString());
         } else {
           // Check if we need to generate AI newsletter content
@@ -143,7 +109,9 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       }
     };
 
-    autoCreateCurrentWeekCampaign();
+    if (campaigns.length > 0) {
+      autoCreateCurrentWeekCampaign();
+    }
   }, [campaigns, tasks]);
 
   const generateAINewsletter = async (campaignId: string, campaignTitle: string, weekNumber: number) => {
@@ -288,6 +256,12 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
   const overdueTasks = getOverdueTasks(tasks);
   const setupProgress = getSetupProgress(onboardingData, campaigns, tasks);
   const upcomingContent = getUpcomingContent(tasks);
+
+  console.log('Rendering Homepage with:', {
+    currentCampaign: currentCampaign?.title,
+    campaignTasks: campaignTasks.length,
+    isGeneratingTasks
+  });
 
   return (
     <div className="min-h-screen bg-garden-background p-6">
