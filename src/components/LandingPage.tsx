@@ -46,9 +46,6 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           <div className="w-full h-64 bg-gradient-to-r from-green-100 to-yellow-100 rounded-2xl shadow-xl flex items-center justify-center text-8xl">
             🌻🌿🏪
           </div>
-          <div className="absolute -bottom-4 -left-4 bg-white p-4 rounded-xl shadow-lg">
-            <div className="text-sm font-medium text-green-700">+127% Sales Growth</div>
-          </div>
           <div className="absolute -top-4 -right-4 bg-white p-4 rounded-xl shadow-lg">
             <div className="text-sm font-medium text-blue-700">3 Minutes Setup</div>
           </div>
