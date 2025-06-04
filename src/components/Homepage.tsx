@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
 import { WelcomeSection } from "./homepage/WelcomeSection";
@@ -31,6 +32,24 @@ interface HomepageProps {
 export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, campaigns, tasks, onTaskUpdate }: HomepageProps) => {
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
 
+  // Auto-generate content tasks for campaigns that don't have any
+  useEffect(() => {
+    const autoGenerateContent = async () => {
+      const currentCampaign = getCurrentWeekCampaign(campaigns);
+      if (!currentCampaign) return;
+
+      const campaignTasks = getTasksForCampaign(tasks, currentCampaign.id);
+      if (campaignTasks.length > 0) return; // Already has tasks
+
+      // Auto-generate tasks for this campaign
+      await generateSampleTasks(currentCampaign.id.toString());
+    };
+
+    if (campaigns.length > 0 && tasks.length >= 0) {
+      autoGenerateContent();
+    }
+  }, [campaigns, tasks]);
+
   const generateSampleTasks = async (campaignId: string) => {
     setIsGeneratingTasks(true);
     
@@ -52,13 +71,13 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
           post_type: post.type,
           status: 'review',
           scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: post.content, // This should be the main content
+          ai_output: post.content,
           hashtags: post.hashtags,
           image_idea: post.imageIdea
         };
       });
 
-      console.log('Creating tasks with content:', sampleTasks);
+      console.log('Auto-generating tasks with content:', sampleTasks);
 
       // Insert tasks into the database
       for (const task of sampleTasks) {
@@ -77,8 +96,6 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       // Refresh the page to show new tasks
       if (onTaskUpdate) {
         onTaskUpdate();
-      } else {
-        window.location.reload();
       }
       
     } catch (error) {
@@ -108,7 +125,6 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
               campaignTasks={campaignTasks}
               isGeneratingTasks={isGeneratingTasks}
               onTaskClick={onTaskClick}
-              onGenerateTasks={generateSampleTasks}
               onTaskUpdate={onTaskUpdate}
             />
           </div>

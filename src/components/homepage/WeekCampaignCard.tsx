@@ -1,7 +1,8 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Plus, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen } from "lucide-react";
+import { Calendar, Clock, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen } from "lucide-react";
 import { getStatusColor } from './homepageUtils';
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -12,7 +13,6 @@ interface WeekCampaignCardProps {
   campaignTasks: any[];
   isGeneratingTasks: boolean;
   onTaskClick: (task: any) => void;
-  onGenerateTasks: (campaignId: string) => void;
   onTaskUpdate?: () => void;
 }
 
@@ -21,7 +21,6 @@ export const WeekCampaignCard = ({
   campaignTasks, 
   isGeneratingTasks, 
   onTaskClick, 
-  onGenerateTasks,
   onTaskUpdate
 }: WeekCampaignCardProps) => {
   const [approvingTasks, setApprovingTasks] = useState<Set<string>>(new Set());
@@ -166,18 +165,15 @@ export const WeekCampaignCard = ({
                   );
                 })}
               </div>
+            ) : isGeneratingTasks ? (
+              <div className="text-center py-12 text-gray-500">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="font-medium">Generating your content automatically...</p>
+              </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
                 <FileText className="w-16 h-16 mx-auto mb-4 opacity-40" />
-                <p className="font-medium mb-4">No content tasks for this campaign yet</p>
-                <Button 
-                  className="bg-primary hover:bg-primary-600 text-white shadow-md"
-                  onClick={() => onGenerateTasks(currentCampaign.id.toString())}
-                  disabled={isGeneratingTasks}
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  {isGeneratingTasks ? "Generating Tasks..." : "Create Content Tasks"}
-                </Button>
+                <p className="font-medium mb-4">Content will be generated automatically</p>
               </div>
             )}
           </div>
@@ -185,10 +181,6 @@ export const WeekCampaignCard = ({
           <div className="text-center py-12 text-gray-500">
             <Calendar className="w-16 h-16 mx-auto mb-4 opacity-40" />
             <p className="font-medium mb-4">No active campaigns found</p>
-            <Button className="bg-primary hover:bg-primary-600 text-white shadow-md">
-              <Plus className="w-4 h-4 mr-2" />
-              Create Campaign
-            </Button>
           </div>
         )}
       </CardContent>
