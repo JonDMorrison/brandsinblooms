@@ -1,16 +1,17 @@
 
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, BarChart3 } from "lucide-react";
+import { Calendar, Users, Settings, BarChart3, Home } from "lucide-react";
 
 interface AppSidebarProps {
-  currentView: "kanban" | "calendar";
-  onViewChange: (view: "kanban" | "calendar") => void;
+  currentView: "home" | "kanban" | "calendar";
+  onViewChange: (view: "home" | "kanban" | "calendar") => void;
   onboardingData: any;
 }
 
 export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSidebarProps) => {
   const menuItems = [
+    { title: "Dashboard", view: "home", icon: Home },
     { title: "Content Pipeline", view: "kanban", icon: BarChart3 },
     { title: "Campaign Calendar", view: "calendar", icon: Calendar },
   ];
@@ -34,7 +35,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
                     className={currentView === item.view ? "bg-green-100 text-green-800" : ""}
                   >
                     <button
-                      onClick={() => onViewChange(item.view as "kanban" | "calendar")}
+                      onClick={() => onViewChange(item.view as "home" | "kanban" | "calendar")}
                       className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-green-50"
                     >
                       <item.icon className="w-4 h-4" />

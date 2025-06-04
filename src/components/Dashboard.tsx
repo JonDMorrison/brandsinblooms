@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { Homepage } from "@/components/Homepage";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { CalendarView } from "@/components/CalendarView";
 import { ContentSidebar } from "@/components/ContentSidebar";
@@ -13,7 +14,7 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ onboardingData }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"kanban" | "calendar">("kanban");
+  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar">("home");
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -65,6 +66,24 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
     setIsSidebarOpen(true);
   };
 
+  const getViewTitle = () => {
+    switch (currentView) {
+      case "home": return "Dashboard Overview";
+      case "kanban": return "Content Pipeline";
+      case "calendar": return "Campaign Calendar";
+      default: return "Dashboard";
+    }
+  };
+
+  const getViewDescription = () => {
+    switch (currentView) {
+      case "home": return "Your marketing hub at a glance";
+      case "kanban": return "Manage your content creation workflow";
+      case "calendar": return "View and schedule your marketing campaigns";
+      default: return "";
+    }
+  };
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">
@@ -75,30 +94,41 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
         />
         
         <main className="flex-1 flex">
-          <div className="flex-1 p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-green-800">
-                  {currentView === "kanban" ? "Content Pipeline" : "Campaign Calendar"}
-                </h1>
-                <p className="text-green-600">
-                  {currentView === "kanban" 
-                    ? "Manage your content creation workflow" 
-                    : "View and schedule your marketing campaigns"
-                  }
-                </p>
+          <div className="flex-1">
+            {currentView !== "home" && (
+              <div className="p-6 border-b border-green-100">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h1 className="text-3xl font-bold text-green-800">
+                      {getViewTitle()}
+                    </h1>
+                    <p className="text-green-600">
+                      {getViewDescription()}
+                    </p>
+                  </div>
+                  <Button className="bg-green-600 hover:bg-green-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Campaign
+                  </Button>
+                </div>
               </div>
-              <Button className="bg-green-600 hover:bg-green-700">
-                <Plus className="w-4 h-4 mr-2" />
-                New Campaign
-              </Button>
-            </div>
-
-            {currentView === "kanban" ? (
-              <KanbanBoard tasks={mockTasks} onTaskClick={handleTaskClick} />
-            ) : (
-              <CalendarView campaigns={mockCampaigns} />
             )}
+
+            <div className={currentView !== "home" ? "p-6" : ""}>
+              {currentView === "home" && (
+                <Homepage 
+                  onboardingData={onboardingData}
+                  onNavigateToKanban={() => setCurrentView("kanban")}
+                  onTaskClick={handleTaskClick}
+                />
+              )}
+              {currentView === "kanban" && (
+                <KanbanBoard tasks={mockTasks} onTaskClick={handleTaskClick} />
+              )}
+              {currentView === "calendar" && (
+                <CalendarView campaigns={mockCampaigns} />
+              )}
+            </div>
           </div>
 
           {isSidebarOpen && selectedTask && (
