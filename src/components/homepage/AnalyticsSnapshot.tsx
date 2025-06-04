@@ -23,7 +23,7 @@ export const AnalyticsSnapshot = ({ campaigns, tasks, onNavigateToAnalytics }: A
     return acc;
   }, {} as Record<string, number>);
   
-  const topContentType = Object.entries(typeCount).sort(([,a], [,b]) => b - a)[0];
+  const topContentType = Object.entries(typeCount).sort(([,a], [,b]) => (b as number) - (a as number))[0];
   
   // Mock engagement data
   const avgEngagement = Math.floor(Math.random() * 50) + 25;

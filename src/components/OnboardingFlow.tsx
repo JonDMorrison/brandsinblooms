@@ -20,10 +20,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
 
   const steps = [
     {
-      title: "Tell us about your garden center",
-      description: "Where are you located? What's your name and history? Copy and paste anything from your website.",
+      title: "Help us get to know you",
+      description: "What makes your garden center special? Your name, location, a bit of history, or anything you'd like us to know. Paste from your website if you'd like!",
       field: "aboutBusiness",
-      placeholder: "e.g., Green Thumb Garden Center has been serving the Springfield community since 1985. Located in the heart of downtown, we specialize in native plants, organic gardening supplies, and seasonal workshops..."
+      placeholder: "e.g., Green Thumb Garden Center has been serving the Springfield community since 1985. Located in the heart of downtown, we specialize in native plants, organic gardening supplies, and seasonal workshops. Our family-owned business started when..."
     },
     {
       title: "Help us understand your voice",
