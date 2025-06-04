@@ -1,11 +1,10 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,8 +16,17 @@ interface ContentSidebarProps {
 }
 
 export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate }: ContentSidebarProps) => {
-  const [editedContent, setEditedContent] = useState(task?.ai_output || "");
+  const [editedContent, setEditedContent] = useState("");
   const [isApproving, setIsApproving] = useState(false);
+
+  // Update editedContent when task changes
+  useEffect(() => {
+    if (task?.ai_output) {
+      setEditedContent(task.ai_output);
+    } else {
+      setEditedContent("");
+    }
+  }, [task]);
 
   const copyToClipboard = (text: string, platform: string) => {
     navigator.clipboard.writeText(text);
