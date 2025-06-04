@@ -121,6 +121,7 @@ export const WeekCampaignCard = ({
               <div className="space-y-4">
                 {campaignTasks.map((task) => {
                   const taskIdString = String(task.id);
+                  console.log('Task data:', task); // Debug log to see what's in the task
                   return (
                     <div key={task.id} className="border border-green-200 rounded-xl p-5 hover:bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md" onClick={() => onTaskClick(task)}>
                       <div className="flex items-center justify-between mb-3">
@@ -153,9 +154,16 @@ export const WeekCampaignCard = ({
                           </Button>
                         </div>
                       </div>
-                      {task.ai_output && (
-                        <p className="text-sm text-gray-700 line-clamp-2 font-medium leading-relaxed">{task.ai_output}</p>
-                      )}
+                      
+                      {/* Always show content area - either generated content or placeholder */}
+                      <div className="mb-3">
+                        {task.ai_output ? (
+                          <p className="text-sm text-gray-700 line-clamp-2 font-medium leading-relaxed">{task.ai_output}</p>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">Content will be generated automatically...</p>
+                        )}
+                      </div>
+                      
                       {task.scheduled_date && (
                         <p className="text-xs text-gray-500 mt-3 font-medium">
                           Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
