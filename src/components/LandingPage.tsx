@@ -1,20 +1,22 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Users, Edit, TrendingUp, Star, ArrowRight, Building, Leaf, Sun } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 interface LandingPageProps {
   onGetStarted?: () => void;
 }
 
 export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
+  const navigate = useNavigate();
+
   const handleGetStarted = () => {
     if (onGetStarted) {
       onGetStarted();
     } else {
-      // Fallback for when used in preview mode
-      window.location.reload();
+      // Navigate to auth page for sign up
+      navigate('/auth');
     }
   };
 
