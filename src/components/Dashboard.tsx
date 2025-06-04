@@ -5,6 +5,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { Homepage } from "@/components/Homepage";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { CalendarView } from "@/components/CalendarView";
+import { LandingPage } from "@/components/LandingPage";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -15,7 +16,7 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ onboardingData }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar">("home");
+  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar" | "landing-preview">("home");
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -75,6 +76,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
       case "home": return "Dashboard Overview";
       case "kanban": return "Content Pipeline";
       case "calendar": return "Campaign Calendar";
+      case "landing-preview": return "Landing Page Preview";
       default: return "Dashboard";
     }
   };
@@ -84,6 +86,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
       case "home": return "Your marketing hub at a glance";
       case "kanban": return "Manage your content creation workflow";
       case "calendar": return "View and schedule your marketing campaigns";
+      case "landing-preview": return "Preview how new clients see our platform";
       default: return "";
     }
   };
@@ -110,7 +113,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
         
         <main className="flex-1 flex">
           <div className="flex-1">
-            {currentView !== "home" && (
+            {currentView !== "home" && currentView !== "landing-preview" && (
               <div className="p-6 border-b border-green-200 bg-white">
                 <div className="flex justify-between items-center">
                   <div>
@@ -129,7 +132,22 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
               </div>
             )}
 
-            <div className={currentView !== "home" ? "p-6" : ""}>
+            {currentView === "landing-preview" && (
+              <div className="p-6 border-b border-green-200 bg-white">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h1 className="text-3xl font-bold text-garden-green-dark">
+                      {getViewTitle()}
+                    </h1>
+                    <p className="text-garden-green font-medium">
+                      {getViewDescription()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className={currentView !== "home" && currentView !== "landing-preview" ? "p-6" : ""}>
               {currentView === "home" && (
                 <Homepage 
                   onboardingData={onboardingData}
@@ -144,6 +162,11 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
               )}
               {currentView === "calendar" && (
                 <CalendarView campaigns={campaigns} />
+              )}
+              {currentView === "landing-preview" && (
+                <div className="overflow-auto">
+                  <LandingPage />
+                </div>
               )}
             </div>
           </div>
