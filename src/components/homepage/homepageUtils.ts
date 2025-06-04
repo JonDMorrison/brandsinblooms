@@ -1,23 +1,28 @@
+
 export const getCurrentWeekCampaign = (campaigns: any[]) => {
   if (campaigns.length === 0) return null;
   
   const today = new Date();
+  const currentWeekNumber = getCurrentWeekNumber();
   
-  // First, try to find a campaign within the current week
+  // First, try to find a campaign for the current week number
   const currentWeekCampaign = campaigns.find(campaign => {
+    return campaign.week_number === currentWeekNumber;
+  });
+  
+  if (currentWeekCampaign) return currentWeekCampaign;
+  
+  // If no current week campaign, try to find one within the current week by date
+  const currentWeekByDateCampaign = campaigns.find(campaign => {
     const campaignDate = new Date(campaign.start_date);
     const daysDiff = Math.abs((campaignDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
     return daysDiff <= 7; // Within a week
   });
   
-  if (currentWeekCampaign) return currentWeekCampaign;
+  if (currentWeekByDateCampaign) return currentWeekByDateCampaign;
   
-  // If no current week campaign, return the most recent one
-  const sortedCampaigns = [...campaigns].sort((a, b) => 
-    new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
-  );
-  
-  return sortedCampaigns[0];
+  // If still no match, return null to trigger auto-creation
+  return null;
 };
 
 // Calculate the actual week number of the year from today's date

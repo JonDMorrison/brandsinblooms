@@ -31,23 +31,61 @@ interface HomepageProps {
 
 export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, campaigns, tasks, onTaskUpdate }: HomepageProps) => {
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
+  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
 
-  // Auto-generate content tasks for campaigns that don't have any
+  // Auto-create current week campaign if none exists
   useEffect(() => {
-    const autoGenerateContent = async () => {
-      const currentCampaign = getCurrentWeekCampaign(campaigns);
-      if (!currentCampaign) return;
+    const autoCreateCurrentWeekCampaign = async () => {
+      let currentCampaign = getCurrentWeekCampaign(campaigns);
+      
+      // If no current campaign exists, create one for this week
+      if (!currentCampaign && campaigns.length >= 0) {
+        setIsCreatingCampaign(true);
+        
+        try {
+          const today = new Date();
+          const weekNumber = getCurrentWeekNumber();
+          const seasonalContent = getSeasonalContent();
+          
+          // Create a new campaign for the current week
+          const { data: newCampaign, error } = await supabase
+            .from('campaigns')
+            .insert({
+              title: seasonalContent.theme,
+              week_number: weekNumber,
+              start_date: today.toISOString().split('T')[0],
+              prompt: `Weekly campaign for ${seasonalContent.theme} - Week ${weekNumber}`
+            })
+            .select()
+            .single();
 
-      const campaignTasks = getTasksForCampaign(tasks, currentCampaign.id);
-      if (campaignTasks.length > 0) return; // Already has tasks
+          if (error) {
+            console.error('Error creating campaign:', error);
+          } else {
+            console.log('Created new current week campaign:', newCampaign);
+            // Update the campaigns list and set as current
+            if (onTaskUpdate) {
+              onTaskUpdate();
+            }
+            currentCampaign = newCampaign;
+          }
+        } catch (error) {
+          console.error('Error creating current week campaign:', error);
+        } finally {
+          setIsCreatingCampaign(false);
+        }
+      }
 
-      // Auto-generate tasks for this campaign
-      await generateSampleTasks(currentCampaign.id.toString());
+      // Auto-generate content tasks for campaigns that don't have any
+      if (currentCampaign) {
+        const campaignTasks = getTasksForCampaign(tasks, currentCampaign.id);
+        if (campaignTasks.length === 0) {
+          await generateSampleTasks(currentCampaign.id.toString());
+        }
+      }
     };
 
-    if (campaigns.length > 0 && tasks.length >= 0) {
-      autoGenerateContent();
-    }
+    autoCreateCurrentWeekCampaign();
   }, [campaigns, tasks]);
 
   const generateSampleTasks = async (campaignId: string) => {
@@ -131,7 +169,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
             <WeekCampaignCard
               currentCampaign={currentCampaign}
               campaignTasks={campaignTasks}
-              isGeneratingTasks={isGeneratingTasks}
+              isGeneratingTasks={isGeneratingTasks || isCreatingCampaign}
               onTaskClick={onTaskClick}
               onTaskUpdate={onTaskUpdate}
             />
