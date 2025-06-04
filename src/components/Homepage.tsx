@@ -25,9 +25,10 @@ interface HomepageProps {
   onTaskClick: (task: any) => void;
   campaigns: any[];
   tasks: any[];
+  onTaskUpdate?: () => void;
 }
 
-export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, campaigns, tasks }: HomepageProps) => {
+export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, campaigns, tasks, onTaskUpdate }: HomepageProps) => {
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
 
   const generateSampleTasks = async (campaignId: string) => {
@@ -99,6 +100,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
               isGeneratingTasks={isGeneratingTasks}
               onTaskClick={onTaskClick}
               onGenerateTasks={generateSampleTasks}
+              onTaskUpdate={onTaskUpdate}
             />
           </div>
 

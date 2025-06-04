@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -169,7 +168,7 @@ export const WeekCampaignCard = ({
                 <p className="font-medium mb-4">No content tasks for this campaign yet</p>
                 <Button 
                   className="bg-primary hover:bg-primary-600 text-white shadow-md"
-                  onClick={() => onGenerateTasks(currentCampaign.id)}
+                  onClick={() => onGenerateTasks(currentCampaign.id.toString())}
                   disabled={isGeneratingTasks}
                 >
                   <Plus className="w-4 h-4 mr-2" />
