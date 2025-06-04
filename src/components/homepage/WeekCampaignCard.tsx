@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,9 +25,9 @@ export const WeekCampaignCard = ({
   onGenerateTasks,
   onTaskUpdate
 }: WeekCampaignCardProps) => {
-  const [approvingTasks, setApprovingTasks] = useState<Set<number>>(new Set());
+  const [approvingTasks, setApprovingTasks] = useState<Set<string>>(new Set());
 
-  const handleApprove = async (taskId: number, event: React.MouseEvent) => {
+  const handleApprove = async (taskId: string, event: React.MouseEvent) => {
     event.stopPropagation(); // Prevent task click from firing
     
     setApprovingTasks(prev => new Set(prev).add(taskId));
@@ -134,11 +135,11 @@ export const WeekCampaignCard = ({
                           <Button 
                             size="sm" 
                             className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={(e) => handleApprove(task.id, e)}
-                            disabled={approvingTasks.has(task.id)}
+                            onClick={(e) => handleApprove(task.id.toString(), e)}
+                            disabled={approvingTasks.has(task.id.toString())}
                           >
                             <CheckCircle className="w-3 h-3 mr-1" />
-                            {approvingTasks.has(task.id) ? "Approving..." : "Approve"}
+                            {approvingTasks.has(task.id.toString()) ? "Approving..." : "Approve"}
                           </Button>
                         )}
                         <Button size="sm" variant="outline" className="border-green-300 text-black hover:bg-green-100">
