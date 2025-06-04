@@ -73,11 +73,11 @@ export default {
 				},
 				sidebar: {
 					DEFAULT: '#F0F7F4',
-					foreground: '#2D3748',
+					foreground: '#000000',
 					primary: '#4CAF50',
 					'primary-foreground': '#FFFFFF',
 					accent: '#E8F5E8',
-					'accent-foreground': '#2D3748',
+					'accent-foreground': '#000000',
 					border: '#C8E6C9',
 					ring: '#4CAF50'
 				},
@@ -85,7 +85,7 @@ export default {
 					background: '#F7FAF5',
 					sage: '#F0F7F4',
 					green: '#4CAF50',
-					'green-dark': '#3A865E',
+					'green-dark': '#000000',
 					coral: '#FF8A80',
 					'coral-light': '#FFCDD2'
 				}

@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -169,14 +170,14 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <span className="seasonal-emoji">{seasonal.emoji}</span>
-            <h1 className="text-4xl font-bold text-garden-green-dark">
+            <h1 className="text-4xl font-bold text-black">
               Welcome back! {seasonal.text}
             </h1>
           </div>
           <p className="text-xl text-garden-green font-medium mb-2">
             Here's what's happening this week at your garden center
           </p>
-          <p className="text-garden-green-dark font-light">
+          <p className="text-black font-light">
             Let's grow this week's campaign together.
           </p>
         </div>
@@ -188,7 +189,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
               <div className="flex items-center gap-4">
                 <span className="text-3xl">{nextStep.icon}</span>
                 <div>
-                  <h3 className="text-xl font-bold text-garden-green-dark mb-1">
+                  <h3 className="text-xl font-bold text-black mb-1">
                     {nextStep.title}
                   </h3>
                   <p className="text-garden-green font-medium">
@@ -239,7 +240,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
                                 {getPostTypeIcon(task.post_type)}
-                                <span className="font-semibold capitalize text-garden-green-dark">{task.post_type}</span>
+                                <span className="font-semibold capitalize text-black">{task.post_type}</span>
                                 <Badge className={`${getStatusColor(task.status)} font-medium`}>
                                   {task.status}
                                 </Badge>
@@ -296,7 +297,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
             {/* Setup Progress Card */}
             <Card className="shadow-lg border-green-200 rounded-xl bg-gradient-to-br from-green-50 to-blue-50">
               <CardHeader>
-                <CardTitle className="text-lg text-garden-green-dark font-bold flex items-center gap-2">
+                <CardTitle className="text-lg text-black font-bold flex items-center gap-2">
                   <span className="text-2xl">🌼</span>
                   You're {setupProgress.percentage}% set up!
                 </CardTitle>
@@ -388,7 +389,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         {/* Improved Quick Actions */}
         <Card className="shadow-lg border-green-200 rounded-xl">
           <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-xl">
-            <CardTitle className="text-xl text-garden-green-dark font-bold">Quick Actions</CardTitle>
+            <CardTitle className="text-xl text-black font-bold">Quick Actions</CardTitle>
             <CardDescription className="font-medium">Everything you need to grow your presence</CardDescription>
           </CardHeader>
           <CardContent className="p-6">
@@ -397,7 +398,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
                 <Card className="h-full border-2 border-green-200 hover:border-green-400 hover:shadow-lg transition-all duration-200 bg-gradient-to-br from-green-50 to-green-100">
                   <CardContent className="p-6 text-center">
                     <span className="text-4xl mb-4 block group-hover:scale-110 transition-transform duration-200">🌻</span>
-                    <h3 className="font-bold text-garden-green-dark mb-2">Create a Campaign</h3>
+                    <h3 className="font-bold text-black mb-2">Create a Campaign</h3>
                     <p className="text-sm text-garden-green">Start from a template or blank canvas</p>
                   </CardContent>
                 </Card>
@@ -440,7 +441,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
               <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50">
                 <div className="flex justify-between items-center">
                   <div>
-                    <CardTitle className="text-xl text-garden-green-dark font-bold flex items-center gap-2">
+                    <CardTitle className="text-xl text-black font-bold flex items-center gap-2">
                       <BarChart3 className="w-5 h-5" />
                       Content Pipeline
                     </CardTitle>
@@ -473,7 +474,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
                             >
                               <div className="flex items-center gap-2 mb-1">
                                 {getPostTypeIcon(task.post_type)}
-                                <span className="text-xs font-medium text-garden-green-dark">{task.campaigns?.title}</span>
+                                <span className="text-xs font-medium text-black">{task.campaigns?.title}</span>
                               </div>
                               <p className="text-xs text-gray-600 capitalize">{task.post_type}</p>
                             </div>
@@ -496,7 +497,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         {/* Analytics Snapshot */}
         <Card className="shadow-lg border-green-200 rounded-xl">
           <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-xl">
-            <CardTitle className="text-xl text-garden-green-dark font-bold">Analytics Snapshot</CardTitle>
+            <CardTitle className="text-xl text-black font-bold">Analytics Snapshot</CardTitle>
             <CardDescription className="font-medium">Coming soon - track your marketing performance</CardDescription>
           </CardHeader>
           <CardContent className="p-8">
