@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -32,6 +31,50 @@ interface HomepageProps {
 export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, campaigns, tasks, onTaskUpdate }: HomepageProps) => {
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+
+  // Clean up duplicates function
+  const cleanupDuplicatesForCampaign = async (campaignId: string) => {
+    try {
+      // Get all tasks for this campaign
+      const { data: allTasks, error } = await supabase
+        .from('content_tasks')
+        .select('*')
+        .eq('campaign_id', campaignId)
+        .order('created_at', { ascending: true });
+
+      if (error || !allTasks) return;
+
+      // Group by post_type and keep only the first one of each type
+      const tasksByType = allTasks.reduce((acc: any, task: any) => {
+        if (!acc[task.post_type]) {
+          acc[task.post_type] = task;
+        }
+        return acc;
+      }, {});
+
+      // Find tasks to delete (duplicates)
+      const tasksToKeep = Object.values(tasksByType).map((task: any) => task.id);
+      const tasksToDelete = allTasks.filter(task => !tasksToKeep.includes(task.id));
+
+      if (tasksToDelete.length > 0) {
+        console.log('Removing duplicate tasks:', tasksToDelete.map(t => `${t.post_type} (${t.id})`));
+        
+        // Delete duplicates
+        const { error: deleteError } = await supabase
+          .from('content_tasks')
+          .delete()
+          .in('id', tasksToDelete.map(t => t.id));
+
+        if (deleteError) {
+          console.error('Error deleting duplicate tasks:', deleteError);
+        } else {
+          console.log('Successfully cleaned up duplicates');
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up duplicates:', error);
+    }
+  };
 
   // Auto-create current week campaign if none exists
   useEffect(() => {
@@ -78,6 +121,10 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
 
       // Auto-generate content tasks for campaigns that don't have any
       if (currentCampaign) {
+        // First clean up any existing duplicates
+        await cleanupDuplicatesForCampaign(currentCampaign.id);
+        
+        // Then check if we need to generate tasks
         const campaignTasks = getTasksForCampaign(tasks, currentCampaign.id);
         if (campaignTasks.length === 0) {
           await generateSampleTasks(currentCampaign.id.toString());
@@ -95,9 +142,18 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       const campaign = campaigns.find(c => c.id === campaignId);
       if (!campaign) return;
 
-      // Check if tasks already exist for this campaign to prevent duplicates
-      const existingTasks = getTasksForCampaign(tasks, campaignId);
-      if (existingTasks.length > 0) {
+      // Double-check that no tasks exist for this campaign
+      const { data: existingTasksCheck, error: checkError } = await supabase
+        .from('content_tasks')
+        .select('id, post_type')
+        .eq('campaign_id', campaignId);
+
+      if (checkError) {
+        console.error('Error checking existing tasks:', checkError);
+        return;
+      }
+
+      if (existingTasksCheck && existingTasksCheck.length > 0) {
         console.log('Tasks already exist for this campaign, skipping generation');
         return;
       }
