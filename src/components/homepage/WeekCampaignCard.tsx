@@ -1,8 +1,9 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Plus, FileText, Edit, Copy, Instagram, Facebook, Mail } from "lucide-react";
-import { getStatusColor, getCurrentWeekNumber } from './homepageUtils';
+import { getStatusColor } from './homepageUtils';
 
 interface WeekCampaignCardProps {
   currentCampaign: any;
@@ -36,6 +37,13 @@ export const WeekCampaignCard = ({
       month: 'short', 
       day: 'numeric' 
     });
+  };
+
+  const getCurrentWeekNumber = () => {
+    const today = new Date();
+    const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+    const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   };
 
   return (
