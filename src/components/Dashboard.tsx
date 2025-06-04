@@ -24,6 +24,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [localOnboardingData, setLocalOnboardingData] = useState(onboardingData);
 
   const fetchData = async () => {
     try {
@@ -67,6 +68,21 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleBusinessNameChange = (newName: string) => {
+    // Update the local onboarding data with the new business name
+    const updatedData = {
+      ...localOnboardingData,
+      aboutBusiness: `${newName} has been serving the community with quality gardening products and expert advice.`
+    };
+    setLocalOnboardingData(updatedData);
+    
+    // Also update localStorage if user is authenticated
+    const userId = localStorage.getItem('userId'); // Assuming you store user ID somewhere
+    if (userId) {
+      localStorage.setItem(`garden-center-onboarding-${userId}`, JSON.stringify(updatedData));
+    }
+  };
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
@@ -134,7 +150,8 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
               <AppSidebar 
                 currentView={currentView} 
                 onViewChange={setCurrentView}
-                onboardingData={onboardingData}
+                onboardingData={localOnboardingData}
+                onBusinessNameChange={handleBusinessNameChange}
               />
               
               <main className="flex-1">
@@ -157,7 +174,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                 <div className={currentView !== "home" ? "p-6" : ""}>
                   {currentView === "home" && (
                     <Homepage 
-                      onboardingData={onboardingData}
+                      onboardingData={localOnboardingData}
                       onNavigateToKanban={() => setCurrentView("kanban")}
                       onTaskClick={handleTaskClick}
                       campaigns={campaigns}

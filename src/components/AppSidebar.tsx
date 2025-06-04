@@ -1,16 +1,17 @@
 
-
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Calendar, Users, Settings, BarChart3, Home, Leaf } from "lucide-react";
+import { EditableBusinessName } from "@/components/EditableBusinessName";
 
 interface AppSidebarProps {
   currentView: "home" | "kanban" | "calendar";
   onViewChange: (view: "home" | "kanban" | "calendar") => void;
   onboardingData: any;
+  onBusinessNameChange?: (newName: string) => void;
 }
 
-export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSidebarProps) => {
+export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusinessNameChange }: AppSidebarProps) => {
   const menuItems = [
     { title: "Dashboard", view: "home", icon: Home },
     { title: "Content Pipeline", view: "kanban", icon: BarChart3 },
@@ -39,6 +40,12 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
 
   const businessName = getBusinessName();
 
+  const handleBusinessNameChange = (newName: string) => {
+    if (onBusinessNameChange) {
+      onBusinessNameChange(newName);
+    }
+  };
+
   return (
     <Sidebar className="w-64 border-r border-green-200 bg-garden-sage">
       <SidebarContent>
@@ -47,7 +54,10 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
             <Leaf className="w-6 h-6 text-primary" />
             <h2 className="text-xl font-bold text-garden-green-dark">Marketing Hub</h2>
           </div>
-          <p className="text-sm text-garden-green font-semibold">{businessName}</p>
+          <EditableBusinessName 
+            businessName={businessName}
+            onBusinessNameChange={handleBusinessNameChange}
+          />
         </div>
 
         <SidebarGroup>
@@ -101,4 +111,3 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
     </Sidebar>
   );
 };
-
