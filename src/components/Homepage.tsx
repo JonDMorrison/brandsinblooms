@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -135,6 +136,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
           
           // If newsletter exists but has no AI content, and other tasks have content, generate newsletter
           if (newsletterTask && !newsletterTask.ai_output && otherTasks.some(task => task.ai_output)) {
+            console.log('Triggering AI newsletter generation...');
             await generateAINewsletter(currentCampaign.id.toString(), currentCampaign.title, getCurrentWeekNumber());
           }
         }
@@ -161,14 +163,16 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         return;
       }
 
+      console.log('Newsletter generation response:', data);
+
       if (data && data.content) {
         // Update the newsletter task with AI-generated content
         const { error: updateError } = await supabase
           .from('content_tasks')
           .update({
             ai_output: data.content,
-            hashtags: '#WeeklyNewsletter #GardenTips #Community',
-            image_idea: 'Newsletter header with seasonal garden imagery'
+            hashtags: data.hashtags || '#WeeklyNewsletter #GardenTips #Community',
+            image_idea: data.imageIdea || 'Newsletter header with seasonal garden imagery'
           })
           .eq('campaign_id', campaignId)
           .eq('post_type', 'newsletter');
@@ -176,7 +180,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         if (updateError) {
           console.error('Error updating newsletter task:', updateError);
         } else {
-          console.log('Successfully generated AI newsletter content');
+          console.log('Successfully generated and saved AI newsletter content');
           if (onTaskUpdate) {
             onTaskUpdate();
           }
@@ -262,8 +266,9 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         
         // Generate AI newsletter content after other tasks are created
         setTimeout(async () => {
+          console.log('Triggering delayed AI newsletter generation...');
           await generateAINewsletter(campaignId, campaign.title, getCurrentWeekNumber());
-        }, 2000); // Wait 2 seconds to ensure other content is available
+        }, 3000); // Wait 3 seconds to ensure other content is available
       }
 
       // Refresh the page to show new tasks
