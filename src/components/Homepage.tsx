@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -18,7 +17,8 @@ import {
   getSetupProgress,
   getUpcomingContent,
   getTasksForCampaign,
-  getOverdueTasks
+  getOverdueTasks,
+  getCurrentWeekNumber
 } from "./homepage/homepageUtils";
 
 interface HomepageProps {
@@ -42,11 +42,11 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       const today = new Date();
       const seasonalContent = getSeasonalContent();
       
-      // Generate 4 tasks spread throughout the current week
+      // Generate 4 tasks spread throughout the current week using today as the starting point
       const sampleTasks = seasonalContent.posts.map((post, index) => {
-        // Spread posts across the week: today, +2 days, +4 days, +6 days
         const scheduledDate = new Date(today);
-        scheduledDate.setDate(today.getDate() + (index * 2));
+        // Spread posts across the week: today, +1 day, +3 days, +5 days
+        scheduledDate.setDate(today.getDate() + index + (index > 0 ? index : 0));
         
         return {
           campaign_id: campaignId,
@@ -132,7 +132,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
           <div className="lg:col-span-2">
             <TaskChecklist 
               campaignTitle={currentCampaign?.title}
-              weekNumber={currentCampaign?.week_number}
+              weekNumber={getCurrentWeekNumber()}
             />
           </div>
           

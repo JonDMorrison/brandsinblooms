@@ -1,9 +1,8 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Plus, FileText, Edit, Copy, Instagram, Facebook, Mail } from "lucide-react";
-import { getStatusColor } from './homepageUtils';
+import { getStatusColor, getCurrentWeekNumber } from './homepageUtils';
 
 interface WeekCampaignCardProps {
   currentCampaign: any;
@@ -47,7 +46,7 @@ export const WeekCampaignCard = ({
             <div className="flex items-center gap-4 text-sm text-gray-600 font-medium">
               <span className="flex items-center gap-2 bg-green-100 px-3 py-1 rounded-full">
                 <Calendar className="w-4 h-4" />
-                Week {currentCampaign.week_number}
+                Week {getCurrentWeekNumber()}
               </span>
               <span className="flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-full">
                 <Clock className="w-4 h-4" />

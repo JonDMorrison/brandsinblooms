@@ -1,4 +1,3 @@
-
 export const getCurrentWeekCampaign = (campaigns: any[]) => {
   if (campaigns.length === 0) return null;
   
@@ -19,6 +18,14 @@ export const getCurrentWeekCampaign = (campaigns: any[]) => {
   );
   
   return sortedCampaigns[0];
+};
+
+// Calculate the actual week number of the year from today's date
+export const getCurrentWeekNumber = () => {
+  const today = new Date();
+  const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+  const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 };
 
 export const getNextStepGuidance = (campaigns: any[], tasks: any[], currentCampaign: any) => {
