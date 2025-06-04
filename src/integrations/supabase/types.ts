@@ -9,7 +9,149 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      campaigns: {
+        Row: {
+          created_at: string
+          id: string
+          prompt: string | null
+          start_date: string
+          title: string
+          week_number: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          prompt?: string | null
+          start_date: string
+          title: string
+          week_number: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          prompt?: string | null
+          start_date?: string
+          title?: string
+          week_number?: number
+        }
+        Relationships: []
+      }
+      content_tasks: {
+        Row: {
+          ai_output: string | null
+          assigned_user_id: string | null
+          campaign_id: string | null
+          created_at: string
+          hashtags: string | null
+          id: string
+          image_idea: string | null
+          notes: string | null
+          post_type: string | null
+          scheduled_date: string | null
+          status: string
+        }
+        Insert: {
+          ai_output?: string | null
+          assigned_user_id?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          hashtags?: string | null
+          id?: string
+          image_idea?: string | null
+          notes?: string | null
+          post_type?: string | null
+          scheduled_date?: string | null
+          status?: string
+        }
+        Update: {
+          ai_output?: string | null
+          assigned_user_id?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          hashtags?: string | null
+          id?: string
+          image_idea?: string | null
+          notes?: string | null
+          post_type?: string | null
+          scheduled_date?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_tasks_assigned_user_id_fkey"
+            columns: ["assigned_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_tasks_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      onboarding_responses: {
+        Row: {
+          about_business: string | null
+          annual_events: string | null
+          created_at: string
+          id: string
+          tone_samples: string | null
+          user_id: string | null
+        }
+        Insert: {
+          about_business?: string | null
+          annual_events?: string | null
+          created_at?: string
+          id?: string
+          tone_samples?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          about_business?: string | null
+          annual_events?: string | null
+          created_at?: string
+          id?: string
+          tone_samples?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "onboarding_responses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

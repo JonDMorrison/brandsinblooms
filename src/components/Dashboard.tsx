@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Homepage } from "@/components/Homepage";
@@ -8,6 +8,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardProps {
   onboardingData: any;
@@ -17,49 +18,52 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
   const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar">("home");
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock data - in real app this would come from a database
-  const mockCampaigns = [
-    { id: 1, week_number: 1, start_date: "2024-06-03", title: "Spring Garden Prep Week" },
-    { id: 2, week_number: 2, start_date: "2024-06-10", title: "Mother's Day Plant Sale" },
-    { id: 3, week_number: 3, start_date: "2024-06-17", title: "Summer Herb Workshop" },
-  ];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch campaigns
+        const { data: campaignsData, error: campaignsError } = await supabase
+          .from('campaigns')
+          .select('*')
+          .order('start_date', { ascending: true });
 
-  const mockTasks = [
-    {
-      id: 1,
-      campaign_id: 1,
-      status: "planned",
-      scheduled_date: "2024-06-05",
-      ai_output: "🌱 Spring is here! Time to prep your garden for the growing season. Visit us for organic soil amendments, starter plants, and expert advice. #SpringGardening #OrganicGardening",
-      post_type: "instagram",
-      hashtags: "#SpringGardening #OrganicGardening #GardenPrep",
-      image_idea: "Fresh soil and seedlings arrangement",
-      notes: "Focus on early spring activities"
-    },
-    {
-      id: 2,
-      campaign_id: 1,
-      status: "generating",
-      scheduled_date: "2024-06-06",
-      ai_output: "",
-      post_type: "facebook",
-      hashtags: "",
-      image_idea: "Garden tools display",
-      notes: "Highlight tool sale"
-    },
-    {
-      id: 3,
-      campaign_id: 2,
-      status: "review",
-      scheduled_date: "2024-06-12",
-      ai_output: "💐 Make Mom's Day special with our beautiful selection of flowering plants! From vibrant petunias to fragrant lavender, we have the perfect gift to show your love. Special Mother's Day pricing all week!",
-      post_type: "email",
-      hashtags: "#MothersDay #FlowerGifts #SpringBlooms",
-      image_idea: "Beautiful hanging baskets and potted flowers",
-      notes: "Emphasize gift aspect"
-    }
-  ];
+        if (campaignsError) {
+          console.error('Error fetching campaigns:', campaignsError);
+        } else {
+          setCampaigns(campaignsData || []);
+        }
+
+        // Fetch content tasks with campaign info
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('content_tasks')
+          .select(`
+            *,
+            campaigns (
+              title,
+              week_number,
+              start_date
+            )
+          `)
+          .order('scheduled_date', { ascending: true });
+
+        if (tasksError) {
+          console.error('Error fetching tasks:', tasksError);
+        } else {
+          setTasks(tasksData || []);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
@@ -83,6 +87,17 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
       default: return "";
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-green-600">Loading your marketing hub...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>
@@ -120,13 +135,15 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                   onboardingData={onboardingData}
                   onNavigateToKanban={() => setCurrentView("kanban")}
                   onTaskClick={handleTaskClick}
+                  campaigns={campaigns}
+                  tasks={tasks}
                 />
               )}
               {currentView === "kanban" && (
-                <KanbanBoard tasks={mockTasks} onTaskClick={handleTaskClick} />
+                <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
               )}
               {currentView === "calendar" && (
-                <CalendarView campaigns={mockCampaigns} />
+                <CalendarView campaigns={campaigns} />
               )}
             </div>
           </div>

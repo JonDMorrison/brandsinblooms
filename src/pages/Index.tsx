@@ -4,8 +4,12 @@ import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Dashboard } from "@/components/Dashboard";
 
 const Index = () => {
-  const [isOnboarded, setIsOnboarded] = useState(false);
-  const [onboardingData, setOnboardingData] = useState(null);
+  const [isOnboarded, setIsOnboarded] = useState(true); // Temporarily set to true to bypass onboarding
+  const [onboardingData, setOnboardingData] = useState({
+    aboutBusiness: "Green Thumb Garden Center has been serving the Springfield community since 1985.",
+    toneSamples: "Friendly, knowledgeable, community-focused gardening advice.",
+    annualEvents: "Spring Sale (March), Mother's Day Plant Sale (May), Summer Herb Workshop Series (June-August)"
+  });
 
   useEffect(() => {
     // Check if user has completed onboarding
