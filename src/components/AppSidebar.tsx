@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Calendar, Users, Settings, BarChart3, Home, Leaf } from "lucide-react";
@@ -73,18 +74,6 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {onboardingData && (
-          <div className="p-4 m-4 bg-gradient-to-br from-green-100 to-green-200 rounded-xl border border-green-300 shadow-sm">
-            <h3 className="font-bold text-garden-green-dark text-sm mb-2 flex items-center gap-2">
-              <Leaf className="w-4 h-4" />
-              Your Setup
-            </h3>
-            <p className="text-xs text-garden-green-dark font-medium leading-relaxed">
-              Content personalized for your garden center's unique voice and seasonal events.
-            </p>
-          </div>
-        )}
       </SidebarContent>
     </Sidebar>
   );
