@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -97,23 +98,37 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
           console.log('No tasks found, generating sample tasks...');
           await generateSampleTasks(currentCampaign.id.toString());
         } else {
-          // Check if we need to generate AI newsletter content
+          // Check for newsletter task specifically
           const newsletterTask = campaignTasks.find(task => task.post_type === 'newsletter');
           const otherTasks = campaignTasks.filter(task => task.post_type !== 'newsletter');
           
-          console.log('Newsletter task found:', newsletterTask);
-          console.log('Newsletter has content:', newsletterTask?.ai_output);
+          console.log('Newsletter task found:', !!newsletterTask);
+          console.log('Newsletter has content:', newsletterTask?.ai_output ? 'yes' : 'no');
+          console.log('Other tasks count:', otherTasks.length);
           console.log('Other tasks with content:', otherTasks.filter(task => task.ai_output).length);
           
           // If no newsletter task exists, create one
-          if (!newsletterTask && otherTasks.length > 0) {
+          if (!newsletterTask) {
             console.log('Creating missing newsletter task...');
             await createNewsletterTask(currentCampaign.id.toString());
+            // After creating newsletter task, generate content if other tasks have content
+            if (otherTasks.some(task => task.ai_output)) {
+              console.log('Generating AI newsletter content for new task...');
+              setTimeout(() => {
+                generateAINewsletter(currentCampaign.id.toString(), currentCampaign.title, getCurrentWeekNumber());
+              }, 2000);
+            }
           }
           // If newsletter exists but has no AI content, and other tasks have content, generate newsletter
-          else if (newsletterTask && (!newsletterTask.ai_output || newsletterTask.ai_output.trim() === '') && otherTasks.some(task => task.ai_output)) {
-            console.log('Triggering AI newsletter generation...');
-            await generateAINewsletter(currentCampaign.id.toString(), currentCampaign.title, getCurrentWeekNumber());
+          else if (newsletterTask && (!newsletterTask.ai_output || newsletterTask.ai_output.trim() === '')) {
+            // Check if we have content from other tasks to base the newsletter on
+            const tasksWithContent = otherTasks.filter(task => task.ai_output && task.ai_output.trim() !== '');
+            if (tasksWithContent.length > 0) {
+              console.log('Triggering AI newsletter generation - found', tasksWithContent.length, 'tasks with content');
+              await generateAINewsletter(currentCampaign.id.toString(), currentCampaign.title, getCurrentWeekNumber());
+            } else {
+              console.log('Newsletter task exists but no other content available yet for AI generation');
+            }
           }
         }
       }
@@ -172,12 +187,14 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
 
       console.log('Newsletter generation response:', data);
 
-      if (data && data.content) {
+      if (data && (data.content || data.summary)) {
         // Update the newsletter task with AI-generated content
+        const newsletterContent = data.content || data.summary || 'AI-generated newsletter content';
+        
         const { error: updateError } = await supabase
           .from('content_tasks')
           .update({
-            ai_output: data.content,
+            ai_output: newsletterContent,
             hashtags: data.hashtags || '#WeeklyNewsletter #GardenTips #Community',
             image_idea: data.imageIdea || 'Newsletter header with seasonal garden imagery'
           })
@@ -192,6 +209,8 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
             onTaskUpdate();
           }
         }
+      } else {
+        console.log('No content received from newsletter generation function');
       }
     } catch (error) {
       console.error('Error generating AI newsletter:', error);
@@ -299,6 +318,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
   console.log('Rendering Homepage with:', {
     currentCampaign: currentCampaign?.title,
     campaignTasks: campaignTasks.length,
+    newsletterTasks: campaignTasks.filter(t => t.post_type === 'newsletter').length,
     isGeneratingTasks
   });
 
