@@ -15,9 +15,6 @@ export const WelcomeSection = () => {
       <p className="text-xl text-black font-medium mb-2">
         Here's what's happening this week at your garden center
       </p>
-      <p className="text-black font-light">
-        Let's grow this week's campaign together.
-      </p>
     </div>
   );
 };
