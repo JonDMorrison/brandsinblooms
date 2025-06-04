@@ -9,8 +9,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { LandingPage } from "@/components/LandingPage";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { UserMenu } from "@/components/UserMenu";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { CampaignDialog } from "@/components/CampaignDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardProps {
@@ -25,52 +24,56 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch campaigns
-        const { data: campaignsData, error: campaignsError } = await supabase
-          .from('campaigns')
-          .select('*')
-          .order('start_date', { ascending: true });
+  const fetchData = async () => {
+    try {
+      // Fetch campaigns
+      const { data: campaignsData, error: campaignsError } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('start_date', { ascending: true });
 
-        if (campaignsError) {
-          console.error('Error fetching campaigns:', campaignsError);
-        } else {
-          setCampaigns(campaignsData || []);
-        }
-
-        // Fetch content tasks with campaign info
-        const { data: tasksData, error: tasksError } = await supabase
-          .from('content_tasks')
-          .select(`
-            *,
-            campaigns (
-              title,
-              week_number,
-              start_date
-            )
-          `)
-          .order('scheduled_date', { ascending: true });
-
-        if (tasksError) {
-          console.error('Error fetching tasks:', tasksError);
-        } else {
-          setTasks(tasksData || []);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
+      if (campaignsError) {
+        console.error('Error fetching campaigns:', campaignsError);
+      } else {
+        setCampaigns(campaignsData || []);
       }
-    };
 
+      // Fetch content tasks with campaign info
+      const { data: tasksData, error: tasksError } = await supabase
+        .from('content_tasks')
+        .select(`
+          *,
+          campaigns (
+            title,
+            week_number,
+            start_date
+          )
+        `)
+        .order('scheduled_date', { ascending: true });
+
+      if (tasksError) {
+        console.error('Error fetching tasks:', tasksError);
+      } else {
+        setTasks(tasksData || []);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
     setIsSidebarOpen(true);
+  };
+
+  const handleCampaignCreated = () => {
+    fetchData(); // Refresh data when a new campaign is created
   };
 
   const getViewTitle = () => {
@@ -137,10 +140,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                             {getViewDescription()}
                           </p>
                         </div>
-                        <Button className="bg-primary hover:bg-primary-600 text-white shadow-md">
-                          <Plus className="w-4 h-4 mr-2" />
-                          New Campaign
-                        </Button>
+                        <CampaignDialog onCampaignCreated={handleCampaignCreated} />
                       </div>
                     </div>
                   )}
