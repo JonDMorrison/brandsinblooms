@@ -2,8 +2,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Plus, FileText, Edit, Copy, Instagram, Facebook, Mail } from "lucide-react";
+import { Calendar, Clock, Plus, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle } from "lucide-react";
 import { getStatusColor } from './homepageUtils';
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WeekCampaignCardProps {
   currentCampaign: any;
@@ -11,6 +14,7 @@ interface WeekCampaignCardProps {
   isGeneratingTasks: boolean;
   onTaskClick: (task: any) => void;
   onGenerateTasks: (campaignId: string) => void;
+  onTaskUpdate?: () => void;
 }
 
 export const WeekCampaignCard = ({ 
@@ -18,8 +22,51 @@ export const WeekCampaignCard = ({
   campaignTasks, 
   isGeneratingTasks, 
   onTaskClick, 
-  onGenerateTasks 
+  onGenerateTasks,
+  onTaskUpdate
 }: WeekCampaignCardProps) => {
+  const [approvingTasks, setApprovingTasks] = useState<Set<number>>(new Set());
+
+  const handleApprove = async (taskId: number, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent task click from firing
+    
+    setApprovingTasks(prev => new Set(prev).add(taskId));
+    
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ status: 'scheduled' })
+        .eq('id', taskId);
+
+      if (error) {
+        console.error('Error approving task:', error);
+        toast({
+          title: "Error",
+          description: "Failed to approve content. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Content Approved! ✅",
+          description: "Content has been moved to scheduled status.",
+        });
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error approving task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve content. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setApprovingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
+      });
+    }
+  };
   
   const getPostTypeIcon = (postType: string) => {
     switch (postType) {
@@ -84,6 +131,17 @@ export const WeekCampaignCard = ({
                         </Badge>
                       </div>
                       <div className="flex gap-2">
+                        {task.status === 'review' && (
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={(e) => handleApprove(task.id, e)}
+                            disabled={approvingTasks.has(task.id)}
+                          >
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            {approvingTasks.has(task.id) ? "Approving..." : "Approve"}
+                          </Button>
+                        )}
                         <Button size="sm" variant="outline" className="border-green-300 text-black hover:bg-green-100">
                           <Edit className="w-3 h-3 mr-1" />
                           Edit

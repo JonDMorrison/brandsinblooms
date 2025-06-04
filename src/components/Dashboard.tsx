@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,6 +77,10 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
     fetchData(); // Refresh data when a new campaign is created
   };
 
+  const handleTaskUpdate = () => {
+    fetchData(); // Refresh data when a task is updated
+  };
+
   const getViewTitle = () => {
     switch (currentView) {
       case "home": return "Dashboard Overview";
@@ -155,6 +158,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                         onTaskClick={handleTaskClick}
                         campaigns={campaigns}
                         tasks={tasks}
+                        onTaskUpdate={handleTaskUpdate}
                       />
                     )}
                     {currentView === "kanban" && (
@@ -170,6 +174,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                   <ContentSidebar 
                     task={selectedTask} 
                     onClose={() => setIsSidebarOpen(false)}
+                    onTaskUpdate={handleTaskUpdate}
                   />
                 )}
               </main>

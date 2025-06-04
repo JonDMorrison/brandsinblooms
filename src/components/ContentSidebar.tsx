@@ -1,19 +1,21 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Copy, Instagram, Facebook, Mail } from "lucide-react";
+import { X, Copy, Instagram, Facebook, Mail, CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ContentSidebarProps {
   task: any;
   onClose: () => void;
+  onTaskUpdate?: () => void;
 }
 
-export const ContentSidebar = ({ task, onClose }: ContentSidebarProps) => {
+export const ContentSidebar = ({ task, onClose, onTaskUpdate }: ContentSidebarProps) => {
   const [editedContent, setEditedContent] = useState(task.ai_output);
+  const [isApproving, setIsApproving] = useState(false);
 
   const copyToClipboard = (text: string, platform: string) => {
     navigator.clipboard.writeText(text);
@@ -21,6 +23,40 @@ export const ContentSidebar = ({ task, onClose }: ContentSidebarProps) => {
       title: "Copied!",
       description: `Content copied for ${platform}`,
     });
+  };
+
+  const handleApprove = async () => {
+    setIsApproving(true);
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ status: 'scheduled' })
+        .eq('id', task.id);
+
+      if (error) {
+        console.error('Error approving task:', error);
+        toast({
+          title: "Error",
+          description: "Failed to approve content. Please try again.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Content Approved! ✅",
+          description: "Content has been moved to scheduled status.",
+        });
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error approving task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to approve content. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsApproving(false);
+    }
   };
 
   const getPostTypeIcon = (type: string) => {
@@ -42,6 +78,27 @@ export const ContentSidebar = ({ task, onClose }: ContentSidebarProps) => {
       </div>
 
       <div className="space-y-6">
+        {task.status === 'review' && (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="p-4">
+              <div className="text-center">
+                <h3 className="font-semibold text-yellow-800 mb-2">Ready for Approval</h3>
+                <p className="text-sm text-yellow-700 mb-4">
+                  Review the content below and approve it to move to scheduled status.
+                </p>
+                <Button 
+                  onClick={handleApprove}
+                  disabled={isApproving}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  {isApproving ? "Approving..." : "Approve Content"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
