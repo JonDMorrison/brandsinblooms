@@ -50,27 +50,36 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         return {
           campaign_id: campaignId,
           post_type: post.type,
-          status: 'review', // All tasks now start with review status and content
+          status: 'review',
           scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: post.content, // All posts now have content ready
+          ai_output: post.content, // This should be the main content
           hashtags: post.hashtags,
           image_idea: post.imageIdea
         };
       });
 
+      console.log('Creating tasks with content:', sampleTasks);
+
       // Insert tasks into the database
       for (const task of sampleTasks) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('content_tasks')
-          .insert(task);
+          .insert(task)
+          .select();
         
         if (error) {
           console.error('Error creating task:', error);
+        } else {
+          console.log('Task created successfully:', data);
         }
       }
 
       // Refresh the page to show new tasks
-      window.location.reload();
+      if (onTaskUpdate) {
+        onTaskUpdate();
+      } else {
+        window.location.reload();
+      }
       
     } catch (error) {
       console.error('Error generating tasks:', error);
