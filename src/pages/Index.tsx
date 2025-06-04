@@ -10,19 +10,20 @@ const Index = () => {
   const [showLanding, setShowLanding] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingData, setOnboardingData] = useState({
-    aboutBusiness: "Green Thumb Garden Center has been serving the Springfield community since 1985.",
-    toneSamples: "Friendly, knowledgeable, community-focused gardening advice.",
-    annualEvents: "Spring Sale (March), Mother's Day Plant Sale (May), Summer Herb Workshop Series (June-August)"
+    aboutBusiness: "",
+    toneSamples: "",
+    annualEvents: ""
   });
 
   useEffect(() => {
     if (user) {
-      // Check if user has completed onboarding
-      const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
-      if (savedData) {
-        setOnboardingData(JSON.parse(savedData));
-        setIsOnboarded(true);
-      }
+      // Reset onboarding state to allow fresh start
+      setIsOnboarded(false);
+      setOnboardingData({
+        aboutBusiness: "",
+        toneSamples: "",
+        annualEvents: ""
+      });
       // Don't automatically hide landing page when user logs in
       // Let them click "Get Started" to proceed
     }
