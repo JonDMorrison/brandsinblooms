@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -120,48 +119,51 @@ export const WeekCampaignCard = ({
             
             {campaignTasks.length > 0 ? (
               <div className="space-y-4">
-                {campaignTasks.map((task) => (
-                  <div key={task.id} className="border border-green-200 rounded-xl p-5 hover:bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md" onClick={() => onTaskClick(task)}>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        {getPostTypeIcon(task.post_type)}
-                        <span className="font-semibold capitalize text-black">{task.post_type}</span>
-                        <Badge className={`${getStatusColor(task.status)} font-medium`}>
-                          {task.status}
-                        </Badge>
-                      </div>
-                      <div className="flex gap-2">
-                        {task.status === 'review' && (
-                          <Button 
-                            size="sm" 
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={(e) => handleApprove(task.id.toString(), e)}
-                            disabled={approvingTasks.has(task.id.toString())}
-                          >
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            {approvingTasks.has(task.id.toString()) ? "Approving..." : "Approve"}
+                {campaignTasks.map((task) => {
+                  const taskIdString = String(task.id);
+                  return (
+                    <div key={task.id} className="border border-green-200 rounded-xl p-5 hover:bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md" onClick={() => onTaskClick(task)}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          {getPostTypeIcon(task.post_type)}
+                          <span className="font-semibold capitalize text-black">{task.post_type}</span>
+                          <Badge className={`${getStatusColor(task.status)} font-medium`}>
+                            {task.status}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2">
+                          {task.status === 'review' && (
+                            <Button 
+                              size="sm" 
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={(e) => handleApprove(taskIdString, e)}
+                              disabled={approvingTasks.has(taskIdString)}
+                            >
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              {approvingTasks.has(taskIdString) ? "Approving..." : "Approve"}
+                            </Button>
+                          )}
+                          <Button size="sm" variant="outline" className="border-green-300 text-black hover:bg-green-100">
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
                           </Button>
-                        )}
-                        <Button size="sm" variant="outline" className="border-green-300 text-black hover:bg-green-100">
-                          <Edit className="w-3 h-3 mr-1" />
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-100">
-                          <Copy className="w-3 h-3 mr-1" />
-                          Copy
-                        </Button>
+                          <Button size="sm" variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-100">
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
                       </div>
+                      {task.ai_output && (
+                        <p className="text-sm text-gray-700 line-clamp-2 font-medium leading-relaxed">{task.ai_output}</p>
+                      )}
+                      {task.scheduled_date && (
+                        <p className="text-xs text-gray-500 mt-3 font-medium">
+                          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
-                    {task.ai_output && (
-                      <p className="text-sm text-gray-700 line-clamp-2 font-medium leading-relaxed">{task.ai_output}</p>
-                    )}
-                    {task.scheduled_date && (
-                      <p className="text-xs text-gray-500 mt-3 font-medium">
-                        Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-                      </p>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-12 text-gray-500">
