@@ -90,10 +90,10 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-garden-background">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-green-600">Loading your marketing hub...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-primary font-medium">Loading your marketing hub...</p>
         </div>
       </div>
     );
@@ -101,7 +101,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
+      <div className="min-h-screen flex w-full bg-garden-background">
         <AppSidebar 
           currentView={currentView} 
           onViewChange={setCurrentView}
@@ -111,17 +111,17 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
         <main className="flex-1 flex">
           <div className="flex-1">
             {currentView !== "home" && (
-              <div className="p-6 border-b border-green-100">
+              <div className="p-6 border-b border-green-200 bg-white">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h1 className="text-3xl font-bold text-green-800">
+                    <h1 className="text-3xl font-bold text-garden-green-dark">
                       {getViewTitle()}
                     </h1>
-                    <p className="text-green-600">
+                    <p className="text-garden-green font-medium">
                       {getViewDescription()}
                     </p>
                   </div>
-                  <Button className="bg-green-600 hover:bg-green-700">
+                  <Button className="bg-primary hover:bg-primary-600 text-white shadow-md">
                     <Plus className="w-4 h-4 mr-2" />
                     New Campaign
                   </Button>

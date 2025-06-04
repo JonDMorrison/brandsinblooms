@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, BarChart3, Home } from "lucide-react";
+import { Calendar, Users, Settings, BarChart3, Home, Leaf } from "lucide-react";
 
 interface AppSidebarProps {
   currentView: "home" | "kanban" | "calendar";
@@ -17,29 +17,32 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
   ];
 
   return (
-    <Sidebar className="w-64 border-r border-green-200">
+    <Sidebar className="w-64 border-r border-green-200 bg-garden-sage">
       <SidebarContent>
-        <div className="p-6 border-b border-green-200">
-          <h2 className="text-xl font-bold text-green-800">Marketing Hub</h2>
-          <p className="text-sm text-green-600">Garden Center</p>
+        <div className="p-6 border-b border-green-200 bg-white">
+          <div className="flex items-center gap-3 mb-2">
+            <Leaf className="w-6 h-6 text-primary" />
+            <h2 className="text-xl font-bold text-garden-green-dark">Marketing Hub</h2>
+          </div>
+          <p className="text-sm text-garden-green font-semibold">Garden Center</p>
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-garden-green-dark font-semibold">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild
-                    className={currentView === item.view ? "bg-green-100 text-green-800" : ""}
+                    className={currentView === item.view ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" : "hover:bg-green-100 text-garden-green-dark"}
                   >
                     <button
                       onClick={() => onViewChange(item.view as "home" | "kanban" | "calendar")}
-                      className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-green-50"
+                      className="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200"
                     >
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.title}</span>
                     </button>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -49,22 +52,22 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel>Settings</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-garden-green-dark font-semibold">Settings</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <button className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-green-50">
-                    <Users className="w-4 h-4" />
-                    <span>Team</span>
+                  <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-green-100 text-garden-green-dark transition-all duration-200">
+                    <Users className="w-5 h-5" />
+                    <span className="font-medium">Team</span>
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <button className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-green-50">
-                    <Settings className="w-4 h-4" />
-                    <span>Settings</span>
+                  <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-green-100 text-garden-green-dark transition-all duration-200">
+                    <Settings className="w-5 h-5" />
+                    <span className="font-medium">Settings</span>
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -73,10 +76,13 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData }: AppSid
         </SidebarGroup>
 
         {onboardingData && (
-          <div className="p-4 m-4 bg-green-50 rounded-lg border border-green-200">
-            <h3 className="font-semibold text-green-800 text-sm mb-2">Your Setup</h3>
-            <p className="text-xs text-green-600">
-              Content personalized for your garden center's unique voice and events.
+          <div className="p-4 m-4 bg-gradient-to-br from-green-100 to-green-200 rounded-xl border border-green-300 shadow-sm">
+            <h3 className="font-bold text-garden-green-dark text-sm mb-2 flex items-center gap-2">
+              <Leaf className="w-4 h-4" />
+              Your Setup
+            </h3>
+            <p className="text-xs text-garden-green-dark font-medium leading-relaxed">
+              Content personalized for your garden center's unique voice and seasonal events.
             </p>
           </div>
         )}
