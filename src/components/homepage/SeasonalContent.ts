@@ -13,6 +13,7 @@ export const getSeasonalContent = () => {
   if (month >= 3 && month <= 5) {
     // Spring content
     return {
+      theme: "Spring Garden Revival",
       posts: [
         {
           type: 'instagram',
@@ -21,8 +22,6 @@ export const getSeasonalContent = () => {
 Whether you're a seasoned gardener or just starting your green journey, our expert team is here to guide you through selecting the perfect plants for your unique space and growing conditions. From colorful pansies and cheerful marigolds to hardy perennials that will return year after year, we've carefully curated a selection that thrives in our local climate.
 
 This week, we're featuring our premium organic soil amendments and natural fertilizers that will give your plants the nutrients they need to flourish. Plus, don't miss our Spring Plant Sale happening all month long - it's the perfect time to stock up on your garden favorites!
-
-Creating your dream garden is more than just planting - it's about cultivating joy, connecting with nature, and creating spaces that inspire and rejuvenate. Our team believes that every garden tells a story, and we're here to help you write yours with the perfect blend of plants, colors, and textures that reflect your personal style.
 
 What's first on your spring planting list? Drop a comment below and let us know what you're most excited to grow this season! 🌱✨`,
           hashtags: '#SpringGardening #FreshStart #GreenThumb #PlantLovers #SpringSale #OrganicGardening #LocalNursery #GardenLife',
@@ -94,6 +93,7 @@ Stay connected with us for the latest updates and gardening inspiration!`,
   } else if (month >= 6 && month <= 8) {
     // Summer content
     return {
+      theme: "Summer Heat Solutions",
       posts: [
         {
           type: 'instagram',
@@ -101,9 +101,7 @@ Stay connected with us for the latest updates and gardening inspiration!`,
 
 These hardy perennials, succulents, and heat-loving annuals are nature's champions - they've evolved to thrive in challenging conditions while still providing the color, texture, and beauty you want in your garden. From striking agaves and colorful sedums to vibrant lantana and resilient lavender, these plants prove that water-wise doesn't mean sacrificing style.
 
-Summer gardening is all about working with nature, not against it. Our carefully selected drought-tolerant plants not only survive the heat but actually flourish, requiring minimal water once established. This means more time enjoying your garden and less time worrying about water bills or plant stress!
-
-Creating a sustainable garden that looks amazing year-round is easier than you might think. Our gardening experts have hand-selected varieties that complement each other in terms of color, texture, and growing requirements, making it simple to design a cohesive landscape that thrives in our climate.
+Summer gardening is all about working with nature, not against it. Our carefully selected drought-tolerant plants not only survive the heat but actually flourish, requiring minimal water once established.
 
 Stop by this week for personalized advice on creating a drought-resistant garden that works with your specific space, soil, and style preferences. 🌵🏜️`,
           hashtags: '#SummerGardening #DroughtResistant #HeatTolerant #WaterWise #SustainableGardening #XericGardening #LowMaintenance #EcoFriendly',
@@ -115,11 +113,7 @@ Stop by this week for personalized advice on creating a drought-resistant garden
 
 Join us for an interactive session where you'll discover the secrets of successful herb gardening, from seed to table. We'll cover optimal growing conditions, companion planting strategies, and preservation techniques that will keep your herbs flavorful all year long.
 
-This hands-on workshop includes practical demonstrations of harvesting techniques, proper drying methods, and creative preservation ideas including herb oils, vinegars, and salt blends.
-
-Perfect timing for your summer cooking adventures! Each participant receives a starter herb collection and recipe cards featuring seasonal favorites.
-
-Workshop includes light refreshments and a 20% discount on all herbs and gardening supplies.`,
+Perfect timing for your summer cooking adventures! Each participant receives a starter herb collection and recipe cards featuring seasonal favorites.`,
           hashtags: '#HerbWorkshop #SummerHerbs #CookingWithHerbs',
           imageIdea: 'Fresh herbs arranged for cooking demonstration'
         },
@@ -137,10 +131,7 @@ BEAT THE HEAT:
 - Shade solutions for delicate plants
 
 SUMMER CONTAINER GARDENS:
-Create stunning displays that thrive in heat with our expert plant combinations. This week's featured containers showcase drought-tolerant beauties that deliver maximum impact with minimal maintenance.
-
-PEST MANAGEMENT:
-Natural solutions for common summer garden challenges, including organic pest control methods that protect beneficial insects while keeping your plants healthy.
+Create stunning displays that thrive in heat with our expert plant combinations.
 
 Visit us for personalized summer gardening advice and take advantage of our climate-specific plant recommendations.
 
@@ -163,9 +154,6 @@ Discover plants that flourish in hot, dry conditions. Our summer selection empha
 WATER-WISE TECHNIQUES
 Learn professional irrigation strategies that maximize plant health while minimizing water use. From drip irrigation basics to mulching mastery, small changes can make a big difference.
 
-SUMMER SUCCESS STORIES
-Featured customer garden transformations showcase how thoughtful plant selection and design create outdoor spaces that remain beautiful throughout the hottest months.
-
 UPCOMING SUMMER EVENTS
 - Heat-Tolerant Plant Sale: July 4th weekend
 - Evening Garden Tours: Every Friday in July
@@ -180,18 +168,17 @@ Stay cool and keep growing!`,
   } else if (month >= 9 && month <= 11) {
     // Fall content
     return {
+      theme: "Autumn Garden Preparations",
       posts: [
         {
           type: 'instagram',
-          content: `🍂 Fall is absolutely nature's grand finale, and right now our garden center is putting on the most spectacular show of the year! Our stunning mums in every shade imaginable, gorgeous asters painting the landscape in purples and whites, and vibrant ornamental kales are creating a breathtaking autumn display that celebrates the season in all its glory.
+          content: `🍂 Fall is absolutely nature's grand finale, and right now our garden center is putting on the most spectacular show of the year! Our stunning mums in every shade imaginable, gorgeous asters painting the landscape in purples and whites, and vibrant ornamental kales are creating a breathtaking autumn display.
 
-But here's a secret that many gardeners don't know: fall is actually one of THE BEST times to plant trees and shrubs! While everyone else is thinking about winding down their gardening for the year, smart gardeners are taking advantage of cooler temperatures and autumn rains to establish new plantings that will have months to develop strong root systems before next summer's heat arrives.
+But here's a secret that many gardeners don't know: fall is actually one of THE BEST times to plant trees and shrubs! While everyone else is thinking about winding down their gardening for the year, smart gardeners are taking advantage of cooler temperatures and autumn rains to establish new plantings.
 
-Fall planting offers so many advantages - less heat stress on new plants, natural rainfall that reduces watering needs, and the opportunity to see exactly how plants will look in your landscape before they go dormant. Plus, many nurseries offer their best selection and prices during the fall season.
+Fall planting offers so many advantages - less heat stress on new plants, natural rainfall that reduces watering needs, and the opportunity to see exactly how plants will look in your landscape before they go dormant.
 
-Our fall selection includes everything from classic shade trees that will provide years of beauty and cooling comfort, to flowering shrubs that will welcome spring with early blooms, to evergreens that add structure and winter interest to your landscape.
-
-What fall colors are calling to your garden this year? Come explore our autumn wonderland and discover the perfect additions to your landscape! 🌳🍁`,
+What fall colors are calling to your garden this year? Come explore our autumn wonderland! 🌳🍁`,
           hashtags: '#FallColors #Mums #TreePlanting #AutumnGarden #LandscapePlanting #FallPlanting #SeasonalGardening #GardenDesign',
           imageIdea: 'Colorful fall mums and ornamental plants display with autumn trees in background'
         },
@@ -201,16 +188,7 @@ What fall colors are calling to your garden this year? Come explore our autumn w
 
 This comprehensive workshop covers essential fall tasks that will set your garden up for success next spring. We'll demonstrate proper pruning techniques, show you how to protect tender plants, and share strategies for extending your growing season.
 
-Topics include:
-- Soil preparation for spring planting
-- Proper mulching for winter protection
-- Plant division techniques for perennials
-- Bulb planting for spring blooms
-- Composting fallen leaves and garden debris
-
-Workshop participants receive a seasonal care guide, bulb planting tool, and 15% off all fall plants and supplies.
-
-Your future self will thank you for the time invested in fall garden preparation!`,
+Workshop participants receive a seasonal care guide, bulb planting tool, and 15% off all fall plants and supplies.`,
           hashtags: '#FallPrep #WinterReady #GardeningWorkshop',
           imageIdea: 'Garden tools and mulch for fall preparation'
         },
@@ -227,13 +205,8 @@ FALL PLANTING OPPORTUNITIES:
 - Trees and shrubs for long-term beauty
 - Cool-season vegetables for extended harvest
 
-GARDEN PREPARATION:
-Essential tasks that ensure your garden emerges healthy and beautiful next spring. From proper cleanup techniques to winter protection strategies, a little effort now pays dividends later.
-
 DON'T MISS OUR FALL BULB SALE:
-Save 30% on premium spring bulbs including tulips, daffodils, crocuses, and specialty varieties. Plant now for a spectacular spring display!
-
-Fall is also the perfect time to plan next year's garden improvements. Schedule a consultation with our design team to discuss your garden dreams.
+Save 30% on premium spring bulbs including tulips, daffodils, crocuses, and specialty varieties.
 
 Happy Fall Gardening!
 Green Thumb Garden Center`,
@@ -257,9 +230,6 @@ Now is the time to plant spring bulbs for next year's early color. Our fall bulb
 SEASONAL MAINTENANCE
 Proper fall garden care sets the foundation for next year's success. From dividing perennials to protecting tender plants, autumn tasks ensure a healthy, beautiful garden.
 
-WINTER INTEREST
-Don't let your garden disappear in winter! Strategic plant selection and garden design maintain beauty throughout the colder months with evergreens, berries, and architectural elements.
-
 NOVEMBER EVENTS
 - Fall Cleanup Workshop: November 2nd
 - Winter Protection Clinic: November 16th
@@ -274,18 +244,17 @@ Embrace the season!`,
   } else {
     // Winter content
     return {
+      theme: "Winter Garden Magic",
       posts: [
         {
           type: 'instagram',
-          content: `❄️ Think winter means your garden has to disappear until spring? Think again! Winter gardening is one of our absolute favorite topics because there are so many ways to keep beauty, color, and life thriving in your outdoor space even during the coldest months of the year.
+          content: `❄️ Think winter means your garden has to disappear until spring? Think again! Winter gardening is one of our absolute favorite topics because there are so many ways to keep beauty, color, and life thriving in your outdoor space even during the coldest months.
 
-Our carefully selected evergreens provide the backbone of winter interest - from towering spruces and fragrant pines to compact junipers and elegant hollies. These year-round champions don't just survive winter; they define it with their rich textures, varied forms, and steadfast presence that creates structure in your landscape when everything else has gone dormant.
+Our carefully selected evergreens provide the backbone of winter interest - from towering spruces and fragrant pines to compact junipers and elegant hollies. These year-round champions don't just survive winter; they define it with their rich textures and steadfast presence.
 
-But evergreens are just the beginning! Winter berries add pops of brilliant color against snowy backdrops - think bright red winterberry holly, orange persimmon fruits, and deep purple beautyberry clusters. Cold-hardy ornamental grasses sway gracefully in winter breezes, their golden and bronze plumes catching light and adding movement to the winter garden.
+Winter berries add pops of brilliant color against snowy backdrops - think bright red winterberry holly, orange persimmon fruits, and deep purple beautyberry clusters. Cold-hardy ornamental grasses sway gracefully in winter breezes.
 
-Winter is also the perfect time for the most important garden task of all: planning next year's garden! These quiet months are ideal for dreaming, researching, and designing the garden transformations you want to make when spring returns. Browse catalogs, sketch ideas, and visit our design center to start planning your garden's future.
-
-What winter elements are you planning to add to create year-round garden interest? ❄️🌲`,
+Winter is also the perfect time for planning next year's garden! What winter elements are you planning to add? ❄️🌲`,
           hashtags: '#WinterGarden #Evergreens #GardenPlanning #WinterBeauty #SeasonalInterest #WinterLandscape #GardenDesign #YearRoundGarden',
           imageIdea: 'Evergreen plants and winter berry displays with snow accents'
         },
@@ -293,17 +262,9 @@ What winter elements are you planning to add to create year-round garden interes
           type: 'facebook',
           content: `🌲 Holiday Wreath Workshop this Saturday! Create beautiful, natural decorations using fresh evergreen boughs, berries, and pinecones from local sources.
 
-Join us for this festive hands-on workshop where you'll learn traditional wreath-making techniques while creating stunning holiday decorations for your home. We'll provide all materials including wire frames, fresh greenery, natural embellishments, and ribbon.
+Join us for this festive hands-on workshop where you'll learn traditional wreath-making techniques while creating stunning holiday decorations for your home. We'll provide all materials including wire frames, fresh greenery, and natural embellishments.
 
-Workshop highlights:
-- Learn proper wiring and attachment techniques
-- Discover design principles for balanced, beautiful wreaths
-- Get tips for making your wreaths last throughout the season
-- Take home care instructions for maximum longevity
-
-All materials provided - just bring your creativity! Each participant creates one 18-inch wreath to take home, plus receives a 20% discount on additional holiday greenery and supplies.
-
-Light refreshments and holiday music make this a perfect way to start your holiday season. Great for all skill levels!`,
+All materials provided - just bring your creativity! Each participant creates one 18-inch wreath to take home, plus receives a 20% discount on additional holiday greenery.`,
           hashtags: '#HolidayWorkshop #WreathMaking #NaturalDecor',
           imageIdea: 'Workshop table with wreath-making materials'
         },
@@ -323,14 +284,6 @@ WINTER HOUSEPLANT CARE:
 HOLIDAY GREENERY:
 Fresh-cut wreaths, garlands, and arrangements using locally sourced evergreens. Custom designs available for your holiday decorating needs.
 
-GARDEN PLANNING SERVICES:
-Use the quiet winter months to plan next year's garden improvements. Our design consultations help you envision and plan your dream garden for spring installation.
-
-WINTER WORKSHOPS:
-- Houseplant Care Clinic: January 15th
-- Seed Starting Workshop: February 12th
-- Garden Design Basics: February 26th
-
 Stay warm and keep planning!
 Your Winter Garden Team`,
           hashtags: '#WinterNewsletter #Houseplants #IndoorGardening',
@@ -345,7 +298,7 @@ WINTER WONDER
 Winter gardening extends far beyond houseplants and holiday decorations. This season offers unique opportunities to appreciate garden structure, plan improvements, and prepare for the growing year ahead.
 
 INDOOR GARDENING
-Bring the garden indoors with our extensive houseplant collection. From low-light champions to statement plants, winter is perfect for expanding your indoor garden and improving air quality during closed-house season.
+Bring the garden indoors with our extensive houseplant collection. From low-light champions to statement plants, winter is perfect for expanding your indoor garden and improving air quality.
 
 GARDEN STRUCTURE
 Appreciate the "bones" of your garden during winter months. Evergreens, interesting bark, and architectural elements become focal points, revealing design opportunities for enhancement.
