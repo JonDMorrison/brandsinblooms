@@ -1,9 +1,10 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, ArrowRight, Bell, Plus, Upload, FileText, BarChart3, Instagram, Facebook, Mail, Copy, Edit, CheckCircle, XCircle, Camera, Palette, Leaf, Sun } from "lucide-react";
 import { TaskChecklist } from "@/components/TaskChecklist";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface HomepageProps {
   onboardingData: any;
@@ -14,6 +15,8 @@ interface HomepageProps {
 }
 
 export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, campaigns, tasks }: HomepageProps) => {
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
+
   const getSeasonalGreeting = () => {
     const month = new Date().getMonth() + 1;
     if (month >= 3 && month <= 5) return { emoji: "🌸", text: "Spring is here!" };
@@ -23,14 +26,84 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
   };
 
   const getCurrentWeekCampaign = () => {
-    const today = new Date();
-    const currentWeek = Math.ceil((today.getDate() + new Date(today.getFullYear(), today.getMonth(), 1).getDay()) / 7);
+    if (campaigns.length === 0) return null;
     
-    return campaigns.find(campaign => {
+    const today = new Date();
+    
+    // First, try to find a campaign within the current week
+    const currentWeekCampaign = campaigns.find(campaign => {
       const campaignDate = new Date(campaign.start_date);
-      const weeksDiff = Math.ceil((campaignDate.getTime() - today.getTime()) / (7 * 24 * 60 * 60 * 1000));
-      return weeksDiff >= 0 && weeksDiff <= 1;
-    }) || campaigns[0];
+      const daysDiff = Math.abs((campaignDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
+      return daysDiff <= 7; // Within a week
+    });
+    
+    if (currentWeekCampaign) return currentWeekCampaign;
+    
+    // If no current week campaign, return the most recent one
+    const sortedCampaigns = [...campaigns].sort((a, b) => 
+      new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+    );
+    
+    return sortedCampaigns[0];
+  };
+
+  const generateSampleTasks = async (campaignId: string) => {
+    setIsGeneratingTasks(true);
+    
+    try {
+      const campaign = campaigns.find(c => c.id === campaignId);
+      if (!campaign) return;
+
+      // Generate sample tasks for the campaign
+      const sampleTasks = [
+        {
+          campaign_id: campaignId,
+          post_type: 'instagram',
+          status: 'review',
+          scheduled_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days from now
+          ai_output: `🌿 Discover our fresh spring arrivals! From vibrant petunias to fragrant herbs, we've got everything you need to make your garden bloom. What's first on your planting list this season? #SpringGardening #FreshArrivals #GardenCenter`,
+          hashtags: '#SpringGardening #FreshArrivals #GardenCenter #PlantLovers #GreenThumb',
+          image_idea: 'Colorful display of spring flowers and plants in the nursery'
+        },
+        {
+          campaign_id: campaignId,
+          post_type: 'facebook',
+          status: 'generating',
+          scheduled_date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 4 days from now
+          ai_output: null,
+          hashtags: null,
+          image_idea: 'Behind-the-scenes of staff caring for plants'
+        },
+        {
+          campaign_id: campaignId,
+          post_type: 'email',
+          status: 'planned',
+          scheduled_date: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 6 days from now
+          ai_output: null,
+          hashtags: null,
+          image_idea: 'Newsletter header with seasonal gardening tips'
+        }
+      ];
+
+      // Insert tasks into the database
+      for (const task of sampleTasks) {
+        const { error } = await supabase
+          .from('content_tasks')
+          .insert(task);
+        
+        if (error) {
+          console.error('Error creating task:', error);
+        }
+      }
+
+      // Refresh the page to show new tasks
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Error generating tasks:', error);
+    } finally {
+      setIsGeneratingTasks(false);
+    }
   };
 
   const getNextStepGuidance = () => {
@@ -42,6 +115,20 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         action: "Start Now",
         bgColor: "bg-green-50",
         borderColor: "border-green-200"
+      };
+    }
+
+    const currentCampaign = getCurrentWeekCampaign();
+    const campaignTasks = currentCampaign ? getTasksForCampaign(currentCampaign.id) : [];
+    
+    if (campaignTasks.length === 0) {
+      return {
+        icon: "📝",
+        title: "Next Step: Generate content for your campaign",
+        description: "Create posts and content for your active campaign",
+        action: "Generate Content",
+        bgColor: "bg-blue-50",
+        borderColor: "border-blue-200"
       };
     }
 
@@ -174,7 +261,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
               Welcome back! {seasonal.text}
             </h1>
           </div>
-          <p className="text-xl text-garden-green font-medium mb-2">
+          <p className="text-xl text-black font-medium mb-2">
             Here's what's happening this week at your garden center
           </p>
           <p className="text-black font-light">
@@ -192,13 +279,21 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
                   <h3 className="text-xl font-bold text-black mb-1">
                     {nextStep.title}
                   </h3>
-                  <p className="text-garden-green font-medium">
+                  <p className="text-black font-medium">
                     {nextStep.description}
                   </p>
                 </div>
               </div>
-              <Button className="bg-primary hover:bg-primary-600 text-white shadow-lg text-lg px-8 py-3 h-auto">
-                {nextStep.action}
+              <Button 
+                className="bg-primary hover:bg-primary-600 text-white shadow-lg text-lg px-8 py-3 h-auto"
+                onClick={() => {
+                  if (nextStep.action === "Generate Content" && currentCampaign) {
+                    generateSampleTasks(currentCampaign.id);
+                  }
+                }}
+                disabled={isGeneratingTasks}
+              >
+                {isGeneratingTasks ? "Generating..." : nextStep.action}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
             </div>
@@ -246,7 +341,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
                                 </Badge>
                               </div>
                               <div className="flex gap-2">
-                                <Button size="sm" variant="outline" className="border-green-300 text-garden-green hover:bg-green-100">
+                                <Button size="sm" variant="outline" className="border-green-300 text-black hover:bg-green-100">
                                   <Edit className="w-3 h-3 mr-1" />
                                   Edit
                                 </Button>
@@ -271,9 +366,13 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
                       <div className="text-center py-12 text-gray-500">
                         <FileText className="w-16 h-16 mx-auto mb-4 opacity-40" />
                         <p className="font-medium mb-4">No content tasks for this campaign yet</p>
-                        <Button className="bg-primary hover:bg-primary-600 text-white shadow-md">
+                        <Button 
+                          className="bg-primary hover:bg-primary-600 text-white shadow-md"
+                          onClick={() => generateSampleTasks(currentCampaign.id)}
+                          disabled={isGeneratingTasks}
+                        >
                           <Plus className="w-4 h-4 mr-2" />
-                          Create First Task
+                          {isGeneratingTasks ? "Generating Tasks..." : "Create Content Tasks"}
                         </Button>
                       </div>
                     )}
@@ -399,7 +498,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
                   <CardContent className="p-6 text-center">
                     <span className="text-4xl mb-4 block group-hover:scale-110 transition-transform duration-200">🌻</span>
                     <h3 className="font-bold text-black mb-2">Create a Campaign</h3>
-                    <p className="text-sm text-garden-green">Start from a template or blank canvas</p>
+                    <p className="text-sm text-black">Start from a template or blank canvas</p>
                   </CardContent>
                 </Card>
               </div>
@@ -445,7 +544,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
                       <BarChart3 className="w-5 h-5" />
                       Content Pipeline
                     </CardTitle>
-                    <CardDescription className="font-medium text-garden-green">Quick overview</CardDescription>
+                    <CardDescription className="font-medium text-black">Quick overview</CardDescription>
                   </div>
                   <Button onClick={onNavigateToKanban} size="sm" className="bg-primary hover:bg-primary-600 text-white shadow-md font-semibold">
                     View All
@@ -520,43 +619,4 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       </div>
     </div>
   );
-};
-
-// Helper functions that were kept from original
-const getTasksForCampaign = (campaignId: string, tasks: any[]) => {
-  return tasks.filter(task => task.campaign_id === campaignId);
-};
-
-const getTasksByStatus = (status: string, tasks: any[]) => {
-  return tasks.filter(task => task.status === status).slice(0, 2);
-};
-
-const getOverdueTasks = (tasks: any[]) => {
-  const today = new Date();
-  return tasks.filter(task => {
-    if (!task.scheduled_date) return false;
-    const scheduledDate = new Date(task.scheduled_date);
-    return scheduledDate < today && task.status !== 'posted' && task.status !== 'skipped';
-  });
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'planned': return 'bg-gray-100 text-gray-800';
-    case 'generating': return 'bg-blue-100 text-blue-800';
-    case 'review': return 'bg-yellow-100 text-yellow-800';
-    case 'scheduled': return 'bg-green-100 text-green-800';
-    case 'posted': return 'bg-emerald-100 text-emerald-800';
-    case 'skipped': return 'bg-red-100 text-red-800';
-    default: return 'bg-gray-100 text-gray-800';
-  }
-};
-
-const getPostTypeIcon = (postType: string) => {
-  switch (postType) {
-    case 'instagram': return <Instagram className="w-4 h-4" />;
-    case 'facebook': return <Facebook className="w-4 h-4" />;
-    case 'email': return <Mail className="w-4 h-4" />;
-    default: return <FileText className="w-4 h-4" />;
-  }
 };
