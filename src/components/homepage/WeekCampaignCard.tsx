@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,17 +29,13 @@ export const WeekCampaignCard = ({
     }
   };
 
-  const formatCampaignDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'short',
-        month: 'short', 
-        day: 'numeric' 
-      });
-    } catch (error) {
-      return 'Invalid date';
-    }
+  const getCurrentDateFormatted = () => {
+    const today = new Date();
+    return today.toLocaleDateString('en-US', { 
+      weekday: 'short',
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
   return (
@@ -64,7 +59,7 @@ export const WeekCampaignCard = ({
               </span>
               <span className="flex items-center gap-2 bg-blue-100 px-3 py-1 rounded-full">
                 <Clock className="w-4 h-4" />
-                {formatCampaignDate(currentCampaign.start_date)}
+                {getCurrentDateFormatted()}
               </span>
             </div>
             
