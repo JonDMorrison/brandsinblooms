@@ -2,9 +2,11 @@
 import { useState, useEffect } from "react";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Dashboard } from "@/components/Dashboard";
+import { LandingPage } from "@/components/LandingPage";
 
 const Index = () => {
-  const [isOnboarded, setIsOnboarded] = useState(true); // Temporarily set to true to bypass onboarding
+  const [showLanding, setShowLanding] = useState(true);
+  const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "Green Thumb Garden Center has been serving the Springfield community since 1985.",
     toneSamples: "Friendly, knowledgeable, community-focused gardening advice.",
@@ -17,6 +19,7 @@ const Index = () => {
     if (savedData) {
       setOnboardingData(JSON.parse(savedData));
       setIsOnboarded(true);
+      setShowLanding(false);
     }
   }, []);
 
@@ -24,11 +27,18 @@ const Index = () => {
     localStorage.setItem('garden-center-onboarding', JSON.stringify(data));
     setOnboardingData(data);
     setIsOnboarded(true);
+    setShowLanding(false);
+  };
+
+  const handleGetStarted = () => {
+    setShowLanding(false);
   };
 
   return (
     <div className="min-h-screen bg-garden-background">
-      {!isOnboarded ? (
+      {showLanding ? (
+        <LandingPage />
+      ) : !isOnboarded ? (
         <OnboardingFlow onComplete={handleOnboardingComplete} />
       ) : (
         <Dashboard onboardingData={onboardingData} />
