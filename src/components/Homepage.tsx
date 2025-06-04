@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -59,14 +60,8 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       const today = new Date();
       const seasonalContent = getSeasonalContent();
       
-      // Create a mapping for each specific post type we need
-      const postTypeMap = {
-        'instagram': seasonalContent.posts.find(post => post.type === 'instagram'),
-        'facebook': seasonalContent.posts.find(post => post.type === 'facebook'),
-        'email': seasonalContent.posts.find(post => post.type === 'email'),
-        'newsletter': seasonalContent.posts.find(post => post.type === 'newsletter')
-      };
-
+      console.log('Seasonal content structure:', seasonalContent);
+      
       // Generate exactly 4 tasks - one for each required type
       const requiredTypes = ['instagram', 'facebook', 'email', 'newsletter'];
       const sampleTasks = requiredTypes.map((postType, index) => {
@@ -74,15 +69,18 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         // Spread posts across the week: today, +1 day, +3 days, +5 days
         scheduledDate.setDate(today.getDate() + index + (index > 0 ? index : 0));
         
-        const postContent = postTypeMap[postType as keyof typeof postTypeMap];
+        // Find the matching content for this post type
+        const postContent = seasonalContent.posts.find(post => post.type === postType);
+        
+        console.log(`Finding content for ${postType}:`, postContent);
         
         return {
           campaign_id: campaignId,
           post_type: postType,
           status: 'review',
           scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: postContent?.content || `Generated ${postType} content for this week's campaign`,
-          hashtags: postContent?.hashtags || `#${postType} #WeeklyCampaign`,
+          ai_output: postContent?.content || `Generated ${postType} content for this week's campaign - seasonal content will be added here automatically`,
+          hashtags: postContent?.hashtags || `#${postType} #WeeklyCampaign #SeasonalContent`,
           image_idea: postContent?.imageIdea || `${postType} post image idea`
         };
       });
