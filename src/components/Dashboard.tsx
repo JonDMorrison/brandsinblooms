@@ -20,7 +20,7 @@ interface DashboardProps {
 export const Dashboard = ({ onboardingData }: DashboardProps) => {
   const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar">("home");
   const [selectedTask, setSelectedTask] = useState<any>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +70,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
-    setIsSidebarOpen(true);
+    setIsContentModalOpen(true);
   };
 
   const handleCampaignCreated = () => {
@@ -97,6 +97,11 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
       case "calendar": return "View and schedule your marketing campaigns";
       default: return "";
     }
+  };
+
+  const handleCloseContentModal = () => {
+    setIsContentModalOpen(false);
+    setSelectedTask(null);
   };
 
   if (loading) {
@@ -132,51 +137,41 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                 onboardingData={onboardingData}
               />
               
-              <main className="flex-1 flex">
-                <div className="flex-1">
-                  {currentView !== "home" && (
-                    <div className="p-6 border-b border-green-200 bg-white">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h1 className="text-3xl font-bold text-garden-green-dark">
-                            {getViewTitle()}
-                          </h1>
-                          <p className="text-garden-green font-medium">
-                            {getViewDescription()}
-                          </p>
-                        </div>
-                        <CampaignDialog onCampaignCreated={handleCampaignCreated} />
+              <main className="flex-1">
+                {currentView !== "home" && (
+                  <div className="p-6 border-b border-green-200 bg-white">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h1 className="text-3xl font-bold text-garden-green-dark">
+                          {getViewTitle()}
+                        </h1>
+                        <p className="text-garden-green font-medium">
+                          {getViewDescription()}
+                        </p>
                       </div>
+                      <CampaignDialog onCampaignCreated={handleCampaignCreated} />
                     </div>
-                  )}
-
-                  <div className={currentView !== "home" ? "p-6" : ""}>
-                    {currentView === "home" && (
-                      <Homepage 
-                        onboardingData={onboardingData}
-                        onNavigateToKanban={() => setCurrentView("kanban")}
-                        onTaskClick={handleTaskClick}
-                        campaigns={campaigns}
-                        tasks={tasks}
-                        onTaskUpdate={handleTaskUpdate}
-                      />
-                    )}
-                    {currentView === "kanban" && (
-                      <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
-                    )}
-                    {currentView === "calendar" && (
-                      <CalendarView campaigns={campaigns} />
-                    )}
                   </div>
-                </div>
-
-                {isSidebarOpen && selectedTask && (
-                  <ContentSidebar 
-                    task={selectedTask} 
-                    onClose={() => setIsSidebarOpen(false)}
-                    onTaskUpdate={handleTaskUpdate}
-                  />
                 )}
+
+                <div className={currentView !== "home" ? "p-6" : ""}>
+                  {currentView === "home" && (
+                    <Homepage 
+                      onboardingData={onboardingData}
+                      onNavigateToKanban={() => setCurrentView("kanban")}
+                      onTaskClick={handleTaskClick}
+                      campaigns={campaigns}
+                      tasks={tasks}
+                      onTaskUpdate={handleTaskUpdate}
+                    />
+                  )}
+                  {currentView === "kanban" && (
+                    <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
+                  )}
+                  {currentView === "calendar" && (
+                    <CalendarView campaigns={campaigns} />
+                  )}
+                </div>
               </main>
             </div>
           </SidebarProvider>
@@ -188,6 +183,13 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
           </div>
         </TabsContent>
       </Tabs>
+
+      <ContentSidebar 
+        task={selectedTask} 
+        isOpen={isContentModalOpen}
+        onClose={handleCloseContentModal}
+        onTaskUpdate={handleTaskUpdate}
+      />
     </div>
   );
 };
