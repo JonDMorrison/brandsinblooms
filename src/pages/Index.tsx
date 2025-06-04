@@ -37,7 +37,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-garden-background">
       {showLanding ? (
-        <LandingPage />
+        <LandingPage onGetStarted={handleGetStarted} />
       ) : !isOnboarded ? (
         <OnboardingFlow onComplete={handleOnboardingComplete} />
       ) : (

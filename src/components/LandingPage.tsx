@@ -1,13 +1,20 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Users, Edit, TrendingUp, Star, ArrowRight } from "lucide-react";
 
-export const LandingPage = () => {
+interface LandingPageProps {
+  onGetStarted?: () => void;
+}
+
+export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
   const handleGetStarted = () => {
-    // This will trigger the onboarding flow
-    window.location.reload();
+    if (onGetStarted) {
+      onGetStarted();
+    } else {
+      // Fallback for when used in preview mode
+      window.location.reload();
+    }
   };
 
   return (
