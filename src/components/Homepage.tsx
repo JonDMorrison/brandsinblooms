@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -60,24 +59,35 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       const today = new Date();
       const seasonalContent = getSeasonalContent();
       
-      // Generate 4 tasks spread throughout the current week using today as the starting point
-      const sampleTasks = seasonalContent.posts.map((post, index) => {
+      // Create a mapping for each specific post type we need
+      const postTypeMap = {
+        'instagram': seasonalContent.posts.find(post => post.type === 'instagram'),
+        'facebook': seasonalContent.posts.find(post => post.type === 'facebook'),
+        'email': seasonalContent.posts.find(post => post.type === 'email'),
+        'newsletter': seasonalContent.posts.find(post => post.type === 'newsletter')
+      };
+
+      // Generate exactly 4 tasks - one for each required type
+      const requiredTypes = ['instagram', 'facebook', 'email', 'newsletter'];
+      const sampleTasks = requiredTypes.map((postType, index) => {
         const scheduledDate = new Date(today);
         // Spread posts across the week: today, +1 day, +3 days, +5 days
         scheduledDate.setDate(today.getDate() + index + (index > 0 ? index : 0));
         
+        const postContent = postTypeMap[postType as keyof typeof postTypeMap];
+        
         return {
           campaign_id: campaignId,
-          post_type: post.type,
+          post_type: postType,
           status: 'review',
           scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: post.content,
-          hashtags: post.hashtags,
-          image_idea: post.imageIdea
+          ai_output: postContent?.content || `Generated ${postType} content for this week's campaign`,
+          hashtags: postContent?.hashtags || `#${postType} #WeeklyCampaign`,
+          image_idea: postContent?.imageIdea || `${postType} post image idea`
         };
       });
 
-      console.log('Auto-generating tasks with content:', sampleTasks);
+      console.log('Auto-generating tasks with proper content mapping:', sampleTasks);
 
       // Insert tasks into the database
       for (const task of sampleTasks) {
