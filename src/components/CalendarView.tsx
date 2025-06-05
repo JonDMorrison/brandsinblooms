@@ -30,8 +30,32 @@ interface CalendarViewProps {
   onDataUpdate?: () => void;
 }
 
+const getWeekDateRange = (weekNumber: number, year: number) => {
+  // Calculate the first day of the year
+  const firstDayOfYear = new Date(year, 0, 1);
+  
+  // Calculate which day of the week January 1st falls on (0 = Sunday, 1 = Monday, etc.)
+  const firstDayWeekday = firstDayOfYear.getDay();
+  
+  // Calculate the date of the first Monday of the year (start of week 1)
+  const firstMonday = new Date(firstDayOfYear);
+  const daysToFirstMonday = firstDayWeekday === 0 ? 1 : (8 - firstDayWeekday);
+  firstMonday.setDate(firstDayOfYear.getDate() + daysToFirstMonday);
+  
+  // Calculate the start date of the specified week
+  const weekStartDate = new Date(firstMonday);
+  weekStartDate.setDate(firstMonday.getDate() + (weekNumber - 1) * 7);
+  
+  // Calculate the end date of the week (Sunday)
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekStartDate.getDate() + 6);
+  
+  return { startDate: weekStartDate, endDate: weekEndDate };
+};
+
 export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarViewProps) => {
   const [localCampaigns, setLocalCampaigns] = useState(campaigns);
+  const currentYear = new Date().getFullYear();
 
   // Update local campaigns when props change
   useState(() => {
@@ -64,49 +88,54 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
           <Palette className="w-6 h-6" />
           Weekly Content Themes
         </h3>
-        {Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => (
-          <Card key={week} className="border-green-200">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-green-800">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5" />
-                  {week}
-                </div>
-                <span className="text-sm font-normal text-gray-500">
-                  Starting {new Date(weekCampaigns[0].start_date).toLocaleDateString()}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="grid gap-4">
-                {weekCampaigns.map((campaign) => (
-                  <div 
-                    key={campaign.id}
-                    className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-800 mb-1">{campaign.title}</h4>
-                      </div>
-                      <Badge variant="outline" className="text-green-700 border-green-300">
-                        Active
-                      </Badge>
-                    </div>
-                    
-                    <div className="border-t pt-3">
-                      <EditableTheme
-                        campaignId={campaign.id.toString()}
-                        currentTheme={campaign.theme || ""}
-                        currentDescription={campaign.description || ""}
-                        onThemeUpdate={(newTheme, newDescription) => handleThemeUpdate(campaign.id.toString(), newTheme, newDescription)}
-                      />
-                    </div>
+        {Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => {
+          const weekNumber = weekCampaigns[0].week_number;
+          const { startDate, endDate } = getWeekDateRange(weekNumber, currentYear);
+          
+          return (
+            <Card key={week} className="border-green-200">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between text-green-800">
+                  <div className="flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5" />
+                    {week} ({currentYear})
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                  <span className="text-sm font-normal text-gray-500">
+                    {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="grid gap-4">
+                  {weekCampaigns.map((campaign) => (
+                    <div 
+                      key={campaign.id}
+                      className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-800 mb-1">{campaign.title}</h4>
+                        </div>
+                        <Badge variant="outline" className="text-green-700 border-green-300">
+                          Active
+                        </Badge>
+                      </div>
+                      
+                      <div className="border-t pt-3">
+                        <EditableTheme
+                          campaignId={campaign.id.toString()}
+                          currentTheme={campaign.theme || ""}
+                          currentDescription={campaign.description || ""}
+                          onThemeUpdate={(newTheme, newDescription) => handleThemeUpdate(campaign.id.toString(), newTheme, newDescription)}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
