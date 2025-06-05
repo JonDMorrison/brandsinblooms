@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -7,7 +8,7 @@ import { SetupProgressCard } from "./homepage/SetupProgressCard";
 import { CampaignTasksCard } from "./homepage/CampaignTasksCard";
 import { UpcomingContentCard } from "./homepage/UpcomingContentCard";
 import { QuickActionsGrid } from "./homepage/QuickActionsGrid";
-import { ContentPipelineCard } from "./ContentPipelineCard";
+import { ContentPipelineCard } from "./homepage/ContentPipelineCard";
 import { AnalyticsSnapshot } from "./homepage/AnalyticsSnapshot";
 import { getSeasonalContent } from "./homepage/SeasonalContent";
 import { 
@@ -31,6 +32,68 @@ interface HomepageProps {
 export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, campaigns, tasks, onTaskUpdate }: HomepageProps) => {
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+
+  // Generate AI content for newsletter and video script
+  const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number) => {
+    try {
+      console.log('Generating newsletter for campaign:', campaignTitle);
+      
+      const { data, error } = await supabase.functions.invoke('generate-newsletter', {
+        body: {
+          campaignId,
+          campaignTitle,
+          weekNumber
+        }
+      });
+
+      if (error) {
+        console.error('Error generating newsletter:', error);
+        return 'This week\'s gardening newsletter will feature seasonal tips, plant care advice, and community updates. Content will be AI-generated based on the week\'s theme.';
+      }
+
+      return data?.content || 'This week\'s gardening newsletter will feature seasonal tips, plant care advice, and community updates. Content will be AI-generated based on the week\'s theme.';
+    } catch (error) {
+      console.error('Error generating newsletter:', error);
+      return 'This week\'s gardening newsletter will feature seasonal tips, plant care advice, and community updates. Content will be AI-generated based on the week\'s theme.';
+    }
+  };
+
+  const generateVideoScript = (campaignTitle: string, seasonalContent: any) => {
+    const theme = campaignTitle.toLowerCase();
+    
+    return `📹 3-MINUTE INSTRUCTIONAL VIDEO SCRIPT: ${campaignTitle}
+
+🎣 HOOK (0-15 seconds):
+"Are you struggling with ${theme}? Today I'm going to show you exactly how to solve this problem in just 3 minutes!"
+
+😰 AGITATE THE PAIN (15-45 seconds):
+"I know how frustrating it can be when your plants aren't thriving. You've spent time, money, and effort, but you're still not seeing the results you want. The problem is most gardeners don't know the simple techniques that make all the difference with ${theme}."
+
+📚 INSTRUCTION (45 seconds - 2:45 minutes):
+"Here's what you need to do:
+
+Step 1: [Key technique for ${theme}]
+- Explain the first essential step
+- Show the proper method
+- Common mistakes to avoid
+
+Step 2: [Supporting action]
+- Demonstrate the technique
+- Share pro tips for best results
+
+Step 3: [Final step for success]
+- Wrap up with the completion technique
+- Show the expected outcome"
+
+🎯 CALL TO ACTION (2:45-3:00 minutes):
+"There you have it! Follow these three steps and you'll see amazing results with ${theme}. If you found this helpful, visit our garden center for personalized advice and all the supplies you need. What gardening topic should we cover next? Let us know in the comments!"
+
+🎬 VISUAL NOTES:
+- Show close-ups of techniques
+- Include before/after shots
+- Keep pacing energetic and engaging
+- Use natural outdoor lighting when possible`;
+  };
 
   // Clean up duplicates function
   const cleanupDuplicatesForCampaign = async (campaignId: string) => {
@@ -102,7 +165,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
           
           if (missingTypes.length > 0) {
             console.log('Creating missing task types:', missingTypes);
-            await createMissingTasks(currentCampaign.id.toString(), missingTypes);
+            await createMissingTasks(currentCampaign.id.toString(), missingTypes, currentCampaign.title);
           }
         }
       }
@@ -113,25 +176,39 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
     }
   }, [campaigns, tasks]);
 
-  const createMissingTasks = async (campaignId: string, missingTypes: string[]) => {
+  const createMissingTasks = async (campaignId: string, missingTypes: string[], campaignTitle: string) => {
     try {
       const today = new Date();
       const seasonalContent = getSeasonalContent();
+      const weekNumber = getCurrentWeekNumber();
       
-      const tasksToCreate = missingTypes.map((postType, index) => {
+      const tasksToCreate = [];
+      
+      for (let i = 0; i < missingTypes.length; i++) {
+        const postType = missingTypes[i];
         const scheduledDate = new Date(today);
-        scheduledDate.setDate(today.getDate() + index + 1);
+        scheduledDate.setDate(today.getDate() + i + 1);
         
-        return {
+        let aiOutput = '';
+        
+        if (postType === 'newsletter') {
+          aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber);
+        } else if (postType === 'video') {
+          aiOutput = generateVideoScript(campaignTitle, seasonalContent);
+        } else {
+          aiOutput = getContentForType(postType, seasonalContent);
+        }
+        
+        tasksToCreate.push({
           campaign_id: campaignId,
           post_type: postType,
           status: 'review',
           scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: getContentForType(postType, seasonalContent),
+          ai_output: aiOutput,
           hashtags: getHashtagsForType(postType),
           image_idea: getImageIdeaForType(postType)
-        };
-      });
+        });
+      }
 
       const { error } = await supabase
         .from('content_tasks')
@@ -157,23 +234,37 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
 
       const today = new Date();
       const seasonalContent = getSeasonalContent();
+      const weekNumber = getCurrentWeekNumber();
       
       // Generate exactly 5 required tasks
       const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
-      const sampleTasks = requiredTypes.map((postType, index) => {
+      const sampleTasks = [];
+      
+      for (let i = 0; i < requiredTypes.length; i++) {
+        const postType = requiredTypes[i];
         const scheduledDate = new Date(today);
-        scheduledDate.setDate(today.getDate() + index + 1);
+        scheduledDate.setDate(today.getDate() + i + 1);
         
-        return {
+        let aiOutput = '';
+        
+        if (postType === 'newsletter') {
+          aiOutput = await generateNewsletterContent(campaignId, campaign.title, weekNumber);
+        } else if (postType === 'video') {
+          aiOutput = generateVideoScript(campaign.title, seasonalContent);
+        } else {
+          aiOutput = getContentForType(postType, seasonalContent);
+        }
+        
+        sampleTasks.push({
           campaign_id: campaignId,
           post_type: postType,
           status: 'review',
           scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: getContentForType(postType, seasonalContent),
+          ai_output: aiOutput,
           hashtags: getHashtagsForType(postType),
           image_idea: getImageIdeaForType(postType)
-        };
-      });
+        });
+      }
 
       console.log('Auto-generating required tasks:', sampleTasks);
 
@@ -201,8 +292,6 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
 
   const getContentForType = (postType: string, seasonalContent: any) => {
     switch (postType) {
-      case 'newsletter':
-        return 'This week\'s gardening newsletter will feature seasonal tips, plant care advice, and community updates. Content will be AI-generated based on the week\'s theme.';
       case 'instagram':
         const instaPost = seasonalContent.posts.find((p: any) => p.type === 'instagram');
         return instaPost?.content || 'Beautiful Instagram post showcasing this week\'s featured plants and gardening tips.';
@@ -212,8 +301,6 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       case 'email':
         const emailContent = seasonalContent.posts.find((p: any) => p.type === 'email');
         return emailContent?.content || 'Weekly email campaign featuring special offers, gardening tips, and upcoming events.';
-      case 'video':
-        return 'Video script covering this week\'s gardening theme with step-by-step instructions and expert tips.';
       default:
         return `Generated ${postType} content for this week's campaign.`;
     }
