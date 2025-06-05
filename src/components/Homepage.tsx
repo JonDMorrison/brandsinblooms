@@ -81,38 +81,17 @@ Visit us today for expert advice and quality plants! 🌱`;
   const generateVideoScript = (campaignTitle: string, seasonalContent: any) => {
     const theme = campaignTitle.toLowerCase();
     
-    return `📹 3-MINUTE INSTRUCTIONAL VIDEO SCRIPT: ${campaignTitle}
+    return `Are you struggling with ${theme}? Today I'm going to show you exactly how to solve this problem in just 3 minutes!
 
-🎣 HOOK (0-15 seconds):
-"Are you struggling with ${theme}? Today I'm going to show you exactly how to solve this problem in just 3 minutes!"
+I know how frustrating it can be when your plants aren't thriving. You've spent time, money, and effort, but you're still not seeing the results you want. The problem is most gardeners don't know the simple techniques that make all the difference with ${theme}.
 
-😰 AGITATE THE PAIN (15-45 seconds):
-"I know how frustrating it can be when your plants aren't thriving. You've spent time, money, and effort, but you're still not seeing the results you want. The problem is most gardeners don't know the simple techniques that make all the difference with ${theme}."
+Here's what you need to do. First, you need to understand the proper approach to ${theme}. This is the foundation that most people get wrong. When you get this right, everything else becomes much easier.
 
-📚 INSTRUCTION (45 seconds - 2:45 minutes):
-"Here's what you need to do:
+Next, you'll want to implement the key technique that professionals use. This simple method can transform your results almost immediately. I've seen gardeners struggle for months until they learn this one approach.
 
-Step 1: [Key technique for ${theme}]
-- Explain the first essential step
-- Show the proper method
-- Common mistakes to avoid
+Finally, there's a crucial timing element that most people miss. Getting the timing right is what separates successful gardeners from those who continue to struggle with ${theme}.
 
-Step 2: [Supporting action]
-- Demonstrate the technique
-- Share pro tips for best results
-
-Step 3: [Final step for success]
-- Wrap up with the completion technique
-- Show the expected outcome"
-
-🎯 CALL TO ACTION (2:45-3:00 minutes):
-"There you have it! Follow these three steps and you'll see amazing results with ${theme}. If you found this helpful, visit our garden center for personalized advice and all the supplies you need. What gardening topic should we cover next? Let us know in the comments!"
-
-🎬 VISUAL NOTES:
-- Show close-ups of techniques
-- Include before/after shots
-- Keep pacing energetic and engaging
-- Use natural outdoor lighting when possible`;
+Follow these three steps and you'll see amazing results with ${theme}. If you found this helpful, visit our garden center for personalized advice and all the supplies you need. What gardening topic should we cover next? Let us know in the comments!`;
   };
 
   // Clean up duplicates function
