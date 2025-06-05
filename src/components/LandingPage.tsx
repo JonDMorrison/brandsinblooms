@@ -56,9 +56,6 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
             <h3 className="text-2xl font-semibold text-garden-green-dark mb-2">Campaign Calendar</h3>
             <p className="text-gray-600 text-center max-w-md">See your seasonal campaigns, track performance, and never miss an opportunity</p>
           </div>
-          <div className="absolute -top-4 -right-4 bg-white p-4 rounded-xl shadow-lg border border-green-100">
-            <div className="text-sm font-medium text-blue-700">Setup in 3 Minutes</div>
-          </div>
         </div>
       </section>
 
