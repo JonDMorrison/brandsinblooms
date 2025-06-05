@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -6,6 +7,7 @@ import { Homepage } from "@/components/Homepage";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { CalendarView } from "@/components/CalendarView";
 import { LandingPage } from "@/components/LandingPage";
+import { TeamPage } from "@/components/TeamPage";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { UserMenu } from "@/components/UserMenu";
 import { CampaignDialog } from "@/components/CampaignDialog";
@@ -18,7 +20,7 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ onboardingData }: DashboardProps) => {
-  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar">("home");
+  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar" | "team">("home");
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -102,6 +104,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
       case "home": return "Dashboard Overview";
       case "kanban": return "Content Pipeline";
       case "calendar": return "Campaign Calendar";
+      case "team": return "Team Management";
       default: return "Dashboard";
     }
   };
@@ -111,6 +114,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
       case "home": return "Your marketing hub at a glance";
       case "kanban": return "Manage your content creation workflow";
       case "calendar": return "View and schedule your marketing campaigns";
+      case "team": return "Manage your team members and collaboration";
       default: return "";
     }
   };
@@ -166,7 +170,9 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                           {getViewDescription()}
                         </p>
                       </div>
-                      <CampaignDialog onCampaignCreated={handleCampaignCreated} />
+                      {currentView !== "team" && (
+                        <CampaignDialog onCampaignCreated={handleCampaignCreated} />
+                      )}
                     </div>
                   </div>
                 )}
@@ -192,6 +198,9 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                       tasks={tasks}
                       onDataUpdate={handleTaskUpdate}
                     />
+                  )}
+                  {currentView === "team" && (
+                    <TeamPage />
                   )}
                 </div>
               </main>
