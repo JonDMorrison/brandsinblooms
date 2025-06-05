@@ -1,12 +1,11 @@
-
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, BarChart3, Home, Leaf } from "lucide-react";
+import { Calendar, Users, Settings, BarChart3, Home, Leaf, Building } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
 
 interface AppSidebarProps {
-  currentView: "home" | "kanban" | "calendar" | "team";
-  onViewChange: (view: "home" | "kanban" | "calendar" | "team") => void;
+  currentView: "home" | "kanban" | "calendar" | "team" | "profile";
+  onViewChange: (view: "home" | "kanban" | "calendar" | "team" | "profile") => void;
   onboardingData: any;
   onBusinessNameChange?: (newName: string) => void;
 }
@@ -71,7 +70,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
                     className={currentView === item.view ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" : "hover:bg-green-100 text-garden-green-dark"}
                   >
                     <button
-                      onClick={() => onViewChange(item.view as "home" | "kanban" | "calendar" | "team")}
+                      onClick={() => onViewChange(item.view as "home" | "kanban" | "calendar" | "team" | "profile")}
                       className="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200"
                     >
                       <item.icon className="w-5 h-5" />
@@ -105,9 +104,16 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-green-100 text-garden-green-dark transition-all duration-200">
-                    <Settings className="w-5 h-5" />
-                    <span className="font-medium">Settings</span>
+                  <button 
+                    onClick={() => onViewChange("profile")}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+                      currentView === "profile" 
+                        ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
+                        : "hover:bg-green-100 text-garden-green-dark"
+                    }`}
+                  >
+                    <Building className="w-5 h-5" />
+                    <span className="font-medium">Company Profile</span>
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
