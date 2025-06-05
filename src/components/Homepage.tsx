@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -8,7 +7,7 @@ import { SetupProgressCard } from "./homepage/SetupProgressCard";
 import { CampaignTasksCard } from "./homepage/CampaignTasksCard";
 import { UpcomingContentCard } from "./homepage/UpcomingContentCard";
 import { QuickActionsGrid } from "./homepage/QuickActionsGrid";
-import { ContentPipelineCard } from "./homepage/ContentPipelineCard";
+import { ContentPipelineCard } from "./ContentPipelineCard";
 import { AnalyticsSnapshot } from "./homepage/AnalyticsSnapshot";
 import { getSeasonalContent } from "./homepage/SeasonalContent";
 import { 
@@ -60,7 +59,6 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       if (tasksToDelete.length > 0) {
         console.log('Removing duplicate tasks:', tasksToDelete.map(t => `${t.post_type} (${t.id})`));
         
-        // Delete duplicates
         const { error: deleteError } = await supabase
           .from('content_tasks')
           .delete()
@@ -92,43 +90,19 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         // Then check if we need to generate tasks
         const campaignTasks = getTasksForCampaign(tasks, currentCampaign.id);
         console.log('Campaign tasks found:', campaignTasks.length);
-        console.log('Campaign tasks details:', campaignTasks.map(t => ({ id: t.id, type: t.post_type, hasContent: !!t.ai_output })));
         
         if (campaignTasks.length === 0) {
-          console.log('No tasks found, generating sample tasks...');
-          await generateSampleTasks(currentCampaign.id.toString());
+          console.log('No tasks found, generating required tasks...');
+          await generateRequiredTasks(currentCampaign.id.toString());
         } else {
-          // Check for newsletter task specifically
-          const newsletterTask = campaignTasks.find(task => task.post_type === 'newsletter');
-          const otherTasks = campaignTasks.filter(task => task.post_type !== 'newsletter');
+          // Check for missing required task types
+          const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
+          const existingTypes = campaignTasks.map(task => task.post_type);
+          const missingTypes = requiredTypes.filter(type => !existingTypes.includes(type));
           
-          console.log('Newsletter task found:', !!newsletterTask);
-          console.log('Newsletter has content:', newsletterTask?.ai_output ? 'yes' : 'no');
-          console.log('Other tasks count:', otherTasks.length);
-          console.log('Other tasks with content:', otherTasks.filter(task => task.ai_output).length);
-          
-          // If no newsletter task exists, create one
-          if (!newsletterTask) {
-            console.log('Creating missing newsletter task...');
-            await createNewsletterTask(currentCampaign.id.toString());
-            // After creating newsletter task, generate content if other tasks have content
-            if (otherTasks.some(task => task.ai_output)) {
-              console.log('Generating AI newsletter content for new task...');
-              setTimeout(() => {
-                generateAINewsletter(currentCampaign.id.toString(), currentCampaign.title, getCurrentWeekNumber());
-              }, 2000);
-            }
-          }
-          // If newsletter exists but has no AI content, and other tasks have content, generate newsletter
-          else if (newsletterTask && (!newsletterTask.ai_output || newsletterTask.ai_output.trim() === '')) {
-            // Check if we have content from other tasks to base the newsletter on
-            const tasksWithContent = otherTasks.filter(task => task.ai_output && task.ai_output.trim() !== '');
-            if (tasksWithContent.length > 0) {
-              console.log('Triggering AI newsletter generation - found', tasksWithContent.length, 'tasks with content');
-              await generateAINewsletter(currentCampaign.id.toString(), currentCampaign.title, getCurrentWeekNumber());
-            } else {
-              console.log('Newsletter task exists but no other content available yet for AI generation');
-            }
+          if (missingTypes.length > 0) {
+            console.log('Creating missing task types:', missingTypes);
+            await createMissingTasks(currentCampaign.id.toString(), missingTypes);
           }
         }
       }
@@ -139,147 +113,70 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
     }
   }, [campaigns, tasks]);
 
-  const createNewsletterTask = async (campaignId: string) => {
+  const createMissingTasks = async (campaignId: string, missingTypes: string[]) => {
     try {
-      const today = new Date();
-      const scheduledDate = new Date(today);
-      scheduledDate.setDate(today.getDate() + 5); // Schedule newsletter 5 days from today
-
-      const { error } = await supabase
-        .from('content_tasks')
-        .insert({
-          campaign_id: campaignId,
-          post_type: 'newsletter',
-          status: 'review',
-          scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: '', // Will be generated by AI
-          hashtags: '#WeeklyNewsletter #GardenTips #Community',
-          image_idea: 'Newsletter header with seasonal garden imagery'
-        });
-
-      if (error) {
-        console.error('Error creating newsletter task:', error);
-      } else {
-        console.log('Newsletter task created successfully');
-        if (onTaskUpdate) onTaskUpdate();
-      }
-    } catch (error) {
-      console.error('Error creating newsletter task:', error);
-    }
-  };
-
-  const generateAINewsletter = async (campaignId: string, campaignTitle: string, weekNumber: number) => {
-    try {
-      console.log('Generating AI newsletter for campaign:', campaignId);
-      
-      const { data, error } = await supabase.functions.invoke('generate-newsletter', {
-        body: {
-          campaignId,
-          campaignTitle,
-          weekNumber
-        }
-      });
-
-      if (error) {
-        console.error('Error calling newsletter generation function:', error);
-        return;
-      }
-
-      console.log('Newsletter generation response:', data);
-
-      if (data && (data.content || data.summary)) {
-        // Update the newsletter task with AI-generated content
-        const newsletterContent = data.content || data.summary || 'AI-generated newsletter content';
-        
-        const { error: updateError } = await supabase
-          .from('content_tasks')
-          .update({
-            ai_output: newsletterContent,
-            hashtags: data.hashtags || '#WeeklyNewsletter #GardenTips #Community',
-            image_idea: data.imageIdea || 'Newsletter header with seasonal garden imagery'
-          })
-          .eq('campaign_id', campaignId)
-          .eq('post_type', 'newsletter');
-
-        if (updateError) {
-          console.error('Error updating newsletter task:', updateError);
-        } else {
-          console.log('Successfully generated and saved AI newsletter content');
-          if (onTaskUpdate) {
-            onTaskUpdate();
-          }
-        }
-      } else {
-        console.log('No content received from newsletter generation function');
-      }
-    } catch (error) {
-      console.error('Error generating AI newsletter:', error);
-    }
-  };
-
-  const generateSampleTasks = async (campaignId: string) => {
-    setIsGeneratingTasks(true);
-    
-    try {
-      const campaign = campaigns.find(c => c.id === campaignId);
-      if (!campaign) return;
-
-      // Double-check that no tasks exist for this campaign
-      const { data: existingTasksCheck, error: checkError } = await supabase
-        .from('content_tasks')
-        .select('id, post_type')
-        .eq('campaign_id', campaignId);
-
-      if (checkError) {
-        console.error('Error checking existing tasks:', checkError);
-        return;
-      }
-
-      if (existingTasksCheck && existingTasksCheck.length > 0) {
-        console.log('Tasks already exist for this campaign, skipping generation');
-        return;
-      }
-
       const today = new Date();
       const seasonalContent = getSeasonalContent();
       
-      console.log('Seasonal content structure:', seasonalContent);
-      
-      // Generate exactly 4 tasks - one for each required type INCLUDING newsletter
-      const requiredTypes = ['instagram', 'facebook', 'email', 'newsletter'];
-      const sampleTasks = requiredTypes.map((postType, index) => {
+      const tasksToCreate = missingTypes.map((postType, index) => {
         const scheduledDate = new Date(today);
-        // Spread posts across the week: today, +1 day, +3 days, +5 days
-        scheduledDate.setDate(today.getDate() + index + (index > 0 ? index : 0));
-        
-        // Find the matching content for this post type or use newsletter placeholder
-        let postContent;
-        if (postType === 'newsletter') {
-          postContent = {
-            content: '', // Will be generated by AI after other content is created
-            hashtags: '#WeeklyNewsletter #GardenTips #Community',
-            imageIdea: 'Newsletter header with seasonal garden imagery'
-          };
-        } else {
-          postContent = seasonalContent.posts.find(post => post.type === postType);
-        }
-        
-        console.log(`Finding content for ${postType}:`, postContent);
+        scheduledDate.setDate(today.getDate() + index + 1);
         
         return {
           campaign_id: campaignId,
           post_type: postType,
           status: 'review',
           scheduled_date: scheduledDate.toISOString().split('T')[0],
-          ai_output: postContent?.content || `Generated ${postType} content for this week's campaign - seasonal content will be added here automatically`,
-          hashtags: postContent?.hashtags || `#${postType} #WeeklyCampaign #SeasonalContent`,
-          image_idea: postContent?.imageIdea || `${postType} post image idea`
+          ai_output: getContentForType(postType, seasonalContent),
+          hashtags: getHashtagsForType(postType),
+          image_idea: getImageIdeaForType(postType)
         };
       });
 
-      console.log('Auto-generating tasks with proper content mapping including newsletter:', sampleTasks);
+      const { error } = await supabase
+        .from('content_tasks')
+        .insert(tasksToCreate);
+      
+      if (error) {
+        console.error('Error creating missing tasks:', error);
+      } else {
+        console.log('Missing tasks created successfully');
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error creating missing tasks:', error);
+    }
+  };
 
-      // Insert tasks into the database in a single batch to prevent duplicates
+  const generateRequiredTasks = async (campaignId: string) => {
+    setIsGeneratingTasks(true);
+    
+    try {
+      const campaign = campaigns.find(c => c.id === campaignId);
+      if (!campaign) return;
+
+      const today = new Date();
+      const seasonalContent = getSeasonalContent();
+      
+      // Generate exactly 5 required tasks
+      const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
+      const sampleTasks = requiredTypes.map((postType, index) => {
+        const scheduledDate = new Date(today);
+        scheduledDate.setDate(today.getDate() + index + 1);
+        
+        return {
+          campaign_id: campaignId,
+          post_type: postType,
+          status: 'review',
+          scheduled_date: scheduledDate.toISOString().split('T')[0],
+          ai_output: getContentForType(postType, seasonalContent),
+          hashtags: getHashtagsForType(postType),
+          image_idea: getImageIdeaForType(postType)
+        };
+      });
+
+      console.log('Auto-generating required tasks:', sampleTasks);
+
       const { data, error } = await supabase
         .from('content_tasks')
         .insert(sampleTasks)
@@ -289,15 +186,8 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         console.error('Error creating tasks:', error);
       } else {
         console.log('Tasks created successfully:', data);
-        
-        // Generate AI newsletter content after other tasks are created
-        setTimeout(async () => {
-          console.log('Triggering delayed AI newsletter generation...');
-          await generateAINewsletter(campaignId, campaign.title, getCurrentWeekNumber());
-        }, 3000); // Wait 3 seconds to ensure other content is available
       }
 
-      // Refresh the page to show new tasks
       if (onTaskUpdate) {
         onTaskUpdate();
       }
@@ -306,6 +196,60 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
       console.error('Error generating tasks:', error);
     } finally {
       setIsGeneratingTasks(false);
+    }
+  };
+
+  const getContentForType = (postType: string, seasonalContent: any) => {
+    switch (postType) {
+      case 'newsletter':
+        return 'This week\'s gardening newsletter will feature seasonal tips, plant care advice, and community updates. Content will be AI-generated based on the week\'s theme.';
+      case 'instagram':
+        const instaPost = seasonalContent.posts.find((p: any) => p.type === 'instagram');
+        return instaPost?.content || 'Beautiful Instagram post showcasing this week\'s featured plants and gardening tips.';
+      case 'facebook':
+        const fbPost = seasonalContent.posts.find((p: any) => p.type === 'facebook');
+        return fbPost?.content || 'Engaging Facebook post with community gardening tips and seasonal plant highlights.';
+      case 'email':
+        const emailContent = seasonalContent.posts.find((p: any) => p.type === 'email');
+        return emailContent?.content || 'Weekly email campaign featuring special offers, gardening tips, and upcoming events.';
+      case 'video':
+        return 'Video script covering this week\'s gardening theme with step-by-step instructions and expert tips.';
+      default:
+        return `Generated ${postType} content for this week's campaign.`;
+    }
+  };
+
+  const getHashtagsForType = (postType: string) => {
+    switch (postType) {
+      case 'newsletter':
+        return '#WeeklyNewsletter #GardenTips #Community';
+      case 'instagram':
+        return '#GardenLife #Plants #Instagram #GreenThumb';
+      case 'facebook':
+        return '#GardenCenter #Community #Facebook #Gardening';
+      case 'email':
+        return '#Newsletter #EmailMarketing #GardenTips';
+      case 'video':
+        return '#GardenVideo #Tutorial #HowTo #Gardening';
+      default:
+        return `#${postType} #WeeklyCampaign #Gardening`;
+    }
+  };
+
+  const getImageIdeaForType = (postType: string) => {
+    switch (postType) {
+      case 'newsletter':
+        return 'Newsletter header with seasonal garden imagery';
+      case 'instagram':
+        return 'Square format photo of featured plants or garden scene';
+      case 'facebook':
+        return 'Landscape photo showcasing garden center or seasonal plants';
+      case 'email':
+        return 'Email header with garden center branding and seasonal elements';
+      case 'video':
+        return 'Video thumbnail with gardening tools and plants';
+      default:
+        return `${postType} post image idea`;
     }
   };
 
@@ -318,7 +262,7 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
   console.log('Rendering Homepage with:', {
     currentCampaign: currentCampaign?.title,
     campaignTasks: campaignTasks.length,
-    newsletterTasks: campaignTasks.filter(t => t.post_type === 'newsletter').length,
+    requiredTypes: ['newsletter', 'instagram', 'facebook', 'email', 'video'],
     isGeneratingTasks
   });
 

@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen } from "lucide-react";
+import { Calendar, Clock, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen, Video } from "lucide-react";
 import { getStatusColor } from './homepageUtils';
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -72,7 +72,30 @@ export const WeekCampaignCard = ({
       case 'facebook': return <Facebook className="w-4 h-4" />;
       case 'email': return <Mail className="w-4 h-4" />;
       case 'newsletter': return <BookOpen className="w-4 h-4" />;
+      case 'video': return <Video className="w-4 h-4" />;
       default: return <FileText className="w-4 h-4" />;
+    }
+  };
+
+  const getPostTypeColor = (postType: string) => {
+    switch (postType) {
+      case 'instagram': return 'from-pink-50 to-purple-50 border-pink-200';
+      case 'facebook': return 'from-blue-50 to-indigo-50 border-blue-200';
+      case 'email': return 'from-green-50 to-emerald-50 border-green-200';
+      case 'newsletter': return 'from-purple-50 to-indigo-50 border-purple-200';
+      case 'video': return 'from-red-50 to-orange-50 border-red-200';
+      default: return 'from-gray-50 to-slate-50 border-gray-200';
+    }
+  };
+
+  const getPostTypeLabel = (postType: string) => {
+    switch (postType) {
+      case 'instagram': return 'Instagram Post';
+      case 'facebook': return 'Facebook Post';
+      case 'email': return 'Email Campaign';
+      case 'newsletter': return 'Weekly Newsletter';
+      case 'video': return 'Video Script';
+      default: return postType;
     }
   };
 
@@ -92,9 +115,14 @@ export const WeekCampaignCard = ({
     return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   };
 
-  // Separate newsletter tasks from other tasks
-  const newsletterTasks = campaignTasks.filter(task => task.post_type === 'newsletter');
-  const otherTasks = campaignTasks.filter(task => task.post_type !== 'newsletter');
+  // Define the required content types in order
+  const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
+  
+  // Organize tasks by type
+  const tasksByType = campaignTasks.reduce((acc: any, task: any) => {
+    acc[task.post_type] = task;
+    return acc;
+  }, {});
 
   return (
     <Card className="shadow-xl border-green-200 rounded-xl overflow-hidden campaign-card-active">
@@ -121,45 +149,58 @@ export const WeekCampaignCard = ({
               </span>
             </div>
             
-            {/* Newsletter Section - Always show */}
+            {/* Required Content Types */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-purple-600" />
-                AI-Generated Weekly Newsletter
+                <FileText className="w-5 h-5 text-green-600" />
+                Required Weekly Content ({campaignTasks.length}/5)
               </h3>
-              {newsletterTasks.length > 0 ? (
-                newsletterTasks.map((task) => {
-                  const taskIdString = String(task.id);
-                  const hasAIContent = task.ai_output && task.ai_output.trim() !== '';
-                  
-                  return (
-                    <div key={task.id} className="border border-purple-200 rounded-xl p-5 hover:bg-purple-50 cursor-pointer transition-all duration-200 hover:shadow-md bg-gradient-to-r from-purple-50 to-indigo-50" onClick={() => onTaskClick(task)}>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <BookOpen className="w-5 h-5 text-purple-600" />
-                          <span className="font-semibold text-purple-800">AI Newsletter</span>
+              
+              {requiredTypes.map((type) => {
+                const task = tasksByType[type];
+                const hasTask = !!task;
+                const hasContent = task?.ai_output && task.ai_output.trim() !== '';
+                
+                return (
+                  <div 
+                    key={type} 
+                    className={`border rounded-xl p-5 transition-all duration-200 cursor-pointer ${
+                      hasTask 
+                        ? `bg-gradient-to-r ${getPostTypeColor(type)} hover:shadow-md ${hasContent ? 'hover:bg-opacity-80' : ''}`
+                        : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                    }`}
+                    onClick={() => hasTask && onTaskClick(task)}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        {getPostTypeIcon(type)}
+                        <span className="font-semibold text-gray-800">{getPostTypeLabel(type)}</span>
+                        {hasTask && (
                           <Badge className={`${getStatusColor(task.status)} font-medium`}>
                             {task.status}
                           </Badge>
-                          {hasAIContent && (
-                            <Badge className="bg-blue-100 text-blue-800 font-medium">
-                              ✨ AI Generated
-                            </Badge>
-                          )}
-                        </div>
+                        )}
+                        {hasContent && (
+                          <Badge className="bg-blue-100 text-blue-800 font-medium">
+                            ✨ Ready
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      {hasTask && (
                         <div className="flex gap-2">
-                          {task.status === 'review' && hasAIContent && (
+                          {task.status === 'review' && hasContent && (
                             <Button 
                               size="sm" 
                               className="bg-green-600 hover:bg-green-700 text-white"
-                              onClick={(e) => handleApprove(taskIdString, e)}
-                              disabled={approvingTasks.has(taskIdString)}
+                              onClick={(e) => handleApprove(String(task.id), e)}
+                              disabled={approvingTasks.has(String(task.id))}
                             >
                               <CheckCircle className="w-3 h-3 mr-1" />
-                              {approvingTasks.has(taskIdString) ? "Approving..." : "Approve"}
+                              {approvingTasks.has(String(task.id)) ? "Approving..." : "Approve"}
                             </Button>
                           )}
-                          <Button size="sm" variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100">
+                          <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-100">
                             <Edit className="w-3 h-3 mr-1" />
                             Edit
                           </Button>
@@ -168,121 +209,47 @@ export const WeekCampaignCard = ({
                             Copy
                           </Button>
                         </div>
-                      </div>
-                      
-                      <div className="mb-3">
-                        {hasAIContent ? (
-                          <div>
-                            <p className="text-sm text-gray-700 line-clamp-3 font-medium leading-relaxed">{task.ai_output}</p>
-                            <p className="text-xs text-purple-600 mt-2 italic">✨ Generated by AI based on this week's content</p>
-                          </div>
+                      )}
+                    </div>
+                    
+                    <div className="mb-3">
+                      {hasTask ? (
+                        hasContent ? (
+                          <p className="text-sm text-gray-700 line-clamp-3 font-medium leading-relaxed">
+                            {task.ai_output}
+                          </p>
                         ) : (
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-purple-600"></div>
-                              <p className="text-sm text-purple-600 font-medium">AI is writing your newsletter...</p>
-                            </div>
-                            <p className="text-sm text-gray-500 italic">Based on your social media and email content</p>
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                            <p className="text-sm text-blue-600 font-medium">Generating content...</p>
                           </div>
-                        )}
-                      </div>
-                      
-                      {task.scheduled_date && (
-                        <p className="text-xs text-purple-600 mt-3 font-medium">
-                          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+                        )
+                      ) : isGeneratingTasks ? (
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
+                          <p className="text-sm text-gray-500 italic">Creating {getPostTypeLabel(type).toLowerCase()}...</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-500 italic">
+                          {getPostTypeLabel(type)} will be created automatically
                         </p>
                       )}
                     </div>
-                  );
-                })
-              ) : isGeneratingTasks ? (
-                <div className="border border-purple-200 rounded-xl p-5 bg-gradient-to-r from-purple-50 to-indigo-50">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                    <span className="font-semibold text-purple-800">Creating AI Newsletter...</span>
+                    
+                    {hasTask && task.scheduled_date && (
+                      <p className="text-xs text-gray-500 mt-3 font-medium">
+                        Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
-                  <p className="text-sm text-gray-500 italic">Your weekly newsletter will be generated automatically by AI...</p>
-                </div>
-              ) : (
-                <div className="border border-purple-200 rounded-xl p-5 bg-gradient-to-r from-purple-50 to-indigo-50">
-                  <div className="flex items-center gap-3 mb-3">
-                    <BookOpen className="w-5 h-5 text-purple-600" />
-                    <span className="font-semibold text-purple-800">AI Newsletter Ready</span>
-                  </div>
-                  <p className="text-sm text-gray-500 italic">Newsletter will be generated automatically by AI...</p>
-                </div>
-              )}
+                );
+              })}
             </div>
 
-            {/* Other Content Tasks */}
-            {otherTasks.length > 0 ? (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                  <FileText className="w-5 h-5 text-green-600" />
-                  Social Media & Email Content
-                </h3>
-                {otherTasks.map((task) => {
-                  const taskIdString = String(task.id);
-                  return (
-                    <div key={task.id} className="border border-green-200 rounded-xl p-5 hover:bg-green-50 cursor-pointer transition-all duration-200 hover:shadow-md" onClick={() => onTaskClick(task)}>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          {getPostTypeIcon(task.post_type)}
-                          <span className="font-semibold capitalize text-black">{task.post_type}</span>
-                          <Badge className={`${getStatusColor(task.status)} font-medium`}>
-                            {task.status}
-                          </Badge>
-                        </div>
-                        <div className="flex gap-2">
-                          {task.status === 'review' && (
-                            <Button 
-                              size="sm" 
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                              onClick={(e) => handleApprove(taskIdString, e)}
-                              disabled={approvingTasks.has(taskIdString)}
-                            >
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              {approvingTasks.has(taskIdString) ? "Approving..." : "Approve"}
-                            </Button>
-                          )}
-                          <Button size="sm" variant="outline" className="border-green-300 text-black hover:bg-green-100">
-                            <Edit className="w-3 h-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-100">
-                            <Copy className="w-3 h-3 mr-1" />
-                            Copy
-                          </Button>
-                        </div>
-                      </div>
-                      
-                      {/* Always show content area - either generated content or placeholder */}
-                      <div className="mb-3">
-                        {task.ai_output ? (
-                          <p className="text-sm text-gray-700 line-clamp-2 font-medium leading-relaxed">{task.ai_output}</p>
-                        ) : (
-                          <p className="text-sm text-gray-500 italic">Content will be generated automatically...</p>
-                        )}
-                      </div>
-                      
-                      {task.scheduled_date && (
-                        <p className="text-xs text-gray-500 mt-3 font-medium">
-                          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : !newsletterTasks.length && isGeneratingTasks ? (
-              <div className="text-center py-12 text-gray-500">
+            {isGeneratingTasks && (
+              <div className="text-center py-6 text-gray-500">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="font-medium">Generating your content automatically...</p>
-              </div>
-            ) : !newsletterTasks.length && (
-              <div className="text-center py-12 text-gray-500">
-                <FileText className="w-16 h-16 mx-auto mb-4 opacity-40" />
-                <p className="font-medium mb-4">Content will be generated automatically</p>
+                <p className="font-medium">Setting up your weekly content...</p>
               </div>
             )}
           </div>
