@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -189,6 +190,18 @@ export const EditableTheme = ({ campaignId, currentTheme, currentDescription, on
             <span className="text-sm font-medium text-gray-700 block mb-1">Content Focus:</span>
             <p className="text-sm text-gray-600 leading-relaxed">
               {currentDescription}
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {!currentDescription && currentTheme && (
+        <div className="flex items-start gap-2">
+          <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <span className="text-sm font-medium text-gray-500 block mb-1">Content Focus:</span>
+            <p className="text-sm text-gray-400 italic">
+              No content description set. Click edit to generate one.
             </p>
           </div>
         </div>
