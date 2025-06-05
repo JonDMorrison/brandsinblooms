@@ -67,9 +67,14 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
         {Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => (
           <Card key={week} className="border-green-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-800">
-                <CalendarIcon className="w-5 h-5" />
-                {week}
+              <CardTitle className="flex items-center justify-between text-green-800">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="w-5 h-5" />
+                  {week}
+                </div>
+                <span className="text-sm font-normal text-gray-500">
+                  Starting {new Date(weekCampaigns[0].start_date).toLocaleDateString()}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
@@ -82,9 +87,6 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-800 mb-1">{campaign.title}</h4>
-                        <p className="text-sm text-gray-500">
-                          Starting {new Date(campaign.start_date).toLocaleDateString()}
-                        </p>
                       </div>
                       <Badge variant="outline" className="text-green-700 border-green-300">
                         Active
