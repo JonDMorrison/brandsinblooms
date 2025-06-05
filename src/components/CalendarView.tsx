@@ -11,6 +11,7 @@ interface Campaign {
   start_date: string;
   title: string;
   theme?: string;
+  description?: string;
 }
 
 interface Task {
@@ -44,11 +45,11 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
     return acc;
   }, {} as Record<string, Campaign[]>);
 
-  const handleThemeUpdate = (campaignId: string, newTheme: string) => {
+  const handleThemeUpdate = (campaignId: string, newTheme: string, newDescription?: string) => {
     setLocalCampaigns(prev => 
       prev.map(campaign => 
         campaign.id.toString() === campaignId 
-          ? { ...campaign, theme: newTheme }
+          ? { ...campaign, theme: newTheme, description: newDescription }
           : campaign
       )
     );
@@ -91,14 +92,11 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
                     </div>
                     
                     <div className="border-t pt-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Palette className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm font-medium text-gray-700">Content Theme:</span>
-                      </div>
                       <EditableTheme
                         campaignId={campaign.id.toString()}
                         currentTheme={campaign.theme || ""}
-                        onThemeUpdate={(newTheme) => handleThemeUpdate(campaign.id.toString(), newTheme)}
+                        currentDescription={campaign.description || ""}
+                        onThemeUpdate={(newTheme, newDescription) => handleThemeUpdate(campaign.id.toString(), newTheme, newDescription)}
                       />
                     </div>
                   </div>
