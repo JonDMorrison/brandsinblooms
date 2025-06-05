@@ -54,8 +54,8 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       if (error) throw error;
 
       toast({
-        title: "Campaign created",
-        description: "Your new campaign has been created successfully",
+        title: "Event added",
+        description: "Your new event has been created and promotional materials will be generated",
       });
 
       // Reset form
@@ -70,7 +70,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       console.error('Error creating campaign:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create campaign",
+        description: error.message || "Failed to create event",
         variant: "destructive",
       });
     } finally {
@@ -84,22 +84,22 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
         {trigger || (
           <Button className="bg-primary hover:bg-primary-600 text-white shadow-md">
             <Plus className="w-4 h-4 mr-2" />
-            New Campaign
+            Add an Event
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Create New Campaign</DialogTitle>
+          <DialogTitle>Add New Event</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Campaign Title *</Label>
+            <Label htmlFor="title">Event Name *</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Spring Sale 2024"
+              placeholder="e.g., Spring Plant Sale, Pruning Workshop"
               required
             />
           </div>
@@ -119,7 +119,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
           </div>
 
           <div className="space-y-2">
-            <Label>Start Date *</Label>
+            <Label>Event Start Date *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -145,12 +145,12 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="prompt">Campaign Prompt</Label>
+            <Label htmlFor="prompt">Event Details & Goals</Label>
             <Textarea
               id="prompt"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Describe the campaign theme, goals, or special instructions..."
+              placeholder="Describe the event, target audience, key messages, or special promotions..."
               rows={3}
             />
           </div>
@@ -165,7 +165,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create Campaign"}
+              {loading ? "Creating Event..." : "Create Event & Generate Materials"}
             </Button>
           </div>
         </form>
