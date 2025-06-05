@@ -23,14 +23,14 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [startDate, setStartDate] = useState<Date>();
-  const [weekNumber, setWeekNumber] = useState("");
+  const [eventDate, setEventDate] = useState<Date>();
+  const [promotionStartDate, setPromotionStartDate] = useState<Date>();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title.trim() || !startDate || !weekNumber) {
+    if (!title.trim() || !eventDate || !promotionStartDate) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields",
@@ -42,13 +42,19 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
     setLoading(true);
 
     try {
+      // Calculate week number from promotion start date for database compatibility
+      const promotionStartYear = promotionStartDate.getFullYear();
+      const firstDayOfYear = new Date(promotionStartYear, 0, 1);
+      const pastDaysOfYear = (promotionStartDate.getTime() - firstDayOfYear.getTime()) / 86400000;
+      const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+
       const { error } = await supabase
         .from('campaigns')
         .insert({
           title: title.trim(),
           prompt: prompt.trim() || null,
-          start_date: format(startDate, 'yyyy-MM-dd'),
-          week_number: parseInt(weekNumber)
+          start_date: format(promotionStartDate, 'yyyy-MM-dd'),
+          week_number: weekNumber
         });
 
       if (error) throw error;
@@ -61,8 +67,8 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       // Reset form
       setTitle("");
       setPrompt("");
-      setStartDate(undefined);
-      setWeekNumber("");
+      setEventDate(undefined);
+      setPromotionStartDate(undefined);
       setOpen(false);
       
       onCampaignCreated?.();
@@ -105,39 +111,51 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="week-number">Week Number *</Label>
-            <Input
-              id="week-number"
-              type="number"
-              value={weekNumber}
-              onChange={(e) => setWeekNumber(e.target.value)}
-              placeholder="e.g., 12"
-              min="1"
-              max="53"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Event Start Date *</Label>
+            <Label>Event Date *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
                     "w-full justify-start text-left font-normal",
-                    !startDate && "text-muted-foreground"
+                    !eventDate && "text-muted-foreground"
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {startDate ? format(startDate, "PPP") : "Pick a date"}
+                  {eventDate ? format(eventDate, "PPP") : "When is the event?"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={startDate}
-                  onSelect={setStartDate}
+                  selected={eventDate}
+                  onSelect={setEventDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Start Promoting On *</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !promotionStartDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {promotionStartDate ? format(promotionStartDate, "PPP") : "When to start promoting?"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={promotionStartDate}
+                  onSelect={setPromotionStartDate}
                   initialFocus
                 />
               </PopoverContent>
