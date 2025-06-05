@@ -44,7 +44,10 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
           <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
             <span className="text-sm font-medium text-gray-500 block mb-1">Content Focus:</span>
-            <p className="text-sm text-gray-400 italic">
+            <p 
+              className="text-sm text-gray-400 italic cursor-pointer hover:text-gray-600 transition-colors"
+              onClick={onEdit}
+            >
               No content description set. Click edit to generate one.
             </p>
           </div>
