@@ -1,9 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { TaskChecklist } from "@/components/TaskChecklist";
 import { WelcomeSection } from "./homepage/WelcomeSection";
 import { WeekCampaignCard } from "./homepage/WeekCampaignCard";
-import { CampaignTasksCard } from "./homepage/CampaignTasksCard";
 import { UpcomingContentCard } from "./homepage/UpcomingContentCard";
 import { QuickActionsGrid } from "./homepage/QuickActionsGrid";
 import { AnalyticsSnapshot } from "./homepage/AnalyticsSnapshot";
@@ -76,8 +74,7 @@ export const Homepage = ({
         </div>
 
         {/* Secondary Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <CampaignTasksCard overdueTasks={overdueTasks} />
+        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
           <UpcomingContentCard 
             upcomingContent={upcomingContent} 
             onNavigateToCalendar={onNavigateToCalendar}
