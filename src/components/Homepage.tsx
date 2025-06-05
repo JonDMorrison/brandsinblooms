@@ -6,7 +6,6 @@ import { WeekCampaignCard } from "./homepage/WeekCampaignCard";
 import { CampaignTasksCard } from "./homepage/CampaignTasksCard";
 import { UpcomingContentCard } from "./homepage/UpcomingContentCard";
 import { QuickActionsGrid } from "./homepage/QuickActionsGrid";
-import { ContentPipelineCard } from "./homepage/ContentPipelineCard";
 import { AnalyticsSnapshot } from "./homepage/AnalyticsSnapshot";
 import { 
   getCurrentWeekCampaign,
@@ -90,22 +89,12 @@ export const Homepage = ({
 
         <QuickActionsGrid />
 
-        {/* Task Checklist and Workflow Preview */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <TaskChecklist 
-              campaignTitle={currentCampaign?.title}
-              weekNumber={getCurrentWeekNumber()}
-            />
-          </div>
-          
-          <div>
-            <ContentPipelineCard
-              tasks={tasks}
-              onNavigateToKanban={onNavigateToKanban}
-              onTaskClick={onTaskClick}
-            />
-          </div>
+        {/* Task Checklist - Full width */}
+        <div className="w-full">
+          <TaskChecklist 
+            campaignTitle={currentCampaign?.title}
+            weekNumber={getCurrentWeekNumber()}
+          />
         </div>
 
         <AnalyticsSnapshot campaigns={campaigns} tasks={tasks} />
