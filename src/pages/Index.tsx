@@ -1,12 +1,14 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 import { OnboardingFlow } from "@/components/OnboardingFlow";
 import { Dashboard } from "@/components/Dashboard";
 import { LandingPage } from "@/components/LandingPage";
 
 const Index = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [showLanding, setShowLanding] = useState(true);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingData, setOnboardingData] = useState({
@@ -24,10 +26,17 @@ const Index = () => {
         toneSamples: "",
         annualEvents: ""
       });
-      // Don't automatically hide landing page when user logs in
-      // Let them click "Get Started" to proceed
+      
+      // Check URL params for dev navigation
+      const params = new URLSearchParams(location.search);
+      if (params.get('view') === 'landing') {
+        setShowLanding(true);
+      } else if (params.get('view') === 'app') {
+        setShowLanding(false);
+        setIsOnboarded(true); // Skip onboarding for dev purposes
+      }
     }
-  }, [user]);
+  }, [user, location.search]);
 
   const handleOnboardingComplete = (data: any) => {
     if (user) {
