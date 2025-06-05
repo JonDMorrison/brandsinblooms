@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -93,7 +92,7 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
         {/* Calendar Widget */}
         <div className="lg:col-span-2">
           <Card className="border-green-200">
-            <CardHeader className="bg-green-50">
+            <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-green-800">
                   <CalendarIcon className="w-5 h-5" />
