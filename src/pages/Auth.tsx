@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,32 +18,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [currentWelcomeMessage, setCurrentWelcomeMessage] = useState(0);
   const navigate = useNavigate();
-
-  const welcomeMessages = [
-    "Let's grow your audience 🌼",
-    "Welcome to your marketing greenhouse",
-    "Plan your best season yet"
-  ];
-
-  useEffect(() => {
-    // Check if user is already logged in
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/");
-      }
-    };
-    checkUser();
-
-    // Rotate welcome messages every 3 seconds
-    const messageInterval = setInterval(() => {
-      setCurrentWelcomeMessage((prev) => (prev + 1) % welcomeMessages.length);
-    }, 3000);
-
-    return () => clearInterval(messageInterval);
-  }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +82,17 @@ const Auth = () => {
     }
   };
 
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        navigate("/");
+      }
+    };
+    checkUser();
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-25 to-lime-50" style={{ backgroundColor: '#f9fdf7' }}>
       {/* Background Pattern */}
@@ -130,16 +115,9 @@ const Auth = () => {
                 Green Thumb Marketing
               </h1>
             </div>
-            <p className="text-garden-green text-lg mb-4">
+            <p className="text-garden-green text-lg">
               Your garden center's marketing hub
             </p>
-            
-            {/* Rotating Welcome Message */}
-            <div className="h-8 flex items-center justify-center">
-              <p className="text-garden-green font-medium text-lg transition-opacity duration-500">
-                {welcomeMessages[currentWelcomeMessage]}
-              </p>
-            </div>
           </div>
 
           <Card className="shadow-2xl border-green-200 bg-white/95 backdrop-blur-sm rounded-2xl">
