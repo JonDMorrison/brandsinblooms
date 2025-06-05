@@ -2,7 +2,7 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentWeekNumber } from './homepageUtils';
-import { generateRequiredTasks } from './TaskGenerationUtils';
+import { generateRequiredTasks } from './TaskManagementUtils';
 import { generateThemeDescription } from '../calendar/ThemeDescriptionGenerator';
 
 export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpdate?: () => void) => {
