@@ -15,7 +15,7 @@ interface TeamMember {
   id: string;
   email: string;
   role: string;
-  status: 'pending' | 'active' | 'inactive';
+  status: string; // Changed from union type to string to match database
   invited_at: string;
   joined_at?: string;
   user_id?: string;
