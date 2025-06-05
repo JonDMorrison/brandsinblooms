@@ -59,8 +59,7 @@ export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpd
       
       if (missingTypes.length > 0) {
         console.log('AutoCampaignManager: Generating missing tasks for existing campaign:', missingTypes);
-        await generateRequiredTasks(existingCampaign.id, existingCampaign.title, currentWeek, missingTypes);
-        if (onTaskUpdate) onTaskUpdate();
+        await generateRequiredTasks(existingCampaign.id, campaigns, onTaskUpdate);
       }
       
       return;
@@ -115,10 +114,8 @@ export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpd
       console.log('AutoCampaignManager: Created new campaign:', newCampaign.title);
       
       // Generate required tasks for the new campaign
-      const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
-      await generateRequiredTasks(newCampaign.id, newCampaign.title, currentWeek, requiredTypes);
+      await generateRequiredTasks(newCampaign.id, campaigns, onTaskUpdate);
       
-      if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
       console.error('AutoCampaignManager: Error in campaign creation:', error);
     }
