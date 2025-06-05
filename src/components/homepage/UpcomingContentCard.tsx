@@ -24,7 +24,7 @@ export const UpcomingContentCard = ({ upcomingContent, onNavigateToCalendar }: U
         id: i,
         weekNumber,
         weekStart,
-        title: `Week ${weekNumber} Campaign`,
+        title: `Week ${weekNumber} Theme`,
         description: getWeekDescription(i, weekStart)
       });
     }

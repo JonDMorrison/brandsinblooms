@@ -97,7 +97,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       
       onCampaignCreated?.();
     } catch (error: any) {
-      console.error('Error creating campaign:', error);
+      console.error('Error creating event:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to create event",

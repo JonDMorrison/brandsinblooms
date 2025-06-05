@@ -64,7 +64,7 @@ export const Homepage = ({
       <div className="max-w-7xl mx-auto space-y-8">
         <WelcomeSection />
 
-        {/* This Week's Campaign - Full Width */}
+        {/* This Week's Theme - Full Width */}
         <div className="w-full">
           <WeekCampaignCard
             currentCampaign={currentCampaign}

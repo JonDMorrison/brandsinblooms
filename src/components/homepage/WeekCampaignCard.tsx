@@ -129,10 +129,10 @@ export const WeekCampaignCard = ({
       <CardHeader className="bg-gradient-to-r from-primary to-primary-600 text-white">
         <CardTitle className="text-2xl font-bold flex items-center gap-3">
           <Calendar className="w-6 h-6" />
-          This Week's Campaign
+          This Week's Theme
         </CardTitle>
         <CardDescription className="text-green-100 font-medium">
-          {currentCampaign ? currentCampaign.title : "No active campaign"}
+          {currentCampaign ? currentCampaign.title : "No active theme"}
         </CardDescription>
       </CardHeader>
       <CardContent className="p-6">
@@ -270,7 +270,7 @@ export const WeekCampaignCard = ({
         ) : (
           <div className="text-center py-12 text-gray-500">
             <Calendar className="w-16 h-16 mx-auto mb-4 opacity-40" />
-            <p className="font-medium mb-4">No active campaigns found</p>
+            <p className="font-medium mb-4">No active themes found</p>
           </div>
         )}
       </CardContent>

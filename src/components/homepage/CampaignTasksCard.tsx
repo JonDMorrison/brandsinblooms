@@ -13,10 +13,10 @@ export const CampaignTasksCard = ({ overdueTasks }: CampaignTasksCardProps) => {
       <CardHeader>
         <CardTitle className="text-lg font-bold flex items-center gap-2 text-gray-800">
           <span className="text-xl">📋</span>
-          Campaign Tasks
+          Theme Tasks
         </CardTitle>
         <CardDescription className="text-gray-700 font-medium">
-          Things to finish before this week's campaign goes live
+          Things to finish before this week's theme goes live
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">

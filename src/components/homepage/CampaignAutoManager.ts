@@ -19,11 +19,11 @@ export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpd
     );
     
     if (existingCampaign) {
-      console.log('AutoCampaignManager: Found existing campaign:', existingCampaign.title);
+      console.log('AutoCampaignManager: Found existing theme:', existingCampaign.title);
       
       // Check if the existing campaign needs a description
       if (existingCampaign.theme && !existingCampaign.description) {
-        console.log('AutoCampaignManager: Generating description for existing campaign');
+        console.log('AutoCampaignManager: Generating description for existing theme');
         try {
           await new Promise<void>((resolve) => {
             generateThemeDescription(
@@ -35,9 +35,9 @@ export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpd
                   .eq('id', existingCampaign.id);
                 
                 if (error) {
-                  console.error('Error updating campaign description:', error);
+                  console.error('Error updating theme description:', error);
                 } else {
-                  console.log('Campaign description updated successfully');
+                  console.log('Theme description updated successfully');
                   if (onTaskUpdate) onTaskUpdate();
                 }
                 resolve();
@@ -58,21 +58,21 @@ export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpd
       );
       
       if (missingTypes.length > 0) {
-        console.log('AutoCampaignManager: Generating missing tasks for existing campaign:', missingTypes);
+        console.log('AutoCampaignManager: Generating missing tasks for existing theme:', missingTypes);
         await generateRequiredTasks(existingCampaign.id, campaigns, onTaskUpdate);
       }
       
       return;
     }
     
-    console.log('AutoCampaignManager: No campaign found for current week, creating one');
+    console.log('AutoCampaignManager: No theme found for current week, creating one');
     
     // Create a new campaign for the current week
     const today = new Date();
     const mondayOfCurrentWeek = new Date(today);
     mondayOfCurrentWeek.setDate(today.getDate() - today.getDay() + 1);
     
-    const campaignTitle = `Week ${currentWeek} Campaign`;
+    const campaignTitle = `Week ${currentWeek} Theme`;
     const theme = `Weekly Garden Center Promotion - Week ${currentWeek}`;
     
     // Generate description for the new campaign
@@ -107,17 +107,17 @@ export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpd
         .single();
       
       if (error) {
-        console.error('AutoCampaignManager: Error creating campaign:', error);
+        console.error('AutoCampaignManager: Error creating theme:', error);
         return;
       }
       
-      console.log('AutoCampaignManager: Created new campaign:', newCampaign.title);
+      console.log('AutoCampaignManager: Created new theme:', newCampaign.title);
       
       // Generate required tasks for the new campaign
       await generateRequiredTasks(newCampaign.id, campaigns, onTaskUpdate);
       
     } catch (error) {
-      console.error('AutoCampaignManager: Error in campaign creation:', error);
+      console.error('AutoCampaignManager: Error in theme creation:', error);
     }
   }, [campaigns, tasks, onTaskUpdate]);
   
