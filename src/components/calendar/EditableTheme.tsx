@@ -170,9 +170,9 @@ export const EditableTheme = ({ campaignId, currentTheme, currentDescription, on
       <div className="flex items-center gap-2 group">
         <Palette className="w-4 h-4 text-gray-500" />
         <span className="text-sm font-medium text-gray-700">Content Theme:</span>
-        <span className="text-sm text-gray-600 flex-1">
+        <h3 className="text-lg font-bold text-green-800 flex-1 leading-tight">
           {currentTheme || "No theme set"}
-        </span>
+        </h3>
         <Button
           size="sm"
           variant="ghost"
