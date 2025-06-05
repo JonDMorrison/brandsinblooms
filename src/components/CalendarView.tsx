@@ -4,14 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Palette } from "lucide-react";
 import { getStatusColor } from "./homepage/homepageUtils";
+import { EditableTheme } from "./calendar/EditableTheme";
 
 interface Campaign {
   id: number;
   week_number: number;
   start_date: string;
   title: string;
+  theme?: string;
 }
 
 interface Task {
@@ -27,11 +29,18 @@ interface Task {
 interface CalendarViewProps {
   campaigns: Campaign[];
   tasks?: Task[];
+  onDataUpdate?: () => void;
 }
 
-export const CalendarView = ({ campaigns, tasks = [] }: CalendarViewProps) => {
+export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarViewProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [localCampaigns, setLocalCampaigns] = useState(campaigns);
+
+  // Update local campaigns when props change
+  useState(() => {
+    setLocalCampaigns(campaigns);
+  });
 
   // Get tasks for the selected date
   const getTasksForDate = (date: Date) => {
@@ -49,7 +58,7 @@ export const CalendarView = ({ campaigns, tasks = [] }: CalendarViewProps) => {
   const tasksForSelectedDate = selectedDate ? getTasksForDate(selectedDate) : [];
   const datesWithTasks = getDatesWithTasks();
 
-  const groupedCampaigns = campaigns.reduce((acc, campaign) => {
+  const groupedCampaigns = localCampaigns.reduce((acc, campaign) => {
     const week = `Week ${campaign.week_number}`;
     if (!acc[week]) acc[week] = [];
     acc[week].push(campaign);
@@ -64,6 +73,17 @@ export const CalendarView = ({ campaigns, tasks = [] }: CalendarViewProps) => {
       newMonth.setMonth(newMonth.getMonth() + 1);
     }
     setCurrentMonth(newMonth);
+  };
+
+  const handleThemeUpdate = (campaignId: string, newTheme: string) => {
+    setLocalCampaigns(prev => 
+      prev.map(campaign => 
+        campaign.id.toString() === campaignId 
+          ? { ...campaign, theme: newTheme }
+          : campaign
+      )
+    );
+    onDataUpdate?.();
   };
 
   return (
@@ -175,9 +195,12 @@ export const CalendarView = ({ campaigns, tasks = [] }: CalendarViewProps) => {
         </div>
       </div>
 
-      {/* Campaign Overview */}
+      {/* Weekly Content Themes */}
       <div className="grid gap-4">
-        <h3 className="text-xl font-bold text-garden-green-dark">Campaign Overview</h3>
+        <h3 className="text-xl font-bold text-garden-green-dark flex items-center gap-2">
+          <Palette className="w-6 h-6" />
+          Weekly Content Themes
+        </h3>
         {Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => (
           <Card key={week} className="border-green-200">
             <CardHeader className="bg-green-50">
@@ -187,22 +210,34 @@ export const CalendarView = ({ campaigns, tasks = [] }: CalendarViewProps) => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
-              <div className="grid gap-3">
+              <div className="grid gap-4">
                 {weekCampaigns.map((campaign) => (
                   <div 
                     key={campaign.id}
-                    className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
+                    className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
                   >
-                    <div>
-                      <h4 className="font-medium text-gray-800">{campaign.title}</h4>
-                      <p className="text-sm text-gray-600">
-                        Starting {new Date(campaign.start_date).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-800 mb-1">{campaign.title}</h4>
+                        <p className="text-sm text-gray-500">
+                          Starting {new Date(campaign.start_date).toLocaleDateString()}
+                        </p>
+                      </div>
                       <Badge variant="outline" className="text-green-700 border-green-300">
                         Active
                       </Badge>
+                    </div>
+                    
+                    <div className="border-t pt-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Palette className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm font-medium text-gray-700">Content Theme:</span>
+                      </div>
+                      <EditableTheme
+                        campaignId={campaign.id.toString()}
+                        currentTheme={campaign.theme || ""}
+                        onThemeUpdate={(newTheme) => handleThemeUpdate(campaign.id.toString(), newTheme)}
+                      />
                     </div>
                   </div>
                 ))}

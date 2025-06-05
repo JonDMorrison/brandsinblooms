@@ -15,6 +15,7 @@ export type Database = {
           id: string
           prompt: string | null
           start_date: string
+          theme: string | null
           title: string
           week_number: number
         }
@@ -23,6 +24,7 @@ export type Database = {
           id?: string
           prompt?: string | null
           start_date: string
+          theme?: string | null
           title: string
           week_number: number
         }
@@ -31,6 +33,7 @@ export type Database = {
           id?: string
           prompt?: string | null
           start_date?: string
+          theme?: string | null
           title?: string
           week_number?: number
         }
