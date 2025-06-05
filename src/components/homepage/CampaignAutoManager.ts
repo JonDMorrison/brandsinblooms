@@ -1,96 +1,130 @@
 
-import { getCurrentWeekCampaign, getTasksForCampaign } from "./homepageUtils";
-import { cleanupDuplicatesForCampaign, updateVideoTasksWithNewScript, createMissingTasks, generateRequiredTasks } from "./TaskManagementUtils";
-import { supabase } from "@/integrations/supabase/client";
-import { generateThemeDescription } from "../calendar/ThemeDescriptionGenerator";
+import { useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { getCurrentWeekNumber } from './homepageUtils';
+import { generateRequiredTasks } from './TaskGenerationUtils';
+import { generateThemeDescription } from '../calendar/ThemeDescriptionGenerator';
 
 export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpdate?: () => void) => {
-  const autoCreateCurrentWeekCampaign = async () => {
-    console.log('Auto-create effect running with campaigns:', campaigns.length);
-    let currentCampaign = getCurrentWeekCampaign(campaigns);
-    console.log('Current campaign found:', currentCampaign);
+  const autoCreateCurrentWeekCampaign = useCallback(async () => {
+    console.log('AutoCampaignManager: Starting auto-create check');
     
-    // If we have a campaign, check if it needs content generation
-    if (currentCampaign) {
-      // Check if campaign needs theme and description
-      if (currentCampaign.title && (!currentCampaign.theme || !currentCampaign.description)) {
-        console.log('Campaign missing theme or description, generating...');
-        
-        let themeDescription = "";
-        if (currentCampaign.title) {
-          try {
-            await new Promise<void>((resolve) => {
-              generateThemeDescription(
-                currentCampaign.title,
-                (description) => {
-                  themeDescription = description;
-                  resolve();
-                },
-                () => {} // onLoadingChange - not needed here
-              );
-            });
-          } catch (error) {
-            console.error('Error generating theme description:', error);
-            // Use fallback description if generation fails
-            themeDescription = `This week's content will focus on promoting ${currentCampaign.title.toLowerCase()} and helping customers understand the value and benefits. All materials will emphasize practical information, seasonal timing, and how our garden center can support their gardening goals.`;
-          }
-        }
-
-        // Update campaign with theme and description
+    const currentWeek = getCurrentWeekNumber();
+    const currentYear = new Date().getFullYear();
+    
+    // Check if there's already a campaign for the current week
+    const existingCampaign = campaigns.find(campaign => 
+      campaign.week_number === currentWeek && 
+      new Date(campaign.start_date).getFullYear() === currentYear
+    );
+    
+    if (existingCampaign) {
+      console.log('AutoCampaignManager: Found existing campaign:', existingCampaign.title);
+      
+      // Check if the existing campaign needs a description
+      if (existingCampaign.theme && !existingCampaign.description) {
+        console.log('AutoCampaignManager: Generating description for existing campaign');
         try {
-          const { error } = await supabase
-            .from('campaigns')
-            .update({ 
-              theme: currentCampaign.title,
-              description: themeDescription
-            })
-            .eq('id', currentCampaign.id);
-
-          if (error) {
-            console.error('Error updating campaign theme:', error);
-          } else {
-            console.log('Campaign theme and description updated');
-            // Update local campaign object
-            currentCampaign.theme = currentCampaign.title;
-            currentCampaign.description = themeDescription;
-            
-            // Trigger a data refresh to show the new description
-            if (onTaskUpdate) {
-              onTaskUpdate();
-            }
-          }
+          await new Promise<void>((resolve) => {
+            generateThemeDescription(
+              existingCampaign.theme,
+              async (description) => {
+                const { error } = await supabase
+                  .from('campaigns')
+                  .update({ description })
+                  .eq('id', existingCampaign.id);
+                
+                if (error) {
+                  console.error('Error updating campaign description:', error);
+                } else {
+                  console.log('Campaign description updated successfully');
+                  if (onTaskUpdate) onTaskUpdate();
+                }
+                resolve();
+              },
+              () => {} // onLoadingChange - not needed here
+            );
+          });
         } catch (error) {
-          console.error('Error updating campaign theme:', error);
+          console.error('Error generating description:', error);
         }
       }
-
-      // First clean up any existing duplicates
-      await cleanupDuplicatesForCampaign(currentCampaign.id);
       
-      // Update video task with new script
-      await updateVideoTasksWithNewScript(currentCampaign.id, currentCampaign.title);
+      // Check if tasks need to be created
+      const campaignTasks = tasks.filter(task => task.campaign_id === existingCampaign.id);
+      const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
+      const missingTypes = requiredTypes.filter(type => 
+        !campaignTasks.some(task => task.post_type === type)
+      );
       
-      // Then check if we need to generate tasks
-      const campaignTasks = getTasksForCampaign(tasks, currentCampaign.id);
-      console.log('Campaign tasks found:', campaignTasks.length);
-      
-      if (campaignTasks.length === 0) {
-        console.log('No tasks found, generating required tasks...');
-        await generateRequiredTasks(currentCampaign.id.toString(), campaigns, onTaskUpdate);
-      } else {
-        // Check for missing required task types
-        const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
-        const existingTypes = campaignTasks.map(task => task.post_type);
-        const missingTypes = requiredTypes.filter(type => !existingTypes.includes(type));
-        
-        if (missingTypes.length > 0) {
-          console.log('Creating missing task types:', missingTypes);
-          await createMissingTasks(currentCampaign.id.toString(), missingTypes, currentCampaign.title);
-          if (onTaskUpdate) onTaskUpdate();
-        }
+      if (missingTypes.length > 0) {
+        console.log('AutoCampaignManager: Generating missing tasks for existing campaign:', missingTypes);
+        await generateRequiredTasks(existingCampaign.id, existingCampaign.title, currentWeek, missingTypes);
+        if (onTaskUpdate) onTaskUpdate();
       }
+      
+      return;
     }
+    
+    console.log('AutoCampaignManager: No campaign found for current week, creating one');
+    
+    // Create a new campaign for the current week
+    const today = new Date();
+    const mondayOfCurrentWeek = new Date(today);
+    mondayOfCurrentWeek.setDate(today.getDate() - today.getDay() + 1);
+    
+    const campaignTitle = `Week ${currentWeek} Campaign`;
+    const theme = `Weekly Garden Center Promotion - Week ${currentWeek}`;
+    
+    // Generate description for the new campaign
+    let description = "";
+    try {
+      await new Promise<void>((resolve) => {
+        generateThemeDescription(
+          theme,
+          (generatedDescription) => {
+            description = generatedDescription;
+            resolve();
+          },
+          () => {} // onLoadingChange - not needed here
+        );
+      });
+    } catch (error) {
+      console.error('Error generating description:', error);
+      description = `This week's content will focus on promoting our weekly garden center activities and helping customers understand the value and benefits. All materials will emphasize practical information, seasonal timing, and how our garden center can support their gardening goals.`;
+    }
+    
+    try {
+      const { data: newCampaign, error } = await supabase
+        .from('campaigns')
+        .insert({
+          title: campaignTitle,
+          week_number: currentWeek,
+          start_date: mondayOfCurrentWeek.toISOString().split('T')[0],
+          theme,
+          description
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('AutoCampaignManager: Error creating campaign:', error);
+        return;
+      }
+      
+      console.log('AutoCampaignManager: Created new campaign:', newCampaign.title);
+      
+      // Generate required tasks for the new campaign
+      const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
+      await generateRequiredTasks(newCampaign.id, newCampaign.title, currentWeek, requiredTypes);
+      
+      if (onTaskUpdate) onTaskUpdate();
+    } catch (error) {
+      console.error('AutoCampaignManager: Error in campaign creation:', error);
+    }
+  }, [campaigns, tasks, onTaskUpdate]);
+  
+  return {
+    autoCreateCurrentWeekCampaign
   };
-
-  return { autoCreateCurrentWeekCampaign };
 };
