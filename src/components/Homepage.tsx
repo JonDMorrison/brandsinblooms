@@ -50,7 +50,19 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
         return generateFallbackNewsletter(campaignTitle, weekNumber);
       }
 
-      return data?.content || generateFallbackNewsletter(campaignTitle, weekNumber);
+      // Extract clean content from the response
+      if (data?.content) {
+        // If it's an object with content property, use that
+        if (typeof data.content === 'object' && data.content.content) {
+          return data.content.content;
+        }
+        // If it's already a string, use it directly
+        if (typeof data.content === 'string') {
+          return data.content;
+        }
+      }
+
+      return generateFallbackNewsletter(campaignTitle, weekNumber);
     } catch (error) {
       console.error('Error generating newsletter:', error);
       return generateFallbackNewsletter(campaignTitle, weekNumber);
@@ -66,50 +78,59 @@ Welcome to another exciting week at our garden center! This week, we're focusing
 
 🌱 FEATURED THIS WEEK: ${campaignTitle}
 
-Spring is in full swing, and it's the perfect time to focus on ${campaignTitle.toLowerCase()}. Whether you're a seasoned gardener or just getting started, understanding the right techniques can make all the difference in your garden's success.
+Spring is the perfect time to dive deep into ${campaignTitle.toLowerCase()}. Whether you're a seasoned gardener or just starting your green journey, mastering these techniques will transform your garden into a thriving oasis.
 
-Our expert team has been busy preparing special recommendations for this week's theme. We've carefully selected plants, tools, and supplies that will help you achieve amazing results in your garden.
+Our expert team has been busy curating the best products, plants, and advice specifically for this week's focus. We believe that success in gardening comes from understanding both the science and the art behind each practice.
 
 🌸 WHAT'S HAPPENING AT THE GARDEN CENTER
 
-This week, we're excited to offer personalized consultations where our knowledgeable staff can help you plan your garden strategy. We've also received fresh shipments of seasonal plants that are perfect for this time of year.
+This week brings exciting developments to our garden center. We've received fresh shipments of premium plants perfect for the current season, and our greenhouse is bursting with healthy specimens ready for their new homes.
 
-Don't miss our weekend workshop where we'll demonstrate hands-on techniques related to ${campaignTitle.toLowerCase()}. It's a great opportunity to learn from the experts and connect with fellow gardening enthusiasts.
+Join us for our weekend workshop series where we'll dive hands-on into the world of ${campaignTitle.toLowerCase()}. These sessions are designed to give you practical skills you can immediately apply in your own garden.
 
-🌿 GARDEN TIP OF THE WEEK
+🌿 EXPERT TIP OF THE WEEK
 
-The key to successful ${campaignTitle.toLowerCase()} is timing and preparation. Start by observing your garden's unique conditions - soil type, sunlight patterns, and drainage. This foundation knowledge will guide all your gardening decisions.
+The secret to mastering ${campaignTitle.toLowerCase()} lies in understanding your garden's unique microclimate. Take time to observe how sunlight moves across your space, where water naturally collects, and how your soil responds to different conditions.
 
-🌻 VISIT US TODAY
+Remember: every garden tells a story, and your job as a gardener is to listen carefully and respond thoughtfully to what your plants are telling you.
 
-Stop by the garden center this week to explore our latest arrivals and get personalized advice for your specific gardening goals. Our team is always here to help you create the garden of your dreams!
+🌻 COMMUNITY SPOTLIGHT
 
-Happy gardening!
+We love seeing the incredible transformations happening in our customers' gardens! This week, we're inspired by the creative approaches our community members are taking with ${campaignTitle.toLowerCase()}.
+
+Stop by and share your own garden photos with us - we'd love to feature your success story in next week's newsletter!
+
+🌱 VISIT US THIS WEEK
+
+Come experience the difference that expert guidance and quality plants can make in your gardening journey. Our knowledgeable team is here to help you succeed with personalized advice tailored to your specific needs.
+
+Happy gardening, and remember - every day is a chance to grow something beautiful!
+
 The Garden Center Team
 
-P.S. Follow us on social media for daily gardening tips and inspiration! 🌱`;
+P.S. Follow us on social media for daily inspiration and quick tips! 🌱`;
   };
 
   const generateVideoScript = (campaignTitle: string, seasonalContent: any) => {
     const theme = campaignTitle.toLowerCase();
     
-    return `Hey garden lovers! Are you struggling with ${theme} in your garden? You're not alone, and I've got some game-changing tips that will transform your results.
+    return `Hey there, fellow garden lovers! Today I want to talk about something that's been on my mind - ${theme}. If you've been struggling with this in your garden, you're definitely not alone.
 
-I've been helping gardeners for over fifteen years, and I see the same mistakes over and over again. Most people think ${theme} is complicated, but it doesn't have to be.
+I've been helping gardeners for over fifteen years now, and I can tell you that ${theme} doesn't have to be complicated. In fact, some of the best results I've seen come from understanding just a few key principles.
 
-Here's what I want you to understand: successful ${theme} comes down to three simple principles that anyone can master.
+Here's what I've learned: most people overthink ${theme}. They get caught up in complex techniques and expensive products when really, nature has already given us everything we need to succeed.
 
-First, timing is everything. The most successful gardeners I know don't wait for problems to appear - they're always one step ahead, preparing their gardens before issues arise.
+The first thing to understand is timing. Your garden operates on its own schedule, and working with that rhythm rather than against it makes all the difference. When you start paying attention to these natural signals, everything becomes clearer.
 
-Second, it's not about expensive products or complicated techniques. Some of the most effective methods I'll show you cost almost nothing but deliver incredible results.
+Second, it's about observation. Your plants are constantly communicating with you - through their leaves, their growth patterns, even how they respond to watering. Learning to read these signs is like having a conversation with your garden.
 
-And here's the secret that separates successful gardeners from everyone else: they understand that every garden is unique. What works in one yard might need adjustments in another, and that's perfectly normal.
+And here's the secret that separates successful gardeners from everyone else: consistency beats intensity every time. Small, regular actions compound into amazing results.
 
-The key is learning to read your garden's signals. Your plants are constantly communicating with you - you just need to know what to look for.
+This week, I challenge you to spend just five minutes each day really observing your garden. Notice what's thriving, what's struggling, and how different areas respond to your care.
 
-This week, I want you to start paying closer attention to these natural indicators. Come visit us at the garden center, and I'll show you exactly what to watch for in your own space.
+Come visit us at the garden center this week, and I'll show you exactly what to look for in your own space. We'll walk through some simple techniques that can dramatically improve your results with ${theme}.
 
-What's your biggest challenge with ${theme}? Share it in the comments below, and I'll give you specific advice for your situation. Let's grow together!`;
+What's your biggest challenge with ${theme} right now? Drop a comment below and let's solve it together!`;
    };
 
   // Clean up duplicates function
