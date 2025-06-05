@@ -15,6 +15,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
     { title: "Dashboard", view: "home", icon: Home },
     { title: "Content Pipeline", view: "kanban", icon: BarChart3 },
     { title: "Campaign Calendar", view: "calendar", icon: Calendar },
+    { title: "Company Profile", view: "profile", icon: Building },
   ];
 
   // Extract business name from onboarding data
@@ -99,21 +100,6 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
                   >
                     <Users className="w-5 h-5" />
                     <span className="font-medium">Team</span>
-                  </button>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <button 
-                    onClick={() => onViewChange("profile")}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
-                      currentView === "profile" 
-                        ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
-                        : "hover:bg-green-100 text-garden-green-dark"
-                    }`}
-                  >
-                    <Building className="w-5 h-5" />
-                    <span className="font-medium">Company Profile</span>
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
