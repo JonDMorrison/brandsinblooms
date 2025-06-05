@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +6,7 @@ import { getStatusColor } from './homepageUtils';
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { ThemeDisplay } from "../calendar/ThemeDisplay";
 
 interface WeekCampaignCardProps {
   currentCampaign: any;
@@ -148,6 +148,20 @@ export const WeekCampaignCard = ({
                 {getCurrentDateFormatted()}
               </span>
             </div>
+
+            {/* Content Theme Section */}
+            {(currentCampaign.theme || currentCampaign.description) && (
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <ThemeDisplay
+                  currentTheme={currentCampaign.theme || currentCampaign.title}
+                  currentDescription={currentCampaign.description}
+                  onEdit={() => {
+                    // For now, just log - this could be enhanced to allow editing
+                    console.log('Edit theme clicked');
+                  }}
+                />
+              </div>
+            )}
             
             {/* Required Content Types */}
             <div className="space-y-4">
