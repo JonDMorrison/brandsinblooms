@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,19 +20,54 @@ interface TaskChecklistProps {
   weekNumber?: number;
 }
 
+const getStorageKey = (weekNumber?: number) => {
+  const currentWeek = weekNumber || getCurrentWeekNumber();
+  return `weekly-tasks-${currentWeek}`;
+};
+
+const getCurrentWeekNumber = () => {
+  const today = new Date();
+  const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+  const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+};
+
+const getDefaultTasks = (): ChecklistTask[] => [
+  { id: "1", title: "Write social media caption", completed: false, category: "Content" },
+  { id: "2", title: "Take product photos", completed: false, category: "Visual" },
+  { id: "3", title: "Schedule Instagram post", completed: false, category: "Distribution" },
+  { id: "4", title: "Create email newsletter content", completed: false, category: "Content" },
+  { id: "5", title: "Update website banner", completed: false, category: "Web" },
+  { id: "6", title: "Prepare in-store display", completed: false, category: "Store" },
+];
+
 export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps) => {
-  const [tasks, setTasks] = useState<ChecklistTask[]>([
-    { id: "1", title: "Write social media caption", completed: false, category: "Content" },
-    { id: "2", title: "Take product photos", completed: false, category: "Visual" },
-    { id: "3", title: "Schedule Instagram post", completed: false, category: "Distribution" },
-    { id: "4", title: "Create email newsletter content", completed: false, category: "Content" },
-    { id: "5", title: "Update website banner", completed: false, category: "Web" },
-    { id: "6", title: "Prepare in-store display", completed: false, category: "Store" },
-  ]);
+  const currentWeek = weekNumber || getCurrentWeekNumber();
+  const storageKey = getStorageKey(currentWeek);
+  
+  const [tasks, setTasks] = useState<ChecklistTask[]>(() => {
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : getDefaultTasks();
+  });
 
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskCategory, setNewTaskCategory] = useState("Content");
+
+  // Save tasks to localStorage whenever tasks change
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(tasks));
+  }, [tasks, storageKey]);
+
+  // Reset tasks when week changes
+  useEffect(() => {
+    const saved = localStorage.getItem(storageKey);
+    if (!saved) {
+      setTasks(getDefaultTasks());
+    } else {
+      setTasks(JSON.parse(saved));
+    }
+  }, [storageKey]);
 
   const categories = ["Content", "Visual", "Distribution", "Web", "Store", "Planning", "Follow-up"];
 
@@ -96,7 +131,7 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
         <CardTitle className="text-lg text-garden-green-dark font-bold flex items-center justify-between">
           <div className="flex items-center gap-3">
             <CheckCircle className="w-5 h-5" />
-            Campaign Tasks
+            Weekly Tasks
             {campaignTitle && (
               <Badge variant="outline" className="bg-white">
                 {campaignTitle}
