@@ -53,6 +53,11 @@ export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpd
             // Update local campaign object
             currentCampaign.theme = currentCampaign.title;
             currentCampaign.description = themeDescription;
+            
+            // Trigger a data refresh to show the new description
+            if (onTaskUpdate) {
+              onTaskUpdate();
+            }
           }
         } catch (error) {
           console.error('Error updating campaign theme:', error);

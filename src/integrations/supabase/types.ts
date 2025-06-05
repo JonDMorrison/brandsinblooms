@@ -12,6 +12,7 @@ export type Database = {
       campaigns: {
         Row: {
           created_at: string
+          description: string | null
           id: string
           prompt: string | null
           start_date: string
@@ -21,6 +22,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           id?: string
           prompt?: string | null
           start_date: string
@@ -30,6 +32,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           id?: string
           prompt?: string | null
           start_date?: string
