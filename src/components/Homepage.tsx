@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
@@ -48,14 +47,35 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
 
       if (error) {
         console.error('Error generating newsletter:', error);
-        return 'This week\'s gardening newsletter will feature seasonal tips, plant care advice, and community updates. Content will be AI-generated based on the week\'s theme.';
+        return generateFallbackNewsletter(campaignTitle, weekNumber);
       }
 
-      return data?.content || 'This week\'s gardening newsletter will feature seasonal tips, plant care advice, and community updates. Content will be AI-generated based on the week\'s theme.';
+      return data?.content || generateFallbackNewsletter(campaignTitle, weekNumber);
     } catch (error) {
       console.error('Error generating newsletter:', error);
-      return 'This week\'s gardening newsletter will feature seasonal tips, plant care advice, and community updates. Content will be AI-generated based on the week\'s theme.';
+      return generateFallbackNewsletter(campaignTitle, weekNumber);
     }
+  };
+
+  const generateFallbackNewsletter = (campaignTitle: string, weekNumber: number) => {
+    return `🌿 WEEKLY GARDEN NEWSLETTER - WEEK ${weekNumber}
+
+Dear Garden Friends,
+
+Welcome to this week's edition focusing on ${campaignTitle}! As we embrace the beauty of the season, we're excited to share essential tips and insights that will help your garden flourish.
+
+This week, we're diving deep into ${campaignTitle.toLowerCase()}, a crucial aspect of successful gardening that many overlook. Whether you're a seasoned gardener or just starting your green journey, understanding these principles will transform your gardening experience.
+
+Our expert team has been working tirelessly to bring you the most effective techniques for ${campaignTitle.toLowerCase()}. From soil preparation to plant selection, we've got you covered with practical advice you can implement immediately.
+
+Don't forget to visit our garden center this week for personalized consultations and to explore our latest arrivals. Our knowledgeable staff is always ready to help you achieve your gardening goals.
+
+We're also excited to announce our upcoming community workshop where we'll demonstrate hands-on techniques related to this week's theme. Spaces are limited, so be sure to register early.
+
+Happy gardening!
+The Garden Center Team
+
+Visit us today for expert advice and quality plants! 🌱`;
   };
 
   const generateVideoScript = (campaignTitle: string, seasonalContent: any) => {
@@ -209,6 +229,8 @@ Step 3: [Final step for success]
           image_idea: getImageIdeaForType(postType)
         });
       }
+
+      console.log('Creating missing tasks:', tasksToCreate);
 
       const { error } = await supabase
         .from('content_tasks')
