@@ -9,6 +9,11 @@ interface ThemeDisplayProps {
 }
 
 export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: ThemeDisplayProps) => {
+  const handleEditClick = () => {
+    console.log('Edit clicked from ThemeDisplay');
+    onEdit();
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 group">
@@ -20,7 +25,7 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
         <Button
           size="sm"
           variant="ghost"
-          onClick={onEdit}
+          onClick={handleEditClick}
           className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
         >
           <Edit2 className="w-3 h-3" />
@@ -44,12 +49,20 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
           <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
             <span className="text-sm font-medium text-gray-500 block mb-1">Content Focus:</span>
-            <p 
-              className="text-sm text-gray-400 italic cursor-pointer hover:text-gray-600 transition-colors"
-              onClick={onEdit}
+            <div 
+              className="text-sm text-gray-400 italic cursor-pointer hover:text-gray-600 transition-colors p-1 rounded hover:bg-gray-50 select-none"
+              onClick={handleEditClick}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleEditClick();
+                }
+              }}
             >
-              No content description set. Click edit to generate one.
-            </p>
+              No content description set. Click here to add one.
+            </div>
           </div>
         </div>
       )}
