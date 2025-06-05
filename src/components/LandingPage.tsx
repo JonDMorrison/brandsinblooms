@@ -48,15 +48,6 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
         <p className="text-sm text-gray-600 mb-16">
           Takes less than 5 minutes • No credit card required
         </p>
-        
-        {/* App Preview */}
-        <div className="mt-16 relative">
-          <div className="w-full h-80 bg-gradient-to-r from-green-50 to-yellow-50 rounded-2xl shadow-2xl border border-green-100 flex flex-col items-center justify-center p-8">
-            <div className="text-6xl mb-4">📅</div>
-            <h3 className="text-2xl font-semibold text-garden-green-dark mb-2">Campaign Calendar</h3>
-            <p className="text-gray-600 text-center max-w-md">See your seasonal campaigns, track performance, and never miss an opportunity</p>
-          </div>
-        </div>
       </section>
 
       {/* Value Icons Section */}
