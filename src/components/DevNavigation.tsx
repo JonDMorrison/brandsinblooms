@@ -1,13 +1,15 @@
-
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { X } from "lucide-react";
 
 export const DevNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const [isOpen, setIsOpen] = useState(true);
 
   const handleLandingView = () => {
     if (user) {
@@ -36,11 +38,32 @@ export const DevNavigation = () => {
     navigate('/auth');
   };
 
+  if (!isOpen) {
+    return (
+      <Button
+        onClick={() => setIsOpen(true)}
+        className="fixed top-4 left-4 z-50 bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 h-8"
+      >
+        🚧 DEV
+      </Button>
+    );
+  }
+
   return (
     <Card className="fixed top-4 left-4 z-50 p-3 bg-white/95 backdrop-blur-sm border-2 border-blue-200 shadow-lg">
       <div className="flex flex-col gap-2 min-w-[200px]">
-        <div className="text-xs font-bold text-blue-700 mb-2 text-center">
-          🚧 DEV NAVIGATION
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-bold text-blue-700">
+            🚧 DEV NAVIGATION
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsOpen(false)}
+            className="h-6 w-6 p-0 hover:bg-gray-200"
+          >
+            <X className="h-3 w-3" />
+          </Button>
         </div>
         
         <div className="flex flex-col gap-1">
