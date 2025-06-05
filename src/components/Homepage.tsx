@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { TaskChecklist } from "@/components/TaskChecklist";
 import { WelcomeSection } from "./homepage/WelcomeSection";
 import { WeekCampaignCard } from "./homepage/WeekCampaignCard";
-import { SetupProgressCard } from "./homepage/SetupProgressCard";
 import { CampaignTasksCard } from "./homepage/CampaignTasksCard";
 import { UpcomingContentCard } from "./homepage/UpcomingContentCard";
 import { QuickActionsGrid } from "./homepage/QuickActionsGrid";
@@ -439,7 +438,6 @@ What's your biggest challenge with ${theme} right now? Drop a comment below and 
 
           {/* Right Sidebar */}
           <div className="space-y-6">
-            <SetupProgressCard setupProgress={setupProgress} />
             <CampaignTasksCard overdueTasks={overdueTasks} />
             <UpcomingContentCard upcomingContent={upcomingContent} />
           </div>
