@@ -1,21 +1,23 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Trash2, Mail, Crown, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Search, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { TeamInviteDialog } from "./TeamInviteDialog";
+import { TeamSettingsDialog } from "./TeamSettingsDialog";
+import { TeamMemberCard } from "./TeamMemberCard";
+import { TeamActivity } from "./TeamActivity";
 
 interface TeamMember {
   id: string;
   email: string;
   role: string;
-  status: string; // Changed from union type to string to match database
+  status: string;
   invited_at: string;
   joined_at?: string;
   user_id?: string;
@@ -27,6 +29,7 @@ interface Team {
   max_members: number;
   is_paid: boolean;
   owner_id: string;
+  created_at: string;
 }
 
 export const TeamManagement = () => {
@@ -34,9 +37,7 @@ export const TeamManagement = () => {
   const [team, setTeam] = useState<Team | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isInviting, setIsInviting] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState("member");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -99,74 +100,13 @@ export const TeamManagement = () => {
     }
   };
 
-  const handleInviteMember = async () => {
-    if (!inviteEmail.trim() || !team) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-
-    const currentMemberCount = teamMembers.filter(m => m.status === 'active' || m.status === 'pending').length + 1; // +1 for owner
-
-    if (currentMemberCount >= team.max_members && !team.is_paid) {
-      toast.error(`You've reached the ${team.max_members} member limit. Upgrade to add more members.`);
-      return;
-    }
-
-    setIsInviting(true);
-
-    try {
-      const { error } = await supabase
-        .from('team_members')
-        .insert([{
-          email: inviteEmail,
-          role: inviteRole,
-          invited_by: user?.id,
-          status: 'pending'
-        }]);
-
-      if (error) {
-        console.error('Error inviting member:', error);
-        toast.error('Failed to invite team member');
-        return;
-      }
-
-      toast.success(`Invitation sent to ${inviteEmail}`);
-      setInviteEmail("");
-      setInviteRole("member");
-      fetchTeamData();
-    } catch (error) {
-      console.error('Error in handleInviteMember:', error);
-      toast.error('An unexpected error occurred');
-    } finally {
-      setIsInviting(false);
-    }
-  };
-
-  const handleRemoveMember = async (memberId: string, memberEmail: string) => {
-    try {
-      const { error } = await supabase
-        .from('team_members')
-        .delete()
-        .eq('id', memberId);
-
-      if (error) {
-        console.error('Error removing member:', error);
-        toast.error('Failed to remove team member');
-        return;
-      }
-
-      toast.success(`Removed ${memberEmail} from team`);
-      fetchTeamData();
-    } catch (error) {
-      console.error('Error in handleRemoveMember:', error);
-      toast.error('An unexpected error occurred');
-    }
-  };
-
   const handleUpgradeTeam = () => {
     toast.info('Payment integration coming soon! This will allow unlimited team members.');
-    // TODO: Implement Stripe payment integration
   };
+
+  const filteredMembers = teamMembers.filter(member =>
+    member.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) {
     return (
@@ -184,13 +124,16 @@ export const TeamManagement = () => {
       {/* Team Overview */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-3">
-            <Users className="w-5 h-5" />
-            Team Overview
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-3">
+              <Users className="w-5 h-5" />
+              Team Overview
+            </CardTitle>
+            <TeamSettingsDialog team={team} onTeamUpdate={fetchTeamData} />
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-primary">{activeMemberCount}</div>
               <div className="text-sm text-gray-600">Active Members</div>
@@ -205,6 +148,12 @@ export const TeamManagement = () => {
               </div>
               <div className="text-sm text-gray-600">Plan Type</div>
             </div>
+            <div className="text-center p-4 bg-orange-50 rounded-lg">
+              <div className="text-2xl font-bold text-orange-600">
+                {teamMembers.filter(m => m.status === 'pending').length}
+              </div>
+              <div className="text-sm text-gray-600">Pending Invites</div>
+            </div>
           </div>
 
           {isAtLimit && (
@@ -217,6 +166,7 @@ export const TeamManagement = () => {
                   </p>
                 </div>
                 <Button onClick={handleUpgradeTeam} className="bg-orange-600 hover:bg-orange-700">
+                  <TrendingUp className="w-4 h-4 mr-2" />
                   Upgrade Now
                 </Button>
               </div>
@@ -225,115 +175,110 @@ export const TeamManagement = () => {
         </CardContent>
       </Card>
 
-      {/* Invite New Member */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-3">
-            <Plus className="w-5 h-5" />
-            Invite Team Member
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <Input
-                placeholder="Enter email address"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                type="email"
-                disabled={isAtLimit}
-              />
-            </div>
-            <div className="flex gap-2">
-              <Select value={inviteRole} onValueChange={setInviteRole} disabled={isAtLimit}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button 
-                onClick={handleInviteMember} 
-                disabled={isInviting || !inviteEmail.trim() || isAtLimit}
-                className="whitespace-nowrap"
-              >
-                {isInviting ? 'Inviting...' : 'Send Invite'}
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Team Members List */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Team Members</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {/* Owner (current user) */}
-            <div className="flex items-center justify-between p-4 border rounded-lg bg-green-50">
-              <div className="flex items-center gap-3">
-                <Avatar>
-                  <AvatarFallback className="bg-primary text-white">
-                    {user?.email?.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="font-medium">{user?.email}</div>
-                  <div className="text-sm text-gray-500">Team Owner</div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Team Members */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Team Members</CardTitle>
+                <TeamInviteDialog 
+                  team={team} 
+                  teamMembers={teamMembers} 
+                  onInviteSuccess={fetchTeamData} 
+                />
+              </div>
+              {teamMembers.length > 0 && (
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <Input
+                    placeholder="Search team members..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Crown className="w-4 h-4 text-yellow-500" />
-                <Badge variant="secondary">Owner</Badge>
-              </div>
-            </div>
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Owner (current user) */}
+                <TeamMemberCard 
+                  member={{ email: user?.email }} 
+                  isOwner={true} 
+                  onMemberUpdate={fetchTeamData} 
+                />
 
-            {/* Team Members */}
-            {teamMembers.map((member) => (
-              <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarFallback>
-                      {member.email.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-medium">{member.email}</div>
-                    <div className="text-sm text-gray-500">
-                      {member.status === 'pending' ? 'Invitation pending' : 'Active member'}
-                    </div>
+                {/* Team Members */}
+                {filteredMembers.map((member) => (
+                  <TeamMemberCard 
+                    key={member.id} 
+                    member={member} 
+                    onMemberUpdate={fetchTeamData} 
+                  />
+                ))}
+
+                {teamMembers.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No team members yet. Invite your first team member above!</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {member.status === 'pending' && <Mail className="w-4 h-4 text-orange-500" />}
-                  <Badge variant={member.status === 'pending' ? 'outline' : 'secondary'}>
-                    {member.role}
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRemoveMember(member.id, member.email)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+                )}
 
-            {teamMembers.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No team members yet. Invite your first team member above!</p>
+                {filteredMembers.length === 0 && teamMembers.length > 0 && searchTerm && (
+                  <div className="text-center py-8 text-gray-500">
+                    <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No members found matching "{searchTerm}"</p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Activity Feed */}
+        <div className="space-y-6">
+          <TeamActivity teamMembers={teamMembers} />
+          
+          {/* Team Stats */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3">
+                <TrendingUp className="w-5 h-5" />
+                Team Growth
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Total Invitations Sent</span>
+                  <Badge variant="outline">{teamMembers.length}</Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Accepted Invitations</span>
+                  <Badge variant="outline">
+                    {teamMembers.filter(m => m.status === 'active').length}
+                  </Badge>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Pending Invitations</span>
+                  <Badge variant="outline">
+                    {teamMembers.filter(m => m.status === 'pending').length}
+                  </Badge>
+                </div>
+                {team?.created_at && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Team Created</span>
+                    <Badge variant="outline">
+                      {new Date(team.created_at).toLocaleDateString()}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
