@@ -5,9 +5,10 @@ import { Calendar } from "lucide-react";
 
 interface UpcomingContentCardProps {
   upcomingContent: any[];
+  onNavigateToCalendar?: () => void;
 }
 
-export const UpcomingContentCard = ({ upcomingContent }: UpcomingContentCardProps) => {
+export const UpcomingContentCard = ({ upcomingContent, onNavigateToCalendar }: UpcomingContentCardProps) => {
   if (upcomingContent.length === 0) return null;
 
   return (
@@ -32,7 +33,11 @@ export const UpcomingContentCard = ({ upcomingContent }: UpcomingContentCardProp
             </div>
           </div>
         ))}
-        <Button variant="outline" className="w-full border-green-300 text-green-700 hover:bg-green-100">
+        <Button 
+          variant="outline" 
+          className="w-full border-green-300 text-green-700 hover:bg-green-100"
+          onClick={onNavigateToCalendar}
+        >
           <Calendar className="w-4 h-4 mr-2" />
           View Calendar
         </Button>

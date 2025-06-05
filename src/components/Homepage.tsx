@@ -20,13 +20,22 @@ import { useAutoCampaignManager } from "./homepage/CampaignAutoManager";
 interface HomepageProps {
   onboardingData: any;
   onNavigateToKanban: () => void;
+  onNavigateToCalendar: () => void;
   onTaskClick: (task: any) => void;
   campaigns: any[];
   tasks: any[];
   onTaskUpdate?: () => void;
 }
 
-export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, campaigns, tasks, onTaskUpdate }: HomepageProps) => {
+export const Homepage = ({ 
+  onboardingData, 
+  onNavigateToKanban, 
+  onNavigateToCalendar,
+  onTaskClick, 
+  campaigns, 
+  tasks, 
+  onTaskUpdate 
+}: HomepageProps) => {
   const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
 
@@ -72,7 +81,10 @@ export const Homepage = ({ onboardingData, onNavigateToKanban, onTaskClick, camp
           {/* Right Sidebar */}
           <div className="space-y-6">
             <CampaignTasksCard overdueTasks={overdueTasks} />
-            <UpcomingContentCard upcomingContent={upcomingContent} />
+            <UpcomingContentCard 
+              upcomingContent={upcomingContent} 
+              onNavigateToCalendar={onNavigateToCalendar}
+            />
           </div>
         </div>
 

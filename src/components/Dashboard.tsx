@@ -176,6 +176,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                     <Homepage 
                       onboardingData={localOnboardingData}
                       onNavigateToKanban={() => setCurrentView("kanban")}
+                      onNavigateToCalendar={() => setCurrentView("calendar")}
                       onTaskClick={handleTaskClick}
                       campaigns={campaigns}
                       tasks={tasks}
@@ -186,7 +187,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
                     <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
                   )}
                   {currentView === "calendar" && (
-                    <CalendarView campaigns={campaigns} />
+                    <CalendarView campaigns={campaigns} tasks={tasks} />
                   )}
                 </div>
               </main>
