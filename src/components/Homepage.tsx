@@ -139,6 +139,29 @@ What's your biggest challenge with ${theme} right now? Drop a comment below, and
     }
   };
 
+  // Update existing video tasks with new script
+  const updateVideoTasksWithNewScript = async (campaignId: string, campaignTitle: string) => {
+    try {
+      const seasonalContent = getSeasonalContent();
+      const newVideoScript = generateVideoScript(campaignTitle, seasonalContent);
+      
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ ai_output: newVideoScript })
+        .eq('campaign_id', campaignId)
+        .eq('post_type', 'video');
+
+      if (error) {
+        console.error('Error updating video script:', error);
+      } else {
+        console.log('Video script updated with fresh content');
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error updating video script:', error);
+    }
+  };
+
   // Auto-create current week campaign if none exists
   useEffect(() => {
     const autoCreateCurrentWeekCampaign = async () => {
@@ -150,6 +173,9 @@ What's your biggest challenge with ${theme} right now? Drop a comment below, and
       if (currentCampaign) {
         // First clean up any existing duplicates
         await cleanupDuplicatesForCampaign(currentCampaign.id);
+        
+        // Update video task with new script
+        await updateVideoTasksWithNewScript(currentCampaign.id, currentCampaign.title);
         
         // Then check if we need to generate tasks
         const campaignTasks = getTasksForCampaign(tasks, currentCampaign.id);
