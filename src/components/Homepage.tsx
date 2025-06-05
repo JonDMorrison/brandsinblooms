@@ -64,27 +64,24 @@ export const Homepage = ({
       <div className="max-w-7xl mx-auto space-y-8">
         <WelcomeSection />
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* This Week's Campaign - Spans 2 columns */}
-          <div className="lg:col-span-2">
-            <WeekCampaignCard
-              currentCampaign={currentCampaign}
-              campaignTasks={campaignTasks}
-              isGeneratingTasks={isGeneratingTasks || isCreatingCampaign}
-              onTaskClick={onTaskClick}
-              onTaskUpdate={onTaskUpdate}
-            />
-          </div>
+        {/* This Week's Campaign - Full Width */}
+        <div className="w-full">
+          <WeekCampaignCard
+            currentCampaign={currentCampaign}
+            campaignTasks={campaignTasks}
+            isGeneratingTasks={isGeneratingTasks || isCreatingCampaign}
+            onTaskClick={onTaskClick}
+            onTaskUpdate={onTaskUpdate}
+          />
+        </div>
 
-          {/* Right Sidebar */}
-          <div className="space-y-6">
-            <CampaignTasksCard overdueTasks={overdueTasks} />
-            <UpcomingContentCard 
-              upcomingContent={upcomingContent} 
-              onNavigateToCalendar={onNavigateToCalendar}
-            />
-          </div>
+        {/* Secondary Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <CampaignTasksCard overdueTasks={overdueTasks} />
+          <UpcomingContentCard 
+            upcomingContent={upcomingContent} 
+            onNavigateToCalendar={onNavigateToCalendar}
+          />
         </div>
 
         <QuickActionsGrid />
