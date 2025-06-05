@@ -81,18 +81,20 @@ Visit us today for expert advice and quality plants! 🌱`;
   const generateVideoScript = (campaignTitle: string, seasonalContent: any) => {
     const theme = campaignTitle.toLowerCase();
     
-    return `Are you struggling with ${theme}? Today I'm going to show you exactly how to solve this problem in just 3 minutes!
+    return `Hey there, fellow gardeners! Are you tired of watching your plants struggle with ${theme}? I've been helping gardeners for over fifteen years, and today I'm sharing the three game-changing secrets that will completely transform your results.
 
-I know how frustrating it can be when your plants aren't thriving. You've spent time, money, and effort, but you're still not seeing the results you want. The problem is most gardeners don't know the simple techniques that make all the difference with ${theme}.
+Look, I get it. You've probably tried everything - different fertilizers, watering schedules, maybe even moved your plants around multiple times. But here's the thing most gardeners don't realize: successful ${theme} isn't about having a green thumb, it's about understanding exactly what your plants need and when they need it.
 
-Here's what you need to do. First, you need to understand the proper approach to ${theme}. This is the foundation that most people get wrong. When you get this right, everything else becomes much easier.
+Let me share what I've learned from working with thousands of gardeners. First, timing is absolutely everything. Most people start working on ${theme} when they see problems, but the pros? They're already three steps ahead, preparing before issues even appear.
 
-Next, you'll want to implement the key technique that professionals use. This simple method can transform your results almost immediately. I've seen gardeners struggle for months until they learn this one approach.
+Second, it's not about spending more money on expensive products. The most successful gardeners I know use simple, proven techniques that cost almost nothing but deliver incredible results. I'm talking about methods that have been working for generations.
 
-Finally, there's a crucial timing element that most people miss. Getting the timing right is what separates successful gardeners from those who continue to struggle with ${theme}.
+And here's the secret that separates the pros from everyone else: they understand that every garden is unique. What works in one yard might not work in another, and that's perfectly normal. The key is knowing how to adapt these core principles to your specific situation.
 
-Follow these three steps and you'll see amazing results with ${theme}. If you found this helpful, visit our garden center for personalized advice and all the supplies you need. What gardening topic should we cover next? Let us know in the comments!`;
-  };
+Here's what I want you to do this week. Start paying attention to your plants' signals - they're constantly telling you what they need if you know how to listen. Come visit us at the garden center, and I'll show you exactly what to look for in your own garden.
+
+What's your biggest challenge with ${theme} right now? Drop a comment below, and I'll personally respond with specific advice for your situation!`;
+   };
 
   // Clean up duplicates function
   const cleanupDuplicatesForCampaign = async (campaignId: string) => {
