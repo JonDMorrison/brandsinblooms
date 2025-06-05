@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,8 +57,8 @@ export const EditableTheme = ({ campaignId, currentTheme, currentDescription, on
       setEditDescription(description);
     } catch (error) {
       console.error('Error generating description:', error);
-      // Fallback description
-      const fallbackDescription = `This week's content will focus on ${editTheme.toLowerCase()}, providing practical tips and expert guidance to help customers succeed. All materials will emphasize actionable advice and showcase the garden center's expertise in this area.`;
+      // Better fallback description based on the theme
+      const fallbackDescription = `This week's content will showcase practical techniques and expert guidance for ${editTheme.toLowerCase()}, helping customers achieve successful results in their gardens. All materials will emphasize step-by-step instructions, seasonal timing, and the quality products available at our garden center to support their ${editTheme.toLowerCase()} goals.`;
       setEditDescription(fallbackDescription);
     } finally {
       setIsLoading(false);
