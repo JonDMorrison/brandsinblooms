@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,7 +93,7 @@ export const WeekCampaignCard = ({
     switch (postType) {
       case 'instagram': return 'Instagram Post';
       case 'facebook': return 'Facebook Post';
-      case 'email': return 'Email Campaign';
+      case 'email': return 'Email Theme';
       case 'newsletter': return 'Weekly Newsletter';
       case 'video': return 'Video Script';
       default: return postType;
@@ -229,9 +230,10 @@ export const WeekCampaignCard = ({
                     <div className="mb-3">
                       {hasTask ? (
                         hasContent ? (
-                          <p className="text-sm text-gray-700 line-clamp-3 font-medium leading-relaxed">
-                            {task.ai_output}
-                          </p>
+                          <div 
+                            className="text-sm text-gray-700 line-clamp-3 font-medium leading-relaxed prose prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ __html: task.ai_output }}
+                          />
                         ) : (
                           <div className="flex items-center gap-2">
                             <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
