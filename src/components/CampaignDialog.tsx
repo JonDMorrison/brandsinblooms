@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { generateThemeDescription } from "./calendar/ThemeDescriptionGenerator";
 
 interface CampaignDialogProps {
   onCampaignCreated?: () => void;
@@ -48,13 +49,36 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       const pastDaysOfYear = (promotionStartDate.getTime() - firstDayOfYear.getTime()) / 86400000;
       const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
 
+      // Generate description for the theme
+      let themeDescription = "";
+      if (title.trim()) {
+        try {
+          await new Promise<void>((resolve) => {
+            generateThemeDescription(
+              title.trim(),
+              (description) => {
+                themeDescription = description;
+                resolve();
+              },
+              () => {} // onLoadingChange - not needed here
+            );
+          });
+        } catch (error) {
+          console.error('Error generating theme description:', error);
+          // Use fallback description if generation fails
+          themeDescription = `This week's content will focus on promoting ${title.toLowerCase()} and helping customers understand the value and benefits. All materials will emphasize practical information, seasonal timing, and how our garden center can support their gardening goals.`;
+        }
+      }
+
       const { error } = await supabase
         .from('campaigns')
         .insert({
           title: title.trim(),
           prompt: prompt.trim() || null,
           start_date: format(promotionStartDate, 'yyyy-MM-dd'),
-          week_number: weekNumber
+          week_number: weekNumber,
+          theme: title.trim(),
+          description: themeDescription
         });
 
       if (error) throw error;
