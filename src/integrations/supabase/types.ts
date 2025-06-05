@@ -42,6 +42,60 @@ export type Database = {
         }
         Relationships: []
       }
+      company_profiles: {
+        Row: {
+          brand_voice: string | null
+          company_name: string | null
+          company_overview: string | null
+          company_values: string | null
+          created_at: string
+          id: string
+          ideal_customer: string | null
+          location_info: string | null
+          seasonal_focus: string | null
+          specializations: string | null
+          target_audience: string | null
+          tone_of_writing: string | null
+          unique_selling_points: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand_voice?: string | null
+          company_name?: string | null
+          company_overview?: string | null
+          company_values?: string | null
+          created_at?: string
+          id?: string
+          ideal_customer?: string | null
+          location_info?: string | null
+          seasonal_focus?: string | null
+          specializations?: string | null
+          target_audience?: string | null
+          tone_of_writing?: string | null
+          unique_selling_points?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand_voice?: string | null
+          company_name?: string | null
+          company_overview?: string | null
+          company_values?: string | null
+          created_at?: string
+          id?: string
+          ideal_customer?: string | null
+          location_info?: string | null
+          seasonal_focus?: string | null
+          specializations?: string | null
+          target_audience?: string | null
+          tone_of_writing?: string | null
+          unique_selling_points?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       content_tasks: {
         Row: {
           ai_output: string | null
