@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,7 +103,6 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
               <Button
                 variant="outline"
                 onClick={handleBack}
-                disabled={currentStep === 1 && !onBack}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
