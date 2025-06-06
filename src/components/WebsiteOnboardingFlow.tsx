@@ -98,9 +98,13 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
     setCurrentStep(1);
   };
 
+  const handleManualEntryBack = () => {
+    setUseManualEntry(false);
+  };
+
   // If user chose manual entry, show the original onboarding flow
   if (useManualEntry) {
-    return <OnboardingFlow onComplete={onComplete} />;
+    return <OnboardingFlow onComplete={onComplete} onBack={handleManualEntryBack} />;
   }
 
   return (

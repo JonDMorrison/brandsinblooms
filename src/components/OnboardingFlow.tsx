@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +7,10 @@ import { ArrowRight, ArrowLeft } from "lucide-react";
 
 interface OnboardingFlowProps {
   onComplete: (data: any) => void;
+  onBack?: () => void;
 }
 
-export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
+export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     aboutBusiness: "",
@@ -53,6 +53,9 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
+    } else if (onBack) {
+      // If we're on the first step and have an onBack prop, go back to previous page
+      onBack();
     }
   };
 
@@ -99,7 +102,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
               <Button
                 variant="outline"
                 onClick={handleBack}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 && !onBack}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
