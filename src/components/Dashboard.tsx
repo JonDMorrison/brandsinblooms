@@ -64,11 +64,9 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
         onCampaignCreated={handleCampaignCreated}
       >
         <DashboardContent
-          currentView={currentView}
-          campaigns={campaigns}
-          tasks={tasks}
-          onTaskClick={handleTaskClick}
-          onTaskUpdate={handleTaskUpdate}
+          onboardingData={localOnboardingData}
+          onBusinessNameChange={handleBusinessNameChange}
+          onCampaignCreated={handleCampaignCreated}
         />
       </DashboardLayout>
 

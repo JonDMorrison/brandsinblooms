@@ -4,11 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
 
 interface UpcomingContentCardProps {
-  upcomingContent: any[];
+  tasks: any[];
   onNavigateToCalendar?: () => void;
 }
 
-export const UpcomingContentCard = ({ upcomingContent, onNavigateToCalendar }: UpcomingContentCardProps) => {
+export const UpcomingContentCard = ({ tasks, onNavigateToCalendar }: UpcomingContentCardProps) => {
   // Generate next 4 weeks overview
   const getNextFourWeeksOverview = () => {
     const weeks = [];

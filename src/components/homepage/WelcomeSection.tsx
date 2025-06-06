@@ -1,7 +1,12 @@
 
 import { getSeasonalGreeting } from './SeasonalContent';
 
-export const WelcomeSection = () => {
+interface WelcomeSectionProps {
+  onboardingData: any;
+  onBusinessNameChange: (newName: string) => void;
+}
+
+export const WelcomeSection = ({ onboardingData, onBusinessNameChange }: WelcomeSectionProps) => {
   const seasonal = getSeasonalGreeting();
 
   return (

@@ -4,12 +4,49 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 
 interface NextStepBannerProps {
-  nextStep: any;
-  isGeneratingTasks: boolean;
-  onActionClick: () => void;
+  campaignsCount: number;
+  tasksCount: number;
+  completedTasksCount: number;
+  onCampaignCreated: () => void;
 }
 
-export const NextStepBanner = ({ nextStep, isGeneratingTasks, onActionClick }: NextStepBannerProps) => {
+export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount, onCampaignCreated }: NextStepBannerProps) => {
+  // Determine the next step based on current state
+  const getNextStep = () => {
+    if (campaignsCount === 0) {
+      return {
+        title: "Create Your First Campaign",
+        description: "Start generating marketing content for your garden center",
+        action: "Create Campaign",
+        icon: "🚀",
+        bgColor: "bg-green-100",
+        borderColor: "border-green-300"
+      };
+    }
+    
+    if (completedTasksCount === 0) {
+      return {
+        title: "Review Your Content",
+        description: "Check and approve your generated marketing content",
+        action: "Review Content",
+        icon: "📝",
+        bgColor: "bg-blue-100",
+        borderColor: "border-blue-300"
+      };
+    }
+    
+    return {
+      title: "Great Progress!",
+      description: "Keep up the momentum with your marketing efforts",
+      action: "Create More",
+      icon: "✨",
+      bgColor: "bg-yellow-100",
+      borderColor: "border-yellow-300"
+    };
+  };
+
+  const nextStep = getNextStep();
+
   return (
     <Card className={`shadow-lg ${nextStep.bgColor} ${nextStep.borderColor} border-2 rounded-xl sticky top-4 z-10`}>
       <CardContent className="p-6">
@@ -27,10 +64,9 @@ export const NextStepBanner = ({ nextStep, isGeneratingTasks, onActionClick }: N
           </div>
           <Button 
             className="bg-primary hover:bg-primary-600 text-white shadow-lg text-lg px-8 py-3 h-auto"
-            onClick={onActionClick}
-            disabled={isGeneratingTasks}
+            onClick={onCampaignCreated}
           >
-            {isGeneratingTasks ? "Generating..." : nextStep.action}
+            {nextStep.action}
             <ArrowRight className="w-5 h-5 ml-2" />
           </Button>
         </div>

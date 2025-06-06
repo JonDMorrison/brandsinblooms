@@ -1,29 +1,18 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AnalyticsDashboard } from "../analytics/AnalyticsDashboard";
 import { TrendingUp, BarChart3, PieChart } from "lucide-react";
 
 interface AnalyticsSnapshotProps {
-  campaigns: any[];
-  tasks: any[];
+  totalTasks: number;
+  completedTasks: number;
+  activeCampaigns: number;
   onNavigateToAnalytics?: () => void;
 }
 
-export const AnalyticsSnapshot = ({ campaigns, tasks, onNavigateToAnalytics }: AnalyticsSnapshotProps) => {
+export const AnalyticsSnapshot = ({ totalTasks, completedTasks, activeCampaigns, onNavigateToAnalytics }: AnalyticsSnapshotProps) => {
   // Calculate quick metrics for the snapshot
-  const totalPosts = tasks.length;
-  const completedTasks = tasks.filter(task => task.status === 'published').length;
-  const completionRate = totalPosts > 0 ? Math.round((completedTasks / totalPosts) * 100) : 0;
-  
-  // Calculate top performing content type
-  const typeCount = tasks.reduce((acc, task) => {
-    const type = task.post_type || 'General';
-    acc[type] = (acc[type] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
-  
-  const topContentType = Object.entries(typeCount).sort(([,a], [,b]) => (b as number) - (a as number))[0];
+  const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   
   // Mock engagement data
   const avgEngagement = Math.floor(Math.random() * 50) + 25;
@@ -54,20 +43,16 @@ export const AnalyticsSnapshot = ({ campaigns, tasks, onNavigateToAnalytics }: A
             </div>
             <p className="text-3xl font-bold text-green-700 mb-2">{completionRate}%</p>
             <p className="text-sm text-gray-600 font-semibold">Completion Rate</p>
-            <p className="text-xs text-gray-500 mt-1">{completedTasks} of {totalPosts} posts</p>
+            <p className="text-xs text-gray-500 mt-1">{completedTasks} of {totalTasks} posts</p>
           </div>
           
           <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
             <div className="flex justify-center mb-2">
               <PieChart className="h-6 w-6 text-blue-600" />
             </div>
-            <p className="text-3xl font-bold text-blue-700 mb-2">
-              {topContentType ? topContentType[0] : 'N/A'}
-            </p>
-            <p className="text-sm text-gray-600 font-semibold">Top Content Type</p>
-            <p className="text-xs text-gray-500 mt-1">
-              {topContentType ? `${topContentType[1]} posts` : 'No data yet'}
-            </p>
+            <p className="text-3xl font-bold text-blue-700 mb-2">{activeCampaigns}</p>
+            <p className="text-sm text-gray-600 font-semibold">Active Campaigns</p>
+            <p className="text-xs text-gray-500 mt-1">Currently running</p>
           </div>
           
           <div className="text-center p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
@@ -80,7 +65,7 @@ export const AnalyticsSnapshot = ({ campaigns, tasks, onNavigateToAnalytics }: A
           </div>
         </div>
 
-        {totalPosts === 0 && (
+        {totalTasks === 0 && (
           <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
             <p className="text-gray-600">Create some content to see analytics data!</p>
           </div>
