@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CompanyProfileForm } from "@/components/CompanyProfileForm";
-import { CompanyProfilePreview } from "@/components/CompanyProfilePreview";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -10,14 +9,12 @@ import { toast } from "sonner";
 export const CompanyProfilePage = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
-  const [onboardingData, setOnboardingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchProfile();
-      loadOnboardingData();
     }
   }, [user]);
 
@@ -44,17 +41,6 @@ export const CompanyProfilePage = () => {
     }
   };
 
-  const loadOnboardingData = () => {
-    try {
-      const storedData = localStorage.getItem(`garden-center-onboarding-${user?.id}`);
-      if (storedData) {
-        setOnboardingData(JSON.parse(storedData));
-      }
-    } catch (error) {
-      console.error('Error loading onboarding data:', error);
-    }
-  };
-
   const handleProfileUpdate = (updatedProfile: any) => {
     setProfile(updatedProfile);
     setIsEditing(false);
@@ -75,7 +61,7 @@ export const CompanyProfilePage = () => {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-garden-background p-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-garden-green-dark mb-2">
               Company Profile
@@ -85,22 +71,12 @@ export const CompanyProfilePage = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div>
-              <CompanyProfileForm 
-                profile={profile}
-                isEditing={isEditing}
-                onToggleEdit={() => setIsEditing(!isEditing)}
-                onProfileUpdate={handleProfileUpdate}
-              />
-            </div>
-            <div>
-              <CompanyProfilePreview 
-                profile={profile} 
-                onboardingData={onboardingData}
-              />
-            </div>
-          </div>
+          <CompanyProfileForm 
+            profile={profile}
+            isEditing={isEditing}
+            onToggleEdit={() => setIsEditing(!isEditing)}
+            onProfileUpdate={handleProfileUpdate}
+          />
         </div>
       </div>
     </TooltipProvider>
