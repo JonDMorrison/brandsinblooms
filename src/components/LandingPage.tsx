@@ -50,7 +50,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       <section className="py-12 px-6 bg-white/60">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-semibold text-center mb-16 text-garden-green-dark">
-            How It Works
+            Transform Your Marketing in 3 Simple Steps
           </h2>
           
           <div className="grid md:grid-cols-3 gap-12">
