@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -202,19 +201,17 @@ export const WeekCampaignCard = ({
                         )}
                       </div>
                       
-                      {hasTask && (
+                      {hasTask && hasContent && (
                         <div className="flex gap-2">
-                          {task.status === 'review' && hasContent && (
-                            <Button 
-                              size="sm" 
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                              onClick={(e) => handleApprove(String(task.id), e)}
-                              disabled={approvingTasks.has(String(task.id))}
-                            >
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              {approvingTasks.has(String(task.id)) ? "Approving..." : "Approve"}
-                            </Button>
-                          )}
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={(e) => handleApprove(String(task.id), e)}
+                            disabled={approvingTasks.has(String(task.id))}
+                          >
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            {approvingTasks.has(String(task.id)) ? "Approving..." : "Approve"}
+                          </Button>
                           <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-100">
                             <Edit className="w-3 h-3 mr-1" />
                             Edit
