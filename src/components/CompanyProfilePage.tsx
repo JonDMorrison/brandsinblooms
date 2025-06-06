@@ -10,12 +10,14 @@ import { toast } from "sonner";
 export const CompanyProfilePage = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState<any>(null);
+  const [onboardingData, setOnboardingData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (user) {
       fetchProfile();
+      loadOnboardingData();
     }
   }, [user]);
 
@@ -39,6 +41,17 @@ export const CompanyProfilePage = () => {
       toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadOnboardingData = () => {
+    try {
+      const storedData = localStorage.getItem(`garden-center-onboarding-${user?.id}`);
+      if (storedData) {
+        setOnboardingData(JSON.parse(storedData));
+      }
+    } catch (error) {
+      console.error('Error loading onboarding data:', error);
     }
   };
 
@@ -82,7 +95,10 @@ export const CompanyProfilePage = () => {
               />
             </div>
             <div>
-              <CompanyProfilePreview profile={profile} />
+              <CompanyProfilePreview 
+                profile={profile} 
+                onboardingData={onboardingData}
+              />
             </div>
           </div>
         </div>
