@@ -1,7 +1,6 @@
 
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
-import { SetupProgressCard } from "@/components/homepage/SetupProgressCard";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
 import { CampaignCard } from "@/components/homepage/CampaignCard";
 import { TaskList } from "@/components/homepage/TaskList";
@@ -61,12 +60,6 @@ export const DashboardContent = ({
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <SetupProgressCard 
-            campaignsCount={campaigns.length}
-            tasksCount={totalTasksCount}
-            completedTasksCount={completedTasksCount}
-          />
-          
           <QuickActionsGrid onCampaignCreated={() => {
             handleCampaignCreated();
             onCampaignCreated();
