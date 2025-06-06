@@ -1,6 +1,5 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { generateRequiredTasks } from "./TaskManagementUtils";
 
 export const ensureCampaignHasTasks = async (
   campaigns: any[], 
@@ -31,10 +30,9 @@ export const ensureCampaignHasTasks = async (
       return;
     }
 
-    // If no tasks exist, generate the required tasks with personalization
+    // Log the current state but don't auto-generate
     if (!existingTasks || existingTasks.length === 0) {
-      console.log('No tasks found for current campaign, generating personalized tasks...');
-      await generateRequiredTasks(currentCampaign.id, campaigns, userId, onTaskUpdate);
+      console.log('No tasks found for current campaign. User can generate them manually.');
     } else {
       console.log(`Campaign ${currentCampaign.title} already has ${existingTasks.length} tasks`);
     }
