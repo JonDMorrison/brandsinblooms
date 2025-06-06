@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
             onClick={handleGetStarted}
             className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-4"
           >
-            {user ? "Go to App" : "Get Started in Under 1 Minute"}
+            {user ? "Go to App" : "Get Started In Less Than A Minute"}
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           
@@ -318,7 +319,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
             onClick={handleGetStarted}
             className="bg-warning-500 hover:bg-warning-600 text-warning-foreground px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-6"
           >
-            {user ? "Go to App" : "Get Started in Under 1 Minute"}
+            {user ? "Go to App" : "Get Started In Less Than A Minute"}
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           
