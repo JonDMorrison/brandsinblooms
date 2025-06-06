@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Edit, Save, X, Building } from "lucide-react";
+import { Edit, Save, X, Building, Loader } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -33,6 +33,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
   });
   const [isSaving, setIsSaving] = useState(false);
   const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
+  const [isAutoPopulating, setIsAutoPopulating] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -58,6 +59,8 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
   const handleAutoPopulate = async () => {
     if (!user || hasAutoPopulated) return;
 
+    setIsAutoPopulating(true);
+    
     try {
       // Get onboarding data from localStorage, or use sample Minter Gardening data
       let onboardingData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
@@ -100,6 +103,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       console.error('Error in handleAutoPopulate:', error);
     } finally {
       setHasAutoPopulated(true);
+      setIsAutoPopulating(false);
     }
   };
 
@@ -201,149 +205,159 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
         </div>
       </CardHeader>
       <CardContent className="space-y-8">
-        <div className="grid grid-cols-1 gap-6">
-          <div>
-            <Label htmlFor="company_name" className="text-lg font-semibold">Company Name</Label>
-            <Input
-              id="company_name"
-              placeholder="Your garden center name"
-              value={formData.company_name}
-              onChange={(e) => handleInputChange('company_name', e.target.value)}
-              disabled={!isEditing}
-              className="text-lg p-4 h-12"
-            />
+        {isAutoPopulating ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-6">
+            <Loader className="w-12 h-12 animate-spin text-primary" />
+            <div className="text-center space-y-2">
+              <h3 className="text-xl font-semibold text-primary">Please be patient. Content is coming...</h3>
+              <p className="text-gray-600">We're analyzing your business information and creating your personalized company profile.</p>
+            </div>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6">
+            <div>
+              <Label htmlFor="company_name" className="text-lg font-semibold">Company Name</Label>
+              <Input
+                id="company_name"
+                placeholder="Your garden center name"
+                value={formData.company_name}
+                onChange={(e) => handleInputChange('company_name', e.target.value)}
+                disabled={!isEditing}
+                className="text-lg p-4 h-12"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="company_overview" className="text-lg font-semibold">Company Overview</Label>
-            <Textarea
-              id="company_overview"
-              placeholder="Brief description of your garden center, what you do, and what makes you special"
-              value={formData.company_overview}
-              onChange={(e) => handleInputChange('company_overview', e.target.value)}
-              disabled={!isEditing}
-              rows={4}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="company_overview" className="text-lg font-semibold">Company Overview</Label>
+              <Textarea
+                id="company_overview"
+                placeholder="Brief description of your garden center, what you do, and what makes you special"
+                value={formData.company_overview}
+                onChange={(e) => handleInputChange('company_overview', e.target.value)}
+                disabled={!isEditing}
+                rows={4}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="brand_voice" className="text-lg font-semibold">Brand Voice</Label>
-            <Textarea
-              id="brand_voice"
-              placeholder="How your brand speaks (e.g., friendly and approachable, expert and authoritative, warm and family-oriented)"
-              value={formData.brand_voice}
-              onChange={(e) => handleInputChange('brand_voice', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="brand_voice" className="text-lg font-semibold">Brand Voice</Label>
+              <Textarea
+                id="brand_voice"
+                placeholder="How your brand speaks (e.g., friendly and approachable, expert and authoritative, warm and family-oriented)"
+                value={formData.brand_voice}
+                onChange={(e) => handleInputChange('brand_voice', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="tone_of_writing" className="text-lg font-semibold">Tone of Writing</Label>
-            <Textarea
-              id="tone_of_writing"
-              placeholder="Describe your preferred writing style (e.g., casual and conversational, professional but warm, educational and helpful)"
-              value={formData.tone_of_writing}
-              onChange={(e) => handleInputChange('tone_of_writing', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="tone_of_writing" className="text-lg font-semibold">Tone of Writing</Label>
+              <Textarea
+                id="tone_of_writing"
+                placeholder="Describe your preferred writing style (e.g., casual and conversational, professional but warm, educational and helpful)"
+                value={formData.tone_of_writing}
+                onChange={(e) => handleInputChange('tone_of_writing', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="target_audience" className="text-lg font-semibold">Target Audience</Label>
-            <Textarea
-              id="target_audience"
-              placeholder="Who are your main customers? (e.g., home gardeners, landscape professionals, plant enthusiasts)"
-              value={formData.target_audience}
-              onChange={(e) => handleInputChange('target_audience', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="target_audience" className="text-lg font-semibold">Target Audience</Label>
+              <Textarea
+                id="target_audience"
+                placeholder="Who are your main customers? (e.g., home gardeners, landscape professionals, plant enthusiasts)"
+                value={formData.target_audience}
+                onChange={(e) => handleInputChange('target_audience', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="ideal_customer" className="text-lg font-semibold">Ideal Customer Profile</Label>
-            <Textarea
-              id="ideal_customer"
-              placeholder="Detailed description of your perfect customer (demographics, interests, gardening experience level)"
-              value={formData.ideal_customer}
-              onChange={(e) => handleInputChange('ideal_customer', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="ideal_customer" className="text-lg font-semibold">Ideal Customer Profile</Label>
+              <Textarea
+                id="ideal_customer"
+                placeholder="Detailed description of your perfect customer (demographics, interests, gardening experience level)"
+                value={formData.ideal_customer}
+                onChange={(e) => handleInputChange('ideal_customer', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="unique_selling_points" className="text-lg font-semibold">Unique Selling Points</Label>
-            <Textarea
-              id="unique_selling_points"
-              placeholder="What sets you apart from other garden centers? (e.g., expert advice, rare plants, local focus)"
-              value={formData.unique_selling_points}
-              onChange={(e) => handleInputChange('unique_selling_points', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="unique_selling_points" className="text-lg font-semibold">Unique Selling Points</Label>
+              <Textarea
+                id="unique_selling_points"
+                placeholder="What sets you apart from other garden centers? (e.g., expert advice, rare plants, local focus)"
+                value={formData.unique_selling_points}
+                onChange={(e) => handleInputChange('unique_selling_points', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="company_values" className="text-lg font-semibold">Company Values</Label>
-            <Textarea
-              id="company_values"
-              placeholder="Core values that drive your business (e.g., sustainability, community support, quality)"
-              value={formData.company_values}
-              onChange={(e) => handleInputChange('company_values', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="company_values" className="text-lg font-semibold">Company Values</Label>
+              <Textarea
+                id="company_values"
+                placeholder="Core values that drive your business (e.g., sustainability, community support, quality)"
+                value={formData.company_values}
+                onChange={(e) => handleInputChange('company_values', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="seasonal_focus" className="text-lg font-semibold">Seasonal Focus</Label>
-            <Textarea
-              id="seasonal_focus"
-              placeholder="Key seasonal events, promotions, or focuses throughout the year"
-              value={formData.seasonal_focus}
-              onChange={(e) => handleInputChange('seasonal_focus', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="seasonal_focus" className="text-lg font-semibold">Seasonal Focus</Label>
+              <Textarea
+                id="seasonal_focus"
+                placeholder="Key seasonal events, promotions, or focuses throughout the year"
+                value={formData.seasonal_focus}
+                onChange={(e) => handleInputChange('seasonal_focus', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="specializations" className="text-lg font-semibold">Specializations</Label>
-            <Textarea
-              id="specializations"
-              placeholder="Areas of expertise (e.g., native plants, organic gardening, landscaping, indoor plants)"
-              value={formData.specializations}
-              onChange={(e) => handleInputChange('specializations', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
-          </div>
+            <div>
+              <Label htmlFor="specializations" className="text-lg font-semibold">Specializations</Label>
+              <Textarea
+                id="specializations"
+                placeholder="Areas of expertise (e.g., native plants, organic gardening, landscaping, indoor plants)"
+                value={formData.specializations}
+                onChange={(e) => handleInputChange('specializations', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
 
-          <div>
-            <Label htmlFor="location_info" className="text-lg font-semibold">Location Information</Label>
-            <Textarea
-              id="location_info"
-              placeholder="Location details, climate zone, local growing conditions, community context"
-              value={formData.location_info}
-              onChange={(e) => handleInputChange('location_info', e.target.value)}
-              disabled={!isEditing}
-              rows={3}
-              className="text-lg p-4"
-            />
+            <div>
+              <Label htmlFor="location_info" className="text-lg font-semibold">Location Information</Label>
+              <Textarea
+                id="location_info"
+                placeholder="Location details, climate zone, local growing conditions, community context"
+                value={formData.location_info}
+                onChange={(e) => handleInputChange('location_info', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
+                className="text-lg p-4"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
