@@ -30,7 +30,7 @@ serve(async (req) => {
       const normalizedUrl = websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`;
       const response = await fetch(normalizedUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; GardenCenterBot/1.0)',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
       });
       
@@ -40,6 +40,17 @@ serve(async (req) => {
 
       websiteContent = await response.text();
       console.log('Website content fetched, length:', websiteContent.length);
+      
+      // Clean up HTML content - remove scripts, styles, and extract text
+      const cleanContent = websiteContent
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      console.log('Cleaned content length:', cleanContent.length);
+      
     } catch (error) {
       console.error('Error fetching website:', error);
       throw new Error('Could not access the website. Please check the URL and try again.');
@@ -50,24 +61,30 @@ serve(async (req) => {
 You are an expert at analyzing garden center and nursery websites. Please analyze the following website content and extract key business information.
 
 Website Content:
-${websiteContent.slice(0, 10000)} // Limit content to avoid token limits
+${websiteContent.slice(0, 15000)}
 
-Please extract and provide the following information in JSON format:
+Please extract and provide the following information in JSON format. Be thorough and look for any relevant information, even if it's not perfectly structured. If you find partial information, include it rather than saying "Not specified":
+
 {
-  "businessName": "Extract the business/company name",
-  "aboutBusiness": "Extract a comprehensive description of the business, what they do, their history, mission, etc. (2-3 sentences)",
-  "location": "Extract location information (city, state/region)",
-  "services": "Extract main services, products, or specializations they offer",
-  "brandVoice": "Analyze the tone and writing style used on the website. Extract 2-3 example sentences that best represent their brand voice",
-  "annualEvents": "Extract any recurring events, sales, workshops, or seasonal promotions mentioned"
+  "businessName": "Extract the business/company name - look in headers, titles, about sections",
+  "aboutBusiness": "Extract a comprehensive description of what the business does, their story, mission, services offered (look in about us, home page descriptions, service sections)",
+  "location": "Extract location information - city, state, address information",
+  "services": "Extract main services, products, specializations, what they sell (plants, garden supplies, landscaping, etc.)",
+  "brandVoice": "Extract 1-2 actual sentences from the website that show their writing style and tone",
+  "annualEvents": "Extract any seasonal events, sales, workshops, classes, or recurring promotions mentioned"
 }
 
-Important guidelines:
-- If information is not clearly available, use "Not specified" rather than making assumptions
-- For brandVoice, quote actual text from the website that shows their tone
-- For annualEvents, look for seasonal sales, workshops, classes, festivals, etc.
-- Keep descriptions concise but informative
-- Focus on garden center, nursery, and plant-related content
+Instructions:
+- Look carefully through ALL the content for any business information
+- For businessName: check page titles, headers, footers, contact sections
+- For aboutBusiness: look for "about us", company descriptions, mission statements, what they do
+- For location: check contact info, addresses, "visit us", footer information
+- For services: look for product listings, service descriptions, what they offer
+- For brandVoice: find actual text that shows personality - avoid generic descriptions
+- For annualEvents: look for events calendar, seasonal promotions, workshop schedules
+- If you find ANY relevant information, include it even if incomplete
+- Only use "Not specified" if absolutely no relevant information exists for that field
+- Focus on garden center, nursery, and plant-related content specifically
 `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -79,15 +96,17 @@ Important guidelines:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are an expert at analyzing garden center websites and extracting business information. Always respond with valid JSON.' },
+          { role: 'system', content: 'You are an expert at analyzing garden center websites and extracting business information. Always respond with valid JSON. Be thorough and extract any relevant information you can find.' },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.3,
-        max_tokens: 1000,
+        temperature: 0.1,
+        max_tokens: 1500,
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
@@ -97,6 +116,8 @@ Important guidelines:
     let extractedData;
     try {
       const content = data.choices[0].message.content;
+      console.log('AI response content:', content);
+      
       // Clean up the response to ensure it's valid JSON
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
