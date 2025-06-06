@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "lucide-react";
@@ -51,7 +50,7 @@ export const UpcomingContentCard = ({ tasks, onNavigateToCalendar }: UpcomingCon
       <CardHeader>
         <CardTitle className="text-lg font-bold flex items-center gap-2 text-black">
           <Calendar className="w-5 h-5" />
-          Coming Up Next Month
+          What's Coming Up?
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
