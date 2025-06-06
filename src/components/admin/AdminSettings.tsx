@@ -10,15 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Settings, Upload, FileText, Database, Trash2 } from "lucide-react";
 import * as XLSX from 'xlsx';
+import type { Database } from '@/integrations/supabase/types';
 
-interface AIResource {
-  id: string;
-  name: string;
-  type: 'csv' | 'pdf' | 'text';
-  content: string;
-  description?: string;
-  created_at: string;
-}
+type AIResource = Database['public']['Tables']['ai_generation_resources']['Row'];
 
 export const AdminSettings = () => {
   const [resources, setResources] = useState<AIResource[]>([]);
@@ -29,7 +23,7 @@ export const AdminSettings = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('ai_generation_resources' as any)
+        .from('ai_generation_resources')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -88,7 +82,7 @@ export const AdminSettings = () => {
       }
 
       const { data, error } = await supabase
-        .from('ai_generation_resources' as any)
+        .from('ai_generation_resources')
         .insert([{
           name: file.name,
           type: fileType,
@@ -101,8 +95,10 @@ export const AdminSettings = () => {
         throw error;
       }
 
-      toast.success(`Successfully uploaded ${file.name}`);
-      setResources(prev => [data[0], ...prev]);
+      if (data && data[0]) {
+        toast.success(`Successfully uploaded ${file.name}`);
+        setResources(prev => [data[0], ...prev]);
+      }
       
       // Clear the input
       event.target.value = '';
@@ -117,7 +113,7 @@ export const AdminSettings = () => {
   const handleDeleteResource = async (id: string, name: string) => {
     try {
       const { error } = await supabase
-        .from('ai_generation_resources' as any)
+        .from('ai_generation_resources')
         .delete()
         .eq('id', id);
 
