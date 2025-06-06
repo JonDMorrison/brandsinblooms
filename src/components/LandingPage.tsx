@@ -1,5 +1,3 @@
-
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,12 +15,12 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
   const { user } = useAuth();
 
   const handleGetStarted = () => {
-    if (user) {
-      // User is authenticated, redirect to app
-      navigate('/app');
-    } else if (onGetStarted) {
-      // Use custom onGetStarted handler if provided
+    if (onGetStarted) {
+      // Use the provided onGetStarted callback (for authenticated users in the app flow)
       onGetStarted();
+    } else if (user) {
+      // User is authenticated but no callback provided, navigate to app
+      navigate('/app');
     } else {
       // User is not authenticated, redirect to auth page
       navigate('/auth');
@@ -75,12 +73,12 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
             onClick={handleGetStarted}
             className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-4"
           >
-            {user ? "Go to App" : "Get Started In Less Than A Minute"}
+            Get Started In Less Than A Minute
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           
           <p className="text-sm text-gray-600">
-            {user ? "Welcome back!" : "No credit card required. No tech skills needed."}
+            No credit card required. No tech skills needed.
           </p>
         </div>
       </section>
@@ -346,16 +344,15 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
             onClick={handleGetStarted}
             className="bg-warning-500 hover:bg-warning-600 text-warning-foreground px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-6"
           >
-            {user ? "Go to App" : "Get Started In Less Than A Minute"}
+            Get Started In Less Than A Minute
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           
           <p className="text-sm opacity-75">
-            {user ? "Welcome back!" : "No credit card required. No tech skills needed."}
+            No credit card required. No tech skills needed.
           </p>
         </div>
       </section>
     </div>
   );
 };
-
