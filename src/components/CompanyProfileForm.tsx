@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Edit, Save, X, Building, Wand2 } from "lucide-react";
+import { Edit, Save, X, Building } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -32,7 +33,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
     location_info: ''
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -49,26 +50,22 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
         specializations: profile.specializations || '',
         location_info: profile.location_info || ''
       });
+    } else if (!hasAutoPopulated) {
+      // Auto-populate if no profile exists and we haven't done it yet
+      handleAutoPopulate();
     }
-  }, [profile]);
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  }, [profile, hasAutoPopulated]);
 
   const handleAutoPopulate = async () => {
-    if (!user) return;
+    if (!user || hasAutoPopulated) return;
 
-    setIsGenerating(true);
     try {
       // Get onboarding data from localStorage
       const onboardingData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
       
       if (!onboardingData) {
-        toast.error('No onboarding data found. Please complete onboarding first.');
+        console.log('No onboarding data found for auto-population');
+        setHasAutoPopulated(true);
         return;
       }
 
@@ -84,20 +81,26 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
 
       if (error) {
         console.error('Error generating profile:', error);
-        toast.error('Failed to generate company profile');
+        setHasAutoPopulated(true);
         return;
       }
 
       if (data.profileData) {
         setFormData(data.profileData);
-        toast.success('Company profile auto-populated! Review and edit as needed.');
+        toast.success('Company profile auto-populated based on your onboarding responses!');
       }
     } catch (error) {
       console.error('Error in handleAutoPopulate:', error);
-      toast.error('An unexpected error occurred while generating the profile');
     } finally {
-      setIsGenerating(false);
+      setHasAutoPopulated(true);
     }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const handleSave = async () => {
@@ -171,18 +174,6 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
           Company Information
         </CardTitle>
         <div className="flex gap-2">
-          {!profile && !isEditing && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleAutoPopulate}
-              disabled={isGenerating}
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-            >
-              <Wand2 className="w-4 h-4 mr-2" />
-              {isGenerating ? 'Generating...' : 'Auto-Populate with AI'}
-            </Button>
-          )}
           {isEditing ? (
             <>
               <Button variant="outline" size="sm" onClick={handleCancel}>
