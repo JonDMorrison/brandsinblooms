@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -99,6 +98,61 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
     }
   };
 
+  const formatContent = (content: string, postType: string) => {
+    if (!content) return content;
+    
+    // Split content into paragraphs and format
+    const paragraphs = content.split('\n\n');
+    
+    return paragraphs.map((paragraph, index) => {
+      // Handle headers (lines that end with :)
+      if (paragraph.trim().endsWith(':') && paragraph.length < 100) {
+        return (
+          <h4 key={index} className="font-semibold text-garden-green-dark mb-2 mt-4 first:mt-0">
+            {paragraph.trim()}
+          </h4>
+        );
+      }
+      
+      // Handle bullet points or numbered lists
+      if (paragraph.includes('•') || paragraph.includes('-') || /^\d+\./.test(paragraph)) {
+        const items = paragraph.split('\n').filter(item => item.trim());
+        return (
+          <ul key={index} className="list-disc list-inside space-y-1 mb-3">
+            {items.map((item, itemIndex) => (
+              <li key={itemIndex} className="text-sm">
+                {item.replace(/^[•\-\d+\.]\s*/, '').trim()}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+      
+      // Handle hashtags specially for social media posts
+      if ((postType === 'instagram' || postType === 'facebook') && paragraph.includes('#')) {
+        const parts = paragraph.split(/(#\w+)/g);
+        return (
+          <p key={index} className="text-sm mb-3 leading-relaxed">
+            {parts.map((part, partIndex) => 
+              part.startsWith('#') ? (
+                <span key={partIndex} className="text-blue-600 font-medium">{part}</span>
+              ) : (
+                part
+              )
+            )}
+          </p>
+        );
+      }
+      
+      // Regular paragraphs
+      return (
+        <p key={index} className="text-sm mb-3 leading-relaxed">
+          {paragraph.trim()}
+        </p>
+      );
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
@@ -143,10 +197,10 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                   </div>
                   
                   {task.ai_output && (
-                    <div className="bg-gray-50 p-3 rounded-md">
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap">
-                        {task.ai_output}
-                      </p>
+                    <div className="bg-gray-50 p-4 rounded-md border">
+                      <div className="prose prose-sm max-w-none">
+                        {formatContent(task.ai_output, task.post_type)}
+                      </div>
                     </div>
                   )}
                   
