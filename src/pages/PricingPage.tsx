@@ -7,13 +7,35 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { CheckCircle, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { toast } from "sonner";
 
 const PricingPage = () => {
   const navigate = useNavigate();
+  const { updateSubscription, subscription } = useSubscription();
   const [isAnnual, setIsAnnual] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleStartTrial = () => {
     navigate('/auth');
+  };
+
+  const handleSelectPlan = async (plan: 'sprout' | 'bloom') => {
+    if (!subscription) {
+      navigate('/auth');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await updateSubscription(plan, isAnnual ? 'annual' : 'monthly');
+      navigate('/');
+    } catch (error) {
+      console.error('Error selecting plan:', error);
+      toast.error('Failed to select plan. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const sproutFeatures = [
@@ -84,12 +106,20 @@ const PricingPage = () => {
             Whether you're just getting started or managing a full retail team, we've got a plan to fit your season.
           </p>
           
-          <Button 
-            onClick={handleStartTrial}
-            className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-          >
-            Start Free Trial
-          </Button>
+          {!subscription && (
+            <Button 
+              onClick={handleStartTrial}
+              className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              Start Free Trial
+            </Button>
+          )}
+
+          {subscription?.plan === 'expired' && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 max-w-md mx-auto">
+              <p className="text-red-700 font-medium">Your free trial has ended. Choose a plan to continue.</p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -142,10 +172,11 @@ const PricingPage = () => {
                 </ul>
                 
                 <Button 
-                  onClick={handleStartTrial}
+                  onClick={() => subscription ? handleSelectPlan('sprout') : handleStartTrial()}
+                  disabled={loading}
                   className="w-full bg-garden-green hover:bg-garden-green-dark text-white py-3 rounded-xl"
                 >
-                  Choose Sprout
+                  {subscription ? 'Choose Sprout' : 'Start Free Trial'}
                 </Button>
               </CardContent>
             </Card>
@@ -184,10 +215,11 @@ const PricingPage = () => {
                 </ul>
                 
                 <Button 
-                  onClick={handleStartTrial}
+                  onClick={() => subscription ? handleSelectPlan('bloom') : handleStartTrial()}
+                  disabled={loading}
                   className="w-full bg-garden-green hover:bg-garden-green-dark text-white py-3 rounded-xl"
                 >
-                  Choose Bloom
+                  {subscription ? 'Choose Bloom' : 'Start Free Trial'}
                 </Button>
               </CardContent>
             </Card>
@@ -245,24 +277,26 @@ const PricingPage = () => {
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-12 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl font-semibold mb-4 text-garden-green-dark">
-            Not sure where to start?
-          </h2>
-          
-          <p className="text-base text-gray-600 mb-10">
-            Try it free for 14 days — no credit card required.
-          </p>
-          
-          <Button 
-            onClick={handleStartTrial}
-            className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-          >
-            Start Free Trial
-          </Button>
-        </div>
-      </section>
+      {!subscription && (
+        <section className="py-12 px-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-2xl font-semibold mb-4 text-garden-green-dark">
+              Not sure where to start?
+            </h2>
+            
+            <p className="text-base text-gray-600 mb-10">
+              Try it free for 14 days — no credit card required.
+            </p>
+            
+            <Button 
+              onClick={handleStartTrial}
+              className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              Start Free Trial
+            </Button>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Settings, User } from "lucide-react";
+import { LogOut, Settings, User, Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const UserMenu = () => {
@@ -20,6 +20,14 @@ export const UserMenu = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
+  };
+
+  const handleProfileClick = () => {
+    navigate("/profile");
+  };
+
+  const handleSubscriptionClick = () => {
+    navigate("/subscription");
   };
 
   if (!user) return null;
@@ -49,9 +57,13 @@ export const UserMenu = () => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem onClick={handleProfileClick}>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handleSubscriptionClick}>
+          <Crown className="mr-2 h-4 w-4" />
+          <span>Subscription</span>
         </DropdownMenuItem>
         <DropdownMenuItem>
           <Settings className="mr-2 h-4 w-4" />

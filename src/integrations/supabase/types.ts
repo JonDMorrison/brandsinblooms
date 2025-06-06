@@ -188,6 +188,45 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          billing_interval:
+            | Database["public"]["Enums"]["billing_interval"]
+            | null
+          created_at: string
+          end_date: string
+          id: string
+          plan: Database["public"]["Enums"]["subscription_plan"]
+          start_date: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billing_interval?:
+            | Database["public"]["Enums"]["billing_interval"]
+            | null
+          created_at?: string
+          end_date: string
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          start_date?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billing_interval?:
+            | Database["public"]["Enums"]["billing_interval"]
+            | null
+          created_at?: string
+          end_date?: string
+          id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"]
+          start_date?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           created_at: string
@@ -292,7 +331,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      billing_interval: "monthly" | "annual"
+      subscription_plan: "free_trial" | "sprout" | "bloom" | "expired"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -407,6 +447,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      billing_interval: ["monthly", "annual"],
+      subscription_plan: ["free_trial", "sprout", "bloom", "expired"],
+    },
   },
 } as const
