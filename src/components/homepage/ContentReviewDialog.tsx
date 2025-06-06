@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -98,23 +99,77 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
     }
   };
 
-  const formatContent = (content: string, postType: string) => {
+  const stripHtmlAndFormat = (content: string) => {
     if (!content) return content;
     
+    // Check if content is HTML (contains HTML tags)
+    if (content.includes('<html>') || content.includes('<!DOCTYPE')) {
+      // Extract content from HTML body
+      const bodyMatch = content.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      if (bodyMatch) {
+        content = bodyMatch[1];
+      }
+      
+      // Remove all HTML tags but preserve structure
+      content = content
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script tags
+        .replace(/<h[1-6][^>]*>/gi, '\n\n**') // Convert headers to bold
+        .replace(/<\/h[1-6]>/gi, '**\n') // Close headers
+        .replace(/<p[^>]*>/gi, '\n\n') // Convert paragraphs
+        .replace(/<\/p>/gi, '') // Close paragraphs
+        .replace(/<br[^>]*>/gi, '\n') // Convert line breaks
+        .replace(/<li[^>]*>/gi, '\n• ') // Convert list items
+        .replace(/<\/li>/gi, '') // Close list items
+        .replace(/<ul[^>]*>|<\/ul>/gi, '') // Remove ul tags
+        .replace(/<ol[^>]*>|<\/ol>/gi, '') // Remove ol tags
+        .replace(/<strong[^>]*>|<b[^>]*>/gi, '**') // Convert bold tags
+        .replace(/<\/strong>|<\/b>/gi, '**') // Close bold tags
+        .replace(/<em[^>]*>|<i[^>]*>/gi, '*') // Convert italic tags
+        .replace(/<\/em>|<\/i>/gi, '*') // Close italic tags
+        .replace(/<a[^>]*>([^<]*)<\/a>/gi, '$1') // Extract link text
+        .replace(/<[^>]*>/g, '') // Remove any remaining HTML tags
+        .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up multiple line breaks
+        .trim();
+    }
+    
+    return content;
+  };
+
+  const formatContent = (content: string, postType: string) => {
+    // First strip HTML if present
+    const cleanContent = stripHtmlAndFormat(content);
+    
+    if (!cleanContent) return cleanContent;
+    
     // Split content into paragraphs and format
-    const paragraphs = content.split('\n\n');
+    const paragraphs = cleanContent.split('\n\n');
     
     return paragraphs.map((paragraph, index) => {
-      // Handle headers (lines that end with :)
-      if (paragraph.trim().endsWith(':') && paragraph.length < 100) {
+      if (!paragraph.trim()) return null;
+      
+      // Handle markdown-style headers (lines with **)
+      if (paragraph.includes('**')) {
+        const parts = paragraph.split(/(\*\*[^*]+\*\*)/g);
         return (
-          <h4 key={index} className="font-semibold text-garden-green-dark mb-2 mt-4 first:mt-0">
-            {paragraph.trim()}
-          </h4>
+          <div key={index} className="mb-4">
+            {parts.map((part, partIndex) => {
+              if (part.startsWith('**') && part.endsWith('**')) {
+                return (
+                  <h4 key={partIndex} className="font-semibold text-garden-green-dark mb-2">
+                    {part.replace(/\*\*/g, '')}
+                  </h4>
+                );
+              }
+              return part.trim() ? (
+                <span key={partIndex}>{part}</span>
+              ) : null;
+            })}
+          </div>
         );
       }
       
-      // Handle bullet points or numbered lists
+      // Handle bullet points
       if (paragraph.includes('•') || paragraph.includes('-') || /^\d+\./.test(paragraph)) {
         const items = paragraph.split('\n').filter(item => item.trim());
         return (
@@ -150,7 +205,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
           {paragraph.trim()}
         </p>
       );
-    });
+    }).filter(Boolean);
   };
 
   return (
