@@ -1,7 +1,8 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen, Video } from "lucide-react";
+import { Calendar, Clock, FileText, Edit, Copy, Instagram, Facebook, Mail, CheckCircle, BookOpen, Video, Loader } from "lucide-react";
 import { getStatusColor } from './homepageUtils';
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
@@ -232,15 +233,15 @@ export const WeekCampaignCard = ({
                             dangerouslySetInnerHTML={{ __html: task.ai_output }}
                           />
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
-                            <p className="text-sm text-blue-600 font-medium">Generating content...</p>
+                          <div className="flex items-center justify-center gap-3 py-4">
+                            <Loader className="w-5 h-5 animate-spin text-blue-600" />
+                            <p className="text-sm text-blue-600 font-medium">Generating {getPostTypeLabel(type).toLowerCase()}...</p>
                           </div>
                         )
                       ) : isGeneratingTasks ? (
-                        <div className="flex items-center gap-2">
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
-                          <p className="text-sm text-gray-500 italic">Creating {getPostTypeLabel(type).toLowerCase()}...</p>
+                        <div className="flex items-center justify-center gap-3 py-4">
+                          <Loader className="w-5 h-5 animate-spin text-gray-500" />
+                          <p className="text-sm text-gray-500 font-medium">Creating {getPostTypeLabel(type).toLowerCase()}...</p>
                         </div>
                       ) : (
                         <p className="text-sm text-gray-500 italic">
@@ -261,7 +262,7 @@ export const WeekCampaignCard = ({
 
             {isGeneratingTasks && (
               <div className="text-center py-6 text-gray-500">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <Loader className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
                 <p className="font-medium">Setting up your weekly content...</p>
               </div>
             )}
