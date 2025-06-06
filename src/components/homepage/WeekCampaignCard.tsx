@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +33,7 @@ export const WeekCampaignCard = ({
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'scheduled' })
+        .update({ status: 'approved' })
         .eq('id', taskId);
 
       if (error) {
@@ -47,7 +46,7 @@ export const WeekCampaignCard = ({
       } else {
         toast({
           title: "Content Approved! ✅",
-          description: "Content has been moved to scheduled status.",
+          description: "Content has been approved successfully.",
         });
         if (onTaskUpdate) onTaskUpdate();
       }
@@ -150,21 +149,18 @@ export const WeekCampaignCard = ({
               </span>
             </div>
 
-            {/* Content Theme Section */}
             {(currentCampaign.theme || currentCampaign.description) && (
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <ThemeDisplay
                   currentTheme={currentCampaign.theme || currentCampaign.title}
                   currentDescription={currentCampaign.description}
                   onEdit={() => {
-                    // For now, just log - this could be enhanced to allow editing
                     console.log('Edit theme clicked');
                   }}
                 />
               </div>
             )}
             
-            {/* Required Content Types */}
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
                 <FileText className="w-5 h-5 text-green-600" />
@@ -211,7 +207,7 @@ export const WeekCampaignCard = ({
                             disabled={approvingTasks.has(String(task.id))}
                           >
                             <CheckCircle className="w-3 h-3 mr-1" />
-                            {approvingTasks.has(String(task.id)) ? "Approving..." : "Approve"}
+                            {approvingTasks.has(String(task.id)) ? "Approve" : "Approve"}
                           </Button>
                           <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-100">
                             <Edit className="w-3 h-3 mr-1" />

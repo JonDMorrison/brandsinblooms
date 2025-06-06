@@ -66,7 +66,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         console.error('Error updating task:', error);
         toast.error('Failed to update task');
       } else {
-        toast.success(`Task ${newStatus === 'completed' ? 'approved' : 'updated'}`);
+        toast.success(`Task ${newStatus === 'approved' ? 'approved' : 'updated'}`);
         fetchTasks(); // Refresh the list
       }
     } catch (error) {
@@ -77,7 +77,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'approved':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'review':
         return <AlertCircle className="w-4 h-4 text-yellow-600" />;
@@ -88,7 +88,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'approved':
         return 'bg-green-100 text-green-800';
       case 'review':
         return 'bg-yellow-100 text-yellow-800';
@@ -128,10 +128,10 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                       </Badge>
                     </div>
                     <div className="flex gap-2">
-                      {task.status !== 'completed' && (
+                      {task.status !== 'approved' && (
                         <Button
                           size="sm"
-                          onClick={() => updateTaskStatus(task.id, 'completed')}
+                          onClick={() => updateTaskStatus(task.id, 'approved')}
                           className="bg-green-600 hover:bg-green-700 text-white"
                         >
                           Approve
