@@ -51,110 +51,114 @@ serve(async (req) => {
         .trim();
       
       console.log('Cleaned content length:', cleanContent.length);
+      console.log('First 500 chars of cleaned content:', cleanContent.slice(0, 500));
       
-      // Take first 10000 characters for analysis
-      const contentForAnalysis = cleanContent.slice(0, 10000);
+      // Take first 12000 characters for analysis
+      const contentForAnalysis = cleanContent.slice(0, 12000);
       
       if (contentForAnalysis.length < 100) {
         throw new Error('Website content is too short or could not be properly extracted');
       }
-      
-    } catch (error) {
-      console.error('Error fetching website:', error);
-      throw new Error('Could not access the website. Please check the URL and try again.');
-    }
 
-    // Use OpenAI to analyze the website content
-    const prompt = `
-You are an expert at analyzing garden center and nursery websites. Please analyze the following website content and extract key business information.
+      // Use OpenAI to analyze the website content
+      const prompt = `You are an expert at analyzing garden center and nursery websites to extract business information. 
 
-Website Content:
-${websiteContent.slice(0, 8000)}
+Analyze this website content and extract key business details:
 
-Please extract and provide the following information in JSON format. Look carefully through the content and extract ANY relevant information you can find. Even partial information is valuable:
+${contentForAnalysis}
+
+Extract the following information and respond in valid JSON format:
 
 {
-  "businessName": "The business/company name found on the website",
-  "aboutBusiness": "A comprehensive description of what the business does, their story, mission, services offered",
-  "location": "Location information - city, state, address if found",
-  "services": "Main services, products, specializations, what they sell",
-  "brandVoice": "1-2 actual sentences from the website that show their writing style and tone",
-  "annualEvents": "Any seasonal events, sales, workshops, classes, or recurring promotions mentioned"
+  "businessName": "exact business name found",
+  "aboutBusiness": "detailed description of what they do, their story, mission",
+  "location": "city, state, or address if found",
+  "services": "products, services, specializations they offer",
+  "brandVoice": "actual sentences from their website showing their writing style",
+  "annualEvents": "seasonal events, sales, workshops, classes mentioned"
 }
 
-IMPORTANT INSTRUCTIONS:
-- Look through ALL the content carefully
-- For businessName: check page titles, headers, navigation, contact sections, footers
-- For aboutBusiness: look for "about us", company descriptions, mission statements, home page content
-- For location: check contact info, addresses, "visit us", location sections
-- For services: look for product categories, service descriptions, what they offer
-- For brandVoice: find actual sentences that show personality, avoid generic descriptions
-- For annualEvents: look for events, calendar, seasonal promotions, workshop schedules
-- Extract ANY relevant information you find, even if partial
-- If you cannot find information for a field, respond with an empty string "" instead of "Not specified"
-- Focus on garden center, nursery, and plant-related content specifically
-- Be thorough and look for information that might be in different sections
+CRITICAL INSTRUCTIONS:
+1. Look carefully for the business name in headers, titles, navigation, contact sections
+2. Find their "About Us" section, company description, or mission statement
+3. Look for location in contact info, footer, or "Visit Us" sections
+4. Identify what products/services they sell (plants, landscaping, supplies, etc.)
+5. Find actual text that shows their personality and tone of voice
+6. Look for seasonal events, workshops, sales, or recurring activities
+7. If you cannot find specific information, put an empty string ""
+8. Focus specifically on garden centers, nurseries, and plant-related businesses
+9. Extract ANY relevant information you can find, even if partial
 
 Respond ONLY with valid JSON, no additional text.`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'You are an expert at analyzing garden center websites and extracting business information. Always respond with valid JSON. Be thorough and extract any relevant information you can find, even if partial.' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.1,
-        max_tokens: 1500,
-      }),
-    });
+      console.log('Sending request to OpenAI with prompt length:', prompt.length);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
+      const response2 = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAIApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { 
+              role: 'system', 
+              content: 'You are an expert at analyzing garden center and nursery websites. Always respond with valid JSON containing the requested business information. Be thorough in your analysis and extract any relevant information you can find.'
+            },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+        }),
+      });
 
-    const data = await response.json();
-    console.log('OpenAI response received');
-
-    let extractedData;
-    try {
-      const content = data.choices[0].message.content;
-      console.log('AI response content:', content);
-      
-      // Clean up the response to ensure it's valid JSON
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        extractedData = JSON.parse(jsonMatch[0]);
-        
-        // Ensure we have the expected structure and convert empty/null values to empty strings
-        extractedData = {
-          businessName: extractedData.businessName || "",
-          aboutBusiness: extractedData.aboutBusiness || "",
-          location: extractedData.location || "",
-          services: extractedData.services || "",
-          brandVoice: extractedData.brandVoice || "",
-          annualEvents: extractedData.annualEvents || ""
-        };
-      } else {
-        throw new Error('No JSON found in response');
+      if (!response2.ok) {
+        const errorText = await response2.text();
+        console.error('OpenAI API error:', response2.status, errorText);
+        throw new Error(`OpenAI API error: ${response2.status}`);
       }
-    } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
-      throw new Error('Failed to parse extracted data from AI response');
+
+      const data = await response2.json();
+      console.log('OpenAI response received');
+
+      let extractedData;
+      try {
+        const content = data.choices[0].message.content;
+        console.log('AI response content:', content);
+        
+        // Clean up the response to ensure it's valid JSON
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          extractedData = JSON.parse(jsonMatch[0]);
+          
+          // Ensure we have the expected structure
+          extractedData = {
+            businessName: extractedData.businessName || "",
+            aboutBusiness: extractedData.aboutBusiness || "",
+            location: extractedData.location || "",
+            services: extractedData.services || "",
+            brandVoice: extractedData.brandVoice || "",
+            annualEvents: extractedData.annualEvents || ""
+          };
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (parseError) {
+        console.error('Error parsing AI response:', parseError);
+        throw new Error('Failed to parse extracted data from AI response');
+      }
+
+      console.log('Final extracted data:', extractedData);
+
+      return new Response(JSON.stringify({ extractedData }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+      
+    } catch (fetchError) {
+      console.error('Error fetching website:', fetchError);
+      throw new Error('Could not access the website. Please check the URL and try again.');
     }
-
-    console.log('Extracted data:', extractedData);
-
-    return new Response(JSON.stringify({ extractedData }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
 
   } catch (error) {
     console.error('Error in analyze-website function:', error);
