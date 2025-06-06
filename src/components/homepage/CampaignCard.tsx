@@ -11,12 +11,23 @@ interface Campaign {
   week_number: number;
 }
 
+interface SeasonalContent {
+  theme: string;
+  posts: {
+    type: string;
+    content: string;
+    hashtags: string;
+    imageIdea: string;
+  }[];
+}
+
 interface CampaignCardProps {
   campaign: Campaign;
   onTaskUpdate: () => void;
+  seasonalContent?: SeasonalContent;
 }
 
-export const CampaignCard = ({ campaign, onTaskUpdate }: CampaignCardProps) => {
+export const CampaignCard = ({ campaign, onTaskUpdate, seasonalContent }: CampaignCardProps) => {
   return (
     <Card className="border-garden-green-light">
       <CardHeader>
@@ -35,6 +46,12 @@ export const CampaignCard = ({ campaign, onTaskUpdate }: CampaignCardProps) => {
           <div className="mb-4">
             <h4 className="font-semibold text-garden-green-dark mb-2">Theme:</h4>
             <p className="text-garden-green">{campaign.theme}</p>
+          </div>
+        )}
+        {seasonalContent && (
+          <div className="mb-4">
+            <h4 className="font-semibold text-garden-green-dark mb-2">Seasonal Focus:</h4>
+            <p className="text-garden-green">{seasonalContent.theme}</p>
           </div>
         )}
       </CardContent>
