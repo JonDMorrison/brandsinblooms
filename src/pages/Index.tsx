@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
-import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { WebsiteOnboardingFlow } from "@/components/WebsiteOnboardingFlow";
 import { Dashboard } from "@/components/Dashboard";
 import { LandingPage } from "@/components/LandingPage";
 
@@ -14,7 +14,8 @@ const Index = () => {
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
-    annualEvents: ""
+    annualEvents: "",
+    websiteUrl: ""
   });
 
   useEffect(() => {
@@ -24,7 +25,8 @@ const Index = () => {
       setOnboardingData({
         aboutBusiness: "",
         toneSamples: "",
-        annualEvents: ""
+        annualEvents: "",
+        websiteUrl: ""
       });
       
       // Check URL params for dev navigation
@@ -59,7 +61,7 @@ const Index = () => {
       {showLanding ? (
         <LandingPage onGetStarted={handleGetStarted} />
       ) : !isOnboarded ? (
-        <OnboardingFlow onComplete={handleOnboardingComplete} />
+        <WebsiteOnboardingFlow onComplete={handleOnboardingComplete} />
       ) : (
         <Dashboard onboardingData={onboardingData} />
       )}

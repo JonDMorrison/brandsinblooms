@@ -1,5 +1,5 @@
 
-import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { WebsiteOnboardingFlow } from "@/components/WebsiteOnboardingFlow";
 
 const OnboardingPage = () => {
   const handleOnboardingComplete = (data: any) => {
@@ -9,7 +9,7 @@ const OnboardingPage = () => {
 
   return (
     <div className="min-h-screen bg-garden-background">
-      <OnboardingFlow onComplete={handleOnboardingComplete} />
+      <WebsiteOnboardingFlow onComplete={handleOnboardingComplete} />
     </div>
   );
 };
