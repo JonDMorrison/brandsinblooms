@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -158,9 +159,9 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
             </div>
 
             {currentStep === 1 ? (
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="website-url" className="block text-sm font-medium text-foreground mb-2">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label htmlFor="website-url" className="block text-sm font-medium text-gray-700">
                     Website URL
                   </label>
                   <Input
@@ -169,12 +170,35 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                     value={websiteUrl}
                     onChange={(e) => setWebsiteUrl(e.target.value)}
                     placeholder="https://yourgardencenter.com"
-                    className="text-base h-12 border-2 border-input focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 bg-muted/30 shadow-sm"
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 placeholder:text-gray-400"
                     disabled={isAnalyzing}
                   />
-                  <p className="text-sm text-muted-foreground mt-2">
-                    We'll extract your business information, brand voice, and events
+                  <p className="text-sm text-gray-500">
+                    We'll extract your business details, brand voice, and events.
                   </p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={handleNext}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-md font-medium transition-colors flex items-center justify-center gap-2"
+                    disabled={
+                      isAnalyzing || 
+                      (!websiteUrl.trim() || !isValidUrl(websiteUrl))
+                    }
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Analyzing...
+                      </>
+                    ) : (
+                      <>
+                        Analyze Website
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -236,13 +260,8 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                     className="min-h-[60px]"
                   />
                 </div>
-              </div>
-            )}
-            
-            <div className="flex items-center justify-between mt-6">
-              {/* Back button - always render a div to maintain layout */}
-              <div className="flex">
-                {currentStep === 2 && (
+
+                <div className="flex items-center justify-between mt-6">
                   <Button
                     variant="outline"
                     onClick={handleBack}
@@ -252,44 +271,32 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                     <ArrowLeft className="w-4 h-4" />
                     Back
                   </Button>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-3">
-                {currentStep === 1 && !isAnalyzing && (
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setCurrentStep(2)}
-                    className="text-muted-foreground hover:text-foreground"
+                  
+                  <Button
+                    onClick={handleNext}
+                    className="bg-primary hover:bg-primary/90 flex items-center gap-2"
+                    disabled={isAnalyzing}
                   >
-                    Skip for now
+                    Create Company Profile
+                    <ArrowRight className="w-4 h-4" />
                   </Button>
-                )}
-                
-                <Button
-                  onClick={handleNext}
-                  className="bg-primary hover:bg-primary/90 flex items-center gap-2"
-                  disabled={
-                    isAnalyzing || 
-                    (currentStep === 1 && (!websiteUrl.trim() || !isValidUrl(websiteUrl)))
-                  }
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      {currentStep === steps.length ? "Create Company Profile" : "Analyze Website"}
-                      <ArrowRight className="w-4 h-4" />
-                    </>
-                  )}
-                </Button>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
+
+        {/* Skip option for step 1 */}
+        {currentStep === 1 && !isAnalyzing && (
+          <div className="text-center mt-4">
+            <button 
+              onClick={() => setCurrentStep(2)}
+              className="text-sm text-gray-500 hover:text-green-600 transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
