@@ -9,7 +9,7 @@ const ContentLibraryPage = () => {
         <p className="text-garden-green font-medium">Manage your assets and templates</p>
       </div>
       <div className="p-6">
-        <ContentLibrary />
+        <ContentLibrary onboardingData={{}} />
       </div>
     </div>
   );

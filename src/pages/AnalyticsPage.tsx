@@ -9,7 +9,7 @@ const AnalyticsPage = () => {
         <p className="text-garden-green font-medium">Track your marketing performance and insights</p>
       </div>
       <div className="p-6">
-        <AnalyticsDashboard />
+        <AnalyticsDashboard campaigns={[]} tasks={[]} />
       </div>
     </div>
   );
