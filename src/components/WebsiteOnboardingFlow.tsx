@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -154,7 +155,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                 {currentStep === 1 ? <Globe className="w-5 h-5 text-primary" /> : <Sparkles className="w-5 h-5 text-primary" />}
                 <h2 className="text-xl font-semibold text-foreground">{currentStepData.title}</h2>
               </div>
-              <p className="text-muted-foreground">{currentStepData.description}</p>
+              <p className="text-foreground">{currentStepData.description}</p>
             </div>
 
             {currentStep === 1 ? (
