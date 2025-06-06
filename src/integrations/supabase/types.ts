@@ -153,6 +153,48 @@ export type Database = {
           },
         ]
       }
+      master_campaign_templates: {
+        Row: {
+          content_ideas: string | null
+          created_at: string
+          id: string
+          platform_specific_notes: Json | null
+          prompt: string | null
+          seasonal_focus: string | null
+          target_audience_notes: string | null
+          theme: string | null
+          title: string
+          updated_at: string
+          week_number: number
+        }
+        Insert: {
+          content_ideas?: string | null
+          created_at?: string
+          id?: string
+          platform_specific_notes?: Json | null
+          prompt?: string | null
+          seasonal_focus?: string | null
+          target_audience_notes?: string | null
+          theme?: string | null
+          title: string
+          updated_at?: string
+          week_number: number
+        }
+        Update: {
+          content_ideas?: string | null
+          created_at?: string
+          id?: string
+          platform_specific_notes?: Json | null
+          prompt?: string | null
+          seasonal_focus?: string | null
+          target_audience_notes?: string | null
+          theme?: string | null
+          title?: string
+          updated_at?: string
+          week_number?: number
+        }
+        Relationships: []
+      }
       onboarding_responses: {
         Row: {
           about_business: string | null
@@ -320,7 +362,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      copy_master_templates_to_campaigns: {
+        Args: { target_user_id?: string }
+        Returns: number
+      }
     }
     Enums: {
       billing_interval: "monthly" | "annual"

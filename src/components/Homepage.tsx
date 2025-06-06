@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +11,8 @@ import { PlusCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getSeasonalContent } from "./homepage/SeasonalContent";
 import { getCurrentWeekNumber } from "./homepage/homepageUtils";
+import { MasterTemplateImportDialog } from "./content-import/MasterTemplateImportDialog";
+import { MasterTemplateManager } from "./content-import/MasterTemplateManager";
 
 interface Campaign {
   id: string;
@@ -157,6 +158,7 @@ export const Homepage = () => {
             Current Campaign
           </h2>
           <div className="flex gap-2">
+            <MasterTemplateImportDialog onImportComplete={fetchCampaigns} />
             <CsvUploadDialog onImportComplete={fetchCampaigns} />
             <Button onClick={() => setOpenNewCampaign(true)} className="bg-garden-green hover:bg-garden-green-dark text-white">
               <PlusCircle className="w-4 h-4 mr-2" />
@@ -165,19 +167,29 @@ export const Homepage = () => {
           </div>
         </div>
 
-        {currentCampaign ? (
-          <CampaignCard campaign={currentCampaign} seasonalContent={seasonalContent} />
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No campaigns found</p>
-            <p className="text-gray-400">Create a new campaign to get started</p>
-          </div>
-        )}
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            {currentCampaign ? (
+              <CampaignCard campaign={currentCampaign} seasonalContent={seasonalContent} />
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No campaigns found</p>
+                <p className="text-gray-400">Create a new campaign to get started</p>
+              </div>
+            )}
 
-        <h2 className="text-2xl font-semibold text-garden-green-dark">
-          Content Tasks
-        </h2>
-        <TaskList tasks={tasks} onTaskUpdate={handleTaskUpdate} />
+            <div className="mt-8">
+              <h2 className="text-2xl font-semibold text-garden-green-dark mb-4">
+                Content Tasks
+              </h2>
+              <TaskList tasks={tasks} onTaskUpdate={handleTaskUpdate} />
+            </div>
+          </div>
+          
+          <div className="space-y-6">
+            <MasterTemplateManager />
+          </div>
+        </div>
       </div>
 
       <NewCampaignDialog open={openNewCampaign} onOpenChange={setOpenNewCampaign} onCreate={handleCampaignCreate} />
