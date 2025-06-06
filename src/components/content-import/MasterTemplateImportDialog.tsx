@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Upload, FileText, CheckCircle, Database, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import * as XLSX from 'xlsx';
 
 interface MasterTemplateImportDialogProps {
   onImportComplete?: () => void;
@@ -66,25 +66,88 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
     return data;
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const parseExcel = (file: File): Promise<ParsedMasterTemplate[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          if (jsonData.length < 2) {
+            reject(new Error('File must contain at least a header row and one data row'));
+            return;
+          }
+          
+          const headers = (jsonData[0] as string[]).map(h => String(h).trim().toLowerCase());
+          const templates: ParsedMasterTemplate[] = [];
+          
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i] as any[];
+            if (row && row.length >= 2) {
+              const weekNumber = parseInt(String(row[headers.indexOf('week_number')] || row[0] || ''));
+              const title = String(row[headers.indexOf('title')] || row[1] || '');
+              const theme = String(row[headers.indexOf('theme')] || row[2] || '');
+              const prompt = String(row[headers.indexOf('prompt')] || row[3] || '');
+              const seasonalFocus = String(row[headers.indexOf('seasonal_focus')] || row[4] || '');
+              const contentIdeas = String(row[headers.indexOf('content_ideas')] || row[5] || '');
+              const targetAudienceNotes = String(row[headers.indexOf('target_audience_notes')] || row[6] || '');
+              
+              if (!isNaN(weekNumber) && title && title !== 'undefined') {
+                templates.push({
+                  week_number: weekNumber,
+                  title,
+                  theme: theme === 'undefined' ? '' : theme,
+                  prompt: prompt === 'undefined' ? '' : prompt,
+                  seasonal_focus: seasonalFocus === 'undefined' ? '' : seasonalFocus,
+                  content_ideas: contentIdeas === 'undefined' ? '' : contentIdeas,
+                  target_audience_notes: targetAudienceNotes === 'undefined' ? '' : targetAudienceNotes
+                });
+              }
+            }
+          }
+          
+          resolve(templates);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsArrayBuffer(file);
+    });
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
       setFile(selectedFile);
       
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        try {
-          const parsed = parseCSV(text);
-          setParsedData(parsed);
-          setPreviewMode(true);
-          toast.success(`Found ${parsed.length} templates in your file`);
-        } catch (error) {
-          toast.error('Failed to parse file. Please check the format.');
-          console.error('File parsing error:', error);
+      try {
+        let parsed: ParsedMasterTemplate[] = [];
+        
+        if (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls')) {
+          parsed = await parseExcel(selectedFile);
+        } else {
+          // Handle CSV/TXT files
+          const reader = new FileReader();
+          const text = await new Promise<string>((resolve, reject) => {
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = () => reject(new Error('Failed to read file'));
+            reader.readAsText(selectedFile);
+          });
+          parsed = parseCSV(text);
         }
-      };
-      reader.readAsText(selectedFile);
+        
+        setParsedData(parsed);
+        setPreviewMode(true);
+        toast.success(`Found ${parsed.length} templates in your file`);
+      } catch (error) {
+        toast.error('Failed to parse file. Please check the format.');
+        console.error('File parsing error:', error);
+      }
     }
   };
 
