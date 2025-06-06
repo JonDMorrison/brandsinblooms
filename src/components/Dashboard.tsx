@@ -1,19 +1,10 @@
-import { useState, useEffect } from "react";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AppSidebar } from "@/components/AppSidebar";
-import { Homepage } from "@/components/Homepage";
-import { KanbanBoard } from "@/components/KanbanBoard";
-import { CalendarView } from "@/components/CalendarView";
-import { LandingPage } from "@/components/LandingPage";
-import { TeamPage } from "@/components/TeamPage";
-import { CompanyProfilePage } from "@/components/CompanyProfilePage";
+
+import { useState } from "react";
+import { DashboardTabs } from "./dashboard/DashboardTabs";
+import { DashboardLayout } from "./dashboard/DashboardLayout";
+import { DashboardContent } from "./dashboard/DashboardContent";
 import { ContentSidebar } from "@/components/ContentSidebar";
-import { UserMenu } from "@/components/UserMenu";
-import { CampaignDialog } from "@/components/CampaignDialog";
-import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
-import { ContentLibrary } from "@/components/content-library/ContentLibrary";
-import { supabase } from "@/integrations/supabase/client";
+import { useDashboardData } from "./dashboard/useDashboardData";
 
 interface DashboardProps {
   onboardingData: any;
@@ -23,53 +14,9 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
   const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar" | "team" | "profile">("home");
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isContentModalOpen, setIsContentModalOpen] = useState(false);
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [localOnboardingData, setLocalOnboardingData] = useState(onboardingData);
 
-  const fetchData = async () => {
-    try {
-      // Fetch campaigns
-      const { data: campaignsData, error: campaignsError } = await supabase
-        .from('campaigns')
-        .select('*')
-        .order('start_date', { ascending: true });
-
-      if (campaignsError) {
-        console.error('Error fetching campaigns:', campaignsError);
-      } else {
-        setCampaigns(campaignsData || []);
-      }
-
-      // Fetch content tasks with campaign info
-      const { data: tasksData, error: tasksError } = await supabase
-        .from('content_tasks')
-        .select(`
-          *,
-          campaigns (
-            title,
-            week_number,
-            start_date
-          )
-        `)
-        .order('scheduled_date', { ascending: true });
-
-      if (tasksError) {
-        console.error('Error fetching tasks:', tasksError);
-      } else {
-        setTasks(tasksData || []);
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const { campaigns, tasks, loading, handleTaskUpdate, handleCampaignCreated } = useDashboardData();
 
   const handleBusinessNameChange = (newName: string) => {
     // Update the local onboarding data with the new business name
@@ -80,7 +27,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
     setLocalOnboardingData(updatedData);
     
     // Also update localStorage if user is authenticated
-    const userId = localStorage.getItem('userId'); // Assuming you store user ID somewhere
+    const userId = localStorage.getItem('userId');
     if (userId) {
       localStorage.setItem(`garden-center-onboarding-${userId}`, JSON.stringify(updatedData));
     }
@@ -89,36 +36,6 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
     setIsContentModalOpen(true);
-  };
-
-  const handleCampaignCreated = () => {
-    fetchData(); // Refresh data when a new campaign is created
-  };
-
-  const handleTaskUpdate = () => {
-    fetchData(); // Refresh data when a task is updated
-  };
-
-  const getViewTitle = () => {
-    switch (currentView) {
-      case "home": return "Dashboard Overview";
-      case "kanban": return "Content Pipeline";
-      case "calendar": return "Campaign Calendar";
-      case "team": return "Team Management";
-      case "profile": return "Company Profile";
-      default: return "Dashboard";
-    }
-  };
-
-  const getViewDescription = () => {
-    switch (currentView) {
-      case "home": return "Your marketing hub at a glance";
-      case "kanban": return "Manage your content creation workflow";
-      case "calendar": return "View and schedule your marketing campaigns";
-      case "team": return "Manage your team members and collaboration";
-      case "profile": return "Manage your company information for AI content generation";
-      default: return "";
-    }
   };
 
   const handleCloseContentModal = () => {
@@ -138,79 +55,22 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-garden-background">
-      <Tabs defaultValue="app" className="w-full">
-        <div className="border-b border-green-200 bg-white px-6 py-2">
-          <div className="flex justify-between items-center">
-            <TabsList className="grid w-fit grid-cols-2">
-              <TabsTrigger value="app">App View</TabsTrigger>
-              <TabsTrigger value="landing">Landing Preview</TabsTrigger>
-            </TabsList>
-            <UserMenu />
-          </div>
-        </div>
-
-        <TabsContent value="app" className="mt-0">
-          <SidebarProvider>
-            <div className="min-h-screen flex w-full bg-garden-background">
-              <AppSidebar 
-                currentView={currentView} 
-                onViewChange={setCurrentView}
-                onboardingData={localOnboardingData}
-                onBusinessNameChange={handleBusinessNameChange}
-              />
-              
-              <main className="flex-1">
-                {currentView !== "home" && (
-                  <div className="p-6 border-b border-green-200 bg-white">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h1 className="text-3xl font-bold text-garden-green-dark">
-                          {getViewTitle()}
-                        </h1>
-                        <p className="text-garden-green font-medium">
-                          {getViewDescription()}
-                        </p>
-                      </div>
-                      {currentView !== "team" && currentView !== "profile" && (
-                        <CampaignDialog onCampaignCreated={handleCampaignCreated} />
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className={currentView !== "home" ? "p-6" : ""}>
-                  {currentView === "home" && (
-                    <Homepage />
-                  )}
-                  {currentView === "kanban" && (
-                    <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
-                  )}
-                  {currentView === "calendar" && (
-                    <CalendarView 
-                      campaigns={campaigns} 
-                      tasks={tasks}
-                      onDataUpdate={handleTaskUpdate}
-                    />
-                  )}
-                  {currentView === "team" && (
-                    <TeamPage />
-                  )}
-                  {currentView === "profile" && (
-                    <CompanyProfilePage />
-                  )}
-                </div>
-              </main>
-            </div>
-          </SidebarProvider>
-        </TabsContent>
-
-        <TabsContent value="landing" className="mt-0">
-          <div className="min-h-screen overflow-auto">
-            <LandingPage />
-          </div>
-        </TabsContent>
-      </Tabs>
+    <DashboardTabs>
+      <DashboardLayout
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        onboardingData={localOnboardingData}
+        onBusinessNameChange={handleBusinessNameChange}
+        onCampaignCreated={handleCampaignCreated}
+      >
+        <DashboardContent
+          currentView={currentView}
+          campaigns={campaigns}
+          tasks={tasks}
+          onTaskClick={handleTaskClick}
+          onTaskUpdate={handleTaskUpdate}
+        />
+      </DashboardLayout>
 
       <ContentSidebar 
         task={selectedTask} 
@@ -218,6 +78,6 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
         onClose={handleCloseContentModal}
         onTaskUpdate={handleTaskUpdate}
       />
-    </div>
+    </DashboardTabs>
   );
 };
