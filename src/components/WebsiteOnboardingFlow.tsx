@@ -7,12 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, ArrowLeft, Globe, Loader2, Sparkles, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface WebsiteOnboardingFlowProps {
   onComplete: (data: any) => void;
 }
 
 export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps) => {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
@@ -106,7 +108,13 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
         };
         
         console.log('Completing onboarding with data:', finalData);
+        
+        // Call the onComplete callback
         onComplete(finalData);
+        
+        // Navigate to the main app
+        navigate('/?view=app');
+        
         toast.success("Content creation setup complete!");
       } catch (error) {
         console.error('Error completing onboarding:', error);
@@ -159,7 +167,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                   {extractionItems.map((item, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm">
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                      <span className="text-gray-700">{item}</span>
+                      <span className="text-black">{item}</span>
                     </div>
                   ))}
                 </div>
