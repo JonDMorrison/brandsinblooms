@@ -7,7 +7,7 @@ import { CampaignCard } from "./homepage/CampaignCard";
 import { TaskList } from "./homepage/TaskList";
 import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getSeasonalContent } from "./homepage/SeasonalContent";
 import { getCurrentWeekNumber } from "./homepage/homepageUtils";
@@ -112,10 +112,24 @@ export const Homepage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-garden-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-primary font-medium">Loading campaigns and tasks...</p>
+      <div className="min-h-screen bg-garden-background">
+        <div className="max-w-5xl mx-auto p-6">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-garden-green-dark mb-2">
+              Welcome to Your Marketing Hub
+            </h1>
+            <p className="text-garden-green">
+              Plan, generate, and manage your content with ease
+            </p>
+          </div>
+          
+          <div className="flex justify-center items-center py-20">
+            <div className="text-center">
+              <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+              <p className="text-primary font-medium text-lg">Loading your campaigns and content...</p>
+              <p className="text-gray-500 text-sm mt-2">Setting up your marketing workspace</p>
+            </div>
+          </div>
         </div>
       </div>
     );
