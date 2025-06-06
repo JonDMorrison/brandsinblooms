@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Settings, Upload, FileText, Database, Trash2 } from "lucide-react";
 import * as XLSX from 'xlsx';
-import type { Database } from '@/integrations/supabase/types';
+import type { Database as DatabaseType } from '@/integrations/supabase/types';
 
-type AIResource = Database['public']['Tables']['ai_generation_resources']['Row'];
+type AIResource = DatabaseType['public']['Tables']['ai_generation_resources']['Row'];
 
 export const AdminSettings = () => {
   const [resources, setResources] = useState<AIResource[]>([]);
