@@ -10,7 +10,7 @@ interface Task {
   status: string;
   scheduled_date: string;
   ai_output: string;
-  hashtags: string[];
+  hashtags: string | string[];
   image_idea: string;
 }
 
@@ -29,6 +29,25 @@ export const TaskList = ({ tasks, onTaskUpdate }: TaskListProps) => {
     }
   };
 
+  const parseHashtags = (hashtags: string | string[]): string[] => {
+    if (!hashtags) return [];
+    
+    if (Array.isArray(hashtags)) {
+      return hashtags;
+    }
+    
+    if (typeof hashtags === 'string') {
+      // Split by common separators and clean up
+      return hashtags
+        .split(/[,#\s]+/)
+        .map(tag => tag.trim())
+        .filter(tag => tag.length > 0)
+        .map(tag => tag.startsWith('#') ? tag.slice(1) : tag);
+    }
+    
+    return [];
+  };
+
   if (tasks.length === 0) {
     return (
       <Card>
@@ -42,41 +61,45 @@ export const TaskList = ({ tasks, onTaskUpdate }: TaskListProps) => {
 
   return (
     <div className="space-y-4">
-      {tasks.slice(0, 5).map((task) => (
-        <Card key={task.id} className="border-garden-green-light">
-          <CardContent className="p-4">
-            <div className="flex justify-between items-start mb-2">
-              <div className="flex items-center gap-2">
-                <h4 className="font-semibold text-garden-green-dark capitalize">
-                  {task.post_type}
-                </h4>
-                <Badge className={getStatusColor(task.status)}>
-                  {task.status}
-                </Badge>
+      {tasks.slice(0, 5).map((task) => {
+        const hashtagArray = parseHashtags(task.hashtags);
+        
+        return (
+          <Card key={task.id} className="border-garden-green-light">
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-garden-green-dark capitalize">
+                    {task.post_type}
+                  </h4>
+                  <Badge className={getStatusColor(task.status)}>
+                    {task.status}
+                  </Badge>
+                </div>
+                <span className="text-sm text-garden-green">
+                  {formatDistanceToNow(new Date(task.scheduled_date), { addSuffix: true })}
+                </span>
               </div>
-              <span className="text-sm text-garden-green">
-                {formatDistanceToNow(new Date(task.scheduled_date), { addSuffix: true })}
-              </span>
-            </div>
-            
-            {task.ai_output && (
-              <p className="text-garden-green text-sm mb-2 line-clamp-2">
-                {task.ai_output.substring(0, 100)}...
-              </p>
-            )}
-            
-            {task.hashtags && task.hashtags.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                {task.hashtags.slice(0, 3).map((tag, index) => (
-                  <span key={index} className="text-xs bg-garden-green-light text-garden-green-dark px-2 py-1 rounded">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+              
+              {task.ai_output && (
+                <p className="text-garden-green text-sm mb-2 line-clamp-2">
+                  {task.ai_output.substring(0, 100)}...
+                </p>
+              )}
+              
+              {hashtagArray.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {hashtagArray.slice(0, 3).map((tag, index) => (
+                    <span key={index} className="text-xs bg-garden-green-light text-garden-green-dark px-2 py-1 rounded">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
       
       {tasks.length > 5 && (
         <Card>
