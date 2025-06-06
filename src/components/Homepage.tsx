@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -170,7 +171,11 @@ export const Homepage = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             {currentCampaign ? (
-              <CampaignCard campaign={currentCampaign} seasonalContent={seasonalContent} />
+              <CampaignCard 
+                campaign={currentCampaign} 
+                onTaskUpdate={handleTaskUpdate}
+                seasonalContent={seasonalContent} 
+              />
             ) : (
               <div className="text-center py-12">
                 <p className="text-gray-500 text-lg">No campaigns found</p>
