@@ -9,6 +9,33 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      ai_generation_resources: {
+        Row: {
+          content: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          type: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          type: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          type?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           created_at: string

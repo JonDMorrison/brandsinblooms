@@ -29,7 +29,7 @@ export const AdminSettings = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('ai_generation_resources')
+        .from('ai_generation_resources' as any)
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -88,7 +88,7 @@ export const AdminSettings = () => {
       }
 
       const { data, error } = await supabase
-        .from('ai_generation_resources')
+        .from('ai_generation_resources' as any)
         .insert([{
           name: file.name,
           type: fileType,
@@ -117,7 +117,7 @@ export const AdminSettings = () => {
   const handleDeleteResource = async (id: string, name: string) => {
     try {
       const { error } = await supabase
-        .from('ai_generation_resources')
+        .from('ai_generation_resources' as any)
         .delete()
         .eq('id', id);
 
