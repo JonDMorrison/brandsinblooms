@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -285,18 +284,6 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
             )}
           </CardContent>
         </Card>
-
-        {/* Skip option for step 1 */}
-        {currentStep === 1 && !isAnalyzing && (
-          <div className="text-center mt-4">
-            <button 
-              onClick={() => setCurrentStep(2)}
-              className="text-sm text-gray-500 hover:text-green-600 transition-colors"
-            >
-              Skip for now
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
