@@ -12,7 +12,11 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
   const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    navigate('/auth');
+    if (onGetStarted) {
+      onGetStarted();
+    } else {
+      navigate('/auth');
+    }
   };
 
   const handleSeePricing = () => {
