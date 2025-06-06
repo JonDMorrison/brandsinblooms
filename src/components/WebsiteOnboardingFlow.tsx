@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -242,12 +241,12 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
             
             <div className="flex items-center justify-between mt-6">
               <div>
-                {currentStep > 1 && (
+                {currentStep === 2 && (
                   <Button
                     variant="ghost"
                     onClick={handleBack}
                     disabled={isAnalyzing}
-                    className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     Back
