@@ -1,6 +1,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Sparkles, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { generateRequiredTasks } from "./TaskManagementUtils";
+import { toast } from "sonner";
 
 interface Campaign {
   id: string;
@@ -28,6 +34,27 @@ interface CampaignCardProps {
 }
 
 export const CampaignCard = ({ campaign, onTaskUpdate, seasonalContent }: CampaignCardProps) => {
+  const { user } = useAuth();
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleGenerateContent = async () => {
+    if (!user) {
+      toast.error("Please log in to generate content");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      await generateRequiredTasks(campaign.id, [campaign], user.id, onTaskUpdate);
+      toast.success("Content generated successfully! Check your tasks to review and approve the new content.");
+    } catch (error) {
+      console.error('Error generating content:', error);
+      toast.error("Failed to generate content. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <Card className="border-garden-green-light">
       <CardHeader>
@@ -54,6 +81,29 @@ export const CampaignCard = ({ campaign, onTaskUpdate, seasonalContent }: Campai
             <p className="text-garden-green">{seasonalContent.theme}</p>
           </div>
         )}
+        
+        <div className="mt-6">
+          <Button 
+            onClick={handleGenerateContent}
+            disabled={isGenerating}
+            className="w-full bg-garden-green hover:bg-garden-green-dark text-white"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Generating Content...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-2" />
+                Generate Content
+              </>
+            )}
+          </Button>
+          <p className="text-xs text-gray-500 mt-2 text-center">
+            Creates social media posts, video scripts, newsletter, and email content
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
