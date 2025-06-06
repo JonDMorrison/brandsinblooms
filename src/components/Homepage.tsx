@@ -6,6 +6,7 @@ import { ensureCampaignHasTasks } from "./homepage/CampaignAutoManager";
 import { CampaignCard } from "./homepage/CampaignCard";
 import { TaskList } from "./homepage/TaskList";
 import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
+import { CsvUploadDialog } from "./content-import/CsvUploadDialog";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -155,10 +156,13 @@ export const Homepage = () => {
           <h2 className="text-2xl font-semibold text-garden-green-dark">
             Current Campaign
           </h2>
-          <Button onClick={() => setOpenNewCampaign(true)} className="bg-garden-green hover:bg-garden-green-dark text-white">
-            <PlusCircle className="w-4 h-4 mr-2" />
-            New Campaign
-          </Button>
+          <div className="flex gap-2">
+            <CsvUploadDialog onImportComplete={fetchCampaigns} />
+            <Button onClick={() => setOpenNewCampaign(true)} className="bg-garden-green hover:bg-garden-green-dark text-white">
+              <PlusCircle className="w-4 h-4 mr-2" />
+              New Campaign
+            </Button>
+          </div>
         </div>
 
         {currentCampaign ? (
