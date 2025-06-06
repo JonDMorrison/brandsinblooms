@@ -1,10 +1,12 @@
 
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Users, Edit, TrendingUp, Star, ArrowRight, Calendar, Brain, Zap, MessageSquare, Megaphone, FileCheck } from "lucide-react";
+import { CheckCircle, Users, Edit, TrendingUp, Star, ArrowRight, Calendar, Brain, Zap, MessageSquare, Megaphone, FileCheck, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserMenu } from "@/components/UserMenu";
 
 interface LandingPageProps {
   onGetStarted?: () => void;
@@ -31,8 +33,33 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
     navigate('/pricing');
   };
 
+  const handleLogin = () => {
+    navigate('/auth');
+  };
+
   return (
     <div className="min-h-screen bg-garden-background">
+      {/* Navigation Header */}
+      <nav className="flex justify-between items-center px-6 py-4">
+        <div className="text-2xl font-bold text-garden-green-dark">
+          Garden Center Marketing
+        </div>
+        <div className="flex items-center gap-4">
+          {user ? (
+            <UserMenu />
+          ) : (
+            <Button 
+              onClick={handleLogin}
+              variant="outline"
+              className="border-garden-green text-garden-green hover:bg-garden-green hover:text-white"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              Login
+            </Button>
+          )}
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <section className="py-24 px-6 text-center">
         <div className="max-w-4xl mx-auto">
@@ -331,3 +358,4 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
     </div>
   );
 };
+
