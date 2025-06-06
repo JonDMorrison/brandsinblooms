@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -173,9 +172,6 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                     className="w-full px-4 py-3 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 placeholder:text-gray-400"
                     disabled={isAnalyzing}
                   />
-                  <p className="text-sm text-gray-500">
-                    We'll extract your business details, brand voice, and events.
-                  </p>
                 </div>
 
                 <div className="flex flex-col gap-3">
