@@ -240,13 +240,14 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
             )}
             
             <div className="flex items-center justify-between mt-6">
-              <div>
+              {/* Back button - always render a div to maintain layout */}
+              <div className="flex">
                 {currentStep === 2 && (
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     onClick={handleBack}
                     disabled={isAnalyzing}
-                    className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                    className="flex items-center gap-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
                     Back
