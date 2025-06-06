@@ -38,6 +38,10 @@ const KanbanPage = () => {
     // You can add task detail modal logic here
   };
 
+  const handleTaskUpdate = () => {
+    fetchTasks();
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-garden-background">
@@ -56,7 +60,7 @@ const KanbanPage = () => {
         <p className="text-garden-green font-medium">Manage your content creation workflow</p>
       </div>
       <div className="p-6">
-        <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
+        <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} onTaskUpdate={handleTaskUpdate} />
       </div>
     </div>
   );
