@@ -12,12 +12,8 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
   const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    if (onGetStarted) {
-      onGetStarted();
-    } else {
-      // Navigate to auth page for sign up
-      navigate('/auth');
-    }
+    // Always navigate to auth page for sign up
+    navigate('/auth');
   };
 
   return (
