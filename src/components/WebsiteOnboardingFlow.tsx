@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { WebsiteAnalysisLoader } from "./onboarding/WebsiteAnalysisLoader";
 import { UrlInputStep } from "./onboarding/UrlInputStep";
 import { DataReviewStep } from "./onboarding/DataReviewStep";
+import { OnboardingFlow } from "./OnboardingFlow";
 import { useWebsiteAnalysis } from "@/hooks/useWebsiteAnalysis";
 import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./onboarding/CompanyProfileCreator";
 
@@ -19,6 +20,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   const [currentStep, setCurrentStep] = useState(1);
   const [isCompleting, setIsCompleting] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState("");
+  const [useManualEntry, setUseManualEntry] = useState(false);
   
   const { isAnalyzing, extractedData, analyzeWebsite, updateExtractedData } = useWebsiteAnalysis();
 
@@ -42,6 +44,10 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
         setCurrentStep(2);
       }, 1000);
     }
+  };
+
+  const handleManualEntry = () => {
+    setUseManualEntry(true);
   };
 
   const handleNext = async () => {
@@ -92,6 +98,11 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
     setCurrentStep(1);
   };
 
+  // If user chose manual entry, show the original onboarding flow
+  if (useManualEntry) {
+    return <OnboardingFlow onComplete={onComplete} />;
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-garden-background">
       <div className="w-full max-w-lg">
@@ -111,6 +122,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                 websiteUrl={websiteUrl}
                 setWebsiteUrl={setWebsiteUrl}
                 onAnalyze={handleAnalyze}
+                onManualEntry={handleManualEntry}
                 isAnalyzing={isAnalyzing}
               />
             ) : (

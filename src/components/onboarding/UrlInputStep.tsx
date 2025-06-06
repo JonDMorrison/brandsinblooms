@@ -8,6 +8,7 @@ interface UrlInputStepProps {
   websiteUrl: string;
   setWebsiteUrl: (url: string) => void;
   onAnalyze: () => void;
+  onManualEntry: () => void;
   isAnalyzing: boolean;
 }
 
@@ -15,6 +16,7 @@ export const UrlInputStep = ({
   websiteUrl, 
   setWebsiteUrl, 
   onAnalyze, 
+  onManualEntry,
   isAnalyzing 
 }: UrlInputStepProps) => {
   const isValidUrl = (url: string) => {
@@ -76,6 +78,16 @@ export const UrlInputStep = ({
                 </>
               )}
             </Button>
+            
+            <div className="text-center">
+              <button
+                onClick={onManualEntry}
+                className="text-sm text-black hover:underline"
+                disabled={isAnalyzing}
+              >
+                I'll paste my business information on my own.
+              </button>
+            </div>
           </div>
         </div>
       </CardContent>
