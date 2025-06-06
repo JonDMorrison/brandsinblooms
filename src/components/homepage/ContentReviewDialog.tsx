@@ -129,8 +129,12 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         .replace(/<\/em>|<\/i>/gi, '*') // Close italic tags
         .replace(/<a[^>]*>([^<]*)<\/a>/gi, '$1') // Extract link text
         .replace(/<[^>]*>/g, '') // Remove any remaining HTML tags
+        .replace(/\\n/g, '\n') // Convert literal \n to actual newlines
         .replace(/\n\s*\n\s*\n/g, '\n\n') // Clean up multiple line breaks
         .trim();
+    } else {
+      // Handle content that might have literal \n characters
+      content = content.replace(/\\n/g, '\n');
     }
     
     return content;
