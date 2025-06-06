@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +34,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
     },
     {
       title: "Review & Edit Your Details",
-      description: "We've extracted information from your website. Please review and edit as needed.",
+      description: "We've extracted information from your website. You can change it at any time.",
       component: "review-data"
     }
   ];
