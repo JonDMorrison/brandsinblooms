@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -169,7 +170,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                     value={websiteUrl}
                     onChange={(e) => setWebsiteUrl(e.target.value)}
                     placeholder="https://yourgardencenter.com"
-                    className="text-base h-12 border-2 border-input focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
+                    className="text-base h-12 border-2 border-input focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 bg-muted/30 shadow-sm"
                     disabled={isAnalyzing}
                   />
                   <p className="text-sm text-muted-foreground mt-2">
