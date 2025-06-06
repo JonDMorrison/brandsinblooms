@@ -150,7 +150,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
         <Card className="shadow-md rounded-lg border">
           <CardContent className="p-6">
             {/* Header */}
-            <div className="mb-6">
+            <div className="mb-3">
               <div className="flex items-center gap-2 mb-2">
                 {currentStep === 1 ? <Globe className="w-5 h-5 text-primary" /> : <Sparkles className="w-5 h-5 text-primary" />}
                 <h2 className="text-xl font-semibold text-foreground">{currentStepData.title}</h2>
