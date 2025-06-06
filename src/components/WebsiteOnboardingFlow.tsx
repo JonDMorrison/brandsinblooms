@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +14,7 @@ interface WebsiteOnboardingFlowProps {
 export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isCompleting, setIsCompleting] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [extractedData, setExtractedData] = useState({
     businessName: "",
@@ -80,18 +80,29 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep === 1) {
       analyzeWebsite();
     } else {
-      // Complete onboarding with extracted and edited data
-      const finalData = {
-        aboutBusiness: `${extractedData.businessName ? extractedData.businessName + '. ' : ''}${extractedData.aboutBusiness}${extractedData.location ? ' Located in ' + extractedData.location + '.' : ''}${extractedData.services ? ' Services: ' + extractedData.services : ''}`,
-        toneSamples: extractedData.brandVoice,
-        annualEvents: extractedData.annualEvents,
-        websiteUrl: websiteUrl
-      };
-      onComplete(finalData);
+      setIsCompleting(true);
+      try {
+        // Complete onboarding with extracted and edited data
+        const finalData = {
+          aboutBusiness: `${extractedData.businessName ? extractedData.businessName + '. ' : ''}${extractedData.aboutBusiness}${extractedData.location ? ' Located in ' + extractedData.location + '.' : ''}${extractedData.services ? ' Services: ' + extractedData.services : ''}`,
+          toneSamples: extractedData.brandVoice,
+          annualEvents: extractedData.annualEvents,
+          websiteUrl: websiteUrl
+        };
+        
+        console.log('Completing onboarding with data:', finalData);
+        onComplete(finalData);
+        toast.success("Content creation setup complete!");
+      } catch (error) {
+        console.error('Error completing onboarding:', error);
+        toast.error("Failed to complete setup. Please try again.");
+      } finally {
+        setIsCompleting(false);
+      }
     }
   };
 
@@ -262,7 +273,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                   <Button
                     variant="outline"
                     onClick={handleBack}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || isCompleting}
                     className="flex items-center gap-2"
                   >
                     <ArrowLeft className="w-4 h-4" />
@@ -272,10 +283,19 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                   <Button
                     onClick={handleNext}
                     className="bg-primary hover:bg-primary/90 flex items-center gap-2"
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || isCompleting}
                   >
-                    Create Your Content
-                    <ArrowRight className="w-4 h-4" />
+                    {isCompleting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Setting up...
+                      </>
+                    ) : (
+                      <>
+                        Create Your Content
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
