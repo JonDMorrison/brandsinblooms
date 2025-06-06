@@ -160,12 +160,16 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
             {currentStep === 1 ? (
               <div className="space-y-4">
                 <div>
+                  <label htmlFor="website-url" className="block text-sm font-medium text-foreground mb-2">
+                    Website URL
+                  </label>
                   <Input
+                    id="website-url"
                     type="url"
                     value={websiteUrl}
                     onChange={(e) => setWebsiteUrl(e.target.value)}
                     placeholder="https://yourgardencenter.com"
-                    className="text-base"
+                    className="text-base h-12 border-2 border-input focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20"
                     disabled={isAnalyzing}
                   />
                   <p className="text-sm text-muted-foreground mt-2">
