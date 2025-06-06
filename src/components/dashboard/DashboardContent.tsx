@@ -1,108 +1,104 @@
 
-import { CalendarView } from "@/components/CalendarView";
-import { KanbanBoard } from "@/components/KanbanBoard";
-import { TeamPage } from "@/components/TeamPage";
-import { CompanyProfilePage } from "@/components/CompanyProfilePage";
-import { ContentGenerationControl } from "./ContentGenerationControl";
+import { useDashboardData } from "./useDashboardData";
+import { WelcomeSection } from "@/components/homepage/WelcomeSection";
+import { SetupProgressCard } from "@/components/homepage/SetupProgressCard";
+import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
+import { CampaignCard } from "@/components/homepage/CampaignCard";
 import { TaskList } from "@/components/homepage/TaskList";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/contexts/AuthContext";
+import { UpcomingContentCard } from "@/components/homepage/UpcomingContentCard";
+import { AnalyticsSnapshot } from "@/components/homepage/AnalyticsSnapshot";
+import { NextStepBanner } from "@/components/homepage/NextStepBanner";
 
 interface DashboardContentProps {
-  currentView: string;
-  campaigns: any[];
-  tasks: any[];
-  onTaskClick: (task: any) => void;
-  onTaskUpdate: () => void;
+  onboardingData: any;
+  onBusinessNameChange: (newName: string) => void;
+  onCampaignCreated: () => void;
 }
 
 export const DashboardContent = ({
-  currentView,
-  campaigns,
-  tasks,
-  onTaskClick,
-  onTaskUpdate
+  onboardingData,
+  onBusinessNameChange,
+  onCampaignCreated
 }: DashboardContentProps) => {
-  const { user } = useAuth();
+  const {
+    campaigns,
+    tasks,
+    loading,
+    handleTaskUpdate,
+    handleCampaignCreated
+  } = useDashboardData();
 
-  const renderContent = () => {
-    switch (currentView) {
-      case "home":
-        return (
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
-              <ContentGenerationControl 
-                campaigns={campaigns}
-                tasks={tasks}
-                userId={user?.id}
-                onTaskUpdate={onTaskUpdate}
-              />
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Content</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TaskList tasks={tasks} onTaskUpdate={onTaskUpdate} />
-                </CardContent>
-              </Card>
-            </div>
-            
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Stats</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Active Campaigns</span>
-                      <span className="font-semibold">{campaigns.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Content Pieces</span>
-                      <span className="font-semibold">{tasks.length}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Ready to Publish</span>
-                      <span className="font-semibold">
-                        {tasks.filter(t => t.status === 'review').length}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        );
-      case "kanban":
-        return (
-          <KanbanBoard 
-            tasks={tasks} 
-            onTaskClick={onTaskClick}
-            onTaskUpdate={onTaskUpdate}
-          />
-        );
-      case "calendar":
-        return (
-          <CalendarView 
-            campaigns={campaigns} 
-            tasks={tasks}
-            onDataUpdate={onTaskUpdate}
-          />
-        );
-      case "team":
-        return <TeamPage />;
-      case "profile":
-        return <CompanyProfilePage />;
-      default:
-        return null;
-    }
-  };
+  const activeCampaign = campaigns.find(c => {
+    const campaignStart = new Date(c.start_date);
+    const campaignEnd = new Date(campaignStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    return now >= campaignStart && now <= campaignEnd;
+  });
+
+  const upcomingTasks = tasks
+    .filter(task => task.status === 'draft')
+    .slice(0, 5);
+
+  const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
+  const totalTasksCount = tasks.length;
 
   return (
-    <div className="flex-1 p-6">
-      {renderContent()}
+    <div className="p-6 space-y-6">
+      <WelcomeSection 
+        onboardingData={onboardingData}
+        onBusinessNameChange={onBusinessNameChange}
+      />
+
+      <NextStepBanner 
+        campaignsCount={campaigns.length}
+        tasksCount={totalTasksCount}
+        completedTasksCount={completedTasksCount}
+        onCampaignCreated={() => {
+          handleCampaignCreated();
+          onCampaignCreated();
+        }}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <SetupProgressCard 
+            campaignsCount={campaigns.length}
+            tasksCount={totalTasksCount}
+            completedTasksCount={completedTasksCount}
+          />
+          
+          <QuickActionsGrid onCampaignCreated={() => {
+            handleCampaignCreated();
+            onCampaignCreated();
+          }} />
+          
+          {activeCampaign && (
+            <CampaignCard 
+              campaign={activeCampaign} 
+              onTaskUpdate={handleTaskUpdate}
+            />
+          )}
+          
+          <TaskList 
+            tasks={upcomingTasks}
+            onTaskUpdate={handleTaskUpdate}
+          />
+        </div>
+        
+        <div className="space-y-6">
+          <UpcomingContentCard tasks={upcomingTasks} />
+          <AnalyticsSnapshot 
+            totalTasks={totalTasksCount}
+            completedTasks={completedTasksCount}
+            activeCampaigns={campaigns.filter(c => {
+              const campaignStart = new Date(c.start_date);
+              const campaignEnd = new Date(campaignStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+              const now = new Date();
+              return now >= campaignStart && now <= campaignEnd;
+            }).length}
+          />
+        </div>
+      </div>
     </div>
   );
 };
