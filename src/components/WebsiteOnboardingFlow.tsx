@@ -1,9 +1,9 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
 import { ArrowRight, ArrowLeft, Globe, Loader2, Sparkles, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -40,7 +40,6 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   ];
 
   const currentStepData = steps[currentStep - 1];
-  const progress = (currentStep / steps.length) * 100;
 
   const extractionItems = [
     "Business name and location",
@@ -119,187 +118,175 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-green-800 mb-2">
-            Garden Center Marketing Hub
-          </h1>
-          <p className="text-green-600">Let's personalize your content creation experience</p>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-garden-background">
+      <div className="w-full max-w-lg">
+        {/* Step indicator */}
+        <div className="text-center mb-6">
+          <p className="text-sm text-gray-500">Step {currentStep} of {steps.length}</p>
         </div>
 
-        <div className="mb-6">
-          <Progress value={progress} className="h-2" />
-          <p className="text-sm text-gray-600 mt-2 text-center">
-            Step {currentStep} of {steps.length}
-          </p>
-        </div>
-
+        {/* Loading state */}
         {isAnalyzing && (
-          <Card className="shadow-xl border-blue-200 mb-6">
+          <Card className="shadow-md rounded-xl border mb-6">
             <CardContent className="p-6">
-              <div className="flex items-center justify-center mb-4">
-                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mr-3" />
-                <h3 className="text-lg font-semibold text-blue-800">
-                  Analyzing your website...
-                </h3>
-              </div>
-              <p className="text-center text-blue-600 mb-6">
-                Just a second here, we are collecting your:
-              </p>
-              <div className="space-y-3">
-                {extractionItems.map((item, index) => (
-                  <div key={index} className="flex items-center gap-3">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    <span className="text-gray-700">{item}</span>
-                  </div>
-                ))}
+              <div className="text-center">
+                <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-3" />
+                <h3 className="text-lg font-semibold mb-3">Analyzing your website...</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Just a second here, we are collecting your:
+                </p>
+                <div className="space-y-2 text-left max-w-sm mx-auto">
+                  {extractionItems.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm">
+                      <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <span className="text-gray-700">{item}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        <Card className="shadow-xl border-green-200">
-          <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
-            <CardTitle className="text-xl flex items-center gap-2">
-              {currentStep === 1 ? <Globe className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
-              {currentStepData.title}
-            </CardTitle>
-            <CardDescription className="text-green-100">
-              {currentStepData.description}
-            </CardDescription>
+        {/* Main form */}
+        <Card className="shadow-md rounded-xl border">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-2 mb-2">
+              {currentStep === 1 ? <Globe className="w-5 h-5 text-primary" /> : <Sparkles className="w-5 h-5 text-primary" />}
+              <CardTitle className="text-xl text-gray-900">{currentStepData.title}</CardTitle>
+            </div>
+            <p className="text-gray-600">{currentStepData.description}</p>
           </CardHeader>
-          <CardContent className="p-6">
+
+          <CardContent className="pt-0">
             {currentStep === 1 ? (
               <div className="space-y-4">
                 <div>
-                  <label htmlFor="website" className="block text-sm font-medium text-gray-700 mb-2">
-                    Website URL
-                  </label>
                   <Input
-                    id="website"
                     type="url"
                     value={websiteUrl}
                     onChange={(e) => setWebsiteUrl(e.target.value)}
                     placeholder="https://yourgardencenter.com"
-                    className="text-base border-green-200 focus:border-green-400"
+                    className="text-base"
                     disabled={isAnalyzing}
                   />
                   <p className="text-sm text-gray-500 mt-2">
-                    We'll extract your business information, brand voice, and events from your website
+                    We'll extract your business information, brand voice, and events
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Business Name
                   </label>
                   <Input
                     value={extractedData.businessName}
                     onChange={(e) => updateExtractedData('businessName', e.target.value)}
                     placeholder="Your Garden Center Name"
-                    className="border-green-200 focus:border-green-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     About Your Business
                   </label>
                   <Textarea
                     value={extractedData.aboutBusiness}
                     onChange={(e) => updateExtractedData('aboutBusiness', e.target.value)}
                     placeholder="Tell us about your garden center..."
-                    className="min-h-[100px] border-green-200 focus:border-green-400"
+                    className="min-h-[80px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Location
                   </label>
                   <Input
                     value={extractedData.location}
                     onChange={(e) => updateExtractedData('location', e.target.value)}
                     placeholder="City, State"
-                    className="border-green-200 focus:border-green-400"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Brand Voice & Tone
                   </label>
                   <Textarea
                     value={extractedData.brandVoice}
                     onChange={(e) => updateExtractedData('brandVoice', e.target.value)}
                     placeholder="Examples of your writing style..."
-                    className="min-h-[100px] border-green-200 focus:border-green-400"
+                    className="min-h-[80px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Annual Events
                   </label>
                   <Textarea
                     value={extractedData.annualEvents}
                     onChange={(e) => updateExtractedData('annualEvents', e.target.value)}
                     placeholder="Spring sale, holiday workshops, etc..."
-                    className="min-h-[80px] border-green-200 focus:border-green-400"
+                    className="min-h-[60px]"
                   />
                 </div>
               </div>
             )}
             
-            <div className="flex justify-between mt-6">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={currentStep === 1 || isAnalyzing}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
-              
-              <Button
-                onClick={handleNext}
-                className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
-                disabled={
-                  isAnalyzing || 
-                  (currentStep === 1 && (!websiteUrl.trim() || !isValidUrl(websiteUrl)))
-                }
-              >
-                {isAnalyzing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Analyzing Website...
-                  </>
-                ) : (
-                  <>
-                    {currentStep === steps.length ? "Complete Setup" : "Analyze Website"}
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+            <div className="flex items-center justify-between mt-6">
+              <div>
+                {currentStep > 1 && (
+                  <Button
+                    variant="ghost"
+                    onClick={handleBack}
+                    disabled={isAnalyzing}
+                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back
+                  </Button>
                 )}
-              </Button>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {currentStep === 1 && !isAnalyzing && (
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setCurrentStep(2)}
+                    className="text-gray-500 hover:text-gray-700"
+                  >
+                    Skip for now
+                  </Button>
+                )}
+                
+                <Button
+                  onClick={handleNext}
+                  className="bg-primary hover:bg-primary/90 flex items-center gap-2"
+                  disabled={
+                    isAnalyzing || 
+                    (currentStep === 1 && (!websiteUrl.trim() || !isValidUrl(websiteUrl)))
+                  }
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      {currentStep === steps.length ? "Complete Setup" : "Analyze Website"}
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
-
-        {currentStep === 1 && !isAnalyzing && (
-          <div className="text-center mt-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => setCurrentStep(2)}
-              className="text-green-600 hover:text-green-700"
-            >
-              Skip and fill manually instead
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );
