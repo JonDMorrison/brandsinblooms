@@ -53,6 +53,7 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskCategory, setNewTaskCategory] = useState("Content");
+  const [visibleChecks, setVisibleChecks] = useState<string[]>([]);
 
   // Save tasks to localStorage whenever tasks change
   useEffect(() => {
@@ -68,6 +69,18 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
       setTasks(JSON.parse(saved));
     }
   }, [storageKey]);
+
+  // Animate completed checkmarks sequentially
+  useEffect(() => {
+    const completedTasks = tasks.filter(task => task.completed);
+    setVisibleChecks([]);
+    
+    completedTasks.forEach((task, index) => {
+      setTimeout(() => {
+        setVisibleChecks(prev => [...prev, task.id]);
+      }, index * 200); // 200ms delay between each checkmark
+    });
+  }, [tasks]);
 
   const categories = ["Content", "Visual", "Distribution", "Web", "Store", "Planning", "Follow-up"];
 
@@ -128,17 +141,17 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
   return (
     <Card className="shadow-lg border-green-200 rounded-xl">
       <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-xl">
-        <CardTitle className="text-lg text-garden-green-dark font-bold flex items-center justify-between">
+        <CardTitle className="text-lg text-black font-bold flex items-center justify-between">
           <div className="flex items-center gap-3">
             <CheckCircle className="w-5 h-5" />
             Weekly Tasks
             {campaignTitle && (
-              <Badge variant="outline" className="bg-white">
+              <Badge variant="outline" className="bg-white text-black">
                 {campaignTitle}
               </Badge>
             )}
           </div>
-          <div className="text-sm font-medium">
+          <div className="text-sm font-medium text-black">
             {completedCount}/{totalCount} ({progressPercentage}%)
           </div>
         </CardTitle>
@@ -164,13 +177,18 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
                     : 'bg-white border-gray-200 hover:border-green-300 hover:shadow-sm'
                 }`}
               >
-                <Checkbox
-                  checked={task.completed}
-                  onCheckedChange={() => toggleTask(task.id)}
-                  className="h-5 w-5"
-                />
+                <div className="relative">
+                  <Checkbox
+                    checked={task.completed}
+                    onCheckedChange={() => toggleTask(task.id)}
+                    className="h-5 w-5"
+                  />
+                  {task.completed && visibleChecks.includes(task.id) && (
+                    <CheckCircle className="absolute -top-1 -left-1 w-7 h-7 text-green-500 animate-scale-in" />
+                  )}
+                </div>
                 <div className="flex-1">
-                  <p className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                  <p className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-black'}`}>
                     {task.title}
                   </p>
                 </div>
@@ -197,17 +215,17 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
                 value={newTaskTitle}
                 onChange={(e) => setNewTaskTitle(e.target.value)}
                 onKeyDown={handleKeyPress}
-                className="border-green-300 focus:border-green-500"
+                className="border-green-300 focus:border-green-500 text-black"
                 autoFocus
               />
               <div className="flex items-center gap-3">
                 <Select value={newTaskCategory} onValueChange={setNewTaskCategory}>
-                  <SelectTrigger className="w-32 border-green-300">
+                  <SelectTrigger className="w-32 border-green-300 text-black">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
+                      <SelectItem key={category} value={category} className="text-black">
                         {category}
                       </SelectItem>
                     ))}
@@ -228,7 +246,7 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
                   }}
                   variant="outline"
                   size="sm"
-                  className="border-gray-300"
+                  className="border-gray-300 text-black"
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -238,7 +256,7 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
             <Button 
               onClick={() => setIsAddingTask(true)}
               variant="outline" 
-              className="w-full border-2 border-dashed border-green-300 text-garden-green hover:bg-green-50 font-semibold mt-6"
+              className="w-full border-2 border-dashed border-green-300 text-black hover:bg-green-50 font-semibold mt-6"
             >
               <Plus className="w-4 h-4 mr-2" />
               Add Custom Task
