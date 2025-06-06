@@ -134,7 +134,7 @@ export const ContentGenerationControl = ({
             </Button>
           </div>
         )}
-      </div>
+      </CardContent>
     </Card>
   );
 };
