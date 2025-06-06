@@ -181,15 +181,7 @@ export const Dashboard = ({ onboardingData }: DashboardProps) => {
 
                 <div className={currentView !== "home" ? "p-6" : ""}>
                   {currentView === "home" && (
-                    <Homepage 
-                      onboardingData={localOnboardingData}
-                      onNavigateToKanban={() => setCurrentView("kanban")}
-                      onNavigateToCalendar={() => setCurrentView("calendar")}
-                      onTaskClick={handleTaskClick}
-                      campaigns={campaigns}
-                      tasks={tasks}
-                      onTaskUpdate={handleTaskUpdate}
-                    />
+                    <Homepage />
                   )}
                   {currentView === "kanban" && (
                     <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} />
