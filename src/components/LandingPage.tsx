@@ -15,6 +15,10 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
     navigate('/auth');
   };
 
+  const handleSeePricing = () => {
+    navigate('/pricing');
+  };
+
   return (
     <div className="min-h-screen bg-garden-background">
       {/* Hero Section */}
@@ -279,7 +283,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           </p>
           
           <Button 
-            onClick={handleGetStarted}
+            onClick={handleSeePricing}
             className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group"
           >
             See Pricing Plans

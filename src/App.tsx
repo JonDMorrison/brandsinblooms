@@ -17,6 +17,7 @@ import KanbanPage from "./pages/KanbanPage";
 import TeamPage from "./pages/TeamPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ContentLibraryPage from "./pages/ContentLibraryPage";
+import PricingPage from "./pages/PricingPage";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ const App = () => (
           <DevNavigation />
           <Routes>
             <Route path="/auth" element={<Auth />} />
+            <Route path="/pricing" element={<PricingPage />} />
             <Route 
               path="/" 
               element={
