@@ -273,7 +273,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                     className="bg-primary hover:bg-primary/90 flex items-center gap-2"
                     disabled={isAnalyzing}
                   >
-                    Create Company Profile
+                    Create Your Content
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 </div>
