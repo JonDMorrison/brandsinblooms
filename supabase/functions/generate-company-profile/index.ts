@@ -50,7 +50,7 @@ Return only valid JSON, no additional text.`;
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert marketing consultant specializing in garden centers. Generate detailed, professional company profiles based on onboarding information. Always respond with valid JSON only.' 
+            content: 'You are an expert marketing consultant specializing in garden centers. Generate detailed, professional company profiles based on onboarding information. Always respond with valid JSON only, no markdown formatting or code blocks.' 
           },
           { role: 'user', content: prompt }
         ],
@@ -59,7 +59,10 @@ Return only valid JSON, no additional text.`;
     });
 
     const data = await response.json();
-    const generatedContent = data.choices[0].message.content;
+    let generatedContent = data.choices[0].message.content;
+
+    // Clean up the response in case it's wrapped in markdown code blocks
+    generatedContent = generatedContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
     // Parse the JSON response
     let profileData;
