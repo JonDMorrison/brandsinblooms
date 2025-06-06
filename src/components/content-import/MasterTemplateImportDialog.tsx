@@ -68,24 +68,23 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
-    if (selectedFile && selectedFile.type === 'text/csv') {
+    if (selectedFile) {
       setFile(selectedFile);
       
       const reader = new FileReader();
       reader.onload = (e) => {
-        const csvText = e.target?.result as string;
+        const text = e.target?.result as string;
         try {
-          const parsed = parseCSV(csvText);
+          const parsed = parseCSV(text);
           setParsedData(parsed);
           setPreviewMode(true);
+          toast.success(`Found ${parsed.length} templates in your file`);
         } catch (error) {
-          toast.error('Failed to parse CSV file. Please check the format.');
-          console.error('CSV parsing error:', error);
+          toast.error('Failed to parse file. Please check the format.');
+          console.error('File parsing error:', error);
         }
       };
       reader.readAsText(selectedFile);
-    } else {
-      toast.error('Please select a valid CSV file');
     }
   };
 
@@ -176,11 +175,11 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
             <div className="border-t pt-4 space-y-4">
               <h3 className="font-medium">Import New Master Templates</h3>
               <div className="space-y-2">
-                <Label htmlFor="csv-file">Upload CSV File</Label>
+                <Label htmlFor="template-file">Upload File (.csv, .txt, .xlsx)</Label>
                 <Input
-                  id="csv-file"
+                  id="template-file"
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.txt,.xlsx,.xls"
                   onChange={handleFileChange}
                   className="cursor-pointer"
                 />
@@ -189,15 +188,16 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
               <div className="bg-blue-50 p-4 rounded-lg">
                 <h4 className="font-medium text-blue-900 mb-2 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  Expected CSV Format
+                  File Format Guide
                 </h4>
                 <div className="text-sm text-blue-800 space-y-1">
                   <p><strong>Required columns:</strong> week_number, title</p>
                   <p><strong>Optional columns:</strong> theme, prompt, seasonal_focus, content_ideas, target_audience_notes</p>
+                  <p><strong>Supported formats:</strong> CSV, TXT (comma-separated), Excel</p>
                   <p><strong>Example:</strong></p>
                   <code className="bg-white px-2 py-1 rounded text-xs block mt-1">
                     week_number,title,theme,prompt,seasonal_focus,content_ideas<br/>
-                    1,"New Year Fresh Start","Goal Setting","Focus on new beginnings and resolutions","Winter/New Year","Goal-setting content, before/after posts, motivation quotes"
+                    1,"New Year Fresh Start","Goal Setting","Focus on new beginnings","Winter/New Year","Goal-setting content, motivation quotes"
                   </code>
                 </div>
               </div>
