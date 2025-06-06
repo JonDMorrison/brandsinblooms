@@ -41,15 +41,23 @@ serve(async (req) => {
       websiteContent = await response.text();
       console.log('Website content fetched, length:', websiteContent.length);
       
-      // Clean up HTML content - remove scripts, styles, and extract text
+      // Clean up HTML content - remove scripts, styles, and extract meaningful text
       const cleanContent = websiteContent
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
         .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
         .replace(/<[^>]+>/g, ' ')
         .replace(/\s+/g, ' ')
+        .replace(/&[a-zA-Z0-9#]+;/g, ' ')
         .trim();
       
       console.log('Cleaned content length:', cleanContent.length);
+      
+      // Take first 10000 characters for analysis
+      const contentForAnalysis = cleanContent.slice(0, 10000);
+      
+      if (contentForAnalysis.length < 100) {
+        throw new Error('Website content is too short or could not be properly extracted');
+      }
       
     } catch (error) {
       console.error('Error fetching website:', error);
@@ -61,31 +69,33 @@ serve(async (req) => {
 You are an expert at analyzing garden center and nursery websites. Please analyze the following website content and extract key business information.
 
 Website Content:
-${websiteContent.slice(0, 15000)}
+${websiteContent.slice(0, 8000)}
 
-Please extract and provide the following information in JSON format. Be thorough and look for any relevant information, even if it's not perfectly structured. If you find partial information, include it rather than saying "Not specified":
+Please extract and provide the following information in JSON format. Look carefully through the content and extract ANY relevant information you can find. Even partial information is valuable:
 
 {
-  "businessName": "Extract the business/company name - look in headers, titles, about sections",
-  "aboutBusiness": "Extract a comprehensive description of what the business does, their story, mission, services offered (look in about us, home page descriptions, service sections)",
-  "location": "Extract location information - city, state, address information",
-  "services": "Extract main services, products, specializations, what they sell (plants, garden supplies, landscaping, etc.)",
-  "brandVoice": "Extract 1-2 actual sentences from the website that show their writing style and tone",
-  "annualEvents": "Extract any seasonal events, sales, workshops, classes, or recurring promotions mentioned"
+  "businessName": "The business/company name found on the website",
+  "aboutBusiness": "A comprehensive description of what the business does, their story, mission, services offered",
+  "location": "Location information - city, state, address if found",
+  "services": "Main services, products, specializations, what they sell",
+  "brandVoice": "1-2 actual sentences from the website that show their writing style and tone",
+  "annualEvents": "Any seasonal events, sales, workshops, classes, or recurring promotions mentioned"
 }
 
-Instructions:
-- Look carefully through ALL the content for any business information
-- For businessName: check page titles, headers, footers, contact sections
-- For aboutBusiness: look for "about us", company descriptions, mission statements, what they do
-- For location: check contact info, addresses, "visit us", footer information
-- For services: look for product listings, service descriptions, what they offer
-- For brandVoice: find actual text that shows personality - avoid generic descriptions
-- For annualEvents: look for events calendar, seasonal promotions, workshop schedules
-- If you find ANY relevant information, include it even if incomplete
-- Only use "Not specified" if absolutely no relevant information exists for that field
+IMPORTANT INSTRUCTIONS:
+- Look through ALL the content carefully
+- For businessName: check page titles, headers, navigation, contact sections, footers
+- For aboutBusiness: look for "about us", company descriptions, mission statements, home page content
+- For location: check contact info, addresses, "visit us", location sections
+- For services: look for product categories, service descriptions, what they offer
+- For brandVoice: find actual sentences that show personality, avoid generic descriptions
+- For annualEvents: look for events, calendar, seasonal promotions, workshop schedules
+- Extract ANY relevant information you find, even if partial
+- If you cannot find information for a field, respond with an empty string "" instead of "Not specified"
 - Focus on garden center, nursery, and plant-related content specifically
-`;
+- Be thorough and look for information that might be in different sections
+
+Respond ONLY with valid JSON, no additional text.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -96,7 +106,7 @@ Instructions:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are an expert at analyzing garden center websites and extracting business information. Always respond with valid JSON. Be thorough and extract any relevant information you can find.' },
+          { role: 'system', content: 'You are an expert at analyzing garden center websites and extracting business information. Always respond with valid JSON. Be thorough and extract any relevant information you can find, even if partial.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.1,
@@ -122,6 +132,16 @@ Instructions:
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         extractedData = JSON.parse(jsonMatch[0]);
+        
+        // Ensure we have the expected structure and convert empty/null values to empty strings
+        extractedData = {
+          businessName: extractedData.businessName || "",
+          aboutBusiness: extractedData.aboutBusiness || "",
+          location: extractedData.location || "",
+          services: extractedData.services || "",
+          brandVoice: extractedData.brandVoice || "",
+          annualEvents: extractedData.annualEvents || ""
+        };
       } else {
         throw new Error('No JSON found in response');
       }
