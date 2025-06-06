@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,12 +11,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronDown, Navigation } from "lucide-react";
+import { ChevronDown, Navigation, Crown } from "lucide-react";
 
 export const DevNavigation = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+
+  // Check if current user is the master admin
+  const isMasterAdmin = user?.email === "jon@getclear.ca";
 
   // Define public routes
   const publicRoutes = [
@@ -37,6 +42,11 @@ export const DevNavigation = () => {
     { path: "/subscription", label: "Subscription", description: "Billing and subscription management" },
   ];
 
+  // Define admin routes (only visible to master admin)
+  const adminRoutes = isMasterAdmin ? [
+    { path: "/admin", label: "Master Admin Settings", description: "System configuration and AI resource management" },
+  ] : [];
+
   // Define dev shortcuts
   const devShortcuts = [
     { path: "/app?view=app", label: "Skip to Dashboard", description: "Bypass onboarding, go straight to main dashboard" },
@@ -54,7 +64,7 @@ export const DevNavigation = () => {
   };
 
   const getCurrentPageLabel = () => {
-    const allRoutes = [...publicRoutes, ...appRoutes, ...devShortcuts];
+    const allRoutes = [...publicRoutes, ...appRoutes, ...adminRoutes, ...devShortcuts];
     const currentRoute = allRoutes.find(route => {
       if (route.path.includes("?")) {
         // For routes with query params, check both path and search
@@ -122,6 +132,18 @@ export const DevNavigation = () => {
             Protected App Routes
           </DropdownMenuLabel>
           {appRoutes.map(renderRouteItem)}
+
+          {/* Admin Routes (only for master admin) */}
+          {adminRoutes.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs font-medium text-red-600 uppercase tracking-wide flex items-center gap-1">
+                <Crown className="w-3 h-3" />
+                Master Admin Routes
+              </DropdownMenuLabel>
+              {adminRoutes.map(renderRouteItem)}
+            </>
+          )}
 
           <DropdownMenuSeparator />
 
