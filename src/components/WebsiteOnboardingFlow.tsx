@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,6 +18,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState("");
+  const [visibleItems, setVisibleItems] = useState(0);
   const [extractedData, setExtractedData] = useState({
     businessName: "",
     aboutBusiness: "",
@@ -52,6 +52,27 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
     "Services and specializations"
   ];
 
+  // Animation effect for checklist items
+  useEffect(() => {
+    if (isAnalyzing) {
+      setVisibleItems(0);
+      const timer = setInterval(() => {
+        setVisibleItems(prev => {
+          if (prev < extractionItems.length) {
+            return prev + 1;
+          } else {
+            clearInterval(timer);
+            return prev;
+          }
+        });
+      }, 600); // Show each item every 600ms
+
+      return () => clearInterval(timer);
+    } else {
+      setVisibleItems(0);
+    }
+  }, [isAnalyzing, extractionItems.length]);
+
   const analyzeWebsite = async () => {
     if (!websiteUrl.trim()) {
       toast.error("Please enter a website URL");
@@ -78,8 +99,11 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       if (data?.extractedData) {
         console.log('Successfully extracted data:', data.extractedData);
         setExtractedData(data.extractedData);
-        setCurrentStep(2);
-        toast.success("Website analyzed successfully!");
+        // Wait for all items to be visible before advancing
+        setTimeout(() => {
+          setCurrentStep(2);
+          toast.success("Website analyzed successfully!");
+        }, 1000);
       } else {
         console.warn('No extracted data received');
         toast.error("No data could be extracted from the website.");
@@ -88,7 +112,9 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       console.error('Error in analyzeWebsite:', error);
       toast.error("Failed to analyze website. Please try again.");
     } finally {
-      setIsAnalyzing(false);
+      setTimeout(() => {
+        setIsAnalyzing(false);
+      }, 1000);
     }
   };
 
@@ -165,7 +191,14 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                 </p>
                 <div className="space-y-2 text-left max-w-sm mx-auto">
                   {extractionItems.map((item, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm">
+                    <div 
+                      key={index} 
+                      className={`flex items-center gap-2 text-sm transition-all duration-500 ${
+                        index < visibleItems 
+                          ? 'opacity-100 translate-y-0' 
+                          : 'opacity-0 translate-y-4'
+                      }`}
+                    >
                       <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                       <span className="text-black">{item}</span>
                     </div>
