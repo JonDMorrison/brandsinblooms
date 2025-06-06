@@ -57,6 +57,8 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
+      console.log('Updating task status to:', newStatus);
+      
       const { error } = await supabase
         .from('content_tasks')
         .update({ status: newStatus })
@@ -64,9 +66,9 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
       if (error) {
         console.error('Error updating task:', error);
-        toast.error('Failed to update task');
+        toast.error(`Failed to update task: ${error.message}`);
       } else {
-        toast.success(`Task ${newStatus === 'approved' ? 'approved' : 'updated'}`);
+        toast.success(`Task ${newStatus === 'scheduled' ? 'approved' : 'updated'}`);
         fetchTasks(); // Refresh the list
       }
     } catch (error) {
@@ -77,7 +79,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'approved':
+      case 'scheduled':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'review':
         return <AlertCircle className="w-4 h-4 text-yellow-600" />;
@@ -88,7 +90,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved':
+      case 'scheduled':
         return 'bg-green-100 text-green-800';
       case 'review':
         return 'bg-yellow-100 text-yellow-800';
@@ -128,10 +130,10 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                       </Badge>
                     </div>
                     <div className="flex gap-2">
-                      {task.status !== 'approved' && (
+                      {task.status !== 'scheduled' && (
                         <Button
                           size="sm"
-                          onClick={() => updateTaskStatus(task.id, 'approved')}
+                          onClick={() => updateTaskStatus(task.id, 'scheduled')}
                           className="bg-green-600 hover:bg-green-700 text-white"
                         >
                           Approve

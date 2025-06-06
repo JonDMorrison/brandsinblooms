@@ -31,16 +31,18 @@ export const WeekCampaignCard = ({
     setApprovingTasks(prev => new Set(prev).add(taskId));
     
     try {
+      console.log('Approving task with status change to: scheduled');
+      
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'approved' })
+        .update({ status: 'scheduled' })
         .eq('id', taskId);
 
       if (error) {
         console.error('Error approving task:', error);
         toast({
           title: "Error",
-          description: "Failed to approve content. Please try again.",
+          description: `Failed to approve content: ${error.message}`,
           variant: "destructive",
         });
       } else {
@@ -198,7 +200,7 @@ export const WeekCampaignCard = ({
                         )}
                       </div>
                       
-                      {hasTask && hasContent && (
+                      {hasTask && hasContent && task.status !== 'scheduled' && (
                         <div className="flex gap-2">
                           <Button 
                             size="sm" 
@@ -209,6 +211,22 @@ export const WeekCampaignCard = ({
                             <CheckCircle className="w-3 h-3 mr-1" />
                             {approvingTasks.has(String(task.id)) ? "Approve" : "Approve"}
                           </Button>
+                          <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-100">
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
+                      )}
+
+                      {hasTask && hasContent && task.status === 'scheduled' && (
+                        <div className="flex gap-2">
+                          <Badge className="bg-green-100 text-green-800 font-medium">
+                            ✅ Approved
+                          </Badge>
                           <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-100">
                             <Edit className="w-3 h-3 mr-1" />
                             Edit
