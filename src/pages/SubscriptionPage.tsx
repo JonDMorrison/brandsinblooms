@@ -1,14 +1,19 @@
-
+import { useState } from "react";
 import { useSubscription } from "@/contexts/SubscriptionContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Crown, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const SubscriptionPage = () => {
-  const { subscription, trialDaysLeft } = useSubscription();
+  const { subscription, trialDaysLeft, refreshSubscription } = useSubscription();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
 
   if (!subscription) {
     return (
@@ -51,6 +56,39 @@ const SubscriptionPage = () => {
 
   const handleUpgrade = () => {
     navigate('/pricing');
+  };
+
+  const handleManageBilling = async () => {
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        // Open Stripe customer portal in a new tab
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening customer portal:', error);
+      toast.error('Failed to open billing portal. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshSubscription = async () => {
+    try {
+      await refreshSubscription();
+      toast.success('Subscription status refreshed');
+    } catch (error) {
+      console.error('Error refreshing subscription:', error);
+      toast.error('Failed to refresh subscription status');
+    }
   };
 
   return (
@@ -166,9 +204,42 @@ const SubscriptionPage = () => {
           </Card>
         </div>
 
+        {/* Billing Management Card */}
+        {(subscription?.plan === 'sprout' || subscription?.plan === 'bloom') && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Billing Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600 mb-4">
+                Manage your billing information, update payment methods, view invoices, and make changes to your subscription.
+              </p>
+              <div className="flex gap-4">
+                <Button 
+                  onClick={handleManageBilling}
+                  disabled={loading}
+                  className="bg-garden-green hover:bg-garden-green-dark"
+                >
+                  {loading ? 'Opening...' : 'Manage Billing'}
+                </Button>
+                <Button 
+                  onClick={handleRefreshSubscription}
+                  variant="outline"
+                  className="border-garden-green text-garden-green hover:bg-garden-green hover:text-white"
+                >
+                  Refresh Status
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Action Buttons */}
         <div className="flex gap-4 justify-center">
-          {(subscription.plan === 'free_trial' || subscription.plan === 'expired') && (
+          {(subscription?.plan === 'free_trial' || subscription?.plan === 'expired') && (
             <Button 
               onClick={handleUpgrade}
               className="bg-garden-green hover:bg-garden-green-dark"
@@ -178,7 +249,7 @@ const SubscriptionPage = () => {
             </Button>
           )}
           
-          {(subscription.plan === 'sprout') && (
+          {(subscription?.plan === 'sprout') && (
             <Button 
               onClick={handleUpgrade}
               variant="outline"

@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +7,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { CheckCircle, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/contexts/SubscriptionContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const PricingPage = () => {
@@ -15,28 +16,59 @@ const PricingPage = () => {
   const { updateSubscription, subscription } = useSubscription();
   const [isAnnual, setIsAnnual] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleStartTrial = () => {
     navigate('/auth');
   };
 
   const handleSelectPlan = async (plan: 'sprout' | 'bloom') => {
-    if (!subscription) {
+    if (!subscription || !user) {
       navigate('/auth');
       return;
     }
 
     setLoading(true);
     try {
-      await updateSubscription(plan, isAnnual ? 'annual' : 'monthly');
-      navigate('/');
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          plan: plan,
+          billingInterval: isAnnual ? 'annual' : 'monthly'
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.url) {
+        // Open Stripe checkout in a new tab
+        window.open(data.url, '_blank');
+      }
     } catch (error) {
-      console.error('Error selecting plan:', error);
-      toast.error('Failed to select plan. Please try again.');
+      console.error('Error creating checkout session:', error);
+      toast.error('Failed to start checkout. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  // Check for checkout success/cancel in URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const checkout = urlParams.get('checkout');
+    
+    if (checkout === 'success') {
+      toast.success('Payment successful! Your subscription is now active.');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      navigate('/');
+    } else if (checkout === 'cancelled') {
+      toast.error('Checkout was cancelled.');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [navigate]);
 
   const sproutFeatures = [
     "Weekly AI-generated campaign prompts",
@@ -176,7 +208,7 @@ const PricingPage = () => {
                   disabled={loading}
                   className="w-full bg-garden-green hover:bg-garden-green-dark text-white py-3 rounded-xl"
                 >
-                  {subscription ? 'Choose Sprout' : 'Start Free Trial'}
+                  {loading ? 'Processing...' : subscription ? 'Choose Sprout' : 'Start Free Trial'}
                 </Button>
               </CardContent>
             </Card>
@@ -219,7 +251,7 @@ const PricingPage = () => {
                   disabled={loading}
                   className="w-full bg-garden-green hover:bg-garden-green-dark text-white py-3 rounded-xl"
                 >
-                  {subscription ? 'Choose Bloom' : 'Start Free Trial'}
+                  {loading ? 'Processing...' : subscription ? 'Choose Bloom' : 'Start Free Trial'}
                 </Button>
               </CardContent>
             </Card>

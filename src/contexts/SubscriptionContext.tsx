@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -119,10 +118,29 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
 
       setSubscription(data);
-      toast.success(`Successfully upgraded to ${plan} plan!`);
+      if (plan !== 'expired') {
+        toast.success(`Successfully upgraded to ${plan} plan!`);
+      }
     } catch (error) {
       console.error('Error in updateSubscriptionPlan:', error);
       toast.error('An unexpected error occurred');
+    }
+  };
+
+  const checkStripeSubscription = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('check-subscription');
+      
+      if (error) {
+        console.error('Error checking Stripe subscription:', error);
+        return;
+      }
+
+      console.log('Stripe subscription check result:', data);
+    } catch (error) {
+      console.error('Error in checkStripeSubscription:', error);
     }
   };
 
@@ -132,6 +150,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
   const refreshSubscription = async () => {
     await fetchSubscription();
+    await checkStripeSubscription();
   };
 
   const checkAccess = (requiredPlan: SubscriptionPlan): boolean => {
@@ -163,6 +182,8 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (user) {
       fetchSubscription();
+      // Also check with Stripe on load
+      checkStripeSubscription();
     }
   }, [user]);
 
