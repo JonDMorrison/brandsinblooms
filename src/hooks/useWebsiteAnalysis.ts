@@ -49,10 +49,18 @@ export const useWebsiteAnalysis = () => {
 
       if (data?.extractedData) {
         console.log('Successfully extracted data:', data.extractedData);
+        console.log('Extraction method used:', data.extractionMethod);
+        
         setExtractedData(data.extractedData);
+        
+        // Show success message with extraction method
+        const methodText = data.extractionMethod === 'firecrawl' ? 
+          'Website analyzed successfully using advanced extraction!' : 
+          'Website analyzed successfully!';
+        
         // Wait for all items to be visible before advancing
         setTimeout(() => {
-          toast.success("Website analyzed successfully!");
+          toast.success(methodText);
         }, 1000);
         return true;
       } else {
