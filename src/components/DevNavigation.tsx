@@ -21,14 +21,14 @@ export const DevNavigation = () => {
   const routes = [
     { path: "/", label: "Home/Dashboard", description: "Main application dashboard" },
     { path: "/auth", label: "Authentication", description: "Login/signup page" },
-    { path: "/onboarding", label: "Onboarding Flow", description: "New user setup process (unlinked)" },
-    { path: "/profile", label: "Company Profile", description: "Business profile management (unlinked)" },
-    { path: "/calendar", label: "Campaign Calendar", description: "Content calendar view (unlinked)" },
-    { path: "/kanban", label: "Content Pipeline", description: "Kanban board view (unlinked)" },
-    { path: "/team", label: "Team Management", description: "Team settings and invites (unlinked)" },
-    { path: "/analytics", label: "Analytics Dashboard", description: "Performance metrics (unlinked)" },
-    { path: "/content-library", label: "Content Library", description: "Asset and template management (unlinked)" },
-    { path: "/404", label: "404 Not Found", description: "Error page (unlinked)" },
+    { path: "/onboarding", label: "Onboarding Flow", description: "New user setup process" },
+    { path: "/profile", label: "Company Profile", description: "Business profile management" },
+    { path: "/calendar", label: "Campaign Calendar", description: "Content calendar view" },
+    { path: "/kanban", label: "Content Pipeline", description: "Kanban board view" },
+    { path: "/team", label: "Team Management", description: "Team settings and invites" },
+    { path: "/analytics", label: "Analytics Dashboard", description: "Performance metrics" },
+    { path: "/content-library", label: "Content Library", description: "Asset and template management" },
+    { path: "/404", label: "404 Not Found", description: "Error page" },
   ];
 
   const handleRouteChange = (path: string) => {
