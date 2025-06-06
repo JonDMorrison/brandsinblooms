@@ -1,98 +1,167 @@
 import { useState, useEffect } from "react";
-import { TaskChecklist } from "@/components/TaskChecklist";
-import { WelcomeSection } from "./homepage/WelcomeSection";
-import { WeekCampaignCard } from "./homepage/WeekCampaignCard";
-import { UpcomingContentCard } from "./homepage/UpcomingContentCard";
-import { QuickActionsGrid } from "./homepage/QuickActionsGrid";
-import { AnalyticsSnapshot } from "./homepage/AnalyticsSnapshot";
-import { 
-  getCurrentWeekCampaign,
-  getUpcomingContent,
-  getTasksForCampaign,
-  getOverdueTasks,
-  getCurrentWeekNumber
-} from "./homepage/homepageUtils";
-import { useAutoCampaignManager } from "./homepage/CampaignAutoManager";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { ensureCampaignHasTasks } from "./homepage/CampaignAutoManager";
+import { CampaignCard } from "./homepage/CampaignCard";
+import { TaskList } from "./homepage/TaskList";
+import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
+import { toast } from "sonner";
+import { getSeasonalContent } from "./homepage/SeasonalContent";
+import { getCurrentWeekNumber } from "./homepage/homepageUtils";
 
-interface HomepageProps {
-  onboardingData: any;
-  onNavigateToKanban: () => void;
-  onNavigateToCalendar: () => void;
-  onTaskClick: (task: any) => void;
-  campaigns: any[];
-  tasks: any[];
-  onTaskUpdate?: () => void;
+interface Campaign {
+  id: string;
+  title: string;
+  description: string | null;
+  start_date: string;
+  theme: string | null;
+  week_number: number;
 }
 
-export const Homepage = ({ 
-  onboardingData, 
-  onNavigateToKanban, 
-  onNavigateToCalendar,
-  onTaskClick, 
-  campaigns, 
-  tasks, 
-  onTaskUpdate 
-}: HomepageProps) => {
-  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
-  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+export const Homepage = () => {
+  const { user } = useAuth();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openNewCampaign, setOpenNewCampaign] = useState(false);
 
-  const { autoCreateCurrentWeekCampaign } = useAutoCampaignManager(campaigns, tasks, onTaskUpdate);
+  const fetchCampaigns = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  // Auto-create current week campaign if none exists
-  useEffect(() => {
-    if (campaigns.length > 0) {
-      autoCreateCurrentWeekCampaign();
+      if (error) {
+        console.error('Error fetching campaigns:', error);
+        toast.error('Failed to load campaigns');
+      } else {
+        setCampaigns(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
-  }, [campaigns, tasks]);
+  };
 
-  const currentCampaign = getCurrentWeekCampaign(campaigns);
-  const campaignTasks = currentCampaign ? getTasksForCampaign(tasks, currentCampaign.id) : [];
-  const overdueTasks = getOverdueTasks(tasks);
-  const upcomingContent = getUpcomingContent(tasks);
+  const fetchTasks = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('content_tasks')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-  console.log('Rendering Homepage with:', {
-    currentCampaign: currentCampaign?.title,
-    campaignTasks: campaignTasks.length,
-    requiredTypes: ['newsletter', 'instagram', 'facebook', 'email', 'video'],
-    isGeneratingTasks
-  });
+      if (error) {
+        console.error('Error fetching tasks:', error);
+        toast.error('Failed to load tasks');
+      } else {
+        setTasks(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCampaignCreate = async (newCampaign: Omit<Campaign, 'id'>) => {
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .insert([newCampaign])
+        .select()
+
+      if (error) {
+        console.error('Error creating campaign:', error);
+        toast.error('Failed to create campaign');
+      } else {
+        setCampaigns(prevCampaigns => [data[0], ...prevCampaigns]);
+        toast.success('Campaign created successfully');
+        setOpenNewCampaign(false);
+      }
+    } catch (error) {
+      console.error('Error creating campaign:', error);
+      toast.error('An unexpected error occurred');
+    }
+  };
+
+  const handleTaskUpdate = () => {
+    fetchTasks();
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchCampaigns();
+      fetchTasks();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (campaigns.length > 0 && user) {
+      ensureCampaignHasTasks(campaigns, user.id, handleTaskUpdate);
+    }
+  }, [campaigns, user]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-garden-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-primary font-medium">Loading campaigns and tasks...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const seasonalContent = getSeasonalContent();
+  const weekNumber = getCurrentWeekNumber();
+  const currentCampaign = campaigns.find(c => c.week_number === weekNumber) || campaigns[0];
 
   return (
     <div className="min-h-screen bg-garden-background p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
-        <WelcomeSection />
-
-        {/* This Week's Theme - Full Width */}
-        <div className="w-full">
-          <WeekCampaignCard
-            currentCampaign={currentCampaign}
-            campaignTasks={campaignTasks}
-            isGeneratingTasks={isGeneratingTasks || isCreatingCampaign}
-            onTaskClick={onTaskClick}
-            onTaskUpdate={onTaskUpdate}
-          />
+      <div className="max-w-5xl mx-auto space-y-8">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-garden-green-dark mb-2">
+            Welcome to Your Marketing Hub
+          </h1>
+          <p className="text-garden-green">
+            Plan, generate, and manage your content with ease
+          </p>
         </div>
 
-        {/* Secondary Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-6">
-          <UpcomingContentCard 
-            upcomingContent={upcomingContent} 
-            onNavigateToCalendar={onNavigateToCalendar}
-          />
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-semibold text-garden-green-dark">
+            Current Campaign
+          </h2>
+          <Button onClick={() => setOpenNewCampaign(true)} className="bg-garden-green hover:bg-garden-green-dark text-white">
+            <PlusCircle className="w-4 h-4 mr-2" />
+            New Campaign
+          </Button>
         </div>
 
-        <QuickActionsGrid />
+        {currentCampaign ? (
+          <CampaignCard campaign={currentCampaign} seasonalContent={seasonalContent} />
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No campaigns found</p>
+            <p className="text-gray-400">Create a new campaign to get started</p>
+          </div>
+        )}
 
-        {/* Task Checklist - Full width */}
-        <div className="w-full">
-          <TaskChecklist 
-            campaignTitle={currentCampaign?.title}
-            weekNumber={getCurrentWeekNumber()}
-          />
-        </div>
-
-        <AnalyticsSnapshot campaigns={campaigns} tasks={tasks} />
+        <h2 className="text-2xl font-semibold text-garden-green-dark">
+          Content Tasks
+        </h2>
+        <TaskList tasks={tasks} onTaskUpdate={handleTaskUpdate} />
       </div>
+
+      <NewCampaignDialog open={openNewCampaign} onOpenChange={setOpenNewCampaign} onCreate={handleCampaignCreate} />
     </div>
   );
 };

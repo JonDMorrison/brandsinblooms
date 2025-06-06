@@ -19,7 +19,7 @@ serve(async (req) => {
   }
 
   try {
-    const { campaignId, campaignTitle, weekNumber } = await req.json();
+    const { campaignId, campaignTitle, weekNumber, userId } = await req.json();
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
@@ -27,6 +27,20 @@ serve(async (req) => {
 
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+
+    // Fetch company profile for personalization
+    let companyProfile = null;
+    if (userId) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('company_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!profileError && profileData) {
+        companyProfile = profileData;
+      }
+    }
 
     // Fetch all content tasks for this campaign (excluding newsletter)
     const { data: contentTasks, error: tasksError } = await supabase
@@ -48,7 +62,30 @@ serve(async (req) => {
       imageIdea: task.image_idea
     })) || [];
 
-    const prompt = `You are a professional newsletter writer for a garden center. Create an engaging weekly newsletter based on the following content that was created for social media and email this week.
+    // Build company context for AI
+    let companyContext = '';
+    if (companyProfile) {
+      companyContext = `
+COMPANY PROFILE:
+Company Name: ${companyProfile.company_name || 'Garden Center'}
+Overview: ${companyProfile.company_overview || ''}
+Brand Voice: ${companyProfile.brand_voice || ''}
+Tone of Writing: ${companyProfile.tone_of_writing || ''}
+Target Audience: ${companyProfile.target_audience || ''}
+Ideal Customer: ${companyProfile.ideal_customer || ''}
+Unique Selling Points: ${companyProfile.unique_selling_points || ''}
+Company Values: ${companyProfile.company_values || ''}
+Seasonal Focus: ${companyProfile.seasonal_focus || ''}
+Specializations: ${companyProfile.specializations || ''}
+Location Info: ${companyProfile.location_info || ''}
+
+IMPORTANT: Use this company information to personalize the newsletter. Reference the company name, speak in their brand voice, mention their specializations, and align with their values and target audience.
+`;
+    }
+
+    const prompt = `You are a professional newsletter writer for a garden center. Create an engaging weekly newsletter that reflects the specific company's brand and personality.
+
+${companyContext}
 
 Campaign: ${campaignTitle}
 Week: ${weekNumber}
@@ -62,23 +99,25 @@ Image idea: ${item.imageIdea}
 `).join('\n')}
 
 Create a comprehensive weekly newsletter that:
-1. Has an engaging subject line
-2. Includes a warm welcome message
-3. Highlights the week's main theme from the content
-4. Summarizes key gardening tips and advice from the content
-5. Mentions upcoming events or seasonal activities
-6. Includes a community spotlight or customer feature
-7. Ends with a call-to-action to visit the garden center
-8. Maintains a friendly, knowledgeable tone throughout
+1. Uses the company's specific name and brand voice throughout
+2. Reflects their unique selling points and specializations
+3. Speaks directly to their target audience and ideal customer
+4. Incorporates their company values naturally
+5. References their location and seasonal focus when relevant
+6. Maintains their preferred tone of writing
+7. Highlights the week's main theme from the content
+8. Includes practical gardening tips aligned with their expertise
+9. Mentions seasonal activities relevant to their focus areas
+10. Ends with a personalized call-to-action
 
 Format the response as a JSON object with:
-- subject: The email subject line
+- subject: The email subject line (incorporating company name)
 - content: The full newsletter content in HTML format
 - summary: A brief plain text summary
 
-The newsletter should be 400-600 words and feel personal and engaging.`;
+The newsletter should be 400-600 words and feel personal and authentic to this specific garden center.`;
 
-    console.log('Generating newsletter with prompt:', prompt);
+    console.log('Generating personalized newsletter with prompt:', prompt);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -89,7 +128,7 @@ The newsletter should be 400-600 words and feel personal and engaging.`;
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications. Always respond with valid JSON.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications. Always respond with valid JSON and personalize content based on the company profile provided.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -110,14 +149,15 @@ The newsletter should be 400-600 words and feel personal and engaging.`;
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', aiResponse);
       // Fallback: create newsletter data from raw text
+      const companyName = companyProfile?.company_name || 'Garden Center';
       newsletterData = {
-        subject: `Weekly Garden Newsletter - Week ${weekNumber}`,
+        subject: `Weekly Newsletter from ${companyName} - Week ${weekNumber}`,
         content: aiResponse,
-        summary: `Newsletter for week ${weekNumber} featuring ${campaignTitle}`
+        summary: `Personalized newsletter for week ${weekNumber} featuring ${campaignTitle}`
       };
     }
 
-    console.log('Generated newsletter:', newsletterData);
+    console.log('Generated personalized newsletter:', newsletterData);
 
     return new Response(JSON.stringify(newsletterData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

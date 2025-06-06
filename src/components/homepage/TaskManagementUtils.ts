@@ -4,7 +4,7 @@ import { getCurrentWeekNumber } from "./homepageUtils";
 import { 
   generateNewsletterContent, 
   generateVideoScript, 
-  getContentForType, 
+  generatePersonalizedContent,
   getHashtagsForType, 
   getImageIdeaForType 
 } from "./TaskGenerationUtils";
@@ -51,10 +51,24 @@ export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
   }
 };
 
-export const updateVideoTasksWithNewScript = async (campaignId: string, campaignTitle: string) => {
+export const updateVideoTasksWithNewScript = async (campaignId: string, campaignTitle: string, userId?: string) => {
   try {
+    // Fetch company profile for personalization
+    let companyProfile = null;
+    if (userId) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('company_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!profileError && profileData) {
+        companyProfile = profileData;
+      }
+    }
+
     const seasonalContent = getSeasonalContent();
-    const newVideoScript = generateVideoScript(campaignTitle, seasonalContent);
+    const newVideoScript = generateVideoScript(campaignTitle, seasonalContent, companyProfile);
     
     const { error } = await supabase
       .from('content_tasks')
@@ -65,17 +79,16 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
     if (error) {
       console.error('Error updating video script:', error);
     } else {
-      console.log('Video script updated with fresh content');
+      console.log('Video script updated with personalized content');
     }
   } catch (error) {
     console.error('Error updating video script:', error);
   }
 };
 
-export const createMissingTasks = async (campaignId: string, missingTypes: string[], campaignTitle: string) => {
+export const createMissingTasks = async (campaignId: string, missingTypes: string[], campaignTitle: string, userId?: string) => {
   try {
     const today = new Date();
-    const seasonalContent = getSeasonalContent();
     const weekNumber = getCurrentWeekNumber();
     
     const tasksToCreate = [];
@@ -88,11 +101,25 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       let aiOutput = '';
       
       if (postType === 'newsletter') {
-        aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber);
+        aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId);
       } else if (postType === 'video') {
-        aiOutput = generateVideoScript(campaignTitle, seasonalContent);
+        // Fetch company profile for video script
+        let companyProfile = null;
+        if (userId) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('company_profiles')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (!profileError && profileData) {
+            companyProfile = profileData;
+          }
+        }
+        const seasonalContent = getSeasonalContent();
+        aiOutput = generateVideoScript(campaignTitle, seasonalContent, companyProfile);
       } else {
-        aiOutput = getContentForType(postType, seasonalContent);
+        aiOutput = await generatePersonalizedContent(postType, campaignTitle, userId);
       }
       
       tasksToCreate.push({
@@ -106,7 +133,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       });
     }
 
-    console.log('Creating missing tasks:', tasksToCreate);
+    console.log('Creating personalized missing tasks:', tasksToCreate);
 
     const { error } = await supabase
       .from('content_tasks')
@@ -115,23 +142,22 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
     if (error) {
       console.error('Error creating missing tasks:', error);
     } else {
-      console.log('Missing tasks created successfully');
+      console.log('Personalized missing tasks created successfully');
     }
   } catch (error) {
     console.error('Error creating missing tasks:', error);
   }
 };
 
-export const generateRequiredTasks = async (campaignId: string, campaigns: any[], onTaskUpdate?: () => void) => {
+export const generateRequiredTasks = async (campaignId: string, campaigns: any[], userId?: string, onTaskUpdate?: () => void) => {
   try {
     const campaign = campaigns.find(c => c.id === campaignId);
     if (!campaign) return;
 
     const today = new Date();
-    const seasonalContent = getSeasonalContent();
     const weekNumber = getCurrentWeekNumber();
     
-    // Generate exactly 5 required tasks
+    // Generate exactly 5 required tasks with personalization
     const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
     const sampleTasks = [];
     
@@ -143,11 +169,25 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       let aiOutput = '';
       
       if (postType === 'newsletter') {
-        aiOutput = await generateNewsletterContent(campaignId, campaign.title, weekNumber);
+        aiOutput = await generateNewsletterContent(campaignId, campaign.title, weekNumber, userId);
       } else if (postType === 'video') {
-        aiOutput = generateVideoScript(campaign.title, seasonalContent);
+        // Fetch company profile for video script
+        let companyProfile = null;
+        if (userId) {
+          const { data: profileData, error: profileError } = await supabase
+            .from('company_profiles')
+            .select('*')
+            .eq('user_id', userId)
+            .maybeSingle();
+
+          if (!profileError && profileData) {
+            companyProfile = profileData;
+          }
+        }
+        const seasonalContent = getSeasonalContent();
+        aiOutput = generateVideoScript(campaign.title, seasonalContent, companyProfile);
       } else {
-        aiOutput = getContentForType(postType, seasonalContent);
+        aiOutput = await generatePersonalizedContent(postType, campaign.title, userId);
       }
       
       sampleTasks.push({
@@ -161,7 +201,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       });
     }
 
-    console.log('Auto-generating required tasks:', sampleTasks);
+    console.log('Auto-generating personalized required tasks:', sampleTasks);
 
     const { data, error } = await supabase
       .from('content_tasks')
@@ -171,7 +211,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
     if (error) {
       console.error('Error creating tasks:', error);
     } else {
-      console.log('Tasks created successfully:', data);
+      console.log('Personalized tasks created successfully:', data);
     }
 
     if (onTaskUpdate) {

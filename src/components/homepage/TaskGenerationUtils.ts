@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getSeasonalContent } from "./SeasonalContent";
 import { getCurrentWeekNumber } from "./homepageUtils";
 
-export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number) => {
+export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number, userId?: string) => {
   try {
     console.log('Generating newsletter for campaign:', campaignTitle);
     
@@ -11,7 +11,8 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
       body: {
         campaignId,
         campaignTitle,
-        weekNumber
+        weekNumber,
+        userId
       }
     });
 
@@ -36,6 +37,59 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
   } catch (error) {
     console.error('Error generating newsletter:', error);
     return generateFallbackNewsletter(campaignTitle, weekNumber);
+  }
+};
+
+export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string) => {
+  try {
+    // Fetch company profile for personalization
+    let companyProfile = null;
+    if (userId) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('company_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!profileError && profileData) {
+        companyProfile = profileData;
+      }
+    }
+
+    const seasonalContent = getSeasonalContent();
+    
+    // Use company profile to generate personalized content
+    if (companyProfile && postType !== 'newsletter' && postType !== 'video') {
+      return generateContentWithProfile(postType, campaignTitle, companyProfile, seasonalContent);
+    }
+
+    // Fallback to generic content
+    return getContentForType(postType, seasonalContent);
+  } catch (error) {
+    console.error('Error generating personalized content:', error);
+    const seasonalContent = getSeasonalContent();
+    return getContentForType(postType, seasonalContent);
+  }
+};
+
+const generateContentWithProfile = (postType: string, campaignTitle: string, profile: any, seasonalContent: any) => {
+  const companyName = profile.company_name || 'Garden Center';
+  const specializations = profile.specializations || '';
+  const uniqueSellingPoints = profile.unique_selling_points || '';
+  const targetAudience = profile.target_audience || 'gardeners';
+  
+  switch (postType) {
+    case 'instagram':
+      return `🌱 ${campaignTitle} at ${companyName}! ${specializations ? `Our specialty in ${specializations} ` : ''}means we know exactly how to help you succeed. ${uniqueSellingPoints ? `What sets us apart: ${uniqueSellingPoints}. ` : ''}Perfect for ${targetAudience} looking to level up their garden game! Visit us today for expert advice tailored to your needs. #${companyName.replace(/\s+/g, '')} #GardenLife #PlantParent #ExpertAdvice`;
+      
+    case 'facebook':
+      return `${campaignTitle} is the perfect focus for this week at ${companyName}! 🌿\n\n${profile.company_overview ? profile.company_overview.substring(0, 100) + '...' : 'We\'re passionate about helping you grow your best garden.'}\n\n${uniqueSellingPoints ? `What makes us different: ${uniqueSellingPoints}\n\n` : ''}Whether you're ${profile.ideal_customer || 'a gardening enthusiast'}, our team is here to provide personalized guidance. ${specializations ? `Ask us about our expertise in ${specializations}!` : ''}\n\nStop by this week and let's discuss your gardening goals. What questions can we answer for you?`;
+      
+    case 'email':
+      return `This week at ${companyName}, we're focusing on ${campaignTitle}! ${profile.brand_voice ? `True to our ${profile.brand_voice} approach, ` : ''}we've prepared something special for ${targetAudience}.\n\n${uniqueSellingPoints ? `Remember what makes us unique: ${uniqueSellingPoints}. ` : ''}${profile.seasonal_focus ? `This ties perfectly into our seasonal focus: ${profile.seasonal_focus}. ` : ''}\n\nDon't miss our expert recommendations and fresh arrivals this week. ${specializations ? `Plus, get specialized advice on ${specializations}!` : ''}\n\nSee you soon at ${companyName}!`;
+      
+    default:
+      return `${campaignTitle} at ${companyName} - expert advice for ${targetAudience}. ${specializations ? `Specializing in ${specializations}.` : ''}`;
   }
 };
 
@@ -81,26 +135,46 @@ The Garden Center Team
 P.S. Follow us on social media for daily inspiration and quick tips! 🌱`;
 };
 
-export const generateVideoScript = (campaignTitle: string, seasonalContent: any) => {
-  const theme = campaignTitle.toLowerCase();
+export const generateVideoScript = (campaignTitle: string, seasonalContent: any, companyProfile?: any) => {
+  const companyName = companyProfile?.company_name || 'our garden center';
+  const specializations = companyProfile?.specializations || '';
+  const brandVoice = companyProfile?.brand_voice || 'friendly and knowledgeable';
+  const targetAudience = companyProfile?.target_audience || 'fellow garden lovers';
   
-  return `Hey there, fellow garden lovers! Today I want to talk about something that's been on my mind - ${theme}. If you've been struggling with this in your garden, you're definitely not alone.
+  return `Hey there, ${targetAudience}! ${companyProfile?.company_name ? `Welcome back to ${companyProfile.company_name}` : 'Welcome to our garden center'}. Today I want to talk about something that's been on my mind - ${campaignTitle.toLowerCase()}.
 
-I've been helping gardeners for over fifteen years now, and I can tell you that ${theme} doesn't have to be complicated. In fact, some of the best results I've seen come from understanding just a few key principles.
+${brandVoice.includes('expert') || brandVoice.includes('professional') ? 
+  `With years of experience helping gardeners succeed, I can tell you that ${campaignTitle.toLowerCase()} doesn't have to be complicated.` :
+  `If you've been struggling with this in your garden, you're definitely not alone.`
+}
 
-Here's what I've learned: most people overthink ${theme}. They get caught up in complex techniques and expensive products when really, nature has already given us everything we need to succeed.
+${specializations ? 
+  `Here at ${companyName}, we specialize in ${specializations}, and I've learned that ` :
+  `I've been helping gardeners for years now, and I can tell you that `
+}${campaignTitle.toLowerCase()} is really about understanding just a few key principles.
 
-The first thing to understand is timing. Your garden operates on its own schedule, and working with that rhythm rather than against it makes all the difference. When you start paying attention to these natural signals, everything becomes clearer.
+${companyProfile?.company_values ? 
+  `True to our values of ${companyProfile.company_values}, we believe in keeping things simple and effective.` :
+  `Here's what I've learned: most people overthink this. They get caught up in complex techniques when really, nature has already given us everything we need to succeed.`
+}
 
-Second, it's about observation. Your plants are constantly communicating with you - through their leaves, their growth patterns, even how they respond to watering. Learning to read these signs is like having a conversation with your garden.
+The first thing to understand is timing. Your garden operates on its own schedule, and working with that rhythm rather than against it makes all the difference.
 
-And here's the secret that separates successful gardeners from everyone else: consistency beats intensity every time. Small, regular actions compound into amazing results.
+Second, it's about observation. Your plants are constantly communicating with you - through their leaves, their growth patterns, even how they respond to watering.
+
+${companyProfile?.unique_selling_points ? 
+  `And here's what sets us apart: ${companyProfile.unique_selling_points}. ` :
+  `And here's the secret that separates successful gardeners from everyone else: `
+}Consistency beats intensity every time. Small, regular actions compound into amazing results.
 
 This week, I challenge you to spend just five minutes each day really observing your garden. Notice what's thriving, what's struggling, and how different areas respond to your care.
 
-Come visit us at the garden center this week, and I'll show you exactly what to look for in your own space. We'll walk through some simple techniques that can dramatically improve your results with ${theme}.
+${companyProfile?.location_info ? 
+  `Come visit us at ${companyName} - ${companyProfile.location_info} - ` :
+  `Come visit us at ${companyName} `
+}this week, and I'll show you exactly what to look for in your own space. We'll walk through some simple techniques that can dramatically improve your results with ${campaignTitle.toLowerCase()}.
 
-What's your biggest challenge with ${theme} right now? Drop a comment below and let's solve it together!`;
+What's your biggest challenge with ${campaignTitle.toLowerCase()} right now? Drop a comment below and let's solve it together!`;
 };
 
 export const getContentForType = (postType: string, seasonalContent: any) => {

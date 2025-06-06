@@ -1,127 +1,44 @@
 
-import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { getCurrentWeekNumber } from './homepageUtils';
-import { generateRequiredTasks } from './TaskManagementUtils';
-import { generateThemeDescription } from '../calendar/ThemeDescriptionGenerator';
+import { supabase } from "@/integrations/supabase/client";
+import { generateRequiredTasks } from "./TaskManagementUtils";
 
-export const useAutoCampaignManager = (campaigns: any[], tasks: any[], onTaskUpdate?: () => void) => {
-  const autoCreateCurrentWeekCampaign = useCallback(async () => {
-    console.log('AutoCampaignManager: Starting auto-create check');
-    
-    const currentWeek = getCurrentWeekNumber();
-    const currentYear = new Date().getFullYear();
-    
-    // Check if there's already a campaign for the current week
-    const existingCampaign = campaigns.find(campaign => 
-      campaign.week_number === currentWeek && 
-      new Date(campaign.start_date).getFullYear() === currentYear
+export const ensureCampaignHasTasks = async (
+  campaigns: any[], 
+  userId?: string,
+  onTaskUpdate?: () => void
+) => {
+  if (!campaigns.length) return;
+
+  try {
+    // Get the current week's campaign
+    const currentDate = new Date();
+    const currentWeekNumber = Math.ceil(
+      ((currentDate.getTime() - new Date(currentDate.getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
     );
     
-    if (existingCampaign) {
-      console.log('AutoCampaignManager: Found existing theme:', existingCampaign.title);
-      
-      // Check if the existing campaign needs a description
-      if (existingCampaign.theme && !existingCampaign.description) {
-        console.log('AutoCampaignManager: Generating description for existing theme');
-        try {
-          await new Promise<void>((resolve) => {
-            generateThemeDescription(
-              existingCampaign.theme,
-              async (description) => {
-                const { error } = await supabase
-                  .from('campaigns')
-                  .update({ description })
-                  .eq('id', existingCampaign.id);
-                
-                if (error) {
-                  console.error('Error updating theme description:', error);
-                } else {
-                  console.log('Theme description updated successfully');
-                  if (onTaskUpdate) onTaskUpdate();
-                }
-                resolve();
-              },
-              () => {} // onLoadingChange - not needed here
-            );
-          });
-        } catch (error) {
-          console.error('Error generating description:', error);
-        }
-      }
-      
-      // Check if tasks need to be created
-      const campaignTasks = tasks.filter(task => task.campaign_id === existingCampaign.id);
-      const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
-      const missingTypes = requiredTypes.filter(type => 
-        !campaignTasks.some(task => task.post_type === type)
-      );
-      
-      if (missingTypes.length > 0) {
-        console.log('AutoCampaignManager: Generating missing tasks for existing theme:', missingTypes);
-        await generateRequiredTasks(existingCampaign.id, campaigns, onTaskUpdate);
-      }
-      
+    const currentCampaign = campaigns.find(c => c.week_number === currentWeekNumber) || campaigns[0];
+    
+    if (!currentCampaign) return;
+
+    // Check if this campaign has tasks
+    const { data: existingTasks, error } = await supabase
+      .from('content_tasks')
+      .select('id, post_type')
+      .eq('campaign_id', currentCampaign.id);
+
+    if (error) {
+      console.error('Error checking existing tasks:', error);
       return;
     }
-    
-    console.log('AutoCampaignManager: No theme found for current week, creating one');
-    
-    // Create a new campaign for the current week
-    const today = new Date();
-    const mondayOfCurrentWeek = new Date(today);
-    mondayOfCurrentWeek.setDate(today.getDate() - today.getDay() + 1);
-    
-    const campaignTitle = `Week ${currentWeek} Theme`;
-    const theme = `Weekly Garden Center Promotion - Week ${currentWeek}`;
-    
-    // Generate description for the new campaign
-    let description = "";
-    try {
-      await new Promise<void>((resolve) => {
-        generateThemeDescription(
-          theme,
-          (generatedDescription) => {
-            description = generatedDescription;
-            resolve();
-          },
-          () => {} // onLoadingChange - not needed here
-        );
-      });
-    } catch (error) {
-      console.error('Error generating description:', error);
-      description = `This week's content will focus on promoting our weekly garden center activities and helping customers understand the value and benefits. All materials will emphasize practical information, seasonal timing, and how our garden center can support their gardening goals.`;
+
+    // If no tasks exist, generate the required tasks with personalization
+    if (!existingTasks || existingTasks.length === 0) {
+      console.log('No tasks found for current campaign, generating personalized tasks...');
+      await generateRequiredTasks(currentCampaign.id, campaigns, userId, onTaskUpdate);
+    } else {
+      console.log(`Campaign ${currentCampaign.title} already has ${existingTasks.length} tasks`);
     }
-    
-    try {
-      const { data: newCampaign, error } = await supabase
-        .from('campaigns')
-        .insert({
-          title: campaignTitle,
-          week_number: currentWeek,
-          start_date: mondayOfCurrentWeek.toISOString().split('T')[0],
-          theme,
-          description
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('AutoCampaignManager: Error creating theme:', error);
-        return;
-      }
-      
-      console.log('AutoCampaignManager: Created new theme:', newCampaign.title);
-      
-      // Generate required tasks for the new campaign
-      await generateRequiredTasks(newCampaign.id, campaigns, onTaskUpdate);
-      
-    } catch (error) {
-      console.error('AutoCampaignManager: Error in theme creation:', error);
-    }
-  }, [campaigns, tasks, onTaskUpdate]);
-  
-  return {
-    autoCreateCurrentWeekCampaign
-  };
+  } catch (error) {
+    console.error('Error in ensureCampaignHasTasks:', error);
+  }
 };
