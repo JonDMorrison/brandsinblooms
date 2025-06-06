@@ -35,8 +35,11 @@ const App = () => (
             <TrialBanner />
             <DevNavigation />
             <Routes>
+              {/* Public routes - accessible without authentication */}
               <Route path="/auth" element={<Auth />} />
               <Route path="/pricing" element={<PricingPage />} />
+              
+              {/* Protected routes - require authentication */}
               <Route 
                 path="/" 
                 element={
