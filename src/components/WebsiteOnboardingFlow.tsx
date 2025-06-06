@@ -1,11 +1,10 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { ArrowRight, ArrowLeft, Globe, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, ArrowLeft, Globe, Loader2, Sparkles, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -42,6 +41,14 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
 
   const currentStepData = steps[currentStep - 1];
   const progress = (currentStep / steps.length) * 100;
+
+  const extractionItems = [
+    "Business name and location",
+    "About us / company description", 
+    "Brand voice and tone from your content",
+    "Annual events and promotions",
+    "Services and specializations"
+  ];
 
   const analyzeWebsite = async () => {
     if (!websiteUrl.trim()) {
@@ -128,6 +135,30 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
           </p>
         </div>
 
+        {isAnalyzing && (
+          <Card className="shadow-xl border-blue-200 mb-6">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-center mb-4">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600 mr-3" />
+                <h3 className="text-lg font-semibold text-blue-800">
+                  Analyzing your website...
+                </h3>
+              </div>
+              <p className="text-center text-blue-600 mb-6">
+                Just a second here, we are collecting your:
+              </p>
+              <div className="space-y-3">
+                {extractionItems.map((item, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                    <span className="text-gray-700">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card className="shadow-xl border-green-200">
           <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
             <CardTitle className="text-xl flex items-center gap-2">
@@ -152,6 +183,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                     onChange={(e) => setWebsiteUrl(e.target.value)}
                     placeholder="https://yourgardencenter.com"
                     className="text-base border-green-200 focus:border-green-400"
+                    disabled={isAnalyzing}
                   />
                   <p className="text-sm text-gray-500 mt-2">
                     We'll extract your business information, brand voice, and events from your website
@@ -161,11 +193,9 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h4 className="font-medium text-blue-900 mb-2">What we'll extract:</h4>
                   <ul className="text-sm text-blue-800 space-y-1">
-                    <li>• Business name and location</li>
-                    <li>• About us / company description</li>
-                    <li>• Brand voice and tone from your content</li>
-                    <li>• Annual events and promotions</li>
-                    <li>• Services and specializations</li>
+                    {extractionItems.map((item, index) => (
+                      <li key={index}>• {item}</li>
+                    ))}
                   </ul>
                 </div>
               </div>
@@ -237,7 +267,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
               <Button
                 variant="outline"
                 onClick={handleBack}
-                disabled={currentStep === 1}
+                disabled={currentStep === 1 || isAnalyzing}
                 className="flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -268,7 +298,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
           </CardContent>
         </Card>
 
-        {currentStep === 1 && (
+        {currentStep === 1 && !isAnalyzing && (
           <div className="text-center mt-4">
             <Button 
               variant="ghost" 
