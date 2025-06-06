@@ -16,10 +16,19 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting website analysis function');
+    
     const { websiteUrl } = await req.json();
+    console.log('Received request for URL:', websiteUrl);
 
     if (!websiteUrl) {
+      console.error('No website URL provided');
       throw new Error('Website URL is required');
+    }
+
+    if (!openAIApiKey) {
+      console.error('OpenAI API key not found');
+      throw new Error('OpenAI API key not configured');
     }
 
     console.log('Analyzing website:', websiteUrl);
@@ -28,18 +37,36 @@ serve(async (req) => {
     let websiteContent = '';
     try {
       const normalizedUrl = websiteUrl.startsWith('http') ? websiteUrl : `https://${websiteUrl}`;
+      console.log('Fetching content from:', normalizedUrl);
+      
       const response = await fetch(normalizedUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
         },
+        signal: AbortSignal.timeout(30000), // 30 second timeout
       });
       
+      console.log('Fetch response status:', response.status);
+      console.log('Fetch response headers:', Object.fromEntries(response.headers.entries()));
+      
       if (!response.ok) {
-        throw new Error(`Failed to fetch website: ${response.status}`);
+        console.error(`Failed to fetch website: ${response.status} ${response.statusText}`);
+        throw new Error(`Failed to fetch website: ${response.status} ${response.statusText}`);
       }
 
       websiteContent = await response.text();
       console.log('Website content fetched, length:', websiteContent.length);
+      
+      if (websiteContent.length === 0) {
+        console.error('Website returned empty content');
+        throw new Error('Website returned empty content');
+      }
       
       // Clean up HTML content - remove scripts, styles, and extract meaningful text
       const cleanContent = websiteContent
@@ -51,14 +78,16 @@ serve(async (req) => {
         .trim();
       
       console.log('Cleaned content length:', cleanContent.length);
-      console.log('First 500 chars of cleaned content:', cleanContent.slice(0, 500));
       
       // Take first 12000 characters for analysis
       const contentForAnalysis = cleanContent.slice(0, 12000);
       
       if (contentForAnalysis.length < 100) {
+        console.error('Website content is too short after cleaning:', contentForAnalysis.length);
         throw new Error('Website content is too short or could not be properly extracted');
       }
+
+      console.log('Content ready for analysis, length:', contentForAnalysis.length);
 
       // Use OpenAI to analyze the website content
       const prompt = `You are an expert at analyzing garden center and nursery websites to extract business information. 
@@ -91,9 +120,9 @@ CRITICAL INSTRUCTIONS:
 
 Respond ONLY with valid JSON, no additional text.`;
 
-      console.log('Sending request to OpenAI with prompt length:', prompt.length);
+      console.log('Sending request to OpenAI');
 
-      const response2 = await fetch('https://api.openai.com/v1/chat/completions', {
+      const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${openAIApiKey}`,
@@ -113,14 +142,16 @@ Respond ONLY with valid JSON, no additional text.`;
         }),
       });
 
-      if (!response2.ok) {
-        const errorText = await response2.text();
-        console.error('OpenAI API error:', response2.status, errorText);
-        throw new Error(`OpenAI API error: ${response2.status}`);
+      console.log('OpenAI response status:', openAIResponse.status);
+
+      if (!openAIResponse.ok) {
+        const errorText = await openAIResponse.text();
+        console.error('OpenAI API error:', openAIResponse.status, errorText);
+        throw new Error(`OpenAI API error: ${openAIResponse.status} - ${errorText}`);
       }
 
-      const data = await response2.json();
-      console.log('OpenAI response received');
+      const data = await openAIResponse.json();
+      console.log('OpenAI response received successfully');
 
       let extractedData;
       try {
@@ -142,10 +173,12 @@ Respond ONLY with valid JSON, no additional text.`;
             annualEvents: extractedData.annualEvents || ""
           };
         } else {
+          console.error('No JSON found in OpenAI response');
           throw new Error('No JSON found in response');
         }
       } catch (parseError) {
         console.error('Error parsing AI response:', parseError);
+        console.error('Raw AI response:', data.choices[0].message.content);
         throw new Error('Failed to parse extracted data from AI response');
       }
 
@@ -157,11 +190,35 @@ Respond ONLY with valid JSON, no additional text.`;
       
     } catch (fetchError) {
       console.error('Error fetching website:', fetchError);
-      throw new Error('Could not access the website. Please check the URL and try again.');
+      console.error('Fetch error details:', {
+        name: fetchError.name,
+        message: fetchError.message,
+        stack: fetchError.stack
+      });
+      
+      // Return a more specific error message based on the error type
+      let errorMessage = 'Could not access the website. ';
+      if (fetchError.name === 'TimeoutError') {
+        errorMessage += 'The website took too long to respond.';
+      } else if (fetchError.message.includes('ENOTFOUND') || fetchError.message.includes('ECONNREFUSED')) {
+        errorMessage += 'The website could not be found or is not accessible.';
+      } else if (fetchError.message.includes('SSL') || fetchError.message.includes('certificate')) {
+        errorMessage += 'There was an SSL/security issue with the website.';
+      } else {
+        errorMessage += 'Please check the URL and try again.';
+      }
+      
+      throw new Error(errorMessage);
     }
 
   } catch (error) {
     console.error('Error in analyze-website function:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
     return new Response(JSON.stringify({ 
       error: error.message || 'Failed to analyze website',
       details: 'Please check the website URL and try again, or use manual entry instead.'
