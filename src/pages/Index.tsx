@@ -20,22 +20,39 @@ const Index = () => {
 
   useEffect(() => {
     if (user) {
-      // Reset onboarding state to allow fresh start
-      setIsOnboarded(false);
-      setOnboardingData({
-        aboutBusiness: "",
-        toneSamples: "",
-        annualEvents: "",
-        websiteUrl: ""
-      });
-      
-      // Check URL params for dev navigation
+      // Check URL params for navigation
       const params = new URLSearchParams(location.search);
+      
       if (params.get('view') === 'landing') {
         setShowLanding(true);
+        setIsOnboarded(false);
       } else if (params.get('view') === 'app') {
-        setShowLanding(false);
-        setIsOnboarded(true); // Skip onboarding for dev purposes
+        // Check if user has completed onboarding
+        const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
+        if (savedData) {
+          // User has onboarding data, go straight to dashboard
+          const parsedData = JSON.parse(savedData);
+          setOnboardingData(parsedData);
+          setIsOnboarded(true);
+          setShowLanding(false);
+        } else {
+          // No onboarding data, stay in onboarding flow
+          setShowLanding(false);
+          setIsOnboarded(false);
+        }
+      } else {
+        // Default behavior - check if user has completed onboarding
+        const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          setOnboardingData(parsedData);
+          setIsOnboarded(true);
+          setShowLanding(false);
+        } else {
+          // No saved data, start fresh
+          setShowLanding(true);
+          setIsOnboarded(false);
+        }
       }
     }
   }, [user, location.search]);
@@ -45,6 +62,7 @@ const Index = () => {
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
       setOnboardingData(data);
       setIsOnboarded(true);
+      setShowLanding(false);
     }
   };
 

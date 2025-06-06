@@ -178,15 +178,7 @@ export type Database = {
           tone_samples?: string | null
           user_id?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "onboarding_responses_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       subscriptions: {
         Row: {
