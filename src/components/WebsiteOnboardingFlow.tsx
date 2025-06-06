@@ -189,15 +189,6 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                     We'll extract your business information, brand voice, and events from your website
                   </p>
                 </div>
-                
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">What we'll extract:</h4>
-                  <ul className="text-sm text-blue-800 space-y-1">
-                    {extractionItems.map((item, index) => (
-                      <li key={index}>• {item}</li>
-                    ))}
-                  </ul>
-                </div>
               </div>
             ) : (
               <div className="space-y-6">
