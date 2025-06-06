@@ -9,6 +9,7 @@ import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DevNavigation } from "@/components/DevNavigation";
 import { TrialBanner } from "@/components/TrialBanner";
+import { LandingPage } from "@/components/LandingPage";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -36,12 +37,13 @@ const App = () => (
             <DevNavigation />
             <Routes>
               {/* Public routes - accessible without authentication */}
+              <Route path="/" element={<LandingPage />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/pricing" element={<PricingPage />} />
               
               {/* Protected routes - require authentication */}
               <Route 
-                path="/" 
+                path="/app" 
                 element={
                   <ProtectedRoute>
                     <Index />

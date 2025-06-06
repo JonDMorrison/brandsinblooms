@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Users, Edit, TrendingUp, Star, ArrowRight, Calendar, Brain, Zap, MessageSquare, Megaphone, FileCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LandingPageProps {
   onGetStarted?: () => void;
@@ -10,11 +11,17 @@ interface LandingPageProps {
 
 export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const handleGetStarted = () => {
-    if (onGetStarted) {
+    if (user) {
+      // User is authenticated, redirect to app
+      navigate('/app');
+    } else if (onGetStarted) {
+      // Use custom onGetStarted handler if provided
       onGetStarted();
     } else {
+      // User is not authenticated, redirect to auth page
       navigate('/auth');
     }
   };
@@ -40,12 +47,12 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
             onClick={handleGetStarted}
             className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-4"
           >
-            Get Started in Under 1 Minute
+            {user ? "Go to App" : "Get Started in Under 1 Minute"}
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           
           <p className="text-sm text-gray-600">
-            No credit card required. No tech skills needed.
+            {user ? "Welcome back!" : "No credit card required. No tech skills needed."}
           </p>
         </div>
       </section>
@@ -311,12 +318,12 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
             onClick={handleGetStarted}
             className="bg-warning-500 hover:bg-warning-600 text-warning-foreground px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-6"
           >
-            Get Started in Under 1 Minute
+            {user ? "Go to App" : "Get Started in Under 1 Minute"}
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Button>
           
           <p className="text-sm opacity-75">
-            No credit card required. No tech skills needed.
+            {user ? "Welcome back!" : "No credit card required. No tech skills needed."}
           </p>
         </div>
       </section>
