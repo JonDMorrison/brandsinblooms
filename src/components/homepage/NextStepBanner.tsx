@@ -48,7 +48,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       return {
         title: "Review Your Content",
         description: "Check and approve your generated marketing content",
-        action: "Review Content",
+        action: "Review This Week's Content",
         icon: "📝",
         bgColor: "bg-orange-100",
         borderColor: "border-orange-300",
