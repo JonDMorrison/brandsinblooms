@@ -1,75 +1,111 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { TrendingUp, BarChart3, PieChart } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { TrendingUp, Clock, CheckCircle, Calendar } from "lucide-react";
 
 interface AnalyticsSnapshotProps {
   totalTasks: number;
   completedTasks: number;
+  pendingTasks: number;
   activeCampaigns: number;
-  onNavigateToAnalytics?: () => void;
 }
 
-export const AnalyticsSnapshot = ({ totalTasks, completedTasks, activeCampaigns, onNavigateToAnalytics }: AnalyticsSnapshotProps) => {
-  // Calculate quick metrics for the snapshot
+export const AnalyticsSnapshot = ({ 
+  totalTasks, 
+  completedTasks, 
+  pendingTasks, 
+  activeCampaigns 
+}: AnalyticsSnapshotProps) => {
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  
-  // Mock engagement data
-  const avgEngagement = Math.floor(Math.random() * 50) + 25;
+  const pendingRate = totalTasks > 0 ? Math.round((pendingTasks / totalTasks) * 100) : 0;
+
+  const getProgressColor = (rate: number) => {
+    if (rate >= 80) return "bg-green-500";
+    if (rate >= 60) return "bg-yellow-500";
+    return "bg-red-500";
+  };
+
+  const getStatusColor = (rate: number) => {
+    if (rate >= 80) return "text-green-600 bg-green-50";
+    if (rate >= 60) return "text-yellow-600 bg-yellow-50";
+    return "text-red-600 bg-red-50";
+  };
 
   return (
-    <Card className="shadow-lg border-green-200 rounded-xl">
-      <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 rounded-t-xl">
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-xl text-black font-bold flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Analytics Overview
-            </CardTitle>
-            <CardDescription className="font-medium">Real-time performance insights</CardDescription>
-          </div>
-          {onNavigateToAnalytics && (
-            <Button variant="outline" size="sm" onClick={onNavigateToAnalytics}>
-              View Full Analytics
-            </Button>
-          )}
-        </div>
+    <Card className="border-purple-200">
+      <CardHeader>
+        <CardTitle className="text-lg text-purple-700 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5" />
+          Analytics Snapshot
+        </CardTitle>
+        <CardDescription>
+          Your content marketing performance
+        </CardDescription>
       </CardHeader>
-      <CardContent className="p-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
-            <div className="flex justify-center mb-2">
-              <TrendingUp className="h-6 w-6 text-green-600" />
-            </div>
-            <p className="text-3xl font-bold text-green-700 mb-2">{completionRate}%</p>
-            <p className="text-sm text-gray-600 font-semibold">Completion Rate</p>
-            <p className="text-xs text-gray-500 mt-1">{completedTasks} of {totalTasks} posts</p>
+      <CardContent className="space-y-6">
+        {/* Key Metrics */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-600">{totalTasks}</div>
+            <p className="text-sm text-gray-600">Total Content</p>
           </div>
-          
-          <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
-            <div className="flex justify-center mb-2">
-              <PieChart className="h-6 w-6 text-blue-600" />
-            </div>
-            <p className="text-3xl font-bold text-blue-700 mb-2">{activeCampaigns}</p>
-            <p className="text-sm text-gray-600 font-semibold">Active Campaigns</p>
-            <p className="text-xs text-gray-500 mt-1">Currently running</p>
-          </div>
-          
-          <div className="text-center p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl border border-yellow-200">
-            <div className="flex justify-center mb-2">
-              <BarChart3 className="h-6 w-6 text-yellow-600" />
-            </div>
-            <p className="text-3xl font-bold text-yellow-700 mb-2">{avgEngagement}%</p>
-            <p className="text-sm text-gray-600 font-semibold">Avg Engagement</p>
-            <p className="text-xs text-gray-500 mt-1">Across all platforms</p>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">{activeCampaigns}</div>
+            <p className="text-sm text-gray-600">Active Campaigns</p>
           </div>
         </div>
 
-        {totalTasks === 0 && (
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
-            <p className="text-gray-600">Create some content to see analytics data!</p>
+        {/* Completion Progress */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              Completed Content
+            </span>
+            <Badge className={getStatusColor(completionRate)}>
+              {completionRate}%
+            </Badge>
+          </div>
+          <Progress 
+            value={completionRate} 
+            className="h-2"
+          />
+          <p className="text-xs text-gray-500">
+            {completedTasks} of {totalTasks} content pieces completed
+          </p>
+        </div>
+
+        {/* Pending Review */}
+        {pendingTasks > 0 && (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <Clock className="w-4 h-4 text-orange-500" />
+                Pending Review
+              </span>
+              <Badge className="text-orange-600 bg-orange-50">
+                {pendingTasks} items
+              </Badge>
+            </div>
+            <p className="text-xs text-gray-500">
+              Content ready for your approval
+            </p>
           </div>
         )}
+
+        {/* Weekly Goal Indicator */}
+        <div className="pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-blue-500" />
+              This Week's Goal
+            </span>
+            <span className="text-sm text-gray-600">
+              {Math.min(totalTasks, 7)}/7 posts
+            </span>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
