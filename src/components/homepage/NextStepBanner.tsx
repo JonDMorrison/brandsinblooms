@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
@@ -26,8 +25,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Start generating marketing content for your garden center",
         action: "Create Campaign",
         icon: "🚀",
-        bgColor: "bg-green-100",
-        borderColor: "border-green-300",
+        bgColor: "bg-secondary/50",
+        borderColor: "border-border",
         actionType: "create-campaign"
       };
     }
@@ -38,8 +37,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Create content for your existing campaigns",
         action: "Generate Content",
         icon: "✨",
-        bgColor: "bg-blue-100",
-        borderColor: "border-blue-300",
+        bgColor: "bg-accent/30",
+        borderColor: "border-border",
         actionType: "generate-content"
       };
     }
@@ -50,8 +49,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Check and approve your generated marketing content",
         action: "Review This Week's Content",
         icon: "📝",
-        bgColor: "bg-orange-100",
-        borderColor: "border-orange-300",
+        bgColor: "bg-warning/20",
+        borderColor: "border-border",
         actionType: "review-content"
       };
     }
@@ -61,8 +60,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       description: "Keep up the momentum with your marketing efforts",
       action: "Create More",
       icon: "🎉",
-      bgColor: "bg-purple-100",
-      borderColor: "border-purple-300",
+      bgColor: "bg-muted/50",
+      borderColor: "border-border",
       actionType: "create-more"
     };
   };
@@ -93,22 +92,22 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
 
   return (
     <>
-      <Card className={`shadow-lg ${nextStep.bgColor} ${nextStep.borderColor} border-2 rounded-xl`}>
+      <Card className={`shadow-sm ${nextStep.bgColor} ${nextStep.borderColor} border rounded-xl`}>
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <span className="text-3xl">{nextStep.icon}</span>
               <div>
-                <h3 className="text-xl font-bold text-black mb-1">
+                <h3 className="text-xl font-bold text-foreground mb-1">
                   {nextStep.title}
                 </h3>
-                <p className="text-black font-medium">
+                <p className="text-muted-foreground font-medium">
                   {nextStep.description}
                 </p>
               </div>
             </div>
             <Button 
-              className="bg-primary hover:bg-primary-600 text-white shadow-lg text-lg px-8 py-3 h-auto"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm text-lg px-8 py-3 h-auto"
               onClick={handleAction}
             >
               {nextStep.action}
