@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,19 +52,23 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
+      console.log('Fetching subscription for user:', user.id);
+      
+      // First try to get existing subscription
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to handle no results
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching subscription:', error);
         toast.error('Failed to load subscription information');
         return;
       }
 
       if (data) {
+        console.log('Found existing subscription:', data);
         setSubscription(data);
         
         // Check if trial has expired and update if needed
@@ -73,6 +78,12 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         if (data.plan === 'free_trial' && now > endDate) {
           await updateSubscriptionPlan('expired', data.billing_interval);
         }
+      } else {
+        console.log('No subscription found, should be created by trigger');
+        // The subscription should be created by the database trigger
+        // If it's not there, something went wrong, so we'll wait a moment and try again
+        setTimeout(fetchSubscription, 1000);
+        return;
       }
     } catch (error) {
       console.error('Error in fetchSubscription:', error);
@@ -149,6 +160,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   };
 
   const refreshSubscription = async () => {
+    setLoading(true);
     await fetchSubscription();
     await checkStripeSubscription();
   };
