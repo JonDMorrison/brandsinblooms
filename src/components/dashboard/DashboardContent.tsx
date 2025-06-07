@@ -1,4 +1,3 @@
-
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
@@ -104,7 +103,7 @@ export const DashboardContent = ({
 
           {newCampaigns.length > 0 && (
             <div>
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">New Campaigns</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Custom Campaigns</h2>
               <div className="space-y-4">
                 {newCampaigns.map((campaign) => (
                   <NewCampaignCard
