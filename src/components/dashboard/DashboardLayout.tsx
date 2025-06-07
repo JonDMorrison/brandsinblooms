@@ -23,17 +23,19 @@ export const DashboardLayout = ({
   onCampaignCreated,
   isLoading = false
 }: DashboardLayoutProps) => {
+  const validCurrentView = currentView as "home" | "kanban" | "calendar" | "team" | "profile";
+
   return (
     <SidebarProvider>
       <AppSidebar 
-        currentView={currentView as "home" | "kanban" | "calendar" | "team" | "profile"}
+        currentView={validCurrentView}
         onViewChange={onViewChange}
         onboardingData={onboardingData}
         onBusinessNameChange={onBusinessNameChange}
       />
       <SidebarInset className="flex flex-col min-h-screen">
         <DashboardHeader 
-          currentView={currentView as "home" | "kanban" | "calendar" | "team" | "profile"}
+          currentView={validCurrentView}
           onCampaignCreated={onCampaignCreated}
         />
         <main className="flex-1 bg-garden-background">
