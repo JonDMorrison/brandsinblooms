@@ -1,9 +1,9 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, ArrowRight } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { UpcomingContentModal } from "./UpcomingContentModal";
 
 interface WhatsComingNextCardProps {
@@ -13,6 +13,7 @@ interface WhatsComingNextCardProps {
 export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) => {
   const [selectedWeek, setSelectedWeek] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   const getUpcomingWeeks = () => {
     const weeks = [];
@@ -69,6 +70,10 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedWeek(null);
+  };
+
+  const handleViewCalendar = () => {
+    navigate('/calendar');
   };
 
   const upcomingWeeks = getUpcomingWeeks();
@@ -128,7 +133,7 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
           ))}
 
           <div className="pt-2 border-t">
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" onClick={handleViewCalendar}>
               <Clock className="w-4 h-4 mr-2" />
               View Full Campaign Calendar
             </Button>
