@@ -21,6 +21,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
   const [formData, setFormData] = useState({
     company_name: '',
     company_overview: '',
+    mission_statement: '',
     brand_voice: '',
     tone_of_writing: '',
     target_audience: '',
@@ -40,6 +41,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       setFormData({
         company_name: profile.company_name || '',
         company_overview: profile.company_overview || '',
+        mission_statement: profile.mission_statement || '',
         brand_voice: profile.brand_voice || '',
         tone_of_writing: profile.tone_of_writing || '',
         target_audience: profile.target_audience || '',
@@ -163,6 +165,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       setFormData({
         company_name: profile.company_name || '',
         company_overview: profile.company_overview || '',
+        mission_statement: profile.mission_statement || '',
         brand_voice: profile.brand_voice || '',
         tone_of_writing: profile.tone_of_writing || '',
         target_audience: profile.target_audience || '',
@@ -236,6 +239,19 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
                 onChange={(e) => handleInputChange('company_overview', e.target.value)}
                 disabled={!isEditing}
                 rows={4}
+                className="text-lg p-4"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="mission_statement" className="text-lg font-semibold">Mission Statement</Label>
+              <Textarea
+                id="mission_statement"
+                placeholder="Your company's mission statement - the fundamental purpose and values that drive your business"
+                value={formData.mission_statement}
+                onChange={(e) => handleInputChange('mission_statement', e.target.value)}
+                disabled={!isEditing}
+                rows={3}
                 className="text-lg p-4"
               />
             </div>
