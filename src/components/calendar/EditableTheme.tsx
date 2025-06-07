@@ -20,10 +20,19 @@ export const EditableTheme = ({ campaignId, currentTheme, currentDescription, on
   const { toast } = useToast();
 
   const handleSave = async () => {
-    if (!editTheme.trim()) return;
+    if (!editTheme.trim()) {
+      toast({
+        title: "Error",
+        description: "Theme cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setIsLoading(true);
     try {
+      console.log('EditableTheme: Saving theme for campaign:', campaignId);
+      
       const { error } = await supabase
         .from('campaigns')
         .update({ 
@@ -32,16 +41,21 @@ export const EditableTheme = ({ campaignId, currentTheme, currentDescription, on
         })
         .eq('id', campaignId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('EditableTheme: Error updating theme:', error);
+        throw new Error(`Failed to update theme: ${error.message}`);
+      }
 
       onThemeUpdate(editTheme.trim(), editDescription.trim());
       setIsEditing(false);
+      
+      console.log('EditableTheme: Theme updated successfully');
       toast({
         title: "Theme updated",
         description: "Campaign theme and description have been updated successfully",
       });
     } catch (error: any) {
-      console.error('Error updating theme:', error);
+      console.error('EditableTheme: Error in handleSave:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update theme",

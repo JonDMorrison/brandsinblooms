@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getCurrentWeekNumber } from "./homepageUtils";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface Campaign {
   title: string;
@@ -26,36 +29,79 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    
+    // Validation
+    if (!title.trim()) {
+      setError("Campaign title is required");
+      return;
+    }
+
+    if (title.trim().length < 3) {
+      setError("Campaign title must be at least 3 characters");
+      return;
+    }
 
     setLoading(true);
+    setError(null);
     
-    const newCampaign = {
-      title: title.trim(),
-      description: description.trim() || null,
-      theme: theme.trim() || null,
-      start_date: new Date().toISOString().split('T')[0],
-      week_number: getCurrentWeekNumber(),
-    };
+    try {
+      console.log('NewCampaignDialog: Creating campaign with title:', title.trim());
+      
+      const newCampaign = {
+        title: title.trim(),
+        description: description.trim() || null,
+        theme: theme.trim() || null,
+        start_date: new Date().toISOString().split('T')[0],
+        week_number: getCurrentWeekNumber(),
+      };
 
-    onCreate(newCampaign);
-    
-    // Reset form
-    setTitle("");
-    setDescription("");
-    setTheme("");
-    setLoading(false);
+      await onCreate(newCampaign);
+      
+      // Reset form on success
+      setTitle("");
+      setDescription("");
+      setTheme("");
+      setError(null);
+      
+      console.log('NewCampaignDialog: Campaign created successfully');
+      toast.success('Campaign created successfully!');
+      
+    } catch (error: any) {
+      console.error('NewCampaignDialog: Error creating campaign:', error);
+      setError(error.message || 'Failed to create campaign');
+      toast.error(error.message || 'Failed to create campaign');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (!loading) {
+      setTitle("");
+      setDescription("");
+      setTheme("");
+      setError(null);
+      onOpenChange(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="text-garden-green-dark">Create New Campaign</DialogTitle>
         </DialogHeader>
+        
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -65,10 +111,14 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
             <Input
               id="title"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setError(null); // Clear error when user starts typing
+              }}
               placeholder="Enter campaign title"
               required
               className="border-garden-green-light focus:border-garden-green"
+              disabled={loading}
             />
           </div>
           
@@ -82,6 +132,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe your campaign"
               className="border-garden-green-light focus:border-garden-green"
+              disabled={loading}
             />
           </div>
           
@@ -95,6 +146,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               onChange={(e) => setTheme(e.target.value)}
               placeholder="Campaign theme (e.g., Spring Planting)"
               className="border-garden-green-light focus:border-garden-green"
+              disabled={loading}
             />
           </div>
           
@@ -102,8 +154,9 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
               className="border-garden-green-light text-garden-green-dark"
+              disabled={loading}
             >
               Cancel
             </Button>
@@ -112,7 +165,14 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               disabled={!title.trim() || loading}
               className="bg-garden-green hover:bg-garden-green-dark text-white"
             >
-              {loading ? "Creating..." : "Create Campaign"}
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Campaign'
+              )}
             </Button>
           </div>
         </form>

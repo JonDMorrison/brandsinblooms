@@ -2,8 +2,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Clock, FileText, Instagram, Facebook, Mail, BookOpen, Video } from "lucide-react";
-import { useState, useEffect } from "react";
+import { CheckCircle, Clock, FileText, Instagram, Facebook, Mail, BookOpen, Video, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -15,10 +15,14 @@ interface ReviewQueueProps {
 export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => {
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [approvingTasks, setApprovingTasks] = useState<Set<string>>(new Set());
 
-  const fetchPendingTasks = async () => {
+  const fetchPendingTasks = useCallback(async () => {
     try {
+      setError(null);
+      console.log('ReviewQueue: Fetching pending tasks');
+      
       const { data, error } = await supabase
         .from('content_tasks')
         .select(`
@@ -32,20 +36,23 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching pending tasks:', error);
-      } else {
-        setPendingTasks(data || []);
+        console.error('ReviewQueue: Error fetching pending tasks:', error);
+        throw new Error(`Failed to load pending tasks: ${error.message}`);
       }
-    } catch (error) {
-      console.error('Error fetching pending tasks:', error);
+
+      console.log('ReviewQueue: Loaded pending tasks:', data?.length || 0);
+      setPendingTasks(data || []);
+    } catch (error: any) {
+      console.error('ReviewQueue: Error in fetchPendingTasks:', error);
+      setError(error.message || 'Failed to load pending tasks');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchPendingTasks();
-  }, []);
+  }, [fetchPendingTasks]);
 
   const getPostTypeIcon = (postType: string) => {
     switch (postType) {
@@ -64,22 +71,24 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
     setApprovingTasks(prev => new Set(prev).add(taskId));
     
     try {
+      console.log('ReviewQueue: Approving task:', taskId);
+      
       const { error } = await supabase
         .from('content_tasks')
         .update({ status: 'scheduled' })
         .eq('id', taskId);
 
       if (error) {
-        console.error('Error approving task:', error);
-        toast.error('Failed to approve content');
-      } else {
-        toast.success('Content approved successfully!');
-        fetchPendingTasks();
-        if (onTaskUpdate) onTaskUpdate();
+        console.error('ReviewQueue: Error approving task:', error);
+        throw new Error(`Failed to approve content: ${error.message}`);
       }
-    } catch (error) {
-      console.error('Error approving task:', error);
-      toast.error('Failed to approve content');
+
+      toast.success('Content approved successfully!');
+      await fetchPendingTasks();
+      if (onTaskUpdate) onTaskUpdate();
+    } catch (error: any) {
+      console.error('ReviewQueue: Error in handleApprove:', error);
+      toast.error(error.message || 'Failed to approve content');
     } finally {
       setApprovingTasks(prev => {
         const newSet = new Set(prev);
@@ -110,6 +119,36 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
           <div className="animate-pulse space-y-3">
             <div className="h-4 bg-gray-200 rounded"></div>
             <div className="h-4 bg-gray-200 rounded"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-red-200">
+        <CardHeader>
+          <CardTitle className="text-lg text-red-700 flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            Review Queue - Error
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6 text-red-500">
+            <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
+            <p className="font-medium">Failed to load review queue</p>
+            <p className="text-sm">{error}</p>
+            <Button 
+              variant="outline" 
+              className="mt-3"
+              onClick={() => {
+                setLoading(true);
+                fetchPendingTasks();
+              }}
+            >
+              Try Again
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -166,9 +205,11 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
                 <Badge className="bg-orange-100 text-orange-800">
                   {task.post_type}
                 </Badge>
-                <span className="text-sm text-gray-600">
-                  {task.campaigns?.title}
-                </span>
+                {task.campaigns?.title && (
+                  <span className="text-sm text-gray-600">
+                    {task.campaigns.title}
+                  </span>
+                )}
               </div>
               <Button
                 size="sm"

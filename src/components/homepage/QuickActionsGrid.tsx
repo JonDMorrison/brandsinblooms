@@ -1,8 +1,10 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Calendar, BarChart3, CalendarPlus } from "lucide-react";
+import { PlusCircle, Calendar, BarChart3, CalendarPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { AddEventDialog } from "./AddEventDialog";
+import { toast } from "sonner";
 
 interface QuickActionsGridProps {
   onCampaignCreated: () => void;
@@ -10,10 +12,37 @@ interface QuickActionsGridProps {
 
 export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) => {
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
+  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
 
   const handleEventCreated = () => {
+    console.log('QuickActions: Event created successfully');
     setShowAddEventDialog(false);
     onCampaignCreated();
+    toast.success('Event added successfully!');
+  };
+
+  const handleNewCampaign = async () => {
+    try {
+      setIsCreatingCampaign(true);
+      console.log('QuickActions: Creating new campaign');
+      await onCampaignCreated();
+      toast.success('Campaign creation initiated!');
+    } catch (error) {
+      console.error('QuickActions: Error creating campaign:', error);
+      toast.error('Failed to create campaign');
+    } finally {
+      setIsCreatingCampaign(false);
+    }
+  };
+
+  const handleViewCalendar = () => {
+    console.log('QuickActions: Navigating to calendar view');
+    window.location.href = '/calendar';
+  };
+
+  const handleViewAnalytics = () => {
+    console.log('QuickActions: Navigating to analytics view');
+    window.location.href = '/analytics';
   };
 
   return (
@@ -25,9 +54,14 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             <Button 
               variant="outline" 
               className="h-auto min-h-[120px] flex flex-col gap-3 border-green-300 hover:bg-green-50 p-4 justify-center"
-              onClick={onCampaignCreated}
+              onClick={handleNewCampaign}
+              disabled={isCreatingCampaign}
             >
-              <PlusCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+              {isCreatingCampaign ? (
+                <Loader2 className="w-6 h-6 text-green-600 flex-shrink-0 animate-spin" />
+              ) : (
+                <PlusCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
+              )}
               <span className="text-sm font-medium text-center">New Campaign</span>
               <span className="text-xs text-gray-500 text-center">Create a new theme</span>
             </Button>
@@ -35,6 +69,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             <Button 
               variant="outline" 
               className="h-auto min-h-[120px] flex flex-col gap-3 border-blue-300 hover:bg-blue-50 p-4 justify-center"
+              onClick={handleViewCalendar}
             >
               <Calendar className="w-6 h-6 text-blue-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">View Calendar</span>
@@ -44,6 +79,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             <Button 
               variant="outline" 
               className="h-auto min-h-[120px] flex flex-col gap-3 border-purple-300 hover:bg-purple-50 p-4 justify-center"
+              onClick={handleViewAnalytics}
             >
               <BarChart3 className="w-6 h-6 text-purple-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">Analytics</span>
