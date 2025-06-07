@@ -47,7 +47,7 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
     <>
       <Card className="border-green-200">
         <CardHeader>
-          <CardTitle className="text-lg text-green-700 flex items-center gap-2">
+          <CardTitle className="text-lg text-black flex items-center gap-2">
             <Calendar className="w-5 h-5" />
             Ready to Post
             <Badge className="bg-green-100 text-green-800">
