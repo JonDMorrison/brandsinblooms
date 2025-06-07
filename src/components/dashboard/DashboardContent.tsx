@@ -13,8 +13,9 @@ import { SetupProgressCard } from "@/components/homepage/SetupProgressCard";
 import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -36,6 +37,7 @@ export const DashboardContent = ({
     tasks,
     loading,
     error,
+    isOffline,
     handleTaskUpdate,
     handleCampaignCreated,
     refetch
@@ -51,6 +53,39 @@ export const DashboardContent = ({
     }
   };
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" text="Loading your marketing hub..." />
+      </div>
+    );
+  }
+
+  // Show error state with retry option
+  if (error && !isOffline) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md w-full border-destructive/20">
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="w-16 h-16 mx-auto mb-4 text-destructive" />
+            <h2 className="text-xl font-semibold text-destructive mb-2">Dashboard Error</h2>
+            <p className="text-destructive/80 mb-6">
+              We encountered an issue loading your dashboard. This might be a temporary problem.
+            </p>
+            <Button 
+              onClick={() => refetch()} 
+              className="w-full"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Calculate dashboard metrics
   const activeCampaign = campaigns.find(c => {
     const campaignStart = new Date(c.start_date);
@@ -59,17 +94,10 @@ export const DashboardContent = ({
     return now >= campaignStart && now <= campaignEnd;
   });
 
-  // Find only user-created campaigns (campaigns that don't come from master templates)
-  // These would be campaigns created through "New Campaign" or "Add Event" actions
+  // Find user-created campaigns (excluding the active campaign)
   const userCreatedCampaigns = campaigns.filter(campaign => {
-    // Filter out the active campaign and only show campaigns that have custom themes or were manually created
-    // You can identify user-created campaigns by checking if they have custom properties or were created recently
-    const campaignTasks = tasks.filter(task => task.campaign_id === campaign.id);
     const isActive = campaign.id === activeCampaign?.id;
-    
-    // For now, we'll consider campaigns with no tasks as potentially user-created
-    // This logic can be refined based on how you track user-created vs template campaigns
-    return !isActive && campaignTasks.length === 0 && campaign.theme && campaign.theme.includes('Custom');
+    return !isActive && campaign.theme && campaign.theme.includes('Custom');
   });
 
   const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
@@ -86,11 +114,13 @@ export const DashboardContent = ({
 
   return (
     <div className="p-6 space-y-6">
+      {/* Welcome Section */}
       <WelcomeSection 
         onboardingData={onboardingData}
         onBusinessNameChange={onBusinessNameChange}
       />
 
+      {/* Progress/Guidance Banner */}
       {needsGuidance ? (
         <SetupProgressCard 
           campaignsCount={campaigns.length}
@@ -106,10 +136,14 @@ export const DashboardContent = ({
         />
       )}
 
+      {/* Main Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Main Content */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Quick Actions */}
           <QuickActionsGrid onCampaignCreated={handleCampaignCreatedWrapper} />
           
+          {/* Current Campaign */}
           {activeCampaign && (
             <div>
               <h2 className="text-xl font-semibold text-gray-800 mb-4">Current Campaign</h2>
@@ -121,6 +155,7 @@ export const DashboardContent = ({
             </div>
           )}
 
+          {/* Custom Campaigns */}
           <div>
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Custom Campaigns</h2>
             {userCreatedCampaigns.length > 0 ? (
@@ -158,15 +193,22 @@ export const DashboardContent = ({
             )}
           </div>
           
+          {/* What's Coming Next */}
           <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
         </div>
         
+        {/* Right Column - Sidebar */}
         <div className="space-y-6">
+          {/* Review Queue */}
           <ReviewQueue 
             onTaskUpdate={handleTaskUpdate}
             onTaskClick={onTaskClick}
           />
+          
+          {/* Ready to Post */}
           <ReadyToPostCard tasks={tasks} />
+          
+          {/* Analytics Snapshot */}
           <AnalyticsSnapshot 
             totalTasks={totalTasksCount}
             completedTasks={completedTasksCount}
@@ -181,6 +223,7 @@ export const DashboardContent = ({
         </div>
       </div>
 
+      {/* New Campaign Dialog */}
       <NewCampaignDialog 
         open={showNewCampaignDialog} 
         onOpenChange={setShowNewCampaignDialog} 

@@ -9,7 +9,7 @@ import { LandingPage } from "@/components/LandingPage";
 const Index = () => {
   const { user } = useAuth();
   const location = useLocation();
-  const [showLanding, setShowLanding] = useState(true);
+  const [showLanding, setShowLanding] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
@@ -26,31 +26,18 @@ const Index = () => {
       if (params.get('view') === 'landing') {
         setShowLanding(true);
         setIsOnboarded(false);
-      } else if (params.get('view') === 'app') {
-        // Check if user has completed onboarding
-        const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
-        if (savedData) {
-          // User has onboarding data, go straight to dashboard
-          const parsedData = JSON.parse(savedData);
-          setOnboardingData(parsedData);
-          setIsOnboarded(true);
-          setShowLanding(false);
-        } else {
-          // No onboarding data, stay in onboarding flow
-          setShowLanding(false);
-          setIsOnboarded(false);
-        }
       } else {
-        // Default behavior - check if user has completed onboarding
+        // Always check if user has completed onboarding
         const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
         if (savedData) {
+          // User has onboarding data, go to dashboard
           const parsedData = JSON.parse(savedData);
           setOnboardingData(parsedData);
           setIsOnboarded(true);
           setShowLanding(false);
         } else {
-          // No saved data, start fresh
-          setShowLanding(true);
+          // No onboarding data, start onboarding flow
+          setShowLanding(false);
           setIsOnboarded(false);
         }
       }
