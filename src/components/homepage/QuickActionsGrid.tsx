@@ -25,40 +25,40 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button 
               variant="outline" 
-              className="h-auto min-h-[160px] flex flex-col gap-3 border-green-300 hover:bg-green-50 p-4 justify-center"
+              className="h-auto min-h-[120px] flex flex-col gap-3 border-green-300 hover:bg-green-50 p-4 justify-center"
               onClick={onCampaignCreated}
             >
               <PlusCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">New Campaign</span>
-              <span className="text-xs text-gray-500 text-center leading-relaxed px-1">When you want to promote something.</span>
+              <span className="text-xs text-gray-500 text-center">Promote something</span>
             </Button>
             
             <Button 
               variant="outline" 
-              className="h-auto min-h-[160px] flex flex-col gap-3 border-blue-300 hover:bg-blue-50 p-4 justify-center"
+              className="h-auto min-h-[120px] flex flex-col gap-3 border-blue-300 hover:bg-blue-50 p-4 justify-center"
             >
               <Calendar className="w-6 h-6 text-blue-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">View Calendar</span>
-              <span className="text-xs text-gray-500 text-center leading-relaxed px-1">See what's coming up through the year.</span>
+              <span className="text-xs text-gray-500 text-center">See upcoming events</span>
             </Button>
             
             <Button 
               variant="outline" 
-              className="h-auto min-h-[160px] flex flex-col gap-3 border-purple-300 hover:bg-purple-50 p-4 justify-center"
+              className="h-auto min-h-[120px] flex flex-col gap-3 border-purple-300 hover:bg-purple-50 p-4 justify-center"
             >
               <BarChart3 className="w-6 h-6 text-purple-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">Analytics</span>
-              <span className="text-xs text-gray-500 text-center leading-relaxed px-1">Find out what's working best.</span>
+              <span className="text-xs text-gray-500 text-center">Track performance</span>
             </Button>
             
             <Button 
               variant="outline" 
-              className="h-auto min-h-[160px] flex flex-col gap-3 border-orange-300 hover:bg-orange-50 p-4 justify-center"
+              className="h-auto min-h-[120px] flex flex-col gap-3 border-orange-300 hover:bg-orange-50 p-4 justify-center"
               onClick={() => setShowAddEventDialog(true)}
             >
               <CalendarPlus className="w-6 h-6 text-orange-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">Add An Event</span>
-              <span className="text-xs text-gray-500 text-center leading-relaxed px-1">When you want some help promoting an event.</span>
+              <span className="text-xs text-gray-500 text-center">Get promotion help</span>
             </Button>
           </div>
         </CardContent>
