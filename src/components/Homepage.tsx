@@ -1,10 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ensureCampaignHasTasks } from "./homepage/CampaignAutoManager";
 import { CampaignCard } from "./homepage/CampaignCard";
-import { TaskList } from "./homepage/TaskList";
+import { WhatsComingNextCard } from "./homepage/WhatsComingNextCard";
 import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
 import { CsvUploadDialog } from "./content-import/CsvUploadDialog";
 import { Button } from "@/components/ui/button";
@@ -184,10 +183,7 @@ export const Homepage = () => {
             )}
 
             <div className="mt-8">
-              <h2 className="text-2xl font-semibold text-garden-green-dark mb-4">
-                Content Tasks
-              </h2>
-              <TaskList tasks={tasks} onTaskUpdate={handleTaskUpdate} />
+              <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
             </div>
           </div>
           
