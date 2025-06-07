@@ -21,9 +21,9 @@ export const SetupProgressCard = ({ campaignsCount, tasksCount, completedTasksCo
   const percentage = Math.round((completedSteps / steps.length) * 100);
 
   return (
-    <Card className="shadow-lg border-secondary/30 rounded-xl bg-gradient-to-br from-secondary/10 to-primary/5">
+    <Card className="shadow-lg border-green-200 rounded-xl bg-gradient-to-br from-green-50 to-blue-50">
       <CardHeader>
-        <CardTitle className="text-lg text-foreground font-bold flex items-center gap-2">
+        <CardTitle className="text-lg text-black font-bold flex items-center gap-2">
           <span className="text-2xl">🌼</span>
           You're {percentage}% set up!
         </CardTitle>
@@ -35,14 +35,14 @@ export const SetupProgressCard = ({ campaignsCount, tasksCount, completedTasksCo
               <span className="text-lg">
                 {step.completed ? "✅" : "⬜️"}
               </span>
-              <span className={`text-sm font-medium ${step.completed ? 'text-secondary' : 'text-muted-foreground'}`}>
+              <span className={`text-sm font-medium ${step.completed ? 'text-green-700' : 'text-gray-600'}`}>
                 {step.label}
               </span>
             </div>
           ))}
         </div>
         {percentage < 100 && (
-          <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md">
+          <Button className="w-full bg-primary hover:bg-primary-600 text-white shadow-md">
             Complete Setup
           </Button>
         )}

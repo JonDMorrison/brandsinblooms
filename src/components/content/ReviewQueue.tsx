@@ -37,16 +37,16 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
   }
 
   return (
-    <Card className="border-warning/30">
+    <Card className="border-orange-200">
       <CardHeader>
-        <CardTitle className="text-lg text-foreground flex items-center gap-2">
+        <CardTitle className="text-lg text-black flex items-center gap-2">
           <Clock className="w-5 h-5" />
           Review Queue
-          <Badge className="bg-warning/20 text-warning-foreground">
+          <Badge className="bg-orange-100 text-orange-800">
             {pendingTasks.length}
           </Badge>
         </CardTitle>
-        <CardDescription className="text-muted-foreground">
+        <CardDescription className="text-black">
           Content ready for your review
         </CardDescription>
       </CardHeader>

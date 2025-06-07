@@ -3,6 +3,7 @@ import { useState } from "react";
 import { DashboardTabs } from "./dashboard/DashboardTabs";
 import { DashboardLayout } from "./dashboard/DashboardLayout";
 import { DashboardContent } from "./dashboard/DashboardContent";
+import { DashboardSkeleton } from "./dashboard/DashboardSkeleton";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { useDashboardData } from "./dashboard/useDashboardData";
 import { ErrorBoundary } from "./ErrorBoundary";
@@ -11,7 +12,7 @@ import { OfflineBanner } from "./ui/offline-banner";
 import { LoadingSpinner } from "./ui/loading-spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import type { OnboardingData, ContentTask } from "@/types";
 

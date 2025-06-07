@@ -50,7 +50,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       icon: Calendar,
       title: 'View Calendar',
       description: 'See upcoming content',
-      color: 'secondary',
+      color: 'blue',
       onClick: handleViewCalendar,
       ariaLabel: 'View content calendar'
     },
@@ -59,7 +59,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       icon: BarChart3,
       title: 'Analytics',
       description: 'Track performance',
-      color: 'accent',
+      color: 'purple',
       onClick: handleViewAnalytics,
       ariaLabel: 'View analytics dashboard'
     },
@@ -76,20 +76,20 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
 
   const getColorClasses = (color: string) => {
     switch (color) {
-      case 'secondary':
-        return 'border-secondary/30 hover:bg-secondary/10 text-secondary';
-      case 'accent':
-        return 'border-accent/30 hover:bg-accent/10 text-accent';
+      case 'blue':
+        return 'border-blue-300 hover:bg-blue-50 text-blue-600';
+      case 'purple':
+        return 'border-purple-300 hover:bg-purple-50 text-purple-600';
       default:
-        return 'border-primary/30 hover:bg-primary/10 text-primary';
+        return 'border-primary/30 hover:bg-primary/5 text-primary';
     }
   };
 
   return (
     <>
-      <Card className="shadow-lg border-border rounded-xl">
+      <Card className="shadow-lg border-primary/20 rounded-xl">
         <CardContent className="p-6">
-          <h3 className="text-xl font-bold text-foreground mb-4">Quick Actions</h3>
+          <h3 className="text-xl font-bold text-black mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {actionItems.map((item) => {
               const IconComponent = item.icon;
@@ -102,8 +102,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                   aria-label={item.ariaLabel}
                 >
                   <IconComponent className="w-6 h-6 flex-shrink-0" />
-                  <span className="text-sm font-medium text-center">{item.title}</span>
-                  <span className="text-xs text-center text-muted-foreground">{item.description}</span>
+                  <span className="text-sm font-medium text-center text-black">{item.title}</span>
+                  <span className="text-xs text-center text-black">{item.description}</span>
                 </Button>
               );
             })}

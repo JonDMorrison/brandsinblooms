@@ -26,8 +26,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Start generating marketing content for your garden center",
         action: "Create Campaign",
         icon: "🚀",
-        bgColor: "bg-secondary/10",
-        borderColor: "border-secondary/30",
+        bgColor: "bg-green-100",
+        borderColor: "border-green-300",
         actionType: "create-campaign"
       };
     }
@@ -38,8 +38,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Create content for your existing campaigns",
         action: "Generate Content",
         icon: "✨",
-        bgColor: "bg-primary/10",
-        borderColor: "border-primary/30",
+        bgColor: "bg-blue-100",
+        borderColor: "border-blue-300",
         actionType: "generate-content"
       };
     }
@@ -50,8 +50,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Check and approve your generated marketing content",
         action: "Review This Week's Content",
         icon: "📝",
-        bgColor: "bg-warning/10",
-        borderColor: "border-warning/30",
+        bgColor: "bg-orange-100",
+        borderColor: "border-orange-300",
         actionType: "review-content"
       };
     }
@@ -61,8 +61,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       description: "Keep up the momentum with your marketing efforts",
       action: "Create More",
       icon: "🎉",
-      bgColor: "bg-accent/10",
-      borderColor: "border-accent/30",
+      bgColor: "bg-purple-100",
+      borderColor: "border-purple-300",
       actionType: "create-more"
     };
   };
@@ -99,16 +99,16 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
             <div className="flex items-center gap-4">
               <span className="text-3xl">{nextStep.icon}</span>
               <div>
-                <h3 className="text-xl font-bold text-foreground mb-1">
+                <h3 className="text-xl font-bold text-black mb-1">
                   {nextStep.title}
                 </h3>
-                <p className="text-muted-foreground font-medium">
+                <p className="text-black font-medium">
                   {nextStep.description}
                 </p>
               </div>
             </div>
             <Button 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg text-lg px-8 py-3 h-auto"
+              className="bg-primary hover:bg-primary-600 text-white shadow-lg text-lg px-8 py-3 h-auto"
               onClick={handleAction}
             >
               {nextStep.action}

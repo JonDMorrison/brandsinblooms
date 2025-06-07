@@ -38,7 +38,7 @@ export const DashboardLayout = ({
           currentView={validCurrentView}
           onCampaignCreated={onCampaignCreated}
         />
-        <main className="flex-1 bg-background">
+        <main className="flex-1 bg-garden-background">
           {children}
         </main>
       </SidebarInset>

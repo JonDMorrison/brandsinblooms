@@ -43,13 +43,13 @@ export const DashboardHeader = ({
   }
 
   return (
-    <div className="p-6 border-b border-border bg-card">
+    <div className="p-6 border-b border-green-200 bg-white">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-3xl font-bold text-garden-green-dark">
             {getViewTitle()}
           </h1>
-          <p className="text-muted-foreground font-medium">
+          <p className="text-garden-green font-medium">
             {getViewDescription()}
           </p>
         </div>
