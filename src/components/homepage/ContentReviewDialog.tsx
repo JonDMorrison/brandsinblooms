@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, Clock, AlertCircle, Edit, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 interface ContentReviewDialogProps {
@@ -75,6 +74,19 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
       console.error('Error updating task:', error);
       toast.error('An unexpected error occurred');
     }
+  };
+
+  const handleCopyContent = (content: string, postType: string) => {
+    const cleanContent = stripHtmlAndFormat(content);
+    navigator.clipboard.writeText(cleanContent);
+    toast.success(`${postType} content copied to clipboard`);
+  };
+
+  const handleEditContent = (taskId: string) => {
+    // This would typically open a content editor modal or navigate to an edit page
+    // For now, we'll show a toast indicating the action
+    toast.info('Edit functionality would open content editor');
+    console.log('Edit task:', taskId);
   };
 
   const getStatusIcon = (status: string) => {
@@ -243,6 +255,24 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                       </Badge>
                     </div>
                     <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditContent(task.id)}
+                        className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopyContent(task.ai_output, task.post_type)}
+                        className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                      >
+                        <Copy className="w-3 h-3 mr-1" />
+                        Copy
+                      </Button>
                       {task.status !== 'scheduled' && (
                         <Button
                           size="sm"
