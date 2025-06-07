@@ -1,10 +1,9 @@
-
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Copy, CheckCircle, Edit, ExternalLink, Instagram, Facebook, Mail, BookOpen, Video, FileText } from "lucide-react";
-import { useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -46,7 +45,7 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     fetchTasks();
   }, [campaignId, isOpen]);
 

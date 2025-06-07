@@ -1,10 +1,10 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 import { NewCampaignDialog } from "./NewCampaignDialog";
 import { ContentReviewDialog } from "./ContentReviewDialog";
+import { toast } from "sonner";
 
 interface NextStepBannerProps {
   campaignsCount: number;
