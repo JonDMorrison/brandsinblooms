@@ -51,19 +51,6 @@ export const CompanyProfileFormFields = ({ formData, isEditing, onInputChange }:
       </div>
 
       <div>
-        <Label htmlFor="mission_statement" className="text-lg font-semibold">Mission Statement</Label>
-        <Textarea
-          id="mission_statement"
-          placeholder="Your company's mission statement - the fundamental purpose and values that drive your business"
-          value={formData.mission_statement}
-          onChange={(e) => onInputChange('mission_statement', e.target.value)}
-          disabled={!isEditing}
-          rows={3}
-          className="text-lg p-4"
-        />
-      </div>
-
-      <div>
         <Label htmlFor="brand_voice" className="text-lg font-semibold">Brand Voice</Label>
         <Textarea
           id="brand_voice"
@@ -174,6 +161,19 @@ export const CompanyProfileFormFields = ({ formData, isEditing, onInputChange }:
           placeholder="Location details, climate zone, local growing conditions, community context"
           value={formData.location_info}
           onChange={(e) => onInputChange('location_info', e.target.value)}
+          disabled={!isEditing}
+          rows={3}
+          className="text-lg p-4"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="mission_statement" className="text-lg font-semibold">Mission Statement</Label>
+        <Textarea
+          id="mission_statement"
+          placeholder="Your company's mission statement - the fundamental purpose and values that drive your business"
+          value={formData.mission_statement}
+          onChange={(e) => onInputChange('mission_statement', e.target.value)}
           disabled={!isEditing}
           rows={3}
           className="text-lg p-4"
