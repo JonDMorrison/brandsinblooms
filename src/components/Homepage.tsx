@@ -1,19 +1,16 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ensureCampaignHasTasks } from "./homepage/CampaignAutoManager";
-import { CampaignCard } from "./homepage/CampaignCard";
-import { WhatsComingNextCard } from "./homepage/WhatsComingNextCard";
 import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
-import { CsvUploadDialog } from "./content-import/CsvUploadDialog";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getSeasonalContent } from "./homepage/SeasonalContent";
 import { getCurrentWeekNumber } from "./homepage/homepageUtils";
-import { MasterTemplateImportDialog } from "./content-import/MasterTemplateImportDialog";
-import { MasterTemplateManager } from "./content-import/MasterTemplateManager";
-import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
+import { HomepageHeader } from "./homepage/HomepageHeader";
+import { HomepageActions } from "./homepage/HomepageActions";
+import { HomepageMainContent } from "./homepage/HomepageMainContent";
+import { HomepageSidebar } from "./homepage/HomepageSidebar";
 
 interface Campaign {
   id: string;
@@ -114,21 +111,17 @@ export const Homepage = () => {
   }, [campaigns, user]);
 
   const handleThemesGenerated = () => {
-    fetchCampaigns(); // Refresh campaigns after themes are generated
+    fetchCampaigns();
   };
 
   if (loading) {
     return (
       <div className="min-h-screen bg-garden-background">
         <div className="max-w-5xl mx-auto p-6">
-          <div className="text-center mb-8">
-            <h1 className="text-4xl font-bold text-garden-green-dark mb-2">
-              Welcome to Your Marketing Hub
-            </h1>
-            <p className="text-garden-green">
-              Plan, generate, and manage your content with ease
-            </p>
-          </div>
+          <HomepageHeader 
+            onNewCampaignClick={() => setOpenNewCampaign(true)} 
+            onImportComplete={fetchCampaigns} 
+          />
           
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
@@ -142,67 +135,37 @@ export const Homepage = () => {
     );
   }
 
-  const seasonalContent = getSeasonalContent();
   const weekNumber = getCurrentWeekNumber();
   const currentCampaign = campaigns.find(c => c.week_number === weekNumber) || campaigns[0];
 
   return (
     <div className="min-h-screen bg-garden-background p-6">
       <div className="max-w-5xl mx-auto space-y-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-garden-green-dark mb-2">
-            Welcome to Your Marketing Hub
-          </h1>
-          <p className="text-garden-green">
-            Plan, generate, and manage your content with ease
-          </p>
-        </div>
+        <HomepageHeader 
+          onNewCampaignClick={() => setOpenNewCampaign(true)} 
+          onImportComplete={fetchCampaigns} 
+        />
 
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-semibold text-garden-green-dark">
-            Current Campaign
-          </h2>
-          <div className="flex gap-2">
-            <MasterTemplateImportDialog onImportComplete={fetchCampaigns} />
-            <CsvUploadDialog onImportComplete={fetchCampaigns} />
-            <Button onClick={() => setOpenNewCampaign(true)} className="bg-garden-green hover:bg-garden-green-dark text-white">
-              <PlusCircle className="w-4 h-4 mr-2" />
-              New Campaign
-            </Button>
-          </div>
-        </div>
+        <HomepageActions 
+          onNewCampaignClick={() => setOpenNewCampaign(true)} 
+          onImportComplete={fetchCampaigns} 
+        />
 
         <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-8">
-            {currentCampaign ? (
-              <CampaignCard 
-                campaign={currentCampaign} 
-                onTaskUpdate={handleTaskUpdate}
-                seasonalContent={seasonalContent} 
-              />
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No campaigns found</p>
-                <p className="text-gray-400">Create a new campaign to get started</p>
-              </div>
-            )}
-
-            <div>
-              <h2 className="text-2xl font-semibold text-garden-green-dark mb-6">
-                What's Coming Next
-              </h2>
-              <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
-            </div>
-          </div>
+          <HomepageMainContent 
+            currentCampaign={currentCampaign}
+            onTaskUpdate={handleTaskUpdate}
+          />
           
-          <div className="space-y-6">
-            <WeeklyThemeGenerator onThemesGenerated={handleThemesGenerated} />
-            <MasterTemplateManager />
-          </div>
+          <HomepageSidebar onThemesGenerated={handleThemesGenerated} />
         </div>
       </div>
 
-      <NewCampaignDialog open={openNewCampaign} onOpenChange={setOpenNewCampaign} onCreate={handleCampaignCreate} />
+      <NewCampaignDialog 
+        open={openNewCampaign} 
+        onOpenChange={setOpenNewCampaign} 
+        onCreate={handleCampaignCreate} 
+      />
     </div>
   );
 };
