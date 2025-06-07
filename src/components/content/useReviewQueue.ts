@@ -63,7 +63,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         return;
       }
       
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('content_tasks')
         .select(`
           *,
@@ -75,15 +75,27 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         .not('ai_output', 'is', null)
         .order('created_at', { ascending: false });
 
-      if (error && !isNetworkError(error)) {
-        console.error('ReviewQueue: Error fetching pending tasks:', error);
-        throw new Error(`Failed to load pending tasks: ${error.message}`);
+      if (fetchError) {
+        console.error('ReviewQueue: Error fetching pending tasks:', fetchError);
+        
+        // Check if it's a network error
+        if (isNetworkError(fetchError)) {
+          const cachedData = getCachedData();
+          if (cachedData) {
+            setPendingTasks(cachedData);
+            toast.warning('Using cached review queue due to connection issues');
+          } else {
+            setError('Network error and no cached data available');
+          }
+        } else {
+          throw new Error(`Failed to load pending tasks: ${fetchError.message}`);
+        }
+      } else {
+        const tasks = data || [];
+        console.log('ReviewQueue: Loaded pending tasks:', tasks.length);
+        setPendingTasks(tasks);
+        setCachedData(tasks);
       }
-
-      const tasks = data || getCachedData() || [];
-      console.log('ReviewQueue: Loaded pending tasks:', tasks.length);
-      setPendingTasks(tasks);
-      if (data) setCachedData(tasks);
     } catch (error: any) {
       console.error('ReviewQueue: Error in fetchPendingTasks:', error);
       

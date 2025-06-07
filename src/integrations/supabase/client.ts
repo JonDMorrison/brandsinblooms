@@ -16,30 +16,3 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     },
   },
 });
-
-// Enhanced error handling for offline scenarios
-const originalFrom = supabase.from;
-supabase.from = function(table: string) {
-  const query = originalFrom.call(this, table);
-  
-  // Override the query methods to add better error handling
-  const originalSelect = query.select;
-  query.select = function(...args: any[]) {
-    const result = originalSelect.apply(this, args);
-    
-    // Add offline handling to the promise
-    if (result && typeof result.then === 'function') {
-      return result.catch((error: any) => {
-        if (!navigator.onLine || error.message?.includes('Failed to fetch')) {
-          console.warn('Offline: Using cached data or returning empty result');
-          return { data: [], error: { message: 'Offline - using cached data', isOffline: true } };
-        }
-        throw error;
-      });
-    }
-    
-    return result;
-  };
-  
-  return query;
-};

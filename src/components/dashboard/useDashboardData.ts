@@ -88,15 +88,24 @@ export const useDashboardData = () => {
         .select('*')
         .order('start_date', { ascending: true });
 
-      if (campaignsError && !isNetworkError(campaignsError)) {
+      if (campaignsError) {
         console.error('Dashboard: Error fetching campaigns:', campaignsError);
-        throw new Error(`Failed to load campaigns: ${campaignsError.message}`);
+        
+        if (isNetworkError(campaignsError)) {
+          const cachedCampaigns = getCachedData(CACHE_KEYS.campaigns);
+          if (cachedCampaigns) {
+            setCampaigns(cachedCampaigns);
+            toast.warning('Using cached campaigns due to connection issues');
+          }
+        } else {
+          throw new Error(`Failed to load campaigns: ${campaignsError.message}`);
+        }
+      } else {
+        const campaigns = campaignsData || [];
+        console.log('Dashboard: Loaded campaigns:', campaigns.length);
+        setCampaigns(campaigns);
+        setCachedData(CACHE_KEYS.campaigns, campaigns);
       }
-
-      const campaigns = campaignsData || getCachedData(CACHE_KEYS.campaigns) || [];
-      console.log('Dashboard: Loaded campaigns:', campaigns.length);
-      setCampaigns(campaigns);
-      if (campaignsData) setCachedData(CACHE_KEYS.campaigns, campaigns);
 
       // Fetch content tasks with campaign info
       const { data: tasksData, error: tasksError } = await supabase
@@ -111,15 +120,24 @@ export const useDashboardData = () => {
         `)
         .order('scheduled_date', { ascending: true });
 
-      if (tasksError && !isNetworkError(tasksError)) {
+      if (tasksError) {
         console.error('Dashboard: Error fetching tasks:', tasksError);
-        throw new Error(`Failed to load content tasks: ${tasksError.message}`);
+        
+        if (isNetworkError(tasksError)) {
+          const cachedTasks = getCachedData(CACHE_KEYS.tasks);
+          if (cachedTasks) {
+            setTasks(cachedTasks);
+            toast.warning('Using cached tasks due to connection issues');
+          }
+        } else {
+          throw new Error(`Failed to load content tasks: ${tasksError.message}`);
+        }
+      } else {
+        const tasks = tasksData || [];
+        console.log('Dashboard: Loaded tasks:', tasks.length);
+        setTasks(tasks);
+        setCachedData(CACHE_KEYS.tasks, tasks);
       }
-
-      const tasks = tasksData || getCachedData(CACHE_KEYS.tasks) || [];
-      console.log('Dashboard: Loaded tasks:', tasks.length);
-      setTasks(tasks);
-      if (tasksData) setCachedData(CACHE_KEYS.tasks, tasks);
 
     } catch (error: any) {
       console.error('Dashboard: Error in fetchData:', error);
