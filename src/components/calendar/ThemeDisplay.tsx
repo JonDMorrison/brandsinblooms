@@ -14,13 +14,26 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
     onEdit();
   };
 
+  // Clean up theme text by removing week numbers and similar patterns
+  const cleanTheme = (theme: string) => {
+    if (!theme) return "No theme set";
+    
+    return theme
+      .replace(/Week\s*\d+[\s:-]*/gi, '') // Remove "Week 1:", "Week 23 -", etc.
+      .replace(/\d+\s*week[\s:-]*/gi, '') // Remove "1 week:", "23 week -", etc.
+      .replace(/^[\s:-]+|[\s:-]+$/g, '') // Remove leading/trailing spaces, colons, dashes
+      .trim();
+  };
+
+  const displayTheme = cleanTheme(currentTheme);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 group">
         <Palette className="w-4 h-4 text-gray-500" />
         <span className="text-sm font-medium text-gray-700">Content Theme:</span>
         <span className="text-lg font-bold text-green-800 flex-1 leading-tight">
-          {currentTheme || "No theme set"}
+          {displayTheme}
         </span>
         <Button
           size="sm"
