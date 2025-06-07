@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -31,7 +30,7 @@
 
     --border: 200 230 201; /* #C8E6C9 */
     --input: 200 230 201;
-    --ring: 76 175 80;
+    --ring: 156 163 175; /* Changed to grey-400 */
 
     --radius: 0.75rem;
 
@@ -42,7 +41,7 @@
     --sidebar-accent: 232 245 232;
     --sidebar-accent-foreground: 0 0 0; /* #000000 - Changed to black */
     --sidebar-border: 200 230 201;
-    --sidebar-ring: 76 175 80;
+    --sidebar-ring: 156 163 175; /* Changed to grey-400 */
   }
 
   .dark {
@@ -64,7 +63,7 @@
     --destructive-foreground: 248 250 252;
     --border: 51 65 85;
     --input: 51 65 85;
-    --ring: 76 175 80;
+    --ring: 156 163 175; /* Changed to grey-400 */
     --sidebar-background: 30 41 59;
     --sidebar-foreground: 248 250 252;
     --sidebar-primary: 76 175 80;
@@ -72,7 +71,7 @@
     --sidebar-accent: 51 65 85;
     --sidebar-accent-foreground: 248 250 252;
     --sidebar-border: 51 65 85;
-    --sidebar-ring: 76 175 80;
+    --sidebar-ring: 156 163 175; /* Changed to grey-400 */
   }
 }
 
