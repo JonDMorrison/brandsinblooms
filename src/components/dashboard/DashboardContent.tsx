@@ -1,4 +1,3 @@
-
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
@@ -91,12 +90,7 @@ export const DashboardContent = ({
             />
           )}
           
-          <div>
-            <h2 className="text-2xl font-semibold text-garden-green-dark mb-6">
-              What's Coming Next
-            </h2>
-            <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
-          </div>
+          <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
         </div>
         
         <div className="space-y-6">
