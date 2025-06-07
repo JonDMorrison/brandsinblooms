@@ -3,7 +3,7 @@ import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
 import { CampaignCard } from "@/components/homepage/CampaignCard";
-import { TaskList } from "@/components/homepage/TaskList";
+import { WhatsComingNextCard } from "@/components/homepage/WhatsComingNextCard";
 import { AnalyticsSnapshot } from "@/components/homepage/AnalyticsSnapshot";
 import { NextStepBanner } from "@/components/homepage/NextStepBanner";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
@@ -51,10 +51,6 @@ export const DashboardContent = ({
     return now >= campaignStart && now <= campaignEnd;
   });
 
-  const upcomingTasks = tasks
-    .filter(task => task.status === 'draft')
-    .slice(0, 5);
-
   const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
   const totalTasksCount = tasks.length;
   const pendingTasksCount = tasks.filter(task => task.status === 'draft' && task.ai_output).length;
@@ -95,11 +91,12 @@ export const DashboardContent = ({
             />
           )}
           
-          <TaskList 
-            tasks={upcomingTasks}
-            onTaskUpdate={handleTaskUpdate}
-            onTaskClick={onTaskClick}
-          />
+          <div>
+            <h2 className="text-2xl font-semibold text-garden-green-dark mb-6">
+              What's Coming Next
+            </h2>
+            <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
+          </div>
         </div>
         
         <div className="space-y-6">
