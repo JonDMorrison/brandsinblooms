@@ -27,10 +27,10 @@ const Index = () => {
         setShowLanding(true);
         setIsOnboarded(false);
       } else {
-        // Always check if user has completed onboarding
+        // Check if user has completed onboarding
         const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
         if (savedData) {
-          // User has onboarding data, go to dashboard
+          // User has onboarding data, go directly to dashboard
           const parsedData = JSON.parse(savedData);
           setOnboardingData(parsedData);
           setIsOnboarded(true);
@@ -46,6 +46,7 @@ const Index = () => {
 
   const handleOnboardingComplete = (data: any) => {
     if (user) {
+      // Store the data and update state immediately
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
       setOnboardingData(data);
       setIsOnboarded(true);

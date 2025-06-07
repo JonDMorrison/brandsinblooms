@@ -79,13 +79,14 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       // Store the onboarding data in localStorage as backup
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(finalData));
       
-      // Call the onComplete callback
+      // Call the onComplete callback with the data
       onComplete(finalData);
       
-      // Navigate to the main app
-      navigate('/?view=app');
-      
       toast.success("Setup complete! Your company profile has been created.");
+      
+      // Navigate directly to the app without any view parameter
+      navigate('/app');
+      
     } catch (error) {
       console.error('Error completing onboarding:', error);
       toast.error("Failed to complete setup. Please try again.");
