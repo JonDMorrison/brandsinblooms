@@ -89,7 +89,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
     <>
       <Card className="shadow-lg border-primary/20 rounded-xl">
         <CardContent className="p-6">
-          <h3 className="text-xl font-bold text-foreground mb-4">Quick Actions</h3>
+          <h3 className="text-xl font-bold text-black mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {actionItems.map((item) => {
               const IconComponent = item.icon;
@@ -102,8 +102,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                   aria-label={item.ariaLabel}
                 >
                   <IconComponent className="w-6 h-6 flex-shrink-0" />
-                  <span className="text-sm font-medium text-center">{item.title}</span>
-                  <span className="text-xs text-muted-foreground text-center">{item.description}</span>
+                  <span className="text-sm font-medium text-center text-black">{item.title}</span>
+                  <span className="text-xs text-center text-black">{item.description}</span>
                 </Button>
               );
             })}
