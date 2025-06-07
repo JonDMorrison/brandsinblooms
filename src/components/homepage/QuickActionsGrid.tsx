@@ -25,7 +25,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Button 
               variant="outline" 
-              className="h-24 flex flex-col gap-2 border-green-300 hover:bg-green-50"
+              className="h-28 flex flex-col gap-2 border-green-300 hover:bg-green-50"
               onClick={onCampaignCreated}
             >
               <PlusCircle className="w-6 h-6 text-green-600" />
@@ -35,7 +35,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             
             <Button 
               variant="outline" 
-              className="h-24 flex flex-col gap-2 border-blue-300 hover:bg-blue-50"
+              className="h-28 flex flex-col gap-2 border-blue-300 hover:bg-blue-50"
             >
               <Calendar className="w-6 h-6 text-blue-600" />
               <span className="text-sm font-medium">View Calendar</span>
@@ -44,7 +44,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             
             <Button 
               variant="outline" 
-              className="h-24 flex flex-col gap-2 border-purple-300 hover:bg-purple-50"
+              className="h-28 flex flex-col gap-2 border-purple-300 hover:bg-purple-50"
             >
               <BarChart3 className="w-6 h-6 text-purple-600" />
               <span className="text-sm font-medium">Analytics</span>
@@ -53,7 +53,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             
             <Button 
               variant="outline" 
-              className="h-24 flex flex-col gap-2 border-orange-300 hover:bg-orange-50"
+              className="h-28 flex flex-col gap-2 border-orange-300 hover:bg-orange-50"
               onClick={() => setShowAddEventDialog(true)}
             >
               <CalendarPlus className="w-6 h-6 text-orange-600" />
