@@ -32,6 +32,13 @@ const setCachedData = (data: any) => {
   }
 };
 
+const isNetworkError = (error: any) => {
+  return !navigator.onLine || 
+         error?.message?.includes('Failed to fetch') ||
+         error?.message?.includes('Network Error') ||
+         error?.message?.includes('ERR_INTERNET_DISCONNECTED');
+};
+
 export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +75,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         .not('ai_output', 'is', null)
         .order('created_at', { ascending: false });
 
-      if (error && !error.isOffline) {
+      if (error && !isNetworkError(error)) {
         console.error('ReviewQueue: Error fetching pending tasks:', error);
         throw new Error(`Failed to load pending tasks: ${error.message}`);
       }

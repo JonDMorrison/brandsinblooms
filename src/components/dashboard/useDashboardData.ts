@@ -36,6 +36,13 @@ const setCachedData = (key: string, data: any) => {
   }
 };
 
+const isNetworkError = (error: any) => {
+  return !navigator.onLine || 
+         error?.message?.includes('Failed to fetch') ||
+         error?.message?.includes('Network Error') ||
+         error?.message?.includes('ERR_INTERNET_DISCONNECTED');
+};
+
 export const useDashboardData = () => {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -81,7 +88,7 @@ export const useDashboardData = () => {
         .select('*')
         .order('start_date', { ascending: true });
 
-      if (campaignsError && !campaignsError.isOffline) {
+      if (campaignsError && !isNetworkError(campaignsError)) {
         console.error('Dashboard: Error fetching campaigns:', campaignsError);
         throw new Error(`Failed to load campaigns: ${campaignsError.message}`);
       }
@@ -104,7 +111,7 @@ export const useDashboardData = () => {
         `)
         .order('scheduled_date', { ascending: true });
 
-      if (tasksError && !tasksError.isOffline) {
+      if (tasksError && !isNetworkError(tasksError)) {
         console.error('Dashboard: Error fetching tasks:', tasksError);
         throw new Error(`Failed to load content tasks: ${tasksError.message}`);
       }
