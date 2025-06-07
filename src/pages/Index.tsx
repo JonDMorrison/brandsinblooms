@@ -63,7 +63,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-garden-background">
+    <div className="min-h-screen bg-background">
       {showLanding ? (
         <LandingPage onGetStarted={handleGetStarted} />
       ) : !isOnboarded ? (
