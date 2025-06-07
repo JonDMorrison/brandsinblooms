@@ -1,9 +1,11 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Instagram, Facebook, Mail, BookOpen, Video, FileText, Copy, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { ReadyPostModal } from "./ReadyPostModal";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -12,6 +14,8 @@ interface ReadyToPostCardProps {
 
 export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) => {
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const readyTasks = tasks.filter(task => task.status === 'scheduled');
 
   const getPostTypeIcon = (postType: string) => {
@@ -33,6 +37,24 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
       case 'newsletter': return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'video': return 'bg-red-100 text-red-800 border-red-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+  };
+
+  const handleTaskClick = (task: any) => {
+    setSelectedTask(task);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedTask(null);
+  };
+
+  const handleTaskUpdate = () => {
+    // Trigger refresh if needed
+    if (onTaskClick) {
+      // This will refresh the parent component's data
+      onTaskClick(selectedTask);
     }
   };
 
@@ -109,86 +131,95 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
   const displayedTasks = showAllTasks ? readyTasks : readyTasks.slice(0, 5);
 
   return (
-    <Card className="border-green-200">
-      <CardHeader>
-        <CardTitle className="text-lg text-green-700 flex items-center gap-2">
-          <Calendar className="w-5 h-5" />
-          Ready to Post
-          <Badge className="bg-green-100 text-green-800">
-            {readyTasks.length}
-          </Badge>
-        </CardTitle>
-        <CardDescription>
-          Approved content ready for publishing
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {displayedTasks.map((task) => (
-          <div
-            key={task.id}
-            className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-            onClick={() => onTaskClick && onTaskClick(task)}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                {getPostTypeIcon(task.post_type)}
-                <Badge className={getPostTypeColor(task.post_type)}>
-                  {task.post_type}
-                </Badge>
-                <Badge className="bg-green-100 text-green-800">
-                  ✅ Ready
-                </Badge>
+    <>
+      <Card className="border-green-200">
+        <CardHeader>
+          <CardTitle className="text-lg text-green-700 flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Ready to Post
+            <Badge className="bg-green-100 text-green-800">
+              {readyTasks.length}
+            </Badge>
+          </CardTitle>
+          <CardDescription>
+            Approved content ready for publishing
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {displayedTasks.map((task) => (
+            <div
+              key={task.id}
+              className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+              onClick={() => handleTaskClick(task)}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {getPostTypeIcon(task.post_type)}
+                  <Badge className={getPostTypeColor(task.post_type)}>
+                    {task.post_type}
+                  </Badge>
+                  <Badge className="bg-green-100 text-green-800">
+                    ✅ Ready
+                  </Badge>
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopyContent(task.ai_output, task.post_type);
+                    }}
+                    className="h-7 w-7 p-0"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toast.info('Post publishing integration coming soon');
+                    }}
+                    className="h-7 w-7 p-0"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCopyContent(task.ai_output, task.post_type);
-                  }}
-                  className="h-7 w-7 p-0"
-                >
-                  <Copy className="w-3 h-3" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toast.info('Post publishing integration coming soon');
-                  }}
-                  className="h-7 w-7 p-0"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                </Button>
-              </div>
+              
+              {task.ai_output && (
+                <p className="text-sm text-gray-700 line-clamp-2 mb-2">
+                  {stripHtmlAndFormat(task.ai_output)}
+                </p>
+              )}
+              
+              {task.scheduled_date && (
+                <p className="text-xs text-gray-500">
+                  Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+                </p>
+              )}
             </div>
-            
-            {task.ai_output && (
-              <p className="text-sm text-gray-700 line-clamp-2 mb-2">
-                {stripHtmlAndFormat(task.ai_output)}
-              </p>
-            )}
-            
-            {task.scheduled_date && (
-              <p className="text-xs text-gray-500">
-                Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-              </p>
-            )}
-          </div>
-        ))}
-        
-        {readyTasks.length > 5 && (
-          <Button 
-            variant="outline" 
-            className="w-full"
-            onClick={() => setShowAllTasks(!showAllTasks)}
-          >
-            {showAllTasks ? 'Show Less' : `View All ${readyTasks.length} Ready Posts`}
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+          ))}
+          
+          {readyTasks.length > 5 && (
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => setShowAllTasks(!showAllTasks)}
+            >
+              {showAllTasks ? 'Show Less' : `View All ${readyTasks.length} Ready Posts`}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <ReadyPostModal
+        task={selectedTask}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onTaskUpdate={handleTaskUpdate}
+      />
+    </>
   );
 };
