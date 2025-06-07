@@ -53,16 +53,34 @@ const getWeekDateRange = (weekNumber: number, year: number) => {
   return { startDate: weekStartDate, endDate: weekEndDate };
 };
 
+const getCurrentWeekNumber = () => {
+  const today = new Date();
+  const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+  const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
+  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+};
+
 export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarViewProps) => {
   const [localCampaigns, setLocalCampaigns] = useState(campaigns);
   const currentYear = new Date().getFullYear();
+  const currentWeekNumber = getCurrentWeekNumber();
 
   // Update local campaigns when props change
   useState(() => {
     setLocalCampaigns(campaigns);
   });
 
-  const groupedCampaigns = localCampaigns.reduce((acc, campaign) => {
+  // Sort campaigns to show current week first, then subsequent weeks
+  const sortedCampaigns = [...localCampaigns].sort((a, b) => {
+    // If one campaign is the current week, prioritize it
+    if (a.week_number === currentWeekNumber && b.week_number !== currentWeekNumber) return -1;
+    if (b.week_number === currentWeekNumber && a.week_number !== currentWeekNumber) return 1;
+    
+    // For other campaigns, sort by week number
+    return a.week_number - b.week_number;
+  });
+
+  const groupedCampaigns = sortedCampaigns.reduce((acc, campaign) => {
     const week = `Week ${campaign.week_number}`;
     if (!acc[week]) acc[week] = [];
     acc[week].push(campaign);
@@ -91,14 +109,20 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
         {Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => {
           const weekNumber = weekCampaigns[0].week_number;
           const { startDate, endDate } = getWeekDateRange(weekNumber, currentYear);
+          const isCurrentWeek = weekNumber === currentWeekNumber;
           
           return (
-            <Card key={week} className="border-green-200">
+            <Card key={week} className={`border-green-200 ${isCurrentWeek ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between text-green-800">
                   <div className="flex items-center gap-2">
                     <CalendarIcon className="w-5 h-5" />
                     {week} ({currentYear})
+                    {isCurrentWeek && (
+                      <Badge className="bg-blue-100 text-blue-800 text-xs">
+                        Current Week
+                      </Badge>
+                    )}
                   </div>
                   <span className="text-sm font-normal text-gray-500">
                     {startDate.toLocaleDateString()} - {endDate.toLocaleDateString()}
