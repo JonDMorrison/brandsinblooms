@@ -57,6 +57,16 @@ Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}
 
 IMPORTANT: Use this company information to create a personalized video script that sounds authentic to this specific garden center owner or expert.
+
+CONTENT RESTRICTIONS: 
+- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
+- Avoid cliché gardening phrases and focus on fresh, authentic language
+`;
+    } else {
+      companyContext = `
+CONTENT RESTRICTIONS: 
+- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
+- Avoid cliché gardening phrases and focus on fresh, authentic language
 `;
     }
 
@@ -71,6 +81,7 @@ Requirements:
 - Include a strong opening hook and clear call-to-action
 - Make it feel authentic and personal, not generic
 - Structure it with clear sections: Hook, Main Content, Call-to-Action
+- NEVER use "Green Thumbs" or "green thumb" phrases
 
 Format the response as a natural speaking script, not bullet points.`;
 
@@ -85,7 +96,7 @@ Format the response as a natural speaking script, not bullet points.`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional video script writer specializing in garden center content. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert.' },
+          { role: 'system', content: 'You are a professional video script writer specializing in garden center content. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

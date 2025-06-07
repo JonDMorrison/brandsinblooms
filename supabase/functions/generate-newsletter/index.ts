@@ -80,6 +80,16 @@ Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}
 
 IMPORTANT: Use this company information to personalize the newsletter. Reference the company name, speak in their brand voice, mention their specializations, and align with their values and target audience.
+
+CONTENT RESTRICTIONS: 
+- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
+- Avoid cliché gardening phrases and focus on fresh, authentic language
+`;
+    } else {
+      companyContext = `
+CONTENT RESTRICTIONS: 
+- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
+- Avoid cliché gardening phrases and focus on fresh, authentic language
 `;
     }
 
@@ -109,6 +119,7 @@ Create a comprehensive weekly newsletter that:
 8. Includes practical gardening tips aligned with their expertise
 9. Mentions seasonal activities relevant to their focus areas
 10. Ends with a personalized call-to-action
+11. NEVER uses "Green Thumbs" or "green thumb" phrases
 
 Format the response as a JSON object with:
 - subject: The email subject line (incorporating company name)
@@ -128,7 +139,7 @@ The newsletter should be 400-600 words and feel personal and authentic to this s
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications. Always respond with valid JSON and personalize content based on the company profile provided.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications. Always respond with valid JSON and personalize content based on the company profile provided. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
