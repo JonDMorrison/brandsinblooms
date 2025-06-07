@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -168,7 +169,7 @@ export const Homepage = () => {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-8">
             {currentCampaign ? (
               <CampaignCard 
                 campaign={currentCampaign} 
@@ -182,7 +183,10 @@ export const Homepage = () => {
               </div>
             )}
 
-            <div className="mt-8">
+            <div>
+              <h2 className="text-2xl font-semibold text-garden-green-dark mb-6">
+                What's Coming Next
+              </h2>
               <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
             </div>
           </div>
