@@ -71,18 +71,20 @@ export const ThemeEditor = ({
           variant="outline"
           onClick={onSave}
           disabled={isLoading || !editTheme.trim()}
-          className="h-8 w-8 p-0"
+          className="h-8 px-3 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
         >
-          <Check className="w-3 h-3" />
+          <Check className="w-3 h-3 mr-1" />
+          Save
         </Button>
         <Button
           size="sm"
           variant="outline"
           onClick={onCancel}
           disabled={isLoading}
-          className="h-8 w-8 p-0"
+          className="h-8 px-3"
         >
-          <X className="w-3 h-3" />
+          <X className="w-3 h-3 mr-1" />
+          Cancel
         </Button>
       </div>
     </div>
