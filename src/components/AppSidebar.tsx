@@ -1,7 +1,9 @@
+
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
 import { Calendar, Users, Settings, BarChart3, Home, Leaf, Building } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
+import { useNavigate, useLocation } from "react-router-dom";
 
 interface AppSidebarProps {
   currentView: "home" | "kanban" | "calendar" | "team" | "profile";
@@ -11,11 +13,14 @@ interface AppSidebarProps {
 }
 
 export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusinessNameChange }: AppSidebarProps) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const menuItems = [
-    { title: "Dashboard", view: "home", icon: Home },
-    { title: "Content Pipeline", view: "kanban", icon: BarChart3 },
-    { title: "Campaign Calendar", view: "calendar", icon: Calendar },
-    { title: "Company Profile", view: "profile", icon: Building },
+    { title: "Dashboard", view: "home", icon: Home, path: "/app" },
+    { title: "Content Pipeline", view: "kanban", icon: BarChart3, path: "/kanban" },
+    { title: "Campaign Calendar", view: "calendar", icon: Calendar, path: "/calendar" },
+    { title: "Company Profile", view: "profile", icon: Building, path: "/profile" },
   ];
 
   // Extract business name from onboarding data
@@ -46,6 +51,14 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
     }
   };
 
+  const handleNavigation = (item: any) => {
+    if (item.view === "profile") {
+      navigate("/profile");
+    } else {
+      onViewChange(item.view as "home" | "kanban" | "calendar" | "team" | "profile");
+    }
+  };
+
   return (
     <Sidebar className="w-64 border-r border-green-200 bg-garden-sage">
       <SidebarContent>
@@ -71,7 +84,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
                     className={currentView === item.view ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" : "hover:bg-green-100 text-garden-green-dark"}
                   >
                     <button
-                      onClick={() => onViewChange(item.view as "home" | "kanban" | "calendar" | "team" | "profile")}
+                      onClick={() => handleNavigation(item)}
                       className="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200"
                     >
                       <item.icon className="w-5 h-5" />
@@ -91,7 +104,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <button 
-                    onClick={() => onViewChange("team")}
+                    onClick={() => navigate("/team")}
                     className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
                       currentView === "team" 
                         ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 

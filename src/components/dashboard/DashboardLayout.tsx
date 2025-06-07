@@ -26,15 +26,15 @@ export const DashboardLayout = ({
   return (
     <SidebarProvider>
       <AppSidebar 
-        currentView={currentView}
+        currentView={currentView as "home" | "kanban" | "calendar" | "team" | "profile"}
         onViewChange={onViewChange}
+        onboardingData={onboardingData}
+        onBusinessNameChange={onBusinessNameChange}
       />
       <SidebarInset className="flex flex-col min-h-screen">
         <DashboardHeader 
-          onboardingData={onboardingData}
-          onBusinessNameChange={onBusinessNameChange}
+          currentView={currentView as "home" | "kanban" | "calendar" | "team" | "profile"}
           onCampaignCreated={onCampaignCreated}
-          isLoading={isLoading}
         />
         <main className="flex-1 bg-garden-background">
           {children}

@@ -4,9 +4,18 @@ import { CampaignDialog } from "@/components/CampaignDialog";
 interface DashboardHeaderProps {
   currentView: "home" | "kanban" | "calendar" | "team" | "profile";
   onCampaignCreated: () => void;
+  onboardingData?: any;
+  onBusinessNameChange?: (newName: string) => void;
+  isLoading?: boolean;
 }
 
-export const DashboardHeader = ({ currentView, onCampaignCreated }: DashboardHeaderProps) => {
+export const DashboardHeader = ({ 
+  currentView, 
+  onCampaignCreated,
+  onboardingData,
+  onBusinessNameChange,
+  isLoading 
+}: DashboardHeaderProps) => {
   const getViewTitle = () => {
     switch (currentView) {
       case "home": return "Dashboard Overview";
