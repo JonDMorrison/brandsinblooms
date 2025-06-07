@@ -3,6 +3,35 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+const CACHE_KEY = 'review_queue_cache';
+
+const getCachedData = () => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      const { data, timestamp } = JSON.parse(cached);
+      // Use cache if less than 30 minutes old
+      if (Date.now() - timestamp < 1800000) {
+        return data;
+      }
+    }
+  } catch (error) {
+    console.error('Error reading review queue cache:', error);
+  }
+  return null;
+};
+
+const setCachedData = (data: any) => {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      data,
+      timestamp: Date.now()
+    }));
+  } catch (error) {
+    console.error('Error setting review queue cache:', error);
+  }
+};
+
 export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +42,19 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     try {
       setError(null);
       console.log('ReviewQueue: Fetching pending tasks');
+      
+      // Check if we're offline
+      if (!navigator.onLine) {
+        const cachedData = getCachedData();
+        if (cachedData) {
+          setPendingTasks(cachedData);
+          toast.info('Loaded cached review queue - you are offline');
+        } else {
+          setError('No internet connection and no cached data available');
+        }
+        setLoading(false);
+        return;
+      }
       
       const { data, error } = await supabase
         .from('content_tasks')
@@ -26,16 +68,26 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         .not('ai_output', 'is', null)
         .order('created_at', { ascending: false });
 
-      if (error) {
+      if (error && !error.isOffline) {
         console.error('ReviewQueue: Error fetching pending tasks:', error);
         throw new Error(`Failed to load pending tasks: ${error.message}`);
       }
 
-      console.log('ReviewQueue: Loaded pending tasks:', data?.length || 0);
-      setPendingTasks(data || []);
+      const tasks = data || getCachedData() || [];
+      console.log('ReviewQueue: Loaded pending tasks:', tasks.length);
+      setPendingTasks(tasks);
+      if (data) setCachedData(tasks);
     } catch (error: any) {
       console.error('ReviewQueue: Error in fetchPendingTasks:', error);
-      setError(error.message || 'Failed to load pending tasks');
+      
+      // Try to load cached data as fallback
+      const cachedData = getCachedData();
+      if (cachedData) {
+        setPendingTasks(cachedData);
+        toast.warning('Using cached review queue due to connection issues');
+      } else {
+        setError(error.message || 'Failed to load pending tasks');
+      }
     } finally {
       setLoading(false);
     }
@@ -43,6 +95,11 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
 
   const handleApprove = async (taskId: string, event: React.MouseEvent) => {
     event.stopPropagation();
+    
+    if (!navigator.onLine) {
+      toast.error('Cannot approve content while offline');
+      return;
+    }
     
     setApprovingTasks(prev => new Set(prev).add(taskId));
     
