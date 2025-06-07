@@ -164,7 +164,7 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
                       {hasContent && (
                         <div className="bg-gray-50 p-3 rounded-md mb-3">
                           <p className="text-xs text-gray-600 mb-1">Generated Content:</p>
-                          <p className="text-sm line-clamp-3">{generatedContent[contentType.id]}</p>
+                          <p className="text-sm">{generatedContent[contentType.id]}</p>
                         </div>
                       )}
                       
