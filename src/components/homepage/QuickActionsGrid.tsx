@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, Calendar, BarChart3, CalendarPlus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { AddEventDialog } from "./AddEventDialog";
+import { NewCampaignModal } from "./NewCampaignModal";
 import { toast } from "sonner";
 
 interface QuickActionsGridProps {
@@ -12,7 +13,7 @@ interface QuickActionsGridProps {
 
 export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) => {
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
-  const [isCreatingCampaign, setIsCreatingCampaign] = useState(false);
+  const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
   const handleEventCreated = () => {
     console.log('QuickActions: Event created successfully');
@@ -21,18 +22,11 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
     toast.success('Event added successfully!');
   };
 
-  const handleNewCampaign = async () => {
-    try {
-      setIsCreatingCampaign(true);
-      console.log('QuickActions: Creating new campaign');
-      await onCampaignCreated();
-      toast.success('Campaign creation initiated!');
-    } catch (error) {
-      console.error('QuickActions: Error creating campaign:', error);
-      toast.error('Failed to create campaign');
-    } finally {
-      setIsCreatingCampaign(false);
-    }
+  const handleCampaignCreated = () => {
+    console.log('QuickActions: Campaign created successfully');
+    setShowNewCampaignModal(false);
+    onCampaignCreated();
+    toast.success('Campaign created successfully!');
   };
 
   const handleViewCalendar = () => {
@@ -54,14 +48,9 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             <Button 
               variant="outline" 
               className="h-auto min-h-[120px] flex flex-col gap-3 border-green-300 hover:bg-green-50 p-4 justify-center"
-              onClick={handleNewCampaign}
-              disabled={isCreatingCampaign}
+              onClick={() => setShowNewCampaignModal(true)}
             >
-              {isCreatingCampaign ? (
-                <Loader2 className="w-6 h-6 text-green-600 flex-shrink-0 animate-spin" />
-              ) : (
-                <PlusCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
-              )}
+              <PlusCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">New Campaign</span>
               <span className="text-xs text-gray-500 text-center">Create a new theme</span>
             </Button>
@@ -103,6 +92,12 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
         open={showAddEventDialog}
         onOpenChange={setShowAddEventDialog}
         onEventCreated={handleEventCreated}
+      />
+
+      <NewCampaignModal 
+        open={showNewCampaignModal}
+        onOpenChange={setShowNewCampaignModal}
+        onCampaignCreated={handleCampaignCreated}
       />
     </>
   );
