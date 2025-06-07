@@ -248,58 +248,23 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
                         <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg border border-white/60">
                           <div className="flex items-center justify-between mb-3">
                             <p className="text-xs text-gray-500 font-medium">Generated Content:</p>
-                            {!isEditing && (
-                              <Button
-                                onClick={() => handleEditContent(contentType)}
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                              >
-                                <Edit className="w-3 h-3 mr-1" />
-                                Edit
-                              </Button>
-                            )}
+                            <Button
+                              onClick={() => handleEditContent(contentType)}
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs"
+                            >
+                              <Edit className="w-3 h-3 mr-1" />
+                              Edit
+                            </Button>
                           </div>
                           
-                          {isEditing ? (
-                            <div className="space-y-3">
-                              <Textarea
-                                value={editedContent[contentType.id] || ''}
-                                onChange={(e) => setEditedContent(prev => ({
-                                  ...prev,
-                                  [contentType.id]: e.target.value
-                                }))}
-                                className="min-h-[120px] text-sm"
-                                placeholder={`Edit your ${contentType.name.toLowerCase()} content...`}
-                              />
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  onClick={() => handleCancelEdit(contentType)}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 px-3 text-xs"
-                                >
-                                  <X className="w-3 h-3 mr-1" />
-                                  Cancel
-                                </Button>
-                                <Button
-                                  onClick={() => handleSaveEdit(contentType)}
-                                  size="sm"
-                                  className="h-8 px-3 text-xs bg-green-600 hover:bg-green-700"
-                                >
-                                  <Save className="w-3 h-3 mr-1" />
-                                  Save
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <p className="text-sm leading-relaxed text-gray-700">
-                              {generatedContent[contentType.id].length > 150 
-                                ? generatedContent[contentType.id].substring(0, 150) + '...'
-                                : generatedContent[contentType.id]
-                              }
-                            </p>
-                          )}
+                          <p className="text-sm leading-relaxed text-gray-700">
+                            {generatedContent[contentType.id].length > 150 
+                              ? generatedContent[contentType.id].substring(0, 150) + '...'
+                              : generatedContent[contentType.id]
+                            }
+                          </p>
                         </div>
                       )}
                       
@@ -329,7 +294,7 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
                           )}
                         </Button>
 
-                        {hasContent && !isEditing && (
+                        {hasContent && (
                           <div className="grid grid-cols-2 gap-2">
                             <Button
                               onClick={() => handleCopyContent(contentType)}
