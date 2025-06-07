@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -86,20 +87,20 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       {/* How It Works Section */}
       <section className="py-12 px-6 bg-white/60">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-2xl font-semibold text-center mb-16 text-garden-green-dark">
+          <h2 className="text-2xl font-semibold text-center mb-16 text-primary">
             Transform Your Marketing in 3 Simple Steps
           </h2>
           
           <div className="grid md:grid-cols-3 gap-12">
             <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Edit className="h-8 w-8 text-primary-600" />
+                <div className="w-16 h-16 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Edit className="h-8 w-8 text-secondary" />
                 </div>
-                <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
+                <h3 className="text-xl font-semibold mb-4 text-primary">
                   Paste Your Website
                 </h3>
-                <p className="text-base text-gray-600">
+                <p className="text-base text-muted-foreground">
                   We'll analyze your site to learn your brand voice and customer style.
                 </p>
               </CardContent>
@@ -107,13 +108,13 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
 
             <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-warning-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle className="h-8 w-8 text-warning-600" />
+                <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="h-8 w-8 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
+                <h3 className="text-xl font-semibold mb-4 text-primary">
                   Review Your Content
                 </h3>
-                <p className="text-base text-gray-600">
+                <p className="text-base text-muted-foreground">
                   Instantly receive ready-to-go posts, emails, and more — all editable and fully tailored.
                 </p>
               </CardContent>
@@ -121,13 +122,13 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
 
             <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-accent-blue/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <TrendingUp className="h-8 w-8 text-blue-600" />
+                <div className="w-16 h-16 bg-secondary/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <TrendingUp className="h-8 w-8 text-secondary" />
                 </div>
-                <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
+                <h3 className="text-xl font-semibold mb-4 text-primary">
                   Publish & Grow
                 </h3>
-                <p className="text-base text-gray-600">
+                <p className="text-base text-muted-foreground">
                   Share across platforms in one click and track what performs best.
                 </p>
               </CardContent>
