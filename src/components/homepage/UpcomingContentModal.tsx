@@ -145,7 +145,7 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
 
                 return (
                   <Card key={contentType.id} className="relative">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-1">
                       <CardTitle className="text-sm flex items-center gap-2">
                         <IconComponent className="w-4 h-4" />
                         {contentType.name}
