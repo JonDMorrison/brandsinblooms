@@ -7,6 +7,7 @@ import { UpcomingContentCard } from "@/components/homepage/UpcomingContentCard";
 import { AnalyticsSnapshot } from "@/components/homepage/AnalyticsSnapshot";
 import { NextStepBanner } from "@/components/homepage/NextStepBanner";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
+import { ReviewQueue } from "@/components/content/ReviewQueue";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -79,8 +80,10 @@ export const DashboardContent = ({
         </div>
         
         <div className="space-y-6">
+          <ReviewQueue 
+            onTaskUpdate={handleTaskUpdate}
+          />
           <ReadyToPostCard tasks={tasks} />
-          <UpcomingContentCard tasks={upcomingTasks} />
           <AnalyticsSnapshot 
             totalTasks={totalTasksCount}
             completedTasks={completedTasksCount}

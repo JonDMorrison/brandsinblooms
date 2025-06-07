@@ -11,6 +11,7 @@ interface ReadyToPostCardProps {
 }
 
 export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) => {
+  const [showAllTasks, setShowAllTasks] = useState(false);
   const readyTasks = tasks.filter(task => task.status === 'scheduled');
 
   const getPostTypeIcon = (postType: string) => {
@@ -105,6 +106,8 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
     );
   }
 
+  const displayedTasks = showAllTasks ? readyTasks : readyTasks.slice(0, 5);
+
   return (
     <Card className="border-green-200">
       <CardHeader>
@@ -120,7 +123,7 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {readyTasks.slice(0, 5).map((task) => (
+        {displayedTasks.map((task) => (
           <div
             key={task.id}
             className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
@@ -177,8 +180,12 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
         ))}
         
         {readyTasks.length > 5 && (
-          <Button variant="outline" className="w-full">
-            View All {readyTasks.length} Ready Posts
+          <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={() => setShowAllTasks(!showAllTasks)}
+          >
+            {showAllTasks ? 'Show Less' : `View All ${readyTasks.length} Ready Posts`}
           </Button>
         )}
       </CardContent>

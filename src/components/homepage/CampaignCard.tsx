@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { generateRequiredTasks } from "./TaskManagementUtils";
 import { toast } from "sonner";
 import { EditableTheme } from "@/components/calendar/EditableTheme";
 import { supabase } from "@/integrations/supabase/client";
+import { ContentViewer } from "@/components/content/ContentViewer";
 
 interface Campaign {
   id: string;
@@ -40,8 +40,8 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasContent, setHasContent] = useState(false);
+  const [showContentViewer, setShowContentViewer] = useState(false);
 
-  // Check if campaign has content
   useEffect(() => {
     const checkForContent = async () => {
       if (!campaign.id) return;
@@ -82,8 +82,7 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
   };
 
   const handleViewContent = () => {
-    // For now, just show a toast. In the future, this could navigate to a tasks view
-    toast.info("Content viewing functionality coming soon! Check the tasks section to see your generated content.");
+    setShowContentViewer(true);
   };
 
   const handleThemeUpdate = (newTheme: string, newDescription?: string) => {
@@ -157,6 +156,14 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
           </p>
         </div>
       </CardContent>
+
+      <ContentViewer
+        campaignId={campaign.id}
+        campaignTitle={campaign.title}
+        isOpen={showContentViewer}
+        onClose={() => setShowContentViewer(false)}
+        onTaskUpdate={onTaskUpdate}
+      />
     </Card>
   );
 };

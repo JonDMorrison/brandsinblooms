@@ -31,14 +31,26 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       };
     }
     
+    if (tasksCount === 0) {
+      return {
+        title: "Generate Content",
+        description: "Create content for your existing campaigns",
+        action: "Generate Content",
+        icon: "✨",
+        bgColor: "bg-blue-100",
+        borderColor: "border-blue-300",
+        actionType: "generate-content"
+      };
+    }
+    
     if (completedTasksCount === 0) {
       return {
         title: "Review Your Content",
         description: "Check and approve your generated marketing content",
         action: "Review Content",
         icon: "📝",
-        bgColor: "bg-blue-100",
-        borderColor: "border-blue-300",
+        bgColor: "bg-orange-100",
+        borderColor: "border-orange-300",
         actionType: "review-content"
       };
     }
@@ -47,9 +59,9 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       title: "Great Progress!",
       description: "Keep up the momentum with your marketing efforts",
       action: "Create More",
-      icon: "✨",
-      bgColor: "bg-yellow-100",
-      borderColor: "border-yellow-300",
+      icon: "🎉",
+      bgColor: "bg-purple-100",
+      borderColor: "border-purple-300",
       actionType: "create-more"
     };
   };
@@ -59,13 +71,14 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
   const handleAction = () => {
     switch (nextStep.actionType) {
       case "create-campaign":
+      case "create-more":
         setShowNewCampaignDialog(true);
+        break;
+      case "generate-content":
+        toast.info("Go to your campaigns and click 'Generate Content' to create marketing materials");
         break;
       case "review-content":
         setShowContentReviewDialog(true);
-        break;
-      case "create-more":
-        setShowNewCampaignDialog(true);
         break;
       default:
         onCampaignCreated();
