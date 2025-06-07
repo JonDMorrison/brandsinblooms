@@ -9,10 +9,17 @@ interface EditableThemeProps {
   campaignId: string;
   currentTheme: string;
   currentDescription?: string;
+  weekNumber?: number;
   onThemeUpdate: (newTheme: string, newDescription?: string) => void;
 }
 
-export const EditableTheme = ({ campaignId, currentTheme, currentDescription, onThemeUpdate }: EditableThemeProps) => {
+export const EditableTheme = ({ 
+  campaignId, 
+  currentTheme, 
+  currentDescription, 
+  weekNumber,
+  onThemeUpdate 
+}: EditableThemeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTheme, setEditTheme] = useState(currentTheme);
   const [editDescription, setEditDescription] = useState(currentDescription || "");
@@ -78,6 +85,7 @@ export const EditableTheme = ({ campaignId, currentTheme, currentDescription, on
         editTheme={editTheme}
         editDescription={editDescription}
         isLoading={isLoading}
+        weekNumber={weekNumber}
         onThemeChange={setEditTheme}
         onDescriptionChange={setEditDescription}
         onLoadingChange={setIsLoading}

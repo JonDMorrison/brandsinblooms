@@ -4,11 +4,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, X } from "lucide-react";
 import { generateThemeDescription } from "./ThemeDescriptionGenerator";
+import { SmartThemeSelector } from "../theme-generation/SmartThemeSelector";
 
 interface ThemeEditorProps {
   editTheme: string;
   editDescription: string;
   isLoading: boolean;
+  weekNumber?: number;
   onThemeChange: (theme: string) => void;
   onDescriptionChange: (description: string) => void;
   onLoadingChange: (isLoading: boolean) => void;
@@ -20,6 +22,7 @@ export const ThemeEditor = ({
   editTheme,
   editDescription,
   isLoading,
+  weekNumber,
   onThemeChange,
   onDescriptionChange,
   onLoadingChange,
@@ -29,6 +32,13 @@ export const ThemeEditor = ({
   const handleGenerateDescription = async () => {
     await generateThemeDescription(editTheme, onDescriptionChange, onLoadingChange);
   };
+
+  const handleSmartThemeSelect = (theme: string, description: string) => {
+    onThemeChange(theme);
+    onDescriptionChange(description);
+  };
+
+  const currentMonth = new Date().getMonth() + 1;
 
   return (
     <div className="space-y-4">
@@ -50,6 +60,14 @@ export const ThemeEditor = ({
           Generate
         </Button>
       </div>
+
+      {weekNumber && (
+        <SmartThemeSelector
+          weekNumber={weekNumber}
+          currentMonth={currentMonth}
+          onThemeSelected={handleSmartThemeSelect}
+        />
+      )}
       
       <div className="space-y-2">
         <label className="text-xs font-medium text-gray-700">Content Focus Description:</label>

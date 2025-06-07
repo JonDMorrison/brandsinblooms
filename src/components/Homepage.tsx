@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +13,7 @@ import { getSeasonalContent } from "./homepage/SeasonalContent";
 import { getCurrentWeekNumber } from "./homepage/homepageUtils";
 import { MasterTemplateImportDialog } from "./content-import/MasterTemplateImportDialog";
 import { MasterTemplateManager } from "./content-import/MasterTemplateManager";
+import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
 
 interface Campaign {
   id: string;
@@ -113,6 +113,10 @@ export const Homepage = () => {
     }
   }, [campaigns, user]);
 
+  const handleThemesGenerated = () => {
+    fetchCampaigns(); // Refresh campaigns after themes are generated
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-garden-background">
@@ -192,6 +196,7 @@ export const Homepage = () => {
           </div>
           
           <div className="space-y-6">
+            <WeeklyThemeGenerator onThemesGenerated={handleThemesGenerated} />
             <MasterTemplateManager />
           </div>
         </div>
