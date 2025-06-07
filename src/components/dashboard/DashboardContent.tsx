@@ -1,4 +1,3 @@
-
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
@@ -7,6 +6,7 @@ import { TaskList } from "@/components/homepage/TaskList";
 import { UpcomingContentCard } from "@/components/homepage/UpcomingContentCard";
 import { AnalyticsSnapshot } from "@/components/homepage/AnalyticsSnapshot";
 import { NextStepBanner } from "@/components/homepage/NextStepBanner";
+import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -79,6 +79,7 @@ export const DashboardContent = ({
         </div>
         
         <div className="space-y-6">
+          <ReadyToPostCard tasks={tasks} />
           <UpcomingContentCard tasks={upcomingTasks} />
           <AnalyticsSnapshot 
             totalTasks={totalTasksCount}
