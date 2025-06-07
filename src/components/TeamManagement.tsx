@@ -148,8 +148,8 @@ export const TeamManagement = () => {
               </div>
               <div className="text-sm text-gray-600">Plan Type</div>
             </div>
-            <div className="text-center p-4 bg-orange-50 rounded-lg">
-              <div className="text-2xl font-bold text-orange-600">
+            <div className="text-center p-4 bg-slate-50 rounded-lg">
+              <div className="text-2xl font-bold text-slate-600">
                 {teamMembers.filter(m => m.status === 'pending').length}
               </div>
               <div className="text-sm text-gray-600">Pending Invites</div>
@@ -157,15 +157,15 @@ export const TeamManagement = () => {
           </div>
 
           {isAtLimit && (
-            <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-medium text-orange-800">Team Limit Reached</h4>
-                  <p className="text-sm text-orange-600">
+                  <h4 className="font-medium text-amber-800">Team Limit Reached</h4>
+                  <p className="text-sm text-amber-600">
                     Upgrade to Pro to add unlimited team members
                   </p>
                 </div>
-                <Button onClick={handleUpgradeTeam} className="bg-orange-600 hover:bg-orange-700">
+                <Button onClick={handleUpgradeTeam} className="bg-amber-600 hover:bg-amber-700">
                   <TrendingUp className="w-4 h-4 mr-2" />
                   Upgrade Now
                 </Button>
