@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +44,41 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const createDefaultSubscription = async () => {
+    if (!user) return null;
+
+    try {
+      console.log('Creating default subscription for user:', user.id);
+      
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(startDate.getDate() + 14); // 14-day trial
+
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .insert({
+          user_id: user.id,
+          plan: 'free_trial',
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0],
+          billing_interval: 'monthly'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating subscription:', error);
+        return null;
+      }
+
+      console.log('Created new subscription:', data);
+      return data;
+    } catch (error) {
+      console.error('Error in createDefaultSubscription:', error);
+      return null;
+    }
+  };
+
   const fetchSubscription = async () => {
     if (!user) {
       setLoading(false);
@@ -59,7 +93,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
-        .maybeSingle(); // Use maybeSingle instead of single to handle no results
+        .maybeSingle();
 
       if (error) {
         console.error('Error fetching subscription:', error);
@@ -79,11 +113,12 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           await updateSubscriptionPlan('expired', data.billing_interval);
         }
       } else {
-        console.log('No subscription found, should be created by trigger');
-        // The subscription should be created by the database trigger
-        // If it's not there, something went wrong, so we'll wait a moment and try again
-        setTimeout(fetchSubscription, 1000);
-        return;
+        console.log('No subscription found, creating default subscription');
+        // Create a default subscription if none exists
+        const newSubscription = await createDefaultSubscription();
+        if (newSubscription) {
+          setSubscription(newSubscription);
+        }
       }
     } catch (error) {
       console.error('Error in fetchSubscription:', error);
