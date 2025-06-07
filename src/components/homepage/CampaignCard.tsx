@@ -2,12 +2,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Sparkles, Loader2, Eye } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateRequiredTasks } from "./TaskManagementUtils";
 import { toast } from "sonner";
 import { EditableTheme } from "@/components/calendar/EditableTheme";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Campaign {
   id: string;
@@ -38,6 +39,28 @@ interface CampaignCardProps {
 export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasonalContent }: CampaignCardProps) => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasContent, setHasContent] = useState(false);
+
+  // Check if campaign has content
+  useEffect(() => {
+    const checkForContent = async () => {
+      if (!campaign.id) return;
+      
+      const { data, error } = await supabase
+        .from('content_tasks')
+        .select('id')
+        .eq('campaign_id', campaign.id)
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        setHasContent(true);
+      } else {
+        setHasContent(false);
+      }
+    };
+
+    checkForContent();
+  }, [campaign.id]);
 
   const handleGenerateContent = async () => {
     if (!user) {
@@ -49,12 +72,18 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
     try {
       await generateRequiredTasks(campaign.id, [campaign], user.id, onTaskUpdate);
       toast.success("Content generated successfully! Check your tasks to review and approve the new content.");
+      setHasContent(true);
     } catch (error) {
       console.error('Error generating content:', error);
       toast.error("Failed to generate content. Please try again.");
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handleViewContent = () => {
+    // For now, just show a toast. In the future, this could navigate to a tasks view
+    toast.info("Content viewing functionality coming soon! Check the tasks section to see your generated content.");
   };
 
   const handleThemeUpdate = (newTheme: string, newDescription?: string) => {
@@ -99,7 +128,7 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
         
         <div className="mt-6">
           <Button 
-            onClick={handleGenerateContent}
+            onClick={hasContent ? handleViewContent : handleGenerateContent}
             disabled={isGenerating}
             className="w-full bg-garden-green hover:bg-garden-green-dark text-white"
           >
@@ -107,6 +136,11 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Generating Content...
+              </>
+            ) : hasContent ? (
+              <>
+                <Eye className="w-4 h-4 mr-2" />
+                View This Week's Content
               </>
             ) : (
               <>
@@ -116,7 +150,10 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
             )}
           </Button>
           <p className="text-xs text-gray-500 mt-2 text-center">
-            Creates social media posts, video scripts, newsletter, and email content
+            {hasContent 
+              ? "Review your generated content in the tasks section"
+              : "Creates social media posts, video scripts, newsletter, and email content"
+            }
           </p>
         </div>
       </CardContent>
