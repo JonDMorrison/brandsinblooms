@@ -10,7 +10,7 @@ export const ReadyToPostEmptyState = () => {
           <Calendar className="w-5 h-5" />
           Ready to Post
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-black">
           Approved content ready for publishing
         </CardDescription>
       </CardHeader>

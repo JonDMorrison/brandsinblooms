@@ -46,7 +46,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
             {pendingTasks.length}
           </Badge>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-black">
           Content ready for your review
         </CardDescription>
       </CardHeader>

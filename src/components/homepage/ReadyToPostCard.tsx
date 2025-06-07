@@ -54,7 +54,7 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
               {readyTasks.length}
             </Badge>
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-black">
             Approved content ready for publishing
           </CardDescription>
         </CardHeader>

@@ -10,7 +10,7 @@ export const ReviewQueueEmpty = () => {
           <Clock className="w-5 h-5" />
           Review Queue
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-black">
           Content ready for your review
         </CardDescription>
       </CardHeader>
