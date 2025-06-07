@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, BarChart3, Home, Leaf, Building } from "lucide-react";
+import { Calendar, Users, Settings, BarChart3, Home, Leaf, Building, CreditCard } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -113,6 +113,21 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
                   >
                     <Users className="w-5 h-5" />
                     <span className="font-medium">Team</span>
+                  </button>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <button 
+                    onClick={() => navigate("/subscription")}
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+                      location.pathname === "/subscription" 
+                        ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
+                        : "hover:bg-green-100 text-garden-green-dark"
+                    }`}
+                  >
+                    <CreditCard className="w-5 h-5" />
+                    <span className="font-medium">Account Settings</span>
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
