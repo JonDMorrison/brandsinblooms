@@ -75,17 +75,25 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
     setGeneratingContent(prev => ({ ...prev, [contentType.id]: true }));
     
     try {
+      console.log(`Generating ${contentType.name} for theme: ${week.theme}`);
+      
       const content = await generatePersonalizedContent(
         contentType.id,
         week.theme,
         user.id
       );
       
-      setGeneratedContent(prev => ({ ...prev, [contentType.id]: content }));
-      toast.success(`${contentType.name} content generated!`);
+      console.log(`Generated content for ${contentType.name}:`, content);
+      
+      setGeneratedContent(prev => ({ 
+        ...prev, 
+        [contentType.id]: content 
+      }));
+      
+      toast.success(`${contentType.name} content generated successfully!`);
     } catch (error) {
       console.error('Error generating content:', error);
-      toast.error(`Failed to generate ${contentType.name} content`);
+      toast.error(`Failed to generate ${contentType.name} content. Please try again.`);
     } finally {
       setGeneratingContent(prev => ({ ...prev, [contentType.id]: false }));
     }
@@ -132,7 +140,7 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
               {contentTypes.map((contentType) => {
                 const IconComponent = contentType.icon;
                 const isGenerating = generatingContent[contentType.id];
-                const hasContent = generatedContent[contentType.id];
+                const hasContent = Boolean(generatedContent[contentType.id]);
                 const isApproved = approvedContent[contentType.id];
 
                 return (
@@ -153,16 +161,29 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
+                      {hasContent && (
+                        <div className="bg-gray-50 p-3 rounded-md mb-3">
+                          <p className="text-xs text-gray-600 mb-1">Generated Content:</p>
+                          <p className="text-sm line-clamp-3">{generatedContent[contentType.id]}</p>
+                        </div>
+                      )}
+                      
                       <Button
                         onClick={() => handleGenerateContent(contentType)}
                         disabled={isGenerating}
                         className="w-full"
                         size="sm"
+                        variant={hasContent ? "outline" : "default"}
                       >
                         {isGenerating ? (
                           <>
-                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                            <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
                             Generating...
+                          </>
+                        ) : hasContent ? (
+                          <>
+                            <Sparkles className="w-3 h-3 mr-2" />
+                            Regenerate
                           </>
                         ) : (
                           <>
