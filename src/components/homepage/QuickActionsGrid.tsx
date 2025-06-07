@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Calendar, BarChart3, CalendarPlus } from "lucide-react";
@@ -30,7 +29,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             >
               <PlusCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">New Campaign</span>
-              <span className="text-xs text-gray-500 text-center">Promote something</span>
+              <span className="text-xs text-gray-500 text-center">Create a new theme</span>
             </Button>
             
             <Button 
