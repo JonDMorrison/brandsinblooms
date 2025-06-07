@@ -25,8 +25,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Start generating marketing content for your garden center",
         action: "Create Campaign",
         icon: "🚀",
-        bgColor: "bg-secondary/50",
-        borderColor: "border-border",
+        bgColor: "bg-secondary/20",
+        borderColor: "border-border/50",
         actionType: "create-campaign"
       };
     }
@@ -37,8 +37,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Create content for your existing campaigns",
         action: "Generate Content",
         icon: "✨",
-        bgColor: "bg-accent/30",
-        borderColor: "border-border",
+        bgColor: "bg-accent/20",
+        borderColor: "border-border/50",
         actionType: "generate-content"
       };
     }
@@ -49,8 +49,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Check and approve your generated marketing content",
         action: "Review This Week's Content",
         icon: "📝",
-        bgColor: "bg-warning/20",
-        borderColor: "border-border",
+        bgColor: "bg-warning/10",
+        borderColor: "border-border/50",
         actionType: "review-content"
       };
     }
@@ -60,8 +60,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       description: "Keep up the momentum with your marketing efforts",
       action: "Create More",
       icon: "🎉",
-      bgColor: "bg-muted/50",
-      borderColor: "border-border",
+      bgColor: "bg-muted/30",
+      borderColor: "border-border/50",
       actionType: "create-more"
     };
   };
@@ -93,25 +93,25 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
   return (
     <>
       <Card className={`shadow-sm ${nextStep.bgColor} ${nextStep.borderColor} border rounded-xl`}>
-        <CardContent className="p-6">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <span className="text-3xl">{nextStep.icon}</span>
+              <span className="text-2xl opacity-80">{nextStep.icon}</span>
               <div>
-                <h3 className="text-xl font-bold text-foreground mb-1">
+                <h3 className="text-lg font-semibold text-foreground mb-1">
                   {nextStep.title}
                 </h3>
-                <p className="text-muted-foreground font-medium">
+                <p className="text-muted-foreground text-sm">
                   {nextStep.description}
                 </p>
               </div>
             </div>
             <Button 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm text-lg px-8 py-3 h-auto"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm px-6 py-2"
               onClick={handleAction}
             >
               {nextStep.action}
-              <ArrowRight className="w-5 h-5 ml-2" />
+              <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
         </CardContent>
