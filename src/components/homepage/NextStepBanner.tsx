@@ -17,7 +17,6 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
   const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
   const [showContentReviewDialog, setShowContentReviewDialog] = useState(false);
 
-  // Determine the next step based on current state
   const getNextStep = () => {
     if (campaignsCount === 0) {
       return {
@@ -25,7 +24,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Start generating marketing content for your garden center",
         action: "Create Campaign",
         icon: "🚀",
-        bgColor: "bg-secondary/20",
+        bgColor: "bg-garden-background",
         borderColor: "border-border/50",
         actionType: "create-campaign"
       };
@@ -37,7 +36,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Create content for your existing campaigns",
         action: "Generate Content",
         icon: "✨",
-        bgColor: "bg-accent/20",
+        bgColor: "bg-garden-background",
         borderColor: "border-border/50",
         actionType: "generate-content"
       };
@@ -49,7 +48,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         description: "Check and approve your generated marketing content",
         action: "Review This Week's Content",
         icon: "📝",
-        bgColor: "bg-warning/10",
+        bgColor: "bg-garden-background",
         borderColor: "border-border/50",
         actionType: "review-content"
       };
@@ -60,7 +59,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       description: "Keep up the momentum with your marketing efforts",
       action: "Create More",
       icon: "🎉",
-      bgColor: "bg-muted/30",
+      bgColor: "bg-garden-background",
       borderColor: "border-border/50",
       actionType: "create-more"
     };
