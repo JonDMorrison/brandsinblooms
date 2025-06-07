@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { getSeasonalContent } from "./SeasonalContent";
 import { getCurrentWeekNumber } from "./homepageUtils";
 import { 
   generateNewsletterContent, 
@@ -53,22 +52,7 @@ export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
 
 export const updateVideoTasksWithNewScript = async (campaignId: string, campaignTitle: string, userId?: string) => {
   try {
-    // Fetch company profile for personalization
-    let companyProfile = null;
-    if (userId) {
-      const { data: profileData, error: profileError } = await supabase
-        .from('company_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (!profileError && profileData) {
-        companyProfile = profileData;
-      }
-    }
-
-    const seasonalContent = getSeasonalContent();
-    const newVideoScript = generateVideoScript(campaignTitle, seasonalContent, companyProfile);
+    const newVideoScript = await generateVideoScript(campaignTitle, userId);
     
     const { error } = await supabase
       .from('content_tasks')
@@ -79,7 +63,7 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
     if (error) {
       console.error('Error updating video script:', error);
     } else {
-      console.log('Video script updated with personalized content');
+      console.log('Video script updated with OpenAI-generated content');
     }
   } catch (error) {
     console.error('Error updating video script:', error);
@@ -100,26 +84,17 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       
       let aiOutput = '';
       
-      if (postType === 'newsletter') {
-        aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId);
-      } else if (postType === 'video') {
-        // Fetch company profile for video script
-        let companyProfile = null;
-        if (userId) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('company_profiles')
-            .select('*')
-            .eq('user_id', userId)
-            .maybeSingle();
-
-          if (!profileError && profileData) {
-            companyProfile = profileData;
-          }
+      try {
+        if (postType === 'newsletter') {
+          aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId);
+        } else if (postType === 'video') {
+          aiOutput = await generateVideoScript(campaignTitle, userId);
+        } else {
+          aiOutput = await generatePersonalizedContent(postType, campaignTitle, userId);
         }
-        const seasonalContent = getSeasonalContent();
-        aiOutput = generateVideoScript(campaignTitle, seasonalContent, companyProfile);
-      } else {
-        aiOutput = await generatePersonalizedContent(postType, campaignTitle, userId);
+      } catch (error) {
+        console.error(`Error generating ${postType} content with OpenAI:`, error);
+        throw new Error(`Failed to generate ${postType} content. Please ensure OpenAI API key is configured.`);
       }
       
       tasksToCreate.push({
@@ -133,7 +108,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       });
     }
 
-    console.log('Creating personalized missing tasks:', tasksToCreate);
+    console.log('Creating OpenAI-generated missing tasks:', tasksToCreate);
 
     const { error } = await supabase
       .from('content_tasks')
@@ -141,11 +116,13 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
     
     if (error) {
       console.error('Error creating missing tasks:', error);
+      throw error;
     } else {
-      console.log('Personalized missing tasks created successfully');
+      console.log('OpenAI-generated missing tasks created successfully');
     }
   } catch (error) {
     console.error('Error creating missing tasks:', error);
+    throw error;
   }
 };
 
@@ -157,7 +134,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
     const today = new Date();
     const weekNumber = getCurrentWeekNumber();
     
-    // Generate exactly 5 required tasks with personalization
+    // Generate exactly 5 required tasks with OpenAI
     const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
     const sampleTasks = [];
     
@@ -168,26 +145,17 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       
       let aiOutput = '';
       
-      if (postType === 'newsletter') {
-        aiOutput = await generateNewsletterContent(campaignId, campaign.title, weekNumber, userId);
-      } else if (postType === 'video') {
-        // Fetch company profile for video script
-        let companyProfile = null;
-        if (userId) {
-          const { data: profileData, error: profileError } = await supabase
-            .from('company_profiles')
-            .select('*')
-            .eq('user_id', userId)
-            .maybeSingle();
-
-          if (!profileError && profileData) {
-            companyProfile = profileData;
-          }
+      try {
+        if (postType === 'newsletter') {
+          aiOutput = await generateNewsletterContent(campaignId, campaign.title, weekNumber, userId);
+        } else if (postType === 'video') {
+          aiOutput = await generateVideoScript(campaign.title, userId);
+        } else {
+          aiOutput = await generatePersonalizedContent(postType, campaign.title, userId);
         }
-        const seasonalContent = getSeasonalContent();
-        aiOutput = generateVideoScript(campaign.title, seasonalContent, companyProfile);
-      } else {
-        aiOutput = await generatePersonalizedContent(postType, campaign.title, userId);
+      } catch (error) {
+        console.error(`Error generating ${postType} content with OpenAI:`, error);
+        throw new Error(`Failed to generate ${postType} content. Please ensure OpenAI API key is configured.`);
       }
       
       sampleTasks.push({
@@ -201,7 +169,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       });
     }
 
-    console.log('Auto-generating personalized required tasks:', sampleTasks);
+    console.log('Auto-generating OpenAI-powered required tasks:', sampleTasks);
 
     const { data, error } = await supabase
       .from('content_tasks')
@@ -210,8 +178,9 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
     
     if (error) {
       console.error('Error creating tasks:', error);
+      throw error;
     } else {
-      console.log('Personalized tasks created successfully:', data);
+      console.log('OpenAI-generated tasks created successfully:', data);
     }
 
     if (onTaskUpdate) {
@@ -220,5 +189,6 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
     
   } catch (error) {
     console.error('Error generating tasks:', error);
+    throw error;
   }
 };
