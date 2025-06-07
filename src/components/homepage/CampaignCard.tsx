@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateRequiredTasks } from "./TaskManagementUtils";
 import { toast } from "sonner";
+import { EditableTheme } from "@/components/calendar/EditableTheme";
 
 interface Campaign {
   id: string;
@@ -30,10 +31,11 @@ interface SeasonalContent {
 interface CampaignCardProps {
   campaign: Campaign;
   onTaskUpdate: () => void;
+  onCampaignUpdate?: () => void;
   seasonalContent?: SeasonalContent;
 }
 
-export const CampaignCard = ({ campaign, onTaskUpdate, seasonalContent }: CampaignCardProps) => {
+export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasonalContent }: CampaignCardProps) => {
   const { user } = useAuth();
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -55,6 +57,13 @@ export const CampaignCard = ({ campaign, onTaskUpdate, seasonalContent }: Campai
     }
   };
 
+  const handleThemeUpdate = (newTheme: string, newDescription?: string) => {
+    // Trigger a refresh of the campaign data
+    if (onCampaignUpdate) {
+      onCampaignUpdate();
+    }
+  };
+
   return (
     <Card className="border-garden-green-light">
       <CardHeader>
@@ -66,15 +75,21 @@ export const CampaignCard = ({ campaign, onTaskUpdate, seasonalContent }: Campai
         </div>
       </CardHeader>
       <CardContent>
-        {campaign.description && (
-          <p className="text-garden-green mb-4">{campaign.description}</p>
-        )}
         {campaign.theme && (
-          <div className="mb-4">
-            <h4 className="font-semibold text-garden-green-dark mb-2">Theme:</h4>
-            <p className="text-garden-green">{campaign.theme}</p>
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <EditableTheme
+              campaignId={campaign.id}
+              currentTheme={campaign.theme}
+              currentDescription={campaign.description || undefined}
+              onThemeUpdate={handleThemeUpdate}
+            />
           </div>
         )}
+        
+        {!campaign.theme && campaign.description && (
+          <p className="text-garden-green mb-4">{campaign.description}</p>
+        )}
+        
         {seasonalContent && (
           <div className="mb-4">
             <h4 className="font-semibold text-garden-green-dark mb-2">Seasonal Focus:</h4>
