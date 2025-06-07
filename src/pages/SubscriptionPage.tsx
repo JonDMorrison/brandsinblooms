@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Crown, User, CreditCard, Receipt, Settings as SettingsIcon, Mail, Shield } from "lucide-react";
+import { Calendar, Crown, User, CreditCard, Receipt, Settings as SettingsIcon, Mail, Shield, Users, Building } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
