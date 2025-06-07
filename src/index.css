@@ -1,77 +1,78 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 247 250 245; /* #F7FAF5 */
-    --foreground: 0 0 0; /* #000000 - Changed to black */
+    --background: 255 255 255; /* White background */
+    --foreground: 62 90 107; /* Primary color for text */
 
     --card: 255 255 255;
-    --card-foreground: 0 0 0; /* #000000 - Changed to black */
+    --card-foreground: 62 90 107;
 
     --popover: 255 255 255;
-    --popover-foreground: 0 0 0; /* #000000 - Changed to black */
+    --popover-foreground: 62 90 107;
 
-    --primary: 76 175 80; /* #4CAF50 */
+    --primary: 62 90 107; /* #3E5A6B */
     --primary-foreground: 255 255 255;
 
-    --secondary: 232 245 232; /* #E8F5E8 */
-    --secondary-foreground: 0 0 0; /* #000000 - Changed to black */
+    --secondary: 104 190 185; /* #68BEB9 */
+    --secondary-foreground: 62 90 107;
 
-    --muted: 240 247 244; /* #F0F7F4 */
-    --muted-foreground: 107 114 128;
+    --muted: 194 194 194; /* #C2C2C2 */
+    --muted-foreground: 62 90 107;
 
-    --accent: 232 245 232; /* #E8F5E8 */
-    --accent-foreground: 0 0 0; /* #000000 - Changed to black */
+    --accent: 104 190 185; /* #68BEB9 */
+    --accent-foreground: 62 90 107;
 
-    --destructive: 229 62 62; /* #E53E3E */
+    --destructive: 239 68 68;
     --destructive-foreground: 255 255 255;
 
-    --border: 200 230 201; /* #C8E6C9 */
-    --input: 200 230 201;
-    --ring: 156 163 175; /* Changed to grey-400 */
+    --border: 194 194 194; /* #C2C2C2 */
+    --input: 194 194 194;
+    --ring: 104 190 185; /* Secondary color for focus rings */
 
     --radius: 0.75rem;
 
-    --sidebar-background: 240 247 244; /* #F0F7F4 */
-    --sidebar-foreground: 0 0 0; /* #000000 - Changed to black */
-    --sidebar-primary: 76 175 80;
+    --sidebar-background: 248 249 250; /* Light gray background */
+    --sidebar-foreground: 62 90 107;
+    --sidebar-primary: 62 90 107;
     --sidebar-primary-foreground: 255 255 255;
-    --sidebar-accent: 232 245 232;
-    --sidebar-accent-foreground: 0 0 0; /* #000000 - Changed to black */
-    --sidebar-border: 200 230 201;
-    --sidebar-ring: 156 163 175; /* Changed to grey-400 */
+    --sidebar-accent: 104 190 185;
+    --sidebar-accent-foreground: 62 90 107;
+    --sidebar-border: 194 194 194;
+    --sidebar-ring: 104 190 185;
   }
 
   .dark {
-    --background: 30 41 59;
-    --foreground: 248 250 252;
-    --card: 30 41 59;
-    --card-foreground: 248 250 252;
-    --popover: 30 41 59;
-    --popover-foreground: 248 250 252;
-    --primary: 76 175 80;
-    --primary-foreground: 255 255 255;
-    --secondary: 51 65 85;
-    --secondary-foreground: 248 250 252;
-    --muted: 51 65 85;
-    --muted-foreground: 148 163 184;
-    --accent: 51 65 85;
-    --accent-foreground: 248 250 252;
-    --destructive: 229 62 62;
-    --destructive-foreground: 248 250 252;
-    --border: 51 65 85;
-    --input: 51 65 85;
-    --ring: 156 163 175; /* Changed to grey-400 */
-    --sidebar-background: 30 41 59;
-    --sidebar-foreground: 248 250 252;
-    --sidebar-primary: 76 175 80;
-    --sidebar-primary-foreground: 255 255 255;
-    --sidebar-accent: 51 65 85;
-    --sidebar-accent-foreground: 248 250 252;
-    --sidebar-border: 51 65 85;
-    --sidebar-ring: 156 163 175; /* Changed to grey-400 */
+    --background: 62 90 107; /* Primary color as dark background */
+    --foreground: 255 255 255;
+    --card: 47 68 81; /* Darker shade of primary */
+    --card-foreground: 255 255 255;
+    --popover: 47 68 81;
+    --popover-foreground: 255 255 255;
+    --primary: 104 190 185; /* Secondary becomes primary in dark mode */
+    --primary-foreground: 62 90 107;
+    --secondary: 78 100 115; /* Lighter shade of primary */
+    --secondary-foreground: 255 255 255;
+    --muted: 78 100 115;
+    --muted-foreground: 194 194 194;
+    --accent: 104 190 185;
+    --accent-foreground: 62 90 107;
+    --destructive: 239 68 68;
+    --destructive-foreground: 255 255 255;
+    --border: 78 100 115;
+    --input: 78 100 115;
+    --ring: 104 190 185;
+    --sidebar-background: 47 68 81;
+    --sidebar-foreground: 255 255 255;
+    --sidebar-primary: 104 190 185;
+    --sidebar-primary-foreground: 62 90 107;
+    --sidebar-accent: 78 100 115;
+    --sidebar-accent-foreground: 255 255 255;
+    --sidebar-border: 78 100 115;
+    --sidebar-ring: 104 190 185;
   }
 }
 
@@ -81,24 +82,24 @@
   }
 
   body {
-    @apply bg-garden-background text-foreground font-quicksand;
+    @apply bg-background text-foreground font-quicksand;
   }
 }
 
 @layer components {
   .seasonal-emoji {
-    @apply inline-flex items-center justify-center w-8 h-8 bg-warning-50 rounded-full text-lg;
+    @apply inline-flex items-center justify-center w-8 h-8 bg-muted/20 rounded-full text-lg;
   }
   
   .campaign-card-active {
-    @apply bg-green-50 border-green-200;
+    @apply bg-secondary/10 border-secondary/30;
   }
   
   .campaign-card-review {
-    @apply bg-amber-50 border-amber-200;
+    @apply bg-primary/10 border-primary/30;
   }
   
   .campaign-card-attention {
-    @apply bg-orange-50 border-orange-200;
+    @apply bg-destructive/10 border-destructive/30;
   }
 }
