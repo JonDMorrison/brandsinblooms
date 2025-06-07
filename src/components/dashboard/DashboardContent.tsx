@@ -1,3 +1,4 @@
+
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
@@ -9,6 +10,11 @@ import { NextStepBanner } from "@/components/homepage/NextStepBanner";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import { ReviewQueue } from "@/components/content/ReviewQueue";
 import { SetupProgressCard } from "@/components/homepage/SetupProgressCard";
+import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
+import { useState } from "react";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -23,6 +29,8 @@ export const DashboardContent = ({
   onCampaignCreated,
   onTaskClick
 }: DashboardContentProps) => {
+  const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
+  
   const {
     campaigns,
     tasks,
@@ -51,10 +59,17 @@ export const DashboardContent = ({
     return now >= campaignStart && now <= campaignEnd;
   });
 
-  // Find new campaigns that don't have any content tasks yet
-  const newCampaigns = campaigns.filter(campaign => {
+  // Find only user-created campaigns (campaigns that don't come from master templates)
+  // These would be campaigns created through "New Campaign" or "Add Event" actions
+  const userCreatedCampaigns = campaigns.filter(campaign => {
+    // Filter out the active campaign and only show campaigns that have custom themes or were manually created
+    // You can identify user-created campaigns by checking if they have custom properties or were created recently
     const campaignTasks = tasks.filter(task => task.campaign_id === campaign.id);
-    return campaignTasks.length === 0 && campaign.id !== activeCampaign?.id;
+    const isActive = campaign.id === activeCampaign?.id;
+    
+    // For now, we'll consider campaigns with no tasks as potentially user-created
+    // This logic can be refined based on how you track user-created vs template campaigns
+    return !isActive && campaignTasks.length === 0 && campaign.theme && campaign.theme.includes('Custom');
   });
 
   const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
@@ -63,6 +78,11 @@ export const DashboardContent = ({
 
   // Determine if user needs guidance
   const needsGuidance = campaigns.length === 0 || totalTasksCount === 0;
+
+  const handleNewCampaignCreate = (newCampaign: any) => {
+    setShowNewCampaignDialog(false);
+    handleCampaignCreatedWrapper();
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -101,11 +121,11 @@ export const DashboardContent = ({
             </div>
           )}
 
-          {newCampaigns.length > 0 && (
-            <div>
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Custom Campaigns</h2>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Custom Campaigns</h2>
+            {userCreatedCampaigns.length > 0 ? (
               <div className="space-y-4">
-                {newCampaigns.map((campaign) => (
+                {userCreatedCampaigns.map((campaign) => (
                   <NewCampaignCard
                     key={campaign.id}
                     campaign={campaign}
@@ -114,8 +134,29 @@ export const DashboardContent = ({
                   />
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <Card className="border-dashed border-2 border-gray-300 bg-gray-50">
+                <CardContent className="p-8 text-center">
+                  <div className="space-y-4">
+                    <div className="text-gray-500">
+                      <PlusCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <h3 className="text-lg font-semibold mb-2">Create a Custom Campaign</h3>
+                      <p className="text-sm">
+                        Design your own marketing campaigns for special events, promotions, or seasonal themes.
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={() => setShowNewCampaignDialog(true)}
+                      className="bg-primary hover:bg-primary-600 text-white"
+                    >
+                      <PlusCircle className="w-4 h-4 mr-2" />
+                      Create Custom Campaign
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
           
           <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
         </div>
@@ -139,6 +180,12 @@ export const DashboardContent = ({
           />
         </div>
       </div>
+
+      <NewCampaignDialog 
+        open={showNewCampaignDialog} 
+        onOpenChange={setShowNewCampaignDialog} 
+        onCreate={handleNewCampaignCreate} 
+      />
     </div>
   );
 };
