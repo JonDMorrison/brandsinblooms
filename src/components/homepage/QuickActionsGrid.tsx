@@ -62,7 +62,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             >
               <Calendar className="w-6 h-6 text-blue-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">View Calendar</span>
-              <span className="text-xs text-gray-500 text-center">See upcoming events</span>
+              <span className="text-xs text-gray-500 text-center">See upcoming content</span>
             </Button>
             
             <Button 
