@@ -101,7 +101,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
                 <h3 className="text-lg font-semibold text-foreground mb-1">
                   {nextStep.title}
                 </h3>
-                <p className="text-muted-foreground text-sm">
+                <p className="text-black text-sm">
                   {nextStep.description}
                 </p>
               </div>
