@@ -1,7 +1,9 @@
+
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
 import { CampaignCard } from "@/components/homepage/CampaignCard";
+import { NewCampaignCard } from "@/components/homepage/NewCampaignCard";
 import { WhatsComingNextCard } from "@/components/homepage/WhatsComingNextCard";
 import { AnalyticsSnapshot } from "@/components/homepage/AnalyticsSnapshot";
 import { NextStepBanner } from "@/components/homepage/NextStepBanner";
@@ -50,6 +52,12 @@ export const DashboardContent = ({
     return now >= campaignStart && now <= campaignEnd;
   });
 
+  // Find new campaigns that don't have any content tasks yet
+  const newCampaigns = campaigns.filter(campaign => {
+    const campaignTasks = tasks.filter(task => task.campaign_id === campaign.id);
+    return campaignTasks.length === 0 && campaign.id !== activeCampaign?.id;
+  });
+
   const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
   const totalTasksCount = tasks.length;
   const pendingTasksCount = tasks.filter(task => task.status === 'draft' && task.ai_output).length;
@@ -84,10 +92,30 @@ export const DashboardContent = ({
           <QuickActionsGrid onCampaignCreated={handleCampaignCreatedWrapper} />
           
           {activeCampaign && (
-            <CampaignCard 
-              campaign={activeCampaign} 
-              onTaskUpdate={handleTaskUpdate}
-            />
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">Current Campaign</h2>
+              <CampaignCard 
+                campaign={activeCampaign} 
+                onTaskUpdate={handleTaskUpdate}
+                onCampaignUpdate={refetch}
+              />
+            </div>
+          )}
+
+          {newCampaigns.length > 0 && (
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">New Campaigns</h2>
+              <div className="space-y-4">
+                {newCampaigns.map((campaign) => (
+                  <NewCampaignCard
+                    key={campaign.id}
+                    campaign={campaign}
+                    onTaskUpdate={handleTaskUpdate}
+                    onCampaignUpdate={refetch}
+                  />
+                ))}
+              </div>
+            </div>
           )}
           
           <WhatsComingNextCard onTaskUpdate={handleTaskUpdate} />
