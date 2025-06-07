@@ -58,18 +58,61 @@ Brand Voice: ${companyProfile.brand_voice || 'Professional and helpful'}
 
     const prompt = `Generate 52 unique weekly marketing themes for a garden center's ${year} content calendar. ${companyContext}
 
+IMPORTANT: Incorporate these seasonal events, holidays, and horticultural celebrations:
+
+FLOWER & PLANT MONTHS:
+- January: Houseplant Month, Poinsettia Month
+- February: Amaryllis Month, Houseplant Month continues
+- March: Daffodil Month, Orchid Month
+- April: Garden Month, Sweet Pea Month, Tulip Month
+- May: Rose Month begins, Lilac Month, National Garden Month
+- June: Rose Month (peak), Peony Month, Lily Month
+- July: Dahlia Month, Sunflower Month, Delphinium Month
+- August: Gladiolus Month, Poppy Month
+- September: Aster Month, Chrysanthemum Month begins
+- October: Chrysanthemum Month (peak), Pumpkin Season
+- November: Poinsettia prep, Holly Month
+- December: Poinsettia Month, Evergreen Month, Holiday Wreaths
+
+MAJOR HOLIDAYS & GARDEN-RELATED EVENTS:
+- Valentine's Day (Feb 14) - romantic plants, red flowers
+- St. Patrick's Day (Mar 17) - green plants, shamrocks
+- Easter (varies) - Easter lilies, spring bulbs, pastel themes
+- Mother's Day (May, 2nd Sunday) - hanging baskets, potted plants
+- Memorial Day (May, last Monday) - red, white, blue plantings
+- Father's Day (June, 3rd Sunday) - tools, outdoor projects
+- Independence Day (July 4) - patriotic plantings
+- Labor Day (September) - end of summer care
+- Halloween (Oct 31) - pumpkins, fall decorations, orange/black plants
+- Thanksgiving (November) - autumn harvest, gratitude themes
+- Christmas (Dec 25) - evergreens, poinsettias, holiday arrangements
+
+HORTICULTURAL OBSERVANCES:
+- National Seed Swap Day (Jan 25)
+- National Garden Week (first week of June)
+- National Pollinator Week (3rd week of June)
+- National Garden Month (April)
+- National Herb Week (3rd week of May)
+- National Tree Week (1st week of May)
+- Arbor Day (varies by state, typically April)
+- Earth Day (April 22)
+- World Soil Day (Dec 5)
+
 Requirements:
-- Create themes that follow natural gardening seasons and cycles
+- Create themes that incorporate these holidays and observances naturally
+- Follow natural gardening seasons and growth cycles
 - Include seasonal plant care, new arrivals, educational content, and promotional themes
 - Vary between practical tips, product spotlights, customer engagement, and seasonal celebrations
 - Make each theme specific and actionable for content creation
+- Reference flower months and holidays where relevant
 - Consider major gardening milestones throughout the year
 - Include both evergreen content and timely seasonal topics
 - Balance educational value with promotional opportunities
+- Align themes with holiday shopping patterns and gift-giving occasions
 
 For each week, provide:
 1. Week number (1-52)
-2. Theme title (3-5 words)
+2. Theme title (3-5 words, incorporating relevant holidays/flower months when applicable)
 3. Brief description (1-2 sentences explaining the week's focus)
 4. Key content ideas (2-3 bullet points)
 
@@ -78,14 +121,14 @@ Format as JSON array with this structure:
   {
     "week": 1,
     "title": "New Year Garden Planning",
-    "description": "Start the year by helping customers plan their dream gardens and set gardening goals.",
-    "content_ideas": ["Garden planning worksheets", "2024 garden trends", "Goal-setting tips"]
+    "description": "Start the year by helping customers plan their dream gardens and set gardening goals while showcasing beautiful houseplants for January Houseplant Month.",
+    "content_ideas": ["Garden planning worksheets", "Houseplant care guides", "2024 garden resolutions"]
   }
 ]
 
-Make it comprehensive, seasonal, and engaging for the full year.`;
+Make it comprehensive, seasonal, and engaging for the full year while incorporating all relevant horticultural holidays and observances.`;
 
-    console.log('Generating 52-week themes with OpenAI');
+    console.log('Generating 52-week themes with holidays and horticultural events');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -98,7 +141,7 @@ Make it comprehensive, seasonal, and engaging for the full year.`;
         messages: [
           { 
             role: 'system', 
-            content: 'You are a professional marketing strategist specializing in garden center content planning. Create comprehensive, seasonal marketing themes that align with natural gardening cycles and business objectives. Always respond with valid JSON.' 
+            content: 'You are a professional marketing strategist specializing in garden center content planning with deep knowledge of horticultural holidays, flower months, and seasonal observances. Create comprehensive, seasonal marketing themes that align with natural gardening cycles, holidays, and special horticultural events. Always respond with valid JSON.' 
           },
           { role: 'user', content: prompt }
         ],
@@ -123,7 +166,7 @@ Make it comprehensive, seasonal, and engaging for the full year.`;
       throw new Error('Invalid JSON response from AI');
     }
 
-    console.log('Generated weekly themes:', weeklyThemes.length);
+    console.log('Generated weekly themes with holidays and events:', weeklyThemes.length);
 
     return new Response(JSON.stringify({ themes: weeklyThemes }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
