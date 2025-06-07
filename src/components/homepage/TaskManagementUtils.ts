@@ -10,6 +10,8 @@ import {
 
 export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
   try {
+    console.log('Cleaning up duplicates for campaign:', campaignId);
+    
     // Get all tasks for this campaign
     const { data: allTasks, error } = await supabase
       .from('content_tasks')
@@ -17,7 +19,10 @@ export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
       .eq('campaign_id', campaignId)
       .order('created_at', { ascending: true });
 
-    if (error || !allTasks) return;
+    if (error || !allTasks) {
+      console.error('Error fetching tasks for cleanup:', error);
+      return;
+    }
 
     // Group by post_type and keep only the first one of each type
     const tasksByType = allTasks.reduce((acc: any, task: any) => {
@@ -42,8 +47,10 @@ export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
       if (deleteError) {
         console.error('Error deleting duplicate tasks:', deleteError);
       } else {
-        console.log('Successfully cleaned up duplicates');
+        console.log('Successfully cleaned up', tasksToDelete.length, 'duplicate tasks');
       }
+    } else {
+      console.log('No duplicates found for campaign:', campaignId);
     }
   } catch (error) {
     console.error('Error cleaning up duplicates:', error);
@@ -72,13 +79,28 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
 
 export const createMissingTasks = async (campaignId: string, missingTypes: string[], campaignTitle: string, userId?: string) => {
   try {
+    // First check if any of these "missing" types already exist to prevent duplicates
+    const { data: existingTasks } = await supabase
+      .from('content_tasks')
+      .select('post_type')
+      .eq('campaign_id', campaignId)
+      .in('post_type', missingTypes);
+    
+    const existingTypes = existingTasks?.map(t => t.post_type) || [];
+    const actuallyMissingTypes = missingTypes.filter(type => !existingTypes.includes(type));
+    
+    if (actuallyMissingTypes.length === 0) {
+      console.log('No actually missing tasks to create');
+      return;
+    }
+    
     const today = new Date();
     const weekNumber = getCurrentWeekNumber();
     
     const tasksToCreate = [];
     
-    for (let i = 0; i < missingTypes.length; i++) {
-      const postType = missingTypes[i];
+    for (let i = 0; i < actuallyMissingTypes.length; i++) {
+      const postType = actuallyMissingTypes[i];
       const scheduledDate = new Date(today);
       scheduledDate.setDate(today.getDate() + i + 1);
       
@@ -108,17 +130,19 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       });
     }
 
-    console.log('Creating OpenAI-generated missing tasks:', tasksToCreate);
+    if (tasksToCreate.length > 0) {
+      console.log('Creating missing tasks:', tasksToCreate.map(t => t.post_type));
 
-    const { error } = await supabase
-      .from('content_tasks')
-      .insert(tasksToCreate);
-    
-    if (error) {
-      console.error('Error creating missing tasks:', error);
-      throw error;
-    } else {
-      console.log('OpenAI-generated missing tasks created successfully');
+      const { error } = await supabase
+        .from('content_tasks')
+        .insert(tasksToCreate);
+      
+      if (error) {
+        console.error('Error creating missing tasks:', error);
+        throw error;
+      } else {
+        console.log('Missing tasks created successfully');
+      }
     }
   } catch (error) {
     console.error('Error creating missing tasks:', error);
@@ -128,6 +152,29 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
 
 export const generateRequiredTasks = async (campaignId: string, campaigns: any[], userId?: string, onTaskUpdate?: () => void) => {
   try {
+    // First check if tasks already exist for this campaign
+    const { data: existingTasks, error: checkError } = await supabase
+      .from('content_tasks')
+      .select('post_type')
+      .eq('campaign_id', campaignId);
+
+    if (checkError) {
+      console.error('Error checking existing tasks:', checkError);
+      throw checkError;
+    }
+
+    if (existingTasks && existingTasks.length > 0) {
+      console.log(`Campaign ${campaignId} already has ${existingTasks.length} tasks, skipping generation`);
+      
+      // Clean up any duplicates that might exist
+      await cleanupDuplicatesForCampaign(campaignId);
+      
+      if (onTaskUpdate) {
+        onTaskUpdate();
+      }
+      return;
+    }
+
     const campaign = campaigns.find(c => c.id === campaignId);
     if (!campaign) return;
 
@@ -169,7 +216,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       });
     }
 
-    console.log('Auto-generating OpenAI-powered required tasks:', sampleTasks);
+    console.log('Creating 5 required tasks for campaign:', campaignId);
 
     const { data, error } = await supabase
       .from('content_tasks')
@@ -180,8 +227,11 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       console.error('Error creating tasks:', error);
       throw error;
     } else {
-      console.log('OpenAI-generated tasks created successfully:', data);
+      console.log('5 OpenAI-generated tasks created successfully:', data?.length || 0);
     }
+
+    // Clean up any potential duplicates after creation
+    await cleanupDuplicatesForCampaign(campaignId);
 
     if (onTaskUpdate) {
       onTaskUpdate();

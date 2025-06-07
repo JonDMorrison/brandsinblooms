@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { cleanupDuplicatesForCampaign } from "./TaskManagementUtils";
 
 export const ensureCampaignHasTasks = async (
   campaigns: any[], 
@@ -30,11 +31,26 @@ export const ensureCampaignHasTasks = async (
       return;
     }
 
+    // Clean up any duplicates that might exist
+    if (existingTasks && existingTasks.length > 0) {
+      await cleanupDuplicatesForCampaign(currentCampaign.id);
+    }
+
     // Log the current state but don't auto-generate
     if (!existingTasks || existingTasks.length === 0) {
       console.log('No tasks found for current campaign. User can generate them manually.');
     } else {
-      console.log(`Campaign ${currentCampaign.title} already has ${existingTasks.length} tasks`);
+      // Check for duplicates and log
+      const uniqueTypes = new Set(existingTasks.map(t => t.post_type));
+      const expectedTypes = 5; // newsletter, instagram, facebook, email, video
+      
+      if (existingTasks.length > expectedTypes) {
+        console.log(`Campaign ${currentCampaign.title} has ${existingTasks.length} tasks (expected ${expectedTypes}), duplicates may exist`);
+      } else if (uniqueTypes.size !== expectedTypes) {
+        console.log(`Campaign ${currentCampaign.title} has ${uniqueTypes.size} unique task types (expected ${expectedTypes})`);
+      } else {
+        console.log(`Campaign ${currentCampaign.title} has the correct ${existingTasks.length} tasks`);
+      }
     }
   } catch (error) {
     console.error('Error in ensureCampaignHasTasks:', error);
