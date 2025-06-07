@@ -77,10 +77,10 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             
             <Button 
               variant="outline" 
-              className="h-auto min-h-[120px] flex flex-col gap-3 border-orange-300 hover:bg-orange-50 p-4 justify-center"
+              className="h-auto min-h-[120px] flex flex-col gap-3 border-green-300 hover:bg-green-50 p-4 justify-center"
               onClick={() => setShowAddEventDialog(true)}
             >
-              <CalendarPlus className="w-6 h-6 text-orange-600 flex-shrink-0" />
+              <CalendarPlus className="w-6 h-6 text-green-600 flex-shrink-0" />
               <span className="text-sm font-medium text-center">Add An Event</span>
               <span className="text-xs text-gray-500 text-center">Get promotion help</span>
             </Button>
