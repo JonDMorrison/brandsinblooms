@@ -107,27 +107,25 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                 <Button 
                   key={item.id}
                   variant="outline" 
-                  className={`w-full min-h-[200px] h-auto flex flex-col transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} relative overflow-hidden`}
+                  className={`w-full h-auto min-h-[160px] flex flex-col p-4 transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)}`}
                   onClick={item.onClick}
                   aria-label={item.ariaLabel}
                 >
-                  <div className="flex flex-col items-center text-center space-y-2 px-4 py-3 h-full w-full max-w-full">
-                    <div className="flex-shrink-0 mb-3 mx-auto">
-                      <IconComponent className="w-10 h-10" />
-                    </div>
+                  <div className="flex flex-col items-center text-center space-y-3 h-full">
+                    <IconComponent className="w-8 h-8 flex-shrink-0" />
                     
-                    <div className="flex-1 flex flex-col justify-center space-y-2 w-full max-w-full">
-                      <h4 className="font-semibold text-black text-sm leading-tight text-center overflow-hidden text-ellipsis px-4 max-w-full" style={{ textWrap: 'wrap', overflowWrap: 'break-word' }}>
+                    <div className="flex-1 flex flex-col justify-center space-y-2">
+                      <h4 className="font-semibold text-black text-sm leading-tight">
                         {item.title}
                       </h4>
                       
-                      <div className="text-xs text-gray-600 leading-relaxed text-center overflow-hidden px-4 max-w-full" style={{ textWrap: 'wrap', overflowWrap: 'break-word' }}>
+                      <p className="text-xs text-gray-600 leading-relaxed">
                         {item.description}
-                      </div>
+                      </p>
                       
-                      <div className="text-xs font-medium text-current opacity-80 leading-relaxed text-center overflow-hidden px-4 max-w-full" style={{ textWrap: 'wrap', overflowWrap: 'break-word' }}>
+                      <p className="text-xs font-medium text-current opacity-80">
                         {item.benefit}
-                      </div>
+                      </p>
                     </div>
                   </div>
                 </Button>
