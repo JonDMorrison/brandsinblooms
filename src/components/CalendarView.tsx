@@ -119,14 +119,14 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
     <div className="space-y-6">
       {/* AI Theme Generator Alert */}
       {campaignsNeedingThemes.length > 0 && (
-        <Card className="border-orange-200 bg-orange-50">
+        <Card className="border-gray-200 bg-gray-50">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <Sparkles className="w-5 h-5 text-orange-600" />
+                <Sparkles className="w-5 h-5 text-purple-600" />
                 <div>
-                  <h3 className="font-semibold text-orange-800">Generate Creative Themes</h3>
-                  <p className="text-sm text-orange-700">
+                  <h3 className="font-semibold text-gray-800">Generate Creative Themes</h3>
+                  <p className="text-sm text-gray-700">
                     {campaignsNeedingThemes.length} campaigns need unique, seasonal themes. 
                     Generate 52 creative weekly themes with AI.
                   </p>
@@ -134,7 +134,7 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
               </div>
               <Button 
                 onClick={() => setShowThemeGenerator(true)}
-                className="bg-orange-600 hover:bg-orange-700 text-white"
+                className="bg-purple-600 hover:bg-purple-700 text-white"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 Generate Themes
@@ -204,7 +204,7 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
                         key={campaign.id}
                         className={`p-4 rounded-lg border transition-shadow ${
                           needsTheme 
-                            ? 'bg-orange-50 border-orange-200 hover:shadow-sm' 
+                            ? 'bg-gray-50 border-gray-200 hover:shadow-sm' 
                             : 'bg-white border-gray-200 hover:shadow-sm'
                         }`}
                       >
@@ -212,7 +212,7 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
                           <div className="flex-1">
                             <h4 className="font-medium text-gray-800 mb-1">{campaign.title}</h4>
                             {needsTheme && (
-                              <Badge variant="outline" className="text-orange-700 border-orange-300 bg-orange-100">
+                              <Badge variant="outline" className="text-gray-700 border-gray-300 bg-gray-100">
                                 Needs Creative Theme
                               </Badge>
                             )}
