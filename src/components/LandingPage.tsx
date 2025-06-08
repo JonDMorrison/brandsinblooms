@@ -40,7 +40,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       {/* Navigation Header */}
       <nav className="flex justify-between items-center px-6 py-4">
         <div className="text-2xl font-bold text-garden-green-dark">
-          Garden Center Marketing
+          BloomSuite
         </div>
         <div className="flex items-center gap-4">
           {user ? (
