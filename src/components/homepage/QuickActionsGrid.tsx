@@ -40,8 +40,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       id: 'new-campaign',
       icon: PlusCircle,
       title: 'Create Campaign',
-      description: 'Build themed marketing',
-      benefit: 'Get 5+ content pieces',
+      description: 'Build themed marketing campaigns',
+      benefit: 'Get 5+ content pieces instantly',
       color: 'primary',
       onClick: () => setShowNewCampaignModal(true),
       ariaLabel: 'Create a new marketing campaign'
@@ -50,8 +50,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       id: 'add-event',
       icon: CalendarPlus,
       title: 'Promote Event',
-      description: 'Get help marketing',
-      benefit: 'Custom content',
+      description: 'Get help marketing your events',
+      benefit: 'Custom promotional content',
       color: 'green',
       onClick: () => setShowAddEventDialog(true),
       ariaLabel: 'Add a new event to promote'
@@ -60,8 +60,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       id: 'view-calendar',
       icon: Calendar,
       title: 'Content Calendar',
-      description: 'See planned content',
-      benefit: 'Stay organized',
+      description: 'See your planned content schedule',
+      benefit: 'Stay organized & consistent',
       color: 'blue',
       onClick: handleViewCalendar,
       ariaLabel: 'View content calendar'
@@ -70,8 +70,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       id: 'analytics',
       icon: BarChart3,
       title: 'View Analytics',
-      description: 'Track performance',
-      benefit: 'Optimize strategy',
+      description: 'Track your content performance',
+      benefit: 'Optimize your strategy',
       color: 'purple',
       onClick: handleViewAnalytics,
       ariaLabel: 'View analytics dashboard'
@@ -107,16 +107,16 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                 <div key={item.id} className="relative">
                   <Button 
                     variant="outline" 
-                    className={`w-full h-[160px] flex flex-col gap-2 p-3 justify-center items-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} overflow-hidden`}
+                    className={`w-full h-[180px] flex flex-col gap-3 p-4 justify-center items-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} overflow-hidden`}
                     onClick={item.onClick}
                     aria-label={item.ariaLabel}
                   >
-                    <div className="flex flex-col items-center gap-2 h-full justify-center text-center max-w-full">
-                      <IconComponent className="w-7 h-7 flex-shrink-0" />
-                      <div className="space-y-1 flex-1 flex flex-col justify-center px-1 max-w-full">
-                        <div className="font-semibold text-black text-xs leading-tight truncate">{item.title}</div>
-                        <div className="text-xs text-gray-600 leading-tight truncate">{item.description}</div>
-                        <div className="text-xs font-medium text-current opacity-80 leading-tight truncate">{item.benefit}</div>
+                    <div className="flex flex-col items-center gap-3 h-full justify-center text-center w-full">
+                      <IconComponent className="w-8 h-8 flex-shrink-0" />
+                      <div className="space-y-2 flex-1 flex flex-col justify-center px-2 w-full">
+                        <div className="font-semibold text-black text-sm leading-tight whitespace-normal break-words">{item.title}</div>
+                        <div className="text-xs text-gray-600 leading-relaxed whitespace-normal break-words max-w-full">{item.description}</div>
+                        <div className="text-xs font-medium text-current opacity-80 leading-relaxed whitespace-normal break-words">{item.benefit}</div>
                       </div>
                     </div>
                   </Button>
