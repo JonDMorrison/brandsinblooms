@@ -1,17 +1,15 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AdminMetrics } from "./AdminMetrics";
-import { UserManagementTable } from "./UserManagementTable";
-import { PlatformAnalytics } from "./PlatformAnalytics";
+import { UserMetricsSection } from "./UserMetricsSection";
+import { ContentActivitySection } from "./ContentActivitySection";
+import { BillingOverviewSection } from "./BillingOverviewSection";
+import { UserManagementSection } from "./UserManagementSection";
 import { useAdminData } from "@/hooks/useAdminData";
-import { useState } from "react";
 
 export const AdminDashboard = () => {
   const { metrics, users, loading } = useAdminData();
-  const [activeTab, setActiveTab] = useState("users");
 
-  console.log("Active tab:", activeTab);
   console.log("Users data:", users);
   console.log("Metrics data:", metrics);
 
@@ -26,7 +24,8 @@ export const AdminDashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-garden-green-dark">Super Admin Dashboard</h1>
@@ -34,44 +33,20 @@ export const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Metrics Overview */}
-      <AdminMetrics metrics={metrics} />
+      {/* Metrics Grid */}
+      <div className="space-y-8">
+        {/* Section 1: User Metrics */}
+        <UserMetricsSection metrics={metrics} />
 
-      {/* Detailed Tables */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            User Management ({users.length})
-          </TabsTrigger>
-          <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            Platform Analytics
-          </TabsTrigger>
-        </TabsList>
+        {/* Section 2: Content Activity */}
+        <ContentActivitySection metrics={metrics} />
 
-        <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>User Overview</CardTitle>
-              <CardDescription>Complete list of users with their subscription status and activity</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <UserManagementTable users={users} />
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Section 3: Billing Overview */}
+        <BillingOverviewSection metrics={metrics} />
+      </div>
 
-        <TabsContent value="analytics" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Platform Analytics</CardTitle>
-              <CardDescription>Key performance indicators and usage statistics</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PlatformAnalytics metrics={metrics} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      {/* Section 4: User Management */}
+      <UserManagementSection users={users} />
     </div>
   );
 };
