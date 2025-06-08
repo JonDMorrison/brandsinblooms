@@ -107,7 +107,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                 <Button 
                   key={item.id}
                   variant="outline" 
-                  className={`h-auto flex flex-col gap-3 p-4 justify-start items-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} min-h-[200px] sm:min-h-[180px] lg:min-h-[160px]`}
+                  className={`h-auto flex flex-col gap-3 p-4 justify-start items-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} min-h-[240px] sm:min-h-[220px] lg:min-h-[200px]`}
                   onClick={item.onClick}
                   aria-label={item.ariaLabel}
                 >
