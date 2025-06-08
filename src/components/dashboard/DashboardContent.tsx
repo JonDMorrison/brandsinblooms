@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { SampleCampaignCard } from "./SampleCampaignCard";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -51,6 +52,10 @@ export const DashboardContent = ({
     } catch (error) {
       console.error('DashboardContent: Error handling campaign creation:', error);
     }
+  };
+
+  const handleGetStarted = () => {
+    setShowNewCampaignDialog(true);
   };
 
   // Show loading state
@@ -106,6 +111,7 @@ export const DashboardContent = ({
 
   // Determine if user needs guidance
   const needsGuidance = campaigns.length === 0 || totalTasksCount === 0;
+  const isNewUser = campaigns.length === 0;
 
   const handleNewCampaignCreate = (newCampaign: any) => {
     setShowNewCampaignDialog(false);
@@ -118,7 +124,13 @@ export const DashboardContent = ({
       <WelcomeSection 
         onboardingData={onboardingData}
         onBusinessNameChange={onBusinessNameChange}
+        onGetStarted={isNewUser ? handleGetStarted : undefined}
       />
+
+      {/* Show sample content for new users */}
+      {isNewUser && (
+        <SampleCampaignCard onCreateRealCampaign={handleGetStarted} />
+      )}
 
       {/* Progress/Guidance Banner */}
       {needsGuidance ? (
