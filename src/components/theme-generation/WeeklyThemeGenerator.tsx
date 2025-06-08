@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Loader2, Calendar, Sparkles } from "lucide-react";
+import { Loader2, Calendar, Sparkles, AlertCircle } from "lucide-react";
 
 interface WeeklyTheme {
   week: number;
@@ -22,6 +22,21 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [generatedThemes, setGeneratedThemes] = useState<WeeklyTheme[]>([]);
+  const [networkError, setNetworkError] = useState(false);
+
+  const generateFallbackThemes = () => {
+    const fallbackThemes: WeeklyTheme[] = [
+      { week: 1, title: "New Year Garden Planning", description: "Start the year with garden planning and goal setting. Focus on what plants and projects customers want to tackle this year.", content_ideas: ["Garden planning worksheets", "Goal setting tips", "Year-round planning calendar"] },
+      { week: 2, title: "Winter Plant Care", description: "Essential winter care tips for houseplants and outdoor gardens. Help customers keep their plants healthy during cold months.", content_ideas: ["Winter watering schedules", "Indoor humidity tips", "Protecting outdoor plants"] },
+      { week: 3, title: "Seed Starting Prep", description: "Get ready for seed starting season. Showcase supplies and techniques for starting seeds indoors.", content_ideas: ["Seed starting supplies", "Timing charts", "Germination tips"] },
+      { week: 4, title: "Houseplant Spotlight", description: "Feature popular houseplants perfect for winter months. Focus on low-light and air-purifying varieties.", content_ideas: ["Plant care guides", "Air-purifying plants", "Low-light options"] },
+      { week: 5, title: "Garden Tool Maintenance", description: "Winter is perfect for cleaning and maintaining garden tools. Share tips for tool care and storage.", content_ideas: ["Tool cleaning tips", "Sharpening guides", "Storage solutions"] }
+    ];
+
+    setGeneratedThemes(fallbackThemes);
+    toast.success(`Generated ${fallbackThemes.length} starter themes! You can customize these and generate more later.`);
+    onThemesGenerated?.(fallbackThemes);
+  };
 
   const generateWeeklyThemes = async () => {
     if (!user) {
@@ -30,6 +45,8 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
     }
 
     setLoading(true);
+    setNetworkError(false);
+    
     try {
       console.log('Generating 52-week themes for user:', user.id);
       
@@ -42,6 +59,15 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
 
       if (error) {
         console.error('Error generating themes:', error);
+        
+        // Check if it's a network error
+        if (error.message?.includes('Failed to send a request') || error.message?.includes('Failed to fetch')) {
+          setNetworkError(true);
+          toast.error('Network connection issue. You can use starter themes while we resolve this.');
+          generateFallbackThemes();
+          return;
+        }
+        
         throw new Error(error.message || 'Failed to generate themes');
       }
 
@@ -54,7 +80,15 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
       }
     } catch (error: any) {
       console.error('Error generating weekly themes:', error);
-      toast.error(error.message || 'Failed to generate weekly themes');
+      
+      // If it's a network error, offer fallback
+      if (error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
+        setNetworkError(true);
+        toast.error('Connection issue detected. Using starter themes instead.');
+        generateFallbackThemes();
+      } else {
+        toast.error(error.message || 'Failed to generate weekly themes');
+      }
     } finally {
       setLoading(false);
     }
@@ -87,7 +121,7 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
         throw new Error(error.message);
       }
 
-      toast.success('52-week campaign calendar created successfully!');
+      toast.success(`${generatedThemes.length}-week campaign calendar created successfully!`);
       setGeneratedThemes([]);
     } catch (error: any) {
       console.error('Error saving campaigns:', error);
@@ -110,6 +144,15 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
           Generate a complete 52-week content calendar with unique, seasonal themes tailored to your garden center.
         </div>
 
+        {networkError && (
+          <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <AlertCircle className="w-4 h-4 text-orange-600" />
+            <div className="text-sm text-orange-700">
+              AI service temporarily unavailable. Starter themes provided to get you going!
+            </div>
+          </div>
+        )}
+
         <Button 
           onClick={generateWeeklyThemes}
           disabled={loading}
@@ -118,7 +161,7 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Generating 52 Unique Themes...
+              Generating Themes...
             </>
           ) : (
             <>
@@ -158,7 +201,7 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
                   Saving to Campaign Calendar...
                 </>
               ) : (
-                'Save All 52 Themes to Campaign Calendar'
+                `Save All ${generatedThemes.length} Themes to Campaign Calendar`
               )}
             </Button>
           </div>
