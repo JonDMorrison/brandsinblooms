@@ -81,7 +81,6 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
           <div className="flex items-center gap-2 mb-6">
             <Sparkles className="w-5 h-5 text-primary" />
             <h3 className="text-xl font-bold text-black">Quick Actions</h3>
-            <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Start here</span>
           </div>
           
           <div className="flex flex-col items-start space-y-4">
