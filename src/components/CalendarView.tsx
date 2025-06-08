@@ -70,13 +70,8 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
     setLocalCampaigns(campaigns);
   });
 
-  // Sort campaigns to show current week first, then subsequent weeks
+  // Sort campaigns by week number in sequential order
   const sortedCampaigns = [...localCampaigns].sort((a, b) => {
-    // If one campaign is the current week, prioritize it
-    if (a.week_number === currentWeekNumber && b.week_number !== currentWeekNumber) return -1;
-    if (b.week_number === currentWeekNumber && a.week_number !== currentWeekNumber) return 1;
-    
-    // For other campaigns, sort by week number
     return a.week_number - b.week_number;
   });
 
