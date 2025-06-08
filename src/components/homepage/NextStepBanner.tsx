@@ -122,7 +122,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
               </div>
             </div>
             <Button 
-              className="bg-white hover:bg-gray-50 text-gray-900 shadow-md px-6 py-3 font-semibold border hover:scale-105 transition-all duration-200"
+              className="bg-primary hover:bg-primary-600 text-white shadow-md px-6 py-3 font-semibold border hover:scale-105 transition-all duration-200"
               onClick={handleAction}
             >
               {nextStep.action}
