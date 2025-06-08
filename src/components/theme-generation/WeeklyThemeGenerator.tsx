@@ -156,7 +156,7 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
         <Button 
           onClick={generateWeeklyThemes}
           disabled={loading}
-          className="w-full bg-purple-600 hover:bg-purple-700"
+          className="bg-purple-600 hover:bg-purple-700"
         >
           {loading ? (
             <>
