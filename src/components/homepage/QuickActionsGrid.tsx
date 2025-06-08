@@ -107,16 +107,27 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                 <div key={item.id} className="relative">
                   <Button 
                     variant="outline" 
-                    className={`w-full h-[180px] flex flex-col gap-3 p-4 justify-center items-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} overflow-hidden`}
+                    className={`w-full min-h-[180px] flex flex-col p-4 justify-between items-center transition-all duration-200 hover:scale-105 hover:shadow-lg ${getColorClasses(item.color)}`}
                     onClick={item.onClick}
                     aria-label={item.ariaLabel}
                   >
-                    <div className="flex flex-col items-center gap-3 h-full justify-center text-center w-full">
-                      <IconComponent className="w-8 h-8 flex-shrink-0" />
-                      <div className="space-y-2 flex-1 flex flex-col justify-center px-2 w-full">
-                        <div className="font-semibold text-black text-sm leading-tight whitespace-normal break-words">{item.title}</div>
-                        <div className="text-xs text-gray-600 leading-relaxed whitespace-normal break-words max-w-full">{item.description}</div>
-                        <div className="text-xs font-medium text-current opacity-80 leading-relaxed whitespace-normal break-words">{item.benefit}</div>
+                    <div className="flex flex-col items-center text-center w-full space-y-3">
+                      <div className="flex-shrink-0">
+                        <IconComponent className="w-8 h-8" />
+                      </div>
+                      
+                      <div className="space-y-2 w-full">
+                        <h4 className="font-semibold text-black text-sm leading-tight text-center">
+                          {item.title}
+                        </h4>
+                        
+                        <p className="text-xs text-gray-600 leading-relaxed text-center max-w-full">
+                          {item.description}
+                        </p>
+                        
+                        <p className="text-xs font-medium text-current opacity-80 leading-relaxed text-center">
+                          {item.benefit}
+                        </p>
                       </div>
                     </div>
                   </Button>
