@@ -47,15 +47,15 @@ export default {
 					foreground: '#FFFFFF'
 				},
 				warning: {
-					DEFAULT: '#FFD166',
-					50: '#FFF9E6',
-					100: '#FFECB3',
-					500: '#FFD166',
+					DEFAULT: '#FF8A00',
+					50: '#FFF3E6',
+					100: '#FFE0B3',
+					500: '#FF8A00',
 					foreground: '#2D3748'
 				},
 				accent: {
 					blue: '#8ECAE6',
-					yellow: '#FFD166',
+					orange: '#FF8A00',
 					DEFAULT: 'hsl(var(--accent))',
 					foreground: 'hsl(var(--accent-foreground))'
 				},

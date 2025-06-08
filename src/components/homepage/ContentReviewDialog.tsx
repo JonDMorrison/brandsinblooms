@@ -94,7 +94,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
       case 'scheduled':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'review':
-        return <AlertCircle className="w-4 h-4 text-yellow-600" />;
+        return <AlertCircle className="w-4 h-4 text-orange-600" />;
       default:
         return <Clock className="w-4 h-4 text-gray-600" />;
     }
@@ -105,7 +105,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
       case 'scheduled':
         return 'bg-green-100 text-green-800';
       case 'review':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }

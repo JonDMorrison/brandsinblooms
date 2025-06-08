@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -87,7 +88,7 @@
 
 @layer components {
   .seasonal-emoji {
-    @apply inline-flex items-center justify-center w-8 h-8 bg-warning-50 rounded-full text-lg;
+    @apply inline-flex items-center justify-center w-8 h-8 bg-orange-50 rounded-full text-lg;
   }
   
   .campaign-card-active {

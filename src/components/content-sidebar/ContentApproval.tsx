@@ -55,11 +55,11 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   if (task?.status !== 'review') return null;
 
   return (
-    <Card className="border-yellow-200 bg-yellow-50">
+    <Card className="border-orange-200 bg-orange-50">
       <CardContent className="p-4">
         <div className="text-center">
-          <h3 className="font-semibold text-yellow-800 mb-2">Ready for Approval</h3>
-          <p className="text-sm text-yellow-700 mb-4">
+          <h3 className="font-semibold text-orange-800 mb-2">Ready for Approval</h3>
+          <p className="text-sm text-orange-700 mb-4">
             Review the content below and approve it to move to scheduled status.
           </p>
           <Button 
