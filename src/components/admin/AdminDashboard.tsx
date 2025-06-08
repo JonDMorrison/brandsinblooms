@@ -5,9 +5,15 @@ import { AdminMetrics } from "./AdminMetrics";
 import { UserManagementTable } from "./UserManagementTable";
 import { PlatformAnalytics } from "./PlatformAnalytics";
 import { useAdminData } from "@/hooks/useAdminData";
+import { useState } from "react";
 
 export const AdminDashboard = () => {
   const { metrics, users, loading } = useAdminData();
+  const [activeTab, setActiveTab] = useState("users");
+
+  console.log("Active tab:", activeTab);
+  console.log("Users data:", users);
+  console.log("Metrics data:", metrics);
 
   if (loading) {
     return (
@@ -32,10 +38,14 @@ export const AdminDashboard = () => {
       <AdminMetrics metrics={metrics} />
 
       {/* Detailed Tables */}
-      <Tabs defaultValue="users" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="users">User Management</TabsTrigger>
-          <TabsTrigger value="analytics">Platform Analytics</TabsTrigger>
+          <TabsTrigger value="users" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            User Management ({users.length})
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            Platform Analytics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
