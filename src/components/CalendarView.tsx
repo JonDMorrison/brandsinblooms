@@ -2,8 +2,10 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar as CalendarIcon, Palette } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar as CalendarIcon, Palette, Sparkles } from "lucide-react";
 import { EditableTheme } from "./calendar/EditableTheme";
+import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
 
 interface Campaign {
   id: number;
@@ -62,6 +64,7 @@ const getCurrentWeekNumber = () => {
 
 export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarViewProps) => {
   const [localCampaigns, setLocalCampaigns] = useState(campaigns);
+  const [showThemeGenerator, setShowThemeGenerator] = useState(false);
   const currentYear = new Date().getFullYear();
   const currentWeekNumber = getCurrentWeekNumber();
 
@@ -69,6 +72,11 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
   useState(() => {
     setLocalCampaigns(campaigns);
   });
+
+  // Check if campaigns need AI-generated themes
+  const campaignsNeedingThemes = localCampaigns.filter(campaign => 
+    !campaign.theme || campaign.theme.includes("Summer Heat Solutions") || campaign.theme === campaign.title
+  );
 
   // Sort campaigns starting with current week, then subsequent weeks in order
   const sortedCampaigns = [...localCampaigns].sort((a, b) => {
@@ -102,8 +110,59 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
     onDataUpdate?.();
   };
 
+  const handleThemesGenerated = () => {
+    onDataUpdate?.();
+    setShowThemeGenerator(false);
+  };
+
   return (
     <div className="space-y-6">
+      {/* AI Theme Generator Alert */}
+      {campaignsNeedingThemes.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-5 h-5 text-orange-600" />
+                <div>
+                  <h3 className="font-semibold text-orange-800">Generate Creative Themes</h3>
+                  <p className="text-sm text-orange-700">
+                    {campaignsNeedingThemes.length} campaigns need unique, seasonal themes. 
+                    Generate 52 creative weekly themes with AI.
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => setShowThemeGenerator(true)}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                <Sparkles className="w-4 h-4 mr-2" />
+                Generate Themes
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Theme Generator */}
+      {showThemeGenerator && (
+        <Card className="border-purple-200">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-purple-800">AI Theme Generator</h3>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowThemeGenerator(false)}
+                className="text-gray-600"
+              >
+                Cancel
+              </Button>
+            </div>
+            <WeeklyThemeGenerator onThemesGenerated={handleThemesGenerated} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Weekly Content Themes */}
       <div className="grid gap-4">
         <h3 className="text-xl font-bold text-garden-green-dark flex items-center gap-2">
@@ -135,30 +194,48 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
               </CardHeader>
               <CardContent className="p-4">
                 <div className="grid gap-4">
-                  {weekCampaigns.map((campaign) => (
-                    <div 
-                      key={campaign.id}
-                      className="p-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-800 mb-1">{campaign.title}</h4>
+                  {weekCampaigns.map((campaign) => {
+                    const needsTheme = !campaign.theme || 
+                                     campaign.theme.includes("Summer Heat Solutions") || 
+                                     campaign.theme === campaign.title;
+                    
+                    return (
+                      <div 
+                        key={campaign.id}
+                        className={`p-4 rounded-lg border transition-shadow ${
+                          needsTheme 
+                            ? 'bg-orange-50 border-orange-200 hover:shadow-sm' 
+                            : 'bg-white border-gray-200 hover:shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-800 mb-1">{campaign.title}</h4>
+                            {needsTheme && (
+                              <Badge variant="outline" className="text-orange-700 border-orange-300 bg-orange-100">
+                                Needs Creative Theme
+                              </Badge>
+                            )}
+                          </div>
+                          {!needsTheme && (
+                            <Badge variant="outline" className="text-green-700 border-green-300">
+                              Active
+                            </Badge>
+                          )}
                         </div>
-                        <Badge variant="outline" className="text-green-700 border-green-300">
-                          Active
-                        </Badge>
+                        
+                        <div className="border-t pt-3">
+                          <EditableTheme
+                            campaignId={campaign.id.toString()}
+                            currentTheme={campaign.theme || ""}
+                            currentDescription={campaign.description || ""}
+                            weekNumber={campaign.week_number}
+                            onThemeUpdate={(newTheme, newDescription) => handleThemeUpdate(campaign.id.toString(), newTheme, newDescription)}
+                          />
+                        </div>
                       </div>
-                      
-                      <div className="border-t pt-3">
-                        <EditableTheme
-                          campaignId={campaign.id.toString()}
-                          currentTheme={campaign.theme || ""}
-                          currentDescription={campaign.description || ""}
-                          onThemeUpdate={(newTheme, newDescription) => handleThemeUpdate(campaign.id.toString(), newTheme, newDescription)}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
