@@ -17,6 +17,7 @@ import { PlusCircle, AlertTriangle, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SampleCampaignCard } from "./SampleCampaignCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -32,6 +33,7 @@ export const DashboardContent = ({
   onTaskClick
 }: DashboardContentProps) => {
   const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
+  const { user } = useAuth();
   
   const {
     campaigns,
@@ -152,8 +154,10 @@ export const DashboardContent = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Quick Actions */}
-          <QuickActionsGrid onCampaignCreated={handleCampaignCreatedWrapper} />
+          {/* Quick Actions - Only show for jon@getclear.ca */}
+          {user?.email === "jon@getclear.ca" && (
+            <QuickActionsGrid onCampaignCreated={handleCampaignCreatedWrapper} />
+          )}
           
           {/* Current Campaign */}
           {activeCampaign && (
