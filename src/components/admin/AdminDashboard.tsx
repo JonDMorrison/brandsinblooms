@@ -27,6 +27,11 @@ interface UserData {
   taskCount: number;
 }
 
+interface SubscriptionData {
+  plan: string;
+  end_date: string;
+}
+
 export const AdminDashboard = () => {
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalUsers: 0,
@@ -60,15 +65,15 @@ export const AdminDashboard = () => {
       ]);
 
       // Calculate subscription metrics
-      const activeSubscriptions = subscriptions?.filter(sub => 
+      const activeSubscriptions = subscriptions?.filter((sub: SubscriptionData) => 
         new Date(sub.end_date) > new Date()
       ).length || 0;
 
-      const freeTrialUsers = subscriptions?.filter(sub => 
+      const freeTrialUsers = subscriptions?.filter((sub: SubscriptionData) => 
         sub.plan === 'free_trial'
       ).length || 0;
 
-      const paidUsers = subscriptions?.filter(sub => 
+      const paidUsers = subscriptions?.filter((sub: SubscriptionData) => 
         sub.plan !== 'free_trial'
       ).length || 0;
 
@@ -97,7 +102,7 @@ export const AdminDashboard = () => {
 
       if (detailedUsers) {
         const usersWithStats = await Promise.all(
-          detailedUsers.map(async (user) => {
+          detailedUsers.map(async (user: any) => {
             // Get campaign count for user (assuming campaigns are user-specific)
             const { count: campaignCount } = await supabase
               .from('campaigns')
@@ -108,7 +113,7 @@ export const AdminDashboard = () => {
               .from('content_tasks')
               .select('*', { count: 'exact', head: true });
 
-            const subscription = user.subscriptions?.[0];
+            const subscription = user.subscriptions?.[0] as SubscriptionData | undefined;
             const isActive = subscription && new Date(subscription.end_date) > new Date();
 
             return {
