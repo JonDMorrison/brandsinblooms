@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Calendar, BarChart3, CalendarPlus, Sparkles, CheckCircle } from "lucide-react";
+import { PlusCircle, Calendar, BarChart3, CalendarPlus, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { AddEventDialog } from "./AddEventDialog";
 import { NewCampaignModal } from "./NewCampaignModal";
@@ -42,7 +42,9 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       title: 'Create Campaign',
       description: 'Build themed marketing campaigns',
       benefit: 'Get 5+ content pieces instantly',
-      color: 'primary',
+      color: 'text-green-600',
+      bgColor: 'bg-green-50 hover:bg-green-100',
+      borderColor: 'border-green-200 hover:border-green-300',
       onClick: () => setShowNewCampaignModal(true),
       ariaLabel: 'Create a new marketing campaign'
     },
@@ -52,7 +54,9 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       title: 'Promote Event',
       description: 'Get help marketing your events',
       benefit: 'Custom promotional content',
-      color: 'green',
+      color: 'text-green-600',
+      bgColor: 'bg-green-50 hover:bg-green-100',
+      borderColor: 'border-green-200 hover:border-green-300',
       onClick: () => setShowAddEventDialog(true),
       ariaLabel: 'Add a new event to promote'
     },
@@ -62,34 +66,13 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       title: 'Content Calendar',
       description: 'See your planned content schedule',
       benefit: 'Stay organized & consistent',
-      color: 'blue',
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50 hover:bg-blue-100',
+      borderColor: 'border-blue-200 hover:border-blue-300',
       onClick: handleViewCalendar,
       ariaLabel: 'View content calendar'
-    },
-    {
-      id: 'analytics',
-      icon: BarChart3,
-      title: 'View Analytics',
-      description: 'Track your content performance',
-      benefit: 'Optimize your strategy',
-      color: 'purple',
-      onClick: handleViewAnalytics,
-      ariaLabel: 'View analytics dashboard'
     }
   ];
-
-  const getColorClasses = (color: string) => {
-    switch (color) {
-      case 'blue':
-        return 'border-blue-200 hover:bg-blue-50 hover:border-blue-300 text-blue-700 bg-blue-25';
-      case 'purple':
-        return 'border-purple-200 hover:bg-purple-50 hover:border-purple-300 text-purple-700 bg-purple-25';
-      case 'green':
-        return 'border-green-200 hover:bg-green-50 hover:border-green-300 text-green-700 bg-green-25';
-      default:
-        return 'border-primary/30 hover:bg-primary/10 hover:border-primary/50 text-primary bg-primary/5';
-    }
-  };
 
   return (
     <>
@@ -100,35 +83,45 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             <h3 className="text-xl font-bold text-black">Quick Actions</h3>
             <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">Start here</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          <div className="flex flex-col items-start space-y-4">
             {actionItems.map((item) => {
               const IconComponent = item.icon;
               return (
-                <Button 
+                <div
                   key={item.id}
-                  variant="outline" 
-                  className={`w-full h-auto min-h-[160px] flex flex-col p-4 transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)}`}
+                  className={`w-full border rounded-lg px-4 py-3 cursor-pointer transition-all duration-200 ease-in-out hover:shadow-md ${item.bgColor} ${item.borderColor}`}
                   onClick={item.onClick}
+                  role="button"
+                  tabIndex={0}
                   aria-label={item.ariaLabel}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      item.onClick();
+                    }
+                  }}
                 >
-                  <div className="flex flex-col items-center text-center space-y-3 h-full">
-                    <IconComponent className="w-8 h-8 flex-shrink-0" />
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <IconComponent className={`w-6 h-6 ${item.color}`} />
+                    </div>
                     
-                    <div className="flex-1 flex flex-col justify-center space-y-2">
-                      <h4 className="font-semibold text-black text-sm leading-tight">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-lg font-semibold text-black mb-1">
                         {item.title}
                       </h4>
                       
-                      <p className="text-xs text-gray-600 leading-relaxed">
+                      <p className="text-sm text-gray-600 leading-relaxed mb-1 text-wrap overflow-hidden">
                         {item.description}
                       </p>
                       
-                      <p className="text-xs font-medium text-current opacity-80">
+                      <p className="text-sm text-gray-500 leading-relaxed text-wrap overflow-hidden">
                         {item.benefit}
                       </p>
                     </div>
                   </div>
-                </Button>
+                </div>
               );
             })}
           </div>
