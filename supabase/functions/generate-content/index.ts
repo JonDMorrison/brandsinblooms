@@ -62,12 +62,16 @@ IMPORTANT: Use this company information to personalize the content. Reference th
 
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
+- NEVER use bullet points (•) or numbered lists in the content
+- Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
 `;
     } else {
       companyContext = `
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
+- NEVER use bullet points (•) or numbered lists in the content
+- Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
 `;
     }
@@ -83,6 +87,7 @@ Requirements:
 - Speak to their target audience
 - Include a call-to-action
 - Make it feel authentic to this specific garden center
+- Write in flowing paragraphs, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases`,
 
       facebook: `Create a Facebook post about ${campaignTitle}. ${companyContext}
@@ -94,6 +99,7 @@ Requirements:
 - Speak to their ideal customer
 - Include questions to encourage engagement
 - Make it feel personal and authentic to this garden center
+- Write in flowing paragraphs, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases`,
 
       email: `Create email content about ${campaignTitle}. ${companyContext}
@@ -106,6 +112,7 @@ Requirements:
 - Speak to their target audience
 - Include a clear call-to-action
 - Make it feel personal from this specific garden center
+- Write in flowing paragraphs, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases`,
 
       video: `Create a video script about ${campaignTitle}. ${companyContext}
@@ -118,11 +125,12 @@ Requirements:
 - Speak directly to their ideal customer
 - Include a strong opening hook and clear call-to-action
 - Make it feel authentic to this garden center owner/expert
+- Write in flowing paragraphs, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases`
     };
 
     const prompt = contentPrompts[postType as keyof typeof contentPrompts] || 
-      `Create ${postType} content about ${campaignTitle} for a garden center. Make it engaging and professional. NEVER use "Green Thumbs" or "green thumb" phrases.`;
+      `Create ${postType} content about ${campaignTitle} for a garden center. Make it engaging and professional. Write in flowing paragraphs only - NEVER use bullet points or lists. NEVER use "Green Thumbs" or "green thumb" phrases.`;
 
     console.log('Generating personalized content with OpenAI for:', postType);
 
@@ -135,7 +143,7 @@ Requirements:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing. Create authentic, personalized content that reflects the specific company\'s brand and expertise. NEVER use the phrase "Green Thumbs" or "green thumb" in any content - avoid this cliché completely.' },
+          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing. Create authentic, personalized content that reflects the specific company\'s brand and expertise. NEVER use the phrase "Green Thumbs" or "green thumb" in any content - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

@@ -60,12 +60,16 @@ IMPORTANT: Use this company information to create a personalized video script th
 
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
+- NEVER use bullet points (•) or numbered lists in the content
+- Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
 `;
     } else {
       companyContext = `
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
+- NEVER use bullet points (•) or numbered lists in the content
+- Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
 `;
     }
@@ -81,6 +85,7 @@ Requirements:
 - Include a strong opening hook and clear call-to-action
 - Make it feel authentic and personal, not generic
 - Structure it with clear sections: Hook, Main Content, Call-to-Action
+- Write in flowing paragraphs and natural sentences, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases
 
 Format the response as a natural speaking script, not bullet points.`;
@@ -96,7 +101,7 @@ Format the response as a natural speaking script, not bullet points.`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional video script writer specializing in garden center content. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely.' },
+          { role: 'system', content: 'You are a professional video script writer specializing in garden center content. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

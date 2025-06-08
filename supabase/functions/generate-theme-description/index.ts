@@ -40,6 +40,7 @@ serve(async (req) => {
             - Reference the garden center's expertise and products
             - Be professional but approachable
             - Avoid repetitive phrasing
+            - Write in flowing sentences, NEVER use bullet points or lists
             
             Keep it concise and compelling - this will guide all content creation for the week including social media, newsletters, and videos.`
           },
