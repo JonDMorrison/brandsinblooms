@@ -140,7 +140,7 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
                 Generate Themes
               </Button>
             </div>
-          </div>
+          </CardContent>
         </Card>
       )}
 
