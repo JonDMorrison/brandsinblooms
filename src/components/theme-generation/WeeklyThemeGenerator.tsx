@@ -1,11 +1,10 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Loader2, Calendar, Sparkles, AlertCircle } from "lucide-react";
+import { Loader2, Sparkles, AlertCircle } from "lucide-react";
 
 interface WeeklyTheme {
   week: number;
@@ -131,82 +130,58 @@ export const WeeklyThemeGenerator = ({ onThemesGenerated }: WeeklyThemeGenerator
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-purple-600" />
-          AI Weekly Theme Generator
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="text-sm text-gray-600">
-          Generate a complete 52-week content calendar with unique, seasonal themes tailored to your garden center.
+  // Show compact view when themes are generated
+  if (generatedThemes.length > 0) {
+    return (
+      <div className="space-y-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <div className="text-sm text-green-700 font-medium">
+          ✅ Generated {generatedThemes.length} themes
         </div>
-
-        {networkError && (
-          <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-orange-600" />
-            <div className="text-sm text-orange-700">
-              AI service temporarily unavailable. Starter themes provided to get you going!
-            </div>
-          </div>
-        )}
-
         <Button 
-          onClick={generateWeeklyThemes}
+          onClick={saveToCampaigns}
           disabled={loading}
-          className="bg-purple-600 hover:bg-purple-700"
+          size="sm"
+          className="bg-green-600 hover:bg-green-700"
         >
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Generating Themes...
+              Saving...
             </>
           ) : (
-            <>
-              <Calendar className="w-4 h-4 mr-2" />
-              Generate 52-Week Theme Calendar
-            </>
+            `Save All ${generatedThemes.length} Themes`
           )}
         </Button>
+      </div>
+    );
+  }
 
-        {generatedThemes.length > 0 && (
-          <div className="space-y-4">
-            <div className="text-sm text-green-600 font-medium">
-              ✅ Generated {generatedThemes.length} unique weekly themes
-            </div>
-            
-            <div className="max-h-48 overflow-y-auto space-y-2 p-4 bg-gray-50 rounded-lg">
-              {generatedThemes.slice(0, 5).map((theme) => (
-                <div key={theme.week} className="text-xs">
-                  <span className="font-medium">Week {theme.week}:</span> {theme.title}
-                </div>
-              ))}
-              {generatedThemes.length > 5 && (
-                <div className="text-xs text-gray-500">
-                  ...and {generatedThemes.length - 5} more themes
-                </div>
-              )}
-            </div>
-
-            <Button 
-              onClick={saveToCampaigns}
-              disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving to Campaign Calendar...
-                </>
-              ) : (
-                `Save All ${generatedThemes.length} Themes to Campaign Calendar`
-              )}
-            </Button>
-          </div>
+  return (
+    <div className="flex items-center gap-2">
+      {networkError && (
+        <div className="flex items-center gap-1 text-xs text-gray-600">
+          <AlertCircle className="w-3 h-3" />
+          AI unavailable
+        </div>
+      )}
+      <Button 
+        onClick={generateWeeklyThemes}
+        disabled={loading}
+        size="sm"
+        className="bg-purple-600 hover:bg-purple-700"
+      >
+        {loading ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Generating...
+          </>
+        ) : (
+          <>
+            <Sparkles className="w-4 h-4 mr-2" />
+            Generate 52 Themes
+          </>
         )}
-      </CardContent>
-    </Card>
+      </Button>
+    </div>
   );
 };

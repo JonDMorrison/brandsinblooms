@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +63,6 @@ const getCurrentWeekNumber = () => {
 
 export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarViewProps) => {
   const [localCampaigns, setLocalCampaigns] = useState(campaigns);
-  const [showThemeGenerator, setShowThemeGenerator] = useState(false);
   const currentYear = new Date().getFullYear();
   const currentWeekNumber = getCurrentWeekNumber();
 
@@ -112,63 +110,28 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
 
   const handleThemesGenerated = () => {
     onDataUpdate?.();
-    setShowThemeGenerator(false);
   };
 
   return (
     <div className="space-y-6">
-      {/* AI Theme Generator Alert */}
-      {campaignsNeedingThemes.length > 0 && (
-        <Card className="border-gray-200 bg-gray-50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Sparkles className="w-5 h-5 text-purple-600" />
-                <div>
-                  <h3 className="font-semibold text-gray-800">Generate Creative Themes</h3>
-                  <p className="text-sm text-gray-700">
-                    {campaignsNeedingThemes.length} campaigns need unique, seasonal themes. 
-                    Generate 52 creative weekly themes with AI.
-                  </p>
-                </div>
-              </div>
-              <Button 
-                onClick={() => setShowThemeGenerator(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Themes
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Theme Generator */}
-      {showThemeGenerator && (
-        <Card className="border-purple-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-purple-800">AI Theme Generator</h3>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowThemeGenerator(false)}
-                className="text-gray-600"
-              >
-                Cancel
-              </Button>
-            </div>
-            <WeeklyThemeGenerator onThemesGenerated={handleThemesGenerated} />
-          </CardContent>
-        </Card>
-      )}
-
       {/* Weekly Content Themes */}
       <div className="grid gap-4">
-        <h3 className="text-xl font-bold text-garden-green-dark flex items-center gap-2">
-          <Palette className="w-6 h-6" />
-          Weekly Content Themes
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-bold text-garden-green-dark flex items-center gap-2">
+            <Palette className="w-6 h-6" />
+            Weekly Content Themes
+          </h3>
+          {campaignsNeedingThemes.length > 0 && (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Sparkles className="w-4 h-4 text-purple-600" />
+                {campaignsNeedingThemes.length} campaigns need themes
+              </div>
+              <WeeklyThemeGenerator onThemesGenerated={handleThemesGenerated} />
+            </div>
+          )}
+        </div>
+
         {Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => {
           const weekNumber = weekCampaigns[0].week_number;
           const { startDate, endDate } = getWeekDateRange(weekNumber, currentYear);
