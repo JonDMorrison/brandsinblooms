@@ -64,7 +64,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       icon: Calendar,
       title: 'Content Calendar',
       description: 'See your planned content schedule',
-      benefit: "See what's coming this year",
+      benefit: "Preview what's coming this year",
       color: 'text-blue-600',
       bgColor: 'bg-blue-50 hover:bg-blue-100',
       borderColor: 'border-blue-200 hover:border-blue-300',
