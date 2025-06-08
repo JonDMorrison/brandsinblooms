@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,6 +9,7 @@ import { Instagram, Facebook, Mail, BookOpen, Video, Sparkles, Copy, Check, Edit
 import { toast } from "sonner";
 import { generatePersonalizedContent } from "./TaskGenerationUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 
 interface UpcomingContentModalProps {
   week: any;
@@ -147,6 +147,17 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
   const handleApproveContent = (contentType: ContentType) => {
     setApprovedContent(prev => ({ ...prev, [contentType.id]: true }));
     toast.success(`${contentType.name} approved!`);
+  };
+
+  const handleSocialMediaPost = (contentType: ContentType) => {
+    const content = generatedContent[contentType.id];
+    if (!content) return;
+
+    if (contentType.id === 'facebook') {
+      postToFacebook(content);
+    } else if (contentType.id === 'instagram') {
+      postToInstagram(content);
+    }
   };
 
   const getContentStatus = (contentType: ContentType) => {
@@ -305,25 +316,46 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
                               <Copy className="w-3 h-3 mr-1" />
                               Copy
                             </Button>
-                            <Button
-                              onClick={() => handleApproveContent(contentType)}
-                              variant={status.status === 'approved' ? "default" : "outline"}
-                              size="sm"
-                              className="h-10 transition-all duration-200"
-                              disabled={status.status === 'approved'}
-                            >
-                              {status.status === 'approved' ? (
-                                <>
-                                  <Check className="w-3 h-3 mr-1" />
-                                  Approved
-                                </>
-                              ) : (
-                                <>
-                                  <Check className="w-3 h-3 mr-1" />
-                                  Approve
-                                </>
-                              )}
-                            </Button>
+                            {(contentType.id === 'facebook' || contentType.id === 'instagram') ? (
+                              <Button
+                                onClick={() => handleSocialMediaPost(contentType)}
+                                variant="outline"
+                                size="sm"
+                                className="h-10 transition-all duration-200 bg-blue-50 hover:bg-blue-100"
+                              >
+                                {contentType.id === 'facebook' ? (
+                                  <>
+                                    <Facebook className="w-3 h-3 mr-1" />
+                                    Post
+                                  </>
+                                ) : (
+                                  <>
+                                    <Instagram className="w-3 h-3 mr-1" />
+                                    Post
+                                  </>
+                                )}
+                              </Button>
+                            ) : (
+                              <Button
+                                onClick={() => handleApproveContent(contentType)}
+                                variant={status.status === 'approved' ? "default" : "outline"}
+                                size="sm"
+                                className="h-10 transition-all duration-200"
+                                disabled={status.status === 'approved'}
+                              >
+                                {status.status === 'approved' ? (
+                                  <>
+                                    <Check className="w-3 h-3 mr-1" />
+                                    Approved
+                                  </>
+                                ) : (
+                                  <>
+                                    <Check className="w-3 h-3 mr-1" />
+                                    Approve
+                                  </>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -425,25 +457,45 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
                             <Copy className="w-4 h-4 mr-2" />
                             Copy Content
                           </Button>
-                          <Button
-                            onClick={() => handleApproveContent(contentType)}
-                            variant={status.status === 'approved' ? "default" : "outline"}
-                            size="sm"
-                            disabled={status.status === 'approved'}
-                            className="transition-all duration-200"
-                          >
-                            {status.status === 'approved' ? (
-                              <>
-                                <Check className="w-4 h-4 mr-2" />
-                                Approved
-                              </>
-                            ) : (
-                              <>
-                                <Check className="w-4 h-4 mr-2" />
-                                Approve Content
-                              </>
-                            )}
-                          </Button>
+                          {(contentType.id === 'facebook' || contentType.id === 'instagram') ? (
+                            <Button
+                              onClick={() => handleSocialMediaPost(contentType)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+                              size="sm"
+                            >
+                              {contentType.id === 'facebook' ? (
+                                <>
+                                  <Facebook className="w-4 h-4 mr-2" />
+                                  Post to Facebook
+                                </>
+                              ) : (
+                                <>
+                                  <Instagram className="w-4 h-4 mr-2" />
+                                  Post to Instagram
+                                </>
+                              )}
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleApproveContent(contentType)}
+                              variant={status.status === 'approved' ? "default" : "outline"}
+                              size="sm"
+                              disabled={status.status === 'approved'}
+                              className="transition-all duration-200"
+                            >
+                              {status.status === 'approved' ? (
+                                <>
+                                  <Check className="w-4 h-4 mr-2" />
+                                  Approved
+                                </>
+                              ) : (
+                                <>
+                                  <Check className="w-4 h-4 mr-2" />
+                                  Approve Content
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </>
                     )}

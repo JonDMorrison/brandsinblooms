@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Instagram, Facebook, Mail, BookOpen, Video, FileText, Copy, Edit, Save, X, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 
 interface ReadyPostModalProps {
   task: any;
@@ -125,7 +125,17 @@ export const ReadyPostModal = ({ task, isOpen, onClose, onTaskUpdate }: ReadyPos
     setIsEditing(false);
   };
 
+  const handleSocialMediaPost = () => {
+    if (task.post_type === 'facebook') {
+      postToFacebook(editedContent);
+    } else if (task.post_type === 'instagram') {
+      postToInstagram(editedContent);
+    }
+  };
+
   if (!task) return null;
+
+  const showSocialMediaButton = task.post_type === 'facebook' || task.post_type === 'instagram';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -220,14 +230,28 @@ export const ReadyPostModal = ({ task, isOpen, onClose, onTaskUpdate }: ReadyPos
               <Copy className="w-4 h-4 mr-2" />
               Copy Content
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => toast.info('Post publishing integration coming soon')}
-              className="flex-1"
-            >
-              <ExternalLink className="w-4 h-4 mr-2" />
-              Publish
-            </Button>
+            {showSocialMediaButton ? (
+              <Button
+                onClick={handleSocialMediaPost}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                {task.post_type === 'facebook' ? (
+                  <Facebook className="w-4 h-4 mr-2" />
+                ) : (
+                  <Instagram className="w-4 h-4 mr-2" />
+                )}
+                Post to {task.post_type === 'facebook' ? 'Facebook' : 'Instagram'}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => toast.info('Post publishing integration coming soon')}
+                className="flex-1"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Publish
+              </Button>
+            )}
           </div>
         </div>
       </DialogContent>

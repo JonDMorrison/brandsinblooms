@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Copy, CheckCircle, Edit, ExternalLink, Instagram, Facebook, Mail, BookOpen, Video, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 
 interface ContentViewerProps {
   campaignId: string;
@@ -112,6 +113,19 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
     toast.success('Content copied to clipboard');
   };
 
+  const handleSocialMediaPost = (task: any) => {
+    const cleanContent = task.ai_output
+      .replace(/<[^>]*>/g, '')
+      .replace(/\\n/g, '\n')
+      .trim();
+
+    if (task.post_type === 'facebook') {
+      postToFacebook(cleanContent);
+    } else if (task.post_type === 'instagram') {
+      postToInstagram(cleanContent);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
@@ -133,70 +147,92 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
             </div>
           ) : (
             <div className="space-y-4">
-              {tasks.map((task) => (
-                <div key={task.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {getPostTypeIcon(task.post_type)}
-                      <span className="font-medium capitalize">{task.post_type}</span>
-                      <Badge className={getStatusColor(task.status)}>
-                        {task.status}
-                      </Badge>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      {task.ai_output && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCopy(task.ai_output)}
-                        >
-                          <Copy className="w-3 h-3 mr-1" />
-                          Copy
-                        </Button>
-                      )}
+              {tasks.map((task) => {
+                const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'scheduled';
+                
+                return (
+                  <div key={task.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {getPostTypeIcon(task.post_type)}
+                        <span className="font-medium capitalize">{task.post_type}</span>
+                        <Badge className={getStatusColor(task.status)}>
+                          {task.status}
+                        </Badge>
+                      </div>
                       
-                      {task.status === 'draft' && task.ai_output && (
-                        <Button
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => handleApprove(task.id)}
-                          disabled={approvingTasks.has(task.id)}
-                        >
-                          <CheckCircle className="w-3 h-3 mr-1" />
-                          {approvingTasks.has(task.id) ? 'Approving...' : 'Approve'}
-                        </Button>
-                      )}
-                      
-                      {task.status === 'scheduled' && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toast.info('Publishing integration coming soon')}
-                        >
-                          <ExternalLink className="w-3 h-3 mr-1" />
-                          Publish
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {task.ai_output && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCopy(task.ai_output)}
+                          >
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy
+                          </Button>
+                        )}
+                        
+                        {task.status === 'draft' && task.ai_output && (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleApprove(task.id)}
+                            disabled={approvingTasks.has(task.id)}
+                          >
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            {approvingTasks.has(task.id) ? 'Approving...' : 'Approve'}
+                          </Button>
+                        )}
+                        
+                        {showSocialMediaButton ? (
+                          <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => handleSocialMediaPost(task)}
+                          >
+                            {task.post_type === 'facebook' ? (
+                              <>
+                                <Facebook className="w-3 h-3 mr-1" />
+                                Post to Facebook
+                              </>
+                            ) : (
+                              <>
+                                <Instagram className="w-3 h-3 mr-1" />
+                                Post to Instagram
+                              </>
+                            )}
+                          </Button>
+                        ) : task.status === 'scheduled' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toast.info('Publishing integration coming soon')}
+                          >
+                            <ExternalLink className="w-3 h-3 mr-1" />
+                            Publish
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
+
+                    {task.ai_output && (
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <div 
+                          className="prose prose-sm max-w-none"
+                          dangerouslySetInnerHTML={{ __html: task.ai_output }}
+                        />
+                      </div>
+                    )}
+
+                    {task.scheduled_date && (
+                      <p className="text-xs text-gray-500">
+                        Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+                      </p>
+                    )}
                   </div>
-
-                  {task.ai_output && (
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <div 
-                        className="prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: task.ai_output }}
-                      />
-                    </div>
-                  )}
-
-                  {task.scheduled_date && (
-                    <p className="text-xs text-gray-500">
-                      Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>
