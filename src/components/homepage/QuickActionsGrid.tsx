@@ -107,15 +107,15 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                 <Button 
                   key={item.id}
                   variant="outline" 
-                  className={`h-auto min-h-[140px] sm:min-h-[160px] lg:min-h-[180px] flex flex-col gap-2 sm:gap-3 p-3 sm:p-4 lg:p-5 justify-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)}`}
+                  className={`h-auto flex flex-col gap-3 p-4 justify-start items-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} min-h-[200px] sm:min-h-[180px] lg:min-h-[160px]`}
                   onClick={item.onClick}
                   aria-label={item.ariaLabel}
                 >
-                  <IconComponent className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 flex-shrink-0" />
-                  <div className="text-center space-y-1 w-full">
-                    <span className="text-xs sm:text-sm font-semibold text-black block leading-tight">{item.title}</span>
-                    <span className="text-xs text-gray-600 block leading-tight">{item.description}</span>
-                    <span className="text-xs font-medium text-current block opacity-80 leading-tight">{item.benefit}</span>
+                  <IconComponent className="w-8 h-8 flex-shrink-0 mt-2" />
+                  <div className="text-center space-y-2 flex-1 flex flex-col justify-center">
+                    <div className="font-semibold text-black text-sm leading-tight">{item.title}</div>
+                    <div className="text-xs text-gray-600 leading-relaxed">{item.description}</div>
+                    <div className="text-xs font-medium text-current opacity-80 leading-relaxed">{item.benefit}</div>
                   </div>
                 </Button>
               );
