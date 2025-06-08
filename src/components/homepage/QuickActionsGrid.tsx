@@ -104,22 +104,23 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
             {actionItems.map((item) => {
               const IconComponent = item.icon;
               return (
-                <Button 
-                  key={item.id}
-                  variant="outline" 
-                  className={`h-auto flex flex-col gap-2 p-3 justify-between items-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} min-h-[180px] max-w-full`}
-                  onClick={item.onClick}
-                  aria-label={item.ariaLabel}
-                >
-                  <div className="flex flex-col items-center gap-2 flex-1">
-                    <IconComponent className="w-8 h-8 flex-shrink-0" />
-                    <div className="text-center space-y-1 w-full">
-                      <div className="font-semibold text-black text-sm leading-tight break-words">{item.title}</div>
-                      <div className="text-xs text-gray-600 leading-relaxed break-words">{item.description}</div>
-                      <div className="text-xs font-medium text-current opacity-80 leading-relaxed break-words">{item.benefit}</div>
+                <div key={item.id} className="relative">
+                  <Button 
+                    variant="outline" 
+                    className={`w-full h-[180px] flex flex-col gap-3 p-4 justify-center items-center transition-all duration-200 hover:scale-105 hover:shadow-md ${getColorClasses(item.color)} overflow-hidden`}
+                    onClick={item.onClick}
+                    aria-label={item.ariaLabel}
+                  >
+                    <div className="flex flex-col items-center gap-3 h-full justify-between">
+                      <IconComponent className="w-8 h-8 flex-shrink-0" />
+                      <div className="text-center space-y-2 flex-1 flex flex-col justify-center px-1">
+                        <div className="font-semibold text-black text-sm leading-tight">{item.title}</div>
+                        <div className="text-xs text-gray-600 leading-relaxed">{item.description}</div>
+                        <div className="text-xs font-medium text-current opacity-80 leading-relaxed">{item.benefit}</div>
+                      </div>
                     </div>
-                  </div>
-                </Button>
+                  </Button>
+                </div>
               );
             })}
           </div>
