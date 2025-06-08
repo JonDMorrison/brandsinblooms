@@ -19,16 +19,28 @@ export const PlatformAnalytics = ({ metrics }: PlatformAnalyticsProps) => {
         <h3 className="text-lg font-semibold">Subscription Breakdown</h3>
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span>Free Trial:</span>
-            <span className="font-medium">{metrics.freeTrialUsers}</span>
+            <span>Active Subscriptions:</span>
+            <span className="font-medium text-green-600">{metrics.activeSubscriptions}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Free Trial Users:</span>
+            <span className="font-medium text-blue-600">{metrics.freeTrialUsers}</span>
           </div>
           <div className="flex justify-between">
             <span>Paid Users:</span>
-            <span className="font-medium">{metrics.paidUsers}</span>
+            <span className="font-medium text-purple-600">{metrics.paidUsers}</span>
           </div>
           <div className="flex justify-between border-t pt-2">
-            <span className="font-semibold">Total:</span>
+            <span className="font-semibold">Total Users:</span>
             <span className="font-semibold">{metrics.totalUsers}</span>
+          </div>
+          <div className="flex justify-between text-sm text-muted-foreground">
+            <span>Conversion Rate:</span>
+            <span>
+              {metrics.totalUsers > 0 
+                ? Math.round((metrics.paidUsers / metrics.totalUsers) * 100) 
+                : 0}%
+            </span>
           </div>
         </div>
       </div>

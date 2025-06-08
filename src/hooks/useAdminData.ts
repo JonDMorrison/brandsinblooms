@@ -55,18 +55,25 @@ export const useAdminData = () => {
         supabase.from('subscriptions').select('*')
       ]);
 
-      // Calculate subscription metrics
+      console.log('Fetched subscriptions:', subscriptions);
+
+      // Calculate subscription metrics - active means end_date is in the future
+      const now = new Date();
       const activeSubscriptions = subscriptions?.filter((sub: SubscriptionData) => 
-        new Date(sub.end_date) > new Date()
+        new Date(sub.end_date) > now
       ).length || 0;
 
       const freeTrialUsers = subscriptions?.filter((sub: SubscriptionData) => 
-        sub.plan === 'free_trial'
+        sub.plan === 'free_trial' && new Date(sub.end_date) > now
       ).length || 0;
 
       const paidUsers = subscriptions?.filter((sub: SubscriptionData) => 
-        sub.plan !== 'free_trial'
+        sub.plan !== 'free_trial' && new Date(sub.end_date) > now
       ).length || 0;
+
+      console.log('Active subscriptions:', activeSubscriptions);
+      console.log('Free trial users:', freeTrialUsers);
+      console.log('Paid users:', paidUsers);
 
       setMetrics({
         totalUsers: usersCount || 0,
