@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
       const { data, error } = await supabase
         .from('content_tasks')
         .select('*')
-        .in('status', ['draft', 'review'])
+        .in('status', ['draft', 'review', 'scheduled']) // Include scheduled tasks
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -50,7 +51,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         setTasks(data || []);
         
         if (data && data.length === 0) {
-          console.log('ContentReviewDialog: No draft/review tasks found. Checking all tasks...');
+          console.log('ContentReviewDialog: No tasks found for review. Checking all tasks...');
           
           // Debug: Check what tasks exist
           const { data: allTasks } = await supabase
