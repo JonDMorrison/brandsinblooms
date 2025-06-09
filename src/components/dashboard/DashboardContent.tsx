@@ -1,4 +1,3 @@
-
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
@@ -154,10 +153,8 @@ export const DashboardContent = ({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Quick Actions - Only show for jon@getclear.ca */}
-          {user?.email === "jon@getclear.ca" && (
-            <QuickActionsGrid onCampaignCreated={handleCampaignCreatedWrapper} />
-          )}
+          {/* Quick Actions - Now available to all users */}
+          <QuickActionsGrid onCampaignCreated={handleCampaignCreatedWrapper} />
           
           {/* Current Campaign */}
           {activeCampaign && (
