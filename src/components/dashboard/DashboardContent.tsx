@@ -1,5 +1,4 @@
 
-
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
@@ -103,22 +102,28 @@ export const DashboardContent = ({
   const activeCampaign = campaigns.find(c => c.week_number === currentWeekNumber);
 
   // Find user-created campaigns - only campaigns created via Quick Actions
-  // These will have specific characteristics that distinguish them from system campaigns
+  // These campaigns are created through AddEventDialog or NewCampaignModal
   const userCreatedCampaigns = campaigns.filter(campaign => {
     const isActive = campaign.id === activeCampaign?.id;
     
     // Don't include the active campaign
     if (isActive) return false;
     
-    // Only include campaigns that are clearly user-created via Quick Actions:
-    // 1. Event campaigns (from "Promote Event") - these will have custom themes
-    // 2. Custom campaigns (from "Create Campaign") - these will also have custom themes
-    // 3. Exclude any campaigns that look like system-generated weekly themes
-    const hasCustomTheme = campaign.theme && !campaign.theme.includes('Week ') && campaign.theme !== campaign.title;
-    const isEventCampaign = campaign.title && campaign.title.toLowerCase().includes('event');
-    const isCustomCampaign = campaign.prompt || campaign.description;
+    // Campaigns created via Quick Actions have specific characteristics:
+    // 1. They have a prompt field (set in AddEventDialog and NewCampaignModal)
+    // 2. Or they have a custom theme that's different from the title
+    // 3. Or they're clearly event-based campaigns
+    const hasPrompt = campaign.prompt && campaign.prompt.trim().length > 0;
+    const hasCustomTheme = campaign.theme && campaign.theme !== campaign.title && !campaign.theme.includes('Week ');
+    const isEventCampaign = campaign.title && (
+      campaign.title.toLowerCase().includes('event') ||
+      campaign.title.toLowerCase().includes('sale') ||
+      campaign.title.toLowerCase().includes('workshop') ||
+      campaign.title.toLowerCase().includes('promotion')
+    );
     
-    return hasCustomTheme || isEventCampaign || isCustomCampaign;
+    // Only include campaigns that were created via Quick Actions
+    return hasPrompt || hasCustomTheme || isEventCampaign;
   });
 
   const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
