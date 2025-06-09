@@ -1,5 +1,6 @@
 
 import { CalendarView } from "@/components/CalendarView";
+import { UserMenu } from "@/components/UserMenu";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -54,8 +55,13 @@ const CalendarPage = () => {
   return (
     <div className="min-h-screen bg-garden-background">
       <div className="p-6 border-b border-green-200 bg-white">
-        <h1 className="text-3xl font-bold text-garden-green-dark">Campaign Calendar</h1>
-        <p className="text-garden-green font-medium">View and schedule your marketing campaigns</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-garden-green-dark">Campaign Calendar</h1>
+            <p className="text-garden-green font-medium">View and schedule your marketing campaigns</p>
+          </div>
+          <UserMenu />
+        </div>
       </div>
       <div className="p-6">
         <CalendarView 
