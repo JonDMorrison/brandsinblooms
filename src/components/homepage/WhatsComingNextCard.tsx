@@ -2,18 +2,32 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { Calendar, Clock, ArrowRight, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { UpcomingContentModal } from "./UpcomingContentModal";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WhatsComingNextCardProps {
   onTaskUpdate?: () => void;
 }
 
+interface WeekData {
+  id: number;
+  weekNumber: number;
+  weekStart: Date;
+  title: string;
+  theme: string;
+  description: string;
+  summary?: string;
+  contentTypes: string[];
+}
+
 export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) => {
   const [selectedWeek, setSelectedWeek] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [weeks, setWeeks] = useState<WeekData[]>([]);
+  const [loadingSummaries, setLoadingSummaries] = useState<Record<number, boolean>>({});
   const navigate = useNavigate();
 
   const getUpcomingWeeks = () => {
@@ -63,6 +77,51 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
     return descriptions[(weekIndex - 1) % descriptions.length];
   };
 
+  const generateWeeklySummary = async (week: WeekData) => {
+    if (week.summary || loadingSummaries[week.id]) return;
+
+    setLoadingSummaries(prev => ({ ...prev, [week.id]: true }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-weekly-summary', {
+        body: {
+          theme: week.theme,
+          weekNumber: week.weekNumber,
+          date: week.weekStart.toLocaleDateString()
+        }
+      });
+
+      if (error) {
+        console.error('Error generating weekly summary:', error);
+        return;
+      }
+
+      if (data?.summary) {
+        setWeeks(prevWeeks => 
+          prevWeeks.map(w => 
+            w.id === week.id 
+              ? { ...w, summary: data.summary }
+              : w
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error generating weekly summary:', error);
+    } finally {
+      setLoadingSummaries(prev => ({ ...prev, [week.id]: false }));
+    }
+  };
+
+  useEffect(() => {
+    const initialWeeks = getUpcomingWeeks();
+    setWeeks(initialWeeks);
+    
+    // Generate summaries for all weeks
+    initialWeeks.forEach(week => {
+      generateWeeklySummary(week);
+    });
+  }, []);
+
   const handleWeekClick = (week: any) => {
     setSelectedWeek(week);
     setIsModalOpen(true);
@@ -76,8 +135,6 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
   const handleViewCalendar = () => {
     navigate('/calendar');
   };
-
-  const upcomingWeeks = getUpcomingWeeks();
 
   return (
     <>
@@ -94,7 +151,7 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {upcomingWeeks.map((week) => (
+            {weeks.map((week) => (
               <div
                 key={week.id}
                 className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors group"
@@ -112,13 +169,24 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
                   <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
                 </div>
 
-                <h3 className="font-semibold text-gray-900 mb-1">
+                <h3 className="font-semibold text-gray-900 mb-2">
                   {week.theme}
                 </h3>
                 
-                <p className="text-sm text-gray-600 mb-3">
-                  {week.description}
-                </p>
+                {loadingSummaries[week.id] ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+                    <Sparkles className="w-3 h-3 animate-pulse" />
+                    <span>Generating exciting preview...</span>
+                  </div>
+                ) : week.summary ? (
+                  <p className="text-sm text-gray-700 mb-3 font-medium leading-relaxed">
+                    {week.summary}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-600 mb-3">
+                    {week.description}
+                  </p>
+                )}
 
                 <div className="flex flex-wrap gap-1">
                   {week.contentTypes.slice(0, 3).map((type, index) => (
