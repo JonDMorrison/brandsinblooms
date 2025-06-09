@@ -96,7 +96,7 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
       <div className="flex items-center gap-2 group">
         <Palette className="w-4 h-4 text-gray-500" />
         <span className="text-sm font-medium text-gray-700">Content Theme:</span>
-        <span className="text-lg font-bold text-green-800 flex-1 leading-tight">
+        <span className="text-lg font-bold text-foreground flex-1 leading-tight">
           {displayTheme}
         </span>
         <Button
