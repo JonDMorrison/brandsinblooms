@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +7,7 @@ import { Copy, CheckCircle, Edit, ExternalLink, Instagram, Facebook, Mail, BookO
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
+import { stripHtmlAndFormat } from "@/components/homepage/ready-to-post/contentUtils";
 
 interface ContentViewerProps {
   campaignId: string;
@@ -234,10 +234,9 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
 
                     {task.ai_output && (
                       <div className="bg-gray-50 rounded-lg p-3">
-                        <div 
-                          className="prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: task.ai_output }}
-                        />
+                        <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                          {stripHtmlAndFormat(task.ai_output)}
+                        </div>
                       </div>
                     )}
 
