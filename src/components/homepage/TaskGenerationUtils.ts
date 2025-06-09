@@ -95,7 +95,7 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
 export const getHashtagsForType = (postType: string) => {
   switch (postType) {
     case 'newsletter':
-      return '#WeeklyNewsletter #GardenTips #Community';
+      return '#Newsletter #GardenTips #Community';
     case 'instagram':
       return '#GardenLife #Plants #Instagram #GreenThumb';
     case 'facebook':
@@ -105,7 +105,7 @@ export const getHashtagsForType = (postType: string) => {
     case 'video':
       return '#GardenVideo #Tutorial #HowTo #Gardening';
     default:
-      return `#${postType} #WeeklyCampaign #Gardening`;
+      return `#${postType} #Campaign #Gardening`;
   }
 };
 

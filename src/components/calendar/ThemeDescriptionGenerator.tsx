@@ -36,8 +36,8 @@ export const generateThemeDescription = async (
   } catch (error) {
     console.error('Error generating description:', error);
     
-    // Improved fallback description
-    const fallbackDescription = `This week's content will showcase ${theme.toLowerCase()} with practical tips and expert guidance. We'll highlight seasonal opportunities and demonstrate how our quality products and services can help customers achieve their gardening goals.`;
+    // Improved fallback description that doesn't mention week numbers
+    const fallbackDescription = `This theme will showcase ${theme.toLowerCase()} with practical tips and expert guidance. We'll highlight seasonal opportunities and demonstrate how our quality products and services can help customers achieve their gardening goals.`;
     onDescriptionGenerated(fallbackDescription);
   } finally {
     onLoadingChange(false);

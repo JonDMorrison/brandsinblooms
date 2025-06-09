@@ -84,6 +84,7 @@ IMPORTANT: Use this company information to personalize the newsletter. Reference
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
 - NEVER use bullet points (•) or numbered lists in the content
+- NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
 - Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
 `;
@@ -92,6 +93,7 @@ CONTENT RESTRICTIONS:
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
 - NEVER use bullet points (•) or numbered lists in the content
+- NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
 - Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
 `;
@@ -102,7 +104,6 @@ CONTENT RESTRICTIONS:
 ${companyContext}
 
 Campaign: ${campaignTitle}
-Week: ${weekNumber}
 
 Content created this week:
 ${contentSummary.map(item => `
@@ -125,6 +126,7 @@ Create a comprehensive weekly newsletter that:
 10. Ends with a personalized call-to-action
 11. NEVER uses "Green Thumbs" or "green thumb" phrases
 12. NEVER uses bullet points or numbered lists - write in flowing paragraphs only
+13. NEVER mentions week numbers in any form
 
 Format the response as a JSON object with:
 - subject: The email subject line (incorporating company name)
@@ -144,7 +146,7 @@ The newsletter should be 400-600 words and feel personal and authentic to this s
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications. Always respond with valid JSON and personalize content based on the company profile provided. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications. Always respond with valid JSON and personalize content based on the company profile provided. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences. NEVER mention week numbers in any form in the content.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -167,9 +169,9 @@ The newsletter should be 400-600 words and feel personal and authentic to this s
       // Fallback: create newsletter data from raw text
       const companyName = companyProfile?.company_name || 'Garden Center';
       newsletterData = {
-        subject: `Weekly Newsletter from ${companyName} - Week ${weekNumber}`,
+        subject: `Weekly Newsletter from ${companyName}`,
         content: aiResponse,
-        summary: `Personalized newsletter for week ${weekNumber} featuring ${campaignTitle}`
+        summary: `Personalized newsletter featuring ${campaignTitle}`
       };
     }
 
