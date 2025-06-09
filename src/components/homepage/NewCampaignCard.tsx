@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
     <Card className="border-blue-200 bg-blue-50">
       <CardHeader>
         <div className="flex justify-between items-start">
-          <CardTitle className="text-blue-700">{campaign.title}</CardTitle>
+          <CardTitle className="text-foreground">{campaign.title}</CardTitle>
           <div className="flex gap-2">
             <Badge variant="secondary" className="bg-blue-100 text-blue-700">
               New Campaign
