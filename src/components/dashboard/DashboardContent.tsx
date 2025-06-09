@@ -1,4 +1,5 @@
 
+
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
@@ -101,10 +102,15 @@ export const DashboardContent = ({
   // Look for campaign matching current week number first
   const activeCampaign = campaigns.find(c => c.week_number === currentWeekNumber);
 
-  // Find user-created campaigns (excluding the active campaign)
+  // Find user-created campaigns (excluding the active campaign and system-generated campaigns)
   const userCreatedCampaigns = campaigns.filter(campaign => {
     const isActive = campaign.id === activeCampaign?.id;
-    return !isActive && campaign.theme && campaign.theme.includes('Custom');
+    // Show campaigns that are either custom themes or created via Quick Actions
+    // This includes both event promotions and custom campaigns
+    return !isActive && (
+      (campaign.theme && campaign.theme.includes('Custom')) ||
+      campaign.week_number !== currentWeekNumber // User-created campaigns for other weeks
+    );
   });
 
   const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
@@ -219,7 +225,7 @@ export const DashboardContent = ({
                       <PlusCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
                       <h3 className="text-lg font-semibold mb-2">Create a Custom Campaign</h3>
                       <p className="text-sm">
-                        Design your own marketing campaigns for special events, promotions, or seasonal themes.
+                        Use the Quick Actions above to create custom campaigns for special events, promotions, or seasonal themes. They will appear here once created.
                       </p>
                     </div>
                     <Button 
@@ -269,3 +275,4 @@ export const DashboardContent = ({
     </div>
   );
 };
+
