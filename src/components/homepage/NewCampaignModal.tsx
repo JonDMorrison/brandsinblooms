@@ -3,16 +3,14 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2 } from "lucide-react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { getCurrentWeekNumber } from "./homepageUtils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface NewCampaignModalProps {
   open: boolean;
@@ -22,212 +20,170 @@ interface NewCampaignModalProps {
 
 export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewCampaignModalProps) => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
-  const [campaignName, setCampaignName] = useState("");
-  const [eventDate, setEventDate] = useState<Date>();
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [theme, setTheme] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!campaignName.trim() || !eventDate) {
-      toast.error("Please fill in the campaign name and date");
+    if (!user) {
+      setError("You must be logged in to create a campaign");
+      return;
+    }
+
+    if (!title.trim()) {
+      setError("Campaign title is required");
+      return;
+    }
+
+    if (title.trim().length < 3) {
+      setError("Campaign title must be at least 3 characters");
       return;
     }
 
     setLoading(true);
+    setError(null);
 
     try {
-      // Calculate week number from event date
-      const eventYear = eventDate.getFullYear();
-      const firstDayOfYear = new Date(eventYear, 0, 1);
-      const pastDaysOfYear = (eventDate.getTime() - firstDayOfYear.getTime()) / 86400000;
-      const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+      console.log('NewCampaignModal: Creating campaign:', title);
 
-      // Create campaign
-      const { data: campaign, error: campaignError } = await supabase
+      const campaignPrompt = `Create a marketing campaign for "${title}" ${theme ? `with theme: ${theme}` : ''} ${description ? `- ${description}` : ''}. Generate engaging content that promotes this campaign effectively.`;
+
+      const { data, error: insertError } = await supabase
         .from('campaigns')
         .insert({
-          title: campaignName.trim(),
+          title: title.trim(),
           description: description.trim() || null,
-          start_date: format(eventDate, 'yyyy-MM-dd'),
-          week_number: weekNumber,
-          theme: campaignName.trim()
+          theme: theme.trim() || null,
+          prompt: campaignPrompt,
+          start_date: new Date().toISOString().split('T')[0],
+          week_number: getCurrentWeekNumber(),
+          source: 'quick_action'
         })
         .select()
         .single();
 
-      if (campaignError) throw campaignError;
+      if (insertError) {
+        console.error('NewCampaignModal: Error creating campaign:', insertError);
+        throw new Error(insertError.message);
+      }
 
-      // Generate content for all 5 platforms
-      const contentTypes = ['facebook', 'instagram', 'video', 'newsletter', 'email'];
-      const contentPromises = contentTypes.map(async (postType) => {
-        try {
-          // Generate content using OpenAI
-          const { data: contentData, error: contentError } = await supabase.functions.invoke('generate-content', {
-            body: {
-              postType,
-              campaignTitle: campaignName,
-              userId: user?.id
-            }
-          });
-
-          if (contentError) {
-            console.error(`Error generating ${postType} content:`, contentError);
-            return null;
-          }
-
-          // Create content task
-          const { error: taskError } = await supabase
-            .from('content_tasks')
-            .insert({
-              campaign_id: campaign.id,
-              post_type: postType,
-              ai_output: contentData.content,
-              status: 'draft',
-              hashtags: getHashtagsForType(postType),
-              image_idea: getImageIdeaForType(postType),
-              scheduled_date: format(eventDate, 'yyyy-MM-dd')
-            });
-
-          if (taskError) {
-            console.error(`Error creating ${postType} task:`, taskError);
-            return null;
-          }
-
-          return postType;
-        } catch (error) {
-          console.error(`Error with ${postType}:`, error);
-          return null;
-        }
-      });
-
-      const results = await Promise.all(contentPromises);
-      const successfulContent = results.filter(Boolean);
-
-      toast.success(`Campaign created! Generated ${successfulContent.length} pieces of content for review.`);
+      console.log('NewCampaignModal: Campaign created successfully:', data);
 
       // Reset form
-      setCampaignName("");
+      setTitle("");
       setDescription("");
-      setEventDate(undefined);
-      onOpenChange(false);
-      onCampaignCreated();
+      setTheme("");
+      setError(null);
 
+      onCampaignCreated();
+      onOpenChange(false);
+      
     } catch (error: any) {
-      console.error('Error creating campaign:', error);
-      toast.error(error.message || "Failed to create campaign");
+      console.error('NewCampaignModal: Error creating campaign:', error);
+      setError(error.message || 'Failed to create campaign');
+      toast.error(error.message || 'Failed to create campaign');
     } finally {
       setLoading(false);
     }
   };
 
-  const getHashtagsForType = (postType: string) => {
-    switch (postType) {
-      case 'facebook':
-        return '#Campaign #GardenCenter #Community';
-      case 'instagram':
-        return '#Campaign #GardenLife #Plants #Instagram';
-      case 'video':
-        return '#CampaignVideo #GardenTips #Tutorial';
-      case 'newsletter':
-        return '#Newsletter #CampaignAnnouncement #Community';
-      case 'email':
-        return '#CampaignEmail #Newsletter #Community';
-      default:
-        return '#Campaign #GardenCenter';
-    }
-  };
-
-  const getImageIdeaForType = (postType: string) => {
-    switch (postType) {
-      case 'facebook':
-        return 'Campaign announcement image with key details and garden elements';
-      case 'instagram':
-        return 'Square campaign promo image with vibrant garden imagery';
-      case 'video':
-        return 'Video thumbnail featuring campaign highlights and garden center branding';
-      case 'newsletter':
-        return 'Newsletter header with campaign branding and seasonal elements';
-      case 'email':
-        return 'Email header with campaign details and garden center branding';
-      default:
-        return 'Campaign promotional image';
+  const handleClose = () => {
+    if (!loading) {
+      setTitle("");
+      setDescription("");
+      setTheme("");
+      setError(null);
+      onOpenChange(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New Campaign</DialogTitle>
+          <DialogTitle className="text-garden-green-dark">Create New Campaign</DialogTitle>
         </DialogHeader>
+        
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="campaignName">Campaign Name *</Label>
+          <div>
+            <Label htmlFor="title" className="text-garden-green-dark">
+              Campaign Title *
+            </Label>
             <Input
-              id="campaignName"
-              value={campaignName}
-              onChange={(e) => setCampaignName(e.target.value)}
-              placeholder="e.g., Spring Plant Sale, Summer Garden Workshop"
+              id="title"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setError(null);
+              }}
+              placeholder="Enter campaign title"
               required
+              className="border-garden-green-light focus:border-garden-green"
+              disabled={loading}
             />
           </div>
-
-          <div className="space-y-2">
-            <Label>Event/Campaign Date *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !eventDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {eventDate ? format(eventDate, "PPP") : "When is the campaign/event?"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={eventDate}
-                  onSelect={setEventDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+          
+          <div>
+            <Label htmlFor="theme" className="text-garden-green-dark">
+              Campaign Theme
+            </Label>
+            <Input
+              id="theme"
+              value={theme}
+              onChange={(e) => setTheme(e.target.value)}
+              placeholder="Campaign theme (e.g., Spring Sale, Product Launch)"
+              className="border-garden-green-light focus:border-garden-green"
+              disabled={loading}
+            />
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Campaign Description</Label>
+          
+          <div>
+            <Label htmlFor="description" className="text-garden-green-dark">
+              Description
+            </Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the campaign, target audience, key messages, or special promotions..."
-              rows={4}
+              placeholder="Describe your campaign goals and key messages"
+              className="border-garden-green-light focus:border-garden-green"
+              disabled={loading}
             />
           </div>
-
-          <div className="flex justify-end space-x-2 pt-4">
+          
+          <div className="flex justify-end gap-2 pt-4">
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
+              className="border-garden-green-light text-garden-green-dark"
               disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="submit"
+              disabled={!title.trim() || loading}
+              className="bg-garden-green hover:bg-garden-green-dark text-white"
+            >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating Campaign & Generating Content...
+                  Creating...
                 </>
               ) : (
-                "Create Campaign & Generate Content"
+                'Create Campaign'
               )}
             </Button>
           </div>

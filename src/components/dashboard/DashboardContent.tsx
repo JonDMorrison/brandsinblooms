@@ -1,4 +1,3 @@
-
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
@@ -102,28 +101,15 @@ export const DashboardContent = ({
   const activeCampaign = campaigns.find(c => c.week_number === currentWeekNumber);
 
   // Find user-created campaigns - only campaigns created via Quick Actions
-  // These campaigns are created through AddEventDialog or NewCampaignModal
+  // Filter by source field to only show campaigns created through Quick Actions
   const userCreatedCampaigns = campaigns.filter(campaign => {
     const isActive = campaign.id === activeCampaign?.id;
     
     // Don't include the active campaign
     if (isActive) return false;
     
-    // Campaigns created via Quick Actions have specific characteristics:
-    // 1. They have a prompt field (set in AddEventDialog and NewCampaignModal)
-    // 2. Or they have a custom theme that's different from the title
-    // 3. Or they're clearly event-based campaigns
-    const hasPrompt = campaign.prompt && campaign.prompt.trim().length > 0;
-    const hasCustomTheme = campaign.theme && campaign.theme !== campaign.title && !campaign.theme.includes('Week ');
-    const isEventCampaign = campaign.title && (
-      campaign.title.toLowerCase().includes('event') ||
-      campaign.title.toLowerCase().includes('sale') ||
-      campaign.title.toLowerCase().includes('workshop') ||
-      campaign.title.toLowerCase().includes('promotion')
-    );
-    
     // Only include campaigns that were created via Quick Actions
-    return hasPrompt || hasCustomTheme || isEventCampaign;
+    return campaign.source === 'quick_action';
   });
 
   const completedTasksCount = tasks.filter(task => task.status === 'completed').length;

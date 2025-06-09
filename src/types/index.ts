@@ -1,4 +1,3 @@
-
 export interface Campaign {
   id: string;
   title: string;
@@ -8,6 +7,8 @@ export interface Campaign {
   week_number: number;
   created_at?: string;
   updated_at?: string;
+  prompt?: string | null;
+  source?: string | null;
 }
 
 export interface ContentTask {

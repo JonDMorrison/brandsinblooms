@@ -16,6 +16,8 @@ interface Campaign {
   start_date: string;
   theme: string | null;
   week_number: number;
+  prompt?: string | null;
+  source?: string | null;
 }
 
 interface NewCampaignDialogProps {
@@ -51,12 +53,16 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
     try {
       console.log('NewCampaignDialog: Creating campaign with title:', title.trim());
       
+      const campaignPrompt = `Create a marketing campaign for "${title}" ${theme ? `with theme: ${theme}` : ''} ${description ? `- ${description}` : ''}. Generate engaging content that promotes this campaign effectively.`;
+      
       const newCampaign = {
         title: title.trim(),
         description: description.trim() || null,
         theme: theme.trim() || null,
+        prompt: campaignPrompt,
         start_date: new Date().toISOString().split('T')[0],
         week_number: getCurrentWeekNumber(),
+        source: 'quick_action'
       };
 
       await onCreate(newCampaign);
