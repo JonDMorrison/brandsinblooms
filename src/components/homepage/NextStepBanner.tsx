@@ -48,7 +48,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
     if (completedTasksCount === 0) {
       return {
         title: "📝 Your Content is Ready to Review!",
-        description: "We've generated personalized marketing content for you. Take a look and customize it to your liking.",
+        description: "We've generated personalized marketing content for you.",
         action: "Review Your Content",
         icon: "👀",
         bgColor: "bg-gradient-to-r from-green-50 to-green-25",
