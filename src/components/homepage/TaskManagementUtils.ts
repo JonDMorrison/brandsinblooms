@@ -153,6 +153,9 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
 
 export const generateRequiredTasks = async (campaignId: string, campaigns: any[], userId?: string, onTaskUpdate?: () => void) => {
   try {
+    console.log('Starting generateRequiredTasks for campaign:', campaignId);
+    console.log('Available campaigns:', campaigns.map(c => ({ id: c.id, title: c.title })));
+    
     // First check if tasks already exist for this campaign
     const { data: existingTasks, error: checkError } = await supabase
       .from('content_tasks')
@@ -177,7 +180,16 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
     }
 
     const campaign = campaigns.find(c => c.id === campaignId);
-    if (!campaign) return;
+    if (!campaign) {
+      console.error('Campaign not found with ID:', campaignId);
+      throw new Error('Campaign not found');
+    }
+
+    console.log('Found campaign for content generation:', campaign);
+
+    // Ensure we have a campaign title - use theme, title, or fallback
+    const campaignTitle = campaign.title || campaign.theme || 'Garden Center Campaign';
+    console.log('Using campaign title for content generation:', campaignTitle);
 
     const today = new Date();
     const weekNumber = getCurrentWeekNumber();
@@ -194,16 +206,20 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       let aiOutput = '';
       
       try {
+        console.log(`Generating ${postType} content for campaign: ${campaignTitle}`);
+        
         if (postType === 'newsletter') {
-          aiOutput = await generateNewsletterContent(campaignId, campaign.title, weekNumber, userId);
+          aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId);
         } else if (postType === 'video') {
-          aiOutput = await generateVideoScript(campaign.title, userId);
+          aiOutput = await generateVideoScript(campaignTitle, userId);
         } else {
-          aiOutput = await generatePersonalizedContent(postType, campaign.title, userId);
+          aiOutput = await generatePersonalizedContent(postType, campaignTitle, userId);
         }
+        
+        console.log(`Successfully generated ${postType} content`);
       } catch (error) {
         console.error(`Error generating ${postType} content with OpenAI:`, error);
-        throw new Error(`Failed to generate ${postType} content. Please ensure OpenAI API key is configured.`);
+        throw new Error(`Failed to generate ${postType} content. Please ensure OpenAI API key is configured. Error: ${error.message}`);
       }
       
       sampleTasks.push({
