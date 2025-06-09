@@ -6,7 +6,6 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Sparkles, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { generateRequiredTasks } from "./TaskManagementUtils";
 import { toast } from "sonner";
 import { EditableTheme } from "@/components/calendar/EditableTheme";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +21,6 @@ interface CampaignCardProps {
 
 export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasonalContent }: CampaignCardProps) => {
   const { user } = useAuth();
-  const [isGenerating, setIsGenerating] = useState(false);
   const [hasContent, setHasContent] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [isCheckingContent, setIsCheckingContent] = useState(true);
@@ -57,26 +55,7 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
     checkForContent();
   }, [campaign.id]);
 
-  const handleGenerateContent = async () => {
-    if (!user) {
-      toast.error("Please log in to generate content");
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      await generateRequiredTasks(campaign.id, [campaign], user.id, onTaskUpdate);
-      toast.success("Content generated successfully! Check your tasks to review and approve the new content.");
-      setHasContent(true);
-    } catch (error) {
-      console.error('Error generating content:', error);
-      toast.error("Failed to generate content. Please try again.");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handleViewContent = () => {
+  const handleViewOrGenerateContent = () => {
     setShowContentViewer(true);
   };
 
@@ -126,14 +105,11 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
             </div>
           ) : (
             <Button 
-              onClick={hasContent ? handleViewContent : handleGenerateContent}
-              disabled={isGenerating}
+              onClick={handleViewOrGenerateContent}
               className="w-full"
               aria-label={hasContent ? "View generated content" : "Generate new content"}
             >
-              {isGenerating ? (
-                <LoadingSpinner size="sm" />
-              ) : hasContent ? (
+              {hasContent ? (
                 <>
                   <Eye className="w-4 h-4 mr-2" />
                   View This Week's Content
@@ -141,7 +117,7 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Content
+                  Generate Content For This Campaign
                 </>
               )}
             </Button>
