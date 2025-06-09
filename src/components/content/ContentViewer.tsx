@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Copy, CheckCircle, Edit, ExternalLink, Instagram, Facebook, Mail, BookOpen, Video, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -165,71 +167,80 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
                         </Badge>
                       </div>
                       
-                      <div className="flex gap-2">
-                        {task.ai_output && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCopy(task.ai_output)}
-                          >
-                            <Copy className="w-3 h-3 mr-1" />
-                            Copy
-                          </Button>
-                        )}
-                        
-                        {canEdit && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => toast.info('Edit functionality would open content editor')}
-                            className="border-blue-300 text-blue-600 hover:bg-blue-50"
-                          >
-                            <Edit className="w-3 h-3 mr-1" />
-                            Edit
-                          </Button>
-                        )}
-                        
-                        {canApprove && (
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleApprove(task.id)}
-                            disabled={approvingTasks.has(task.id)}
-                          >
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            {approvingTasks.has(task.id) ? 'Approving...' : 'Approve & Send to Ready to Post'}
-                          </Button>
-                        )}
-                        
-                        {showSocialMediaButton ? (
-                          <Button
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                            onClick={() => handleSocialMediaPost(task)}
-                          >
-                            {task.post_type === 'facebook' ? (
-                              <>
-                                <Facebook className="w-3 h-3 mr-1" />
-                                Post to Facebook
-                              </>
-                            ) : (
-                              <>
-                                <Instagram className="w-3 h-3 mr-1" />
-                                Post to Instagram
-                              </>
-                            )}
-                          </Button>
-                        ) : task.status === 'completed' && task.post_type !== 'facebook' && task.post_type !== 'instagram' ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => toast.info('Publishing integration coming soon')}
-                          >
-                            <ExternalLink className="w-3 h-3 mr-1" />
-                            Publish
-                          </Button>
-                        ) : null}
-                      </div>
+                      <TooltipProvider>
+                        <div className="flex gap-2">
+                          {task.ai_output && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCopy(task.ai_output)}
+                            >
+                              <Copy className="w-3 h-3 mr-1" />
+                              Copy
+                            </Button>
+                          )}
+                          
+                          {canEdit && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => toast.info('Edit functionality would open content editor')}
+                              className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                            >
+                              <Edit className="w-3 h-3 mr-1" />
+                              Edit
+                            </Button>
+                          )}
+                          
+                          {canApprove && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700 text-white"
+                                  onClick={() => handleApprove(task.id)}
+                                  disabled={approvingTasks.has(task.id)}
+                                >
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  {approvingTasks.has(task.id) ? 'Approving...' : 'Approve'}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Approve this content and send it to the Ready to Post section</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                          
+                          {showSocialMediaButton ? (
+                            <Button
+                              size="sm"
+                              className="bg-blue-600 hover:bg-blue-700 text-white"
+                              onClick={() => handleSocialMediaPost(task)}
+                            >
+                              {task.post_type === 'facebook' ? (
+                                <>
+                                  <Facebook className="w-3 h-3 mr-1" />
+                                  Post to Facebook
+                                </>
+                              ) : (
+                                <>
+                                  <Instagram className="w-3 h-3 mr-1" />
+                                  Post to Instagram
+                                </>
+                              )}
+                            </Button>
+                          ) : task.status === 'completed' && task.post_type !== 'facebook' && task.post_type !== 'instagram' ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => toast.info('Publishing integration coming soon')}
+                            >
+                              <ExternalLink className="w-3 h-3 mr-1" />
+                              Publish
+                            </Button>
+                          ) : null}
+                        </div>
+                      </TooltipProvider>
                     </div>
 
                     {task.ai_output && (
