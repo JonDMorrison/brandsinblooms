@@ -22,8 +22,8 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
       // Use the provided onGetStarted callback (for authenticated users in the app flow)
       onGetStarted();
     } else if (user) {
-      // User is authenticated but no callback provided, navigate to app
-      navigate('/app');
+      // User is authenticated, redirect to app
+      window.location.href = "/app";
     } else {
       // User is not authenticated, redirect to auth page
       navigate('/auth');

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,7 +33,8 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
-        navigate("/");
+        // Force redirect to app
+        window.location.href = "/app";
       }
     } catch (error: any) {
       setError(error.message);
@@ -56,7 +56,7 @@ const Auth = () => {
     }
 
     try {
-      const redirectUrl = `${window.location.origin}/onboarding`;
+      const redirectUrl = `${window.location.origin}/app`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -73,7 +73,7 @@ const Auth = () => {
 
       if (data.user) {
         if (data.user.email_confirmed_at) {
-          navigate("/onboarding");
+          window.location.href = "/app";
         } else {
           setMessage("Please check your email for a confirmation link");
         }
@@ -93,7 +93,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/onboarding`
+          redirectTo: `${window.location.origin}/app`
         }
       });
 
@@ -104,16 +104,8 @@ const Auth = () => {
     }
   };
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate("/");
-      }
-    };
-    checkUser();
-  }, [navigate]);
+  // The PublicRoute component already handles redirecting authenticated users,
+  // so we don't need the useEffect check here anymore
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-garden-background via-garden-sage to-garden-sage flex items-center justify-center p-6">
