@@ -135,12 +135,20 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         throw new Error(`Failed to approve content: ${error.message}`);
       }
 
-      toast.success('Content approved successfully!');
-      await fetchPendingTasks();
+      // Remove from pending tasks immediately for better UX
+      setPendingTasks(prev => prev.filter(task => task.id !== taskId));
+      
+      toast.success('Content approved and moved to Ready to Post!', {
+        description: 'You can now publish this content from the Ready to Post section.',
+        duration: 4000,
+      });
+      
       if (onTaskUpdate) onTaskUpdate();
     } catch (error: any) {
       console.error('ReviewQueue: Error in handleApprove:', error);
       toast.error(error.message || 'Failed to approve content');
+      // Refresh to restore state on error
+      await fetchPendingTasks();
     } finally {
       setApprovingTasks(prev => {
         const newSet = new Set(prev);
@@ -155,8 +163,40 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     fetchPendingTasks();
   };
 
+  // Set up real-time subscription for new draft content
   useEffect(() => {
+    const channel = supabase
+      .channel('review-queue-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'content_tasks',
+          filter: 'status=eq.draft'
+        },
+        (payload) => {
+          console.log('Real-time update for review queue:', payload);
+          
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            if (payload.new.status === 'draft' && payload.new.ai_output) {
+              setPendingTasks(prev => {
+                const filtered = prev.filter(task => task.id !== payload.new.id);
+                return [payload.new, ...filtered];
+              });
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setPendingTasks(prev => prev.filter(task => task.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
     fetchPendingTasks();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchPendingTasks]);
 
   return {
