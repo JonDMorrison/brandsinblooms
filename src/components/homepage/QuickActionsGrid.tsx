@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Calendar, BarChart3, CalendarPlus, Sparkles } from "lucide-react";
@@ -53,9 +54,9 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       title: 'Promote Event',
       description: 'Get help marketing your events',
       benefit: 'Custom promotional content',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50 hover:bg-green-100',
-      borderColor: 'border-green-200 hover:border-green-300',
+      color: 'text-gray-600',
+      bgColor: 'bg-gray-50 hover:bg-gray-100',
+      borderColor: 'border-gray-200 hover:border-gray-300',
       onClick: () => setShowAddEventDialog(true),
       ariaLabel: 'Add a new event to promote'
     },
