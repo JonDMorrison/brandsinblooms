@@ -130,7 +130,7 @@ const Auth = () => {
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
-            Your garden center's marketing hub
+            Save Hours with BloomSuite
           </p>
         </div>
 
