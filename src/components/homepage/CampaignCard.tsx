@@ -104,23 +104,25 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
               <LoadingSpinner size="sm" text="Checking content status..." />
             </div>
           ) : (
-            <Button 
-              onClick={handleViewOrGenerateContent}
-              className="w-full"
-              aria-label={hasContent ? "View generated content" : "Generate new content"}
-            >
-              {hasContent ? (
-                <>
-                  <Eye className="w-4 h-4 mr-2" />
-                  View This Week's Content
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Content For This Campaign
-                </>
-              )}
-            </Button>
+            <div className="flex justify-center">
+              <Button 
+                onClick={handleViewOrGenerateContent}
+                className="max-w-xs"
+                aria-label={hasContent ? "View generated content" : "Generate new content"}
+              >
+                {hasContent ? (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View This Week's Content
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Content For This Campaign
+                  </>
+                )}
+              </Button>
+            </div>
           )}
           <p className="text-xs text-muted-foreground mt-2 text-center">
             {hasContent 
