@@ -46,13 +46,15 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: Enhance
     }
   };
 
+  // Only show truly approved content with proper status indicators
   const getReadinessStatus = () => {
     const hasContent = task.ai_output && task.ai_output.trim().length > 0;
     const hasScheduleDate = task.scheduled_date;
     
-    if (hasContent && hasScheduleDate) {
+    // Only show ready status for approved content
+    if (task.status === 'approved' && hasContent && hasScheduleDate) {
       return { status: 'ready', label: 'Ready to Publish', color: 'bg-green-100 text-green-800' };
-    } else if (hasContent) {
+    } else if (task.status === 'approved' && hasContent) {
       return { status: 'needs-schedule', label: 'Needs Scheduling', color: 'bg-yellow-100 text-yellow-800' };
     } else {
       return { status: 'needs-content', label: 'Needs Review', color: 'bg-orange-100 text-orange-800' };

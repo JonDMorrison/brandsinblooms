@@ -125,9 +125,10 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     try {
       console.log('ReviewQueue: Approving task:', taskId);
       
+      // Change status to 'approved' instead of 'scheduled'
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'scheduled' })
+        .update({ status: 'approved' })
         .eq('id', taskId);
 
       if (error) {
