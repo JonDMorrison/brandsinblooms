@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -93,8 +94,8 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           <div className="grid md:grid-cols-3 gap-12">
             <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Edit className="h-8 w-8 text-primary-600" />
+                <div className="w-16 h-16 bg-garden-sage rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Edit className="h-8 w-8 text-garden-green" />
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
                   Paste Your Website
@@ -107,8 +108,8 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
 
             <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-warning-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <CheckCircle className="h-8 w-8 text-warning-600" />
+                <div className="w-16 h-16 bg-garden-sage rounded-full flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="h-8 w-8 text-garden-green" />
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
                   Review Your Content
@@ -121,8 +122,8 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
 
             <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-accent-blue/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <TrendingUp className="h-8 w-8 text-blue-600" />
+                <div className="w-16 h-16 bg-garden-sage rounded-full flex items-center justify-center mx-auto mb-6">
+                  <TrendingUp className="h-8 w-8 text-garden-green" />
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
                   Publish & Grow
