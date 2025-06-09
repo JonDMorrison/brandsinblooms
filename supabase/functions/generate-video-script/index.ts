@@ -73,6 +73,8 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
+- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form
+- ALWAYS start with a powerful, attention-grabbing hook that immediately draws viewers in
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Make all advice regionally appropriate and climate-specific
@@ -84,6 +86,8 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
+- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form
+- ALWAYS start with a powerful, attention-grabbing hook that immediately draws viewers in
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Since no location is specified, keep advice general but mention the importance of knowing your local climate zone
@@ -94,6 +98,7 @@ CRITICAL CONTENT RESTRICTIONS:
     const prompt = `Create a video script about ${campaignTitle} for a garden center owner/expert speaking to their local community. ${companyContext}
 
 Requirements:
+- Start with a powerful, attention-grabbing hook - NO "Welcome to" language or week mentions
 - Write as if the garden center owner/expert is speaking directly to their local customers
 - Use the company's brand voice and speak to their target audience
 - Keep it conversational and natural (60-90 seconds when spoken)
@@ -110,6 +115,7 @@ Requirements:
 - Make it sound like a local expert giving advice to their community
 - Write in flowing paragraphs and natural sentences, NOT bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase
+- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
 - If you need to present multiple points, weave them naturally into conversational paragraph form
 
 Format the response as a natural speaking script, not bullet points or lists.`;
@@ -125,7 +131,7 @@ Format the response as a natural speaking script, not bullet points or lists.`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional video script writer specializing in garden center content with deep knowledge of regional gardening differences across various climate zones. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert to their local community. Focus on region-specific advice that considers local climate, growing conditions, seasonal timing, and regional gardening challenges. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. If you need to present multiple points, weave them naturally into conversational paragraph form.' },
+          { role: 'system', content: 'You are a professional video script writer specializing in garden center content with deep knowledge of regional gardening differences across various climate zones. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert to their local community. Focus on region-specific advice that considers local climate, growing conditions, seasonal timing, and regional gardening challenges. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form. ALWAYS start with a powerful, attention-grabbing hook that immediately draws viewers in. If you need to present multiple points, weave them naturally into conversational paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

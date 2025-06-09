@@ -96,6 +96,8 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
 - ABSOLUTELY NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
+- ABSOLUTELY NEVER start with "Welcome to" language or similar generic openings
+- ALWAYS start with a powerful, attention-grabbing hook that immediately engages the reader
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Make all advice regionally appropriate and climate-specific
@@ -108,6 +110,8 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
 - ABSOLUTELY NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
+- ABSOLUTELY NEVER start with "Welcome to" language or similar generic openings
+- ALWAYS start with a powerful, attention-grabbing hook that immediately engages the reader
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Since no location is specified, keep advice general but emphasize the importance of local climate considerations
@@ -130,22 +134,24 @@ Image idea: ${item.imageIdea}
 `).join('\n')}
 
 Create a comprehensive weekly newsletter that:
-1. Uses the company's specific name and brand voice throughout
-2. Reflects their unique selling points and specializations
-3. Speaks directly to their target audience and ideal customer
-4. Incorporates their company values naturally
-5. References their location and seasonal focus with high specificity to their region
-6. Maintains their preferred tone of writing
-7. Highlights the week's main theme from the content
-8. Includes practical gardening tips that are specifically relevant to their geographic location and climate zone
-9. Mentions seasonal activities and timing that's accurate for their specific region
-10. Addresses local gardening challenges and regional growing conditions
-11. References plants, techniques, and timing appropriate for their local hardiness zone
-12. Considers local weather patterns, soil conditions, and regional gardening culture
-13. Ends with a personalized call-to-action that reflects their local community
-14. ABSOLUTELY NEVER uses "Green Thumbs", "green thumb", or any variation of this phrase
-15. ABSOLUTELY NEVER uses bullet points, numbered lists, or dashes - write in flowing paragraphs only
-16. ABSOLUTELY NEVER mentions week numbers in any form
+1. STARTS with a powerful, attention-grabbing hook - NO "Welcome to" language or week number mentions
+2. Uses the company's specific name and brand voice throughout
+3. Reflects their unique selling points and specializations
+4. Speaks directly to their target audience and ideal customer
+5. Incorporates their company values naturally
+6. References their location and seasonal focus with high specificity to their region
+7. Maintains their preferred tone of writing
+8. Highlights the week's main theme from the content
+9. Includes practical gardening tips that are specifically relevant to their geographic location and climate zone
+10. Mentions seasonal activities and timing that's accurate for their specific region
+11. Addresses local gardening challenges and regional growing conditions
+12. References plants, techniques, and timing appropriate for their local hardiness zone
+13. Considers local weather patterns, soil conditions, and regional gardening culture
+14. Ends with a personalized call-to-action that reflects their local community
+15. ABSOLUTELY NEVER uses "Green Thumbs", "green thumb", or any variation of this phrase
+16. ABSOLUTELY NEVER uses bullet points, numbered lists, or dashes - write in flowing paragraphs only
+17. ABSOLUTELY NEVER mentions week numbers in any form
+18. ABSOLUTELY NEVER starts with "Welcome to" or similar generic openings
 
 Format the response as a JSON object with:
 - subject: The email subject line (incorporating company name and regional relevance)
@@ -165,7 +171,7 @@ The newsletter should be 400-600 words and feel personal, authentic, and highly 
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention week numbers in any form in the content. If you need to present multiple points, weave them naturally into paragraph form.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention week numbers in any form in the content. ABSOLUTELY NEVER start with "Welcome to" or similar generic openings. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader. If you need to present multiple points, weave them naturally into paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

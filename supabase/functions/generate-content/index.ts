@@ -74,6 +74,8 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
+- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers (e.g., "Week 12", "This week", etc.)
+- ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Make content regionally relevant and climate-appropriate
@@ -85,6 +87,8 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
+- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers (e.g., "Week 12", "This week", etc.)
+- ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Since no location is specified, keep advice general but mention the importance of knowing your local climate zone
@@ -96,6 +100,7 @@ CRITICAL CONTENT RESTRICTIONS:
       instagram: `Create an engaging Instagram post about ${campaignTitle}. ${companyContext}
 
 Requirements:
+- Start with a powerful, attention-grabbing hook - NO "Welcome to" language
 - Write in the company's brand voice and tone
 - Keep it engaging and visual-friendly (under 150 words)
 - Include relevant emojis
@@ -108,11 +113,13 @@ Requirements:
 - Make it feel authentic to this specific garden center and their local area
 - Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
 - Present information in natural, conversational paragraph form`,
 
       facebook: `Create a Facebook post about ${campaignTitle}. ${companyContext}
 
 Requirements:
+- Start with a powerful, attention-grabbing hook - NO "Welcome to" language
 - Write in the company's brand voice and tone
 - Be conversational and community-focused (150-250 words)
 - Reference the company's unique selling points
@@ -125,11 +132,13 @@ Requirements:
 - Make it feel personal and authentic to this garden center and their community
 - Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
 - Present information in natural, conversational paragraph form`,
 
       email: `Create email content about ${campaignTitle}. ${companyContext}
 
 Requirements:
+- Start with a powerful, attention-grabbing hook - NO "Welcome to" language
 - Write in the company's tone of writing
 - Be informative and valuable (100-200 words)
 - Reference the company's seasonal focus when relevant
@@ -144,11 +153,13 @@ Requirements:
 - Make it feel personal from this specific garden center in their specific region
 - Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
 - Present information in natural, conversational paragraph form`,
 
       video: `Create a video script about ${campaignTitle}. ${companyContext}
 
 Requirements:
+- Start with a powerful, attention-grabbing hook - NO "Welcome to" language
 - Write in the company's brand voice
 - Keep it conversational and natural (60-90 seconds when spoken)
 - Reference the company's expertise and specializations
@@ -163,11 +174,12 @@ Requirements:
 - Make it feel authentic to this garden center owner/expert in their specific region
 - Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
 - Present information in natural, conversational paragraph form`
     };
 
     const prompt = contentPrompts[postType as keyof typeof contentPrompts] || 
-      `Create ${postType} content about ${campaignTitle} for a garden center. Make it engaging, professional, and region-specific if location information is available. Write in flowing paragraphs only - ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase.`;
+      `Create ${postType} content about ${campaignTitle} for a garden center. Start with a powerful hook - NO "Welcome to" language. Make it engaging, professional, and region-specific if location information is available. Write in flowing paragraphs only - ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase. ABSOLUTELY NEVER mention week numbers.`;
 
     console.log('Generating personalized, region-specific content with OpenAI for:', postType);
 
@@ -180,7 +192,7 @@ Requirements:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company\'s brand, expertise, and most importantly their local region and climate conditions. Consider factors like hardiness zones, local weather patterns, regional growing seasons, soil conditions, and area-specific gardening challenges. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. If you need to present multiple points, weave them naturally into paragraph form.' },
+          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company\'s brand, expertise, and most importantly their local region and climate conditions. Consider factors like hardiness zones, local weather patterns, regional growing seasons, soil conditions, and area-specific gardening challenges. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader. If you need to present multiple points, weave them naturally into paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
