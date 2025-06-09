@@ -114,11 +114,12 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
           <p className="text-blue-600 mb-4">{campaign.description}</p>
         )}
         
-        <div className="mt-6">
+        <div className="mt-6 flex justify-center">
           <Button 
             onClick={handleGenerateContent}
             disabled={isGenerating}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+            size="default"
           >
             {isGenerating ? (
               <>
@@ -132,10 +133,10 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
               </>
             )}
           </Button>
-          <p className="text-xs text-blue-600 mt-2 text-center">
-            Creates social media posts, video scripts, newsletter, and email content
-          </p>
         </div>
+        <p className="text-xs text-blue-600 mt-2 text-center">
+          Creates social media posts, video scripts, newsletter, and email content
+        </p>
       </CardContent>
     </Card>
   );
