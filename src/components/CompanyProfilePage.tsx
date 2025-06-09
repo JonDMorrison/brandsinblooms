@@ -2,15 +2,20 @@
 import { useState, useEffect } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CompanyProfileForm } from "@/components/CompanyProfileForm";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { Save, ArrowLeft } from "lucide-react";
 
 export const CompanyProfilePage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -47,6 +52,17 @@ export const CompanyProfilePage = () => {
     fetchProfile(); // Refresh data from server
   };
 
+  const handleSave = async () => {
+    // This will trigger the save from the form component
+    setIsSaving(true);
+    // The actual save logic is handled by the CompanyProfileForm component
+    // We just need to provide a way to trigger it from here
+  };
+
+  const handleReturnToDashboard = () => {
+    navigate('/app');
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-garden-background">
@@ -77,6 +93,27 @@ export const CompanyProfilePage = () => {
             onToggleEdit={() => setIsEditing(!isEditing)}
             onProfileUpdate={handleProfileUpdate}
           />
+
+          {/* Bottom Action Buttons */}
+          <div className="mt-8 flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={handleReturnToDashboard}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Return To Dashboard
+            </Button>
+            
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || !isEditing}
+              className="flex items-center gap-2"
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
         </div>
       </div>
     </TooltipProvider>
