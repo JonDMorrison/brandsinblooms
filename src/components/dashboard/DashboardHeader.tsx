@@ -41,32 +41,43 @@ export const DashboardHeader = ({
 
   if (currentView === "home") {
     return (
-      <div className="p-6 border-b border-green-200 bg-white">
-        <div className="flex justify-end">
+      <>
+        {/* Floating UserMenu - always visible */}
+        <div className="fixed top-4 right-4 z-50">
           <UserMenu />
         </div>
-      </div>
+        
+        <div className="p-6 border-b border-green-200 bg-white">
+          {/* Header content without UserMenu */}
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="p-6 border-b border-green-200 bg-white">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-garden-green-dark">
-            {getViewTitle()}
-          </h1>
-          <p className="text-garden-green font-medium">
-            {getViewDescription()}
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          {currentView !== "team" && currentView !== "profile" && (
-            <CampaignDialog onCampaignCreated={onCampaignCreated} />
-          )}
-          <UserMenu />
+    <>
+      {/* Floating UserMenu - always visible */}
+      <div className="fixed top-4 right-4 z-50">
+        <UserMenu />
+      </div>
+      
+      <div className="p-6 border-b border-green-200 bg-white">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-garden-green-dark">
+              {getViewTitle()}
+            </h1>
+            <p className="text-garden-green font-medium">
+              {getViewDescription()}
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            {currentView !== "team" && currentView !== "profile" && (
+              <CampaignDialog onCampaignCreated={onCampaignCreated} />
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
