@@ -239,11 +239,11 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl">
+            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage">
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-orange-400 text-orange-400" />
+                    <Star key={i} className="h-5 w-5 fill-garden-green text-garden-green" />
                   ))}
                 </div>
                 <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
@@ -261,11 +261,11 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl">
+            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage">
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-orange-400 text-orange-400" />
+                    <Star key={i} className="h-5 w-5 fill-garden-green text-garden-green" />
                   ))}
                 </div>
                 <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
@@ -283,11 +283,11 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl">
+            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage">
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-orange-400 text-orange-400" />
+                    <Star key={i} className="h-5 w-5 fill-garden-green text-garden-green" />
                   ))}
                 </div>
                 <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
@@ -342,7 +342,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           
           <Button 
             onClick={handleGetStarted}
-            className="bg-warning-500 hover:bg-warning-600 text-warning-foreground px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-6"
+            className="bg-white hover:bg-gray-100 text-garden-green px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-6"
           >
             Get Started In Less Than A Minute
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
