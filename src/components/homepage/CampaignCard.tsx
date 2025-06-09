@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,27 +103,25 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
               <LoadingSpinner size="sm" text="Checking content status..." />
             </div>
           ) : (
-            <div className="flex justify-center">
-              <Button 
-                onClick={handleViewOrGenerateContent}
-                className="max-w-xs"
-                aria-label={hasContent ? "View generated content" : "Generate new content"}
-              >
-                {hasContent ? (
-                  <>
-                    <Eye className="w-4 h-4 mr-2" />
-                    View This Week's Content
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Generate Content For This Campaign
-                  </>
-                )}
-              </Button>
-            </div>
+            <Button 
+              onClick={handleViewOrGenerateContent}
+              className="max-w-xs"
+              aria-label={hasContent ? "View generated content" : "Generate new content"}
+            >
+              {hasContent ? (
+                <>
+                  <Eye className="w-4 h-4 mr-2" />
+                  View This Week's Content
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Content For This Campaign
+                </>
+              )}
+            </Button>
           )}
-          <p className="text-xs text-muted-foreground mt-2 text-center">
+          <p className="text-xs text-muted-foreground mt-2">
             {hasContent 
               ? "Review your generated content in the tasks section"
               : "Creates social media posts, video scripts, newsletter, and email content"
