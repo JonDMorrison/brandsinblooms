@@ -3,13 +3,11 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Eye } from "lucide-react";
+import { Eye } from "lucide-react";
 import { toast } from "sonner";
 import { generatePersonalizedContent } from "./TaskGenerationUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
-import { ContentGenerationTab } from "./upcoming-content/ContentGenerationTab";
 import { ContentPreviewTab } from "./upcoming-content/ContentPreviewTab";
 
 interface UpcomingContentModalProps {
@@ -158,59 +156,26 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
           </div>
         </DialogHeader>
 
-        <Tabs defaultValue="content" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 p-1 rounded-lg">
-            <TabsTrigger 
-              value="content" 
-              className="flex items-center gap-2 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
-            >
-              <Sparkles className="w-4 h-4" />
-              Content Generation
-            </TabsTrigger>
-            <TabsTrigger 
-              value="preview" 
-              className="flex items-center gap-2 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
-            >
-              <Eye className="w-4 h-4" />
-              Preview & Edit
-            </TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+            <Eye className="w-5 h-5" />
+            Content Preview & Edit
+          </div>
 
-          <TabsContent value="content" className="space-y-6">
-            <ContentGenerationTab
-              week={week}
-              generatedContent={generatedContent}
-              generatingContent={generatingContent}
-              approvedContent={approvedContent}
-              editingContent={editingContent}
-              editedContent={editedContent}
-              onGenerateContent={handleGenerateContent}
-              onEditContent={handleEditContent}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={handleCancelEdit}
-              onCopyContent={handleCopyContent}
-              onApproveContent={handleApproveContent}
-              onSocialMediaPost={handleSocialMediaPost}
-              onEditedContentChange={handleEditedContentChange}
-            />
-          </TabsContent>
-
-          <TabsContent value="preview" className="space-y-6">
-            <ContentPreviewTab
-              generatedContent={generatedContent}
-              editingContent={editingContent}
-              editedContent={editedContent}
-              approvedContent={approvedContent}
-              onEditContent={handleEditContent}
-              onSaveEdit={handleSaveEdit}
-              onCancelEdit={handleCancelEdit}
-              onCopyContent={handleCopyContent}
-              onApproveContent={handleApproveContent}
-              onSocialMediaPost={handleSocialMediaPost}
-              onEditedContentChange={handleEditedContentChange}
-            />
-          </TabsContent>
-        </Tabs>
+          <ContentPreviewTab
+            generatedContent={generatedContent}
+            editingContent={editingContent}
+            editedContent={editedContent}
+            approvedContent={approvedContent}
+            onEditContent={handleEditContent}
+            onSaveEdit={handleSaveEdit}
+            onCancelEdit={handleCancelEdit}
+            onCopyContent={handleCopyContent}
+            onApproveContent={handleApproveContent}
+            onSocialMediaPost={handleSocialMediaPost}
+            onEditedContentChange={handleEditedContentChange}
+          />
+        </div>
 
         <div className="flex justify-between items-center pt-6 border-t">
           <div className="text-sm text-gray-500">
