@@ -92,9 +92,9 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           </h2>
           
           <div className="grid md:grid-cols-3 gap-12">
-            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
+            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-garden-sage rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
                   <Edit className="h-8 w-8 text-garden-green" />
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
@@ -106,9 +106,9 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
+            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-garden-sage rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
                   <CheckCircle className="h-8 w-8 text-garden-green" />
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
@@ -120,9 +120,9 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl">
+            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage">
               <CardContent className="pt-6">
-                <div className="w-16 h-16 bg-garden-sage rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
                   <TrendingUp className="h-8 w-8 text-garden-green" />
                 </div>
                 <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
