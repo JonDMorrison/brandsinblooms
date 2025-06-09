@@ -136,7 +136,16 @@ export const Homepage = () => {
   }
 
   const weekNumber = getCurrentWeekNumber();
-  const currentCampaign = campaigns.find(c => c.week_number === weekNumber) || campaigns[0];
+  
+  // Always prioritize finding a campaign for the current week
+  let currentCampaign = campaigns.find(c => c.week_number === weekNumber);
+  
+  // If no campaign exists for current week, we should indicate this clearly
+  // rather than falling back to week 1
+  if (!currentCampaign && campaigns.length > 0) {
+    console.log(`No campaign found for current week ${weekNumber}, available weeks:`, 
+      campaigns.map(c => c.week_number));
+  }
 
   return (
     <div className="min-h-screen bg-garden-background p-6">

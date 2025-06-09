@@ -12,7 +12,7 @@ import { SetupProgressCard } from "@/components/homepage/SetupProgressCard";
 import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { PlusCircle, AlertTriangle, RefreshCw, Calendar } from "lucide-react";
 import { useState } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { SampleCampaignCard } from "./SampleCampaignCard";
@@ -92,13 +92,13 @@ export const DashboardContent = ({
     );
   }
 
-  // Calculate dashboard metrics
-  const activeCampaign = campaigns.find(c => {
-    const campaignStart = new Date(c.start_date);
-    const campaignEnd = new Date(campaignStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const now = new Date();
-    return now >= campaignStart && now <= campaignEnd;
-  });
+  // Calculate current week and find active campaign
+  const currentWeekNumber = Math.ceil(
+    ((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
+  );
+  
+  // Look for campaign matching current week number first
+  const activeCampaign = campaigns.find(c => c.week_number === currentWeekNumber);
 
   // Find user-created campaigns (excluding the active campaign)
   const userCreatedCampaigns = campaigns.filter(campaign => {
@@ -157,14 +157,42 @@ export const DashboardContent = ({
           <QuickActionsGrid onCampaignCreated={handleCampaignCreatedWrapper} />
           
           {/* Current Campaign */}
-          {activeCampaign && (
+          {activeCampaign ? (
             <div>
-              <h2 className="text-xl font-semibold text-gray-800 mb-4">Current Campaign</h2>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                Current Campaign (Week {currentWeekNumber})
+              </h2>
               <CampaignCard 
                 campaign={activeCampaign} 
                 onTaskUpdate={handleTaskUpdate}
                 onCampaignUpdate={refetch}
               />
+            </div>
+          ) : (
+            <div>
+              <h2 className="text-xl font-semibold text-gray-800 mb-4">
+                Current Campaign (Week {currentWeekNumber})
+              </h2>
+              <Card className="border-dashed border-2 border-gray-300 bg-gray-50">
+                <CardContent className="p-8 text-center">
+                  <div className="space-y-4">
+                    <div className="text-gray-500">
+                      <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <h3 className="text-lg font-semibold mb-2">No Campaign for Week {currentWeekNumber}</h3>
+                      <p className="text-sm">
+                        Create a campaign for the current week to start generating content.
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={() => setShowNewCampaignDialog(true)}
+                      className="bg-primary hover:bg-primary-600 text-white"
+                    >
+                      <PlusCircle className="w-4 h-4 mr-2" />
+                      Create Campaign for Week {currentWeekNumber}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -226,12 +254,7 @@ export const DashboardContent = ({
             totalTasks={totalTasksCount}
             completedTasks={completedTasksCount}
             pendingTasks={pendingTasksCount}
-            activeCampaigns={campaigns.filter(c => {
-              const campaignStart = new Date(c.start_date);
-              const campaignEnd = new Date(campaignStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-              const now = new Date();
-              return now >= campaignStart && now <= campaignEnd;
-            }).length}
+            activeCampaigns={activeCampaign ? 1 : 0}
           />
         </div>
       </div>

@@ -1,13 +1,12 @@
 export const getCurrentWeekCampaign = (campaigns: any[]) => {
   if (campaigns.length === 0) return null;
   
-  const today = new Date();
   const currentWeekNumber = getCurrentWeekNumber();
   
   console.log('Looking for current week:', currentWeekNumber);
   console.log('Available campaigns:', campaigns.map(c => ({ id: c.id, week: c.week_number, title: c.title })));
   
-  // First, try to find a campaign for the current week number
+  // Only look for a campaign that matches the current week number
   const currentWeekCampaign = campaigns.find(campaign => {
     return campaign.week_number === currentWeekNumber;
   });
@@ -17,21 +16,9 @@ export const getCurrentWeekCampaign = (campaigns: any[]) => {
     return currentWeekCampaign;
   }
   
-  // If no current week campaign, try to find one within the current week by date
-  const currentWeekByDateCampaign = campaigns.find(campaign => {
-    const campaignDate = new Date(campaign.start_date);
-    const daysDiff = Math.abs((campaignDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000));
-    return daysDiff <= 7; // Within a week
-  });
-  
-  if (currentWeekByDateCampaign) {
-    console.log('Found campaign by date:', currentWeekByDateCampaign);
-    return currentWeekByDateCampaign;
-  }
-  
-  // If still no match, just use the first available campaign for testing
-  console.log('No current week campaign found, using first available:', campaigns[0]);
-  return campaigns[0];
+  // Don't fall back to other campaigns - return null if no current week campaign exists
+  console.log('No campaign found for current week:', currentWeekNumber);
+  return null;
 };
 
 // Calculate the actual week number of the year from today's date
