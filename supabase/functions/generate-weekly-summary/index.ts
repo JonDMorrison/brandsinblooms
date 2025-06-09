@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -27,6 +26,7 @@ serve(async (req) => {
 
     if (type === 'headline') {
       systemPrompt = `You are a creative marketing headline writer for garden centers. Create compelling, attention-grabbing headlines from weekly themes. The headlines should:
+      - Be ONE sentence only
       - Be engaging and exciting (like magazine headlines)
       - Use action words and emotional language
       - Be 3-8 words maximum
@@ -36,9 +36,9 @@ serve(async (req) => {
       - Focus on benefits and excitement
       
       Transform boring theme names into headlines that make customers excited to engage.
-      Return ONLY the headline, no quotes or extra text.`;
+      Return ONLY the headline, no quotes or extra text. Keep it to ONE sentence.`;
       
-      userPrompt = `Create an exciting marketing headline for this garden center theme: "${theme}"`;
+      userPrompt = `Create an exciting single-sentence marketing headline for this garden center theme: "${theme}"`;
     } else {
       systemPrompt = `You are a marketing content strategist for garden centers. Create an engaging, exciting summary for an upcoming marketing campaign week. The summary should:
       - Be 1-2 sentences maximum
@@ -66,7 +66,7 @@ serve(async (req) => {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        max_tokens: type === 'headline' ? 50 : 100,
+        max_tokens: type === 'headline' ? 30 : 100,
         temperature: 0.8,
       }),
     });
