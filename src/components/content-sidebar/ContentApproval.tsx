@@ -18,11 +18,11 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      console.log('Approving task with status change to: scheduled');
+      console.log('Approving task with status change to: approved');
       
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'scheduled' })
+        .update({ status: 'approved' })
         .eq('id', task.id);
 
       if (error) {
@@ -35,7 +35,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
       } else {
         toast({
           title: "Content Approved! ✅",
-          description: "Content has been approved successfully.",
+          description: "Content has been approved and is ready to post.",
         });
         if (onTaskUpdate) onTaskUpdate();
         onClose();
@@ -60,7 +60,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
         <div className="text-center">
           <h3 className="font-semibold text-orange-800 mb-2">Ready for Approval</h3>
           <p className="text-sm text-orange-700 mb-4">
-            Review the content below and approve it to move to scheduled status.
+            Review the content below and approve it to move to ready-to-post status.
           </p>
           <Button 
             onClick={handleApprove}

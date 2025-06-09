@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         console.error('Error updating task:', error);
         toast.error(`Failed to update task: ${error.message}`);
       } else {
-        toast.success(`Task ${newStatus === 'scheduled' ? 'approved' : 'updated'}`);
+        toast.success(`Task ${newStatus === 'approved' ? 'approved and ready to post' : 'updated'}`);
         fetchTasks(); // Refresh the list
       }
     } catch (error) {
@@ -102,7 +103,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled':
+      case 'approved':
         return 'bg-green-100 text-green-800';
       case 'review':
         return 'bg-orange-100 text-orange-800';
@@ -273,10 +274,10 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                         <Copy className="w-3 h-3 mr-1" />
                         Copy
                       </Button>
-                      {task.status !== 'scheduled' && (
+                      {task.status !== 'approved' && (
                         <Button
                           size="sm"
-                          onClick={() => updateTaskStatus(task.id, 'scheduled')}
+                          onClick={() => updateTaskStatus(task.id, 'approved')}
                           className="bg-green-600 hover:bg-green-700 text-white"
                         >
                           Approve
