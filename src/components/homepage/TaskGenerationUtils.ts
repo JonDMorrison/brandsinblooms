@@ -1,12 +1,6 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentWeekNumber } from "./homepageUtils";
-import { 
-  generateNewsletterContent, 
-  generateVideoScript, 
-  generatePersonalizedContent,
-  getHashtagsForType, 
-  getImageIdeaForType 
-} from "./TaskGenerationUtils";
 import { cleanupDuplicatesForCampaign } from "./CleanupUtils";
 
 export const ensureCampaignHasTasks = async (campaigns: any[], userId: string, onTaskUpdate: () => void) => {
