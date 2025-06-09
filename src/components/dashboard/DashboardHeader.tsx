@@ -41,16 +41,9 @@ export const DashboardHeader = ({
 
   if (currentView === "home") {
     return (
-      <>
-        {/* Floating UserMenu - always visible */}
-        <div className="fixed top-4 right-4 z-50">
-          <UserMenu />
-        </div>
-        
-        <div className="p-6 border-b border-green-200 bg-white">
-          {/* Header content without UserMenu */}
-        </div>
-      </>
+      <div className="fixed top-4 right-4 z-50">
+        <UserMenu />
+      </div>
     );
   }
 
