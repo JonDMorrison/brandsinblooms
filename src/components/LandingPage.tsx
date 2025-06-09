@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -91,7 +92,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           </h2>
           
           <div className="grid md:grid-cols-3 gap-12">
-            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage">
+            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
                   <Edit className="h-8 w-8 text-garden-green" />
@@ -105,7 +106,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage">
+            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
                   <CheckCircle className="h-8 w-8 text-garden-green" />
@@ -119,7 +120,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage">
+            <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-6">
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
                   <TrendingUp className="h-8 w-8 text-garden-green" />
@@ -144,7 +145,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           </h2>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage">
+            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <Calendar className="h-6 w-6 text-garden-green" />
@@ -158,7 +159,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage">
+            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <Brain className="h-6 w-6 text-garden-green" />
@@ -172,7 +173,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage">
+            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <Edit className="h-6 w-6 text-garden-green" />
@@ -186,7 +187,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage">
+            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <Megaphone className="h-6 w-6 text-garden-green" />
@@ -200,7 +201,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage">
+            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <Zap className="h-6 w-6 text-garden-green" />
@@ -214,7 +215,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage">
+            <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex items-center gap-3 mb-4">
                   <FileCheck className="h-6 w-6 text-garden-green" />
@@ -239,7 +240,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage">
+            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
@@ -261,7 +262,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage">
+            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
@@ -283,7 +284,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               </CardContent>
             </Card>
 
-            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage">
+            <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage border border-gray-200">
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
