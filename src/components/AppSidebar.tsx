@@ -1,95 +1,74 @@
 
-import { Button } from "@/components/ui/button";
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, BarChart3, Home, Leaf, Building, CreditCard } from "lucide-react";
-import { EditableBusinessName } from "@/components/EditableBusinessName";
-import { useNavigate, useLocation } from "react-router-dom";
+import { Home, BarChart3, Calendar, Building2, Users, Settings } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
 
 interface AppSidebarProps {
   currentView: "home" | "kanban" | "calendar" | "team" | "profile";
   onViewChange: (view: "home" | "kanban" | "calendar" | "team" | "profile") => void;
   onboardingData: any;
-  onBusinessNameChange?: (newName: string) => void;
+  onBusinessNameChange: (newName: string) => void;
 }
 
-export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusinessNameChange }: AppSidebarProps) => {
-  const navigate = useNavigate();
-  const location = useLocation();
+export function AppSidebar({ 
+  currentView, 
+  onViewChange, 
+  onboardingData 
+}: AppSidebarProps) {
+  const { collapsed } = useSidebar();
+  
+  const businessName = onboardingData?.aboutBusiness?.split('.')[0] || "Your Garden Center";
 
-  const menuItems = [
-    { title: "Dashboard", view: "home", icon: Home, path: "/app" },
-    { title: "Content Pipeline", view: "kanban", icon: BarChart3, path: "/kanban" },
-    { title: "Campaign Calendar", view: "calendar", icon: Calendar, path: "/calendar" },
-    { title: "Company Profile", view: "profile", icon: Building, path: "/profile" },
+  const navigationItems = [
+    { title: "Dashboard", view: "home" as const, icon: Home },
+    { title: "Content Pipeline", view: "kanban" as const, icon: BarChart3 },
+    { title: "Campaign Calendar", view: "calendar" as const, icon: Calendar },
+    { title: "Company Profile", view: "profile" as const, icon: Building2 },
   ];
 
-  // Extract business name from onboarding data
-  const getBusinessName = () => {
-    if (!onboardingData?.aboutBusiness) return "Garden Center";
-    
-    // Try to extract business name from the first sentence or line
-    const aboutText = onboardingData.aboutBusiness;
-    const firstSentence = aboutText.split('.')[0] || aboutText.split('\n')[0];
-    
-    // Look for common patterns like "Business Name has been..." or "Business Name is..."
-    const nameMatch = firstSentence.match(/^([^,]+(?:Garden Center|Nursery|Gardens?))/i) || 
-                     firstSentence.match(/^([A-Za-z\s]+(?:Garden Center|Nursery|Gardens?))/i) ||
-                     firstSentence.match(/^([A-Za-z\s&'-]+)/);
-    
-    if (nameMatch && nameMatch[1]) {
-      return nameMatch[1].trim();
-    }
-    
-    return "Garden Center";
-  };
-
-  const businessName = getBusinessName();
-
-  const handleBusinessNameChange = (newName: string) => {
-    if (onBusinessNameChange) {
-      onBusinessNameChange(newName);
-    }
-  };
-
-  const handleNavigation = (item: any) => {
-    if (item.view === "profile") {
-      navigate("/profile");
-    } else {
-      onViewChange(item.view as "home" | "kanban" | "calendar" | "team" | "profile");
-    }
-  };
+  const settingsItems = [
+    { title: "Team", view: "team" as const, icon: Users },
+  ];
 
   return (
-    <Sidebar className="w-64 border-r border-green-200 bg-garden-sage">
-      <SidebarContent>
-        <div className="p-6 border-b border-green-200 bg-white">
-          <div className="flex items-center gap-3 mb-2">
-            <Leaf className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-bold text-garden-green-dark">Marketing Hub</h2>
-          </div>
-          <EditableBusinessName 
-            businessName={businessName}
-            onBusinessNameChange={handleBusinessNameChange}
-          />
+    <Sidebar className="border-r border-gray-200 bg-white">
+      <SidebarContent className="py-6">
+        {/* Business Name Header */}
+        <div className="px-6 mb-8">
+          <h2 className="text-lg font-semibold text-green-600 truncate">
+            {businessName}
+          </h2>
         </div>
 
+        {/* Navigation Section */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-garden-green-dark font-semibold">Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-6 text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+            Navigation
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild
-                    className={currentView === item.view ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" : "hover:bg-green-100 text-garden-green-dark"}
+            <SidebarMenu className="space-y-1 px-3">
+              {navigationItems.map((item) => (
+                <SidebarMenuItem key={item.view}>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange(item.view)}
+                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      currentView === item.view
+                        ? "bg-green-100 text-green-700 border-r-2 border-green-600"
+                        : "text-gray-700 hover:bg-gray-50"
+                    }`}
                   >
-                    <button
-                      onClick={() => handleNavigation(item)}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200"
-                    >
-                      <item.icon className="w-5 h-5" />
-                      <span className="font-medium">{item.title}</span>
-                    </button>
+                    <item.icon className="mr-3 h-5 w-5" />
+                    {!collapsed && <span>{item.title}</span>}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -97,44 +76,32 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-garden-green-dark font-semibold">Settings</SidebarGroupLabel>
+        {/* Settings Section */}
+        <SidebarGroup className="mt-8">
+          <SidebarGroupLabel className="px-6 text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+            Settings
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <button 
-                    onClick={() => navigate("/team")}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
-                      currentView === "team" 
-                        ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
-                        : "hover:bg-green-100 text-garden-green-dark"
+            <SidebarMenu className="space-y-1 px-3">
+              {settingsItems.map((item) => (
+                <SidebarMenuItem key={item.view}>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange(item.view)}
+                    className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      currentView === item.view
+                        ? "bg-green-100 text-green-700 border-r-2 border-green-600"
+                        : "text-gray-700 hover:bg-gray-50"
                     }`}
                   >
-                    <Users className="w-5 h-5" />
-                    <span className="font-medium">Team</span>
-                  </button>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <button 
-                    onClick={() => navigate("/subscription")}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
-                      location.pathname === "/subscription" 
-                        ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
-                        : "hover:bg-green-100 text-garden-green-dark"
-                    }`}
-                  >
-                    <CreditCard className="w-5 h-5" />
-                    <span className="font-medium">Account Settings</span>
-                  </button>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                    <item.icon className="mr-3 h-5 w-5" />
+                    {!collapsed && <span>{item.title}</span>}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
     </Sidebar>
   );
-};
+}
