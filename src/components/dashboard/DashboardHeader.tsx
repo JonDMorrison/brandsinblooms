@@ -16,13 +16,9 @@ export const DashboardHeader = ({
   onBusinessNameChange,
   isLoading 
 }: DashboardHeaderProps) => {
-  // Don't show header for home view as it has its own welcome section
-  if (currentView === "home") {
-    return null;
-  }
-
   const getViewTitle = () => {
     switch (currentView) {
+      case "home": return "Dashboard Overview";
       case "kanban": return "Content Pipeline";
       case "calendar": return "Campaign Calendar";
       case "team": return "Team Management";
@@ -33,6 +29,7 @@ export const DashboardHeader = ({
 
   const getViewDescription = () => {
     switch (currentView) {
+      case "home": return "Your marketing hub at a glance";
       case "kanban": return "Manage your content creation workflow";
       case "calendar": return "View and schedule your marketing campaigns";
       case "team": return "Manage your team members and collaboration";
@@ -41,14 +38,18 @@ export const DashboardHeader = ({
     }
   };
 
+  if (currentView === "home") {
+    return null;
+  }
+
   return (
-    <div className="p-6 border-b border-gray-200 bg-white">
+    <div className="p-6 border-b border-green-200 bg-white">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-garden-green-dark">
             {getViewTitle()}
           </h1>
-          <p className="text-gray-600 font-medium">
+          <p className="text-garden-green font-medium">
             {getViewDescription()}
           </p>
         </div>
