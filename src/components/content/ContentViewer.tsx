@@ -197,7 +197,7 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
                             disabled={approvingTasks.has(task.id)}
                           >
                             <CheckCircle className="w-3 h-3 mr-1" />
-                            {approvingTasks.has(task.id) ? 'Approving...' : 'Approve'}
+                            {approvingTasks.has(task.id) ? 'Approving...' : 'Approve & Send to Ready to Post'}
                           </Button>
                         )}
                         
