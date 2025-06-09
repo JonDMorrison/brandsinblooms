@@ -22,23 +22,27 @@ const Index = () => {
   });
 
   useEffect(() => {
+    console.log('Index: Auth state changed, user:', user?.id);
     if (user) {
       // Check URL params for navigation
       const params = new URLSearchParams(location.search);
       
       if (params.get('view') === 'landing') {
+        console.log('Index: Showing landing page due to URL param');
         setShowLanding(true);
         setIsOnboarded(false);
       } else {
         // Check if user has completed onboarding
         const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
         if (savedData) {
+          console.log('Index: Found onboarding data, showing dashboard');
           // User has onboarding data, go directly to dashboard
           const parsedData = JSON.parse(savedData);
           setOnboardingData(parsedData);
           setIsOnboarded(true);
           setShowLanding(false);
         } else {
+          console.log('Index: No onboarding data found, starting onboarding flow');
           // No onboarding data, start onboarding flow
           setShowLanding(false);
           setIsOnboarded(false);
@@ -48,6 +52,7 @@ const Index = () => {
   }, [user, location.search]);
 
   const handleOnboardingComplete = (data: any) => {
+    console.log('Index: Onboarding completed with data:', data);
     if (user) {
       // Store the data and update state immediately
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
@@ -58,6 +63,7 @@ const Index = () => {
   };
 
   const handleGetStarted = () => {
+    console.log('Index: Get started clicked, hiding landing page');
     setShowLanding(false);
   };
 
@@ -75,12 +81,15 @@ const Index = () => {
 
   const handleCampaignCreated = () => {
     // Refresh data or trigger any necessary updates
-    console.log('Campaign created, refreshing dashboard data');
+    console.log('Index: Campaign created, refreshing dashboard data');
   };
 
   if (!user) {
+    console.log('Index: No user found, returning null');
     return null; // This shouldn't happen due to ProtectedRoute, but just in case
   }
+
+  console.log('Index: Rendering with state - showLanding:', showLanding, 'isOnboarded:', isOnboarded);
 
   return (
     <div className="min-h-screen bg-garden-background">
