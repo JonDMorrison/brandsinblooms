@@ -3,7 +3,9 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
 import { WebsiteOnboardingFlow } from "@/components/WebsiteOnboardingFlow";
-import { Dashboard } from "@/components/Dashboard";
+import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { LandingPage } from "@/components/LandingPage";
 
 const Index = () => {
@@ -11,6 +13,7 @@ const Index = () => {
   const location = useLocation();
   const [showLanding, setShowLanding] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
+  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar" | "team" | "profile">("home");
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
@@ -58,6 +61,23 @@ const Index = () => {
     setShowLanding(false);
   };
 
+  const handleBusinessNameChange = (newName: string) => {
+    const updatedData = {
+      ...onboardingData,
+      aboutBusiness: `${newName} has been serving the community with quality gardening products and expert advice.`
+    };
+    setOnboardingData(updatedData);
+    
+    if (user) {
+      localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(updatedData));
+    }
+  };
+
+  const handleCampaignCreated = () => {
+    // Refresh data or trigger any necessary updates
+    console.log('Campaign created, refreshing dashboard data');
+  };
+
   if (!user) {
     return null; // This shouldn't happen due to ProtectedRoute, but just in case
   }
@@ -69,7 +89,21 @@ const Index = () => {
       ) : !isOnboarded ? (
         <WebsiteOnboardingFlow onComplete={handleOnboardingComplete} />
       ) : (
-        <Dashboard onboardingData={onboardingData} />
+        <DashboardTabs>
+          <DashboardLayout
+            currentView={currentView}
+            onViewChange={setCurrentView}
+            onboardingData={onboardingData}
+            onBusinessNameChange={handleBusinessNameChange}
+            onCampaignCreated={handleCampaignCreated}
+          >
+            <DashboardContent
+              onboardingData={onboardingData}
+              onBusinessNameChange={handleBusinessNameChange}
+              onCampaignCreated={handleCampaignCreated}
+            />
+          </DashboardLayout>
+        </DashboardTabs>
       )}
     </div>
   );
