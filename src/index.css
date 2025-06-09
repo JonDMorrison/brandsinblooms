@@ -84,6 +84,31 @@
   body {
     @apply bg-garden-background text-foreground font-quicksand;
   }
+
+  /* Force fix for yellow colors on mobile and desktop */
+  input,
+  textarea,
+  select {
+    background-color: white !important;
+  }
+
+  /* Remove yellow autofill styling */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    box-shadow: 0 0 0px 1000px white inset !important;
+    background-color: white !important;
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+    -webkit-text-fill-color: #000 !important;
+  }
+
+  /* Mobile button override */
+  @media (max-width: 768px) {
+    button:not(.bg-garden-green):not(.bg-green-600):not(.bg-green-700) {
+      background-color: #ffffff !important;
+    }
+  }
 }
 
 @layer components {
