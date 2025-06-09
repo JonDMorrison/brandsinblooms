@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
@@ -21,6 +22,9 @@ const Index = () => {
 
   useEffect(() => {
     console.log('Index: Auth state changed, user:', user?.id);
+    console.log('Index: Current pathname:', location.pathname);
+    console.log('Index: Current search params:', location.search);
+    
     if (user) {
       // Check URL params for navigation
       const params = new URLSearchParams(location.search);
@@ -32,6 +36,8 @@ const Index = () => {
       } else {
         // Check if user has completed onboarding
         const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
+        console.log('Index: Saved onboarding data:', savedData ? 'Found' : 'Not found');
+        
         if (savedData) {
           console.log('Index: Found onboarding data, showing modern dashboard');
           // User has onboarding data, go directly to dashboard
@@ -47,7 +53,7 @@ const Index = () => {
         }
       }
     }
-  }, [user, location.search]);
+  }, [user, location.search, location.pathname]);
 
   const handleOnboardingComplete = (data: any) => {
     console.log('Index: Onboarding completed with data:', data);
@@ -87,7 +93,7 @@ const Index = () => {
     return null; // This shouldn't happen due to ProtectedRoute, but just in case
   }
 
-  console.log('Index: Rendering with state - showLanding:', showLanding, 'isOnboarded:', isOnboarded, 'currentView:', currentView);
+  console.log('Index: Final render state - showLanding:', showLanding, 'isOnboarded:', isOnboarded, 'currentView:', currentView);
 
   return (
     <div className="min-h-screen bg-garden-background">
