@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +68,7 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
       case 'scheduled': return 'bg-blue-100 text-blue-800';
       case 'draft': return 'bg-yellow-100 text-yellow-800';
       case 'generating': return 'bg-purple-100 text-purple-800';
+      case 'published': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -77,14 +79,14 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'scheduled' })
+        .update({ status: 'completed' })
         .eq('id', taskId);
 
       if (error) {
         console.error('Error approving task:', error);
         toast.error('Failed to approve content');
       } else {
-        toast.success('Content approved successfully!');
+        toast.success('Content approved and moved to Ready to Post!');
         fetchTasks();
         if (onTaskUpdate) onTaskUpdate();
       }
@@ -148,7 +150,9 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
           ) : (
             <div className="space-y-4">
               {tasks.map((task) => {
-                const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'scheduled';
+                const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'completed';
+                const canApprove = task.status === 'draft' && task.ai_output;
+                const canEdit = task.ai_output && task.status !== 'published';
                 
                 return (
                   <div key={task.id} className="border rounded-lg p-4 space-y-3">
@@ -173,7 +177,19 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
                           </Button>
                         )}
                         
-                        {task.status === 'draft' && task.ai_output && (
+                        {canEdit && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => toast.info('Edit functionality would open content editor')}
+                            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
+                          </Button>
+                        )}
+                        
+                        {canApprove && (
                           <Button
                             size="sm"
                             className="bg-green-600 hover:bg-green-700 text-white"
@@ -203,7 +219,7 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
                               </>
                             )}
                           </Button>
-                        ) : task.status === 'scheduled' ? (
+                        ) : task.status === 'completed' && task.post_type !== 'facebook' && task.post_type !== 'instagram' ? (
                           <Button
                             size="sm"
                             variant="outline"
