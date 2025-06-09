@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,40 +18,13 @@ export const DevNavigation = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
+  // Only show dev navigation for authenticated users
+  if (!user) {
+    return null;
+  }
+
   // Check if current user is the master admin
   const isMasterAdmin = user?.email === "jon@getclear.ca";
-
-  // Define public routes
-  const publicRoutes = [
-    { path: "/", label: "Public Landing Page", description: "Marketing/public homepage" },
-    { path: "/auth", label: "Authentication", description: "Login/signup page" },
-    { path: "/pricing", label: "Pricing Page", description: "Public pricing information" },
-  ];
-
-  // Define protected app routes
-  const appRoutes = [
-    { path: "/app", label: "Main App", description: "Goes through normal flow (landing → onboarding → dashboard)" },
-    { path: "/onboarding", label: "Onboarding Flow", description: "New user setup process" },
-    { path: "/profile", label: "Company Profile", description: "Business profile management" },
-    { path: "/calendar", label: "Campaign Calendar", description: "Content calendar view" },
-    { path: "/kanban", label: "Content Pipeline", description: "Kanban board view" },
-    { path: "/team", label: "Team Management", description: "Team settings and invites" },
-    { path: "/analytics", label: "Analytics Dashboard", description: "Performance metrics" },
-    { path: "/content-library", label: "Content Library", description: "Asset and template management" },
-    { path: "/subscription", label: "Subscription", description: "Billing and subscription management" },
-  ];
-
-  // Define admin routes (only visible to master admin)
-  const adminRoutes = isMasterAdmin ? [
-    { path: "/admin", label: "Master Admin Settings", description: "System configuration and AI resource management" },
-  ] : [];
-
-  // Define dev shortcuts
-  const devShortcuts = [
-    { path: "/app?view=app", label: "Skip to Dashboard", description: "Bypass onboarding, go straight to main dashboard" },
-    { path: "/app?view=landing", label: "App Landing", description: "Landing page for authenticated users" },
-    { path: "/404", label: "404 Not Found", description: "Error page" },
-  ];
 
   const handleRouteChange = (path: string) => {
     if (path === "/404") {
@@ -96,6 +68,38 @@ export const DevNavigation = () => {
       </div>
     </DropdownMenuItem>
   );
+
+  // Define public routes
+  const publicRoutes = [
+    { path: "/", label: "Public Landing Page", description: "Marketing/public homepage" },
+    { path: "/auth", label: "Authentication", description: "Login/signup page" },
+    { path: "/pricing", label: "Pricing Page", description: "Public pricing information" },
+  ];
+
+  // Define protected app routes
+  const appRoutes = [
+    { path: "/app", label: "Main App", description: "Goes through normal flow (landing → onboarding → dashboard)" },
+    { path: "/onboarding", label: "Onboarding Flow", description: "New user setup process" },
+    { path: "/profile", label: "Company Profile", description: "Business profile management" },
+    { path: "/calendar", label: "Campaign Calendar", description: "Content calendar view" },
+    { path: "/kanban", label: "Content Pipeline", description: "Kanban board view" },
+    { path: "/team", label: "Team Management", description: "Team settings and invites" },
+    { path: "/analytics", label: "Analytics Dashboard", description: "Performance metrics" },
+    { path: "/content-library", label: "Content Library", description: "Asset and template management" },
+    { path: "/subscription", label: "Subscription", description: "Billing and subscription management" },
+  ];
+
+  // Define admin routes (only visible to master admin)
+  const adminRoutes = isMasterAdmin ? [
+    { path: "/admin", label: "Master Admin Settings", description: "System configuration and AI resource management" },
+  ] : [];
+
+  // Define dev shortcuts
+  const devShortcuts = [
+    { path: "/app?view=app", label: "Skip to Dashboard", description: "Bypass onboarding, go straight to main dashboard" },
+    { path: "/app?view=landing", label: "App Landing", description: "Landing page for authenticated users" },
+    { path: "/404", label: "404 Not Found", description: "Error page" },
+  ];
 
   return (
     <div className="fixed top-4 left-4 z-50">
