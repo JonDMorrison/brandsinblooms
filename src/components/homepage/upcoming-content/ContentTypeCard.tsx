@@ -5,10 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Copy, Check, Edit, Save, X, Sparkles, Instagram, Facebook } from "lucide-react";
-import { toast } from "sonner";
-import { generatePersonalizedContent } from "../TaskGenerationUtils";
-import { useAuth } from "@/contexts/AuthContext";
-import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 
 interface ContentType {
   id: string;
@@ -58,150 +54,161 @@ export const ContentTypeCard = ({
 }: ContentTypeCardProps) => {
   const IconComponent = contentType.icon;
   const isGenerating = generatingContent[contentType.id];
-  const hasContent = Boolean(generatedContent[contentType.id]);
+  const hasContent = generatedContent[contentType.id];
+  const isApproved = approvedContent[contentType.id];
   const isEditing = editingContent[contentType.id];
 
   const getContentStatus = () => {
-    const isApproved = approvedContent[contentType.id];
-
-    if (isGenerating) return { status: 'generating', label: 'Generating...', color: 'bg-amber-100 text-amber-800' };
+    if (isGenerating) return { status: 'generating', label: 'Generating...', color: 'bg-blue-100 text-blue-800' };
     if (isApproved) return { status: 'approved', label: 'Approved', color: 'bg-green-100 text-green-800' };
-    if (hasContent) return { status: 'ready', label: 'Ready for Review', color: 'bg-blue-100 text-blue-800' };
-    return { status: 'pending', label: 'Not Generated', color: 'bg-gray-100 text-gray-600' };
+    if (hasContent) return { status: 'ready', label: 'Ready for Review', color: 'bg-orange-100 text-orange-800' };
+    return { status: 'pending', label: 'Pending', color: 'bg-gray-100 text-gray-600' };
   };
 
   const status = getContentStatus();
 
   return (
-    <Card className={`transition-all duration-300 hover:shadow-md ${contentType.bgColor} border-2`}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between mb-2">
+    <Card className={`overflow-hidden transition-all duration-300 ${contentType.bgColor} ${hasContent ? 'shadow-md' : 'shadow-sm'}`}>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-lg bg-white/80 backdrop-blur-sm ${contentType.color}`}>
+            <div className={`p-2.5 rounded-lg ${contentType.color} bg-white shadow-sm`}>
               <IconComponent className="w-5 h-5" />
             </div>
             <div>
               <CardTitle className="text-lg font-semibold">
                 {contentType.name}
               </CardTitle>
-              <CardDescription className="text-sm text-gray-600 mt-1">
-                {contentType.description}
-              </CardDescription>
+              <CardDescription className="mt-1">{contentType.description}</CardDescription>
             </div>
           </div>
-          <Badge className={`text-xs font-medium px-3 py-1 ${status.color}`}>
+          <Badge className={`${status.color} px-3 py-1`}>
             {status.label}
           </Badge>
         </div>
       </CardHeader>
       
       <CardContent className="space-y-4">
-        {hasContent && (
-          <div className="bg-white/90 backdrop-blur-sm p-4 rounded-lg border border-white/60">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gray-500 font-medium">Generated Content:</p>
-              <Button
-                onClick={() => onEditContent(contentType)}
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-              >
-                <Edit className="w-3 h-3 mr-1" />
-                Edit
-              </Button>
+        {isGenerating && (
+          <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" />
+              <span className="text-sm font-medium text-blue-800">Generating {contentType.name.toLowerCase()}...</span>
             </div>
-            
-            <p className="text-sm leading-relaxed text-gray-700">
-              {generatedContent[contentType.id].length > 150 
-                ? generatedContent[contentType.id].substring(0, 150) + '...'
-                : generatedContent[contentType.id]
-              }
-            </p>
           </div>
         )}
-        
-        <div className="space-y-3">
-          {!hideGenerateButton && (
-            <Button
-              onClick={() => onGenerateContent(contentType)}
-              disabled={isGenerating}
-              className="w-full h-11 font-medium transition-all duration-200"
-              size="sm"
-              variant={hasContent ? "outline" : "default"}
-            >
-              {isGenerating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                  Generating...
-                </>
-              ) : hasContent ? (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Regenerate Content
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Content
-                </>
-              )}
-            </Button>
-          )}
 
-          {hasContent && (
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                onClick={() => onCopyContent(contentType)}
-                variant="outline"
-                size="sm"
-                className="h-10 transition-all duration-200"
-              >
-                <Copy className="w-3 h-3 mr-1" />
-                Copy
-              </Button>
-              {(contentType.id === 'facebook' || contentType.id === 'instagram') ? (
-                <Button
-                  onClick={() => onSocialMediaPost(contentType)}
-                  variant="outline"
-                  size="sm"
-                  className="h-10 transition-all duration-200 bg-blue-50 hover:bg-blue-100"
-                >
-                  {contentType.id === 'facebook' ? (
-                    <>
-                      <Facebook className="w-3 h-3 mr-1" />
-                      Post
-                    </>
+        {hasContent && !isGenerating && (
+          <div className="space-y-4">
+            {isEditing ? (
+              <div className="space-y-4">
+                <Textarea
+                  value={editedContent[contentType.id] || generatedContent[contentType.id] || ''}
+                  onChange={(e) => onEditedContentChange(contentType.id, e.target.value)}
+                  className="min-h-[200px] text-sm leading-relaxed resize-none"
+                  placeholder={`Edit your ${contentType.name.toLowerCase()} content...`}
+                />
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => onCancelEdit(contentType)}
+                    variant="ghost"
+                    size="sm"
+                    className="transition-all duration-200"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => onSaveEdit(contentType)}
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 transition-all duration-200"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Changes
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="bg-white p-6 rounded-lg border-2 border-gray-200 shadow-sm">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap font-medium text-gray-800 min-h-[120px]">
+                    {generatedContent[contentType.id]}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => onEditContent(contentType)}
+                    variant="outline"
+                    size="sm"
+                    className="transition-all duration-200"
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    onClick={() => onCopyContent(contentType)}
+                    variant="outline"
+                    size="sm"
+                    className="transition-all duration-200"
+                  >
+                    <Copy className="w-4 h-4 mr-2" />
+                    Copy
+                  </Button>
+                  {(contentType.id === 'facebook' || contentType.id === 'instagram') ? (
+                    <Button
+                      onClick={() => onSocialMediaPost(contentType)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+                      size="sm"
+                    >
+                      {contentType.id === 'facebook' ? (
+                        <>
+                          <Facebook className="w-4 h-4 mr-2" />
+                          Post to Facebook
+                        </>
+                      ) : (
+                        <>
+                          <Instagram className="w-4 h-4 mr-2" />
+                          Post to Instagram
+                        </>
+                      )}
+                    </Button>
                   ) : (
-                    <>
-                      <Instagram className="w-3 h-3 mr-1" />
-                      Post
-                    </>
+                    <Button
+                      onClick={() => onApproveContent(contentType)}
+                      variant={status.status === 'approved' ? "default" : "outline"}
+                      size="sm"
+                      disabled={status.status === 'approved'}
+                      className="transition-all duration-200"
+                    >
+                      {status.status === 'approved' ? (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Approved
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Approve
+                        </>
+                      )}
+                    </Button>
                   )}
-                </Button>
-              ) : (
-                <Button
-                  onClick={() => onApproveContent(contentType)}
-                  variant={status.status === 'approved' ? "default" : "outline"}
-                  size="sm"
-                  className="h-10 transition-all duration-200"
-                  disabled={status.status === 'approved'}
-                >
-                  {status.status === 'approved' ? (
-                    <>
-                      <Check className="w-3 h-3 mr-1" />
-                      Approved
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-3 h-3 mr-1" />
-                      Approve
-                    </>
-                  )}
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {!hasContent && !isGenerating && !hideGenerateButton && (
+          <Button
+            onClick={() => onGenerateContent(contentType)}
+            className="w-full h-12 font-medium transition-all duration-200"
+            size="lg"
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            Generate {contentType.name}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
