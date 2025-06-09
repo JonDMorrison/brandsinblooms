@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2, Calendar } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { generateRequiredTasks } from "./TaskManagementUtils";
+import { generateRequiredTasks } from "./RequiredTasksGenerator";
 import { toast } from "sonner";
 import { EditableTheme } from "@/components/calendar/EditableTheme";
 
@@ -29,22 +29,38 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerateContent = async () => {
+    console.log('Generate content button clicked for campaign:', campaign.id);
+    
     if (!user) {
+      console.error('No user found when trying to generate content');
       toast.error("Please log in to generate content");
       return;
     }
 
+    console.log('Starting content generation for user:', user.id);
     setIsGenerating(true);
+    
     try {
+      console.log('Calling generateRequiredTasks with:', {
+        campaignId: campaign.id,
+        campaignTitle: campaign.title,
+        userId: user.id
+      });
+      
       await generateRequiredTasks(campaign.id, [campaign], user.id, onTaskUpdate);
+      
+      console.log('Content generation completed successfully');
       toast.success("Content generated successfully! Check your tasks to review and approve the new content.");
+      
       if (onCampaignUpdate) {
+        console.log('Calling onCampaignUpdate callback');
         onCampaignUpdate();
       }
     } catch (error) {
       console.error('Error generating content:', error);
-      toast.error("Unable to generate content at this time.");
+      toast.error(`Unable to generate content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
+      console.log('Setting isGenerating to false');
       setIsGenerating(false);
     }
   };
