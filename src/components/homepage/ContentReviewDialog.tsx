@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, CheckCircle, Clock, AlertCircle, Edit, Copy } from "lucide-react";
+import { Loader2, CheckCircle, Clock, AlertCircle, Edit, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 interface ContentReviewDialogProps {
@@ -35,6 +34,8 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
   const fetchTasks = async () => {
     setLoading(true);
     try {
+      console.log('ContentReviewDialog: Fetching tasks for review...');
+      
       const { data, error } = await supabase
         .from('content_tasks')
         .select('*')
@@ -42,13 +43,26 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching tasks:', error);
+        console.error('ContentReviewDialog: Error fetching tasks:', error);
         toast.error('Failed to load tasks');
       } else {
+        console.log('ContentReviewDialog: Fetched tasks:', data);
         setTasks(data || []);
+        
+        if (data && data.length === 0) {
+          console.log('ContentReviewDialog: No draft/review tasks found. Checking all tasks...');
+          
+          // Debug: Check what tasks exist
+          const { data: allTasks } = await supabase
+            .from('content_tasks')
+            .select('*')
+            .order('created_at', { ascending: false });
+          
+          console.log('ContentReviewDialog: All tasks in database:', allTasks);
+        }
       }
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      console.error('ContentReviewDialog: Error fetching tasks:', error);
       toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -57,7 +71,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
-      console.log('Updating task status to:', newStatus);
+      console.log('ContentReviewDialog: Updating task status to:', newStatus);
       
       const { error } = await supabase
         .from('content_tasks')
@@ -65,14 +79,14 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         .eq('id', taskId);
 
       if (error) {
-        console.error('Error updating task:', error);
+        console.error('ContentReviewDialog: Error updating task:', error);
         toast.error(`Failed to update task: ${error.message}`);
       } else {
         toast.success(`Task ${newStatus === 'completed' ? 'approved and ready to post' : 'updated'}`);
         fetchTasks(); // Refresh the list
       }
     } catch (error) {
-      console.error('Error updating task:', error);
+      console.error('ContentReviewDialog: Error updating task:', error);
       toast.error('An unexpected error occurred');
     }
   };
@@ -92,10 +106,12 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'scheduled':
+      case 'completed':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'review':
         return <AlertCircle className="w-4 h-4 text-orange-600" />;
+      case 'draft':
+        return <Clock className="w-4 h-4 text-blue-600" />;
       default:
         return <Clock className="w-4 h-4 text-gray-600" />;
     }
@@ -107,6 +123,8 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         return 'bg-green-100 text-green-800';
       case 'review':
         return 'bg-orange-100 text-orange-800';
+      case 'draft':
+        return 'bg-blue-100 text-blue-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -229,7 +247,19 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-garden-green-dark">Review Your Content</DialogTitle>
+          <DialogTitle className="text-garden-green-dark flex items-center justify-between">
+            Review Your Content
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchTasks}
+              disabled={loading}
+              className="ml-4"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </DialogTitle>
         </DialogHeader>
         
         {loading ? (
@@ -238,7 +268,10 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
           </div>
         ) : tasks.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">No content available for review</p>
+            <p className="text-gray-500 mb-4">No content available for review</p>
+            <p className="text-sm text-gray-400">
+              Generate content from a campaign to see it here for review and approval.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
