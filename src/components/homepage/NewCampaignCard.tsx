@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +42,7 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
       }
     } catch (error) {
       console.error('Error generating content:', error);
-      toast.error("Failed to generate content. Please try again.");
+      toast.error("Unable to generate content at this time.");
     } finally {
       setIsGenerating(false);
     }
