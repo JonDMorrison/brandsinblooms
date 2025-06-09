@@ -68,7 +68,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         console.error('Error updating task:', error);
         toast.error(`Failed to update task: ${error.message}`);
       } else {
-        toast.success(`Task ${newStatus === 'approved' ? 'approved and ready to post' : 'updated'}`);
+        toast.success(`Task ${newStatus === 'completed' ? 'approved and ready to post' : 'updated'}`);
         fetchTasks(); // Refresh the list
       }
     } catch (error) {
@@ -103,7 +103,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'approved':
+      case 'completed':
         return 'bg-green-100 text-green-800';
       case 'review':
         return 'bg-orange-100 text-orange-800';
@@ -274,10 +274,10 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                         <Copy className="w-3 h-3 mr-1" />
                         Copy
                       </Button>
-                      {task.status !== 'approved' && (
+                      {task.status !== 'completed' && (
                         <Button
                           size="sm"
-                          onClick={() => updateTaskStatus(task.id, 'approved')}
+                          onClick={() => updateTaskStatus(task.id, 'completed')}
                           className="bg-green-600 hover:bg-green-700 text-white"
                         >
                           Approve

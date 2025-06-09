@@ -18,11 +18,11 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      console.log('Approving task with status change to: approved');
+      console.log('Approving task with status change to: completed');
       
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'approved' })
+        .update({ status: 'completed' })
         .eq('id', task.id);
 
       if (error) {
