@@ -29,7 +29,11 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handleGenerateContent = async () => {
+    console.log('=== CONTENT GENERATION DEBUG START ===');
     console.log('Generate content button clicked for campaign:', campaign.id);
+    console.log('Campaign object:', campaign);
+    console.log('User object:', user);
+    console.log('onTaskUpdate function:', typeof onTaskUpdate);
     
     if (!user) {
       console.error('No user found when trying to generate content');
@@ -41,13 +45,16 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
     setIsGenerating(true);
     
     try {
-      console.log('Calling generateRequiredTasks with:', {
+      console.log('About to call generateRequiredTasks with parameters:', {
         campaignId: campaign.id,
-        campaignTitle: campaign.title,
-        userId: user.id
+        campaigns: [campaign],
+        userId: user.id,
+        onTaskUpdateType: typeof onTaskUpdate
       });
       
-      await generateRequiredTasks(campaign.id, [campaign], user.id, onTaskUpdate);
+      console.log('Calling generateRequiredTasks function...');
+      const result = await generateRequiredTasks(campaign.id, [campaign], user.id, onTaskUpdate);
+      console.log('generateRequiredTasks returned:', result);
       
       console.log('Content generation completed successfully');
       toast.success("Content generated successfully! Check your tasks to review and approve the new content.");
@@ -57,11 +64,15 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
         onCampaignUpdate();
       }
     } catch (error) {
-      console.error('Error generating content:', error);
+      console.error('=== ERROR IN CONTENT GENERATION ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown error');
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       toast.error(`Unable to generate content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       console.log('Setting isGenerating to false');
       setIsGenerating(false);
+      console.log('=== CONTENT GENERATION DEBUG END ===');
     }
   };
 
