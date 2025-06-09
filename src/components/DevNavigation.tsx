@@ -18,13 +18,11 @@ export const DevNavigation = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Only show dev navigation for authenticated users
-  if (!user) {
+  // Only show dev navigation for the master admin user
+  const isMasterAdmin = user?.email === "jon@getclear.ca";
+  if (!isMasterAdmin) {
     return null;
   }
-
-  // Check if current user is the master admin
-  const isMasterAdmin = user?.email === "jon@getclear.ca";
 
   const handleRouteChange = (path: string) => {
     if (path === "/404") {
