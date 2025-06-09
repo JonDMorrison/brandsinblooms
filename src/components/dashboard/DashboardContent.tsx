@@ -102,15 +102,23 @@ export const DashboardContent = ({
   // Look for campaign matching current week number first
   const activeCampaign = campaigns.find(c => c.week_number === currentWeekNumber);
 
-  // Find user-created campaigns (excluding the active campaign and system-generated campaigns)
+  // Find user-created campaigns - only campaigns created via Quick Actions
+  // These will have specific characteristics that distinguish them from system campaigns
   const userCreatedCampaigns = campaigns.filter(campaign => {
     const isActive = campaign.id === activeCampaign?.id;
-    // Show campaigns that are either custom themes or created via Quick Actions
-    // This includes both event promotions and custom campaigns
-    return !isActive && (
-      (campaign.theme && campaign.theme.includes('Custom')) ||
-      campaign.week_number !== currentWeekNumber // User-created campaigns for other weeks
-    );
+    
+    // Don't include the active campaign
+    if (isActive) return false;
+    
+    // Only include campaigns that are clearly user-created via Quick Actions:
+    // 1. Event campaigns (from "Promote Event") - these will have custom themes
+    // 2. Custom campaigns (from "Create Campaign") - these will also have custom themes
+    // 3. Exclude any campaigns that look like system-generated weekly themes
+    const hasCustomTheme = campaign.theme && !campaign.theme.includes('Week ') && campaign.theme !== campaign.title;
+    const isEventCampaign = campaign.title && campaign.title.toLowerCase().includes('event');
+    const isCustomCampaign = campaign.prompt || campaign.description;
+    
+    return hasCustomTheme || isEventCampaign || isCustomCampaign;
   });
 
   const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
@@ -203,7 +211,7 @@ export const DashboardContent = ({
           {/* Quick Actions - Now below Current Campaign */}
           <QuickActionsGrid onCampaignCreated={handleCampaignCreatedWrapper} />
 
-          {/* Custom Campaigns */}
+          {/* Custom Campaigns - Only shows campaigns created via Quick Actions */}
           <div>
             <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Custom Campaigns</h2>
             {userCreatedCampaigns.length > 0 ? (
@@ -223,18 +231,11 @@ export const DashboardContent = ({
                   <div className="space-y-4">
                     <div className="text-gray-500">
                       <PlusCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <h3 className="text-lg font-semibold mb-2">Create a Custom Campaign</h3>
+                      <h3 className="text-lg font-semibold mb-2">No Custom Campaigns Yet</h3>
                       <p className="text-sm">
-                        Use the Quick Actions above to create custom campaigns for special events, promotions, or seasonal themes. They will appear here once created.
+                        Use the Quick Actions above to create custom campaigns for events or special promotions. They will appear here once created.
                       </p>
                     </div>
-                    <Button 
-                      onClick={() => setShowNewCampaignDialog(true)}
-                      className="bg-primary hover:bg-primary-600 text-white"
-                    >
-                      <PlusCircle className="w-4 h-4 mr-2" />
-                      Create Custom Campaign
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -275,4 +276,3 @@ export const DashboardContent = ({
     </div>
   );
 };
-
