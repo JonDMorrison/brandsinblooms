@@ -68,13 +68,8 @@ export const DashboardGrid = ({
         {/* Ready to Post - Now the primary content review section */}
         <ReadyToPostCard tasks={tasks} onTaskClick={onTaskClick} />
         
-        {/* Analytics Snapshot */}
-        <AnalyticsSnapshot 
-          totalTasks={totalTasksCount}
-          completedTasks={completedTasksCount}
-          pendingTasks={pendingTasksCount}
-          activeCampaigns={activeCampaign ? 1 : 0}
-        />
+        {/* Analytics Snapshot - Now fetches its own data */}
+        <AnalyticsSnapshot />
       </div>
     </div>
   );
