@@ -85,27 +85,62 @@
     @apply bg-garden-background text-foreground font-quicksand;
   }
 
-  /* Force fix for yellow colors on mobile and desktop */
+  /* AGGRESSIVE FORCE FIX FOR YELLOW COLORS - GLOBAL OVERRIDE */
   input,
   textarea,
   select {
-    background-color: white !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border-color: #cccccc !important;
   }
 
-  /* Remove yellow autofill styling */
+  /* COMPREHENSIVE AUTOFILL OVERRIDE */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus,
   input:-webkit-autofill:active {
+    background-color: #ffffff !important;
+    -webkit-box-shadow: 0 0 0px 1000px white inset !important;
+    -webkit-text-fill-color: #000000 !important;
     box-shadow: 0 0 0px 1000px white inset !important;
-    background-color: white !important;
-    -webkit-box-shadow: 0 0 0 1000px white inset !important;
-    -webkit-text-fill-color: #000 !important;
+    transition: background-color 5000s ease-in-out 0s !important;
   }
 
-  /* Mobile button override */
+  /* MOBILE BUTTON OVERRIDE - FORCE WHITE BACKGROUND */
   @media (max-width: 768px) {
-    button:not(.bg-garden-green):not(.bg-green-600):not(.bg-green-700) {
+    button {
+      background-color: #ffffff !important;
+      color: #000000 !important;
+      border: 1px solid #cccccc !important;
+    }
+    
+    /* Preserve green theme buttons */
+    button.bg-garden-green,
+    button[class*="bg-green"],
+    button[class*="bg-primary"] {
+      background-color: #4CAF50 !important;
+      color: #ffffff !important;
+      border: 1px solid #4CAF50 !important;
+    }
+  }
+
+  /* ADDITIONAL OVERRIDES FOR STUBBORN ELEMENTS */
+  @media (max-width: 768px) {
+    input[type="email"],
+    input[type="password"],
+    input[type="text"],
+    input[type="url"],
+    textarea {
+      background: #ffffff !important;
+      background-color: #ffffff !important;
+      color: #000000 !important;
+    }
+    
+    /* Override any Tailwind bg classes that might be causing yellow */
+    .bg-yellow-50,
+    .bg-yellow-100,
+    .bg-orange-50,
+    .bg-amber-50 {
       background-color: #ffffff !important;
     }
   }
