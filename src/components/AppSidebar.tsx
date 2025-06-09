@@ -65,7 +65,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
         <div className="p-6 border-b border-green-200 bg-white">
           <div className="flex items-center gap-3 mb-2">
             <Leaf className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-bold text-garden-green-dark">Marketing Hub</h2>
+            <h2 className="text-xl font-bold text-garden-green-dark">BloomSuite</h2>
           </div>
           <EditableBusinessName 
             businessName={businessName}
