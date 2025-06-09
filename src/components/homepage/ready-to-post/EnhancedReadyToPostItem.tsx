@@ -1,6 +1,7 @@
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, ExternalLink, Clock, CheckCircle, Calendar as CalendarIcon, Edit } from "lucide-react";
+import { Copy, ExternalLink, Clock, CheckCircle, Calendar as CalendarIcon, Edit, Send } from "lucide-react";
 import { toast } from "sonner";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";
@@ -30,12 +31,12 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: Enhance
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'completed' })
+        .update({ status: 'published' })
         .eq('id', task.id);
 
       if (error) throw error;
       
-      toast.success('Content marked as published!');
+      toast.success('Content marked as published and removed from Ready to Post!');
       onTaskUpdate();
     } catch (error) {
       console.error('Error marking as published:', error);
@@ -114,9 +115,9 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: Enhance
             onClick={handleMarkAsPublished}
             disabled={isPublishing}
             className="h-7 w-7 p-0 hover:bg-green-100"
-            title="Mark as published"
+            title="Mark as published (removes from Ready to Post)"
           >
-            <CheckCircle className={`w-3 h-3 ${isPublishing ? 'animate-pulse' : ''}`} />
+            <Send className={`w-3 h-3 ${isPublishing ? 'animate-pulse' : ''}`} />
           </Button>
         </div>
       </div>

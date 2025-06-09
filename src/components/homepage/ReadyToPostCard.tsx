@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
     setRealtimeTasks(tasks);
   }, [tasks]);
 
-  // Set up real-time subscription for approved content only
+  // Set up real-time subscription for completed content only
   useEffect(() => {
     const channel = supabase
       .channel('ready-to-post-updates')
@@ -36,13 +37,13 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
           event: '*',
           schema: 'public',
           table: 'content_tasks',
-          filter: 'status=eq.approved'
+          filter: 'status=eq.completed'
         },
         (payload) => {
           console.log('Real-time update for ready-to-post:', payload);
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            if (payload.new.status === 'approved') {
+            if (payload.new.status === 'completed') {
               setRealtimeTasks(prev => {
                 const filtered = prev.filter(task => task.id !== payload.new.id);
                 return [...filtered, payload.new];
@@ -61,8 +62,8 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
     };
   }, []);
 
-  // Filter for only approved content that's truly ready to post
-  const readyTasks = realtimeTasks.filter(task => task.status === 'approved');
+  // Filter for only completed content that's truly ready to post
+  const readyTasks = realtimeTasks.filter(task => task.status === 'completed');
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
@@ -89,14 +90,14 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
       const { data: freshTasks, error } = await supabase
         .from('content_tasks')
         .select('*')
-        .eq('status', 'approved')
+        .eq('status', 'completed')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
       setRealtimeTasks(prev => {
-        const nonApproved = prev.filter(task => task.status !== 'approved');
-        return [...nonApproved, ...(freshTasks || [])];
+        const nonCompleted = prev.filter(task => task.status !== 'completed');
+        return [...nonCompleted, ...(freshTasks || [])];
       });
       
       toast.success('Ready to post content refreshed');
