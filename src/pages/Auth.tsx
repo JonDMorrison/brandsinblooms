@@ -132,7 +132,7 @@ const Auth = () => {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <Sprout className="h-8 w-8 text-garden-green mr-3" />
-            <h1 className="text-3xl font-bold text-garden-green-dark">
+            <h1 className="text-3xl font-bold text-black">
               Bloom & Grow Studio
             </h1>
           </div>
@@ -143,7 +143,7 @@ const Auth = () => {
 
         <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm rounded-2xl p-8">
           <CardHeader className="text-center pb-6">
-            <CardTitle className="text-2xl font-semibold text-garden-green-dark mb-4">
+            <CardTitle className="text-2xl font-semibold text-black mb-4">
               Sign In or Create an Account
             </CardTitle>
           </CardHeader>
@@ -152,13 +152,13 @@ const Auth = () => {
               <TabsList className="grid w-full grid-cols-2 mb-6 bg-garden-sage h-12 p-1 rounded-lg border border-garden-green/20">
                 <TabsTrigger 
                   value="signin" 
-                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-garden-green-dark data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
+                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
                 >
                   Sign In
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
-                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-garden-green-dark data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
+                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
                 >
                   Sign Up
                 </TabsTrigger>
@@ -175,7 +175,7 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg text-black"
                     />
                   </div>
 
@@ -189,7 +189,7 @@ const Auth = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="Your password"
-                        className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg"
+                        className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg text-black"
                       />
                       <Button
                         type="button"
@@ -239,7 +239,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg"
+                    className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg text-black"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -264,7 +264,7 @@ const Auth = () => {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       placeholder="Your full name"
-                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg text-black"
                     />
                   </div>
 
@@ -277,7 +277,7 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg text-black"
                     />
                   </div>
 
@@ -292,7 +292,7 @@ const Auth = () => {
                         required
                         placeholder="Choose a password (min 8 chars)"
                         minLength={8}
-                        className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg"
+                        className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg text-black"
                       />
                       <Button
                         type="button"
@@ -337,7 +337,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg"
+                    className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg text-black"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -362,7 +362,7 @@ const Auth = () => {
 
             {message && (
               <Alert className="mt-6 border-garden-green bg-garden-sage">
-                <AlertDescription className="text-garden-green-dark">
+                <AlertDescription className="text-black">
                   {message}
                 </AlertDescription>
               </Alert>
