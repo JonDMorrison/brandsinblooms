@@ -84,7 +84,7 @@ export const generateRequiredTasks = async (
           .from('content_tasks')
           .update({ 
             ai_output: content,
-            status: 'draft' // Changed from 'approved' to 'draft' so content appears in review queue
+            status: 'draft' // Set to draft so content appears in review queue
           })
           .eq('id', task.id);
 
