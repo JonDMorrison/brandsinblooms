@@ -41,7 +41,7 @@ serve(async (req) => {
       }
     }
 
-    // Build company context for AI
+    // Build company context for AI with enhanced regional focus
     let companyContext = '';
     if (companyProfile) {
       companyContext = `
@@ -56,13 +56,25 @@ Company Values: ${companyProfile.company_values || ''}
 Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}
 
-IMPORTANT: Use this company information to create a personalized video script that sounds authentic to this specific garden center owner or expert.
+REGIONAL VIDEO SCRIPT FOCUS:
+- Use the Location Info to create content that's highly specific to their geographic region and local climate
+- Reference local growing seasons, weather patterns, and regional gardening calendars
+- Include region-appropriate plant recommendations and gardening techniques
+- Consider local hardiness zones, frost dates, and seasonal timing specific to their location
+- Address regional gardening challenges and local growing conditions
+- Reference local gardening culture, community practices, and regional preferences
+- Use timing and seasonal advice that's accurate for their specific climate zone
+- Include locally-relevant tips that would resonate with gardeners in their area
+- Make references to local weather patterns, soil conditions, and environmental factors
+
+IMPORTANT: Use this company information to create a personalized video script that sounds authentic to this specific garden center owner or expert speaking to their local community about region-specific gardening advice.
 
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
 - NEVER use bullet points (•) or numbered lists in the content
 - Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
+- Make all advice regionally appropriate and climate-specific
 `;
     } else {
       companyContext = `
@@ -71,26 +83,33 @@ CONTENT RESTRICTIONS:
 - NEVER use bullet points (•) or numbered lists in the content
 - Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
+- Since no location is specified, keep advice general but mention the importance of knowing your local climate zone
 `;
     }
 
-    const prompt = `Create a video script about ${campaignTitle} for a garden center. ${companyContext}
+    const prompt = `Create a video script about ${campaignTitle} for a garden center owner/expert speaking to their local community. ${companyContext}
 
 Requirements:
-- Write as if the garden center owner/expert is speaking directly to their customers
+- Write as if the garden center owner/expert is speaking directly to their local customers
 - Use the company's brand voice and speak to their target audience
 - Keep it conversational and natural (60-90 seconds when spoken)
-- Include practical tips that align with their specializations and values
+- Include practical tips that align with their specializations and values and are appropriate for their specific region
 - Reference their expertise and unique selling points naturally
 - Include a strong opening hook and clear call-to-action
 - Make it feel authentic and personal, not generic
 - Structure it with clear sections: Hook, Main Content, Call-to-Action
+- Provide region-specific gardening advice based on their location and local climate conditions
+- Reference local growing seasons, weather patterns, and regional gardening challenges
+- Include plant recommendations and techniques that work well in their specific geographic area
+- Use timing and seasonal advice that's accurate for their local hardiness zone
+- Consider local soil conditions, weather patterns, and regional gardening culture
+- Make it sound like a local expert giving advice to their community
 - Write in flowing paragraphs and natural sentences, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases
 
 Format the response as a natural speaking script, not bullet points.`;
 
-    console.log('Generating personalized video script with OpenAI');
+    console.log('Generating personalized, region-specific video script with OpenAI');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -101,7 +120,7 @@ Format the response as a natural speaking script, not bullet points.`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional video script writer specializing in garden center content. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
+          { role: 'system', content: 'You are a professional video script writer specializing in garden center content with deep knowledge of regional gardening differences across various climate zones. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert to their local community. Focus on region-specific advice that considers local climate, growing conditions, seasonal timing, and regional gardening challenges. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -116,7 +135,7 @@ Format the response as a natural speaking script, not bullet points.`;
     const data = await response.json();
     const videoScript = data.choices[0].message.content;
 
-    console.log('Generated personalized video script:', videoScript);
+    console.log('Generated personalized, region-specific video script:', videoScript);
 
     return new Response(JSON.stringify({ script: videoScript }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -41,7 +41,7 @@ serve(async (req) => {
       }
     }
 
-    // Build company context for AI
+    // Build company context for AI with enhanced regional focus
     let companyContext = '';
     if (companyProfile) {
       companyContext = `
@@ -58,13 +58,24 @@ Seasonal Focus: ${companyProfile.seasonal_focus || ''}
 Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}
 
-IMPORTANT: Use this company information to personalize the content. Reference the company name, speak in their brand voice, mention their specializations, and align with their values and target audience.
+REGIONAL CONSIDERATIONS:
+- Use the Location Info to understand the company's geographic region, climate zone, and local conditions
+- Factor in regional growing seasons, weather patterns, and plant hardiness zones
+- Consider local gardening challenges (drought, humidity, frost dates, soil conditions, pests)
+- Reference region-specific plants, trees, and gardening practices that work best in their area
+- Mention seasonal timing that's appropriate for their climate (when to plant, prune, fertilize)
+- Include local gardening terminology and regional preferences
+- Consider cultural and demographic factors of their specific region
+- Reference local weather patterns and how they affect gardening decisions
+
+IMPORTANT: Use this company information to create highly localized, region-specific content that sounds authentic to this specific garden center and their local climate/conditions.
 
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
 - NEVER use bullet points (•) or numbered lists in the content
 - Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
+- Make content regionally relevant and climate-appropriate
 `;
     } else {
       companyContext = `
@@ -73,6 +84,7 @@ CONTENT RESTRICTIONS:
 - NEVER use bullet points (•) or numbered lists in the content
 - Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
+- Since no location is specified, keep advice general but mention the importance of knowing your local climate zone
 `;
     }
 
@@ -86,7 +98,10 @@ Requirements:
 - Reference the company's specializations when relevant
 - Speak to their target audience
 - Include a call-to-action
-- Make it feel authentic to this specific garden center
+- Make content specific to their geographic region and local climate conditions
+- Reference local growing seasons, weather patterns, or regional gardening considerations
+- Use plant varieties and gardening advice appropriate for their climate zone
+- Make it feel authentic to this specific garden center and their local area
 - Write in flowing paragraphs, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases`,
 
@@ -98,7 +113,11 @@ Requirements:
 - Reference the company's unique selling points
 - Speak to their ideal customer
 - Include questions to encourage engagement
-- Make it feel personal and authentic to this garden center
+- Make content highly relevant to their specific geographic region and local conditions
+- Reference local weather patterns, growing seasons, or regional gardening challenges
+- Mention plants and gardening practices that work well in their specific climate
+- Consider local gardening culture and regional preferences
+- Make it feel personal and authentic to this garden center and their community
 - Write in flowing paragraphs, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases`,
 
@@ -111,7 +130,12 @@ Requirements:
 - Include their specializations
 - Speak to their target audience
 - Include a clear call-to-action
-- Make it feel personal from this specific garden center
+- Provide region-specific gardening advice based on their location
+- Consider local climate conditions, hardiness zones, and seasonal timing
+- Reference regional growing challenges and solutions
+- Use plant recommendations appropriate for their geographic area
+- Make timing advice specific to their local growing season
+- Make it feel personal from this specific garden center in their specific region
 - Write in flowing paragraphs, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases`,
 
@@ -124,15 +148,20 @@ Requirements:
 - Include practical tips that align with their values
 - Speak directly to their ideal customer
 - Include a strong opening hook and clear call-to-action
-- Make it feel authentic to this garden center owner/expert
+- Provide region-specific gardening advice and recommendations
+- Reference local climate conditions, weather patterns, and growing seasons
+- Mention plants and techniques that work best in their specific geographic area
+- Consider local gardening challenges and regional solutions
+- Use timing and seasonal advice appropriate for their location
+- Make it feel authentic to this garden center owner/expert in their specific region
 - Write in flowing paragraphs, NOT bullet points or lists
 - NEVER use "Green Thumbs" or "green thumb" phrases`
     };
 
     const prompt = contentPrompts[postType as keyof typeof contentPrompts] || 
-      `Create ${postType} content about ${campaignTitle} for a garden center. Make it engaging and professional. Write in flowing paragraphs only - NEVER use bullet points or lists. NEVER use "Green Thumbs" or "green thumb" phrases.`;
+      `Create ${postType} content about ${campaignTitle} for a garden center. Make it engaging, professional, and region-specific if location information is available. Write in flowing paragraphs only - NEVER use bullet points or lists. NEVER use "Green Thumbs" or "green thumb" phrases.`;
 
-    console.log('Generating personalized content with OpenAI for:', postType);
+    console.log('Generating personalized, region-specific content with OpenAI for:', postType);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -143,7 +172,7 @@ Requirements:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing. Create authentic, personalized content that reflects the specific company\'s brand and expertise. NEVER use the phrase "Green Thumbs" or "green thumb" in any content - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
+          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company\'s brand, expertise, and most importantly their local region and climate conditions. Consider factors like hardiness zones, local weather patterns, regional growing seasons, soil conditions, and area-specific gardening challenges. NEVER use the phrase "Green Thumbs" or "green thumb" in any content - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -158,7 +187,7 @@ Requirements:
     const data = await response.json();
     const generatedContent = data.choices[0].message.content;
 
-    console.log('Generated personalized content:', generatedContent);
+    console.log('Generated personalized, region-specific content:', generatedContent);
 
     return new Response(JSON.stringify({ content: generatedContent }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

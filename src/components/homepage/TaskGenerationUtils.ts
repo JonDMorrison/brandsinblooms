@@ -1,5 +1,13 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { getCurrentWeekNumber } from "./homepageUtils";
+import { 
+  generateNewsletterContent, 
+  generateVideoScript, 
+  generatePersonalizedContent,
+  getHashtagsForType, 
+  getImageIdeaForType 
+} from "./TaskGenerationUtils";
+import { cleanupDuplicatesForCampaign } from "./CleanupUtils";
 
 export const ensureCampaignHasTasks = async (campaigns: any[], userId: string, onTaskUpdate: () => void) => {
   if (!campaigns || campaigns.length === 0) {
@@ -80,7 +88,8 @@ export const generateContentForTask = async (task: any, companyProfile: any) => 
         campaignTheme: task.campaigns?.theme || 'General business content',
         campaignTitle: task.campaigns?.title || 'Content Campaign',
         scheduledDate: task.scheduled_date,
-        companyProfile: companyProfile
+        companyProfile: companyProfile,
+        userId: companyProfile?.user_id // Pass userId for regional context
       }
     });
 
@@ -112,7 +121,7 @@ export const generateContentForTask = async (task: any, companyProfile: any) => 
       throw contentUpdateError;
     }
 
-    console.log('Successfully generated and saved content for task:', task.id);
+    console.log('Successfully generated and saved region-aware content for task:', task.id);
     return data;
 
   } catch (error) {
@@ -129,7 +138,7 @@ export const generateContentForTask = async (task: any, companyProfile: any) => 
 };
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string) => {
-  console.log(`Generating ${postType} content for: ${campaignTitle}`);
+  console.log(`Generating region-aware ${postType} content for: ${campaignTitle}`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-content', {
@@ -137,12 +146,12 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
         postType: postType,
         campaignTheme: campaignTitle,
         campaignTitle: campaignTitle,
-        userId: userId
+        userId: userId // Pass userId for regional context
       }
     });
 
     if (error) {
-      console.error('Error generating personalized content:', error);
+      console.error('Error generating personalized, region-aware content:', error);
       throw error;
     }
 
@@ -154,7 +163,7 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
 };
 
 export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number, userId?: string) => {
-  console.log(`Generating newsletter content for campaign: ${campaignTitle} (Week ${weekNumber})`);
+  console.log(`Generating region-aware newsletter content for campaign: ${campaignTitle} (Week ${weekNumber})`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-newsletter', {
@@ -162,7 +171,7 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
         campaignId: campaignId,
         campaignTitle: campaignTitle,
         weekNumber: weekNumber,
-        userId: userId
+        userId: userId // Pass userId for regional context
       }
     });
 
@@ -179,13 +188,13 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
 };
 
 export const generateVideoScript = async (campaignTitle: string, userId?: string) => {
-  console.log(`Generating video script for: ${campaignTitle}`);
+  console.log(`Generating region-aware video script for: ${campaignTitle}`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-video-script', {
       body: {
         campaignTitle: campaignTitle,
-        userId: userId
+        userId: userId // Pass userId for regional context
       }
     });
 

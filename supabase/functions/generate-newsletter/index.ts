@@ -62,7 +62,7 @@ serve(async (req) => {
       imageIdea: task.image_idea
     })) || [];
 
-    // Build company context for AI
+    // Build company context for AI with enhanced regional focus
     let companyContext = '';
     if (companyProfile) {
       companyContext = `
@@ -79,7 +79,17 @@ Seasonal Focus: ${companyProfile.seasonal_focus || ''}
 Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}
 
-IMPORTANT: Use this company information to personalize the newsletter. Reference the company name, speak in their brand voice, mention their specializations, and align with their values and target audience.
+REGIONAL NEWSLETTER FOCUS:
+- Use the Location Info to create content highly specific to their geographic region and climate
+- Reference local growing seasons, weather patterns, and gardening calendars specific to their area
+- Include region-appropriate plant recommendations and gardening advice
+- Consider local hardiness zones, frost dates, and seasonal timing for their specific location
+- Address regional gardening challenges (drought, humidity, snow, heat, soil conditions, local pests)
+- Reference local gardening culture, preferences, and community events when appropriate
+- Use seasonal timing advice that's accurate for their specific climate zone
+- Include locally-relevant tips that would resonate with gardeners in their specific region
+
+IMPORTANT: Use this company information to personalize the newsletter with highly location-specific content that reflects their specific geographic region, local climate, and regional gardening conditions.
 
 CONTENT RESTRICTIONS: 
 - NEVER use the phrase "Green Thumbs" or "green thumb" in any content
@@ -87,6 +97,7 @@ CONTENT RESTRICTIONS:
 - NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
 - Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
+- Make all advice regionally appropriate and climate-specific
 `;
     } else {
       companyContext = `
@@ -96,10 +107,11 @@ CONTENT RESTRICTIONS:
 - NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
 - Write in flowing paragraphs and natural sentences only
 - Avoid cliché gardening phrases and focus on fresh, authentic language
+- Since no location is specified, keep advice general but emphasize the importance of local climate considerations
 `;
     }
 
-    const prompt = `You are a professional newsletter writer for a garden center. Create an engaging weekly newsletter that reflects the specific company's brand and personality.
+    const prompt = `You are a professional newsletter writer for a garden center with deep expertise in regional gardening differences across various climate zones and geographic areas. Create an engaging weekly newsletter that reflects the specific company's brand, personality, and most importantly their local region and climate conditions.
 
 ${companyContext}
 
@@ -118,24 +130,27 @@ Create a comprehensive weekly newsletter that:
 2. Reflects their unique selling points and specializations
 3. Speaks directly to their target audience and ideal customer
 4. Incorporates their company values naturally
-5. References their location and seasonal focus when relevant
+5. References their location and seasonal focus with high specificity to their region
 6. Maintains their preferred tone of writing
 7. Highlights the week's main theme from the content
-8. Includes practical gardening tips aligned with their expertise
-9. Mentions seasonal activities relevant to their focus areas
-10. Ends with a personalized call-to-action
-11. NEVER uses "Green Thumbs" or "green thumb" phrases
-12. NEVER uses bullet points or numbered lists - write in flowing paragraphs only
-13. NEVER mentions week numbers in any form
+8. Includes practical gardening tips that are specifically relevant to their geographic location and climate zone
+9. Mentions seasonal activities and timing that's accurate for their specific region
+10. Addresses local gardening challenges and regional growing conditions
+11. References plants, techniques, and timing appropriate for their local hardiness zone
+12. Considers local weather patterns, soil conditions, and regional gardening culture
+13. Ends with a personalized call-to-action that reflects their local community
+14. NEVER uses "Green Thumbs" or "green thumb" phrases
+15. NEVER uses bullet points or numbered lists - write in flowing paragraphs only
+16. NEVER mentions week numbers in any form
 
 Format the response as a JSON object with:
-- subject: The email subject line (incorporating company name)
+- subject: The email subject line (incorporating company name and regional relevance)
 - content: The full newsletter content in HTML format
 - summary: A brief plain text summary
 
-The newsletter should be 400-600 words and feel personal and authentic to this specific garden center.`;
+The newsletter should be 400-600 words and feel personal, authentic, and highly relevant to this specific garden center and their local region/climate.`;
 
-    console.log('Generating personalized newsletter with prompt:', prompt);
+    console.log('Generating personalized, region-specific newsletter with prompt:', prompt);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -146,7 +161,7 @@ The newsletter should be 400-600 words and feel personal and authentic to this s
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications. Always respond with valid JSON and personalize content based on the company profile provided. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences. NEVER mention week numbers in any form in the content.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences. NEVER mention week numbers in any form in the content.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -175,7 +190,7 @@ The newsletter should be 400-600 words and feel personal and authentic to this s
       };
     }
 
-    console.log('Generated personalized newsletter:', newsletterData);
+    console.log('Generated personalized, region-specific newsletter:', newsletterData);
 
     return new Response(JSON.stringify(newsletterData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

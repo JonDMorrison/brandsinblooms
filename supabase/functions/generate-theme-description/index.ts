@@ -16,10 +16,23 @@ serve(async (req) => {
   }
 
   try {
-    const { theme } = await req.json();
+    const { theme, userId } = await req.json();
 
     if (!theme) {
       throw new Error('Theme is required');
+    }
+
+    // Build context based on whether we have user info for regional considerations
+    let regionalContext = '';
+    if (userId) {
+      regionalContext = `
+REGIONAL CONSIDERATIONS:
+- Consider that different regions have different growing seasons, climate challenges, and plant preferences
+- Think about how this theme would be relevant across various geographic locations (desert southwest, humid southeast, cold northern regions, temperate coastal areas, etc.)
+- Include seasonal timing considerations that can be adapted for different climate zones
+- Reference the importance of local climate conditions and hardiness zones when relevant
+- Consider regional gardening challenges like drought, humidity, frost, soil conditions, or local pests
+`;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -33,20 +46,25 @@ serve(async (req) => {
         messages: [
           { 
             role: 'system', 
-            content: `You are a marketing content strategist for a garden center. Create a brief, focused content description (2-3 sentences max) that explains what this week's marketing content will cover. The description should:
+            content: `You are a marketing content strategist for garden centers with deep knowledge of regional gardening differences across various climate zones. Create a brief, focused content description (2-3 sentences max) that explains what this week's marketing content will cover. The description should:
             - Be specific and actionable
             - Focus on customer benefits
-            - Mention seasonal relevance when appropriate
+            - Mention seasonal relevance when appropriate and consider regional variations
             - Reference the garden center's expertise and products
             - Be professional but approachable
             - Avoid repetitive phrasing
             - Write in flowing sentences, NEVER use bullet points or lists
+            - Consider regional gardening differences and climate-specific advice when relevant
             
             Keep it concise and compelling - this will guide all content creation for the week including social media, newsletters, and videos.`
           },
           { 
             role: 'user', 
-            content: `Generate a content focus description for this theme: "${theme}"`
+            content: `Generate a content focus description for this theme: "${theme}"
+
+${regionalContext}
+
+Create a description that can guide region-specific content creation, considering how this theme would be relevant across different geographic locations and climate zones.`
           }
         ],
         max_tokens: 150,

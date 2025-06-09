@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Check, X } from "lucide-react";
 import { generateThemeDescription } from "./ThemeDescriptionGenerator";
 import { SmartThemeSelector } from "../theme-generation/SmartThemeSelector";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ThemeEditorProps {
   editTheme: string;
@@ -29,8 +30,10 @@ export const ThemeEditor = ({
   onSave,
   onCancel,
 }: ThemeEditorProps) => {
+  const { user } = useAuth();
+
   const handleGenerateDescription = async () => {
-    await generateThemeDescription(editTheme, onDescriptionChange, onLoadingChange);
+    await generateThemeDescription(editTheme, onDescriptionChange, onLoadingChange, user?.id);
   };
 
   const handleSmartThemeSelect = (theme: string, description: string) => {
@@ -79,7 +82,7 @@ export const ThemeEditor = ({
           rows={3}
         />
         <p className="text-xs text-gray-500">
-          This description will guide all content creation for this week (newsletter, social media, emails, videos).
+          This description will guide all region-specific content creation for this week (newsletter, social media, emails, videos).
         </p>
       </div>
 
