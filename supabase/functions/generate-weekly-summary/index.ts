@@ -16,10 +16,42 @@ serve(async (req) => {
   }
 
   try {
-    const { theme, weekNumber, date } = await req.json();
+    const { theme, weekNumber, date, type = 'summary' } = await req.json();
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
+    }
+
+    let systemPrompt = '';
+    let userPrompt = '';
+
+    if (type === 'headline') {
+      systemPrompt = `You are a creative marketing headline writer for garden centers. Create compelling, attention-grabbing headlines from weekly themes. The headlines should:
+      - Be engaging and exciting (like magazine headlines)
+      - Use action words and emotional language
+      - Be 3-8 words maximum
+      - Appeal to gardening enthusiasts
+      - Feel fresh and modern
+      - Avoid generic phrases and clichés
+      - Focus on benefits and excitement
+      
+      Transform boring theme names into headlines that make customers excited to engage.
+      Return ONLY the headline, no quotes or extra text.`;
+      
+      userPrompt = `Create an exciting marketing headline for this garden center theme: "${theme}"`;
+    } else {
+      systemPrompt = `You are a marketing content strategist for garden centers. Create an engaging, exciting summary for an upcoming marketing campaign week. The summary should:
+      - Be 1-2 sentences maximum
+      - Sound exciting and compelling
+      - Focus on customer benefits and engagement
+      - Use action-oriented language
+      - Be specific about what customers can expect
+      - Avoid generic phrases and clichés
+      - Feel fresh and modern
+      
+      Write in a tone that builds anticipation and makes customers excited about what's coming.`;
+      
+      userPrompt = `Create an exciting summary for Week ${weekNumber} (starting ${date}) with the theme: "${theme}"`;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -31,25 +63,10 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { 
-            role: 'system', 
-            content: `You are a marketing content strategist for garden centers. Create an engaging, exciting summary for an upcoming marketing campaign week. The summary should:
-            - Be 1-2 sentences maximum
-            - Sound exciting and compelling
-            - Focus on customer benefits and engagement
-            - Use action-oriented language
-            - Be specific about what customers can expect
-            - Avoid generic phrases and clichés
-            - Feel fresh and modern
-            
-            Write in a tone that builds anticipation and makes customers excited about what's coming.`
-          },
-          { 
-            role: 'user', 
-            content: `Create an exciting summary for Week ${weekNumber} (starting ${date}) with the theme: "${theme}"`
-          }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
-        max_tokens: 100,
+        max_tokens: type === 'headline' ? 50 : 100,
         temperature: 0.8,
       }),
     });

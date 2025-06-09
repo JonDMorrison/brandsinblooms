@@ -20,6 +20,7 @@ interface WeekData {
   theme: string;
   description: string;
   summary?: string;
+  headline?: string;
   contentTypes: string[];
 }
 
@@ -28,6 +29,7 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [weeks, setWeeks] = useState<WeekData[]>([]);
   const [loadingSummaries, setLoadingSummaries] = useState<Record<number, boolean>>({});
+  const [loadingHeadlines, setLoadingHeadlines] = useState<Record<number, boolean>>({});
   const navigate = useNavigate();
 
   const getUpcomingWeeks = () => {
@@ -112,13 +114,50 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
     }
   };
 
+  const generateWeeklyHeadline = async (week: WeekData) => {
+    if (week.headline || loadingHeadlines[week.id]) return;
+
+    setLoadingHeadlines(prev => ({ ...prev, [week.id]: true }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-weekly-summary', {
+        body: {
+          theme: week.theme,
+          weekNumber: week.weekNumber,
+          date: week.weekStart.toLocaleDateString(),
+          type: 'headline'
+        }
+      });
+
+      if (error) {
+        console.error('Error generating weekly headline:', error);
+        return;
+      }
+
+      if (data?.summary) {
+        setWeeks(prevWeeks => 
+          prevWeeks.map(w => 
+            w.id === week.id 
+              ? { ...w, headline: data.summary }
+              : w
+          )
+        );
+      }
+    } catch (error) {
+      console.error('Error generating weekly headline:', error);
+    } finally {
+      setLoadingHeadlines(prev => ({ ...prev, [week.id]: false }));
+    }
+  };
+
   useEffect(() => {
     const initialWeeks = getUpcomingWeeks();
     setWeeks(initialWeeks);
     
-    // Generate summaries for all weeks
+    // Generate summaries and headlines for all weeks
     initialWeeks.forEach(week => {
       generateWeeklySummary(week);
+      generateWeeklyHeadline(week);
     });
   }, []);
 
@@ -169,9 +208,16 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
                   <ArrowRight className="w-4 h-4 text-gray-400 group-hover:text-blue-600 transition-colors" />
                 </div>
 
-                <h3 className="font-semibold text-gray-900 mb-2">
-                  {week.theme}
-                </h3>
+                {loadingHeadlines[week.id] ? (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="w-3 h-3 animate-pulse text-blue-500" />
+                    <div className="h-5 bg-gray-200 rounded animate-pulse flex-1"></div>
+                  </div>
+                ) : (
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    {week.headline || week.theme}
+                  </h3>
+                )}
                 
                 {loadingSummaries[week.id] ? (
                   <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
