@@ -1,7 +1,6 @@
 
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
 import { WhatsComingNextCard } from "@/components/homepage/WhatsComingNextCard";
-import { ReviewQueue } from "@/components/content/ReviewQueue";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import { AnalyticsSnapshot } from "@/components/homepage/AnalyticsSnapshot";
 import { CurrentCampaignSection } from "./CurrentCampaignSection";
@@ -66,14 +65,8 @@ export const DashboardGrid = ({
       
       {/* Right Column - Sidebar */}
       <div className="space-y-6">
-        {/* Review Queue */}
-        <ReviewQueue 
-          onTaskUpdate={onTaskUpdate}
-          onTaskClick={onTaskClick}
-        />
-        
-        {/* Ready to Post */}
-        <ReadyToPostCard tasks={tasks} />
+        {/* Ready to Post - Now the primary content review section */}
+        <ReadyToPostCard tasks={tasks} onTaskClick={onTaskClick} />
         
         {/* Analytics Snapshot */}
         <AnalyticsSnapshot 

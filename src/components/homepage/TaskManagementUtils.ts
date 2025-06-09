@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentWeekNumber } from "./homepageUtils";
 import { 
@@ -122,7 +123,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       tasksToCreate.push({
         campaign_id: campaignId,
         post_type: postType,
-        status: 'review',
+        status: 'approved', // Skip review, go directly to approved
         scheduled_date: scheduledDate.toISOString().split('T')[0],
         ai_output: aiOutput,
         hashtags: getHashtagsForType(postType),
@@ -181,7 +182,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
     const today = new Date();
     const weekNumber = getCurrentWeekNumber();
     
-    // Generate exactly 5 required tasks with OpenAI
+    // Generate exactly 5 required tasks with OpenAI and set them as approved
     const requiredTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
     const sampleTasks = [];
     
@@ -208,7 +209,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       sampleTasks.push({
         campaign_id: campaignId,
         post_type: postType,
-        status: 'review',
+        status: 'approved', // Skip review, go directly to approved
         scheduled_date: scheduledDate.toISOString().split('T')[0],
         ai_output: aiOutput,
         hashtags: getHashtagsForType(postType),
@@ -216,7 +217,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       });
     }
 
-    console.log('Creating 5 required tasks for campaign:', campaignId);
+    console.log('Creating 5 approved tasks for campaign:', campaignId);
 
     const { data, error } = await supabase
       .from('content_tasks')
@@ -227,7 +228,7 @@ export const generateRequiredTasks = async (campaignId: string, campaigns: any[]
       console.error('Error creating tasks:', error);
       throw error;
     } else {
-      console.log('5 OpenAI-generated tasks created successfully:', data?.length || 0);
+      console.log('5 OpenAI-generated approved tasks created successfully:', data?.length || 0);
     }
 
     // Clean up any potential duplicates after creation

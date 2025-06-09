@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink, Clock, CheckCircle, Calendar as CalendarIcon, Edit } from "lucide-react";
@@ -46,18 +45,17 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: Enhance
     }
   };
 
-  // Only show truly approved content with proper status indicators
+  // Content is already approved, show publish-ready status
   const getReadinessStatus = () => {
     const hasContent = task.ai_output && task.ai_output.trim().length > 0;
     const hasScheduleDate = task.scheduled_date;
     
-    // Only show ready status for approved content
-    if (task.status === 'approved' && hasContent && hasScheduleDate) {
+    if (hasContent && hasScheduleDate) {
       return { status: 'ready', label: 'Ready to Publish', color: 'bg-green-100 text-green-800' };
-    } else if (task.status === 'approved' && hasContent) {
+    } else if (hasContent) {
       return { status: 'needs-schedule', label: 'Needs Scheduling', color: 'bg-yellow-100 text-yellow-800' };
     } else {
-      return { status: 'needs-content', label: 'Needs Review', color: 'bg-orange-100 text-orange-800' };
+      return { status: 'needs-content', label: 'Needs Content', color: 'bg-orange-100 text-orange-800' };
     }
   };
 
