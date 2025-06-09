@@ -159,7 +159,7 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
         </DialogHeader>
 
         <Tabs defaultValue="content" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-100 p-1 rounded-lg">
+          <TabsList className="grid w-full grid-cols-2 mb-6 bg-transparent p-0 h-auto">
             <TabsTrigger 
               value="content" 
               className="flex items-center gap-2 py-3 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-md transition-all"
