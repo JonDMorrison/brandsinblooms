@@ -83,7 +83,7 @@ export const AnalyticsSnapshot = () => {
     return (
       <Card className="border-purple-200">
         <CardHeader>
-          <CardTitle className="text-lg text-purple-700 flex items-center gap-2">
+          <CardTitle className="text-lg text-black flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
             Analytics Snapshot
           </CardTitle>
@@ -108,7 +108,7 @@ export const AnalyticsSnapshot = () => {
   return (
     <Card className="border-purple-200">
       <CardHeader>
-        <CardTitle className="text-lg text-purple-700 flex items-center gap-2">
+        <CardTitle className="text-lg text-black flex items-center gap-2">
           <TrendingUp className="w-5 h-5" />
           Analytics Snapshot
         </CardTitle>
