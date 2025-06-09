@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Settings, User, Crown } from "lucide-react";
+import { LogOut, Settings, User, Crown, Home } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const UserMenu = () => {
@@ -20,6 +20,10 @@ export const UserMenu = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate("/auth");
+  };
+
+  const handleDashboardClick = () => {
+    navigate("/app");
   };
 
   const handleProfileClick = () => {
@@ -57,6 +61,10 @@ export const UserMenu = () => {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleDashboardClick}>
+          <Home className="mr-2 h-4 w-4" />
+          <span>Dashboard</span>
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={handleProfileClick}>
           <User className="mr-2 h-4 w-4" />
           <span>Profile</span>

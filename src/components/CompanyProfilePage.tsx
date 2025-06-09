@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Save, ArrowLeft } from "lucide-react";
+import { UserMenu } from "@/components/UserMenu";
 
 export const CompanyProfilePage = () => {
   const { user } = useAuth();
@@ -76,43 +77,52 @@ export const CompanyProfilePage = () => {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-garden-background p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-garden-green-dark mb-2">
-              Company Profile
-            </h1>
-            <p className="text-garden-green">
-              Manage your company information to help AI create better, more personalized content
-            </p>
+      <div className="min-h-screen bg-garden-background">
+        {/* Header with User Menu */}
+        <div className="p-6 border-b border-green-200 bg-white">
+          <div className="flex justify-end">
+            <UserMenu />
           </div>
-          
-          <CompanyProfileForm 
-            profile={profile}
-            isEditing={isEditing}
-            onToggleEdit={() => setIsEditing(!isEditing)}
-            onProfileUpdate={handleProfileUpdate}
-          />
+        </div>
 
-          {/* Bottom Action Buttons */}
-          <div className="mt-8 flex justify-between items-center">
-            <Button
-              variant="outline"
-              onClick={handleReturnToDashboard}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Return To Dashboard
-            </Button>
+        <div className="p-6">
+          <div className="max-w-4xl mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-bold text-garden-green-dark mb-2">
+                Company Profile
+              </h1>
+              <p className="text-garden-green">
+                Manage your company information to help AI create better, more personalized content
+              </p>
+            </div>
             
-            <Button
-              onClick={handleSave}
-              disabled={isSaving || !isEditing}
-              className="flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              {isSaving ? 'Saving...' : 'Save'}
-            </Button>
+            <CompanyProfileForm 
+              profile={profile}
+              isEditing={isEditing}
+              onToggleEdit={() => setIsEditing(!isEditing)}
+              onProfileUpdate={handleProfileUpdate}
+            />
+
+            {/* Bottom Action Buttons */}
+            <div className="mt-8 flex justify-between items-center">
+              <Button
+                variant="outline"
+                onClick={handleReturnToDashboard}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Return To Dashboard
+              </Button>
+              
+              <Button
+                onClick={handleSave}
+                disabled={isSaving || !isEditing}
+                className="flex items-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                {isSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
           </div>
         </div>
       </div>

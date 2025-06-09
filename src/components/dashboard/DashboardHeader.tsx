@@ -1,5 +1,6 @@
 
 import { CampaignDialog } from "@/components/CampaignDialog";
+import { UserMenu } from "@/components/UserMenu";
 
 interface DashboardHeaderProps {
   currentView: "home" | "kanban" | "calendar" | "team" | "profile";
@@ -39,7 +40,13 @@ export const DashboardHeader = ({
   };
 
   if (currentView === "home") {
-    return null;
+    return (
+      <div className="p-6 border-b border-green-200 bg-white">
+        <div className="flex justify-end">
+          <UserMenu />
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -53,9 +60,12 @@ export const DashboardHeader = ({
             {getViewDescription()}
           </p>
         </div>
-        {currentView !== "team" && currentView !== "profile" && (
-          <CampaignDialog onCampaignCreated={onCampaignCreated} />
-        )}
+        <div className="flex items-center gap-4">
+          {currentView !== "team" && currentView !== "profile" && (
+            <CampaignDialog onCampaignCreated={onCampaignCreated} />
+          )}
+          <UserMenu />
+        </div>
       </div>
     </div>
   );
