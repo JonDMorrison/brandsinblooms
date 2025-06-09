@@ -51,6 +51,7 @@ export default {
 					50: '#FFF3E6',
 					100: '#FFE0B3',
 					500: '#FF8A00',
+					600: '#E6750A',
 					foreground: '#2D3748'
 				},
 				accent: {

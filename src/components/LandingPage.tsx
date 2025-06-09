@@ -244,7 +244,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    <Star key={i} className="h-5 w-5 fill-orange-400 text-orange-400" />
                   ))}
                 </div>
                 <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
@@ -266,7 +266,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    <Star key={i} className="h-5 w-5 fill-orange-400 text-orange-400" />
                   ))}
                 </div>
                 <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
@@ -288,7 +288,7 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
               <CardContent className="pt-4">
                 <div className="flex mb-6">
                   {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    <Star key={i} className="h-5 w-5 fill-orange-400 text-orange-400" />
                   ))}
                 </div>
                 <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
