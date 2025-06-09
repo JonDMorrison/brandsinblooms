@@ -3,22 +3,69 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Clock, CheckCircle, Calendar } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-interface AnalyticsSnapshotProps {
-  totalTasks: number;
-  completedTasks: number;
-  pendingTasks: number;
-  activeCampaigns: number;
-}
+export const AnalyticsSnapshot = () => {
+  const { user } = useAuth();
+  const [analytics, setAnalytics] = useState({
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    activeCampaigns: 0,
+    loading: true
+  });
 
-export const AnalyticsSnapshot = ({ 
-  totalTasks, 
-  completedTasks, 
-  pendingTasks, 
-  activeCampaigns 
-}: AnalyticsSnapshotProps) => {
+  useEffect(() => {
+    const fetchAnalytics = async () => {
+      if (!user) return;
+
+      try {
+        // Fetch all content tasks
+        const { data: tasks, error: tasksError } = await supabase
+          .from('content_tasks')
+          .select('status');
+
+        if (tasksError) {
+          console.error('Error fetching tasks:', tasksError);
+          return;
+        }
+
+        // Fetch all campaigns
+        const { data: campaigns, error: campaignsError } = await supabase
+          .from('campaigns')
+          .select('id');
+
+        if (campaignsError) {
+          console.error('Error fetching campaigns:', campaignsError);
+          return;
+        }
+
+        // Calculate analytics
+        const totalTasks = tasks?.length || 0;
+        const completedTasks = tasks?.filter(task => task.status === 'approved' || task.status === 'scheduled').length || 0;
+        const pendingTasks = tasks?.filter(task => task.status === 'draft').length || 0;
+        const activeCampaigns = campaigns?.length || 0;
+
+        setAnalytics({
+          totalTasks,
+          completedTasks,
+          pendingTasks,
+          activeCampaigns,
+          loading: false
+        });
+      } catch (error) {
+        console.error('Error fetching analytics:', error);
+        setAnalytics(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    fetchAnalytics();
+  }, [user]);
+
+  const { totalTasks, completedTasks, pendingTasks, activeCampaigns, loading } = analytics;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-  const pendingRate = totalTasks > 0 ? Math.round((pendingTasks / totalTasks) * 100) : 0;
 
   const getProgressColor = (rate: number) => {
     if (rate >= 80) return "bg-green-500";
@@ -31,6 +78,32 @@ export const AnalyticsSnapshot = ({
     if (rate >= 60) return "text-yellow-600 bg-yellow-50";
     return "text-red-600 bg-red-50";
   };
+
+  if (loading) {
+    return (
+      <Card className="border-purple-200">
+        <CardHeader>
+          <CardTitle className="text-lg text-purple-700 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5" />
+            Analytics Snapshot
+          </CardTitle>
+          <CardDescription>
+            Loading your performance data...
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="animate-pulse space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="h-16 bg-gray-200 rounded"></div>
+              <div className="h-16 bg-gray-200 rounded"></div>
+            </div>
+            <div className="h-8 bg-gray-200 rounded"></div>
+            <div className="h-4 bg-gray-200 rounded"></div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-purple-200">
@@ -106,6 +179,15 @@ export const AnalyticsSnapshot = ({
             </span>
           </div>
         </div>
+
+        {/* Empty State */}
+        {totalTasks === 0 && (
+          <div className="text-center py-4">
+            <p className="text-sm text-gray-500">
+              No content yet. Create your first campaign to get started!
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
