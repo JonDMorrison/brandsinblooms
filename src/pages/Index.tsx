@@ -1,11 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
 import { WebsiteOnboardingFlow } from "@/components/WebsiteOnboardingFlow";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { DashboardTabs } from "@/components/dashboard/DashboardTabs";
 import { LandingPage } from "@/components/LandingPage";
 
 const Index = () => {
@@ -35,7 +33,7 @@ const Index = () => {
         // Check if user has completed onboarding
         const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
         if (savedData) {
-          console.log('Index: Found onboarding data, showing dashboard');
+          console.log('Index: Found onboarding data, showing modern dashboard');
           // User has onboarding data, go directly to dashboard
           const parsedData = JSON.parse(savedData);
           setOnboardingData(parsedData);
@@ -89,7 +87,7 @@ const Index = () => {
     return null; // This shouldn't happen due to ProtectedRoute, but just in case
   }
 
-  console.log('Index: Rendering with state - showLanding:', showLanding, 'isOnboarded:', isOnboarded);
+  console.log('Index: Rendering with state - showLanding:', showLanding, 'isOnboarded:', isOnboarded, 'currentView:', currentView);
 
   return (
     <div className="min-h-screen bg-garden-background">
@@ -98,21 +96,19 @@ const Index = () => {
       ) : !isOnboarded ? (
         <WebsiteOnboardingFlow onComplete={handleOnboardingComplete} />
       ) : (
-        <DashboardTabs>
-          <DashboardLayout
-            currentView={currentView}
-            onViewChange={setCurrentView}
+        <DashboardLayout
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          onboardingData={onboardingData}
+          onBusinessNameChange={handleBusinessNameChange}
+          onCampaignCreated={handleCampaignCreated}
+        >
+          <DashboardContent
             onboardingData={onboardingData}
             onBusinessNameChange={handleBusinessNameChange}
             onCampaignCreated={handleCampaignCreated}
-          >
-            <DashboardContent
-              onboardingData={onboardingData}
-              onBusinessNameChange={handleBusinessNameChange}
-              onCampaignCreated={handleCampaignCreated}
-            />
-          </DashboardLayout>
-        </DashboardTabs>
+          />
+        </DashboardLayout>
       )}
     </div>
   );
