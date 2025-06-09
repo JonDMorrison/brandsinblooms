@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,7 +126,7 @@ const Auth = () => {
           <div className="flex items-center justify-center mb-4">
             <Sprout className="h-8 w-8 text-garden-green mr-3" />
             <h1 className="text-3xl font-bold text-black">
-              Bloom & Grow Studio
+              Save Hours With BloomSuite
             </h1>
           </div>
           <p className="text-gray-600 text-lg">
