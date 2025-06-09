@@ -69,21 +69,25 @@ REGIONAL VIDEO SCRIPT FOCUS:
 
 IMPORTANT: Use this company information to create a personalized video script that sounds authentic to this specific garden center owner or expert speaking to their local community about region-specific gardening advice.
 
-CONTENT RESTRICTIONS: 
-- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
-- NEVER use bullet points (•) or numbered lists in the content
-- Write in flowing paragraphs and natural sentences only
-- Avoid cliché gardening phrases and focus on fresh, authentic language
+CRITICAL CONTENT RESTRICTIONS: 
+- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
+- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
+- ABSOLUTELY NEVER use dashes (-) to create lists
+- Write ONLY in flowing paragraphs and natural sentences
+- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Make all advice regionally appropriate and climate-specific
+- If you need to present multiple points, weave them into natural paragraph flow
 `;
     } else {
       companyContext = `
-CONTENT RESTRICTIONS: 
-- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
-- NEVER use bullet points (•) or numbered lists in the content
-- Write in flowing paragraphs and natural sentences only
-- Avoid cliché gardening phrases and focus on fresh, authentic language
+CRITICAL CONTENT RESTRICTIONS: 
+- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
+- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
+- ABSOLUTELY NEVER use dashes (-) to create lists
+- Write ONLY in flowing paragraphs and natural sentences
+- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Since no location is specified, keep advice general but mention the importance of knowing your local climate zone
+- If you need to present multiple points, weave them into natural paragraph flow
 `;
     }
 
@@ -104,10 +108,11 @@ Requirements:
 - Use timing and seasonal advice that's accurate for their local hardiness zone
 - Consider local soil conditions, weather patterns, and regional gardening culture
 - Make it sound like a local expert giving advice to their community
-- Write in flowing paragraphs and natural sentences, NOT bullet points or lists
-- NEVER use "Green Thumbs" or "green thumb" phrases
+- Write in flowing paragraphs and natural sentences, NOT bullet points, numbered lists, or dashes
+- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase
+- If you need to present multiple points, weave them naturally into conversational paragraph form
 
-Format the response as a natural speaking script, not bullet points.`;
+Format the response as a natural speaking script, not bullet points or lists.`;
 
     console.log('Generating personalized, region-specific video script with OpenAI');
 
@@ -120,7 +125,7 @@ Format the response as a natural speaking script, not bullet points.`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional video script writer specializing in garden center content with deep knowledge of regional gardening differences across various climate zones. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert to their local community. Focus on region-specific advice that considers local climate, growing conditions, seasonal timing, and regional gardening challenges. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
+          { role: 'system', content: 'You are a professional video script writer specializing in garden center content with deep knowledge of regional gardening differences across various climate zones. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert to their local community. Focus on region-specific advice that considers local climate, growing conditions, seasonal timing, and regional gardening challenges. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. If you need to present multiple points, weave them naturally into conversational paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

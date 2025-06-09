@@ -70,21 +70,25 @@ REGIONAL CONSIDERATIONS:
 
 IMPORTANT: Use this company information to create highly localized, region-specific content that sounds authentic to this specific garden center and their local climate/conditions.
 
-CONTENT RESTRICTIONS: 
-- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
-- NEVER use bullet points (•) or numbered lists in the content
-- Write in flowing paragraphs and natural sentences only
-- Avoid cliché gardening phrases and focus on fresh, authentic language
+CRITICAL CONTENT RESTRICTIONS: 
+- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
+- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
+- ABSOLUTELY NEVER use dashes (-) to create lists
+- Write ONLY in flowing paragraphs and natural sentences
+- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Make content regionally relevant and climate-appropriate
+- If you need to present multiple points, weave them into natural paragraph flow
 `;
     } else {
       companyContext = `
-CONTENT RESTRICTIONS: 
-- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
-- NEVER use bullet points (•) or numbered lists in the content
-- Write in flowing paragraphs and natural sentences only
-- Avoid cliché gardening phrases and focus on fresh, authentic language
+CRITICAL CONTENT RESTRICTIONS: 
+- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
+- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
+- ABSOLUTELY NEVER use dashes (-) to create lists
+- Write ONLY in flowing paragraphs and natural sentences
+- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Since no location is specified, keep advice general but mention the importance of knowing your local climate zone
+- If you need to present multiple points, weave them into natural paragraph flow
 `;
     }
 
@@ -102,8 +106,9 @@ Requirements:
 - Reference local growing seasons, weather patterns, or regional gardening considerations
 - Use plant varieties and gardening advice appropriate for their climate zone
 - Make it feel authentic to this specific garden center and their local area
-- Write in flowing paragraphs, NOT bullet points or lists
-- NEVER use "Green Thumbs" or "green thumb" phrases`,
+- Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
+- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- Present information in natural, conversational paragraph form`,
 
       facebook: `Create a Facebook post about ${campaignTitle}. ${companyContext}
 
@@ -118,8 +123,9 @@ Requirements:
 - Mention plants and gardening practices that work well in their specific climate
 - Consider local gardening culture and regional preferences
 - Make it feel personal and authentic to this garden center and their community
-- Write in flowing paragraphs, NOT bullet points or lists
-- NEVER use "Green Thumbs" or "green thumb" phrases`,
+- Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
+- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- Present information in natural, conversational paragraph form`,
 
       email: `Create email content about ${campaignTitle}. ${companyContext}
 
@@ -136,8 +142,9 @@ Requirements:
 - Use plant recommendations appropriate for their geographic area
 - Make timing advice specific to their local growing season
 - Make it feel personal from this specific garden center in their specific region
-- Write in flowing paragraphs, NOT bullet points or lists
-- NEVER use "Green Thumbs" or "green thumb" phrases`,
+- Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
+- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- Present information in natural, conversational paragraph form`,
 
       video: `Create a video script about ${campaignTitle}. ${companyContext}
 
@@ -154,12 +161,13 @@ Requirements:
 - Consider local gardening challenges and regional solutions
 - Use timing and seasonal advice appropriate for their location
 - Make it feel authentic to this garden center owner/expert in their specific region
-- Write in flowing paragraphs, NOT bullet points or lists
-- NEVER use "Green Thumbs" or "green thumb" phrases`
+- Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
+- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- Present information in natural, conversational paragraph form`
     };
 
     const prompt = contentPrompts[postType as keyof typeof contentPrompts] || 
-      `Create ${postType} content about ${campaignTitle} for a garden center. Make it engaging, professional, and region-specific if location information is available. Write in flowing paragraphs only - NEVER use bullet points or lists. NEVER use "Green Thumbs" or "green thumb" phrases.`;
+      `Create ${postType} content about ${campaignTitle} for a garden center. Make it engaging, professional, and region-specific if location information is available. Write in flowing paragraphs only - ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase.`;
 
     console.log('Generating personalized, region-specific content with OpenAI for:', postType);
 
@@ -172,7 +180,7 @@ Requirements:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company\'s brand, expertise, and most importantly their local region and climate conditions. Consider factors like hardiness zones, local weather patterns, regional growing seasons, soil conditions, and area-specific gardening challenges. NEVER use the phrase "Green Thumbs" or "green thumb" in any content - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences.' },
+          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company\'s brand, expertise, and most importantly their local region and climate conditions. Consider factors like hardiness zones, local weather patterns, regional growing seasons, soil conditions, and area-specific gardening challenges. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. If you need to present multiple points, weave them naturally into paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

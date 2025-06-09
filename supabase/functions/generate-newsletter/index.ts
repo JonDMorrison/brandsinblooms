@@ -91,23 +91,27 @@ REGIONAL NEWSLETTER FOCUS:
 
 IMPORTANT: Use this company information to personalize the newsletter with highly location-specific content that reflects their specific geographic region, local climate, and regional gardening conditions.
 
-CONTENT RESTRICTIONS: 
-- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
-- NEVER use bullet points (•) or numbered lists in the content
-- NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
-- Write in flowing paragraphs and natural sentences only
-- Avoid cliché gardening phrases and focus on fresh, authentic language
+CRITICAL CONTENT RESTRICTIONS: 
+- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
+- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
+- ABSOLUTELY NEVER use dashes (-) to create lists
+- ABSOLUTELY NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
+- Write ONLY in flowing paragraphs and natural sentences
+- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Make all advice regionally appropriate and climate-specific
+- If you need to present multiple points, weave them into natural paragraph flow
 `;
     } else {
       companyContext = `
-CONTENT RESTRICTIONS: 
-- NEVER use the phrase "Green Thumbs" or "green thumb" in any content
-- NEVER use bullet points (•) or numbered lists in the content
-- NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
-- Write in flowing paragraphs and natural sentences only
-- Avoid cliché gardening phrases and focus on fresh, authentic language
+CRITICAL CONTENT RESTRICTIONS: 
+- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
+- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
+- ABSOLUTELY NEVER use dashes (-) to create lists
+- ABSOLUTELY NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
+- Write ONLY in flowing paragraphs and natural sentences
+- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
 - Since no location is specified, keep advice general but emphasize the importance of local climate considerations
+- If you need to present multiple points, weave them into natural paragraph flow
 `;
     }
 
@@ -139,9 +143,9 @@ Create a comprehensive weekly newsletter that:
 11. References plants, techniques, and timing appropriate for their local hardiness zone
 12. Considers local weather patterns, soil conditions, and regional gardening culture
 13. Ends with a personalized call-to-action that reflects their local community
-14. NEVER uses "Green Thumbs" or "green thumb" phrases
-15. NEVER uses bullet points or numbered lists - write in flowing paragraphs only
-16. NEVER mentions week numbers in any form
+14. ABSOLUTELY NEVER uses "Green Thumbs", "green thumb", or any variation of this phrase
+15. ABSOLUTELY NEVER uses bullet points, numbered lists, or dashes - write in flowing paragraphs only
+16. ABSOLUTELY NEVER mentions week numbers in any form
 
 Format the response as a JSON object with:
 - subject: The email subject line (incorporating company name and regional relevance)
@@ -161,7 +165,7 @@ The newsletter should be 400-600 words and feel personal, authentic, and highly 
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. NEVER use the phrase "Green Thumbs" or "green thumb" - avoid this cliché completely. NEVER use bullet points (•) or numbered lists - write only in flowing paragraphs and natural sentences. NEVER mention week numbers in any form in the content.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention week numbers in any form in the content. If you need to present multiple points, weave them naturally into paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
