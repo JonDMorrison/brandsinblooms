@@ -89,7 +89,7 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
         
         <Card>
           <CardHeader>
-            <CardDescription>
+            <CardDescription className="text-foreground">
               Preview and prepare content for upcoming campaigns
             </CardDescription>
           </CardHeader>
