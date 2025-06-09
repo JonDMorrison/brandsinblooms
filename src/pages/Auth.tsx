@@ -149,7 +149,7 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-garden-sage h-12 p-1 rounded-lg border border-gray-200">
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-garden-sage h-12 p-1 rounded-lg border border-garden-green/20">
                 <TabsTrigger 
                   value="signin" 
                   className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-garden-green-dark data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
@@ -175,7 +175,7 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
                     />
                   </div>
 
@@ -189,7 +189,7 @@ const Auth = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="Your password"
-                        className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg"
+                        className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg"
                       />
                       <Button
                         type="button"
@@ -228,7 +228,7 @@ const Auth = () => {
 
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-gray-200" />
+                      <span className="w-full border-t border-garden-green/20" />
                     </div>
                     <div className="relative flex justify-center text-sm">
                       <span className="bg-white px-4 text-gray-500">— or —</span>
@@ -239,7 +239,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-gray-200 hover:bg-garden-sage transition-all duration-200 rounded-lg"
+                    className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -264,7 +264,7 @@ const Auth = () => {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       placeholder="Your full name"
-                      className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
                     />
                   </div>
 
@@ -277,7 +277,7 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
                     />
                   </div>
 
@@ -292,7 +292,7 @@ const Auth = () => {
                         required
                         placeholder="Choose a password (min 8 chars)"
                         minLength={8}
-                        className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg"
+                        className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg"
                       />
                       <Button
                         type="button"
@@ -326,7 +326,7 @@ const Auth = () => {
 
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-gray-200" />
+                      <span className="w-full border-t border-garden-green/20" />
                     </div>
                     <div className="relative flex justify-center text-sm">
                       <span className="bg-white px-4 text-gray-500">— or —</span>
@@ -337,7 +337,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-gray-200 hover:bg-garden-sage transition-all duration-200 rounded-lg"
+                    className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
