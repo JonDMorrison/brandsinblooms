@@ -116,7 +116,7 @@ const Auth = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-25 to-lime-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-garden-background via-garden-sage to-garden-sage flex items-center justify-center p-6">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-10 left-10 text-6xl">🌿</div>
@@ -131,8 +131,8 @@ const Auth = () => {
         {/* Header Area */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Sprout className="h-8 w-8 text-green-600 mr-3" />
-            <h1 className="text-3xl font-bold text-gray-900">
+            <Sprout className="h-8 w-8 text-garden-green mr-3" />
+            <h1 className="text-3xl font-bold text-garden-green-dark">
               Bloom & Grow Studio
             </h1>
           </div>
@@ -143,22 +143,22 @@ const Auth = () => {
 
         <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm rounded-2xl p-8">
           <CardHeader className="text-center pb-6">
-            <CardTitle className="text-2xl font-semibold text-gray-900 mb-4">
+            <CardTitle className="text-2xl font-semibold text-garden-green-dark mb-4">
               Sign In or Create an Account
             </CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-gray-50 h-12 p-1 rounded-lg border border-gray-200">
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-garden-sage h-12 p-1 rounded-lg border border-gray-200">
                 <TabsTrigger 
                   value="signin" 
-                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
+                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-garden-green-dark data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
                 >
                   Sign In
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
-                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
+                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-garden-green-dark data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
                 >
                   Sign Up
                 </TabsTrigger>
@@ -175,7 +175,7 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
                     />
                   </div>
 
@@ -189,20 +189,20 @@ const Auth = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="Your password"
-                        className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20 pr-12 transition-all duration-200 rounded-lg"
+                        className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-1 top-1 h-10 w-10 text-gray-500 hover:text-green-600"
+                        className="absolute right-1 top-1 h-10 w-10 text-gray-500 hover:text-garden-green"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
                     <div className="text-right">
-                      <a href="#" className="text-sm text-green-600 hover:text-green-700 transition-colors duration-200">
+                      <a href="#" className="text-sm text-garden-green hover:text-garden-green-dark transition-colors duration-200">
                         Forgot Password?
                       </a>
                     </div>
@@ -210,7 +210,7 @@ const Auth = () => {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+                    className="w-full h-12 bg-garden-green hover:bg-garden-green-dark text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
                     disabled={loading}
                   >
                     {loading ? (
@@ -239,7 +239,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-gray-200 hover:bg-gray-50 transition-all duration-200 rounded-lg"
+                    className="w-full h-12 border-gray-200 hover:bg-garden-sage transition-all duration-200 rounded-lg"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -264,7 +264,7 @@ const Auth = () => {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       placeholder="Your full name"
-                      className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
                     />
                   </div>
 
@@ -277,7 +277,7 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20 transition-all duration-200 rounded-lg"
+                      className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
                     />
                   </div>
 
@@ -292,13 +292,13 @@ const Auth = () => {
                         required
                         placeholder="Choose a password (min 8 chars)"
                         minLength={8}
-                        className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20 pr-12 transition-all duration-200 rounded-lg"
+                        className="h-12 border-gray-200 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-1 top-1 h-10 w-10 text-gray-500 hover:text-green-600"
+                        className="absolute right-1 top-1 h-10 w-10 text-gray-500 hover:text-garden-green"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -308,7 +308,7 @@ const Auth = () => {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-green-600 hover:bg-green-700 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+                    className="w-full h-12 bg-garden-green hover:bg-garden-green-dark text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
                     disabled={loading}
                   >
                     {loading ? (
@@ -337,7 +337,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-gray-200 hover:bg-gray-50 transition-all duration-200 rounded-lg"
+                    className="w-full h-12 border-gray-200 hover:bg-garden-sage transition-all duration-200 rounded-lg"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -361,8 +361,8 @@ const Auth = () => {
             )}
 
             {message && (
-              <Alert className="mt-6 border-green-200 bg-green-50">
-                <AlertDescription className="text-green-700">
+              <Alert className="mt-6 border-garden-green bg-garden-sage">
+                <AlertDescription className="text-garden-green-dark">
                   {message}
                 </AlertDescription>
               </Alert>
