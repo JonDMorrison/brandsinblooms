@@ -1,6 +1,7 @@
 
 import { ContentTypeCard } from "./ContentTypeCard";
-import { Instagram, Facebook, Mail, BookOpen, Video } from "lucide-react";
+import { Instagram, Facebook, Mail, BookOpen, Video, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface ContentType {
   id: string;
@@ -87,8 +88,47 @@ export const ContentGenerationTab = ({
     }
   ];
 
+  const handleGenerateAllContent = async () => {
+    for (const contentType of contentTypes) {
+      if (!generatedContent[contentType.id] && !generatingContent[contentType.id]) {
+        onGenerateContent(contentType);
+        // Add a small delay between requests to avoid overwhelming the API
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  };
+
+  const isGeneratingAny = Object.values(generatingContent).some(Boolean);
+  const allContentGenerated = contentTypes.every(type => generatedContent[type.id]);
+
   return (
     <div className="space-y-6">
+      <div className="flex justify-center">
+        <Button
+          onClick={handleGenerateAllContent}
+          disabled={isGeneratingAny || allContentGenerated}
+          className="w-full max-w-md h-12 font-medium transition-all duration-200 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          size="lg"
+        >
+          {isGeneratingAny ? (
+            <>
+              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+              Generating All Content...
+            </>
+          ) : allContentGenerated ? (
+            <>
+              <Sparkles className="w-4 h-4 mr-2" />
+              All Content Generated
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-4 h-4 mr-2" />
+              Generate All Content
+            </>
+          )}
+        </Button>
+      </div>
+
       <div className="grid gap-6">
         {contentTypes.map((contentType) => (
           <ContentTypeCard
@@ -108,6 +148,7 @@ export const ContentGenerationTab = ({
             onApproveContent={onApproveContent}
             onSocialMediaPost={onSocialMediaPost}
             onEditedContentChange={onEditedContentChange}
+            hideGenerateButton={true}
           />
         ))}
       </div>

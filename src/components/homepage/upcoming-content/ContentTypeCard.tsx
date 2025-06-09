@@ -35,6 +35,7 @@ interface ContentTypeCardProps {
   onApproveContent: (contentType: ContentType) => void;
   onSocialMediaPost: (contentType: ContentType) => void;
   onEditedContentChange: (contentTypeId: string, value: string) => void;
+  hideGenerateButton?: boolean;
 }
 
 export const ContentTypeCard = ({
@@ -52,7 +53,8 @@ export const ContentTypeCard = ({
   onCopyContent,
   onApproveContent,
   onSocialMediaPost,
-  onEditedContentChange
+  onEditedContentChange,
+  hideGenerateButton = false
 }: ContentTypeCardProps) => {
   const IconComponent = contentType.icon;
   const isGenerating = generatingContent[contentType.id];
@@ -119,30 +121,32 @@ export const ContentTypeCard = ({
         )}
         
         <div className="space-y-3">
-          <Button
-            onClick={() => onGenerateContent(contentType)}
-            disabled={isGenerating}
-            className="w-full h-11 font-medium transition-all duration-200"
-            size="sm"
-            variant={hasContent ? "outline" : "default"}
-          >
-            {isGenerating ? (
-              <>
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                Generating...
-              </>
-            ) : hasContent ? (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                Regenerate Content
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Content
-              </>
-            )}
-          </Button>
+          {!hideGenerateButton && (
+            <Button
+              onClick={() => onGenerateContent(contentType)}
+              disabled={isGenerating}
+              className="w-full h-11 font-medium transition-all duration-200"
+              size="sm"
+              variant={hasContent ? "outline" : "default"}
+            >
+              {isGenerating ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  Generating...
+                </>
+              ) : hasContent ? (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Regenerate Content
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Content
+                </>
+              )}
+            </Button>
+          )}
 
           {hasContent && (
             <div className="grid grid-cols-2 gap-2">
