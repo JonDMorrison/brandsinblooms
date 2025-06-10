@@ -130,7 +130,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] bg-white">
           <DialogHeader>
             <DialogTitle className="text-garden-green-dark">Add Event to Promote</DialogTitle>
           </DialogHeader>
