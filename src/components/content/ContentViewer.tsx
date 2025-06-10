@@ -145,7 +145,7 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
-            {campaignTitle} - Generated Content (Campaign ID: {campaignId})
+            {campaignTitle} - Generated Content
           </DialogTitle>
         </DialogHeader>
 
