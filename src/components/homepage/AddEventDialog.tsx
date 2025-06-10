@@ -23,6 +23,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
   const [eventName, setEventName] = useState("");
   const [eventDescription, setEventDescription] = useState("");
   const [eventDate, setEventDate] = useState("");
+  const [eventInstructions, setEventInstructions] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +46,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
     try {
       console.log('AddEventDialog: Creating event campaign:', eventName);
 
-      const eventPrompt = `Promote the event "${eventName}" ${eventDescription ? `- ${eventDescription}` : ''} ${eventDate ? `scheduled for ${eventDate}` : ''}. Create engaging promotional content that encourages attendance and builds excitement.`;
+      const eventPrompt = `Promote the event "${eventName}" ${eventDescription ? `- ${eventDescription}` : ''} ${eventDate ? `scheduled for ${eventDate}` : ''}${eventInstructions ? `. Important instructions: ${eventInstructions}` : ''}. Create engaging promotional content that encourages attendance and builds excitement.`;
 
       const { data, error: insertError } = await supabase
         .from('campaigns')
@@ -72,6 +73,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
       setEventName("");
       setEventDescription("");
       setEventDate("");
+      setEventInstructions("");
       setError(null);
 
       onEventCreated();
@@ -91,6 +93,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
       setEventName("");
       setEventDescription("");
       setEventDate("");
+      setEventInstructions("");
       setError(null);
       onOpenChange(false);
     }
@@ -152,6 +155,20 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
+              className="border-gray-300 focus:border-gray-500"
+              disabled={loading}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="eventInstructions" className="text-garden-green-dark">
+              Instructions & Deadlines
+            </Label>
+            <Textarea
+              id="eventInstructions"
+              value={eventInstructions}
+              onChange={(e) => setEventInstructions(e.target.value)}
+              placeholder="Add sign up deadlines, registration info, reply requirements, etc."
               className="border-gray-300 focus:border-gray-500"
               disabled={loading}
             />
