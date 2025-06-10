@@ -1,6 +1,9 @@
 
 import { toast } from "sonner";
 
+// These functions are now deprecated in favor of the SocialMediaPostModal
+// They're kept for backward compatibility but should not be used directly
+
 export const postToFacebook = (content: string) => {
   // Copy content to clipboard
   navigator.clipboard.writeText(content);

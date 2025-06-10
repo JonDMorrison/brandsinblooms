@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,8 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { generatePersonalizedContent } from "./TaskGenerationUtils";
 import { useAuth } from "@/contexts/AuthContext";
-import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 import { ContentGenerationTab } from "./upcoming-content/ContentGenerationTab";
+import { SocialMediaPostModal } from "@/components/SocialMediaPostModal";
 
 interface UpcomingContentModalProps {
   week: any;
@@ -32,6 +31,11 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
   const [approvedContent, setApprovedContent] = useState<Record<string, boolean>>({});
   const [editingContent, setEditingContent] = useState<Record<string, boolean>>({});
   const [editedContent, setEditedContent] = useState<Record<string, string>>({});
+  const [socialMediaModal, setSocialMediaModal] = useState<{ isOpen: boolean; platform: 'facebook' | 'instagram' | null; content: string }>({
+    isOpen: false,
+    platform: null,
+    content: ''
+  });
 
   const handleGenerateContent = async (contentType: ContentType) => {
     if (!week || !user) return;
@@ -109,11 +113,11 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
     const content = generatedContent[contentType.id];
     if (!content) return;
 
-    if (contentType.id === 'facebook') {
-      postToFacebook(content);
-    } else if (contentType.id === 'instagram') {
-      postToInstagram(content);
-    }
+    setSocialMediaModal({
+      isOpen: true,
+      platform: contentType.id as 'facebook' | 'instagram',
+      content: content
+    });
   };
 
   const handleEditedContentChange = (contentTypeId: string, value: string) => {
@@ -129,73 +133,82 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
   const generatedCount = Object.keys(generatedContent).length;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="space-y-4 pb-6 border-b">
-          <div className="flex items-center justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
-                  Week {week.weekNumber}
-                </Badge>
-                <DialogTitle className="text-2xl font-bold">{week.theme}</DialogTitle>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="space-y-4 pb-6 border-b">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1">
+                    Week {week.weekNumber}
+                  </Badge>
+                  <DialogTitle className="text-2xl font-bold">{week.theme}</DialogTitle>
+                </div>
+                <p className="text-gray-600 text-lg">
+                  Week of {week.weekStart.toLocaleDateString()} • {week.description}
+                </p>
+                <p className="text-sm text-blue-600 font-medium">
+                  All content below will be generated specifically for: "{week.theme}" theme
+                </p>
               </div>
-              <p className="text-gray-600 text-lg">
-                Week of {week.weekStart.toLocaleDateString()} • {week.description}
-              </p>
-              <p className="text-sm text-blue-600 font-medium">
-                All content below will be generated specifically for: "{week.theme}" theme
-              </p>
+              <div className="text-right space-y-1">
+                <div className="text-sm text-gray-500">Progress</div>
+                <div className="text-lg font-semibold text-gray-900">
+                  {approvedCount}/5 Approved
+                </div>
+                <div className="text-sm text-gray-500">
+                  {generatedCount}/5 Generated
+                </div>
+              </div>
             </div>
-            <div className="text-right space-y-1">
-              <div className="text-sm text-gray-500">Progress</div>
-              <div className="text-lg font-semibold text-gray-900">
-                {approvedCount}/5 Approved
-              </div>
-              <div className="text-sm text-gray-500">
-                {generatedCount}/5 Generated
-              </div>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            <ContentGenerationTab
+              week={week}
+              generatedContent={generatedContent}
+              generatingContent={generatingContent}
+              approvedContent={approvedContent}
+              editingContent={editingContent}
+              editedContent={editedContent}
+              onGenerateContent={handleGenerateContent}
+              onEditContent={handleEditContent}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
+              onCopyContent={handleCopyContent}
+              onApproveContent={handleApproveContent}
+              onSocialMediaPost={handleSocialMediaPost}
+              onEditedContentChange={handleEditedContentChange}
+            />
+          </div>
+
+          <div className="flex justify-between items-center pt-6 border-t">
+            <div className="text-sm text-gray-500">
+              {approvedCount > 0 && (
+                <span className="text-green-600 font-medium">
+                  {approvedCount} content piece{approvedCount !== 1 ? 's' : ''} approved
+                </span>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={onClose} className="transition-all duration-200">
+                Close
+              </Button>
+              <Button onClick={onClose} className="bg-green-600 hover:bg-green-700 transition-all duration-200">
+                Save & Continue
+              </Button>
             </div>
           </div>
-        </DialogHeader>
+        </DialogContent>
+      </Dialog>
 
-        <div className="space-y-6">
-          <ContentGenerationTab
-            week={week}
-            generatedContent={generatedContent}
-            generatingContent={generatingContent}
-            approvedContent={approvedContent}
-            editingContent={editingContent}
-            editedContent={editedContent}
-            onGenerateContent={handleGenerateContent}
-            onEditContent={handleEditContent}
-            onSaveEdit={handleSaveEdit}
-            onCancelEdit={handleCancelEdit}
-            onCopyContent={handleCopyContent}
-            onApproveContent={handleApproveContent}
-            onSocialMediaPost={handleSocialMediaPost}
-            onEditedContentChange={handleEditedContentChange}
-          />
-        </div>
-
-        <div className="flex justify-between items-center pt-6 border-t">
-          <div className="text-sm text-gray-500">
-            {approvedCount > 0 && (
-              <span className="text-green-600 font-medium">
-                {approvedCount} content piece{approvedCount !== 1 ? 's' : ''} approved
-              </span>
-            )}
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={onClose} className="transition-all duration-200">
-              Close
-            </Button>
-            <Button onClick={onClose} className="bg-green-600 hover:bg-green-700 transition-all duration-200">
-              Save & Continue
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <SocialMediaPostModal
+        isOpen={socialMediaModal.isOpen}
+        onClose={() => setSocialMediaModal({ isOpen: false, platform: null, content: '' })}
+        platform={socialMediaModal.platform!}
+        content={socialMediaModal.content}
+      />
+    </>
   );
 };
