@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -110,7 +109,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
       case 'completed':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'review':
-        return <AlertCircle className="w-4 h-4 text-orange-600" />;
+        return <AlertCircle className="w-4 h-4 text-blue-600 sm:text-orange-600" />;
       case 'draft':
         return <Clock className="w-4 h-4 text-blue-600" />;
       default:
@@ -123,7 +122,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
       case 'completed':
         return 'bg-green-100 text-green-800';
       case 'review':
-        return 'bg-orange-100 text-orange-800';
+        return 'bg-white text-blue-800 border-blue-200 sm:bg-orange-100 sm:text-orange-800 sm:border-orange-200';
       case 'draft':
         return 'bg-blue-100 text-blue-800';
       default:
@@ -246,16 +245,16 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto w-[95vw] max-w-full">
         <DialogHeader>
-          <DialogTitle className="text-garden-green-dark flex items-center justify-between">
-            Review Your Content
+          <DialogTitle className="text-garden-green-dark flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <span>Review Your Content</span>
             <Button
               variant="outline"
               size="sm"
               onClick={fetchTasks}
               disabled={loading}
-              className="ml-4"
+              className="self-start sm:self-auto"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -279,8 +278,8 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
             {tasks.map((task) => (
               <Card key={task.id} className="border-garden-green-light">
                 <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {getStatusIcon(task.status)}
                       <Badge variant="secondary" className={getStatusColor(task.status)}>
                         {task.status}
@@ -289,7 +288,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                         {task.post_type}
                       </Badge>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button
                         size="sm"
                         variant="outline"
@@ -321,7 +320,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                   </div>
                   
                   {task.ai_output && (
-                    <div className="bg-gray-50 p-4 rounded-md border">
+                    <div className="bg-gray-50 p-4 rounded-md border overflow-x-auto">
                       <div className="prose prose-sm max-w-none">
                         {formatContent(task.ai_output, task.post_type)}
                       </div>
@@ -343,7 +342,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="border-garden-green-light text-garden-green-dark"
+            className="border-garden-green-light text-garden-green-dark w-full sm:w-auto"
           >
             Close
           </Button>
