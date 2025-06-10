@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -177,23 +176,23 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
 
   return (
     <>
-      <div>
+      <div className="bg-white">
         <h2 className="text-2xl font-semibold text-garden-green-dark mb-6 flex items-center gap-2">
           <Calendar className="w-6 h-6" />
           What's Coming Next
         </h2>
         
-        <Card>
-          <CardHeader>
+        <Card className="bg-white border-gray-200">
+          <CardHeader className="bg-white">
             <CardDescription className="text-foreground">
               Preview and prepare content for upcoming campaigns
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 bg-white">
             {weeks.map((week) => (
               <div
                 key={week.id}
-                className="border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors group"
+                className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-colors group bg-white"
                 onClick={() => handleWeekClick(week)}
               >
                 <div className="flex items-center justify-between mb-3">
@@ -249,8 +248,8 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
               </div>
             ))}
 
-            <div className="pt-2 border-t">
-              <Button variant="outline" className="w-full" onClick={handleViewCalendar}>
+            <div className="pt-2 border-t border-gray-200 bg-white">
+              <Button variant="outline" className="w-full bg-white border-gray-200" onClick={handleViewCalendar}>
                 <Clock className="w-4 h-4 mr-2" />
                 View Full Campaign Calendar
               </Button>
