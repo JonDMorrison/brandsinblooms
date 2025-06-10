@@ -11,7 +11,8 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
         campaignTheme: campaignTitle,
         campaignTitle: campaignTitle,
         weekDescription: weekDescription,
-        userId: userId
+        userId: userId,
+        enforceCompanyName: true // New flag to ensure company name usage
       }
     });
 
@@ -46,7 +47,8 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
         campaignTitle: campaignTitle,
         weekNumber: weekNumber,
         weekDescription: weekDescription,
-        userId: userId
+        userId: userId,
+        enforceCompanyName: true // New flag to ensure company name usage
       }
     });
 
@@ -70,7 +72,8 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
       body: {
         campaignTitle: campaignTitle,
         weekDescription: weekDescription,
-        userId: userId
+        userId: userId,
+        enforceCompanyName: true // New flag to ensure company name usage
       }
     });
 

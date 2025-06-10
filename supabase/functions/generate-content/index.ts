@@ -17,7 +17,7 @@ serve(async (req) => {
   }
 
   try {
-    const { postType, campaignTitle, userId, weekDescription } = await req.json();
+    const { postType, campaignTitle, userId, weekDescription, enforceCompanyName } = await req.json();
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
@@ -40,10 +40,10 @@ serve(async (req) => {
       }
     }
 
-    // Build content-type specific prompt
-    const prompt = buildContentPrompt(postType, campaignTitle, companyProfile, weekDescription);
+    // Build content-type specific prompt with company name enforcement
+    const prompt = buildContentPrompt(postType, campaignTitle, companyProfile, weekDescription, enforceCompanyName);
     
-    console.log(`Generating validated ${postType} content for: ${campaignTitle}`);
+    console.log(`Generating validated ${postType} content for: ${campaignTitle}${companyProfile?.company_name ? ` (${companyProfile.company_name})` : ''}`);
 
     // Generate content with validation
     const result = await generateContentWithValidation(prompt, openAIApiKey);

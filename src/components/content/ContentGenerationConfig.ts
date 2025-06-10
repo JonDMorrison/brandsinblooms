@@ -1,4 +1,3 @@
-
 // Content generation configuration and validation system
 export interface StyleTokens {
   use_paragraphs: boolean;
@@ -11,6 +10,7 @@ export interface StyleTokens {
   conversational_tone: boolean;
   clear_cta: boolean;
   natural_timing: boolean;
+  enforce_company_name: boolean; // New flag for company name enforcement
 }
 
 export interface ContentTypeRules {
@@ -48,7 +48,8 @@ export const DEFAULT_STYLE_TOKENS: StyleTokens = {
   visual_language: true,
   conversational_tone: true,
   clear_cta: true,
-  natural_timing: true
+  natural_timing: true,
+  enforce_company_name: true // Enable company name enforcement by default
 };
 
 export const CONTENT_TYPE_RULES: Record<string, ContentTypeRules> = {
@@ -132,6 +133,8 @@ export const FORBIDDEN_PATTERNS = [
   /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu, // emojis
   /^\s*[-•]\s/gm, // bullet points
   /^\s*\d+\.\s/gm, // numbered lists
+  /\[company\s*name\]/gi, // company name placeholders
+  /your\s*garden\s*center/gi, // generic garden center references
 ];
 
 export const FORBIDDEN_PHRASES = [
@@ -140,7 +143,9 @@ export const FORBIDDEN_PHRASES = [
   'welcome to',
   'this week',
   'week number',
-  'happy week'
+  'happy week',
+  '[company name]',
+  'your garden center'
 ];
 
 export function validateContent(content: string): { isValid: boolean; issues: string[] } {
@@ -168,6 +173,12 @@ export function validateContent(content: string): { isValid: boolean; issues: st
           break;
         case 6:
           issues.push('Contains numbered lists');
+          break;
+        case 7:
+          issues.push('Contains company name placeholder');
+          break;
+        case 8:
+          issues.push('Contains generic garden center reference');
           break;
       }
     }
@@ -201,6 +212,7 @@ export function buildContentPrompt(
   
   const brandVoice = companyProfile?.brand_voice || DEFAULT_BRAND_VOICE.tone;
   const toneOfWriting = companyProfile?.tone_of_writing || DEFAULT_BRAND_VOICE.style;
+  const companyName = companyProfile?.company_name || 'Garden Center';
   
   let prompt = `Create ${contentType} content specifically about "${campaignTitle}"`;
   if (weekDescription) {
@@ -216,12 +228,21 @@ export function buildContentPrompt(
   
   if (companyProfile) {
     prompt += `\n\nCOMPANY PROFILE:
-Company Name: ${companyProfile.company_name || 'Garden Center'}
+Company Name: ${companyName}
 Brand Voice: ${brandVoice}
 Tone of Writing: ${toneOfWriting}
 Target Audience: ${companyProfile.target_audience || ''}
 Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}`;
+    
+    // Add company name enforcement if enabled
+    if (styleTokens.enforce_company_name && companyName && companyName !== 'Garden Center') {
+      prompt += `\n\nCOMPANY NAME USAGE REQUIREMENT:
+- ALWAYS use the actual company name "${companyName}" in the content
+- NEVER use generic placeholders like "[Company Name]", "Garden Center", or "Your Garden Center"
+- When referring to the business, always use "${companyName}" specifically
+- Make the content feel personal and authentic to ${companyName}`;
+    }
     
     if (companyProfile.location_info) {
       prompt += `\n\nREGIONAL FOCUS:
@@ -234,6 +255,14 @@ Location Info: ${companyProfile.location_info || ''}`;
   } else {
     prompt += `\n\n${FALLBACK_MESSAGES.missing_company_profile}`;
     prompt += `\n${FALLBACK_MESSAGES.missing_location}`;
+    
+    // Even without a profile, enforce not using placeholders
+    if (styleTokens.enforce_company_name) {
+      prompt += `\n\nCOMPANY NAME USAGE REQUIREMENT:
+- AVOID using generic placeholders like "[Company Name]", "Garden Center", or "Your Garden Center"
+- Use "we", "us", or "our team" instead of placeholder company names
+- Make the content feel personal and authentic without generic placeholders`;
+    }
   }
   
   prompt += `\n\nWRITING STYLE DIRECTIVES (CRITICAL):
@@ -250,6 +279,7 @@ CRITICAL RESTRICTIONS:
 - ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) 
 - ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
 - ABSOLUTELY NEVER use emojis anywhere in content
+- ABSOLUTELY NEVER use generic placeholders like "[Company Name]" - use the actual company name when available
 - Write ONLY in flowing paragraphs and natural sentences
 - Make content specific to the "${campaignTitle}" theme`;
   
