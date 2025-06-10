@@ -81,7 +81,7 @@ const Index = () => {
     if (user) {
       setIsCheckingOnboarding(true);
       
-      // Check URL params for navigation
+      // Check URL params for navigation - only show landing if explicitly requested
       const params = new URLSearchParams(location.search);
       
       if (params.get('view') === 'landing') {
@@ -90,7 +90,7 @@ const Index = () => {
         setIsOnboarded(false);
         setIsCheckingOnboarding(false);
       } else {
-        // Check onboarding status from both localStorage and database
+        // For returning users, check onboarding status and show dashboard if onboarded
         checkOnboardingStatus(user.id);
       }
     } else {
@@ -150,6 +150,7 @@ const Index = () => {
 
   console.log('Index: Final render state - showLanding:', showLanding, 'isOnboarded:', isOnboarded, 'currentView:', currentView);
 
+  // Priority order: landing page (if explicitly requested) > onboarding (if not completed) > dashboard (default for returning users)
   return (
     <div className="min-h-screen bg-garden-background">
       {showLanding ? (
