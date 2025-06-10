@@ -1,8 +1,8 @@
 
 import { validateContent, FORBIDDEN_PATTERNS, FORBIDDEN_PHRASES } from '../../utils/contentValidation';
-import { ValidationResult } from '../../types/contentGeneration';
+import type { ValidationResult } from '../../types/contentGeneration';
 
-export { ValidationResult };
+export type { ValidationResult };
 
 export class ContentValidator {
   static validate(content: string): ValidationResult {
