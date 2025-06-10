@@ -100,33 +100,33 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
   return (
     <>
       <Card className={`shadow-md ${nextStep.bgColor} ${nextStep.borderColor} border-2 rounded-xl overflow-hidden`}>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-start gap-4">
-              <div className="bg-white/80 backdrop-blur p-3 rounded-full shadow-sm">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4 flex-1">
+              <div className="bg-white/80 backdrop-blur p-3 rounded-full shadow-sm self-start">
                 <span className="text-2xl">{nextStep.icon}</span>
               </div>
-              <div className="flex-1">
-                <h3 className="text-xl font-bold text-foreground mb-2">
+              <div className="flex-1 space-y-2 sm:space-y-3">
+                <h3 className="text-lg sm:text-xl font-bold text-foreground">
                   {nextStep.title}
                 </h3>
-                <p className="text-gray-700 text-sm mb-3">
+                <p className="text-gray-700 text-sm leading-relaxed">
                   {nextStep.description}
                 </p>
                 {nextStep.highlight && (
-                  <div className="flex items-center gap-2 text-sm font-medium text-current opacity-90">
-                    <CheckCircle className="w-4 h-4" />
-                    <span>{nextStep.highlight}</span>
+                  <div className="flex items-start sm:items-center gap-2 text-sm font-medium text-current opacity-90">
+                    <CheckCircle className="w-4 h-4 mt-0.5 sm:mt-0 flex-shrink-0" />
+                    <span className="leading-relaxed">{nextStep.highlight}</span>
                   </div>
                 )}
               </div>
             </div>
             <Button 
-              className="bg-primary hover:bg-primary-600 text-white shadow-md px-6 py-3 font-semibold border hover:scale-105 transition-all duration-200"
+              className="bg-primary hover:bg-primary-600 text-white shadow-md px-4 sm:px-6 py-3 font-semibold border hover:scale-105 transition-all duration-200 w-full sm:w-auto"
               onClick={handleAction}
             >
-              {nextStep.action}
-              <ArrowRight className="w-4 h-4 ml-2" />
+              <span className="truncate">{nextStep.action}</span>
+              <ArrowRight className="w-4 h-4 ml-2 flex-shrink-0" />
             </Button>
           </div>
         </CardContent>
