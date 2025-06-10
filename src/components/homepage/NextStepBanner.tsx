@@ -1,3 +1,4 @@
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
@@ -105,10 +106,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       <Card className={`shadow-md ${nextStep.bgColor} ${nextStep.borderColor} border-2 rounded-xl overflow-hidden max-w-full`}>
         <CardContent className="p-4 sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4 flex-1 min-w-0">
-              <div className="bg-white/80 backdrop-blur p-3 rounded-full shadow-sm self-start flex-shrink-0 hidden sm:flex">
-                <span className="text-2xl">{nextStep.icon}</span>
-              </div>
+            <div className="flex flex-col gap-4 flex-1 min-w-0">
               <div className="flex-1 space-y-2 sm:space-y-3 min-w-0">
                 <h3 className="text-lg sm:text-xl font-bold text-foreground break-words">
                   {nextStep.title}
