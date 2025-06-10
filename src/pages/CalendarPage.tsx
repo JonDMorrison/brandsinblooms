@@ -53,17 +53,19 @@ const CalendarPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="p-6 border-b border-gray-200 bg-white">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-black">Campaign Calendar</h1>
+    <div className="min-h-screen bg-white w-full overflow-x-hidden">
+      <div className="p-4 sm:p-6 border-b border-gray-200 bg-white">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl sm:text-3xl font-bold text-black truncate">Campaign Calendar</h1>
             <p className="text-gray-600 font-medium">View and schedule your marketing campaigns</p>
           </div>
-          <UserMenu />
+          <div className="flex-shrink-0">
+            <UserMenu />
+          </div>
         </div>
       </div>
-      <div className="p-6 bg-white">
+      <div className="p-4 sm:p-6 bg-white w-full">
         <CalendarView 
           campaigns={campaigns} 
           tasks={tasks}

@@ -82,17 +82,19 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
   };
 
   return (
-    <div className="space-y-6 bg-white">
+    <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
       {/* Weekly Content Themes Header */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="px-6 py-5">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg">
+        <div className="px-4 sm:px-6 py-4 sm:py-5">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="p-2 bg-purple-50 rounded-lg flex-shrink-0">
                 <Palette className="w-6 h-6 text-purple-600" />
               </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">Weekly Content Themes</h2>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
+                  Weekly Content Themes
+                </h2>
                 <p className="text-sm text-gray-600 mt-0.5">
                   Organize and plan your marketing campaigns by week
                 </p>
@@ -102,8 +104,8 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
             {campaignsNeedingThemes.length > 0 && (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-full">
-                  <Sparkles className="w-4 h-4 text-purple-600" />
-                  <span className="text-sm font-medium text-purple-700">
+                  <Sparkles className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                  <span className="text-sm font-medium text-purple-700 whitespace-nowrap">
                     {campaignsNeedingThemes.length} {campaignsNeedingThemes.length === 1 ? 'campaign needs' : 'campaigns need'} themes
                   </span>
                 </div>

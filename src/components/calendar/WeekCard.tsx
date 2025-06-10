@@ -33,34 +33,36 @@ export const WeekCard = ({
   const { startDate, endDate } = getWeekDateRange(weekNumber, currentYear);
 
   return (
-    <Card className="border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+    <Card className="border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow w-full max-w-none overflow-hidden">
       <CardHeader className="bg-white pb-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="w-5 h-5 text-gray-600" />
-              <CardTitle className="text-lg font-semibold text-gray-900">
-                {week} ({currentYear})
-              </CardTitle>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="flex items-center gap-2 min-w-0">
+                <CalendarIcon className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                <CardTitle className="text-lg font-semibold text-gray-900 truncate">
+                  {week} ({currentYear})
+                </CardTitle>
+              </div>
+              {isCurrentWeek && (
+                <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-medium flex-shrink-0">
+                  Current Week
+                </Badge>
+              )}
             </div>
-            {isCurrentWeek && (
-              <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-xs font-medium">
-                Current Week
-              </Badge>
-            )}
-          </div>
-          <div className="text-sm text-gray-500 font-medium">
-            {startDate.toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric' 
-            })} - {endDate.toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric' 
-            })}
+            <div className="text-sm text-gray-500 font-medium flex-shrink-0">
+              {startDate.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              })} - {endDate.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="p-6 bg-white border-t border-gray-100">
+      <CardContent className="p-4 sm:p-6 bg-white border-t border-gray-100">
         <div className="grid gap-4">
           {weekCampaigns.map((campaign) => (
             <CampaignItem
