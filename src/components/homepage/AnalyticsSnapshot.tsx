@@ -69,20 +69,20 @@ export const AnalyticsSnapshot = () => {
 
   const getProgressColor = (rate: number) => {
     if (rate >= 80) return "bg-green-500";
-    if (rate >= 60) return "bg-yellow-500";
+    if (rate >= 60) return "bg-gray-500";
     return "bg-red-500";
   };
 
   const getStatusColor = (rate: number) => {
     if (rate >= 80) return "text-green-600 bg-green-50";
-    if (rate >= 60) return "text-yellow-600 bg-yellow-50";
+    if (rate >= 60) return "text-gray-600 bg-gray-50";
     return "text-red-600 bg-red-50";
   };
 
   if (loading) {
     return (
-      <Card className="border-purple-200">
-        <CardHeader>
+      <Card className="border-gray-200 bg-white">
+        <CardHeader className="bg-white">
           <CardTitle className="text-lg text-black flex items-center gap-2">
             <TrendingUp className="w-5 h-5" />
             Analytics Snapshot
@@ -91,7 +91,7 @@ export const AnalyticsSnapshot = () => {
             Loading your performance data...
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-6 bg-white">
           <div className="animate-pulse space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="h-16 bg-gray-200 rounded"></div>
@@ -106,8 +106,8 @@ export const AnalyticsSnapshot = () => {
   }
 
   return (
-    <Card className="border-purple-200">
-      <CardHeader>
+    <Card className="border-gray-200 bg-white">
+      <CardHeader className="bg-white">
         <CardTitle className="text-lg text-black flex items-center gap-2">
           <TrendingUp className="w-5 h-5" />
           Analytics Snapshot
@@ -116,7 +116,7 @@ export const AnalyticsSnapshot = () => {
           Your content marketing performance
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 bg-white">
         {/* Key Metrics */}
         <div className="grid grid-cols-2 gap-4">
           <div className="text-center">
@@ -154,10 +154,10 @@ export const AnalyticsSnapshot = () => {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium flex items-center gap-2">
-                <Clock className="w-4 h-4 text-orange-500" />
+                <Clock className="w-4 h-4 text-gray-500" />
                 Pending Review
               </span>
-              <Badge className="text-orange-600 bg-orange-50">
+              <Badge className="text-gray-600 bg-gray-50 border-gray-200">
                 {pendingTasks} items
               </Badge>
             </div>
