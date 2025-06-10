@@ -9,6 +9,7 @@ import { SampleCampaignCard } from "./SampleCampaignCard";
 import { DashboardError } from "./DashboardError";
 import { DashboardGrid } from "./DashboardGrid";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface DashboardContentProps {
   onboardingData: any;

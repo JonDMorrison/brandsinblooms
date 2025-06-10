@@ -8,17 +8,23 @@ import type { Campaign } from "@/types";
 interface CurrentCampaignSectionProps {
   activeCampaign: Campaign | undefined;
   currentWeekNumber: number;
+  completedTasksCount: number;
+  totalTasksCount: number;
+  pendingTasksCount: number;
   onTaskUpdate: () => void;
-  onCampaignUpdate: () => void;
   onCreateCampaign: () => void;
+  onTaskClick?: (task: any) => void;
 }
 
 export const CurrentCampaignSection = ({
   activeCampaign,
   currentWeekNumber,
+  completedTasksCount,
+  totalTasksCount,
+  pendingTasksCount,
   onTaskUpdate,
-  onCampaignUpdate,
-  onCreateCampaign
+  onCreateCampaign,
+  onTaskClick
 }: CurrentCampaignSectionProps) => {
   return (
     <div>
@@ -29,7 +35,7 @@ export const CurrentCampaignSection = ({
         <CampaignCard 
           campaign={activeCampaign} 
           onTaskUpdate={onTaskUpdate}
-          onCampaignUpdate={onCampaignUpdate}
+          onCampaignUpdate={onTaskUpdate}
         />
       ) : (
         <Card className="border-dashed border-2 border-gray-300 bg-gray-50">
