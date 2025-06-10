@@ -1,13 +1,14 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentWeekNumber } from "./homepageUtils";
 import { 
   generateNewsletterContent, 
   generateVideoScript, 
-  generatePersonalizedContent,
+  generatePersonalizedContent
+} from "./ContentGenerationServices";
+import { 
   getHashtagsForType, 
   getImageIdeaForType 
-} from "./TaskGenerationUtils";
+} from "./ContentMetadataUtils";
 
 export const updateVideoTasksWithNewScript = async (campaignId: string, campaignTitle: string, userId?: string) => {
   try {

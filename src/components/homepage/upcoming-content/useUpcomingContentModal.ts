@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { generatePersonalizedContent } from "../TaskGenerationUtils";
+import { generatePersonalizedContent } from "../ContentGenerationServices";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ContentType {

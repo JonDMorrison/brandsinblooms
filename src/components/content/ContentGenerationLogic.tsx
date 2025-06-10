@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { generatePersonalizedContent, generateNewsletterContent, generateVideoScript } from "@/components/homepage/TaskGenerationUtils";
+import { generatePersonalizedContent, generateNewsletterContent, generateVideoScript } from "@/components/homepage/ContentGenerationServices";
 import { getHashtagsForType, getImageIdeaForType } from "./ContentViewerUtils";
 import { ContentValidator } from "./ContentValidator";
 
