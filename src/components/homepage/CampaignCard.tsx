@@ -77,7 +77,7 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
       </CardHeader>
       <CardContent className="bg-white">
         {campaign.theme && (
-          <div className="mb-6 p-4 bg-white rounded-lg border border-border">
+          <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
             <EditableTheme
               campaignId={campaign.id}
               currentTheme={campaign.theme}
