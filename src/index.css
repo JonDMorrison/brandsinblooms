@@ -106,9 +106,9 @@
     transition: background-color 5000s ease-in-out 0s !important;
   }
 
-  /* MOBILE-SPECIFIC OVERRIDES */
+  /* COMPREHENSIVE MOBILE OVERRIDES */
   @media (max-width: 768px) {
-    /* Remove all yellow backgrounds on mobile */
+    /* Remove all yellow/orange/amber backgrounds and borders */
     .bg-yellow-50,
     .bg-yellow-100,
     .bg-yellow-200,
@@ -117,9 +117,29 @@
     .bg-yellow-500,
     .bg-orange-50,
     .bg-orange-100,
+    .bg-orange-200,
+    .bg-orange-300,
     .bg-amber-50,
-    .bg-amber-100 {
+    .bg-amber-100,
+    .bg-amber-200 {
       background-color: #ffffff !important;
+    }
+
+    .border-yellow-50,
+    .border-yellow-100,
+    .border-yellow-200,
+    .border-yellow-300,
+    .border-yellow-400,
+    .border-yellow-500,
+    .border-orange-50,
+    .border-orange-100,
+    .border-orange-200,
+    .border-orange-300,
+    .border-amber-50,
+    .border-amber-100,
+    .border-amber-200,
+    .border-amber-300 {
+      border-color: #e5e7eb !important; /* gray-200 */
     }
 
     /* Override any gradient that might contain yellow */
@@ -155,23 +175,55 @@
     }
 
     /* Override any remaining yellow elements */
-    * {
-      background-color: inherit !important;
-    }
-
     *[class*="yellow"],
     *[class*="amber"],
-    *[style*="yellow"],
-    *[style*="amber"] {
+    *[class*="orange"] {
       background-color: #ffffff !important;
       background: #ffffff !important;
+      border-color: #e5e7eb !important;
     }
+
+    *[style*="yellow"],
+    *[style*="amber"],
+    *[style*="orange"] {
+      background-color: #ffffff !important;
+      background: #ffffff !important;
+      border-color: #e5e7eb !important;
+    }
+
+    /* Specific overrides for common yellow border patterns */
+    .border-warning,
+    .border-amber-200,
+    .border-amber-300,
+    .border-yellow-200,
+    .border-yellow-300,
+    .border-orange-200,
+    .border-orange-300 {
+      border-color: #e5e7eb !important;
+    }
+  }
+
+  /* GLOBAL OVERRIDES FOR ALL SCREEN SIZES */
+  /* Replace yellow borders with neutral colors */
+  .border-yellow-50,
+  .border-yellow-100,
+  .border-yellow-200,
+  .border-yellow-300,
+  .border-amber-50,
+  .border-amber-100,
+  .border-amber-200,
+  .border-amber-300,
+  .border-orange-50,
+  .border-orange-100,
+  .border-orange-200,
+  .border-orange-300 {
+    border-color: #e5e7eb; /* gray-200 */
   }
 }
 
 @layer components {
   .seasonal-emoji {
-    @apply inline-flex items-center justify-center w-8 h-8 bg-orange-50 rounded-full text-lg;
+    @apply inline-flex items-center justify-center w-8 h-8 bg-white rounded-full text-lg border border-gray-200;
   }
   
   .campaign-card-active {
@@ -183,13 +235,13 @@
   }
   
   .campaign-card-attention {
-    @apply bg-orange-50 border-orange-200;
+    @apply bg-gray-50 border-gray-200;
   }
 
   /* Mobile-specific component overrides */
   @media (max-width: 768px) {
     .seasonal-emoji {
-      @apply bg-white;
+      @apply bg-white border-gray-200;
     }
     
     .campaign-card-active {
@@ -201,7 +253,7 @@
     }
     
     .campaign-card-attention {
-      @apply bg-white border-orange-200;
+      @apply bg-white border-gray-200;
     }
   }
 }
