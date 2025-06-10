@@ -37,12 +37,12 @@ export const EditableBusinessName = ({ businessName, onBusinessNameChange }: Edi
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <p 
-          className="text-sm text-garden-green font-semibold cursor-pointer hover:text-garden-green-dark transition-colors"
+        <span 
+          className="text-garden-green font-semibold cursor-pointer hover:text-garden-green-dark transition-colors underline decoration-dotted"
           title="Click to edit business name"
         >
           {businessName}
-        </p>
+        </span>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
