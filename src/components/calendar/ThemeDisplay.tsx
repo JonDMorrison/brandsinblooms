@@ -1,4 +1,5 @@
 
+
 import { Button } from "@/components/ui/button";
 import { Edit2, Palette, FileText, Sparkles } from "lucide-react";
 import { useState } from "react";
@@ -120,7 +121,7 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
             </Button>
           </div>
         </div>
-        <span className="text-sm text-foreground leading-tight block">
+        <span className="text-sm text-foreground leading-tight block pl-6">
           {displayTheme}
         </span>
       </div>
@@ -162,3 +163,4 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
     </div>
   );
 };
+
