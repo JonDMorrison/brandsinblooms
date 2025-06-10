@@ -82,11 +82,11 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-white">
       {/* Weekly Content Themes */}
-      <div className="grid gap-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-garden-green-dark flex items-center gap-2">
+      <div className="grid gap-4 bg-white">
+        <div className="flex items-center justify-between bg-white p-4 rounded-lg">
+          <h3 className="text-xl font-bold text-black flex items-center gap-2">
             <Palette className="w-6 h-6" />
             Weekly Content Themes
           </h3>

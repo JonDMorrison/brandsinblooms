@@ -33,14 +33,14 @@ export const WeekCard = ({
   const { startDate, endDate } = getWeekDateRange(weekNumber, currentYear);
 
   return (
-    <Card className={`border-green-200 ${isCurrentWeek ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between text-green-800">
+    <Card className={`border-gray-200 bg-white ${isCurrentWeek ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}>
+      <CardHeader className="bg-white">
+        <CardTitle className="flex items-center justify-between text-black">
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5" />
             {week} ({currentYear})
             {isCurrentWeek && (
-              <Badge className="bg-blue-100 text-blue-800 text-xs">
+              <Badge className="bg-blue-100 text-blue-800 text-xs border-blue-200">
                 Current Week
               </Badge>
             )}
@@ -50,7 +50,7 @@ export const WeekCard = ({
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-4">
+      <CardContent className="p-4 bg-white">
         <div className="grid gap-4">
           {weekCampaigns.map((campaign) => (
             <CampaignItem
