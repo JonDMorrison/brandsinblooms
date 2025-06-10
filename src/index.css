@@ -285,6 +285,23 @@
     .text-orange-900 {
       color: #000000 !important;
     }
+
+    /* SPECIFIC OVERRIDE FOR CONTENT REVIEW DIALOG */
+    [role="dialog"] .bg-gray-50,
+    [role="dialog"] .border-garden-green-light,
+    [data-state="open"] .bg-gray-50,
+    .prose {
+      background-color: #ffffff !important;
+      background: #ffffff !important;
+    }
+
+    /* Override any inline styles that might add yellow */
+    *[style*="background-color: yellow"],
+    *[style*="background: yellow"],
+    *[style*="backgroundColor: yellow"] {
+      background-color: #ffffff !important;
+      background: #ffffff !important;
+    }
   }
 
   /* GLOBAL OVERRIDES FOR ALL SCREEN SIZES - REMOVE YELLOW ENTIRELY */
