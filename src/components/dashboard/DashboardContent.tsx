@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useDashboardData } from "./useDashboardData";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
@@ -50,6 +49,15 @@ export const DashboardContent = ({
 
   const handleGetStarted = () => {
     setShowNewCampaignDialog(true);
+  };
+
+  const handleCampaignDelete = async (campaignId: string) => {
+    console.log('DashboardContent: Campaign deleted, refreshing data');
+    if (navigator.onLine) {
+      await refetch();
+    } else {
+      toast.info('Campaign deletion will sync when you\'re back online');
+    }
   };
 
   // Show loading state
@@ -141,6 +149,7 @@ export const DashboardContent = ({
         onTaskUpdate={handleTaskUpdate}
         onCampaignCreated={handleCampaignCreatedWrapper}
         onCampaignUpdate={refetch}
+        onCampaignDelete={handleCampaignDelete}
         onCreateCampaign={() => setShowNewCampaignDialog(true)}
         onTaskClick={onTaskClick}
       />

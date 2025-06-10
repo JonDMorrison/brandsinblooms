@@ -1,16 +1,12 @@
-
-import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
-import { WhatsComingNextCard } from "@/components/homepage/WhatsComingNextCard";
-import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
-import { AnalyticsSnapshot } from "@/components/homepage/AnalyticsSnapshot";
-import { CurrentCampaignSection } from "./CurrentCampaignSection";
-import { CustomCampaignsSection } from "./CustomCampaignsSection";
-import type { Campaign, ContentTask } from "@/types";
+import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
+import { UpcomingTasksSection } from "@/components/dashboard/UpcomingTasksSection";
+import { CustomCampaignsSection } from "@/components/dashboard/CustomCampaignsSection";
+import { QuickActionsSection } from "@/components/dashboard/QuickActionsSection";
 
 interface DashboardGridProps {
-  activeCampaign: Campaign | undefined;
-  userCreatedCampaigns: Campaign[];
-  tasks: ContentTask[];
+  activeCampaign: any;
+  userCreatedCampaigns: any[];
+  tasks: any[];
   currentWeekNumber: number;
   completedTasksCount: number;
   totalTasksCount: number;
@@ -18,6 +14,7 @@ interface DashboardGridProps {
   onTaskUpdate: () => void;
   onCampaignCreated: () => void;
   onCampaignUpdate: () => void;
+  onCampaignDelete?: (campaignId: string) => void;
   onCreateCampaign: () => void;
   onTaskClick?: (task: any) => void;
 }
@@ -33,43 +30,50 @@ export const DashboardGrid = ({
   onTaskUpdate,
   onCampaignCreated,
   onCampaignUpdate,
+  onCampaignDelete,
   onCreateCampaign,
   onTaskClick
 }: DashboardGridProps) => {
+  const upcomingTasks = tasks.filter(task => task.status !== 'completed').slice(0, 5);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Left Column - Main Content */}
+    <div className="grid lg:grid-cols-3 gap-6">
+      {/* Left Column */}
       <div className="lg:col-span-2 space-y-6">
-        {/* Current Campaign */}
-        <CurrentCampaignSection
+        {/* Current Campaign Section */}
+        <CurrentCampaignSection 
           activeCampaign={activeCampaign}
           currentWeekNumber={currentWeekNumber}
+          completedTasksCount={completedTasksCount}
+          totalTasksCount={totalTasksCount}
+          pendingTasksCount={pendingTasksCount}
           onTaskUpdate={onTaskUpdate}
-          onCampaignUpdate={onCampaignUpdate}
           onCreateCampaign={onCreateCampaign}
+          onTaskClick={onTaskClick}
         />
 
-        {/* Quick Actions */}
-        <QuickActionsGrid onCampaignCreated={onCampaignCreated} />
+        {/* Upcoming Tasks Section */}
+        <UpcomingTasksSection 
+          upcomingTasks={upcomingTasks} 
+          onTaskUpdate={onTaskUpdate} 
+          onTaskClick={onTaskClick}
+        />
+      </div>
 
-        {/* Custom Campaigns */}
-        <CustomCampaignsSection
+      {/* Right Column */}
+      <div className="lg:col-span-1 space-y-6">
+        {/* Quick Actions Section */}
+        <QuickActionsSection 
+          onCampaignCreated={onCampaignCreated} 
+        />
+
+        {/* Custom Campaigns Section */}
+        <CustomCampaignsSection 
           userCreatedCampaigns={userCreatedCampaigns}
           onTaskUpdate={onTaskUpdate}
           onCampaignUpdate={onCampaignUpdate}
+          onCampaignDelete={onCampaignDelete}
         />
-        
-        {/* What's Coming Next */}
-        <WhatsComingNextCard onTaskUpdate={onTaskUpdate} />
-      </div>
-      
-      {/* Right Column - Sidebar */}
-      <div className="space-y-6">
-        {/* Ready to Post - Now the primary content review section */}
-        <ReadyToPostCard tasks={tasks} onTaskClick={onTaskClick} />
-        
-        {/* Analytics Snapshot - Now fetches its own data */}
-        <AnalyticsSnapshot />
       </div>
     </div>
   );

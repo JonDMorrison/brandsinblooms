@@ -8,12 +8,14 @@ interface CustomCampaignsSectionProps {
   userCreatedCampaigns: Campaign[];
   onTaskUpdate: () => void;
   onCampaignUpdate: () => void;
+  onCampaignDelete?: (campaignId: string) => void;
 }
 
 export const CustomCampaignsSection = ({
   userCreatedCampaigns,
   onTaskUpdate,
-  onCampaignUpdate
+  onCampaignUpdate,
+  onCampaignDelete
 }: CustomCampaignsSectionProps) => {
   return (
     <div>
@@ -26,6 +28,7 @@ export const CustomCampaignsSection = ({
               campaign={campaign}
               onTaskUpdate={onTaskUpdate}
               onCampaignUpdate={onCampaignUpdate}
+              onCampaignDelete={onCampaignDelete}
             />
           ))}
         </div>
