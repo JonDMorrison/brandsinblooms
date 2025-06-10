@@ -1,9 +1,8 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy, CheckCircle, Edit, ExternalLink, Instagram, Facebook, Trash2 } from "lucide-react";
+import { Copy, CheckCircle, Edit, ExternalLink, Instagram, Facebook, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
@@ -17,6 +16,7 @@ interface ContentTaskItemProps {
 export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) => {
   const [approvingTask, setApprovingTask] = useState(false);
   const [deletingTask, setDeletingTask] = useState(false);
+  const [retryingGeneration, setRetryingGeneration] = useState(false);
 
   const handleApprove = async () => {
     setApprovingTask(true);
@@ -70,6 +70,34 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
     }
   };
 
+  const handleRetryGeneration = async () => {
+    setRetryingGeneration(true);
+    
+    try {
+      // Reset the task to trigger content generation
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ 
+          status: 'generating',
+          ai_output: null 
+        })
+        .eq('id', task.id);
+
+      if (error) {
+        console.error('Error retrying content generation:', error);
+        toast.error('Failed to retry content generation');
+      } else {
+        toast.success('Content generation restarted');
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error retrying content generation:', error);
+      toast.error('Failed to retry content generation');
+    } finally {
+      setRetryingGeneration(false);
+    }
+  };
+
   const handleSocialMediaPost = () => {
     const cleanContent = task.ai_output
       .replace(/<[^>]*>/g, '')
@@ -86,6 +114,8 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'completed';
   const canApprove = task.status === 'scheduled' && task.ai_output;
   const canEdit = task.ai_output && task.status !== 'published';
+  const isGenerating = task.status === 'generating';
+  const hasFailedGeneration = task.status === 'generating' && !task.ai_output;
 
   return (
     <div className="border rounded-lg p-4 space-y-3 relative group">
@@ -112,6 +142,26 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
                 <Copy className="w-3 h-3 mr-1" />
                 Copy
               </Button>
+            )}
+
+            {hasFailedGeneration && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRetryGeneration}
+                    disabled={retryingGeneration}
+                    className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                  >
+                    <RefreshCw className={`w-3 h-3 mr-1 ${retryingGeneration ? 'animate-spin' : ''}`} />
+                    {retryingGeneration ? 'Retrying...' : 'Retry'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Retry content generation</p>
+                </TooltipContent>
+              </Tooltip>
             )}
             
             {canEdit && (
@@ -194,10 +244,23 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
         </TooltipProvider>
       </div>
 
-      {task.ai_output && (
+      {task.ai_output ? (
         <div className="bg-gray-50 rounded-lg p-3">
           <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
             {formatContentForDisplay(task.ai_output)}
+          </div>
+        </div>
+      ) : isGenerating ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-yellow-800">
+            <div className="animate-spin h-4 w-4 border-2 border-yellow-600 border-t-transparent rounded-full"></div>
+            <span className="text-sm">Generating content...</span>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div className="text-sm text-gray-500 italic">
+            No content generated yet
           </div>
         </div>
       )}
