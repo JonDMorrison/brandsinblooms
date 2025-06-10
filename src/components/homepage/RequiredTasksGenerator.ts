@@ -49,7 +49,7 @@ export const generateRequiredTasks = async (
     const tasksToCreate = missingPostTypes.map(postType => ({
       campaign_id: campaignId,
       post_type: postType,
-      status: 'generating', // Start with generating status
+      status: 'planned', // Use planned status instead of generating
       scheduled_date: campaign.start_date
       // Removed assigned_user_id to avoid foreign key constraint violation
     }));
@@ -74,6 +74,12 @@ export const generateRequiredTasks = async (
         try {
           console.log(`=== Generating content for ${task.post_type} ===`);
           console.log('Task details:', task);
+          
+          // Update task status to generating first
+          await supabase
+            .from('content_tasks')
+            .update({ status: 'generating' })
+            .eq('id', task.id);
           
           console.log('About to call supabase.functions.invoke with:', {
             functionName: 'generate-content',
@@ -121,13 +127,13 @@ export const generateRequiredTasks = async (
             continue;
           }
           
-          // Update task with generated content and set status to 'draft' for review
+          // Update task with generated content and set status to 'completed' for review
           console.log(`Updating task ${task.id} with generated content`);
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: content,
-              status: 'draft' // Set to draft so content appears in review queue
+              status: 'completed' // Set to completed so content appears in ready to post
             })
             .eq('id', task.id);
 
