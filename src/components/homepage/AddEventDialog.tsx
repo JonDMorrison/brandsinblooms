@@ -4,13 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentWeekNumber } from "./homepageUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Loader2, Clock } from "lucide-react";
+import { AlertTriangle, Loader2, Clock, Calendar as CalendarIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ContentViewer } from "@/components/content/ContentViewer";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface AddEventDialogProps {
   open: boolean;
@@ -32,6 +36,16 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
   const [createdCampaignId, setCreatedCampaignId] = useState<string>("");
   const [createdCampaignTitle, setCreatedCampaignTitle] = useState<string>("");
   const [showGenerationNote, setShowGenerationNote] = useState(false);
+
+  // State for calendar
+  const [selectedDate, setSelectedDate] = useState<Date>();
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setEventDate(format(date, "PPP"));
+      setSelectedDate(date);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,15 +192,39 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               <Label htmlFor="eventDate" className="text-garden-green-dark">
                 Event Date
               </Label>
-              <Input
-                id="eventDate"
-                type="text"
-                value={eventDate}
-                onChange={(e) => setEventDate(e.target.value)}
-                placeholder="e.g., March 15, 2024 or Next Friday at 7pm"
-                className="border-black focus:border-black"
-                disabled={loading}
-              />
+              <div className="relative">
+                <Input
+                  id="eventDate"
+                  type="text"
+                  value={eventDate}
+                  onChange={(e) => setEventDate(e.target.value)}
+                  placeholder="e.g., March 15, 2024 or Next Friday at 7pm"
+                  className="border-black focus:border-black pr-10"
+                  disabled={loading}
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      disabled={loading}
+                    >
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={handleDateSelect}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             
             <div>
