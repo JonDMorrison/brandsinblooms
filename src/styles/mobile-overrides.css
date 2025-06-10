@@ -1,0 +1,198 @@
+
+/* COMPREHENSIVE MOBILE OVERRIDES - REMOVE ALL YELLOW/AMBER/ORANGE */
+@media (max-width: 768px) {
+  /* Force all potential yellow/amber/orange elements to white */
+  *[class*="yellow"],
+  *[class*="amber"],
+  *[class*="orange"],
+  *[style*="yellow"],
+  *[style*="amber"],
+  *[style*="orange"],
+  .bg-yellow-50,
+  .bg-yellow-100,
+  .bg-yellow-200,
+  .bg-yellow-300,
+  .bg-yellow-400,
+  .bg-yellow-500,
+  .bg-yellow-600,
+  .bg-yellow-700,
+  .bg-yellow-800,
+  .bg-yellow-900,
+  .bg-orange-50,
+  .bg-orange-100,
+  .bg-orange-200,
+  .bg-orange-300,
+  .bg-orange-400,
+  .bg-orange-500,
+  .bg-orange-600,
+  .bg-orange-700,
+  .bg-orange-800,
+  .bg-orange-900,
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-amber-200,
+  .bg-amber-300,
+  .bg-amber-400,
+  .bg-amber-500,
+  .bg-amber-600,
+  .bg-amber-700,
+  .bg-amber-800,
+  .bg-amber-900 {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
+
+  /* Force all yellow/amber/orange borders to gray */
+  .border-yellow-50,
+  .border-yellow-100,
+  .border-yellow-200,
+  .border-yellow-300,
+  .border-yellow-400,
+  .border-yellow-500,
+  .border-yellow-600,
+  .border-yellow-700,
+  .border-yellow-800,
+  .border-yellow-900,
+  .border-orange-50,
+  .border-orange-100,
+  .border-orange-200,
+  .border-orange-300,
+  .border-orange-400,
+  .border-orange-500,
+  .border-orange-600,
+  .border-orange-700,
+  .border-orange-800,
+  .border-orange-900,
+  .border-amber-50,
+  .border-amber-100,
+  .border-amber-200,
+  .border-amber-300,
+  .border-amber-400,
+  .border-amber-500,
+  .border-amber-600,
+  .border-amber-700,
+  .border-amber-800,
+  .border-amber-900 {
+    border-color: #e5e7eb !important; /* gray-200 */
+  }
+
+  /* Override any gradients that might contain yellow */
+  .bg-gradient-to-r,
+  .bg-gradient-to-l,
+  .bg-gradient-to-t,
+  .bg-gradient-to-b,
+  .bg-gradient-to-br,
+  .bg-gradient-to-bl,
+  .bg-gradient-to-tr,
+  .bg-gradient-to-tl {
+    background: #ffffff !important;
+    background-image: none !important;
+  }
+
+  /* Ensure cards and content areas are white on mobile */
+  .card,
+  [role="dialog"],
+  .modal-content,
+  .banner,
+  .content-card,
+  [class*="Card"],
+  [class*="Banner"] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
+
+  /* Force button backgrounds to be clean */
+  button {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #cccccc !important;
+  }
+  
+  /* Preserve primary/green theme buttons */
+  button.bg-garden-green,
+  button[class*="bg-green"],
+  button[class*="bg-primary"],
+  button.bg-blue-600,
+  button.bg-green-600 {
+    background-color: #4CAF50 !important;
+    color: #ffffff !important;
+    border: 1px solid #4CAF50 !important;
+  }
+
+  /* Override any remaining yellow elements with specificity */
+  div[class*="yellow"],
+  div[class*="amber"],
+  div[class*="orange"],
+  section[class*="yellow"],
+  section[class*="amber"],
+  section[class*="orange"],
+  article[class*="yellow"],
+  article[class*="amber"],
+  article[class*="orange"] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+  }
+
+  /* Specific overrides for common yellow border patterns */
+  .border-warning,
+  .border-amber-200,
+  .border-amber-300,
+  .border-yellow-200,
+  .border-yellow-300,
+  .border-orange-200,
+  .border-orange-300 {
+    border-color: #e5e7eb !important;
+  }
+
+  /* Override text colors that might be yellow */
+  .text-yellow-50,
+  .text-yellow-100,
+  .text-yellow-200,
+  .text-yellow-300,
+  .text-yellow-400,
+  .text-yellow-500,
+  .text-yellow-600,
+  .text-yellow-700,
+  .text-yellow-800,
+  .text-yellow-900,
+  .text-amber-50,
+  .text-amber-100,
+  .text-amber-200,
+  .text-amber-300,
+  .text-amber-400,
+  .text-amber-500,
+  .text-amber-600,
+  .text-amber-700,
+  .text-amber-800,
+  .text-amber-900,
+  .text-orange-50,
+  .text-orange-100,
+  .text-orange-200,
+  .text-orange-300,
+  .text-orange-400,
+  .text-orange-500,
+  .text-orange-600,
+  .text-orange-700,
+  .text-orange-800,
+  .text-orange-900 {
+    color: #000000 !important;
+  }
+
+  /* SPECIFIC OVERRIDE FOR CONTENT REVIEW DIALOG */
+  [role="dialog"] .bg-gray-50,
+  [role="dialog"] .border-garden-green-light,
+  [data-state="open"] .bg-gray-50,
+  .prose {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
+
+  /* Override any inline styles that might add yellow */
+  *[style*="background-color: yellow"],
+  *[style*="background: yellow"],
+  *[style*="backgroundColor: yellow"] {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
+}
