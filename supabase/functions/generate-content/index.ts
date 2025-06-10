@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
@@ -19,7 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    const { postType, campaignTitle, userId } = await req.json();
+    const { postType, campaignTitle, userId, weekDescription } = await req.json();
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
@@ -59,6 +58,12 @@ Seasonal Focus: ${companyProfile.seasonal_focus || ''}
 Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}
 
+CAMPAIGN THEME & CONTEXT:
+Weekly Theme: ${campaignTitle}
+Week Description: ${weekDescription || 'No specific description provided'}
+
+IMPORTANT: This content MUST specifically relate to and support the weekly theme "${campaignTitle}" and the description "${weekDescription || 'general theme'}". Make sure every piece of content directly ties back to this specific theme and provides value related to it.
+
 REGIONAL CONSIDERATIONS:
 - Use the Location Info to understand the company's geographic region, climate zone, and local conditions
 - Factor in regional growing seasons, weather patterns, and plant hardiness zones
@@ -84,6 +89,12 @@ CRITICAL CONTENT RESTRICTIONS:
 `;
     } else {
       companyContext = `
+CAMPAIGN THEME & CONTEXT:
+Weekly Theme: ${campaignTitle}
+Week Description: ${weekDescription || 'No specific description provided'}
+
+IMPORTANT: This content MUST specifically relate to and support the weekly theme "${campaignTitle}" and the description "${weekDescription || 'general theme'}". Make sure every piece of content directly ties back to this specific theme and provides value related to it.
+
 CRITICAL CONTENT RESTRICTIONS: 
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
@@ -98,91 +109,98 @@ CRITICAL CONTENT RESTRICTIONS:
     }
 
     const contentPrompts = {
-      instagram: `Create an engaging Instagram post about ${campaignTitle}. ${companyContext}
+      instagram: `Create an engaging Instagram post specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. ${companyContext}
 
 Requirements:
-- Start with a powerful, attention-grabbing hook - NO "Welcome to" language
+- Start with a powerful hook that directly relates to "${campaignTitle}"
+- The entire post must be focused on and provide value related to the "${campaignTitle}" theme
+- Reference the week description "${weekDescription}" in your content approach
 - Write in the company's brand voice and tone
 - Keep it engaging and visual-friendly (under 150 words)
 - Include relevant emojis
-- Reference the company's specializations when relevant
-- Speak to their target audience
-- Include a call-to-action
-- Make content specific to their geographic region and local climate conditions
-- Reference local growing seasons, weather patterns, or regional gardening considerations
-- Use plant varieties and gardening advice appropriate for their climate zone
+- Reference the company's specializations when relevant to the theme
+- Speak to their target audience about this specific theme
+- Include a call-to-action related to the theme
+- Make content specific to their geographic region and local climate conditions when relevant to the theme
+- Use plant varieties and gardening advice appropriate for their climate zone that relates to the theme
 - Make it feel authentic to this specific garden center and their local area
 - Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
 - ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
-- Present information in natural, conversational paragraph form`,
+- Present information in natural, conversational paragraph form that clearly connects to the "${campaignTitle}" theme`,
 
-      facebook: `Create a Facebook post about ${campaignTitle}. ${companyContext}
+      facebook: `Create a Facebook post specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. ${companyContext}
 
 Requirements:
-- Start with a powerful, attention-grabbing hook - NO "Welcome to" language
+- Start with a powerful hook that directly introduces the "${campaignTitle}" theme
+- The entire post must center around and provide valuable insights about "${campaignTitle}"
+- Use the week description "${weekDescription}" to guide your content direction
 - Write in the company's brand voice and tone
 - Be conversational and community-focused (150-250 words)
-- Reference the company's unique selling points
-- Speak to their ideal customer
-- Include questions to encourage engagement
-- Make content highly relevant to their specific geographic region and local conditions
-- Reference local weather patterns, growing seasons, or regional gardening challenges
-- Mention plants and gardening practices that work well in their specific climate
-- Consider local gardening culture and regional preferences
+- Reference the company's unique selling points as they relate to this theme
+- Speak to their ideal customer about this specific topic
+- Include questions to encourage engagement about the theme
+- Make content highly relevant to their specific geographic region when it relates to the theme
+- Reference local weather patterns, growing seasons, or regional gardening challenges that connect to the theme
+- Mention plants and gardening practices that work well in their specific climate and relate to the theme
+- Consider local gardening culture and regional preferences relevant to the theme
 - Make it feel personal and authentic to this garden center and their community
 - Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
 - ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
-- Present information in natural, conversational paragraph form`,
+- Present information in natural, conversational paragraph form that clearly supports the "${campaignTitle}" theme`,
 
-      email: `Create email content about ${campaignTitle}. ${companyContext}
+      email: `Create email content specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. ${companyContext}
 
 Requirements:
-- Start with a powerful, attention-grabbing hook - NO "Welcome to" language
+- Start with a powerful subject line and hook that immediately identifies this is about "${campaignTitle}"
+- The entire email must be dedicated to providing value around the "${campaignTitle}" theme
+- Use the week description "${weekDescription}" to shape your content approach
 - Write in the company's tone of writing
-- Be informative and valuable (100-200 words)
-- Reference the company's seasonal focus when relevant
-- Include their specializations
-- Speak to their target audience
-- Include a clear call-to-action
-- Provide region-specific gardening advice based on their location
-- Consider local climate conditions, hardiness zones, and seasonal timing
-- Reference regional growing challenges and solutions
-- Use plant recommendations appropriate for their geographic area
-- Make timing advice specific to their local growing season
-- Make it feel personal from this specific garden center in their specific region
+- Be informative and valuable about this specific theme (100-200 words)
+- Reference the company's seasonal focus when it relates to this theme
+- Include their specializations as they connect to the theme
+- Speak to their target audience specifically about this topic
+- Include a clear call-to-action related to the theme
+- Provide region-specific gardening advice based on their location that relates to the theme
+- Consider local climate conditions, hardiness zones, and seasonal timing relevant to the theme
+- Reference regional growing challenges and solutions that connect to the theme
+- Use plant recommendations appropriate for their geographic area that support the theme
+- Make timing advice specific to their local growing season when relevant to the theme
+- Make it feel personal from this specific garden center about this specific topic
 - Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
 - ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
-- Present information in natural, conversational paragraph form`,
+- Present information in natural, conversational paragraph form that clearly addresses the "${campaignTitle}" theme`,
 
-      video: `Create a video script about ${campaignTitle}. ${companyContext}
+      video: `Create a video script specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. ${companyContext}
 
 Requirements:
-- Start with a powerful, attention-grabbing hook - NO "Welcome to" language
+- Start with a powerful hook that immediately establishes this video is about "${campaignTitle}"
+- The entire script must be focused on delivering valuable content about the "${campaignTitle}" theme
+- Use the week description "${weekDescription}" to guide your script direction
 - Write in the company's brand voice
 - Keep it conversational and natural (60-90 seconds when spoken)
-- Reference the company's expertise and specializations
-- Include practical tips that align with their values
-- Speak directly to their ideal customer
-- Include a strong opening hook and clear call-to-action
-- Provide region-specific gardening advice and recommendations
-- Reference local climate conditions, weather patterns, and growing seasons
-- Mention plants and techniques that work best in their specific geographic area
-- Consider local gardening challenges and regional solutions
-- Use timing and seasonal advice appropriate for their location
-- Make it feel authentic to this garden center owner/expert in their specific region
+- Reference the company's expertise and specializations as they relate to this theme
+- Include practical tips that align with their values and directly support the theme
+- Speak directly to their ideal customer about this specific topic
+- Include a strong opening hook and clear call-to-action related to the theme
+- Provide region-specific gardening advice and recommendations that connect to the theme
+- Reference local climate conditions, weather patterns, and growing seasons when relevant to the theme
+- Mention plants and techniques that work best in their specific geographic area and support the theme
+- Consider local gardening challenges and regional solutions related to the theme
+- Use timing and seasonal advice appropriate for their location when it connects to the theme
+- Make it feel authentic to this garden center owner/expert speaking about this specific topic
 - Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
 - ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
 - ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
-- Present information in natural, conversational paragraph form`
+- Present information in natural, conversational paragraph form that clearly delivers value on the "${campaignTitle}" theme`
     };
 
     const prompt = contentPrompts[postType as keyof typeof contentPrompts] || 
-      `Create ${postType} content about ${campaignTitle} for a garden center. Start with a powerful hook - NO "Welcome to" language. Make it engaging, professional, and region-specific if location information is available. Write in flowing paragraphs only - ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase. ABSOLUTELY NEVER mention week numbers.`;
+      `Create ${postType} content specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. Start with a powerful hook - NO "Welcome to" language. Make it engaging, professional, and directly focused on the "${campaignTitle}" theme. The content must provide clear value related to this specific theme. Write in flowing paragraphs only - ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase. ABSOLUTELY NEVER mention week numbers.`;
 
-    console.log('Generating personalized, region-specific content with OpenAI for:', postType);
+    console.log('Generating personalized, region-specific content with theme focus for:', postType);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -193,7 +211,7 @@ Requirements:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company\'s brand, expertise, and most importantly their local region and climate conditions. Consider factors like hardiness zones, local weather patterns, regional growing seasons, soil conditions, and area-specific gardening challenges. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader. If you need to present multiple points, weave them naturally into paragraph form.' },
+          { role: 'system', content: `You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company's brand, expertise, and most importantly their local region and climate conditions. CRITICAL: Every piece of content must be specifically focused on and provide clear value related to the weekly theme "${campaignTitle}" and description "${weekDescription || 'general theme'}". Do not create generic content - it must directly address and support this specific theme. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader about the specific theme. If you need to present multiple points, weave them naturally into paragraph form.` },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -208,7 +226,7 @@ Requirements:
     const data = await response.json();
     const generatedContent = data.choices[0].message.content;
 
-    console.log('Generated personalized, region-specific content:', generatedContent);
+    console.log('Generated personalized, theme-focused content:', generatedContent);
 
     return new Response(JSON.stringify({ content: generatedContent }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -39,12 +39,13 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
     setGeneratingContent(prev => ({ ...prev, [contentType.id]: true }));
     
     try {
-      console.log(`Generating ${contentType.name} for theme: ${week.theme}`);
+      console.log(`Generating ${contentType.name} for theme: ${week.theme}, description: ${week.description}`);
       
       const content = await generatePersonalizedContent(
         contentType.id,
         week.theme,
-        user.id
+        user.id,
+        week.description // Pass the week description for more context
       );
       
       console.log(`Generated content for ${contentType.name}:`, content);
@@ -141,6 +142,9 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
               </div>
               <p className="text-gray-600 text-lg">
                 Week of {week.weekStart.toLocaleDateString()} • {week.description}
+              </p>
+              <p className="text-sm text-blue-600 font-medium">
+                All content below will be generated specifically for: "{week.theme}" theme
               </p>
             </div>
             <div className="text-right space-y-1">

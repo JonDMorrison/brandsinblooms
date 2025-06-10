@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentWeekNumber } from "./homepageUtils";
 import { cleanupDuplicatesForCampaign } from "./CleanupUtils";
@@ -131,8 +130,8 @@ export const generateContentForTask = async (task: any, companyProfile: any) => 
   }
 };
 
-export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string) => {
-  console.log(`Generating region-aware ${postType} content for: ${campaignTitle}`);
+export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
+  console.log(`Generating region-aware ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-content', {
@@ -140,6 +139,7 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
         postType: postType,
         campaignTheme: campaignTitle,
         campaignTitle: campaignTitle,
+        weekDescription: weekDescription, // Pass the week description for more specific context
         userId: userId // Pass userId for regional context
       }
     });
@@ -156,8 +156,8 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
   }
 };
 
-export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number, userId?: string) => {
-  console.log(`Generating region-aware newsletter content for campaign: ${campaignTitle} (Week ${weekNumber})`);
+export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number, userId?: string, weekDescription?: string) => {
+  console.log(`Generating region-aware newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-newsletter', {
@@ -165,6 +165,7 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
         campaignId: campaignId,
         campaignTitle: campaignTitle,
         weekNumber: weekNumber,
+        weekDescription: weekDescription, // Pass the week description
         userId: userId // Pass userId for regional context
       }
     });
@@ -181,13 +182,14 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
   }
 };
 
-export const generateVideoScript = async (campaignTitle: string, userId?: string) => {
-  console.log(`Generating region-aware video script for: ${campaignTitle}`);
+export const generateVideoScript = async (campaignTitle: string, userId?: string, weekDescription?: string) => {
+  console.log(`Generating region-aware video script for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-video-script', {
       body: {
         campaignTitle: campaignTitle,
+        weekDescription: weekDescription, // Pass the week description
         userId: userId // Pass userId for regional context
       }
     });
