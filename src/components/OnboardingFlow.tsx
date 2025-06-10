@@ -2,9 +2,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import { ArrowRight, ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./onboarding/CompanyProfileCreator";
+import { LandingPageHeader } from "./landing/LandingPageHeader";
 
 interface OnboardingFlowProps {
   onComplete: (data: any) => void;
@@ -12,42 +18,58 @@ interface OnboardingFlowProps {
 }
 
 export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [formData, setFormData] = useState({
     aboutBusiness: "",
     toneSamples: "",
-    annualEvents: ""
+    annualEvents: "",
+    websiteUrl: ""
   });
 
   const steps = [
     {
-      title: "Help us get to know you",
-      description: "What makes your garden center special? Your name, location, a bit of history, or anything you'd like us to know. Paste from your website if you'd like!",
+      title: "Tell us about your business",
+      description: "Help us understand your garden center's story and what makes it special.",
       field: "aboutBusiness",
-      placeholder: "e.g., Green Thumb Garden Center has been serving the Springfield community since 1985. Located in the heart of downtown, we specialize in native plants, organic gardening supplies, and seasonal workshops. Our family-owned business started when..."
+      placeholder: "Describe your garden center, its history, location, specialties, and what sets you apart from competitors...",
+      label: "About Your Business"
     },
     {
-      title: "Help us understand your voice",
-      description: "Paste a newsletter, blog post, or social media post that best represents your tone. Or include all of them.",
+      title: "Share your brand voice",
+      description: "Provide examples of how you communicate with customers to help us match your tone.",
       field: "toneSamples",
-      placeholder: "Paste your content here - newsletters, social posts, blog articles, etc. This helps us match your unique voice and style..."
+      placeholder: "Share examples of your marketing copy, social media posts, or how you typically communicate with customers...",
+      label: "Brand Voice & Tone Examples"
     },
     {
-      title: "What events do you promote annually?",
-      description: "List any recurring events you run (e.g., Spring Sale, Pumpkin Fest, Winter Workshops).",
+      title: "Annual events and seasons",
+      description: "Tell us about your yearly calendar, seasonal promotions, and special events.",
       field: "annualEvents",
-      placeholder: "e.g., Spring Sale (March), Mother's Day Plant Sale (May), Summer Herb Workshop Series (June-August), Fall Festival (October), Holiday Wreath Making (December)..."
+      placeholder: "Describe your seasonal events, annual sales, workshops, plant fairs, holiday promotions, etc...",
+      label: "Annual Events & Seasonal Calendar"
     }
   ];
 
-  const currentStepData = steps[currentStep - 1];
-  const progress = (currentStep / steps.length) * 100;
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const handleNext = () => {
+    const currentField = steps[currentStep - 1].field as keyof typeof formData;
+    if (!formData[currentField].trim()) {
+      toast.error("Please fill in this field before continuing");
+      return;
+    }
+    
     if (currentStep < steps.length) {
       setCurrentStep(currentStep + 1);
-    } else {
-      onComplete(formData);
     }
   };
 
@@ -55,71 +77,144 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     } else if (onBack) {
-      // If we're on the first step and have an onBack prop, go back to previous page
       onBack();
     }
   };
 
-  const updateFormData = (value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [currentStepData.field]: value
-    }));
+  const handleSubmit = async () => {
+    if (!user) {
+      toast.error("Please log in to continue");
+      return;
+    }
+
+    const currentField = steps[currentStep - 1].field as keyof typeof formData;
+    if (!formData[currentField].trim()) {
+      toast.error("Please fill in this field before continuing");
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      console.log('Completing onboarding with manual data:', formData);
+      
+      // Save onboarding response to database
+      await saveOnboardingResponse(formData, user.id);
+      
+      // Create company profile from onboarding data
+      await createCompanyProfileFromOnboarding(formData, user.id);
+      
+      // Store the onboarding data in localStorage as backup
+      localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(formData));
+      
+      // Call the onComplete callback with the data
+      onComplete(formData);
+      
+      toast.success("Setup complete! Your company profile has been created.");
+      
+      // Navigate directly to the app
+      navigate('/app');
+      
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      toast.error("Failed to complete setup. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
+  const currentStepData = steps[currentStep - 1];
+  const isLastStep = currentStep === steps.length;
+
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-green-800 mb-2">
-            Garden Center Marketing Hub
-          </h1>
-          <p className="text-green-600">Let's personalize your content creation experience</p>
-        </div>
-
-        <div className="mb-6">
-          <Progress value={progress} className="h-2" />
-          <p className="text-sm text-gray-600 mt-2 text-center">
-            Step {currentStep} of {steps.length}
-          </p>
-        </div>
-
-        <Card className="shadow-xl border-green-200">
-          <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
-            <CardTitle className="text-xl">{currentStepData.title}</CardTitle>
-            <CardDescription className="text-green-100">
-              {currentStepData.description}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-6">
-            <Textarea
-              value={formData[currentStepData.field as keyof typeof formData]}
-              onChange={(e) => updateFormData(e.target.value)}
-              placeholder={currentStepData.placeholder}
-              className="min-h-[200px] text-base border-green-200 focus:border-green-400"
-            />
-            
-            <div className="flex justify-between mt-6">
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </Button>
-              
-              <Button
-                onClick={handleNext}
-                className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
-                disabled={!formData[currentStepData.field as keyof typeof formData].trim()}
-              >
-                {currentStep === steps.length ? "Complete Setup" : "Next"}
-                <ArrowRight className="w-4 h-4" />
-              </Button>
+    <div className="min-h-screen bg-garden-background">
+      <LandingPageHeader onLogin={() => navigate('/auth')} />
+      <div className="flex items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
+        <div className="w-full max-w-2xl">
+          {/* Progress indicator */}
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium text-garden-green">
+                Step {currentStep} of {steps.length}
+              </span>
+              <span className="text-sm text-gray-500">
+                {Math.round((currentStep / steps.length) * 100)}% complete
+              </span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-garden-green h-2 rounded-full transition-all duration-300 ease-in-out"
+                style={{ width: `${(currentStep / steps.length) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+
+          <Card className="border-0 shadow-lg">
+            <CardHeader className="text-center pb-6">
+              <CardTitle className="text-2xl font-bold text-garden-green-dark mb-2">
+                {currentStepData.title}
+              </CardTitle>
+              <CardDescription className="text-base text-gray-600">
+                {currentStepData.description}
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor={currentStepData.field} className="text-base font-medium">
+                  {currentStepData.label}
+                </Label>
+                <Textarea
+                  id={currentStepData.field}
+                  placeholder={currentStepData.placeholder}
+                  value={formData[currentStepData.field as keyof typeof formData]}
+                  onChange={(e) => handleInputChange(currentStepData.field, e.target.value)}
+                  className="min-h-[150px] resize-none text-base leading-relaxed"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-between pt-4">
+                <Button
+                  variant="outline"
+                  onClick={handleBack}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  {currentStep === 1 ? 'Back to Website' : 'Previous'}
+                </Button>
+
+                {isLastStep ? (
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className="bg-garden-green hover:bg-garden-green-dark text-white flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Completing Setup...
+                      </>
+                    ) : (
+                      <>
+                        Complete Setup
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleNext}
+                    className="bg-garden-green hover:bg-garden-green-dark text-white flex items-center gap-2"
+                  >
+                    Next
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

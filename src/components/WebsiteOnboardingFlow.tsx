@@ -9,6 +9,7 @@ import { DataReviewStep } from "./onboarding/DataReviewStep";
 import { OnboardingFlow } from "./OnboardingFlow";
 import { useWebsiteAnalysis } from "@/hooks/useWebsiteAnalysis";
 import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./onboarding/CompanyProfileCreator";
+import { LandingPageHeader } from "./landing/LandingPageHeader";
 
 interface WebsiteOnboardingFlowProps {
   onComplete: (data: any) => void;
@@ -105,43 +106,51 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
 
   // If user chose manual entry, show the original onboarding flow
   if (useManualEntry) {
-    return <OnboardingFlow onComplete={onComplete} onBack={handleManualEntryBack} />;
+    return (
+      <div className="min-h-screen bg-garden-background">
+        <LandingPageHeader onLogin={() => navigate('/auth')} />
+        <OnboardingFlow onComplete={onComplete} onBack={handleManualEntryBack} />
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-garden-background">
-      <div className="w-full max-w-lg">
-        {/* Simple step indicator */}
-        <div className="text-center mb-4">
-          <p className="text-sm text-muted-foreground">Step {currentStep} of {steps.length}</p>
+    <div className="min-h-screen bg-garden-background">
+      <LandingPageHeader onLogin={() => navigate('/auth')} />
+      <div className="flex items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
+        <div className="w-full max-w-lg">
+          {/* Simple step indicator */}
+          <div className="text-center mb-4">
+            <p className="text-sm text-muted-foreground">Step {currentStep} of {steps.length}</p>
+          </div>
+
+          {/* Loading state - Show when analyzing */}
+          <WebsiteAnalysisLoader isAnalyzing={isAnalyzing} />
+
+          {/* Main form - Hide when analyzing */}
+          {!isAnalyzing && (
+            <>
+              {currentStep === 1 ? (
+                <UrlInputStep
+                  websiteUrl={websiteUrl}
+                  setWebsiteUrl={setWebsiteUrl}
+                  onAnalyze={handleAnalyze}
+                  onManualEntry={handleManualEntry}
+                  isAnalyzing={isAnalyzing}
+                />
+              ) : (
+                <DataReviewStep
+                  extractedData={extractedData}
+                  updateExtractedData={updateExtractedData}
+                  onBack={handleBack}
+                  onComplete={handleNext}
+                  isCompleting={isCompleting}
+                  isAnalyzing={isAnalyzing}
+                />
+              )}
+            </>
+          )}
         </div>
-
-        {/* Loading state - Show when analyzing */}
-        <WebsiteAnalysisLoader isAnalyzing={isAnalyzing} />
-
-        {/* Main form - Hide when analyzing */}
-        {!isAnalyzing && (
-          <>
-            {currentStep === 1 ? (
-              <UrlInputStep
-                websiteUrl={websiteUrl}
-                setWebsiteUrl={setWebsiteUrl}
-                onAnalyze={handleAnalyze}
-                onManualEntry={handleManualEntry}
-                isAnalyzing={isAnalyzing}
-              />
-            ) : (
-              <DataReviewStep
-                extractedData={extractedData}
-                updateExtractedData={updateExtractedData}
-                onBack={handleBack}
-                onComplete={handleNext}
-                isCompleting={isCompleting}
-                isAnalyzing={isAnalyzing}
-              />
-            )}
-          </>
-        )}
       </div>
     </div>
   );

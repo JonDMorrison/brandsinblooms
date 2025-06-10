@@ -6,9 +6,10 @@ import { UserMenu } from "@/components/UserMenu";
 
 interface LandingPageHeaderProps {
   onLogin: () => void;
+  showUserMenu?: boolean; // Add prop to control user menu visibility
 }
 
-export const LandingPageHeader = ({ onLogin }: LandingPageHeaderProps) => {
+export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageHeaderProps) => {
   const { user } = useAuth();
 
   return (
@@ -17,9 +18,9 @@ export const LandingPageHeader = ({ onLogin }: LandingPageHeaderProps) => {
         BloomSuite
       </div>
       <div className="flex items-center gap-4">
-        {user ? (
+        {user && showUserMenu ? (
           <UserMenu />
-        ) : (
+        ) : !user ? (
           <Button 
             onClick={onLogin}
             variant="outline"
@@ -28,7 +29,7 @@ export const LandingPageHeader = ({ onLogin }: LandingPageHeaderProps) => {
             <LogIn className="w-4 h-4 mr-2" />
             Login
           </Button>
-        )}
+        ) : null}
       </div>
     </nav>
   );
