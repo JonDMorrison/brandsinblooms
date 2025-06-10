@@ -1,9 +1,6 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentWeekNumber } from "./homepageUtils";
-import { 
-  getHashtagsForType, 
-  getImageIdeaForType 
-} from "./TaskGenerationUtils";
 import { ContentValidator } from "@/components/content/ContentValidator";
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
