@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,8 +66,8 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
   };
 
   return (
-    <Card className="border-primary/20">
-      <CardHeader>
+    <Card className="border-primary/20 bg-white">
+      <CardHeader className="bg-white">
         <div className="flex justify-between items-start">
           <CardTitle className="text-foreground">{campaign.title}</CardTitle>
           <Badge variant="secondary" className="bg-primary/10 text-primary">
@@ -74,9 +75,9 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="bg-white">
         {campaign.theme && (
-          <div className="mb-6 p-4 bg-muted/50 rounded-lg border border-border">
+          <div className="mb-6 p-4 bg-white rounded-lg border border-border">
             <EditableTheme
               campaignId={campaign.id}
               currentTheme={campaign.theme}
