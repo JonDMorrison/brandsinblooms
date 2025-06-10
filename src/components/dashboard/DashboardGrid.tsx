@@ -54,6 +54,7 @@ export const DashboardGrid = ({
         onTaskUpdate={onTaskUpdate}
         onCampaignUpdate={onCampaignUpdate}
         onCampaignDelete={onCampaignDelete}
+        onCreateCampaign={onCreateCampaign}
       />
     </div>
   );
