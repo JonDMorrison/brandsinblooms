@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -127,7 +126,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               }}
               placeholder="Enter event name"
               required
-              className="border-gray-300 focus:border-gray-500"
+              className="border-black focus:border-black"
               disabled={loading}
             />
           </div>
@@ -141,7 +140,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               value={eventDescription}
               onChange={(e) => setEventDescription(e.target.value)}
               placeholder="Describe your event"
-              className="border-gray-300 focus:border-gray-500"
+              className="border-black focus:border-black"
               disabled={loading}
             />
           </div>
@@ -155,7 +154,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
-              className="border-gray-300 focus:border-gray-500"
+              className="border-black focus:border-black"
               disabled={loading}
             />
           </div>
@@ -169,7 +168,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               value={eventInstructions}
               onChange={(e) => setEventInstructions(e.target.value)}
               placeholder="Add sign up deadlines, registration info, reply requirements, etc."
-              className="border-gray-300 focus:border-gray-500"
+              className="border-black focus:border-black"
               disabled={loading}
             />
           </div>
