@@ -18,6 +18,9 @@ export function validateContent(content: string): ValidationResult {
         case 7: issues.push('Contains company name placeholder'); break;
         case 8: issues.push('Contains garden center name placeholder'); break;
         case 9: issues.push('Contains generic garden center reference'); break;
+        case 10: issues.push('Contains region placeholder'); break;
+        case 11: issues.push('Contains location placeholder'); break;
+        case 12: issues.push('Contains garden center location placeholder'); break;
       }
     }
   });

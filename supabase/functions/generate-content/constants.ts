@@ -65,6 +65,9 @@ export const FORBIDDEN_PATTERNS = [
   /\[company\s*name\]/gi, // company name placeholders
   /\[garden\s*center\s*name\]/gi, // garden center name placeholders
   /your\s*garden\s*center/gi, // generic garden center references
+  /\[region\]/gi, // region placeholders
+  /\[location\]/gi, // location placeholders
+  /\[garden\s*center\s*location\]/gi, // garden center location placeholders
 ];
 
 export const corsHeaders = {

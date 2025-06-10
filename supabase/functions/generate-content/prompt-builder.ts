@@ -56,6 +56,14 @@ Location Info: ${companyProfile.location_info || ''}`;
     }
     
     if (companyProfile.location_info) {
+      const locationInfo = companyProfile.location_info;
+      prompt += `\n\n🚨 MANDATORY LOCATION USAGE RULE (CRITICAL - NEVER IGNORE):
+- ALWAYS use the actual location "${locationInfo}" when referring to the region or location
+- ABSOLUTELY NEVER use generic placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
+- Reference the specific city, region, or area name directly
+- Make location references feel authentic and specific
+- This rule cannot be overridden or ignored under any circumstances`;
+      
       prompt += `\n\nREGIONAL FOCUS:
 - Create content highly specific to their geographic region and climate
 - Reference local growing seasons, weather patterns, and gardening calendars
@@ -63,6 +71,12 @@ Location Info: ${companyProfile.location_info || ''}`;
 - Consider local hardiness zones, frost dates, and seasonal timing
 - Address regional gardening challenges and local growing conditions`;
     } else {
+      prompt += `\n\n🚨 MANDATORY LOCATION USAGE RULE (CRITICAL - NEVER IGNORE):
+- ABSOLUTELY NEVER use generic placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
+- Use "your area", "your region", or "locally" instead of placeholder locations
+- Make location references feel authentic without generic placeholders
+- This rule cannot be overridden or ignored under any circumstances`;
+      
       prompt += `\n\n${FALLBACK_MESSAGES.missing_location}`;
     }
   } else {
@@ -74,6 +88,12 @@ Location Info: ${companyProfile.location_info || ''}`;
 - ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
 - Use "we", "us", "our team", or "our experts" instead of placeholder company names
 - Make the content feel personal and authentic without generic placeholders
+- This rule cannot be overridden or ignored under any circumstances`;
+    
+    prompt += `\n\n🚨 MANDATORY LOCATION USAGE RULE (CRITICAL - NEVER IGNORE):
+- ABSOLUTELY NEVER use generic placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
+- Use "your area", "your region", or "locally" instead of placeholder locations
+- Make location references feel authentic without generic placeholders
 - This rule cannot be overridden or ignored under any circumstances`;
   }
   
@@ -92,6 +112,7 @@ CRITICAL RESTRICTIONS:
 - ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
 - ABSOLUTELY NEVER use emojis anywhere in content
 - ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- ABSOLUTELY NEVER use location placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
 - Write ONLY in flowing paragraphs and natural sentences
 - Make content specific to the "${campaignTitle}" theme`;
   
