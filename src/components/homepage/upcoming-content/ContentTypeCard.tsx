@@ -154,7 +154,30 @@ export const ContentTypeCard = ({
                     <Copy className="w-4 h-4 mr-2" />
                     Copy
                   </Button>
-                  {(contentType.id === 'facebook' || contentType.id === 'instagram') ? (
+                  
+                  {/* Always show Approve button */}
+                  <Button
+                    onClick={() => onApproveContent(contentType)}
+                    variant={status.status === 'approved' ? "default" : "outline"}
+                    size="sm"
+                    disabled={status.status === 'approved'}
+                    className="transition-all duration-200"
+                  >
+                    {status.status === 'approved' ? (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Approved
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Approve
+                      </>
+                    )}
+                  </Button>
+
+                  {/* Show platform-specific posting buttons for social media */}
+                  {(contentType.id === 'facebook' || contentType.id === 'instagram') && (
                     <Button
                       onClick={() => onSocialMediaPost(contentType)}
                       className="bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
@@ -169,26 +192,6 @@ export const ContentTypeCard = ({
                         <>
                           <Instagram className="w-4 h-4 mr-2" />
                           Post to Instagram
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <Button
-                      onClick={() => onApproveContent(contentType)}
-                      variant={status.status === 'approved' ? "default" : "outline"}
-                      size="sm"
-                      disabled={status.status === 'approved'}
-                      className="transition-all duration-200"
-                    >
-                      {status.status === 'approved' ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Approved
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          Approve
                         </>
                       )}
                     </Button>
