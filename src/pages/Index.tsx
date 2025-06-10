@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { WebsiteOnboardingFlow } from "@/components/WebsiteOnboardingFlow";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
@@ -12,6 +13,7 @@ const Index = () => {
   const location = useLocation();
   const [showLanding, setShowLanding] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
+  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
   const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar" | "team" | "profile">("home");
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
@@ -20,12 +22,65 @@ const Index = () => {
     websiteUrl: ""
   });
 
+  const checkOnboardingStatus = async (userId: string) => {
+    try {
+      // First check localStorage
+      const savedData = localStorage.getItem(`garden-center-onboarding-${userId}`);
+      
+      if (savedData) {
+        console.log('Index: Found onboarding data in localStorage');
+        const parsedData = JSON.parse(savedData);
+        setOnboardingData(parsedData);
+        setIsOnboarded(true);
+        return;
+      }
+
+      // If not in localStorage, check the database
+      console.log('Index: No localStorage data, checking database');
+      const { data: dbOnboardingData, error } = await supabase
+        .from('onboarding_responses')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        console.error('Error fetching onboarding data:', error);
+        return;
+      }
+
+      if (dbOnboardingData) {
+        console.log('Index: Found onboarding data in database, syncing to localStorage');
+        const syncedData = {
+          aboutBusiness: dbOnboardingData.about_business || "",
+          toneSamples: dbOnboardingData.tone_samples || "",
+          annualEvents: dbOnboardingData.annual_events || "",
+          websiteUrl: "" // This might not be in the database, could be added later
+        };
+        
+        // Sync to localStorage for faster future access
+        localStorage.setItem(`garden-center-onboarding-${userId}`, JSON.stringify(syncedData));
+        setOnboardingData(syncedData);
+        setIsOnboarded(true);
+      } else {
+        console.log('Index: No onboarding data found in database either');
+        setIsOnboarded(false);
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      setIsOnboarded(false);
+    } finally {
+      setIsCheckingOnboarding(false);
+    }
+  };
+
   useEffect(() => {
     console.log('Index: Auth state changed, user:', user?.id);
     console.log('Index: Current pathname:', location.pathname);
     console.log('Index: Current search params:', location.search);
     
     if (user) {
+      setIsCheckingOnboarding(true);
+      
       // Check URL params for navigation
       const params = new URLSearchParams(location.search);
       
@@ -33,25 +88,13 @@ const Index = () => {
         console.log('Index: Showing landing page due to URL param');
         setShowLanding(true);
         setIsOnboarded(false);
+        setIsCheckingOnboarding(false);
       } else {
-        // Check if user has completed onboarding
-        const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
-        console.log('Index: Saved onboarding data:', savedData ? 'Found' : 'Not found');
-        
-        if (savedData) {
-          console.log('Index: Found onboarding data, showing modern dashboard');
-          // User has onboarding data, go directly to dashboard
-          const parsedData = JSON.parse(savedData);
-          setOnboardingData(parsedData);
-          setIsOnboarded(true);
-          setShowLanding(false);
-        } else {
-          console.log('Index: No onboarding data found, starting onboarding flow');
-          // No onboarding data, start onboarding flow
-          setShowLanding(false);
-          setIsOnboarded(false);
-        }
+        // Check onboarding status from both localStorage and database
+        checkOnboardingStatus(user.id);
       }
+    } else {
+      setIsCheckingOnboarding(false);
     }
   }, [user, location.search, location.pathname]);
 
@@ -91,6 +134,18 @@ const Index = () => {
   if (!user) {
     console.log('Index: No user found, returning null');
     return null; // This shouldn't happen due to ProtectedRoute, but just in case
+  }
+
+  // Show loading state while checking onboarding status
+  if (isCheckingOnboarding) {
+    return (
+      <div className="min-h-screen bg-garden-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-garden-green mx-auto mb-4"></div>
+          <p className="text-garden-green font-medium">Loading your dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   console.log('Index: Final render state - showLanding:', showLanding, 'isOnboarded:', isOnboarded, 'currentView:', currentView);
