@@ -98,6 +98,7 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use dashes (-) to create lists
 - ABSOLUTELY NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
 - ABSOLUTELY NEVER start with "Welcome to" language or similar generic openings
+- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
 - ALWAYS start with a powerful, attention-grabbing hook that immediately engages the reader
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
@@ -112,6 +113,7 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use dashes (-) to create lists
 - ABSOLUTELY NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
 - ABSOLUTELY NEVER start with "Welcome to" language or similar generic openings
+- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
 - ALWAYS start with a powerful, attention-grabbing hook that immediately engages the reader
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
@@ -153,6 +155,7 @@ Create a comprehensive weekly newsletter that:
 16. ABSOLUTELY NEVER uses bullet points, numbered lists, or dashes - write in flowing paragraphs only
 17. ABSOLUTELY NEVER mentions week numbers in any form
 18. ABSOLUTELY NEVER starts with "Welcome to" or similar generic openings
+19. ABSOLUTELY NEVER uses emojis anywhere in the content - keep all text completely emoji-free
 
 Format the response as a JSON object with:
 - subject: The email subject line (incorporating company name and regional relevance)
@@ -172,7 +175,7 @@ The newsletter should be 400-600 words and feel personal, authentic, and highly 
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention week numbers in any form in the content. ABSOLUTELY NEVER start with "Welcome to" or similar generic openings. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader. If you need to present multiple points, weave them naturally into paragraph form.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention week numbers in any form in the content. ABSOLUTELY NEVER start with "Welcome to" or similar generic openings. ABSOLUTELY NEVER use emojis anywhere in the content - keep all text completely emoji-free. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader. If you need to present multiple points, weave them naturally into paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

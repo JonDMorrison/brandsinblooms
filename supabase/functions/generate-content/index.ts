@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
@@ -81,6 +82,7 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
 - ABSOLUTELY NEVER start with "Welcome to" or mention week numbers (e.g., "Week 12", "This week", etc.)
+- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
 - ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
@@ -100,6 +102,7 @@ CRITICAL CONTENT RESTRICTIONS:
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
 - ABSOLUTELY NEVER start with "Welcome to" or mention week numbers (e.g., "Week 12", "This week", etc.)
+- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
 - ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader
 - Write ONLY in flowing paragraphs and natural sentences
 - Avoid ALL cliché gardening phrases and focus on fresh, authentic language
@@ -117,7 +120,7 @@ Requirements:
 - Reference the week description "${weekDescription}" in your content approach
 - Write in the company's brand voice and tone
 - Keep it engaging and visual-friendly (under 150 words)
-- Include relevant emojis
+- DO NOT include any emojis whatsoever
 - Reference the company's specializations when relevant to the theme
 - Speak to their target audience about this specific theme
 - Include a call-to-action related to the theme
@@ -137,6 +140,7 @@ Requirements:
 - Use the week description "${weekDescription}" to guide your content direction
 - Write in the company's brand voice and tone
 - Be conversational and community-focused (150-250 words)
+- DO NOT include any emojis whatsoever
 - Reference the company's unique selling points as they relate to this theme
 - Speak to their ideal customer about this specific topic
 - Include questions to encourage engagement about the theme
@@ -158,6 +162,7 @@ Requirements:
 - Use the week description "${weekDescription}" to shape your content approach
 - Write in the company's tone of writing
 - Be informative and valuable about this specific theme (100-200 words)
+- DO NOT include any emojis whatsoever
 - Reference the company's seasonal focus when it relates to this theme
 - Include their specializations as they connect to the theme
 - Speak to their target audience specifically about this topic
@@ -181,6 +186,7 @@ Requirements:
 - Use the week description "${weekDescription}" to guide your script direction
 - Write in the company's brand voice
 - Keep it conversational and natural (60-90 seconds when spoken)
+- DO NOT include any emojis whatsoever
 - Reference the company's expertise and specializations as they relate to this theme
 - Include practical tips that align with their values and directly support the theme
 - Speak directly to their ideal customer about this specific topic
@@ -198,7 +204,7 @@ Requirements:
     };
 
     const prompt = contentPrompts[postType as keyof typeof contentPrompts] || 
-      `Create ${postType} content specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. Start with a powerful hook - NO "Welcome to" language. Make it engaging, professional, and directly focused on the "${campaignTitle}" theme. The content must provide clear value related to this specific theme. Write in flowing paragraphs only - ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase. ABSOLUTELY NEVER mention week numbers.`;
+      `Create ${postType} content specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. Start with a powerful hook - NO "Welcome to" language. Make it engaging, professional, and directly focused on the "${campaignTitle}" theme. The content must provide clear value related to this specific theme. Write in flowing paragraphs only - ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase. ABSOLUTELY NEVER mention week numbers. ABSOLUTELY NEVER use emojis in any content.`;
 
     console.log('Generating personalized, region-specific content with theme focus for:', postType);
 
@@ -211,7 +217,7 @@ Requirements:
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: `You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company's brand, expertise, and most importantly their local region and climate conditions. CRITICAL: Every piece of content must be specifically focused on and provide clear value related to the weekly theme "${campaignTitle}" and description "${weekDescription || 'general theme'}". Do not create generic content - it must directly address and support this specific theme. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader about the specific theme. If you need to present multiple points, weave them naturally into paragraph form.` },
+          { role: 'system', content: `You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company's brand, expertise, and most importantly their local region and climate conditions. CRITICAL: Every piece of content must be specifically focused on and provide clear value related to the weekly theme "${campaignTitle}" and description "${weekDescription || 'general theme'}". Do not create generic content - it must directly address and support this specific theme. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form. ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader about the specific theme. If you need to present multiple points, weave them naturally into paragraph form.` },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
