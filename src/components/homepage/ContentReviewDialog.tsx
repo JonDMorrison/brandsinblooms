@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle, Clock, AlertCircle, Edit, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { ContentSidebar } from "@/components/ContentSidebar";
 
 interface ContentReviewDialogProps {
   open: boolean;
@@ -24,6 +25,8 @@ interface Task {
 export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogProps) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [showEditSidebar, setShowEditSidebar] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -97,11 +100,18 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
     toast.success(`${postType} content copied to clipboard`);
   };
 
-  const handleEditContent = (taskId: string) => {
-    // This would typically open a content editor modal or navigate to an edit page
-    // For now, we'll show a toast indicating the action
-    toast.info('Edit functionality would open content editor');
-    console.log('Edit task:', taskId);
+  const handleEditContent = (task: Task) => {
+    setEditingTask(task);
+    setShowEditSidebar(true);
+  };
+
+  const handleEditSidebarClose = () => {
+    setShowEditSidebar(false);
+    setEditingTask(null);
+  };
+
+  const handleTaskUpdate = () => {
+    fetchTasks(); // Refresh the tasks list when a task is updated
   };
 
   const getStatusIcon = (status: string) => {
@@ -244,110 +254,119 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto w-[95vw] max-w-full">
-        <DialogHeader>
-          <DialogTitle className="text-garden-green-dark flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <span>Review Your Content</span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchTasks}
-              disabled={loading}
-              className="self-start sm:self-auto"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </DialogTitle>
-        </DialogHeader>
-        
-        {loading ? (
-          <div className="flex justify-center items-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
-        ) : tasks.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">No content available for review</p>
-            <p className="text-sm text-gray-400">
-              Generate content from a campaign to see it here for review and approval.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {tasks.map((task) => (
-              <Card key={task.id} className="border-garden-green-light">
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {getStatusIcon(task.status)}
-                      <Badge variant="secondary" className={getStatusColor(task.status)}>
-                        {task.status}
-                      </Badge>
-                      <Badge variant="outline">
-                        {task.post_type}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEditContent(task.id)}
-                        className="border-blue-300 text-blue-600 hover:bg-blue-50"
-                      >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleCopyContent(task.ai_output, task.post_type)}
-                        className="border-gray-300 text-gray-600 hover:bg-gray-50"
-                      >
-                        <Copy className="w-3 h-3 mr-1" />
-                        Copy
-                      </Button>
-                      {task.status !== 'completed' && (
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto w-[95vw] max-w-full">
+          <DialogHeader>
+            <DialogTitle className="text-garden-green-dark flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <span>Review Your Content</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchTasks}
+                disabled={loading}
+                className="self-start sm:self-auto"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {loading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">No content available for review</p>
+              <p className="text-sm text-gray-400">
+                Generate content from a campaign to see it here for review and approval.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {tasks.map((task) => (
+                <Card key={task.id} className="border-garden-green-light">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {getStatusIcon(task.status)}
+                        <Badge variant="secondary" className={getStatusColor(task.status)}>
+                          {task.status}
+                        </Badge>
+                        <Badge variant="outline">
+                          {task.post_type}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
                         <Button
                           size="sm"
-                          onClick={() => updateTaskStatus(task.id, 'completed')}
-                          className="bg-green-600 hover:bg-green-700 text-white"
+                          variant="outline"
+                          onClick={() => handleEditContent(task)}
+                          className="border-blue-300 text-blue-600 hover:bg-blue-50"
                         >
-                          Approve
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
                         </Button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {task.ai_output && (
-                    <div className="bg-gray-50 p-4 rounded-md border overflow-x-auto">
-                      <div className="prose prose-sm max-w-none">
-                        {formatContent(task.ai_output, task.post_type)}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCopyContent(task.ai_output, task.post_type)}
+                          className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                        >
+                          <Copy className="w-3 h-3 mr-1" />
+                          Copy
+                        </Button>
+                        {task.status !== 'completed' && (
+                          <Button
+                            size="sm"
+                            onClick={() => updateTaskStatus(task.id, 'completed')}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            Approve
+                          </Button>
+                        )}
                       </div>
                     </div>
-                  )}
-                  
-                  {task.scheduled_date && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    
+                    {task.ai_output && (
+                      <div className="bg-gray-50 p-4 rounded-md border overflow-x-auto">
+                        <div className="prose prose-sm max-w-none">
+                          {formatContent(task.ai_output, task.post_type)}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {task.scheduled_date && (
+                      <p className="text-xs text-gray-500 mt-2">
+                        Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+          
+          <div className="flex justify-end pt-4">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="border-garden-green-light text-garden-green-dark w-full sm:w-auto"
+            >
+              Close
+            </Button>
           </div>
-        )}
-        
-        <div className="flex justify-end pt-4">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="border-garden-green-light text-garden-green-dark w-full sm:w-auto"
-          >
-            Close
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      <ContentSidebar
+        task={editingTask}
+        isOpen={showEditSidebar}
+        onClose={handleEditSidebarClose}
+        onTaskUpdate={handleTaskUpdate}
+      />
+    </>
   );
 };
