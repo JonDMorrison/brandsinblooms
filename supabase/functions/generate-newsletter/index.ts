@@ -92,6 +92,21 @@ REGIONAL NEWSLETTER FOCUS:
 
 IMPORTANT: Use this company information to personalize the newsletter with highly location-specific content that reflects their specific geographic region, local climate, and regional gardening conditions.
 
+ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
+1. ALWAYS START WITH A HOOK: Begin with a powerful opening that sparks curiosity, urgency, or seasonal awareness. Never open with "Welcome to," "This week," or generic greetings. Subject lines and openings should be strong, specific, and emotionally engaging.
+
+2. AGITATE BEFORE YOU EDUCATE: After the hook, highlight common challenges or seasonal mistakes before giving advice. Make the reader feel the problem before introducing solutions.
+
+3. KEEP PARAGRAPHS SHORT: Use paragraphs no longer than 2-3 sentences. Break long ideas into multiple short, readable chunks for mobile-friendliness.
+
+4. MAKE IT VISUALLY SUGGESTIVE: Use words that help readers picture what you're talking about (e.g. "lush beds," "cracked soil," "overflowing baskets"). Avoid dry, abstract phrasing. Create scenes with your words.
+
+5. USE A CONVERSATIONAL TONE: Sound like a local garden center owner writing to familiar customers. Avoid corporate, robotic, or overly polished language. Use friendly contractions, plain language, and warm phrasing.
+
+6. INCLUDE A CLEAR, ALIGNED CTA: End with a single clear call-to-action that ties directly to the newsletter's main topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
+
+7. ANCHOR TIME WITHOUT WEEK NUMBERS: Avoid using week numbers entirely. Instead, reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…"
+
 CRITICAL CONTENT RESTRICTIONS: 
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
@@ -107,6 +122,21 @@ CRITICAL CONTENT RESTRICTIONS:
 `;
     } else {
       companyContext = `
+ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
+1. ALWAYS START WITH A HOOK: Begin with a powerful opening that sparks curiosity, urgency, or seasonal awareness. Never open with "Welcome to," "This week," or generic greetings. Subject lines and openings should be strong, specific, and emotionally engaging.
+
+2. AGITATE BEFORE YOU EDUCATE: After the hook, highlight common challenges or seasonal mistakes before giving advice. Make the reader feel the problem before introducing solutions.
+
+3. KEEP PARAGRAPHS SHORT: Use paragraphs no longer than 2-3 sentences. Break long ideas into multiple short, readable chunks for mobile-friendliness.
+
+4. MAKE IT VISUALLY SUGGESTIVE: Use words that help readers picture what you're talking about (e.g. "lush beds," "cracked soil," "overflowing baskets"). Avoid dry, abstract phrasing. Create scenes with your words.
+
+5. USE A CONVERSATIONAL TONE: Sound like a local garden center owner writing to familiar customers. Avoid corporate, robotic, or overly polished language. Use friendly contractions, plain language, and warm phrasing.
+
+6. INCLUDE A CLEAR, ALIGNED CTA: End with a single clear call-to-action that ties directly to the newsletter's main topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
+
+7. ANCHOR TIME WITHOUT WEEK NUMBERS: Avoid using week numbers entirely. Instead, reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…"
+
 CRITICAL CONTENT RESTRICTIONS: 
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
@@ -137,34 +167,39 @@ Image idea: ${item.imageIdea}
 `).join('\n')}
 
 Create a comprehensive weekly newsletter that:
-1. STARTS with a powerful, attention-grabbing hook - NO "Welcome to" language or week number mentions
-2. Uses the company's specific name and brand voice throughout
-3. Reflects their unique selling points and specializations
-4. Speaks directly to their target audience and ideal customer
-5. Incorporates their company values naturally
-6. References their location and seasonal focus with high specificity to their region
-7. Maintains their preferred tone of writing
-8. Highlights the week's main theme from the content
-9. Includes practical gardening tips that are specifically relevant to their geographic location and climate zone
-10. Mentions seasonal activities and timing that's accurate for their specific region
-11. Addresses local gardening challenges and regional growing conditions
-12. References plants, techniques, and timing appropriate for their local hardiness zone
-13. Considers local weather patterns, soil conditions, and regional gardening culture
-14. Ends with a personalized call-to-action that reflects their local community
-15. ABSOLUTELY NEVER uses "Green Thumbs", "green thumb", or any variation of this phrase
-16. ABSOLUTELY NEVER uses bullet points, numbered lists, or dashes - write in flowing paragraphs only
-17. ABSOLUTELY NEVER mentions week numbers in any form
-18. ABSOLUTELY NEVER starts with "Welcome to" or similar generic openings
-19. ABSOLUTELY NEVER uses emojis anywhere in the content - keep all text completely emoji-free
+1. STARTS WITH A POWERFUL HOOK in both subject line and opening - NO "Welcome to" language or week number mentions
+2. AGITATES BEFORE EDUCATING: Highlights common seasonal challenges or mistakes before providing solutions
+3. Uses SHORT PARAGRAPHS (2-3 sentences max) throughout for mobile readability
+4. Makes content VISUALLY SUGGESTIVE with descriptive language that creates mental pictures
+5. Sounds CONVERSATIONAL like a trusted local expert writing to familiar customers
+6. Uses the company's specific name and brand voice throughout
+7. Reflects their unique selling points and specializations
+8. Speaks directly to their target audience and ideal customer
+9. Incorporates their company values naturally
+10. References their location and seasonal focus with high specificity to their region
+11. Maintains their preferred tone of writing
+12. Highlights the week's main theme from the content
+13. Includes practical gardening tips that are specifically relevant to their geographic location and climate zone
+14. Mentions seasonal activities and timing that's accurate for their specific region
+15. Addresses local gardening challenges and regional growing conditions
+16. References plants, techniques, and timing appropriate for their local hardiness zone
+17. Considers local weather patterns, soil conditions, and regional gardening culture
+18. Uses natural seasonal timing references instead of week numbers
+19. Ends with a personalized, SPECIFIC call-to-action that reflects their local community and provides clear next steps
+20. ABSOLUTELY NEVER uses "Green Thumbs", "green thumb", or any variation of this phrase
+21. ABSOLUTELY NEVER uses bullet points, numbered lists, or dashes - write in flowing paragraphs only
+22. ABSOLUTELY NEVER mentions week numbers in any form
+23. ABSOLUTELY NEVER starts with "Welcome to" or similar generic openings
+24. ABSOLUTELY NEVER uses emojis anywhere in the content - keep all text completely emoji-free
 
 Format the response as a JSON object with:
-- subject: The email subject line (incorporating company name and regional relevance)
+- subject: The email subject line (incorporating company name and regional relevance, starting with a hook)
 - content: The full newsletter content in HTML format
 - summary: A brief plain text summary
 
 The newsletter should be 400-600 words and feel personal, authentic, and highly relevant to this specific garden center and their local region/climate.`;
 
-    console.log('Generating personalized, region-specific newsletter with prompt:', prompt);
+    console.log('Generating personalized, region-specific newsletter with enhanced writing style');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -175,7 +210,7 @@ The newsletter should be 400-600 words and feel personal, authentic, and highly 
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention week numbers in any form in the content. ABSOLUTELY NEVER start with "Welcome to" or similar generic openings. ABSOLUTELY NEVER use emojis anywhere in the content - keep all text completely emoji-free. ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader. If you need to present multiple points, weave them naturally into paragraph form.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. ENHANCED WRITING REQUIREMENTS: Always start with powerful hooks that create curiosity or urgency, never "Welcome to" or generic openings. Agitate before you educate by highlighting common challenges first. Use short paragraphs for mobile readability. Make language visually suggestive. Sound conversational like a local expert. End with clear, specific call-to-actions. Use natural seasonal timing references instead of week numbers. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention week numbers in any form in the content. ABSOLUTELY NEVER start with "Welcome to" or similar generic openings. ABSOLUTELY NEVER use emojis anywhere in the content - keep all text completely emoji-free. If you need to present multiple points, weave them naturally into paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -198,13 +233,13 @@ The newsletter should be 400-600 words and feel personal, authentic, and highly 
       // Fallback: create newsletter data from raw text
       const companyName = companyProfile?.company_name || 'Garden Center';
       newsletterData = {
-        subject: `Weekly Newsletter from ${companyName}`,
+        subject: `${companyName}: ${campaignTitle}`,
         content: aiResponse,
-        summary: `Personalized newsletter featuring ${campaignTitle}`
+        summary: `Enhanced newsletter featuring ${campaignTitle} with improved writing style`
       };
     }
 
-    console.log('Generated personalized, region-specific newsletter:', newsletterData);
+    console.log('Generated enhanced newsletter with improved writing style:', newsletterData);
 
     return new Response(JSON.stringify(newsletterData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

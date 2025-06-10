@@ -55,6 +55,10 @@ REGIONAL CONSIDERATIONS:
             - Avoid repetitive phrasing
             - Write in flowing sentences, NEVER use bullet points or lists
             - Consider regional gardening differences and climate-specific advice when relevant
+            - Start with engaging language that sparks interest
+            - Use visually suggestive words that help readers picture scenarios
+            - Sound conversational like a local expert
+            - Avoid generic openings and cliché phrases
             
             Keep it concise and compelling - this will guide all content creation for the week including social media, newsletters, and videos.`
           },
@@ -64,7 +68,7 @@ REGIONAL CONSIDERATIONS:
 
 ${regionalContext}
 
-Create a description that can guide region-specific content creation, considering how this theme would be relevant across different geographic locations and climate zones.`
+Create a description that can guide region-specific content creation, considering how this theme would be relevant across different geographic locations and climate zones. Use engaging, visually suggestive language that sparks curiosity and sounds conversational like a local garden center expert speaking to their community.`
           }
         ],
         max_tokens: 150,
