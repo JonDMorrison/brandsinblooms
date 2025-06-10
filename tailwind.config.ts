@@ -46,17 +46,18 @@ export default {
 					DEFAULT: '#E53E3E',
 					foreground: '#FFFFFF'
 				},
+				// REMOVED ALL YELLOW/AMBER/WARNING COLORS - REPLACED WITH NEUTRAL
 				warning: {
-					DEFAULT: '#FF8A00',
-					50: '#FFF3E6',
-					100: '#FFE0B3',
-					500: '#FF8A00',
-					600: '#E6750A',
-					foreground: '#2D3748'
+					DEFAULT: '#6B7280', // gray-500 instead of orange
+					50: '#F9FAFB',     // gray-50 instead of orange
+					100: '#F3F4F6',    // gray-100 instead of orange
+					500: '#6B7280',    // gray-500 instead of orange
+					600: '#4B5563',    // gray-600 instead of orange
+					foreground: '#FFFFFF'
 				},
 				accent: {
 					blue: '#8ECAE6',
-					orange: '#FF8A00',
+					orange: '#6B7280', // Changed to gray instead of orange
 					DEFAULT: 'hsl(var(--accent))',
 					foreground: 'hsl(var(--accent-foreground))'
 				},
