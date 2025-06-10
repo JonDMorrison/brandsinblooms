@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -197,7 +198,7 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                    <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
                       Week {week.weekNumber}
                     </Badge>
                     <span className="text-sm text-gray-500">
@@ -235,12 +236,12 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
 
                 <div className="flex flex-wrap gap-1">
                   {week.contentTypes.slice(0, 3).map((type, index) => (
-                    <Badge key={index} variant="secondary" className="text-xs">
+                    <Badge key={index} variant="secondary" className="text-xs bg-gray-100 text-gray-700 border-gray-200">
                       {type}
                     </Badge>
                   ))}
                   {week.contentTypes.length > 3 && (
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant="secondary" className="text-xs bg-gray-100 text-gray-700 border-gray-200">
                       +{week.contentTypes.length - 3} more
                     </Badge>
                   )}
@@ -249,7 +250,7 @@ export const WhatsComingNextCard = ({ onTaskUpdate }: WhatsComingNextCardProps) 
             ))}
 
             <div className="pt-2 border-t border-gray-200 bg-white">
-              <Button variant="outline" className="w-full bg-white border-gray-200" onClick={handleViewCalendar}>
+              <Button variant="outline" className="w-full bg-white border-gray-200 hover:bg-gray-50" onClick={handleViewCalendar}>
                 <Clock className="w-4 h-4 mr-2" />
                 View Full Campaign Calendar
               </Button>

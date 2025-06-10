@@ -66,11 +66,11 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
   };
 
   return (
-    <Card className="border-primary/20 bg-white">
+    <Card className="bg-white border-gray-200">
       <CardHeader className="bg-white">
         <div className="flex justify-between items-start">
           <CardTitle className="text-foreground">{campaign.title}</CardTitle>
-          <Badge variant="secondary" className="bg-primary/10 text-primary">
+          <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
             Week {campaign.week_number}
           </Badge>
         </div>

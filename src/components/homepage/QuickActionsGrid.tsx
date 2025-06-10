@@ -43,8 +43,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       description: 'Build themed marketing campaigns',
       benefit: 'Get 5+ content pieces instantly',
       color: 'text-green-600',
-      bgColor: 'bg-green-50 hover:bg-green-100',
-      borderColor: 'border-green-200 hover:border-green-300',
+      bgColor: 'bg-white hover:bg-gray-50',
+      borderColor: 'border-gray-200 hover:border-gray-300',
       onClick: () => setShowNewCampaignModal(true),
       ariaLabel: 'Create a new marketing campaign'
     },
@@ -55,7 +55,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       description: 'Get help marketing your events',
       benefit: 'Custom promotional content',
       color: 'text-gray-600',
-      bgColor: 'bg-gray-50 hover:bg-gray-100',
+      bgColor: 'bg-white hover:bg-gray-50',
       borderColor: 'border-gray-200 hover:border-gray-300',
       onClick: () => setShowAddEventDialog(true),
       ariaLabel: 'Add a new event to promote'
@@ -67,8 +67,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       description: 'See your planned content schedule',
       benefit: "Preview what's coming this year",
       color: 'text-blue-600',
-      bgColor: 'bg-blue-50 hover:bg-blue-100',
-      borderColor: 'border-blue-200 hover:border-blue-300',
+      bgColor: 'bg-white hover:bg-gray-50',
+      borderColor: 'border-gray-200 hover:border-gray-300',
       onClick: handleViewCalendar,
       ariaLabel: 'View content calendar'
     }
@@ -89,7 +89,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
               return (
                 <div
                   key={item.id}
-                  className={`w-full border rounded-lg px-4 py-3 cursor-pointer transition-all duration-200 ease-in-out hover:shadow-md ${item.bgColor} ${item.borderColor}`}
+                  className={`w-full border border-gray-200 rounded-lg px-4 py-3 cursor-pointer transition-all duration-200 ease-in-out hover:shadow-md hover:border-gray-300 ${item.bgColor}`}
                   onClick={item.onClick}
                   role="button"
                   tabIndex={0}
