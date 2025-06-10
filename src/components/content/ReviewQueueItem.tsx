@@ -63,26 +63,6 @@ export const ReviewQueueItem = ({ task, onApprove, onClick, isApproving, onTaskU
       className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer relative group"
       onClick={() => onClick(task)}
     >
-      {/* Delete button in top-right corner */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDelete}
-              disabled={deletingTask}
-              className="absolute top-2 right-2 w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Delete this content</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {getPostTypeIcon(task.post_type)}
@@ -95,15 +75,36 @@ export const ReviewQueueItem = ({ task, onApprove, onClick, isApproving, onTaskU
             </span>
           )}
         </div>
-        <Button
-          size="sm"
-          className="bg-green-600 hover:bg-green-700 text-white"
-          onClick={(e) => onApprove(task.id, e)}
-          disabled={isApproving}
-        >
-          <CheckCircle className="w-3 h-3 mr-1" />
-          {isApproving ? 'Approving...' : 'Approve'}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="bg-green-600 hover:bg-green-700 text-white"
+            onClick={(e) => onApprove(task.id, e)}
+            disabled={isApproving}
+          >
+            <CheckCircle className="w-3 h-3 mr-1" />
+            {isApproving ? 'Approving...' : 'Approve'}
+          </Button>
+          
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleDelete}
+                  disabled={deletingTask}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete this content</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
       
       <p className="text-sm text-gray-700 line-clamp-2">

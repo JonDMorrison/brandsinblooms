@@ -74,26 +74,6 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: Enhance
       className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md bg-gradient-to-r ${getPostTypeColor(task.post_type)} relative group`}
       onClick={() => onClick(task)}
     >
-      {/* Delete button in top-right corner */}
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDelete}
-              disabled={deletingTask}
-              className="absolute top-2 right-2 w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Delete this content</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           {getPostTypeIcon(task.post_type)}
@@ -168,6 +148,23 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: Enhance
             Publish
           </Button>
         )}
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleDelete}
+              disabled={deletingTask}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+            >
+              <Trash2 className="w-3 h-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete this content</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );
