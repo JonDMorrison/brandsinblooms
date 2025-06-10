@@ -83,24 +83,39 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
 
   return (
     <div className="space-y-6 bg-white">
-      {/* Weekly Content Themes */}
-      <div className="grid gap-4 bg-white">
-        <div className="flex items-center justify-between bg-white p-4 rounded-lg">
-          <h3 className="text-xl font-bold text-black flex items-center gap-2">
-            <Palette className="w-6 h-6" />
-            Weekly Content Themes
-          </h3>
-          {campaignsNeedingThemes.length > 0 && (
+      {/* Weekly Content Themes Header */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="px-6 py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Sparkles className="w-4 h-4 text-purple-600" />
-                {campaignsNeedingThemes.length} campaigns need themes
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <Palette className="w-6 h-6 text-purple-600" />
               </div>
-              <WeeklyThemeGenerator onThemesGenerated={handleThemesGenerated} />
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Weekly Content Themes</h2>
+                <p className="text-sm text-gray-600 mt-0.5">
+                  Organize and plan your marketing campaigns by week
+                </p>
+              </div>
             </div>
-          )}
+            
+            {campaignsNeedingThemes.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-full">
+                  <Sparkles className="w-4 h-4 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-700">
+                    {campaignsNeedingThemes.length} {campaignsNeedingThemes.length === 1 ? 'campaign needs' : 'campaigns need'} themes
+                  </span>
+                </div>
+                <WeeklyThemeGenerator onThemesGenerated={handleThemesGenerated} />
+              </div>
+            )}
+          </div>
         </div>
+      </div>
 
+      {/* Weekly Campaign Cards */}
+      <div className="space-y-4">
         {Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => {
           const weekNumber = weekCampaigns[0].week_number;
           const isCurrentWeek = weekNumber === currentWeekNumber;
