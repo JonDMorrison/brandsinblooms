@@ -13,9 +13,16 @@ interface ContentViewerContentProps {
 export const ContentViewerContent = ({ loading, tasks, onTaskUpdate }: ContentViewerContentProps) => {
   console.log('ContentViewerContent: Rendering with', tasks.length, 'tasks, loading:', loading);
 
+  // Check if we have tasks with actual content or if content is still being generated
+  const tasksWithContent = tasks.filter(task => task.ai_output && task.ai_output.trim() !== '');
+  const tasksGenerating = tasks.filter(task => task.status === 'generating' || !task.ai_output);
+  
+  const isActuallyLoading = loading && tasks.length === 0;
+  const isGeneratingContent = tasksGenerating.length > 0;
+
   return (
     <ScrollArea className="h-[600px] pr-4">
-      {loading ? (
+      {isActuallyLoading ? (
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           <span className="ml-2">Loading and generating content...</span>
@@ -29,6 +36,11 @@ export const ContentViewerContent = ({ loading, tasks, onTaskUpdate }: ContentVi
         <div className="space-y-4">
           <div className="text-sm text-gray-600 mb-4">
             Found {tasks.length} content pieces for this campaign
+            {isGeneratingContent && (
+              <span className="ml-2 text-blue-600">
+                ({tasksGenerating.length} still generating...)
+              </span>
+            )}
           </div>
 
           {tasks.map((task) => (
