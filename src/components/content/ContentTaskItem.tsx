@@ -251,9 +251,9 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
           </div>
         </div>
       ) : isGenerating ? (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-yellow-800">
-            <div className="animate-spin h-4 w-4 border-2 border-yellow-600 border-t-transparent rounded-full"></div>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="flex items-center gap-2 text-blue-800">
+            <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
             <span className="text-sm">Generating content...</span>
           </div>
         </div>
