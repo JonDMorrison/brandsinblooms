@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentWeekNumber } from "./homepageUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { ContentViewer } from "@/components/content/ContentViewer";
 
@@ -32,6 +32,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [createdCampaignId, setCreatedCampaignId] = useState<string>("");
   const [createdCampaignTitle, setCreatedCampaignTitle] = useState<string>("");
+  const [showGenerationNote, setShowGenerationNote] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,8 +87,9 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
       setEventInstructions("");
       setError(null);
 
-      // Close the event dialog and show content viewer
+      // Close the event dialog and show content viewer with generation note
       onOpenChange(false);
+      setShowGenerationNote(true);
       setShowContentViewer(true);
       
       // Trigger refresh of campaigns list
@@ -115,6 +117,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
   const handleContentViewerClose = () => {
     setShowContentViewer(false);
+    setShowGenerationNote(false);
     setCreatedCampaignId("");
     setCreatedCampaignTitle("");
   };
@@ -231,13 +234,25 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
       {/* Content Viewer Modal - automatically opens after event creation */}
       {createdCampaignId && (
-        <ContentViewer
-          campaignId={createdCampaignId}
-          campaignTitle={createdCampaignTitle}
-          isOpen={showContentViewer}
-          onClose={handleContentViewerClose}
-          onTaskUpdate={handleTaskUpdate}
-        />
+        <>
+          {/* Generation timing note */}
+          {showGenerationNote && (
+            <Alert className="fixed top-4 right-4 z-50 max-w-sm border-blue-200 bg-blue-50">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                <strong>Content is generating...</strong> This usually takes 1-2 minutes. You can close this window and the content will be saved to your campaigns.
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <ContentViewer
+            campaignId={createdCampaignId}
+            campaignTitle={createdCampaignTitle}
+            isOpen={showContentViewer}
+            onClose={handleContentViewerClose}
+            onTaskUpdate={handleTaskUpdate}
+          />
+        </>
       )}
     </>
   );
