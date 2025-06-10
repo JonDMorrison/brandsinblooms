@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
-  console.log(`Generating validated ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
+  console.log(`🎯 Generating validated ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-content', {
@@ -17,27 +17,28 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
     });
 
     if (error) {
-      console.error('Error generating personalized, region-aware content:', error);
+      console.error('❌ Error generating personalized, region-aware content:', error);
       throw error;
     }
 
     if (data.generationAttempts && data.generationAttempts > 1) {
-      console.log(`Content generated after ${data.generationAttempts} attempts with validation`);
+      console.log(`✅ Content generated after ${data.generationAttempts} attempts with validation`);
     }
     
     if (data.validationPassed === false) {
-      console.warn('Content generated but validation concerns remain');
+      console.warn('⚠️ Content generated but validation concerns remain');
     }
 
+    console.log(`✅ Generated ${postType} content successfully:`, data.content?.substring(0, 100) + '...');
     return data.content || data.generatedText || `Generated ${postType} content for ${campaignTitle}`;
   } catch (error) {
-    console.error('Error in generatePersonalizedContent:', error);
+    console.error('❌ Error in generatePersonalizedContent:', error);
     throw error;
   }
 };
 
 export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number, userId?: string, weekDescription?: string) => {
-  console.log(`Generating region-aware newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
+  console.log(`🎯 Generating region-aware newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-newsletter', {
@@ -52,19 +53,20 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
     });
 
     if (error) {
-      console.error('Error generating newsletter content:', error);
+      console.error('❌ Error generating newsletter content:', error);
       throw error;
     }
 
+    console.log(`✅ Generated newsletter content successfully:`, data.content?.substring(0, 100) + '...');
     return data.content || data.generatedText || `Generated newsletter content for ${campaignTitle}`;
   } catch (error) {
-    console.error('Error in generateNewsletterContent:', error);
+    console.error('❌ Error in generateNewsletterContent:', error);
     throw error;
   }
 };
 
 export const generateVideoScript = async (campaignTitle: string, userId?: string, weekDescription?: string) => {
-  console.log(`Generating region-aware video script for: ${campaignTitle} with description: ${weekDescription}`);
+  console.log(`🎯 Generating region-aware video script for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
     const { data, error } = await supabase.functions.invoke('generate-video-script', {
@@ -77,13 +79,14 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
     });
 
     if (error) {
-      console.error('Error generating video script:', error);
+      console.error('❌ Error generating video script:', error);
       throw error;
     }
 
+    console.log(`✅ Generated video script successfully:`, data.script?.substring(0, 100) + '...');
     return data.script || data.generatedText || `Generated video script for ${campaignTitle}`;
   } catch (error) {
-    console.error('Error in generateVideoScript:', error);
+    console.error('❌ Error in generateVideoScript:', error);
     throw error;
   }
 };

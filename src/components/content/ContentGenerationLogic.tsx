@@ -12,7 +12,7 @@ export const useContentGeneration = () => {
       return;
     }
 
-    console.log('Auto-generating missing content for campaign:', campaignId);
+    console.log('🚀 Auto-generating missing content for campaign:', campaignId, 'Title:', campaignTitle);
 
     try {
       // Check what content types already exist
@@ -20,8 +20,8 @@ export const useContentGeneration = () => {
       const allTypes = ['facebook', 'instagram', 'email', 'newsletter', 'video'];
       const missingTypes = allTypes.filter(type => !existingTypes.includes(type));
 
-      console.log('Existing types:', existingTypes);
-      console.log('Missing types:', missingTypes);
+      console.log('📊 Existing types:', existingTypes);
+      console.log('📝 Missing types:', missingTypes);
 
       // Create tasks for missing types
       if (missingTypes.length > 0) {
@@ -36,12 +36,12 @@ export const useContentGeneration = () => {
           tasksToCreate.push({
             campaign_id: campaignId,
             post_type: postType,
-            status: 'planned', // Use valid status
+            status: 'planned',
             scheduled_date: scheduledDate.toISOString().split('T')[0],
           });
         }
 
-        console.log('Creating missing tasks:', tasksToCreate);
+        console.log('✅ Creating missing tasks:', tasksToCreate);
 
         // Insert the missing tasks
         const { data: createdTasks, error: insertError } = await supabase
@@ -50,11 +50,11 @@ export const useContentGeneration = () => {
           .select();
 
         if (insertError) {
-          console.error('Error creating tasks:', insertError);
+          console.error('❌ Error creating tasks:', insertError);
           throw new Error('Failed to create content tasks');
         }
 
-        console.log('Created tasks:', createdTasks);
+        console.log('✅ Created tasks:', createdTasks);
       }
 
       // Now generate content for all tasks without content
@@ -65,15 +65,15 @@ export const useContentGeneration = () => {
         .is('ai_output', null);
 
       if (allTasksError) {
-        console.error('Error fetching tasks for generation:', allTasksError);
+        console.error('❌ Error fetching tasks for generation:', allTasksError);
         throw new Error('Failed to fetch tasks for content generation');
       }
 
-      console.log('Tasks needing content generation:', allTasks);
+      console.log('🎯 Tasks needing content generation:', allTasks?.length || 0, 'tasks');
 
       // Generate content for each task with validation
       for (const task of allTasks || []) {
-        console.log(`Generating content for ${task.post_type} task:`, task.id);
+        console.log(`🤖 Generating content for ${task.post_type} task:`, task.id);
 
         try {
           // Update status to generating
@@ -84,6 +84,8 @@ export const useContentGeneration = () => {
 
           let aiOutput = '';
           let validationAttempts = 1;
+
+          console.log(`📝 Starting ${task.post_type} content generation...`);
 
           // Generate content based on type with validation
           if (task.post_type === 'newsletter') {
@@ -103,14 +105,17 @@ export const useContentGeneration = () => {
             );
           }
 
+          console.log(`✅ Generated ${task.post_type} content:`, aiOutput?.substring(0, 100) + '...');
+
           // Validate the generated content
           const validation = ContentValidator.validate(aiOutput);
           
           if (!validation.isValid) {
-            console.warn(`Generated ${task.post_type} content failed validation:`, validation.issues);
+            console.warn(`⚠️ Generated ${task.post_type} content failed validation:`, validation.issues);
             
             // Try to regenerate with validation feedback
             const regenerateFunction = async () => {
+              console.log(`🔄 Regenerating ${task.post_type} content due to validation issues...`);
               if (task.post_type === 'newsletter') {
                 return await generateNewsletterContent(campaignId, campaignTitle, Math.ceil(Date.now() / (7 * 24 * 60 * 60 * 1000)), userId);
               } else if (task.post_type === 'video') {
@@ -130,30 +135,32 @@ export const useContentGeneration = () => {
             validationAttempts = validatedResult.attempts;
             
             if (validatedResult.issues.length > 0) {
-              console.warn(`Content still has validation issues after ${validationAttempts} attempts:`, validatedResult.issues);
+              console.warn(`⚠️ Content still has validation issues after ${validationAttempts} attempts:`, validatedResult.issues);
               toast.warning(`${task.post_type} content generated with minor validation issues`);
             }
+          } else {
+            console.log(`✅ ${task.post_type} content passed validation on first attempt`);
           }
 
-          // Update task with generated content - using 'ready_to_post' status instead of 'scheduled'
+          // Update task with generated content
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: aiOutput,
-              status: 'ready_to_post', // Use valid status
+              status: 'ready_to_post',
               hashtags: getHashtagsForType(task.post_type),
               image_idea: getImageIdeaForType(task.post_type)
             })
             .eq('id', task.id);
 
           if (updateError) {
-            console.error(`Error updating ${task.post_type} task:`, updateError);
+            console.error(`❌ Error updating ${task.post_type} task:`, updateError);
           } else {
-            console.log(`Successfully generated ${task.post_type} content (${validationAttempts} attempts)`);
+            console.log(`✅ Successfully generated ${task.post_type} content (${validationAttempts} attempts)`);
           }
 
         } catch (contentError) {
-          console.error(`Error generating ${task.post_type} content:`, contentError);
+          console.error(`❌ Error generating ${task.post_type} content:`, contentError);
           
           // Reset status back to planned if generation fails
           await supabase
@@ -169,7 +176,7 @@ export const useContentGeneration = () => {
       }
 
     } catch (error) {
-      console.error('Error in auto-generation:', error);
+      console.error('❌ Error in auto-generation:', error);
       toast.error('Failed to auto-generate content');
       return false;
     }
