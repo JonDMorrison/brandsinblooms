@@ -1,7 +1,7 @@
+
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
 import { UpcomingTasksSection } from "@/components/dashboard/UpcomingTasksSection";
 import { CustomCampaignsSection } from "@/components/dashboard/CustomCampaignsSection";
-import { QuickActionsSection } from "@/components/dashboard/QuickActionsSection";
 
 interface DashboardGridProps {
   activeCampaign: any;
@@ -40,7 +40,7 @@ export const DashboardGrid = ({
     <div className="grid lg:grid-cols-3 gap-6">
       {/* Left Column */}
       <div className="lg:col-span-2 space-y-6">
-        {/* Current Campaign Section */}
+        {/* Current Campaign Section with Quick Actions */}
         <CurrentCampaignSection 
           activeCampaign={activeCampaign}
           currentWeekNumber={currentWeekNumber}
@@ -49,6 +49,7 @@ export const DashboardGrid = ({
           pendingTasksCount={pendingTasksCount}
           onTaskUpdate={onTaskUpdate}
           onCreateCampaign={onCreateCampaign}
+          onCampaignCreated={onCampaignCreated}
           onTaskClick={onTaskClick}
         />
 
@@ -62,11 +63,6 @@ export const DashboardGrid = ({
 
       {/* Right Column */}
       <div className="lg:col-span-1 space-y-6">
-        {/* Quick Actions Section */}
-        <QuickActionsSection 
-          onCampaignCreated={onCampaignCreated} 
-        />
-
         {/* Custom Campaigns Section */}
         <CustomCampaignsSection 
           userCreatedCampaigns={userCreatedCampaigns}
