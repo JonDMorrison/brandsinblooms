@@ -1,146 +1,172 @@
 
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, ExternalLink, Clock, CheckCircle, Calendar as CalendarIcon, Edit, Send } from "lucide-react";
+import { Copy, Instagram, Facebook, ExternalLink, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";
-import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
 
 interface EnhancedReadyToPostItemProps {
   task: any;
   onClick: (task: any) => void;
-  onTaskUpdate: () => void;
+  onTaskUpdate?: () => void;
 }
 
 export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: EnhancedReadyToPostItemProps) => {
-  const [isPublishing, setIsPublishing] = useState(false);
+  const [deletingTask, setDeletingTask] = useState(false);
 
-  const handleCopyContent = (e: React.MouseEvent, content: string, postType: string) => {
-    e.stopPropagation();
-    const cleanContent = stripHtmlAndFormat(content);
+  const handleCopyContent = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    const cleanContent = stripHtmlAndFormat(task.ai_output);
     navigator.clipboard.writeText(cleanContent);
-    toast.success(`${postType} content copied to clipboard`);
+    toast.success(`${task.post_type} content copied to clipboard`);
   };
 
-  const handleMarkAsPublished = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsPublishing(true);
+  const handleSocialMediaPost = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    const cleanContent = stripHtmlAndFormat(task.ai_output);
+    
+    if (task.post_type === 'facebook') {
+      postToFacebook(cleanContent);
+    } else if (task.post_type === 'instagram') {
+      postToInstagram(cleanContent);
+    }
+  };
+
+  const handleDelete = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    if (!confirm('Are you sure you want to delete this content? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingTask(true);
     
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'published' })
+        .delete()
         .eq('id', task.id);
 
-      if (error) throw error;
-      
-      toast.success('Content marked as published and removed from Ready to Post!');
-      onTaskUpdate();
+      if (error) {
+        console.error('Error deleting task:', error);
+        toast.error('Failed to delete content');
+      } else {
+        toast.success('Content deleted successfully');
+        if (onTaskUpdate) onTaskUpdate();
+      }
     } catch (error) {
-      console.error('Error marking as published:', error);
-      toast.error('Failed to mark as published');
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete content');
     } finally {
-      setIsPublishing(false);
+      setDeletingTask(false);
     }
   };
 
-  // Content is already approved, show publish-ready status
-  const getReadinessStatus = () => {
-    const hasContent = task.ai_output && task.ai_output.trim().length > 0;
-    const hasScheduleDate = task.scheduled_date;
-    
-    if (hasContent && hasScheduleDate) {
-      return { status: 'ready', label: 'Ready to Publish', color: 'bg-green-100 text-green-800' };
-    } else if (hasContent) {
-      return { status: 'needs-schedule', label: 'Needs Scheduling', color: 'bg-yellow-100 text-yellow-800' };
-    } else {
-      return { status: 'needs-content', label: 'Needs Content', color: 'bg-orange-100 text-orange-800' };
-    }
-  };
-
-  const readinessStatus = getReadinessStatus();
-  const isOverdue = task.scheduled_date && new Date(task.scheduled_date) < new Date();
+  const showSocialMediaButton = task.post_type === 'facebook' || task.post_type === 'instagram';
 
   return (
     <div
-      className="border rounded-lg p-4 hover:bg-green-25 transition-all duration-200 cursor-pointer border-green-200 bg-white hover:shadow-md"
+      className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md bg-gradient-to-r ${getPostTypeColor(task.post_type)} relative group`}
       onClick={() => onClick(task)}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2 flex-1">
+      {/* Delete button in top-right corner */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleDelete}
+              disabled={deletingTask}
+              className="absolute top-2 right-2 w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete this content</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
           {getPostTypeIcon(task.post_type)}
-          <Badge className={getPostTypeColor(task.post_type)}>
+          <Badge variant="secondary" className="capitalize">
             {task.post_type}
           </Badge>
-          <Badge className={readinessStatus.color}>
-            {readinessStatus.status === 'ready' && <CheckCircle className="w-3 h-3 mr-1" />}
-            {readinessStatus.status === 'needs-schedule' && <Clock className="w-3 h-3 mr-1" />}
-            {readinessStatus.label}
+          <Badge className="bg-green-100 text-green-800 border-green-200">
+            ✅ Ready
           </Badge>
-          {isOverdue && (
-            <Badge className="bg-red-100 text-red-800">
-              <Clock className="w-3 h-3 mr-1" />
-              Overdue
-            </Badge>
-          )}
-        </div>
-        
-        <div className="flex gap-1">
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => handleCopyContent(e, task.ai_output, task.post_type)}
-            className="h-7 w-7 p-0 hover:bg-green-100"
-            title="Copy content"
-          >
-            <Copy className="w-3 h-3" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick(task);
-            }}
-            className="h-7 w-7 p-0 hover:bg-blue-100"
-            title="Edit content"
-          >
-            <Edit className="w-3 h-3" />
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleMarkAsPublished}
-            disabled={isPublishing}
-            className="h-7 w-7 p-0 hover:bg-green-100"
-            title="Mark as published (removes from Ready to Post)"
-          >
-            <Send className={`w-3 h-3 ${isPublishing ? 'animate-pulse' : ''}`} />
-          </Button>
         </div>
       </div>
-      
-      {task.ai_output && (
-        <p className="text-sm text-gray-700 line-clamp-2 mb-2">
-          {stripHtmlAndFormat(task.ai_output)}
+
+      <div className="text-sm text-gray-700 line-clamp-3 mb-3 leading-relaxed">
+        {stripHtmlAndFormat(task.ai_output)}
+      </div>
+
+      {task.scheduled_date && (
+        <p className="text-xs text-gray-500 mb-3">
+          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
         </p>
       )}
-      
-      <div className="flex items-center justify-between text-xs text-gray-500">
-        {task.scheduled_date && (
-          <div className="flex items-center gap-1">
-            <CalendarIcon className="w-3 h-3" />
-            <span>
-              Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-            </span>
-          </div>
-        )}
-        {task.campaigns?.title && (
-          <span className="text-gray-600 font-medium">
-            {task.campaigns.title}
-          </span>
+
+      <div className="flex gap-2 flex-wrap">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyContent}
+                className="border-gray-300 text-gray-600 hover:bg-gray-100"
+              >
+                <Copy className="w-3 h-3 mr-1" />
+                Copy
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Copy content to clipboard</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+        {showSocialMediaButton ? (
+          <Button
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleSocialMediaPost}
+          >
+            {task.post_type === 'facebook' ? (
+              <>
+                <Facebook className="w-3 h-3 mr-1" />
+                Post to Facebook
+              </>
+            ) : (
+              <>
+                <Instagram className="w-3 h-3 mr-1" />
+                Post to Instagram
+              </>
+            )}
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.info('Publishing integration coming soon');
+            }}
+            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+          >
+            <ExternalLink className="w-3 h-3 mr-1" />
+            Publish
+          </Button>
         )}
       </div>
     </div>

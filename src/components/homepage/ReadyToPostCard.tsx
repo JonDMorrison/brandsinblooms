@@ -13,9 +13,10 @@ import { toast } from "sonner";
 interface ReadyToPostCardProps {
   tasks: any[];
   onTaskClick?: (task: any) => void;
+  onTaskUpdate?: () => void;
 }
 
-export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) => {
+export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPostCardProps) => {
   const [showAllTasks, setShowAllTasks] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -78,8 +79,8 @@ export const ReadyToPostCard = ({ tasks, onTaskClick }: ReadyToPostCardProps) =>
   const handleTaskUpdate = () => {
     setIsRefreshing(true);
     // Trigger refresh if needed
-    if (onTaskClick) {
-      onTaskClick(selectedTask);
+    if (onTaskUpdate) {
+      onTaskUpdate();
     }
     setTimeout(() => setIsRefreshing(false), 500);
   };

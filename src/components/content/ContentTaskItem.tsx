@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy, CheckCircle, Edit, ExternalLink, Instagram, Facebook } from "lucide-react";
+import { Copy, CheckCircle, Edit, ExternalLink, Instagram, Facebook, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
@@ -16,6 +16,7 @@ interface ContentTaskItemProps {
 
 export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) => {
   const [approvingTask, setApprovingTask] = useState(false);
+  const [deletingTask, setDeletingTask] = useState(false);
 
   const handleApprove = async () => {
     setApprovingTask(true);
@@ -41,6 +42,34 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
     }
   };
 
+  const handleDelete = async () => {
+    if (!confirm('Are you sure you want to delete this content? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingTask(true);
+    
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .delete()
+        .eq('id', task.id);
+
+      if (error) {
+        console.error('Error deleting task:', error);
+        toast.error('Failed to delete content');
+      } else {
+        toast.success('Content deleted successfully');
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete content');
+    } finally {
+      setDeletingTask(false);
+    }
+  };
+
   const handleSocialMediaPost = () => {
     const cleanContent = task.ai_output
       .replace(/<[^>]*>/g, '')
@@ -59,7 +88,27 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   const canEdit = task.ai_output && task.status !== 'published';
 
   return (
-    <div className="border rounded-lg p-4 space-y-3">
+    <div className="border rounded-lg p-4 space-y-3 relative group">
+      {/* Delete button in top-right corner */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleDelete}
+              disabled={deletingTask}
+              className="absolute top-2 right-2 w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete this content</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {getPostTypeIcon(task.post_type)}

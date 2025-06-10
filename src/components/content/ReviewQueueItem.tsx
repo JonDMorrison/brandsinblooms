@@ -1,7 +1,11 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { getPostTypeIcon } from "@/components/homepage/ready-to-post/postTypeUtils";
 
 interface ReviewQueueItemProps {
@@ -9,9 +13,12 @@ interface ReviewQueueItemProps {
   onApprove: (taskId: string, event: React.MouseEvent) => void;
   onClick: (task: any) => void;
   isApproving: boolean;
+  onTaskUpdate?: () => void;
 }
 
-export const ReviewQueueItem = ({ task, onApprove, onClick, isApproving }: ReviewQueueItemProps) => {
+export const ReviewQueueItem = ({ task, onApprove, onClick, isApproving, onTaskUpdate }: ReviewQueueItemProps) => {
+  const [deletingTask, setDeletingTask] = useState(false);
+
   const stripHtmlAndFormat = (content: string) => {
     if (!content) return '';
     return content
@@ -20,12 +27,62 @@ export const ReviewQueueItem = ({ task, onApprove, onClick, isApproving }: Revie
       .trim();
   };
 
+  const handleDelete = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    if (!confirm('Are you sure you want to delete this content? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingTask(true);
+    
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .delete()
+        .eq('id', task.id);
+
+      if (error) {
+        console.error('Error deleting task:', error);
+        toast.error('Failed to delete content');
+      } else {
+        toast.success('Content deleted successfully');
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete content');
+    } finally {
+      setDeletingTask(false);
+    }
+  };
+
   return (
     <div
       key={task.id}
-      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer relative group"
       onClick={() => onClick(task)}
     >
+      {/* Delete button in top-right corner */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleDelete}
+              disabled={deletingTask}
+              className="absolute top-2 right-2 w-8 h-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Delete this content</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           {getPostTypeIcon(task.post_type)}
