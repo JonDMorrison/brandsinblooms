@@ -49,10 +49,7 @@ export const DashboardGrid = ({
           onCampaignCreated={onCampaignCreated}
           onTaskClick={onTaskClick}
         />
-      </div>
 
-      {/* Right Column */}
-      <div className="lg:col-span-1 space-y-6">
         {/* Custom Campaigns Section */}
         <CustomCampaignsSection 
           userCreatedCampaigns={userCreatedCampaigns}
@@ -60,6 +57,11 @@ export const DashboardGrid = ({
           onCampaignUpdate={onCampaignUpdate}
           onCampaignDelete={onCampaignDelete}
         />
+      </div>
+
+      {/* Right Column */}
+      <div className="lg:col-span-1 space-y-6">
+        {/* Right column is now empty - can be used for other content later */}
       </div>
     </div>
   );
