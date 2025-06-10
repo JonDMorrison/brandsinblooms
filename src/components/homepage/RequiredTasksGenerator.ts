@@ -45,13 +45,12 @@ export const generateRequiredTasks = async (
 
     console.log(`Creating ${missingPostTypes.length} missing tasks for campaign:`, campaign.title);
 
-    // Create tasks for missing post types without assigned_user_id to avoid foreign key constraint
+    // Create tasks for missing post types with 'planned' status
     const tasksToCreate = missingPostTypes.map(postType => ({
       campaign_id: campaignId,
       post_type: postType,
-      status: 'planned', // Use planned status instead of generating
+      status: 'planned', // Use valid status
       scheduled_date: campaign.start_date
-      // Removed assigned_user_id to avoid foreign key constraint violation
     }));
 
     console.log('Tasks to create:', tasksToCreate);
@@ -104,13 +103,12 @@ export const generateRequiredTasks = async (
 
           if (response.error) {
             console.error(`Error from generate-content function for ${task.post_type}:`, response.error);
-            // Update task status to indicate error
+            // Update task status back to planned on error
             await supabase
               .from('content_tasks')
               .update({ status: 'planned' })
               .eq('id', task.id);
             
-            // Don't throw here, continue with other tasks
             console.log(`Continuing with other tasks despite ${task.post_type} failure`);
             continue;
           }
@@ -127,13 +125,13 @@ export const generateRequiredTasks = async (
             continue;
           }
           
-          // Update task with generated content and set status to 'completed' for review
+          // Update task with generated content and set status to 'ready_to_post' (valid status)
           console.log(`Updating task ${task.id} with generated content`);
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: content,
-              status: 'completed' // Set to completed so content appears in ready to post
+              status: 'ready_to_post' // Use valid status instead of 'completed'
             })
             .eq('id', task.id);
 
@@ -144,7 +142,7 @@ export const generateRequiredTasks = async (
           }
         } catch (error) {
           console.error(`Error generating ${task.post_type} content:`, error);
-          // Update task status to indicate error
+          // Update task status back to planned on error
           await supabase
             .from('content_tasks')
             .update({ status: 'planned' })

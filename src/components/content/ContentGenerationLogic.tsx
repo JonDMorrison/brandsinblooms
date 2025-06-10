@@ -36,7 +36,7 @@ export const useContentGeneration = () => {
           tasksToCreate.push({
             campaign_id: campaignId,
             post_type: postType,
-            status: 'planned',
+            status: 'planned', // Use valid status
             scheduled_date: scheduledDate.toISOString().split('T')[0],
           });
         }
@@ -135,12 +135,12 @@ export const useContentGeneration = () => {
             }
           }
 
-          // Update task with generated content - using 'scheduled' status instead of 'draft'
+          // Update task with generated content - using 'ready_to_post' status instead of 'scheduled'
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: aiOutput,
-              status: 'scheduled',
+              status: 'ready_to_post', // Use valid status
               hashtags: getHashtagsForType(task.post_type),
               image_idea: getImageIdeaForType(task.post_type)
             })
