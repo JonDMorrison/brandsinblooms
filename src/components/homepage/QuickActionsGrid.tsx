@@ -76,8 +76,8 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
 
   return (
     <>
-      <Card className="shadow-lg border-primary/20 rounded-xl">
-        <CardContent className="p-6">
+      <Card className="shadow-lg border-gray-200 rounded-xl bg-white">
+        <CardContent className="p-6 bg-white">
           <div className="flex items-center gap-2 mb-6">
             <Sparkles className="w-5 h-5 text-primary" />
             <h3 className="text-xl font-bold text-black">Quick Actions</h3>
