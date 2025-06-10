@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Edit2, Palette, FileText, Sparkles } from "lucide-react";
 import { useState } from "react";
@@ -92,30 +93,36 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 group">
-        <Palette className="w-4 h-4 text-gray-500" />
-        <span className="text-sm font-medium text-gray-700">Content Theme:</span>
-        <span className="text-sm text-foreground flex-1 leading-tight">
+      <div className="group">
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <Palette className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">Content Theme:</span>
+          </div>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={generateHeadline}
+              disabled={isGeneratingHeadline}
+              className="h-6 w-6 p-0"
+              title="Generate exciting headline"
+            >
+              <Sparkles className="w-3 h-3" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleEditClick}
+              className="h-6 w-6 p-0"
+            >
+              <Edit2 className="w-3 h-3" />
+            </Button>
+          </div>
+        </div>
+        <span className="text-sm text-foreground leading-tight block">
           {displayTheme}
         </span>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={generateHeadline}
-          disabled={isGeneratingHeadline}
-          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Generate exciting headline"
-        >
-          <Sparkles className="w-3 h-3" />
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleEditClick}
-          className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Edit2 className="w-3 h-3" />
-        </Button>
       </div>
       
       {currentDescription && (
