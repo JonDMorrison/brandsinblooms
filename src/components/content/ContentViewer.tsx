@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +24,14 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
   const [approvingTasks, setApprovingTasks] = useState<Set<string>>(new Set());
 
   const fetchTasks = async () => {
-    if (!campaignId || !isOpen) return;
+    if (!campaignId || !isOpen) {
+      console.log('ContentViewer: Skipping fetch - campaignId:', campaignId, 'isOpen:', isOpen);
+      return;
+    }
     
+    console.log('ContentViewer: Starting fetch for campaignId:', campaignId);
     setLoading(true);
+    
     try {
       const { data, error } = await supabase
         .from('content_tasks')
@@ -35,14 +39,17 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
         .eq('campaign_id', campaignId)
         .order('created_at', { ascending: true });
 
+      console.log('ContentViewer: Fetch result - data:', data, 'error:', error);
+
       if (error) {
-        console.error('Error fetching tasks:', error);
+        console.error('ContentViewer: Error fetching tasks:', error);
         toast.error('Failed to load content');
       } else {
+        console.log('ContentViewer: Successfully fetched', data?.length || 0, 'tasks');
         setTasks(data || []);
       }
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      console.error('ContentViewer: Exception in fetchTasks:', error);
       toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -50,6 +57,7 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
   };
 
   useEffect(() => {
+    console.log('ContentViewer: useEffect triggered - campaignId:', campaignId, 'isOpen:', isOpen);
     fetchTasks();
   }, [campaignId, isOpen]);
 
@@ -130,12 +138,14 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
     }
   };
 
+  console.log('ContentViewer: Rendering with', tasks.length, 'tasks, loading:', loading);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold">
-            {campaignTitle} - Generated Content
+            {campaignTitle} - Generated Content (Campaign ID: {campaignId})
           </DialogTitle>
         </DialogHeader>
 
@@ -143,14 +153,19 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-2">Loading content...</span>
             </div>
           ) : tasks.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p>No content generated yet</p>
+              <p>No content generated yet for campaign {campaignId}</p>
+              <p className="text-sm mt-2">Campaign: {campaignTitle}</p>
             </div>
           ) : (
             <div className="space-y-4">
+              <div className="text-sm text-gray-600 mb-4">
+                Found {tasks.length} tasks for this campaign
+              </div>
               {tasks.map((task) => {
                 const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'completed';
                 const canApprove = task.status === 'draft' && task.ai_output;
