@@ -11,6 +11,7 @@ import { getCurrentWeekNumber } from "./homepageUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { ContentViewer } from "@/components/content/ContentViewer";
 
 interface AddEventDialogProps {
   open: boolean;
@@ -26,6 +27,11 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
   const [eventInstructions, setEventInstructions] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // State for content viewer
+  const [showContentViewer, setShowContentViewer] = useState(false);
+  const [createdCampaignId, setCreatedCampaignId] = useState<string>("");
+  const [createdCampaignTitle, setCreatedCampaignTitle] = useState<string>("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +75,10 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
       console.log('AddEventDialog: Campaign created successfully:', data);
 
+      // Store campaign details for content viewer
+      setCreatedCampaignId(data.id);
+      setCreatedCampaignTitle(data.title);
+
       // Reset form
       setEventName("");
       setEventDescription("");
@@ -76,8 +86,12 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
       setEventInstructions("");
       setError(null);
 
-      onEventCreated();
+      // Close the event dialog and show content viewer
       onOpenChange(false);
+      setShowContentViewer(true);
+      
+      // Trigger refresh of campaigns list
+      onEventCreated();
       
     } catch (error: any) {
       console.error('AddEventDialog: Error creating event:', error);
@@ -99,108 +113,132 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
     }
   };
 
+  const handleContentViewerClose = () => {
+    setShowContentViewer(false);
+    setCreatedCampaignId("");
+    setCreatedCampaignTitle("");
+  };
+
+  const handleTaskUpdate = () => {
+    // Refresh the parent component's data
+    onEventCreated();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="text-garden-green-dark">Add Event to Promote</DialogTitle>
-        </DialogHeader>
-        
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="eventName" className="text-garden-green-dark">
-              Event Name *
-            </Label>
-            <Input
-              id="eventName"
-              value={eventName}
-              onChange={(e) => {
-                setEventName(e.target.value);
-                setError(null);
-              }}
-              placeholder="Enter event name"
-              required
-              className="border-black focus:border-black"
-              disabled={loading}
-            />
-          </div>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-garden-green-dark">Add Event to Promote</DialogTitle>
+          </DialogHeader>
           
-          <div>
-            <Label htmlFor="eventDescription" className="text-garden-green-dark">
-              Event Description
-            </Label>
-            <Textarea
-              id="eventDescription"
-              value={eventDescription}
-              onChange={(e) => setEventDescription(e.target.value)}
-              placeholder="Describe your event"
-              className="border-black focus:border-black"
-              disabled={loading}
-            />
-          </div>
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           
-          <div>
-            <Label htmlFor="eventDate" className="text-garden-green-dark">
-              Event Date
-            </Label>
-            <Input
-              id="eventDate"
-              type="date"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-              className="border-black focus:border-black"
-              disabled={loading}
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="eventInstructions" className="text-garden-green-dark">
-              Instructions & Deadlines
-            </Label>
-            <Textarea
-              id="eventInstructions"
-              value={eventInstructions}
-              onChange={(e) => setEventInstructions(e.target.value)}
-              placeholder="Add sign up deadlines, registration info, reply requirements, etc."
-              className="border-black focus:border-black"
-              disabled={loading}
-            />
-          </div>
-          
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              className="border-garden-green-light text-garden-green-dark"
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={!eventName.trim() || loading}
-              className="bg-garden-green hover:bg-garden-green-dark text-white"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                'Create Event Campaign'
-              )}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <Label htmlFor="eventName" className="text-garden-green-dark">
+                Event Name *
+              </Label>
+              <Input
+                id="eventName"
+                value={eventName}
+                onChange={(e) => {
+                  setEventName(e.target.value);
+                  setError(null);
+                }}
+                placeholder="Enter event name"
+                required
+                className="border-black focus:border-black"
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="eventDescription" className="text-garden-green-dark">
+                Event Description
+              </Label>
+              <Textarea
+                id="eventDescription"
+                value={eventDescription}
+                onChange={(e) => setEventDescription(e.target.value)}
+                placeholder="Describe your event"
+                className="border-black focus:border-black"
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="eventDate" className="text-garden-green-dark">
+                Event Date
+              </Label>
+              <Input
+                id="eventDate"
+                type="date"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+                className="border-black focus:border-black"
+                disabled={loading}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="eventInstructions" className="text-garden-green-dark">
+                Instructions & Deadlines
+              </Label>
+              <Textarea
+                id="eventInstructions"
+                value={eventInstructions}
+                onChange={(e) => setEventInstructions(e.target.value)}
+                placeholder="Add sign up deadlines, registration info, reply requirements, etc."
+                className="border-black focus:border-black"
+                disabled={loading}
+              />
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                className="border-garden-green-light text-garden-green-dark"
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!eventName.trim() || loading}
+                className="bg-garden-green hover:bg-garden-green-dark text-white"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create & Generate Content'
+                )}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Content Viewer Modal - automatically opens after event creation */}
+      {createdCampaignId && (
+        <ContentViewer
+          campaignId={createdCampaignId}
+          campaignTitle={createdCampaignTitle}
+          isOpen={showContentViewer}
+          onClose={handleContentViewerClose}
+          onTaskUpdate={handleTaskUpdate}
+        />
+      )}
+    </>
   );
 };
