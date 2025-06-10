@@ -25,10 +25,6 @@ export const TeamPage = () => {
               <ArrowLeft className="w-4 h-4" />
               Return To Dashboard
             </Button>
-            
-            <p className="text-garden-green">
-              Invite team members to collaborate on your marketing campaigns
-            </p>
           </div>
           
           <TeamManagement />
