@@ -85,7 +85,7 @@
     @apply bg-garden-background text-foreground font-quicksand;
   }
 
-  /* AGGRESSIVE FORCE FIX FOR YELLOW COLORS - GLOBAL OVERRIDE */
+  /* COMPREHENSIVE INPUT AND FORM OVERRIDES */
   input,
   textarea,
   select {
@@ -106,42 +106,65 @@
     transition: background-color 5000s ease-in-out 0s !important;
   }
 
-  /* MOBILE BUTTON OVERRIDE - FORCE WHITE BACKGROUND */
+  /* MOBILE-SPECIFIC OVERRIDES */
   @media (max-width: 768px) {
+    /* Remove all yellow backgrounds on mobile */
+    .bg-yellow-50,
+    .bg-yellow-100,
+    .bg-yellow-200,
+    .bg-yellow-300,
+    .bg-yellow-400,
+    .bg-yellow-500,
+    .bg-orange-50,
+    .bg-orange-100,
+    .bg-amber-50,
+    .bg-amber-100 {
+      background-color: #ffffff !important;
+    }
+
+    /* Override any gradient that might contain yellow */
+    .bg-gradient-to-r {
+      background: #ffffff !important;
+    }
+
+    /* Ensure cards and content areas are white on mobile */
+    .card,
+    [role="dialog"],
+    .modal-content,
+    .banner,
+    .content-card {
+      background-color: #ffffff !important;
+    }
+
+    /* Force button backgrounds to be clean */
     button {
       background-color: #ffffff !important;
       color: #000000 !important;
       border: 1px solid #cccccc !important;
     }
     
-    /* Preserve green theme buttons */
+    /* Preserve primary/green theme buttons */
     button.bg-garden-green,
     button[class*="bg-green"],
-    button[class*="bg-primary"] {
+    button[class*="bg-primary"],
+    button.bg-blue-600,
+    button.bg-green-600 {
       background-color: #4CAF50 !important;
       color: #ffffff !important;
       border: 1px solid #4CAF50 !important;
     }
-  }
 
-  /* ADDITIONAL OVERRIDES FOR STUBBORN ELEMENTS */
-  @media (max-width: 768px) {
-    input[type="email"],
-    input[type="password"],
-    input[type="text"],
-    input[type="url"],
-    textarea {
-      background: #ffffff !important;
-      background-color: #ffffff !important;
-      color: #000000 !important;
+    /* Override any remaining yellow elements */
+    * {
+      background-color: inherit !important;
     }
-    
-    /* Override any Tailwind bg classes that might be causing yellow */
-    .bg-yellow-50,
-    .bg-yellow-100,
-    .bg-orange-50,
-    .bg-amber-50 {
+
+    *[class*="yellow"],
+    *[class*="amber"],
+    *[style*="yellow"],
+    *[style*="amber"] {
       background-color: #ffffff !important;
+      background: #ffffff !important;
     }
   }
 }
@@ -156,10 +179,29 @@
   }
   
   .campaign-card-review {
-    @apply bg-amber-50 border-amber-200;
+    @apply bg-blue-50 border-blue-200;
   }
   
   .campaign-card-attention {
     @apply bg-orange-50 border-orange-200;
+  }
+
+  /* Mobile-specific component overrides */
+  @media (max-width: 768px) {
+    .seasonal-emoji {
+      @apply bg-white;
+    }
+    
+    .campaign-card-active {
+      @apply bg-white border-green-200;
+    }
+    
+    .campaign-card-review {
+      @apply bg-white border-blue-200;
+    }
+    
+    .campaign-card-attention {
+      @apply bg-white border-orange-200;
+    }
   }
 }
