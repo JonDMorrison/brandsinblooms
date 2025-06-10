@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
@@ -26,8 +25,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         action: "Create Your First Campaign",
         mobileAction: "Create Campaign",
         icon: "✨",
-        bgColor: "bg-gradient-to-r from-primary/10 to-primary/5",
-        borderColor: "border-primary/30",
+        bgColor: "bg-white sm:bg-gradient-to-r sm:from-primary/10 sm:to-primary/5",
+        borderColor: "border-gray-200 sm:border-primary/30",
         actionType: "create-campaign",
         highlight: "Get instant content: Instagram posts, Facebook updates, email newsletters, and more!"
       };
@@ -40,8 +39,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         action: "Generate Content Now",
         mobileAction: "Generate Content",
         icon: "🎯",
-        bgColor: "bg-gradient-to-r from-blue-50 to-blue-25",
-        borderColor: "border-blue-200",
+        bgColor: "bg-white sm:bg-gradient-to-r sm:from-blue-50 sm:to-blue-25",
+        borderColor: "border-gray-200 sm:border-blue-200",
         actionType: "generate-content",
         highlight: "This takes just 30 seconds and creates a week's worth of marketing materials."
       };
@@ -54,8 +53,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         action: "Review Your Content",
         mobileAction: "Review Content",
         icon: "👀",
-        bgColor: "bg-gradient-to-r from-green-50 to-green-25",
-        borderColor: "border-green-200",
+        bgColor: "bg-white sm:bg-gradient-to-r sm:from-green-50 sm:to-green-25",
+        borderColor: "border-gray-200 sm:border-green-200",
         actionType: "review-content",
         highlight: "Edit, approve, or regenerate any piece until it's perfect for your brand."
       };
@@ -67,8 +66,8 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
       action: "Create Another Campaign",
       mobileAction: "Create Campaign",
       icon: "🌟",
-      bgColor: "bg-gradient-to-r from-purple-50 to-purple-25",
-      borderColor: "border-purple-200",
+      bgColor: "bg-white sm:bg-gradient-to-r sm:from-purple-50 sm:to-purple-25",
+      borderColor: "border-gray-200 sm:border-purple-200",
       actionType: "create-more",
       highlight: "Keep the momentum going with fresh content themes and ideas."
     };
