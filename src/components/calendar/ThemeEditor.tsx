@@ -44,13 +44,13 @@ export const ThemeEditor = ({
   const currentMonth = new Date().getMonth() + 1;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
+    <div className="space-y-4 bg-white">
+      <div className="flex items-center gap-2 bg-white">
         <Input
           value={editTheme}
           onChange={(e) => onThemeChange(e.target.value)}
           placeholder="Enter theme..."
-          className="h-8 text-sm"
+          className="h-8 text-sm bg-white border-gray-300"
           autoFocus
         />
         <Button
@@ -58,27 +58,29 @@ export const ThemeEditor = ({
           variant="outline"
           onClick={handleGenerateDescription}
           disabled={isLoading || !editTheme.trim()}
-          className="h-8 px-3 text-xs"
+          className="h-8 px-3 text-xs bg-white hover:bg-gray-100 border-gray-300"
         >
           Generate
         </Button>
       </div>
 
       {weekNumber && (
-        <SmartThemeSelector
-          weekNumber={weekNumber}
-          currentMonth={currentMonth}
-          onThemeSelected={handleSmartThemeSelect}
-        />
+        <div className="bg-white">
+          <SmartThemeSelector
+            weekNumber={weekNumber}
+            currentMonth={currentMonth}
+            onThemeSelected={handleSmartThemeSelect}
+          />
+        </div>
       )}
       
-      <div className="space-y-2">
+      <div className="space-y-2 bg-white">
         <label className="text-xs font-medium text-gray-700">Content Focus Description:</label>
         <Textarea
           value={editDescription}
           onChange={(e) => onDescriptionChange(e.target.value)}
           placeholder="Two-sentence description of the content focus for this week..."
-          className="text-sm min-h-[60px]"
+          className="text-sm min-h-[60px] bg-white border-gray-300"
           rows={3}
         />
         <p className="text-xs text-gray-500">
@@ -86,13 +88,13 @@ export const ThemeEditor = ({
         </p>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 bg-white">
         <Button
           size="sm"
           variant="outline"
           onClick={onSave}
           disabled={isLoading || !editTheme.trim()}
-          className="h-8 px-3 bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+          className="h-8 px-3 bg-white hover:bg-green-100 border-green-200 text-green-700"
         >
           <Check className="w-3 h-3 mr-1" />
           Save
@@ -102,7 +104,7 @@ export const ThemeEditor = ({
           variant="outline"
           onClick={onCancel}
           disabled={isLoading}
-          className="h-8 px-3"
+          className="h-8 px-3 bg-white hover:bg-gray-100 border-gray-300"
         >
           <X className="w-3 h-3 mr-1" />
           Cancel

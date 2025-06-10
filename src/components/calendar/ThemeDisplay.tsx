@@ -1,5 +1,4 @@
 
-
 import { Button } from "@/components/ui/button";
 import { Edit2, Palette, FileText, Sparkles } from "lucide-react";
 import { useState } from "react";
@@ -93,20 +92,20 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
   const displayTheme = generatedHeadline || cleanTheme(currentTheme);
 
   return (
-    <div className="space-y-3">
-      <div className="group">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
+    <div className="space-y-3 bg-white">
+      <div className="group bg-white">
+        <div className="flex items-center justify-between mb-1 bg-white">
+          <div className="flex items-center gap-2 bg-white">
             <Palette className="w-4 h-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">Content Theme:</span>
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white">
             <Button
               size="sm"
               variant="ghost"
               onClick={generateHeadline}
               disabled={isGeneratingHeadline}
-              className="h-6 w-6 p-0"
+              className="h-6 w-6 p-0 bg-white hover:bg-gray-100"
               title="Generate exciting headline"
             >
               <Sparkles className="w-3 h-3" />
@@ -115,21 +114,21 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
               size="sm"
               variant="ghost"
               onClick={handleEditClick}
-              className="h-6 w-6 p-0"
+              className="h-6 w-6 p-0 bg-white hover:bg-gray-100"
             >
               <Edit2 className="w-3 h-3" />
             </Button>
           </div>
         </div>
-        <span className="text-sm text-foreground leading-tight block pl-6">
+        <span className="text-sm text-foreground leading-tight block pl-6 bg-white">
           {displayTheme}
         </span>
       </div>
       
       {currentDescription && (
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2 bg-white">
           <FileText className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
+          <div className="flex-1 bg-white">
             <span className="text-sm font-medium text-gray-700 block mb-1">Content Focus:</span>
             <p className="text-sm text-gray-600 leading-relaxed">
               {currentDescription}
@@ -139,12 +138,12 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
       )}
       
       {!currentDescription && currentTheme && (
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2 bg-white">
           <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
+          <div className="flex-1 bg-white">
             <span className="text-sm font-medium text-gray-500 block mb-1">Content Focus:</span>
             <div 
-              className="text-sm text-gray-400 italic cursor-pointer hover:text-gray-600 transition-colors p-1 rounded hover:bg-gray-50 select-none"
+              className="text-sm text-gray-400 italic cursor-pointer hover:text-gray-600 transition-colors p-1 rounded hover:bg-gray-50 select-none bg-white"
               onClick={handleEditClick}
               role="button"
               tabIndex={0}
@@ -163,4 +162,3 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
     </div>
   );
 };
-
