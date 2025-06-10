@@ -162,12 +162,12 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
             );
           }
 
-          // Update task with generated content
+          // Update task with generated content - using 'scheduled' status instead of 'draft'
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: aiOutput,
-              status: 'draft',
+              status: 'scheduled',
               hashtags: getHashtagsForType(task.post_type),
               image_idea: getImageIdeaForType(task.post_type)
             })
@@ -343,7 +343,7 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
 
               {tasks.map((task) => {
                 const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'completed';
-                const canApprove = task.status === 'draft' && task.ai_output;
+                const canApprove = task.status === 'scheduled' && task.ai_output;
                 const canEdit = task.ai_output && task.status !== 'published';
                 
                 return (
