@@ -47,8 +47,8 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
         campaignId: campaignId,
         campaignTitle: campaignTitle,
         weekNumber: weekNumber,
-        weekDescription: weekDescription, // Pass the week description
-        userId: userId // Pass userId for regional context
+        weekDescription: weekDescription,
+        userId: userId
       }
     });
 
@@ -71,8 +71,8 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
     const { data, error } = await supabase.functions.invoke('generate-video-script', {
       body: {
         campaignTitle: campaignTitle,
-        weekDescription: weekDescription, // Pass the week description
-        userId: userId // Pass userId for regional context
+        weekDescription: weekDescription,
+        userId: userId
       }
     });
 
