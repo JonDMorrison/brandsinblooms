@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 import { stripHtmlAndFormat } from "@/components/homepage/ready-to-post/contentUtils";
+import { CampaignContentGenerator } from "./CampaignContentGenerator";
 
 interface ContentViewerProps {
   campaignId: string;
@@ -156,16 +157,28 @@ export const ContentViewer = ({ campaignId, campaignTitle, isOpen, onClose, onTa
               <span className="ml-2">Loading content...</span>
             </div>
           ) : tasks.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8">
               <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
-              <p>No content generated yet for campaign {campaignId}</p>
-              <p className="text-sm mt-2">Campaign: {campaignTitle}</p>
+              <p className="text-gray-500 mb-4">No content generated yet for this campaign</p>
+              <CampaignContentGenerator
+                campaignId={campaignId}
+                campaignTitle={campaignTitle}
+                onContentGenerated={fetchTasks}
+              />
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="text-sm text-gray-600 mb-4">
-                Found {tasks.length} tasks for this campaign
+              <div className="flex justify-between items-center mb-4">
+                <div className="text-sm text-gray-600">
+                  Found {tasks.length} tasks for this campaign
+                </div>
+                <CampaignContentGenerator
+                  campaignId={campaignId}
+                  campaignTitle={campaignTitle}
+                  onContentGenerated={fetchTasks}
+                />
               </div>
+
               {tasks.map((task) => {
                 const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'completed';
                 const canApprove = task.status === 'draft' && task.ai_output;
