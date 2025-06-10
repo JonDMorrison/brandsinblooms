@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -181,9 +180,10 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               </Label>
               <Input
                 id="eventDate"
-                type="date"
+                type="text"
                 value={eventDate}
                 onChange={(e) => setEventDate(e.target.value)}
+                placeholder="e.g., March 15, 2024 or Next Friday at 7pm"
                 className="border-black focus:border-black"
                 disabled={loading}
               />
