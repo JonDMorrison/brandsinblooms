@@ -33,7 +33,7 @@ export const WeekCard = ({
   const { startDate, endDate } = getWeekDateRange(weekNumber, currentYear);
 
   return (
-    <Card className={`border-gray-200 bg-white ${isCurrentWeek ? 'ring-2 ring-blue-500 shadow-lg' : ''}`}>
+    <Card className="border-gray-200 bg-white">
       <CardHeader className="bg-white">
         <CardTitle className="flex items-center justify-between text-black">
           <div className="flex items-center gap-2">
