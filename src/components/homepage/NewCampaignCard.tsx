@@ -146,23 +146,23 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
   return (
     <>
       <Card className="border-blue-200 bg-blue-50">
-        <CardHeader>
-          <div className="flex justify-between items-start">
-            <CardTitle className="text-foreground">{campaign.title}</CardTitle>
-            <div className="flex gap-2">
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+            <CardTitle className="text-foreground text-lg sm:text-xl">{campaign.title}</CardTitle>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
                 New Campaign
               </Badge>
-              <Badge variant="outline" className="border-blue-300 text-blue-600">
+              <Badge variant="outline" className="border-blue-300 text-blue-600 text-xs">
                 <Calendar className="w-3 h-3 mr-1" />
                 Week {campaign.week_number}
               </Badge>
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {campaign.theme && (
-            <div className="mb-6 p-4 bg-white rounded-lg border border-blue-200">
+            <div className="mb-4 p-3 sm:p-4 bg-white rounded-lg border border-blue-200">
               <EditableTheme
                 campaignId={campaign.id}
                 currentTheme={campaign.theme}
@@ -173,10 +173,10 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
           )}
           
           {!campaign.theme && campaign.description && (
-            <p className="text-blue-600 mb-4">{campaign.description}</p>
+            <p className="text-blue-600 mb-4 text-sm sm:text-base">{campaign.description}</p>
           )}
           
-          <div className="mt-6 flex justify-center">
+          <div className="mt-4 sm:mt-6 flex justify-center">
             {isCheckingContent ? (
               <div className="flex items-center gap-2 text-blue-600">
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -185,7 +185,7 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
             ) : hasContent ? (
               <Button 
                 onClick={handleViewContent}
-                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
+                className="bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-2 text-sm sm:text-base w-full sm:w-auto"
                 size="default"
               >
                 <Eye className="w-4 h-4 mr-2" />
@@ -195,24 +195,26 @@ export const NewCampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate }: Ne
               <Button 
                 onClick={handleGenerateContent}
                 disabled={isGenerating}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 py-2 text-sm sm:text-base w-full sm:w-auto"
                 size="default"
               >
                 {isGenerating ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Generating Content...
+                    <span className="hidden sm:inline">Generating Content...</span>
+                    <span className="sm:hidden">Generating...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 mr-2" />
-                    Generate Content for This Campaign
+                    <span className="hidden sm:inline">Generate Content for This Campaign</span>
+                    <span className="sm:hidden">Generate Content</span>
                   </>
                 )}
               </Button>
             )}
           </div>
-          <p className="text-xs text-blue-600 mt-2 text-center">
+          <p className="text-xs text-blue-600 mt-2 text-center px-2">
             {hasContent 
               ? "Review and manage your generated content"
               : "Creates social media posts, video scripts, newsletter, and email content"
