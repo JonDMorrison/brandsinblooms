@@ -116,17 +116,17 @@ export const NewCampaignCard = ({
   };
 
   return (
-    <Card className={`bg-white border-gray-200 transition-all duration-300 ${isDeleting ? 'opacity-50 scale-95' : 'hover:shadow-md'}`}>
-      <CardHeader className="bg-white">
+    <Card className="bg-white border border-gray-200 shadow-sm transition-all duration-300 hover:shadow-md">
+      <CardHeader className="bg-white border-b border-gray-100 p-6">
         <div className="flex justify-between items-start">
           <div className="flex-1">
-            <CardTitle className="text-foreground">{campaign.title}</CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <CardTitle className="text-gray-900 text-lg font-semibold">{campaign.title}</CardTitle>
+            <CardDescription className="text-gray-600 mt-1">
               Custom Campaign
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
+            <Badge variant="secondary" className="bg-gray-100 text-gray-800 border border-gray-200 font-medium">
               Week {campaign.week_number}
             </Badge>
             {onCampaignDelete && (
@@ -135,24 +135,24 @@ export const NewCampaignCard = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     disabled={isDeleting}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="bg-white">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Campaign</AlertDialogTitle>
-                    <AlertDialogDescription>
+                    <AlertDialogTitle className="text-gray-900">Delete Campaign</AlertDialogTitle>
+                    <AlertDialogDescription className="text-gray-600">
                       Are you sure you want to delete "{campaign.title}"? This will permanently remove the campaign and all its generated content. This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel className="text-gray-700">Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeleteCampaign}
-                      className="bg-red-600 hover:bg-red-700"
+                      className="bg-red-600 hover:bg-red-700 text-white"
                       disabled={isDeleting}
                     >
                       {isDeleting ? (
@@ -172,9 +172,9 @@ export const NewCampaignCard = ({
         </div>
       </CardHeader>
       
-      <CardContent className="bg-white">
+      <CardContent className="bg-white p-6">
         {campaign.theme && (
-          <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <EditableTheme
               campaignId={campaign.id}
               currentTheme={campaign.theme}
@@ -185,13 +185,13 @@ export const NewCampaignCard = ({
         )}
         
         {!campaign.theme && campaign.description && (
-          <p className="text-muted-foreground mb-4">{campaign.description}</p>
+          <p className="text-gray-700 mb-4 leading-relaxed">{campaign.description}</p>
         )}
         
         {seasonalContent && (
-          <div className="mb-4">
-            <h4 className="font-semibold text-foreground mb-2">Seasonal Focus:</h4>
-            <p className="text-muted-foreground">{seasonalContent.theme}</p>
+          <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 className="font-semibold text-gray-900 mb-2">Seasonal Focus:</h4>
+            <p className="text-gray-700">{seasonalContent.theme}</p>
           </div>
         )}
         
@@ -203,7 +203,7 @@ export const NewCampaignCard = ({
           ) : (
             <Button 
               onClick={handleViewOrGenerateContent}
-              className="max-w-xs"
+              className="bg-primary hover:bg-primary/90 text-white font-medium"
               aria-label={hasContent ? "View generated content" : "Generate new content"}
             >
               {hasContent ? (
@@ -219,7 +219,7 @@ export const NewCampaignCard = ({
               )}
             </Button>
           )}
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="text-sm text-gray-600 mt-2 leading-relaxed">
             {hasContent 
               ? "Review your generated content in the tasks section"
               : "Creates social media posts, video scripts, newsletter, and email content"
