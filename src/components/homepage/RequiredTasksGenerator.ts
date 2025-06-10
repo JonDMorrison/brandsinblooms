@@ -45,13 +45,13 @@ export const generateRequiredTasks = async (
 
     console.log(`Creating ${missingPostTypes.length} missing tasks for campaign:`, campaign.title);
 
-    // Create tasks for missing post types
+    // Create tasks for missing post types without assigned_user_id to avoid foreign key constraint
     const tasksToCreate = missingPostTypes.map(postType => ({
       campaign_id: campaignId,
       post_type: postType,
       status: 'generating', // Start with generating status
-      scheduled_date: campaign.start_date,
-      assigned_user_id: userId
+      scheduled_date: campaign.start_date
+      // Removed assigned_user_id to avoid foreign key constraint violation
     }));
 
     console.log('Tasks to create:', tasksToCreate);
@@ -80,7 +80,8 @@ export const generateRequiredTasks = async (
             body: {
               postType: task.post_type,
               campaignTitle: campaign.title,
-              userId: userId
+              userId: userId,
+              weekDescription: campaign.description
             }
           });
           
@@ -88,7 +89,8 @@ export const generateRequiredTasks = async (
             body: {
               postType: task.post_type,
               campaignTitle: campaign.title,
-              userId: userId
+              userId: userId,
+              weekDescription: campaign.description
             }
           });
 
