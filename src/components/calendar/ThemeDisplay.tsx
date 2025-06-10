@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Edit2, Palette, FileText, Sparkles } from "lucide-react";
 import { useState } from "react";
@@ -96,7 +95,7 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
       <div className="flex items-center gap-2 group">
         <Palette className="w-4 h-4 text-gray-500" />
         <span className="text-sm font-medium text-gray-700">Content Theme:</span>
-        <span className="text-base font-bold text-foreground flex-1 leading-tight">
+        <span className="text-sm text-foreground flex-1 leading-tight">
           {displayTheme}
         </span>
         <Button
