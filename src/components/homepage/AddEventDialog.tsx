@@ -124,7 +124,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               }}
               placeholder="Enter event name"
               required
-              className="border-garden-green-light focus:border-garden-green"
+              className="border-gray-300 focus:border-gray-500"
               disabled={loading}
             />
           </div>
@@ -138,7 +138,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               value={eventDescription}
               onChange={(e) => setEventDescription(e.target.value)}
               placeholder="Describe your event"
-              className="border-garden-green-light focus:border-garden-green"
+              className="border-gray-300 focus:border-gray-500"
               disabled={loading}
             />
           </div>
@@ -152,7 +152,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
-              className="border-garden-green-light focus:border-garden-green"
+              className="border-gray-300 focus:border-gray-500"
               disabled={loading}
             />
           </div>
