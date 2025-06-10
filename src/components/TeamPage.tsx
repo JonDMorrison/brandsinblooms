@@ -26,9 +26,6 @@ export const TeamPage = () => {
               Return To Dashboard
             </Button>
             
-            <h1 className="text-3xl font-bold text-garden-green-dark mb-2">
-              Team Management
-            </h1>
             <p className="text-garden-green">
               Invite team members to collaborate on your marketing campaigns
             </p>
