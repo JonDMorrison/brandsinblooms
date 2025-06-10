@@ -13,6 +13,211 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// Content type specific rules
+const CONTENT_TYPE_RULES = {
+  instagram: {
+    max_words: 150,
+    tone: 'engaging and visual-friendly',
+    format: 'short paragraphs, mobile-optimized',
+    cta_style: 'action-oriented, theme-specific',
+    specific_requirements: [
+      'Reference company specializations when relevant',
+      'Plant varieties appropriate for climate zone',
+      'Visual storytelling approach'
+    ]
+  },
+  facebook: {
+    max_words: 250,
+    tone: 'conversational and community-focused',
+    format: 'readable chunks, engagement-focused',
+    cta_style: 'community-building, discussion-starter',
+    specific_requirements: [
+      'Include questions to encourage engagement',
+      'Reference unique selling points',
+      'Feel personal and authentic'
+    ]
+  },
+  email: {
+    max_words: 200,
+    tone: 'informative and valuable',
+    format: 'scannable, professional yet warm',
+    cta_style: 'helpful instructions, clear next steps',
+    specific_requirements: [
+      'Reference seasonal focus when relevant',
+      'Provide region-specific advice',
+      'Professional but approachable'
+    ]
+  },
+  video: {
+    max_words: 180,
+    tone: 'natural speaking rhythm',
+    format: 'short segments, easy to speak',
+    cta_style: 'direct, actionable guidance',
+    specific_requirements: [
+      'Natural speaking flow',
+      'Practical tips aligned with values',
+      'Authentic garden center expert voice'
+    ]
+  }
+};
+
+const FALLBACK_MESSAGES = {
+  missing_location: "Write region-neutral advice that applies to a wide range of gardeners, but emphasize the importance of knowing your local climate zone.",
+  missing_brand_tone: "Use a warm, conversational tone like a helpful garden center owner speaking to familiar customers.",
+  missing_company_profile: "Write as a knowledgeable garden center expert providing valuable, authentic advice."
+};
+
+// Content validation
+const FORBIDDEN_PATTERNS = [
+  /green\s*thumb/gi,
+  /welcome\s*to/gi,
+  /week\s*\d+/gi,
+  /this\s*week/gi,
+  /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu,
+  /^\s*[-•]\s/gm,
+  /^\s*\d+\.\s/gm,
+];
+
+function validateContent(content) {
+  const issues = [];
+  
+  FORBIDDEN_PATTERNS.forEach((pattern, index) => {
+    if (pattern.test(content)) {
+      switch (index) {
+        case 0: issues.push('Contains "green thumb" phrase'); break;
+        case 1: issues.push('Contains "Welcome to" opening'); break;
+        case 2:
+        case 3: issues.push('Contains week number references'); break;
+        case 4: issues.push('Contains emojis'); break;
+        case 5: issues.push('Contains bullet points'); break;
+        case 6: issues.push('Contains numbered lists'); break;
+      }
+    }
+  });
+  
+  return { isValid: issues.length === 0, issues };
+}
+
+function buildContentPrompt(contentType, campaignTitle, companyProfile, weekDescription) {
+  const rules = CONTENT_TYPE_RULES[contentType];
+  if (!rules) {
+    throw new Error(`Unknown content type: ${contentType}`);
+  }
+  
+  let prompt = `Create ${contentType} content specifically about "${campaignTitle}"`;
+  if (weekDescription) {
+    prompt += ` with focus on: ${weekDescription}`;
+  }
+  
+  prompt += `\n\nCONTENT TYPE REQUIREMENTS:
+- Maximum ${rules.max_words} words
+- Tone: ${rules.tone}
+- Format: ${rules.format}
+- Call-to-action style: ${rules.cta_style}
+- Specific requirements: ${rules.specific_requirements.join(', ')}`;
+  
+  if (companyProfile) {
+    const brandVoice = companyProfile.brand_voice || 'Friendly but expert';
+    const toneOfWriting = companyProfile.tone_of_writing || 'Confident, clear, not salesy';
+    
+    prompt += `\n\nCOMPANY PROFILE:
+Company Name: ${companyProfile.company_name || 'Garden Center'}
+Brand Voice: ${brandVoice}
+Tone of Writing: ${toneOfWriting}
+Target Audience: ${companyProfile.target_audience || ''}
+Specializations: ${companyProfile.specializations || ''}
+Location Info: ${companyProfile.location_info || ''}`;
+    
+    if (companyProfile.location_info) {
+      prompt += `\n\nREGIONAL FOCUS:
+- Create content highly specific to their geographic region and climate
+- Reference local growing seasons, weather patterns, and gardening calendars
+- Include region-appropriate plant recommendations and techniques
+- Consider local hardiness zones, frost dates, and seasonal timing
+- Address regional gardening challenges and local growing conditions`;
+    } else {
+      prompt += `\n\n${FALLBACK_MESSAGES.missing_location}`;
+    }
+  } else {
+    prompt += `\n\n${FALLBACK_MESSAGES.missing_company_profile}`;
+    prompt += `\n${FALLBACK_MESSAGES.missing_location}`;
+  }
+  
+  prompt += `\n\nWRITING STYLE DIRECTIVES (CRITICAL):
+1. START WITH A POWERFUL HOOK: Begin with a compelling first sentence that sparks curiosity or urgency about "${campaignTitle}" - never use "Welcome to" or generic openings
+2. AGITATE BEFORE EDUCATING: Highlight a common challenge related to the theme before providing solutions
+3. USE SHORT PARAGRAPHS: 2-3 sentences max for mobile readability
+4. MAKE IT VISUALLY SUGGESTIVE: Use descriptive words that create mental images
+5. SOUND CONVERSATIONAL: Like a local expert talking to familiar customers
+6. INCLUDE A CLEAR CTA: End with a specific call-to-action related to the theme
+7. USE NATURAL TIMING: Reference seasons naturally, avoid week numbers
+
+CRITICAL RESTRICTIONS:
+- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
+- ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) 
+- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
+- ABSOLUTELY NEVER use emojis anywhere in content
+- Write ONLY in flowing paragraphs and natural sentences
+- Make content specific to the "${campaignTitle}" theme`;
+  
+  return prompt;
+}
+
+async function generateContentWithValidation(prompt, maxAttempts = 3) {
+  let attempts = 0;
+  let lastIssues = [];
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences. Create authentic, personalized content that reflects the specific company\'s brand and local region. CRITICAL RULES: ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation. ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers. ABSOLUTELY NEVER use emojis. Write only in flowing paragraphs.' 
+          },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 800,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const generatedContent = data.choices[0].message.content;
+    
+    // Validate content
+    const validation = validateContent(generatedContent);
+    
+    if (validation.isValid) {
+      console.log(`Content generated successfully on attempt ${attempts}`);
+      return { content: generatedContent, attempts, issues: [] };
+    }
+    
+    lastIssues = validation.issues;
+    console.log(`Content validation failed (attempt ${attempts}):`, validation.issues);
+    
+    if (attempts < maxAttempts) {
+      // Add validation feedback to prompt for next attempt
+      prompt += `\n\nIMPORTANT: The previous attempt failed validation due to: ${validation.issues.join(', ')}. Please ensure you avoid these issues completely.`;
+    }
+  }
+  
+  console.log(`Content generation failed after ${attempts} attempts. Last issues:`, lastIssues);
+  throw new Error(`Content generation failed validation after ${attempts} attempts: ${lastIssues.join(', ')}`);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -26,7 +231,7 @@ serve(async (req) => {
     }
 
     // Initialize Supabase client
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Fetch company profile for personalization
     let companyProfile = null;
@@ -42,263 +247,21 @@ serve(async (req) => {
       }
     }
 
-    // Build company context for AI with enhanced regional focus
-    let companyContext = '';
-    if (companyProfile) {
-      companyContext = `
-COMPANY PROFILE:
-Company Name: ${companyProfile.company_name || 'Garden Center'}
-Overview: ${companyProfile.company_overview || ''}
-Brand Voice: ${companyProfile.brand_voice || ''}
-Tone of Writing: ${companyProfile.tone_of_writing || ''}
-Target Audience: ${companyProfile.target_audience || ''}
-Ideal Customer: ${companyProfile.ideal_customer || ''}
-Unique Selling Points: ${companyProfile.unique_selling_points || ''}
-Company Values: ${companyProfile.company_values || ''}
-Seasonal Focus: ${companyProfile.seasonal_focus || ''}
-Specializations: ${companyProfile.specializations || ''}
-Location Info: ${companyProfile.location_info || ''}
+    // Build content-type specific prompt
+    const prompt = buildContentPrompt(postType, campaignTitle, companyProfile, weekDescription);
+    
+    console.log(`Generating validated ${postType} content for: ${campaignTitle}`);
 
-CAMPAIGN THEME & CONTEXT:
-Weekly Theme: ${campaignTitle}
-Week Description: ${weekDescription || 'No specific description provided'}
+    // Generate content with validation
+    const result = await generateContentWithValidation(prompt);
 
-IMPORTANT: This content MUST specifically relate to and support the weekly theme "${campaignTitle}" and the description "${weekDescription || 'general theme'}". Make sure every piece of content directly ties back to this specific theme and provides value related to it.
+    console.log(`Generated content successfully after ${result.attempts} attempts`);
 
-REGIONAL CONSIDERATIONS:
-- Use the Location Info to understand the company's geographic region, climate zone, and local conditions
-- Factor in regional growing seasons, weather patterns, and plant hardiness zones
-- Consider local gardening challenges (drought, humidity, frost dates, soil conditions, pests)
-- Reference region-specific plants, trees, and gardening practices that work best in their area
-- Mention seasonal timing that's appropriate for their climate (when to plant, prune, fertilize)
-- Include local gardening terminology and regional preferences
-- Consider cultural and demographic factors of their specific region
-- Reference local weather patterns and how they affect gardening decisions
-
-IMPORTANT: Use this company information to create highly localized, region-specific content that sounds authentic to this specific garden center and their local climate/conditions.
-
-ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
-1. ALWAYS START WITH A HOOK: Begin with a powerful first sentence that sparks curiosity, urgency, or seasonal awareness. Never open with "Welcome to," "This week," or generic greetings. Hooks should be strong, specific, and emotionally engaging.
-
-2. AGITATE BEFORE YOU EDUCATE: After the hook, highlight a common challenge or seasonal mistake before giving advice. Make the reader feel the problem before introducing the solution.
-
-3. KEEP PARAGRAPHS SHORT: Use paragraphs no longer than 2-3 sentences. Break long ideas into multiple short, readable chunks for mobile-friendliness.
-
-4. MAKE IT VISUALLY SUGGESTIVE: Use words that help readers picture what you're talking about (e.g. "lush beds," "cracked soil," "overflowing baskets"). Avoid dry, abstract phrasing. Create scenes with your words.
-
-5. USE A CONVERSATIONAL TONE: Sound like a local garden center owner or expert talking to a familiar customer. Avoid corporate, robotic, or overly polished language. Use friendly contractions, plain language, and warm phrasing.
-
-6. INCLUDE A CLEAR, ALIGNED CTA: End each post with a single clear call-to-action that ties directly to the post's topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
-
-7. ANCHOR TIME WITHOUT WEEK NUMBERS: Avoid using week numbers entirely. Instead, reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…"
-
-CRITICAL CONTENT RESTRICTIONS: 
-- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
-- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
-- ABSOLUTELY NEVER use dashes (-) to create lists
-- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers (e.g., "Week 12", "This week", etc.)
-- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
-- ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader
-- Write ONLY in flowing paragraphs and natural sentences
-- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
-- Make content regionally relevant and climate-appropriate
-- If you need to present multiple points, weave them into natural paragraph flow
-`;
-    } else {
-      companyContext = `
-CAMPAIGN THEME & CONTEXT:
-Weekly Theme: ${campaignTitle}
-Week Description: ${weekDescription || 'No specific description provided'}
-
-IMPORTANT: This content MUST specifically relate to and support the weekly theme "${campaignTitle}" and the description "${weekDescription || 'general theme'}". Make sure every piece of content directly ties back to this specific theme and provides value related to it.
-
-ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
-1. ALWAYS START WITH A HOOK: Begin with a powerful first sentence that sparks curiosity, urgency, or seasonal awareness. Never open with "Welcome to," "This week," or generic greetings. Hooks should be strong, specific, and emotionally engaging.
-
-2. AGITATE BEFORE YOU EDUCATE: After the hook, highlight a common challenge or seasonal mistake before giving advice. Make the reader feel the problem before introducing the solution.
-
-3. KEEP PARAGRAPHS SHORT: Use paragraphs no longer than 2-3 sentences. Break long ideas into multiple short, readable chunks for mobile-friendliness.
-
-4. MAKE IT VISUALLY SUGGESTIVE: Use words that help readers picture what you're talking about (e.g. "lush beds," "cracked soil," "overflowing baskets"). Avoid dry, abstract phrasing. Create scenes with your words.
-
-5. USE A CONVERSATIONAL TONE: Sound like a local garden center owner or expert talking to a familiar customer. Avoid corporate, robotic, or overly polished language. Use friendly contractions, plain language, and warm phrasing.
-
-6. INCLUDE A CLEAR, ALIGNED CTA: End each post with a single clear call-to-action that ties directly to the post's topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
-
-7. ANCHOR TIME WITHOUT WEEK NUMBERS: Avoid using week numbers entirely. Instead, reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…"
-
-CRITICAL CONTENT RESTRICTIONS: 
-- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
-- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
-- ABSOLUTELY NEVER use dashes (-) to create lists
-- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers (e.g., "Week 12", "This week", etc.)
-- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
-- ALWAYS start content with a powerful, attention-grabbing hook that immediately engages the reader
-- Write ONLY in flowing paragraphs and natural sentences
-- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
-- Since no location is specified, keep advice general but mention the importance of knowing your local climate zone
-- If you need to present multiple points, weave them into natural paragraph flow
-`;
-    }
-
-    const contentPrompts = {
-      instagram: `Create an engaging Instagram post specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. ${companyContext}
-
-Requirements:
-- START WITH A POWERFUL HOOK that sparks curiosity or urgency about "${campaignTitle}" - never use "Welcome to" or generic openings
-- AGITATE BEFORE EDUCATING: Highlight a common challenge related to the theme before providing solutions
-- Use SHORT PARAGRAPHS (2-3 sentences max) for mobile readability
-- Make it VISUALLY SUGGESTIVE with descriptive words that create mental images
-- Sound CONVERSATIONAL like a local expert talking to a familiar customer
-- The entire post must be focused on and provide value related to the "${campaignTitle}" theme
-- Reference the week description "${weekDescription}" in your content approach
-- Write in the company's brand voice and tone
-- Keep it engaging and visual-friendly (under 150 words)
-- DO NOT include any emojis whatsoever
-- Reference the company's specializations when relevant to the theme
-- Speak to their target audience about this specific theme
-- End with a CLEAR, SPECIFIC call-to-action related to the theme (avoid vague CTAs)
-- Use natural seasonal timing references instead of week numbers
-- Make content specific to their geographic region and local climate conditions when relevant to the theme
-- Use plant varieties and gardening advice appropriate for their climate zone that relates to the theme
-- Make it feel authentic to this specific garden center and their local area
-- Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
-- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
-- ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
-- Present information in natural, conversational paragraph form that clearly connects to the "${campaignTitle}" theme`,
-
-      facebook: `Create a Facebook post specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. ${companyContext}
-
-Requirements:
-- START WITH A POWERFUL HOOK that immediately grabs attention about "${campaignTitle}" - never use "Welcome to" or generic openings
-- AGITATE BEFORE EDUCATING: Present a common problem or seasonal mistake related to the theme before offering solutions
-- Use SHORT PARAGRAPHS (2-3 sentences max) for easy reading on mobile
-- Make it VISUALLY SUGGESTIVE with words that help readers picture the scenario
-- Sound CONVERSATIONAL like a friendly local garden center owner talking to regular customers
-- The entire post must center around and provide valuable insights about "${campaignTitle}"
-- Use the week description "${weekDescription}" to guide your content direction
-- Write in the company's brand voice and tone
-- Be conversational and community-focused (150-250 words)
-- DO NOT include any emojis whatsoever
-- Reference the company's unique selling points as they relate to this theme
-- Speak to their ideal customer about this specific topic
-- Include questions to encourage engagement about the theme
-- End with a CLEAR, SPECIFIC call-to-action tied directly to the theme content
-- Use natural seasonal timing references instead of week numbers
-- Make content highly relevant to their specific geographic region when it relates to the theme
-- Reference local weather patterns, growing seasons, or regional gardening challenges that connect to the theme
-- Mention plants and gardening practices that work well in their specific climate and relate to the theme
-- Consider local gardening culture and regional preferences relevant to the theme
-- Make it feel personal and authentic to this garden center and their community
-- Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
-- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
-- ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
-- Present information in natural, conversational paragraph form that clearly supports the "${campaignTitle}" theme`,
-
-      email: `Create email content specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. ${companyContext}
-
-Requirements:
-- START WITH A POWERFUL HOOK in both subject line and opening that creates urgency or curiosity about "${campaignTitle}"
-- AGITATE BEFORE EDUCATING: Identify a common challenge or timing issue related to the theme before providing guidance
-- Use SHORT PARAGRAPHS (2-3 sentences max) for easy scanning
-- Make it VISUALLY SUGGESTIVE with descriptive language that creates mental pictures
-- Sound CONVERSATIONAL like a trusted local expert writing to valued customers
-- The entire email must be dedicated to providing value around the "${campaignTitle}" theme
-- Use the week description "${weekDescription}" to shape your content approach
-- Write in the company's tone of writing
-- Be informative and valuable about this specific theme (100-200 words)
-- DO NOT include any emojis whatsoever
-- Reference the company's seasonal focus when it relates to this theme
-- Include their specializations as they connect to the theme
-- Speak to their target audience specifically about this topic
-- End with a CLEAR, SPECIFIC call-to-action that provides concrete next steps related to the theme
-- Use natural seasonal timing references instead of week numbers
-- Provide region-specific gardening advice based on their location that relates to the theme
-- Consider local climate conditions, hardiness zones, and seasonal timing relevant to the theme
-- Reference regional growing challenges and solutions that connect to the theme
-- Use plant recommendations appropriate for their geographic area that support the theme
-- Make timing advice specific to their local growing season when relevant to the theme
-- Make it feel personal from this specific garden center about this specific topic
-- Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
-- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
-- ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
-- Present information in natural, conversational paragraph form that clearly addresses the "${campaignTitle}" theme`,
-
-      video: `Create a video script specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. ${companyContext}
-
-Requirements:
-- START WITH A POWERFUL HOOK that immediately grabs viewer attention about "${campaignTitle}" - never use "Welcome to" or generic openings
-- AGITATE BEFORE EDUCATING: Present a common gardening challenge or seasonal mistake related to the theme before offering solutions
-- Use SHORT SEGMENTS that flow naturally in spoken form
-- Make it VISUALLY SUGGESTIVE with language that helps viewers picture what you're describing
-- Sound CONVERSATIONAL like a friendly garden center owner talking directly to local customers
-- The entire script must be focused on delivering valuable content about the "${campaignTitle}" theme
-- Use the week description "${weekDescription}" to guide your script direction
-- Write in the company's brand voice
-- Keep it conversational and natural (60-90 seconds when spoken)
-- DO NOT include any emojis whatsoever
-- Reference the company's expertise and specializations as they relate to this theme
-- Include practical tips that align with their values and directly support the theme
-- Speak directly to their ideal customer about this specific topic
-- End with a strong, SPECIFIC call-to-action that provides clear next steps related to the theme
-- Use natural seasonal timing references instead of week numbers
-- Provide region-specific gardening advice and recommendations that connect to the theme
-- Reference local climate conditions, weather patterns, and growing seasons when relevant to the theme
-- Mention plants and techniques that work best in their specific geographic area and support the theme
-- Consider local gardening challenges and regional solutions related to the theme
-- Use timing and seasonal advice appropriate for their location when it connects to the theme
-- Make it feel authentic to this garden center owner/expert speaking about this specific topic
-- Write in flowing paragraphs, NEVER bullet points, numbered lists, or dashes
-- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
-- ABSOLUTELY NEVER mention week numbers or start with "Welcome to"
-- Present information in natural, conversational paragraph form that clearly delivers value on the "${campaignTitle}" theme`
-    };
-
-    const prompt = contentPrompts[postType as keyof typeof contentPrompts] || 
-      `Create ${postType} content specifically about "${campaignTitle}" with focus on: ${weekDescription || 'the main theme'}. Start with a powerful hook that sparks curiosity or urgency - NO "Welcome to" language. Agitate before you educate by highlighting a common challenge first. Use short paragraphs and visually suggestive language. Sound conversational like a local expert. Make it engaging, professional, and directly focused on the "${campaignTitle}" theme. The content must provide clear value related to this specific theme. End with a clear, specific call-to-action. Use natural seasonal timing references instead of week numbers. Write in flowing paragraphs only - ABSOLUTELY NEVER use bullet points, numbered lists, or dashes. ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase. ABSOLUTELY NEVER mention week numbers. ABSOLUTELY NEVER use emojis in any content.`;
-
-    console.log('Generating personalized, region-specific content with enhanced writing style for:', postType);
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: `You are a professional content writer specializing in garden center marketing with deep knowledge of regional gardening differences across various climate zones. Create authentic, personalized content that reflects the specific company's brand, expertise, and most importantly their local region and climate conditions. 
-
-CRITICAL: Every piece of content must be specifically focused on and provide clear value related to the weekly theme "${campaignTitle}" and description "${weekDescription || 'general theme'}". Do not create generic content - it must directly address and support this specific theme.
-
-ENHANCED WRITING STYLE REQUIREMENTS (MANDATORY):
-1. ALWAYS START WITH A HOOK: Begin with a powerful first sentence that sparks curiosity, urgency, or seasonal awareness about the specific theme. Never open with "Welcome to," "This week," or generic greetings.
-2. AGITATE BEFORE YOU EDUCATE: After the hook, highlight a common challenge or seasonal mistake related to the theme before giving advice. Make the reader feel the problem first.
-3. KEEP PARAGRAPHS SHORT: Use paragraphs no longer than 2-3 sentences for mobile readability.
-4. MAKE IT VISUALLY SUGGESTIVE: Use descriptive words that help readers picture what you're talking about. Create scenes with your words.
-5. USE A CONVERSATIONAL TONE: Sound like a local garden center owner talking to familiar customers. Use friendly contractions and warm phrasing.
-6. INCLUDE A CLEAR, ALIGNED CTA: End with a single, specific call-to-action that ties directly to the theme content. Avoid vague CTAs.
-7. ANCHOR TIME WITHOUT WEEK NUMBERS: Use natural seasonal timing references instead of week numbers.
-
-CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form. ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free. If you need to present multiple points, weave them naturally into paragraph form.` },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.7,
-        max_tokens: 800,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const generatedContent = data.choices[0].message.content;
-
-    console.log('Generated enhanced content with improved writing style:', generatedContent);
-
-    return new Response(JSON.stringify({ content: generatedContent }), {
+    return new Response(JSON.stringify({ 
+      content: result.content,
+      generationAttempts: result.attempts,
+      validationPassed: true
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {

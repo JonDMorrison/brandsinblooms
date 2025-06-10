@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { generatePersonalizedContent, generateNewsletterContent, generateVideoScript } from "@/components/homepage/TaskGenerationUtils";
 import { getHashtagsForType, getImageIdeaForType } from "./ContentViewerUtils";
+import { ContentValidator } from "./ContentValidator";
 
 export const useContentGeneration = () => {
   const autoGenerateAllContent = async (campaignId: string, campaignTitle: string, existingTasks: any[], userId: string) => {
@@ -70,7 +71,7 @@ export const useContentGeneration = () => {
 
       console.log('Tasks needing content generation:', allTasks);
 
-      // Generate content for each task
+      // Generate content for each task with validation
       for (const task of allTasks || []) {
         console.log(`Generating content for ${task.post_type} task:`, task.id);
 
@@ -82,8 +83,9 @@ export const useContentGeneration = () => {
             .eq('id', task.id);
 
           let aiOutput = '';
+          let validationAttempts = 1;
 
-          // Generate content based on type
+          // Generate content based on type with validation
           if (task.post_type === 'newsletter') {
             aiOutput = await generateNewsletterContent(
               campaignId, 
@@ -101,6 +103,38 @@ export const useContentGeneration = () => {
             );
           }
 
+          // Validate the generated content
+          const validation = ContentValidator.validate(aiOutput);
+          
+          if (!validation.isValid) {
+            console.warn(`Generated ${task.post_type} content failed validation:`, validation.issues);
+            
+            // Try to regenerate with validation feedback
+            const regenerateFunction = async () => {
+              if (task.post_type === 'newsletter') {
+                return await generateNewsletterContent(campaignId, campaignTitle, Math.ceil(Date.now() / (7 * 24 * 60 * 60 * 1000)), userId);
+              } else if (task.post_type === 'video') {
+                return await generateVideoScript(campaignTitle, userId);
+              } else {
+                return await generatePersonalizedContent(task.post_type, campaignTitle, userId);
+              }
+            };
+            
+            const validatedResult = await ContentValidator.validateAndRegenerate(
+              aiOutput,
+              regenerateFunction,
+              3
+            );
+            
+            aiOutput = validatedResult.content;
+            validationAttempts = validatedResult.attempts;
+            
+            if (validatedResult.issues.length > 0) {
+              console.warn(`Content still has validation issues after ${validationAttempts} attempts:`, validatedResult.issues);
+              toast.warning(`${task.post_type} content generated with minor validation issues`);
+            }
+          }
+
           // Update task with generated content - using 'scheduled' status instead of 'draft'
           const { error: updateError } = await supabase
             .from('content_tasks')
@@ -115,7 +149,7 @@ export const useContentGeneration = () => {
           if (updateError) {
             console.error(`Error updating ${task.post_type} task:`, updateError);
           } else {
-            console.log(`Successfully generated ${task.post_type} content`);
+            console.log(`Successfully generated ${task.post_type} content (${validationAttempts} attempts)`);
           }
 
         } catch (contentError) {
