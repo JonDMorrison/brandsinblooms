@@ -55,13 +55,13 @@ export const SampleCampaignCard = ({ onCreateRealCampaign }: SampleCampaignCardP
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-white/60 backdrop-blur p-4 rounded-lg border">
+          <div className="bg-gray-100 backdrop-blur p-4 rounded-lg border border-gray-200">
             <h3 className="font-semibold text-gray-900 mb-2">{sampleContent.theme}</h3>
             <p className="text-sm text-gray-700 mb-3">{sampleContent.description}</p>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               {sampleContent.contentPieces.map((piece, index) => (
-                <div key={index} className="bg-white p-3 rounded border text-center">
+                <div key={index} className="bg-gray-50 p-3 rounded border border-gray-200 text-center">
                   <span className="text-xs font-medium text-primary">{piece.type}</span>
                   <p className="text-xs text-gray-600 mt-1 line-clamp-2">{piece.content}</p>
                 </div>

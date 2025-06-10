@@ -51,7 +51,7 @@ export const SampleContentPreview = ({
 
         <div className="space-y-6">
           {/* Campaign Overview */}
-          <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+          <Card className="bg-gray-100 border-gray-200">
             <CardContent className="p-4">
               <h3 className="text-lg font-semibold mb-2">{content.theme}</h3>
               <p className="text-gray-700 text-sm">{content.description}</p>
@@ -63,7 +63,7 @@ export const SampleContentPreview = ({
             {content.contentPieces.map((piece, index) => {
               const IconComponent = getIcon(piece.type);
               return (
-                <Card key={index} className="border-l-4 border-l-primary">
+                <Card key={index} className="border-l-4 border-l-primary bg-gray-50">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <IconComponent className="w-4 h-4 text-primary" />
