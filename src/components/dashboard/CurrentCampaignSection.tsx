@@ -1,8 +1,8 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Calendar, Sparkles, CalendarPlus } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { CampaignCard } from "@/components/homepage/CampaignCard";
 import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
@@ -33,6 +33,7 @@ export const CurrentCampaignSection = ({
 }: CurrentCampaignSectionProps) => {
   const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
+  const navigate = useNavigate();
 
   const handleNewCampaignCreate = (newCampaign: any) => {
     setShowNewCampaignDialog(false);
@@ -45,7 +46,7 @@ export const CurrentCampaignSection = ({
   };
 
   const handleViewCalendar = () => {
-    window.location.href = '/calendar';
+    navigate('/calendar');
   };
 
   const actionItems = [
