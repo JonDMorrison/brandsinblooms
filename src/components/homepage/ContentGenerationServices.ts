@@ -12,7 +12,7 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
         campaignTitle: campaignTitle,
         weekDescription: weekDescription,
         userId: userId,
-        enforceCompanyName: true // New flag to ensure company name usage
+        enforceCompanyName: true
       }
     });
 
@@ -21,7 +21,6 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
       throw error;
     }
 
-    // Log validation results if available
     if (data.generationAttempts && data.generationAttempts > 1) {
       console.log(`Content generated after ${data.generationAttempts} attempts with validation`);
     }
@@ -48,7 +47,7 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
         weekNumber: weekNumber,
         weekDescription: weekDescription,
         userId: userId,
-        enforceCompanyName: true // New flag to ensure company name usage
+        enforceCompanyName: true
       }
     });
 
@@ -73,7 +72,7 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
         campaignTitle: campaignTitle,
         weekDescription: weekDescription,
         userId: userId,
-        enforceCompanyName: true // New flag to ensure company name usage
+        enforceCompanyName: true
       }
     });
 

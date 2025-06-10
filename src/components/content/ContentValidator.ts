@@ -1,11 +1,8 @@
 
-import { validateContent, FORBIDDEN_PATTERNS, FORBIDDEN_PHRASES } from './ContentGenerationConfig';
+import { validateContent, FORBIDDEN_PATTERNS, FORBIDDEN_PHRASES } from '../../utils/contentValidation';
+import { ValidationResult } from '../../types/contentGeneration';
 
-export interface ValidationResult {
-  isValid: boolean;
-  issues: string[];
-  correctedContent?: string;
-}
+export { ValidationResult };
 
 export class ContentValidator {
   static validate(content: string): ValidationResult {
@@ -46,7 +43,6 @@ export class ContentValidator {
       }
     }
     
-    // If we've exhausted attempts, try basic cleanup
     const cleanedContent = this.attemptBasicCleanup(currentContent);
     const finalValidation = this.validate(cleanedContent);
     
@@ -60,26 +56,13 @@ export class ContentValidator {
   private static attemptBasicCleanup(content: string): string {
     let cleaned = content;
     
-    // Remove green thumb references
     cleaned = cleaned.replace(/green\s*thumb[s]?/gi, 'gardening skills');
-    
-    // Remove welcome to phrases
     cleaned = cleaned.replace(/welcome\s*to[^.!?]*/gi, '');
-    
-    // Remove week references
     cleaned = cleaned.replace(/week\s*\d+/gi, 'this season');
     cleaned = cleaned.replace(/this\s*week/gi, 'right now');
-    
-    // Remove emojis
     cleaned = cleaned.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu, '');
-    
-    // Convert bullet points to flowing text
     cleaned = cleaned.replace(/^\s*[-•]\s*(.+)$/gm, '$1. ');
-    
-    // Convert numbered lists to flowing text
     cleaned = cleaned.replace(/^\s*\d+\.\s*(.+)$/gm, '$1. ');
-    
-    // Clean up extra whitespace
     cleaned = cleaned.replace(/\s+/g, ' ').trim();
     
     return cleaned;
