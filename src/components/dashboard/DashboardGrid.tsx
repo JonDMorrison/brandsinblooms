@@ -1,6 +1,5 @@
 
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
-import { UpcomingTasksSection } from "@/components/dashboard/UpcomingTasksSection";
 import { CustomCampaignsSection } from "@/components/dashboard/CustomCampaignsSection";
 
 interface DashboardGridProps {
@@ -34,8 +33,6 @@ export const DashboardGrid = ({
   onCreateCampaign,
   onTaskClick
 }: DashboardGridProps) => {
-  const upcomingTasks = tasks.filter(task => task.status !== 'completed').slice(0, 5);
-
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       {/* Left Column */}
@@ -50,13 +47,6 @@ export const DashboardGrid = ({
           onTaskUpdate={onTaskUpdate}
           onCreateCampaign={onCreateCampaign}
           onCampaignCreated={onCampaignCreated}
-          onTaskClick={onTaskClick}
-        />
-
-        {/* Upcoming Tasks Section */}
-        <UpcomingTasksSection 
-          upcomingTasks={upcomingTasks} 
-          onTaskUpdate={onTaskUpdate} 
           onTaskClick={onTaskClick}
         />
       </div>
