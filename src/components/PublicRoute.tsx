@@ -21,7 +21,7 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
     );
   }
 
-  // If user is authenticated, redirect to app
+  // If user is authenticated, always redirect to dashboard
   if (user) {
     return <Navigate to="/app" replace />;
   }

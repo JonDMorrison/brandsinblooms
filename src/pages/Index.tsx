@@ -90,7 +90,8 @@ const Index = () => {
         setIsOnboarded(false);
         setIsCheckingOnboarding(false);
       } else {
-        // For returning users, check onboarding status and show dashboard if onboarded
+        // For authenticated users, always prioritize dashboard flow
+        console.log('Index: Authenticated user - checking onboarding and showing dashboard');
         checkOnboardingStatus(user.id);
       }
     } else {
@@ -150,7 +151,8 @@ const Index = () => {
 
   console.log('Index: Final render state - showLanding:', showLanding, 'isOnboarded:', isOnboarded, 'currentView:', currentView);
 
-  // Priority order: landing page (if explicitly requested) > onboarding (if not completed) > dashboard (default for returning users)
+  // For authenticated users: onboarding (if not completed) > dashboard (default)
+  // Landing page should only show if explicitly requested via URL param
   return (
     <div className="min-h-screen bg-garden-background">
       {showLanding ? (

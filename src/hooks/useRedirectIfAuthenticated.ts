@@ -14,8 +14,9 @@ export const useRedirectIfAuthenticated = () => {
     // Don't redirect while auth state is loading
     if (loading) return;
 
-    // If user is authenticated and on a public route, redirect to dashboard
+    // If user is authenticated and on any public route, redirect to dashboard
     if (user && publicRoutes.includes(location.pathname)) {
+      console.log('User authenticated on public route, redirecting to dashboard');
       navigate("/app", { replace: true });
     }
   }, [user, loading, location.pathname, navigate]);

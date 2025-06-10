@@ -18,12 +18,12 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
   const { user } = useAuth();
 
   const handleGetStarted = () => {
-    if (onGetStarted) {
-      // Use the provided onGetStarted callback (for authenticated users in the app flow)
+    if (user) {
+      // User is already authenticated, redirect to dashboard
+      navigate('/app');
+    } else if (onGetStarted) {
+      // Use the provided onGetStarted callback if user is not authenticated
       onGetStarted();
-    } else if (user) {
-      // User is authenticated, redirect to app
-      window.location.href = "/app";
     } else {
       // User is not authenticated, redirect to auth page
       navigate('/auth');
@@ -31,11 +31,21 @@ export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
   };
 
   const handleSeePricing = () => {
-    navigate('/pricing');
+    if (user) {
+      // If user is authenticated, redirect to dashboard instead of pricing
+      navigate('/app');
+    } else {
+      navigate('/pricing');
+    }
   };
 
   const handleLogin = () => {
-    navigate('/auth');
+    if (user) {
+      // If user is already authenticated, redirect to dashboard
+      navigate('/app');
+    } else {
+      navigate('/auth');
+    }
   };
 
   return (
