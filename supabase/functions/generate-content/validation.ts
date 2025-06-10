@@ -15,6 +15,9 @@ export function validateContent(content: string): ValidationResult {
         case 4: issues.push('Contains emojis'); break;
         case 5: issues.push('Contains bullet points'); break;
         case 6: issues.push('Contains numbered lists'); break;
+        case 7: issues.push('Contains company name placeholder'); break;
+        case 8: issues.push('Contains garden center name placeholder'); break;
+        case 9: issues.push('Contains generic garden center reference'); break;
       }
     }
   });

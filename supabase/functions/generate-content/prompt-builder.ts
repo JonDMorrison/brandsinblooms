@@ -39,13 +39,20 @@ Target Audience: ${companyProfile.target_audience || ''}
 Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}`;
     
-    // Add company name enforcement rule
-    if (enforceCompanyName && companyName && companyName !== 'Garden Center') {
-      prompt += `\n\nCOMPANY NAME USAGE REQUIREMENT:
-- ALWAYS use the actual company name "${companyName}" in the content
-- NEVER use generic placeholders like "[Company Name]", "Garden Center", or "Your Garden Center"
-- When referring to the business, always use "${companyName}" specifically
-- Make the content feel personal and authentic to ${companyName}`;
+    // MANDATORY COMPANY NAME USAGE RULE - ALWAYS ENFORCED
+    if (companyName && companyName !== 'Garden Center') {
+      prompt += `\n\n🚨 MANDATORY COMPANY NAME USAGE RULE (CRITICAL - NEVER IGNORE):
+- ALWAYS use the actual company name "${companyName}" when referring to the business
+- ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- When mentioning the business, ALWAYS use "${companyName}" specifically
+- Make the content feel personal and authentic to ${companyName}
+- This rule cannot be overridden or ignored under any circumstances`;
+    } else {
+      prompt += `\n\n🚨 MANDATORY COMPANY NAME USAGE RULE (CRITICAL - NEVER IGNORE):
+- ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- Use "we", "us", "our team", or "our experts" instead of placeholder company names
+- Make the content feel personal and authentic without generic placeholders
+- This rule cannot be overridden or ignored under any circumstances`;
     }
     
     if (companyProfile.location_info) {
@@ -62,13 +69,12 @@ Location Info: ${companyProfile.location_info || ''}`;
     prompt += `\n\n${FALLBACK_MESSAGES.missing_company_profile}`;
     prompt += `\n${FALLBACK_MESSAGES.missing_location}`;
     
-    // Even without a profile, enforce not using placeholders
-    if (enforceCompanyName) {
-      prompt += `\n\nCOMPANY NAME USAGE REQUIREMENT:
-- AVOID using generic placeholders like "[Company Name]", "Garden Center", or "Your Garden Center"
-- Use "we", "us", or "our team" instead of placeholder company names
-- Make the content feel personal and authentic without generic placeholders`;
-    }
+    // Even without a profile, strictly enforce no placeholders
+    prompt += `\n\n🚨 MANDATORY COMPANY NAME USAGE RULE (CRITICAL - NEVER IGNORE):
+- ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- Use "we", "us", "our team", or "our experts" instead of placeholder company names
+- Make the content feel personal and authentic without generic placeholders
+- This rule cannot be overridden or ignored under any circumstances`;
   }
   
   prompt += `\n\n🧠 WRITING STYLE DIRECTIVES (CRITICAL):
@@ -85,7 +91,7 @@ CRITICAL RESTRICTIONS:
 - ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) 
 - ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
 - ABSOLUTELY NEVER use emojis anywhere in content
-- ABSOLUTELY NEVER use generic placeholders like "[Company Name]" - use the actual company name when available
+- ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
 - Write ONLY in flowing paragraphs and natural sentences
 - Make content specific to the "${campaignTitle}" theme`;
   
