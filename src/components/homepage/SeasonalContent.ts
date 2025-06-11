@@ -7,11 +7,16 @@ export const getSeasonalGreeting = () => {
   return { emoji: "❄️", text: "Winter magic!" };
 };
 
-// New function to get a rotating daily welcome message
+// Fixed function to get a rotating daily welcome message
 export const getWelcomeMessage = (businessName?: string) => {
   // Use date to create a predictable but changing rotation
   const date = new Date();
-  const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+  
+  // Calculate day of year more safely
+  const start = new Date(date.getFullYear(), 0, 0);
+  const diff = date.getTime() - start.getTime();
+  const oneDay = 1000 * 60 * 60 * 24;
+  const dayOfYear = Math.floor(diff / oneDay);
   
   // Business name or fallback
   const name = businessName || "Garden Center";
