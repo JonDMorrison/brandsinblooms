@@ -195,4 +195,32 @@
     background-color: #ffffff !important;
     background: #ffffff !important;
   }
+
+  /* Ensure proper z-index stacking for dialogs */
+  [role="dialog"] {
+    z-index: 60 !important;
+  }
+
+  /* Remove any overlays or backdrop issues */
+  [role="dialog"] .prose,
+  [role="dialog"] .bg-white,
+  [role="dialog"] .DialogContent {
+    position: relative !important;
+    z-index: 61 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
+
+  /* Force dialog overlays to be properly transparent */
+  [data-radix-dialog-overlay] {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    z-index: 50 !important;
+  }
+
+  /* Ensure dialog content is above overlay */
+  [data-radix-dialog-content] {
+    z-index: 60 !important;
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+  }
 }

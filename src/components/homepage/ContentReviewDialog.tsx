@@ -257,8 +257,8 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto w-[95vw] max-w-full bg-white">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto w-[95vw] max-w-full bg-white z-[70]">
+          <DialogHeader className="bg-white">
             <DialogTitle className="text-garden-green-dark flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <span>Review Your Content</span>
               <Button
@@ -274,83 +274,85 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
             </DialogTitle>
           </DialogHeader>
           
-          {loading ? (
-            <div className="flex justify-center items-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-          ) : tasks.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No content available for review</p>
-              <p className="text-sm text-gray-400">
-                Generate content from a campaign to see it here for review and approval.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {tasks.map((task) => (
-                <Card key={task.id} className="border-garden-green-light bg-white">
-                  <CardContent className="p-4 bg-white">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {getStatusIcon(task.status)}
-                        <Badge variant="secondary" className={getStatusColor(task.status)}>
-                          {task.status}
-                        </Badge>
-                        <Badge variant="outline">
-                          {task.post_type}
-                        </Badge>
-                      </div>
-                      <div className="flex gap-2 flex-wrap">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditContent(task)}
-                          className="border-blue-300 text-blue-600 hover:bg-blue-50"
-                        >
-                          <Edit className="w-3 h-3 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCopyContent(task.ai_output, task.post_type)}
-                          className="border-gray-300 text-gray-600 hover:bg-gray-50"
-                        >
-                          <Copy className="w-3 h-3 mr-1" />
-                          Copy
-                        </Button>
-                        {task.status !== 'completed' && (
+          <div className="bg-white">
+            {loading ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : tasks.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">No content available for review</p>
+                <p className="text-sm text-gray-400">
+                  Generate content from a campaign to see it here for review and approval.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {tasks.map((task) => (
+                  <Card key={task.id} className="border-garden-green-light bg-white">
+                    <CardContent className="p-4 bg-white">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {getStatusIcon(task.status)}
+                          <Badge variant="secondary" className={getStatusColor(task.status)}>
+                            {task.status}
+                          </Badge>
+                          <Badge variant="outline">
+                            {task.post_type}
+                          </Badge>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
                           <Button
                             size="sm"
-                            onClick={() => updateTaskStatus(task.id, 'completed')}
-                            className="bg-green-600 hover:bg-green-700 text-white"
+                            variant="outline"
+                            onClick={() => handleEditContent(task)}
+                            className="border-blue-300 text-blue-600 hover:bg-blue-50"
                           >
-                            Approve
+                            <Edit className="w-3 h-3 mr-1" />
+                            Edit
                           </Button>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {task.ai_output && (
-                      <div className="bg-white p-4 rounded-md border overflow-x-auto">
-                        <div className="prose prose-sm max-w-none">
-                          {formatContent(task.ai_output, task.post_type)}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCopyContent(task.ai_output, task.post_type)}
+                            className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                          >
+                            <Copy className="w-3 h-3 mr-1" />
+                            Copy
+                          </Button>
+                          {task.status !== 'completed' && (
+                            <Button
+                              size="sm"
+                              onClick={() => updateTaskStatus(task.id, 'completed')}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              Approve
+                            </Button>
+                          )}
                         </div>
                       </div>
-                    )}
-                    
-                    {task.scheduled_date && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+                      
+                      {task.ai_output && (
+                        <div className="bg-white p-4 rounded-md border overflow-x-auto">
+                          <div className="prose prose-sm max-w-none">
+                            {formatContent(task.ai_output, task.post_type)}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {task.scheduled_date && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
           
-          <div className="flex justify-end pt-4">
+          <div className="flex justify-end pt-4 bg-white">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}

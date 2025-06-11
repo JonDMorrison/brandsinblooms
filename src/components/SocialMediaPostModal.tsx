@@ -53,8 +53,8 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl bg-white z-[70]">
+        <DialogHeader className="bg-white">
           <DialogTitle className="flex items-center gap-3">
             <div className={`p-2 rounded-lg text-white ${config.color}`}>
               <IconComponent className="w-5 h-5" />
@@ -63,7 +63,7 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 bg-white">
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-sm font-medium">Content</label>
@@ -72,7 +72,7 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
             <Textarea
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
-              className="min-h-[200px] text-sm leading-relaxed resize-none"
+              className="min-h-[200px] text-sm leading-relaxed resize-none bg-white"
               placeholder={`Write your ${platform} post...`}
             />
           </div>
