@@ -62,12 +62,20 @@ export const FORBIDDEN_PATTERNS = [
   /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu,
   /^\s*[-•]\s/gm,
   /^\s*\d+\.\s/gm,
-  /\[company\s*name\]/gi, // company name placeholders
-  /\[garden\s*center\s*name\]/gi, // garden center name placeholders
-  /your\s*garden\s*center/gi, // generic garden center references
-  /\[region\]/gi, // region placeholders
-  /\[location\]/gi, // location placeholders
-  /\[garden\s*center\s*location\]/gi, // garden center location placeholders
+  /\[company\s*name\]/gi,
+  /\[garden\s*center\s*name\]/gi,
+  /your\s*garden\s*center/gi,
+  /\[region\]/gi,
+  /\[location\]/gi,
+  /\[garden\s*center\s*location\]/gi,
+  /\[.*?\]/gi, // Any text in square brackets
+  /```/gi, // Code blocks
+  /`[^`]*`/gi, // Inline code
+  /\*\*[^*]*\*\*/gi, // Bold markdown
+  /\*[^*]*\*/gi, // Italic markdown
+  /_[^_]*_/gi, // Underscore formatting
+  /#{1,6}\s/gi, // Markdown headers
+  /^\s*>\s/gm, // Blockquotes
 ];
 
 export const corsHeaders = {

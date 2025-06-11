@@ -29,7 +29,7 @@ export function buildContentPrompt(
   if (companyProfile) {
     const brandVoice = companyProfile.brand_voice || 'Friendly but expert';
     const toneOfWriting = companyProfile.tone_of_writing || 'Confident, clear, not salesy';
-    const companyName = companyProfile.company_name || 'Garden Center';
+    const companyName = companyProfile.company_name || '';
     
     prompt += `\n\nCOMPANY PROFILE:
 Company Name: ${companyName}
@@ -39,82 +39,78 @@ Target Audience: ${companyProfile.target_audience || ''}
 Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}`;
     
-    // MANDATORY COMPANY NAME USAGE RULE - ALWAYS ENFORCED
-    if (companyName && companyName !== 'Garden Center') {
-      prompt += `\n\n🚨 MANDATORY COMPANY NAME USAGE RULE (CRITICAL - NEVER IGNORE):
-- ALWAYS use the actual company name "${companyName}" when referring to the business
-- ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+    // CRITICAL COMPANY NAME ENFORCEMENT
+    if (companyName && companyName.trim() !== '') {
+      prompt += `\n\n🚨 CRITICAL RULE - COMPANY NAME ENFORCEMENT (FAILURE = REGENERATION):
+- ALWAYS use the exact company name "${companyName}" when referring to the business
+- NEVER use "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- NEVER use any placeholder text in square brackets like [business name] or [location]
 - When mentioning the business, ALWAYS use "${companyName}" specifically
-- Make the content feel personal and authentic to ${companyName}
-- This rule cannot be overridden or ignored under any circumstances`;
+- Make the content personal and authentic to ${companyName}
+- This rule CANNOT be violated under any circumstances`;
     } else {
-      prompt += `\n\n🚨 MANDATORY COMPANY NAME USAGE RULE (CRITICAL - NEVER IGNORE):
-- ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+      prompt += `\n\n🚨 CRITICAL RULE - NO PLACEHOLDER TEXT (FAILURE = REGENERATION):
+- NEVER use "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- NEVER use any placeholder text in square brackets like [business name] or [location]
 - Use "we", "us", "our team", or "our experts" instead of placeholder company names
-- Make the content feel personal and authentic without generic placeholders
-- This rule cannot be overridden or ignored under any circumstances`;
+- Make the content personal and authentic without generic placeholders
+- This rule CANNOT be violated under any circumstances`;
     }
     
     if (companyProfile.location_info) {
       const locationInfo = companyProfile.location_info;
-      prompt += `\n\n🚨 MANDATORY LOCATION USAGE RULE (CRITICAL - NEVER IGNORE):
-- ALWAYS use the actual location "${locationInfo}" when referring to the region or location
-- ABSOLUTELY NEVER use generic placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
+      prompt += `\n\n🚨 CRITICAL RULE - LOCATION ENFORCEMENT (FAILURE = REGENERATION):
+- ALWAYS use the actual location "${locationInfo}" when referring to the region
+- NEVER use "[Region]", "[Location]", or "[Garden Center Location]"
+- NEVER use any placeholder text in square brackets
 - Reference the specific city, region, or area name directly
-- Make location references feel authentic and specific
-- This rule cannot be overridden or ignored under any circumstances`;
-      
-      prompt += `\n\nREGIONAL FOCUS:
-- Create content highly specific to their geographic region and climate
-- Reference local growing seasons, weather patterns, and gardening calendars
-- Include region-appropriate plant recommendations and techniques
-- Consider local hardiness zones, frost dates, and seasonal timing
-- Address regional gardening challenges and local growing conditions`;
+- Make location references authentic and specific to ${locationInfo}
+- This rule CANNOT be violated under any circumstances`;
     } else {
-      prompt += `\n\n🚨 MANDATORY LOCATION USAGE RULE (CRITICAL - NEVER IGNORE):
-- ABSOLUTELY NEVER use generic placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
+      prompt += `\n\n🚨 CRITICAL RULE - NO LOCATION PLACEHOLDERS (FAILURE = REGENERATION):
+- NEVER use "[Region]", "[Location]", or "[Garden Center Location]"
+- NEVER use any placeholder text in square brackets
 - Use "your area", "your region", or "locally" instead of placeholder locations
-- Make location references feel authentic without generic placeholders
-- This rule cannot be overridden or ignored under any circumstances`;
-      
-      prompt += `\n\n${FALLBACK_MESSAGES.missing_location}`;
+- Make location references authentic without generic placeholders
+- This rule CANNOT be violated under any circumstances`;
     }
   } else {
     prompt += `\n\n${FALLBACK_MESSAGES.missing_company_profile}`;
     prompt += `\n${FALLBACK_MESSAGES.missing_location}`;
     
-    // Even without a profile, strictly enforce no placeholders
-    prompt += `\n\n🚨 MANDATORY COMPANY NAME USAGE RULE (CRITICAL - NEVER IGNORE):
-- ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+    prompt += `\n\n🚨 CRITICAL RULE - NO PLACEHOLDER TEXT (FAILURE = REGENERATION):
+- NEVER use "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- NEVER use "[Region]", "[Location]", or "[Garden Center Location]"
+- NEVER use any placeholder text in square brackets
 - Use "we", "us", "our team", or "our experts" instead of placeholder company names
-- Make the content feel personal and authentic without generic placeholders
-- This rule cannot be overridden or ignored under any circumstances`;
-    
-    prompt += `\n\n🚨 MANDATORY LOCATION USAGE RULE (CRITICAL - NEVER IGNORE):
-- ABSOLUTELY NEVER use generic placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
 - Use "your area", "your region", or "locally" instead of placeholder locations
-- Make location references feel authentic without generic placeholders
-- This rule cannot be overridden or ignored under any circumstances`;
+- This rule CANNOT be violated under any circumstances`;
   }
   
-  prompt += `\n\n🧠 WRITING STYLE DIRECTIVES (CRITICAL):
-1. ALWAYS START WITH A HOOK: Begin with a powerful first sentence that sparks curiosity, urgency, or seasonal awareness about "${campaignTitle}" - never use "Welcome to" or generic openings
-2. AGITATE BEFORE EDUCATING: After the hook, highlight a common challenge or seasonal mistake related to the theme before providing solutions
-3. USE SHORT PARAGRAPHS: 2-3 sentences max for mobile readability
-4. MAKE IT VISUALLY SUGGESTIVE: Use descriptive words that create mental images (e.g., "lush beds," "cracked soil," "overflowing baskets")
-5. SOUND CONVERSATIONAL: Like a local garden center owner or expert talking to familiar customers
-6. INCLUDE A CLEAR CTA: End with a single clear call-to-action that ties directly to the post's topic - use concrete, helpful instructions
-7. ANCHOR TIME NATURALLY: Reference seasonal timing in natural ways, avoid week numbers entirely
+  prompt += `\n\n🎯 WRITING STYLE REQUIREMENTS (CRITICAL - FAILURE = REGENERATION):
+1. PLAIN LANGUAGE ONLY: Write in natural, conversational language like speaking to a friend
+2. SHORT PARAGRAPHS: Maximum 2-3 sentences per paragraph for mobile readability
+3. NO TECHNICAL FORMATTING: Absolutely no markdown, code blocks, bullet points, or numbered lists
+4. NO SQUARE BRACKETS: Never use [anything] - all content must be complete and specific
+5. CONVERSATIONAL TONE: Sound like a local garden expert talking to familiar customers
+6. NATURAL FLOW: Write in flowing paragraphs, not lists or formatted blocks
 
-CRITICAL RESTRICTIONS:
-- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation
-- ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) 
-- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
-- ABSOLUTELY NEVER use emojis anywhere in content
-- ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
-- ABSOLUTELY NEVER use location placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
-- Write ONLY in flowing paragraphs and natural sentences
-- Make content specific to the "${campaignTitle}" theme`;
+🚨 ABSOLUTE PROHIBITIONS (VIOLATION = IMMEDIATE REGENERATION):
+- NO "Green Thumbs", "green thumb", or any variation
+- NO bullet points (•), numbered lists (1., 2., 3.), or dashes (-)
+- NO "Welcome to" openings or week number references
+- NO emojis anywhere in content
+- NO square bracket placeholders like [Company Name], [Region], [Location]
+- NO markdown formatting like **bold**, *italic*, or \`code\`
+- NO code blocks with \`\`\` or technical formatting
+- Write ONLY in natural, flowing paragraphs
+
+CONTENT MUST BE:
+- Written in plain English like natural speech
+- Broken into short, mobile-friendly paragraphs
+- Completely free of any placeholder text
+- Specific to the "${campaignTitle}" theme
+- Authentic and personal without generic references`;
   
   return prompt;
 }
