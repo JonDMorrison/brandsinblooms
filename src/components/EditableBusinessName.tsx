@@ -1,46 +1,31 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 interface EditableBusinessNameProps {
   businessName: string;
   onBusinessNameChange: (newName: string) => void;
 }
-
-export const EditableBusinessName = ({ businessName, onBusinessNameChange }: EditableBusinessNameProps) => {
+export const EditableBusinessName = ({
+  businessName,
+  onBusinessNameChange
+}: EditableBusinessNameProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [newName, setNewName] = useState(businessName);
-
   const handleSave = () => {
     if (newName.trim()) {
       onBusinessNameChange(newName.trim());
       setIsOpen(false);
     }
   };
-
   const handleCancel = () => {
     setNewName(businessName);
     setIsOpen(false);
   };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+  return <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <span 
-          className="text-garden-green font-semibold cursor-pointer hover:text-garden-green-dark transition-colors underline decoration-dotted"
-          title="Click to edit business name"
-        >
+        <span title="Click to edit business name" className="font-semibold cursor-pointer hover:text-garden-green-dark transition-colors underline decoration-dotted text-slate-950">
           {businessName}
         </span>
       </DialogTrigger>
@@ -56,13 +41,7 @@ export const EditableBusinessName = ({ businessName, onBusinessNameChange }: Edi
             <Label htmlFor="business-name" className="text-right">
               Name
             </Label>
-            <Input
-              id="business-name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              className="col-span-3"
-              placeholder="Enter business name"
-            />
+            <Input id="business-name" value={newName} onChange={e => setNewName(e.target.value)} className="col-span-3" placeholder="Enter business name" />
           </div>
         </div>
         <DialogFooter>
@@ -74,6 +53,5 @@ export const EditableBusinessName = ({ businessName, onBusinessNameChange }: Edi
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>;
 };
