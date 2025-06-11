@@ -61,5 +61,22 @@ export const handleCopy = (content: string) => {
 };
 
 export const formatContentForDisplay = (content: string) => {
-  return stripHtmlAndFormat(content);
+  if (!content) return '';
+  
+  // First strip HTML and format
+  let formatted = stripHtmlAndFormat(content);
+  
+  // Clean up any remaining placeholders that shouldn't be there
+  formatted = formatted
+    .replace(/\[company\s*name\]/gi, 'our garden center')
+    .replace(/\[garden\s*center\s*name\]/gi, 'our garden center')
+    .replace(/your\s*garden\s*center/gi, 'our garden center')
+    .replace(/\[region\]/gi, 'your area')
+    .replace(/\[location\]/gi, 'your area')
+    .replace(/\[garden\s*center\s*location\]/gi, 'your area')
+    .replace(/garden\s*center\s*name/gi, 'our garden center')
+    .replace(/region/gi, 'your area')
+    .trim();
+  
+  return formatted;
 };
