@@ -37,7 +37,7 @@ export const UpcomingContentModal = ({ week, isOpen, onClose, onTaskUpdate }: Up
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
             <UpcomingContentModalHeader 
               week={week}

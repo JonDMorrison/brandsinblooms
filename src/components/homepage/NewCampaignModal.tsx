@@ -103,7 +103,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-white">
         <DialogHeader>
           <DialogTitle className="text-garden-green-dark">Create New Campaign</DialogTitle>
         </DialogHeader>

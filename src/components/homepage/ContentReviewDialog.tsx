@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -256,7 +257,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto w-[95vw] max-w-full">
+        <DialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto w-[95vw] max-w-full bg-white">
           <DialogHeader>
             <DialogTitle className="text-garden-green-dark flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <span>Review Your Content</span>
@@ -287,8 +288,8 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
           ) : (
             <div className="space-y-4">
               {tasks.map((task) => (
-                <Card key={task.id} className="border-garden-green-light">
-                  <CardContent className="p-4">
+                <Card key={task.id} className="border-garden-green-light bg-white">
+                  <CardContent className="p-4 bg-white">
                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         {getStatusIcon(task.status)}
@@ -331,7 +332,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
                     </div>
                     
                     {task.ai_output && (
-                      <div className="bg-gray-50 p-4 rounded-md border overflow-x-auto">
+                      <div className="bg-white p-4 rounded-md border overflow-x-auto">
                         <div className="prose prose-sm max-w-none">
                           {formatContent(task.ai_output, task.post_type)}
                         </div>

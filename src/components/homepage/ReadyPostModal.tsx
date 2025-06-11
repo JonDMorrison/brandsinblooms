@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -139,7 +140,7 @@ export const ReadyPostModal = ({ task, isOpen, onClose, onTaskUpdate }: ReadyPos
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -213,7 +214,7 @@ export const ReadyPostModal = ({ task, isOpen, onClose, onTaskUpdate }: ReadyPos
                 </div>
               </div>
             ) : (
-              <div className="bg-gray-50 p-4 rounded-lg border">
+              <div className="bg-white p-4 rounded-lg border">
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">
                   {editedContent}
                 </p>

@@ -86,7 +86,7 @@ export const CompanyProfilePage = () => {
         </div>
 
         <div className="p-6">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-8">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-garden-green-dark mb-2">
                 Company Profile
