@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -17,22 +16,29 @@ interface ContentSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onTaskUpdate?: () => void;
+  initialEditMode?: boolean;
 }
 
-export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate }: ContentSidebarProps) => {
+export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEditMode = false }: ContentSidebarProps) => {
   const [editedContent, setEditedContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialEditMode);
 
   // Update editedContent when task changes
   useEffect(() => {
     if (task?.ai_output) {
       setEditedContent(task.ai_output);
-      setIsEditing(false); // Reset editing state when task changes
     } else {
       setEditedContent("");
     }
   }, [task]);
+
+  // Set initial edit mode when sidebar opens
+  useEffect(() => {
+    if (isOpen && initialEditMode) {
+      setIsEditing(true);
+    }
+  }, [isOpen, initialEditMode]);
 
   const handleSaveChanges = async () => {
     setIsSaving(true);

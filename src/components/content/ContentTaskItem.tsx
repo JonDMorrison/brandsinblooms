@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 import { getPostTypeIcon, getStatusColor, handleCopy, formatContentForDisplay } from "./ContentViewerUtils";
+import { ContentSidebar } from "@/components/ContentSidebar";
 
 interface ContentTaskItemProps {
   task: any;
@@ -17,6 +18,8 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   const [approvingTask, setApprovingTask] = useState(false);
   const [deletingTask, setDeletingTask] = useState(false);
   const [retryingGeneration, setRetryingGeneration] = useState(false);
+  const [showContentSidebar, setShowContentSidebar] = useState(false);
+  const [openInEditMode, setOpenInEditMode] = useState(false);
 
   const handleApprove = async () => {
     setApprovingTask(true);
@@ -148,6 +151,20 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
     }
   };
 
+  const handleEdit = () => {
+    setOpenInEditMode(true);
+    setShowContentSidebar(true);
+  };
+
+  const handleCloseSidebar = () => {
+    setShowContentSidebar(false);
+    setOpenInEditMode(false);
+  };
+
+  const handleTaskUpdateFromSidebar = () => {
+    if (onTaskUpdate) onTaskUpdate();
+  };
+
   const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'completed';
   const canApprove = task.status === 'scheduled' && task.ai_output;
   const canEdit = task.ai_output && task.status !== 'published';
@@ -156,171 +173,181 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
 
   return (
-    <div className="border rounded-lg p-4 space-y-3 relative group">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {getPostTypeIcon(task.post_type)}
-          <span className="font-medium capitalize">{task.post_type}</span>
-          <Badge className={getStatusColor(task.status)}>
-            {task.status}
-          </Badge>
-        </div>
-        
-        <TooltipProvider>
-          <div className="flex gap-2">
-            {task.ai_output && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  handleCopy(task.ai_output);
-                  toast.success('Content copied to clipboard');
-                }}
-              >
-                <Copy className="w-3 h-3 mr-1" />
-                Copy
-              </Button>
-            )}
+    <>
+      <div className="border rounded-lg p-4 space-y-3 relative group">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {getPostTypeIcon(task.post_type)}
+            <span className="font-medium capitalize">{task.post_type}</span>
+            <Badge className={getStatusColor(task.status)}>
+              {task.status}
+            </Badge>
+          </div>
+          
+          <TooltipProvider>
+            <div className="flex gap-2">
+              {task.ai_output && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    handleCopy(task.ai_output);
+                    toast.success('Content copied to clipboard');
+                  }}
+                >
+                  <Copy className="w-3 h-3 mr-1" />
+                  Copy
+                </Button>
+              )}
 
-            {(hasFailedGeneration || isStuckGenerating) && (
+              {(hasFailedGeneration || isStuckGenerating) && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleRetryGeneration}
+                      disabled={retryingGeneration}
+                      className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                    >
+                      <RefreshCw className={`w-3 h-3 mr-1 ${retryingGeneration ? 'animate-spin' : ''}`} />
+                      {retryingGeneration ? 'Retrying...' : 'Retry'}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Retry content generation</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              
+              {canEdit && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleEdit}
+                  className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  Edit
+                </Button>
+              )}
+              
+              {canApprove && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={handleApprove}
+                      disabled={approvingTask}
+                    >
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      {approvingTask ? 'Approving...' : 'Approve'}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Approve this content and send it to the Ready to Post section</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+              
+              {showSocialMediaButton ? (
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={handleSocialMediaPost}
+                >
+                  {task.post_type === 'facebook' ? (
+                    <>
+                      <Facebook className="w-3 h-3 mr-1" />
+                      Post to Facebook
+                    </>
+                  ) : (
+                    <>
+                      <Instagram className="w-3 h-3 mr-1" />
+                      Post to Instagram
+                    </>
+                  )}
+                </Button>
+              ) : task.status === 'completed' && task.post_type !== 'facebook' && task.post_type !== 'instagram' ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => toast.info('Publishing integration coming soon')}
+                >
+                  <ExternalLink className="w-3 h-3 mr-1" />
+                  Publish
+                </Button>
+              ) : null}
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={handleRetryGeneration}
-                    disabled={retryingGeneration}
-                    className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                    onClick={handleDelete}
+                    disabled={deletingTask}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
                   >
-                    <RefreshCw className={`w-3 h-3 mr-1 ${retryingGeneration ? 'animate-spin' : ''}`} />
-                    {retryingGeneration ? 'Retrying...' : 'Retry'}
+                    <Trash2 className="w-3 h-3" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Retry content generation</p>
+                  <p>Delete this content</p>
                 </TooltipContent>
               </Tooltip>
-            )}
-            
-            {canEdit && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => toast.info('Edit functionality would open content editor')}
-                className="border-blue-300 text-blue-600 hover:bg-blue-50"
-              >
-                <Edit className="w-3 h-3 mr-1" />
-                Edit
-              </Button>
-            )}
-            
-            {canApprove && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    onClick={handleApprove}
-                    disabled={approvingTask}
-                  >
-                    <CheckCircle className="w-3 h-3 mr-1" />
-                    {approvingTask ? 'Approving...' : 'Approve'}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Approve this content and send it to the Ready to Post section</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
-            
-            {showSocialMediaButton ? (
-              <Button
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={handleSocialMediaPost}
-              >
-                {task.post_type === 'facebook' ? (
-                  <>
-                    <Facebook className="w-3 h-3 mr-1" />
-                    Post to Facebook
-                  </>
-                ) : (
-                  <>
-                    <Instagram className="w-3 h-3 mr-1" />
-                    Post to Instagram
-                  </>
-                )}
-              </Button>
-            ) : task.status === 'completed' && task.post_type !== 'facebook' && task.post_type !== 'instagram' ? (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => toast.info('Publishing integration coming soon')}
-              >
-                <ExternalLink className="w-3 h-3 mr-1" />
-                Publish
-              </Button>
-            ) : null}
+            </div>
+          </TooltipProvider>
+        </div>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
+        {task.ai_output ? (
+          <div className="bg-gray-50 rounded-lg p-3">
+            <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+              {formatContentForDisplay(task.ai_output)}
+            </div>
+          </div>
+        ) : isGenerating ? (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-blue-800">
+                <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <span className="text-sm">Generating {task.post_type} content...</span>
+              </div>
+              {isStuckGenerating && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={handleDelete}
-                  disabled={deletingTask}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                  onClick={handleRetryGeneration}
+                  disabled={retryingGeneration}
+                  className="border-orange-300 text-orange-600 hover:bg-orange-50 text-xs px-2 py-1"
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <RefreshCw className={`w-3 h-3 ${retryingGeneration ? 'animate-spin' : ''}`} />
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete this content</p>
-              </TooltipContent>
-            </Tooltip>
+              )}
+            </div>
           </div>
-        </TooltipProvider>
+        ) : (
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="text-sm text-gray-500 italic">
+              No content generated yet
+            </div>
+          </div>
+        )}
+
+        {task.scheduled_date && (
+          <p className="text-xs text-gray-500">
+            Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+          </p>
+        )}
       </div>
 
-      {task.ai_output ? (
-        <div className="bg-gray-50 rounded-lg p-3">
-          <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-            {formatContentForDisplay(task.ai_output)}
-          </div>
-        </div>
-      ) : isGenerating ? (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-blue-800">
-              <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-              <span className="text-sm">Generating {task.post_type} content...</span>
-            </div>
-            {isStuckGenerating && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleRetryGeneration}
-                disabled={retryingGeneration}
-                className="border-orange-300 text-orange-600 hover:bg-orange-50 text-xs px-2 py-1"
-              >
-                <RefreshCw className={`w-3 h-3 ${retryingGeneration ? 'animate-spin' : ''}`} />
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-          <div className="text-sm text-gray-500 italic">
-            No content generated yet
-          </div>
-        </div>
-      )}
-
-      {task.scheduled_date && (
-        <p className="text-xs text-gray-500">
-          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-        </p>
-      )}
-    </div>
+      <ContentSidebar
+        task={task}
+        isOpen={showContentSidebar}
+        onClose={handleCloseSidebar}
+        onTaskUpdate={handleTaskUpdateFromSidebar}
+        initialEditMode={openInEditMode}
+      />
+    </>
   );
 };
