@@ -55,7 +55,7 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl bg-white z-[70]">
         <DialogHeader className="bg-white">
-          <DialogTitle className="flex items-center gap-3">
+          <DialogTitle className="flex items-center gap-3 bg-white">
             <div className={`p-2 rounded-lg text-white ${config.color}`}>
               <IconComponent className="w-5 h-5" />
             </div>
@@ -64,27 +64,27 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
         </DialogHeader>
 
         <div className="space-y-4 bg-white">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium">Content</label>
-              <Badge variant="outline">{editedContent.length} characters</Badge>
+          <div className="bg-white">
+            <div className="flex items-center justify-between mb-2 bg-white">
+              <label className="text-sm font-medium bg-white">Content</label>
+              <Badge variant="outline" className="bg-white">{editedContent.length} characters</Badge>
             </div>
             <Textarea
               value={editedContent}
               onChange={(e) => setEditedContent(e.target.value)}
-              className="min-h-[200px] text-sm leading-relaxed resize-none bg-white"
+              className="min-h-[200px] text-sm leading-relaxed resize-none bg-white border-gray-300"
               placeholder={`Write your ${platform} post...`}
             />
           </div>
 
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={onClose}>
+          <div className="flex gap-3 justify-end bg-white">
+            <Button variant="outline" onClick={onClose} className="bg-white">
               Cancel
             </Button>
             <Button
               onClick={handleCopyContent}
               variant="outline"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-white"
             >
               <Copy className="w-4 h-4" />
               Copy Content
