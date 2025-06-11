@@ -31,8 +31,9 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
     }
   }
 
-  // Extract first name from user email
-  const firstName = user?.email?.split('@')[0]?.split('.')[0] || user?.email?.split('@')[0] || "there";
+  // Extract first name from user email and capitalize it properly
+  const extractedName = user?.email?.split('@')[0]?.split('.')[0] || user?.email?.split('@')[0] || "there";
+  const firstName = extractedName.charAt(0).toUpperCase() + extractedName.slice(1).toLowerCase();
 
   // Get the dynamic welcome message for today
   const welcomeMessage = getWelcomeMessage(businessName, firstName);
