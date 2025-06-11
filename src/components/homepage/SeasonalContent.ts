@@ -7,8 +7,8 @@ export const getSeasonalGreeting = () => {
   return { emoji: "❄️", text: "Winter magic!" };
 };
 
-// Fixed function to get a rotating daily welcome message
-export const getWelcomeMessage = (businessName?: string) => {
+// Fixed function to get a rotating daily welcome message with emoji
+export const getWelcomeMessage = (businessName?: string, firstName?: string) => {
   // Use date to create a predictable but changing rotation
   const date = new Date();
   
@@ -20,33 +20,37 @@ export const getWelcomeMessage = (businessName?: string) => {
   
   // Business name or fallback
   const name = businessName || "Garden Center";
+  const userFirstName = firstName || "there";
   
-  // Array of welcome messages with different themes
+  // Array of welcome messages with different themes and emojis
   const welcomeMessages = [
     // Business-themed greetings
-    `Welcome back to your blooming business, ${name}!`,
-    `Ready to grow your garden empire today?`,
-    `The plants are waiting for you, ${name}!`,
+    { text: `Welcome back to your blooming business, ${name}!`, emoji: "🌺" },
+    { text: `Ready to grow your garden empire today, ${userFirstName}?`, emoji: "🌱" },
+    { text: `The plants are waiting for you, ${userFirstName}!`, emoji: "🪴" },
     
     // Seasonal messages
-    `${getSeasonalGreeting().emoji} ${getSeasonalGreeting().text} Let's make it count!`,
-    `Another beautiful day to nurture growth!`,
-    `Garden wisdom awaits you today!`,
+    { text: `${getSeasonalGreeting().emoji} ${getSeasonalGreeting().text} Let's make it count, ${userFirstName}!`, emoji: getSeasonalGreeting().emoji },
+    { text: `Another beautiful day to nurture growth, ${userFirstName}!`, emoji: "🌿" },
+    { text: `Garden wisdom awaits you today, ${userFirstName}!`, emoji: "🧠" },
     
     // Motivation & fun
-    `Let's dig into some marketing magic!`,
-    `Planting seeds of success today?`,
-    `Green thumbs, green profits!`,
+    { text: `Let's dig into some marketing magic, ${userFirstName}!`, emoji: "✨" },
+    { text: `Planting seeds of success today, ${userFirstName}?`, emoji: "🌰" },
+    { text: `Green thumbs, green profits, ${userFirstName}!`, emoji: "💚" },
     
     // Time-based
-    `Rise and shine! The plants are awake too.`,
-    `Good day for garden greatness!`,
-    `Welcome to another fruitful day!`,
+    { text: `Rise and shine, ${userFirstName}! The plants are awake too.`, emoji: "🌅" },
+    { text: `Good day for garden greatness, ${userFirstName}!`, emoji: "⭐" },
+    { text: `Welcome to another fruitful day, ${userFirstName}!`, emoji: "🍎" },
     
-    // Playful
-    `Lettuce celebrate another day of growth!`,
-    `Aloe there! Ready to grow your business?`,
-    `Unbeleafable things await you today!`
+    // Playful with fruits
+    { text: `Orange you glad it's a new day, ${userFirstName}?`, emoji: "🍊" },
+    { text: `Berry excited to see you today, ${userFirstName}!`, emoji: "🍓" },
+    { text: `You're grape at what you do, ${userFirstName}!`, emoji: "🍇" },
+    { text: `Lettuce celebrate another day of growth, ${userFirstName}!`, emoji: "🥬" },
+    { text: `Aloe there, ${userFirstName}! Ready to grow your business?`, emoji: "🌵" },
+    { text: `Unbeleafable things await you today, ${userFirstName}!`, emoji: "🍃" }
   ];
   
   // Pick a message based on the day of the year for daily rotation

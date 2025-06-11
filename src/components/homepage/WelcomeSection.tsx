@@ -1,6 +1,7 @@
 
 import { getSeasonalGreeting, getWelcomeMessage } from './SeasonalContent';
 import { EditableBusinessName } from '@/components/EditableBusinessName';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface WelcomeSectionProps {
   onboardingData: any;
@@ -9,6 +10,7 @@ interface WelcomeSectionProps {
 }
 
 export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStarted }: WelcomeSectionProps) => {
+  const { user } = useAuth();
   const seasonal = getSeasonalGreeting();
   
   // Extract business name from onboarding data with better fallback logic
@@ -29,17 +31,20 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
     }
   }
 
+  // Extract first name from user email
+  const firstName = user?.email?.split('@')[0]?.split('.')[0] || user?.email?.split('@')[0] || "there";
+
   // Get the dynamic welcome message for today
-  const welcomeMessage = getWelcomeMessage(businessName);
+  const welcomeMessage = getWelcomeMessage(businessName, firstName);
 
   return (
     <div className="space-y-6">
       {/* Main Welcome */}
       <div className="text-center">
         <div className="flex items-center justify-center gap-3 mb-4">
-          <span className="seasonal-emoji text-3xl">{seasonal.emoji}</span>
+          <span className="seasonal-emoji text-3xl">{welcomeMessage.emoji || seasonal.emoji}</span>
           <h1 className="text-4xl font-bold text-black">
-            {welcomeMessage}
+            {welcomeMessage.text}
           </h1>
         </div>
         <p className="text-lg text-gray-700 mb-6">
