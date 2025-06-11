@@ -53,7 +53,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
         location_info: profile.location_info || ''
       });
     } else if (!hasAutoPopulated) {
-      // Auto-populate if no profile exists and we haven't done it yet
+      // Only auto-populate if we have actual onboarding data, not sample data
       handleAutoPopulate();
     }
   }, [profile, hasAutoPopulated]);
@@ -64,42 +64,36 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
     setIsAutoPopulating(true);
     
     try {
-      // Get onboarding data from localStorage, or use sample Minter Gardening data
+      // Get onboarding data from localStorage - only use real user data
       let onboardingData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
       let parsedOnboardingData;
       
       if (!onboardingData) {
-        // Use sample Minter Gardening data for demonstration
-        parsedOnboardingData = {
-          aboutBusiness: "Minter Country Garden has been serving our community for 25 years as a family-run business dedicated to helping both novice and experienced gardeners create the garden of their dreams. We offer a wide variety of plants, from edible gardens to drought-tolerant options, and pride ourselves on providing expert advice and quality products that promote harmony with nature.",
-          toneSamples: "Welcome to spring at Minter Country Garden! 🌱 Whether you're a seasoned green thumb or just starting your gardening journey, we're here to help you bloom where you're planted. Our friendly staff loves sharing tips and tricks to help your garden thrive. From pet-friendly plants to low-maintenance beauties, we've got something special waiting for every garden lover. Stop by and let's grow something amazing together!",
-          annualEvents: "Spring Garden Festival (March) - Our biggest event featuring new arrivals, expert workshops, and special pricing. Mother's Day Flower Extravaganza (May) - Beautiful hanging baskets and potted arrangements. Father's Day Garden Tools & Grilling Plants (June) - Herb gardens and outdoor living plants. Halloween Harvest Decorations (October) - Pumpkins, mums, and fall decorating supplies. Holiday Evergreen & Wreath Workshop (December) - Fresh wreaths and holiday arrangements."
-        };
-        
-        // Store this sample data so it appears in the preview
-        localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(parsedOnboardingData));
-        console.log('Using sample Minter Gardening data for demonstration');
-      } else {
-        parsedOnboardingData = JSON.parse(onboardingData);
-      }
-
-      const { data, error } = await supabase.functions.invoke('generate-company-profile', {
-        body: {
-          aboutBusiness: parsedOnboardingData.aboutBusiness,
-          toneSamples: parsedOnboardingData.toneSamples,
-          annualEvents: parsedOnboardingData.annualEvents
-        }
-      });
-
-      if (error) {
-        console.error('Error generating profile:', error);
+        // No onboarding data exists - leave fields blank for new users
+        console.log('No onboarding data found - leaving fields blank for new user');
         setHasAutoPopulated(true);
+        setIsAutoPopulating(false);
         return;
       }
+      
+      parsedOnboardingData = JSON.parse(onboardingData);
+      
+      // Only proceed if we have meaningful onboarding data (not just sample data)
+      if (parsedOnboardingData.aboutBusiness && parsedOnboardingData.aboutBusiness.trim()) {
+        const { data, error } = await supabase.functions.invoke('generate-company-profile', {
+          body: {
+            aboutBusiness: parsedOnboardingData.aboutBusiness,
+            toneSamples: parsedOnboardingData.toneSamples,
+            annualEvents: parsedOnboardingData.annualEvents
+          }
+        });
 
-      if (data.profileData) {
-        setFormData(data.profileData);
-        toast.success('Company profile auto-populated based on your onboarding responses!');
+        if (error) {
+          console.error('Error generating profile:', error);
+        } else if (data.profileData) {
+          setFormData(data.profileData);
+          toast.success('Company profile auto-populated based on your onboarding responses!');
+        }
       }
     } catch (error) {
       console.error('Error in handleAutoPopulate:', error);
