@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +25,7 @@ export const EditableBusinessName = ({
   };
   return <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <span title="Click to edit business name" className="font-semibold cursor-pointer hover:text-garden-green-dark transition-colors text-slate-950">
+        <span title="Click to edit business name" className="font-bold cursor-pointer hover:text-garden-green-dark transition-colors text-slate-950">
           {businessName}
         </span>
       </DialogTrigger>
