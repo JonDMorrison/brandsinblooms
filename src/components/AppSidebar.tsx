@@ -52,13 +52,8 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
   };
 
   const handleNavigation = (item: any) => {
-    if (item.view === "profile") {
-      navigate("/profile");
-    } else if (item.view === "calendar") {
-      navigate("/calendar");
-    } else {
-      onViewChange(item.view as "home" | "kanban" | "calendar" | "team" | "profile");
-    }
+    // Navigate directly to the path for all items
+    navigate(item.path);
   };
 
   return (
@@ -79,22 +74,27 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
           <SidebarGroupLabel className="text-garden-green-dark font-semibold">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild
-                    className={currentView === item.view ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" : "hover:bg-green-100 text-garden-green-dark"}
-                  >
-                    <button
-                      onClick={() => handleNavigation(item)}
-                      className="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200"
+              {menuItems.map((item) => {
+                const isActive = (item.path === "/app" && location.pathname === "/app") || 
+                                (item.path !== "/app" && location.pathname === item.path);
+                
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild
+                      className={isActive ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" : "hover:bg-green-100 text-garden-green-dark"}
                     >
-                      <item.icon className="w-5 h-5" />
-                      <span className="font-medium">{item.title}</span>
-                    </button>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                      <button
+                        onClick={() => handleNavigation(item)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200"
+                      >
+                        <item.icon className="w-5 h-5" />
+                        <span className="font-medium">{item.title}</span>
+                      </button>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
