@@ -78,9 +78,17 @@ export const CompanyProfilePage = () => {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-garden-background">
-        {/* Header with User Menu */}
+        {/* Header with Return Button and User Menu */}
         <div className="p-6 border-b border-green-200 bg-white">
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={handleReturnToDashboard}
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Return To Dashboard
+            </Button>
             <UserMenu />
           </div>
         </div>
@@ -103,17 +111,8 @@ export const CompanyProfilePage = () => {
               onProfileUpdate={handleProfileUpdate}
             />
 
-            {/* Bottom Action Buttons */}
-            <div className="mt-8 flex justify-between items-center">
-              <Button
-                variant="outline"
-                onClick={handleReturnToDashboard}
-                className="flex items-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Return To Dashboard
-              </Button>
-              
+            {/* Bottom Save Button */}
+            <div className="mt-8 flex justify-end">
               <Button
                 onClick={handleSave}
                 disabled={isSaving || !isEditing}
