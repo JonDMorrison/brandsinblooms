@@ -54,6 +54,8 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
   const handleNavigation = (item: any) => {
     if (item.view === "profile") {
       navigate("/profile");
+    } else if (item.view === "calendar") {
+      navigate("/calendar");
     } else {
       onViewChange(item.view as "home" | "kanban" | "calendar" | "team" | "profile");
     }
