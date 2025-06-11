@@ -1,6 +1,12 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useState } from "react";
+import { Edit, Save, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Task {
   id: number;
@@ -21,6 +27,10 @@ interface KanbanBoardProps {
 }
 
 export const KanbanBoard = ({ tasks, onTaskClick, onTaskEdit, onTaskUpdate }: KanbanBoardProps) => {
+  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [editContent, setEditContent] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
   const columns = [
     { id: "planned", title: "Planned", color: "bg-gray-50 border-gray-200" },
     { id: "generating", title: "Generating", color: "bg-blue-50 border-blue-200" },
@@ -37,6 +47,42 @@ export const KanbanBoard = ({ tasks, onTaskClick, onTaskEdit, onTaskUpdate }: Ka
       case "email": return "bg-purple-100 text-purple-800";
       case "blog": return "bg-green-100 text-green-800";
       default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const handleEditStart = (task: Task, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setEditingTaskId(task.id);
+    setEditContent(task.ai_output || "");
+  };
+
+  const handleEditCancel = () => {
+    setEditingTaskId(null);
+    setEditContent("");
+  };
+
+  const handleEditSave = async (taskId: number) => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ ai_output: editContent })
+        .eq('id', taskId);
+
+      if (error) {
+        console.error('Error saving content:', error);
+        toast.error('Failed to save content');
+      } else {
+        toast.success('Content updated successfully');
+        setEditingTaskId(null);
+        setEditContent("");
+        onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error saving content:', error);
+      toast.error('Failed to save content');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -59,32 +105,77 @@ export const KanbanBoard = ({ tasks, onTaskClick, onTaskEdit, onTaskUpdate }: Ka
                 <Card 
                   key={task.id} 
                   className="cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => onTaskClick(task)}
+                  onClick={() => editingTaskId !== task.id && onTaskClick(task)}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <Badge className={getPostTypeColor(task.post_type)}>
                         {task.post_type}
                       </Badge>
-                      <span className="text-xs text-gray-500">
-                        {new Date(task.scheduled_date).toLocaleDateString()}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-500">
+                          {new Date(task.scheduled_date).toLocaleDateString()}
+                        </span>
+                        {task.ai_output && editingTaskId !== task.id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => handleEditStart(task, e)}
+                            className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {task.ai_output ? (
-                      <p className="text-sm text-gray-700 line-clamp-3">
-                        {task.ai_output}
-                      </p>
+                    {editingTaskId === task.id ? (
+                      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                        <Textarea
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="min-h-[80px] text-sm resize-none"
+                          placeholder="Edit your content..."
+                        />
+                        <div className="flex gap-1 justify-end">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={handleEditCancel}
+                            className="h-6 px-2 text-xs"
+                          >
+                            <X className="w-3 h-3 mr-1" />
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleEditSave(task.id)}
+                            disabled={isSaving}
+                            className="h-6 px-2 text-xs bg-green-600 hover:bg-green-700"
+                          >
+                            <Save className="w-3 h-3 mr-1" />
+                            {isSaving ? 'Saving...' : 'Save'}
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
-                      <p className="text-sm text-gray-500 italic">
-                        Content being generated...
-                      </p>
-                    )}
-                    {task.image_idea && (
-                      <p className="text-xs text-green-600 mt-2">
-                        💡 {task.image_idea}
-                      </p>
+                      <>
+                        {task.ai_output ? (
+                          <p className="text-sm text-gray-700 line-clamp-3">
+                            {task.ai_output}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-gray-500 italic">
+                            Content being generated...
+                          </p>
+                        )}
+                        {task.image_idea && (
+                          <p className="text-xs text-green-600 mt-2">
+                            💡 {task.image_idea}
+                          </p>
+                        )}
+                      </>
                     )}
                   </CardContent>
                 </Card>
