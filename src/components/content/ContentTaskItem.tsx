@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -74,6 +75,8 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
     setRetryingGeneration(true);
     
     try {
+      console.log(`Manually retrying content generation for ${task.post_type} task:`, task.id);
+      
       // Reset the task to trigger content generation
       const { error } = await supabase
         .from('content_tasks')
@@ -89,6 +92,41 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
       } else {
         toast.success('Content generation restarted');
         if (onTaskUpdate) onTaskUpdate();
+        
+        // Force a content generation attempt by calling the edge function directly
+        try {
+          const { data: generationData, error: generationError } = await supabase.functions.invoke('generate-content', {
+            body: {
+              postType: task.post_type,
+              campaignTitle: 'Facebook Post Generation',
+              userId: null,
+              enforceCompanyName: true
+            }
+          });
+
+          if (generationError) {
+            console.error('Error in manual content generation:', generationError);
+            toast.error('Failed to generate content automatically');
+          } else if (generationData?.content) {
+            // Update the task with the generated content
+            const { error: updateError } = await supabase
+              .from('content_tasks')
+              .update({ 
+                status: 'scheduled',
+                ai_output: generationData.content 
+              })
+              .eq('id', task.id);
+
+            if (updateError) {
+              console.error('Error updating task with generated content:', updateError);
+            } else {
+              toast.success('Content generated successfully!');
+              if (onTaskUpdate) onTaskUpdate();
+            }
+          }
+        } catch (genError) {
+          console.error('Error calling generate-content function:', genError);
+        }
       }
     } catch (error) {
       console.error('Error retrying content generation:', error);
@@ -116,6 +154,7 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   const canEdit = task.ai_output && task.status !== 'published';
   const isGenerating = task.status === 'generating';
   const hasFailedGeneration = task.status === 'generating' && !task.ai_output;
+  const isStuckGenerating = task.status === 'generating' && !task.ai_output;
 
   return (
     <div className="border rounded-lg p-4 space-y-3 relative group">
@@ -144,7 +183,7 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
               </Button>
             )}
 
-            {hasFailedGeneration && (
+            {(hasFailedGeneration || isStuckGenerating) && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -252,9 +291,22 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
         </div>
       ) : isGenerating ? (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <div className="flex items-center gap-2 text-blue-800">
-            <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-            <span className="text-sm">Generating content...</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-blue-800">
+              <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+              <span className="text-sm">Generating {task.post_type} content...</span>
+            </div>
+            {isStuckGenerating && (
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={handleRetryGeneration}
+                disabled={retryingGeneration}
+                className="border-orange-300 text-orange-600 hover:bg-orange-50 text-xs px-2 py-1"
+              >
+                <RefreshCw className={`w-3 h-3 ${retryingGeneration ? 'animate-spin' : ''}`} />
+              </Button>
+            )}
           </div>
         </div>
       ) : (
