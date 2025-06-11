@@ -32,7 +32,7 @@ export const CompanyProfileFormFields = ({ formData, isEditing, onInputChange }:
           value={formData.company_name}
           onChange={(e) => onInputChange('company_name', e.target.value)}
           disabled={!isEditing}
-          className="text-xl p-4 h-12"
+          className="text-2xl p-4 h-12"
         />
       </div>
 
