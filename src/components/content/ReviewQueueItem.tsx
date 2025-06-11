@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Trash2 } from "lucide-react";
+import { CheckCircle, Trash2, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,9 +14,17 @@ interface ReviewQueueItemProps {
   onClick: (task: any) => void;
   isApproving: boolean;
   onTaskUpdate?: () => void;
+  onEdit?: (task: any, editMode: boolean) => void;
 }
 
-export const ReviewQueueItem = ({ task, onApprove, onClick, isApproving, onTaskUpdate }: ReviewQueueItemProps) => {
+export const ReviewQueueItem = ({ 
+  task, 
+  onApprove, 
+  onClick, 
+  isApproving, 
+  onTaskUpdate,
+  onEdit
+}: ReviewQueueItemProps) => {
   const [deletingTask, setDeletingTask] = useState(false);
 
   const stripHtmlAndFormat = (content: string) => {
@@ -25,6 +33,12 @@ export const ReviewQueueItem = ({ task, onApprove, onClick, isApproving, onTaskU
       .replace(/<[^>]*>/g, '')
       .replace(/\\n/g, ' ')
       .trim();
+  };
+
+  const handleEdit = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (onEdit) onEdit(task, true);
+    else onClick(task); // Fallback to regular click if onEdit not provided
   };
 
   const handleDelete = async (event: React.MouseEvent) => {
@@ -76,6 +90,16 @@ export const ReviewQueueItem = ({ task, onApprove, onClick, isApproving, onTaskU
           )}
         </div>
         <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleEdit}
+            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+          >
+            <Edit className="w-3 h-3 mr-1" />
+            Edit
+          </Button>
+          
           <Button
             size="sm"
             className="bg-green-600 hover:bg-green-700 text-white"

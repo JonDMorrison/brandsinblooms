@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Instagram, Facebook, ExternalLink, Trash2 } from "lucide-react";
+import { Copy, Instagram, Facebook, ExternalLink, Trash2, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,9 +14,10 @@ interface EnhancedReadyToPostItemProps {
   task: any;
   onClick: (task: any) => void;
   onTaskUpdate?: () => void;
+  onEdit?: (task: any, editMode: boolean) => void;
 }
 
-export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: EnhancedReadyToPostItemProps) => {
+export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }: EnhancedReadyToPostItemProps) => {
   const [deletingTask, setDeletingTask] = useState(false);
 
   const handleCopyContent = (event: React.MouseEvent) => {
@@ -24,6 +25,12 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: Enhance
     const cleanContent = stripHtmlAndFormat(task.ai_output);
     navigator.clipboard.writeText(cleanContent);
     toast.success(`${task.post_type} content copied to clipboard`);
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) onEdit(task, true);
+    else onClick(task); // Fallback to regular click if onEdit not provided
   };
 
   const handleSocialMediaPost = (event: React.MouseEvent) => {
@@ -97,6 +104,25 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate }: Enhance
       )}
 
       <div className="flex gap-2 flex-wrap">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleEdit}
+                className="border-blue-300 text-blue-600 hover:bg-blue-50"
+              >
+                <Edit className="w-3 h-3 mr-1" />
+                Edit
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Edit content</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>

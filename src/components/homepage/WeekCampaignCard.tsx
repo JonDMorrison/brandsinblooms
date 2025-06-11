@@ -14,6 +14,7 @@ interface WeekCampaignCardProps {
   isGeneratingTasks: boolean;
   onTaskClick: (task: any) => void;
   onTaskUpdate?: () => void;
+  onEdit?: (task: any, editMode: boolean) => void;
 }
 
 export const WeekCampaignCard = ({ 
@@ -21,7 +22,8 @@ export const WeekCampaignCard = ({
   campaignTasks, 
   isGeneratingTasks, 
   onTaskClick, 
-  onTaskUpdate
+  onTaskUpdate,
+  onEdit
 }: WeekCampaignCardProps) => {
   const [approvingTasks, setApprovingTasks] = useState<Set<string>>(new Set());
 
@@ -65,6 +67,15 @@ export const WeekCampaignCard = ({
         newSet.delete(taskId);
         return newSet;
       });
+    }
+  };
+
+  const handleEdit = (task: any, event: React.MouseEvent) => {
+    event.stopPropagation();
+    if (onEdit) {
+      onEdit(task, true);
+    } else {
+      onTaskClick(task);
     }
   };
   
@@ -211,7 +222,12 @@ export const WeekCampaignCard = ({
                             <CheckCircle className="w-3 h-3 mr-1" />
                             {approvingTasks.has(String(task.id)) ? "Approve" : "Approve"}
                           </Button>
-                          <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                            onClick={(e) => handleEdit(task, e)}
+                          >
                             <Edit className="w-3 h-3 mr-1" />
                             Edit
                           </Button>
@@ -227,7 +243,12 @@ export const WeekCampaignCard = ({
                           <Badge className="bg-green-100 text-green-800 font-medium">
                             ✅ Approved
                           </Badge>
-                          <Button size="sm" variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="border-gray-300 text-gray-700 hover:bg-gray-100"
+                            onClick={(e) => handleEdit(task, e)}
+                          >
                             <Edit className="w-3 h-3 mr-1" />
                             Edit
                           </Button>

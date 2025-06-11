@@ -2,10 +2,14 @@
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ContentSidebar } from "@/components/ContentSidebar";
 
 const KanbanPage = () => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [showSidebar, setShowSidebar] = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
   const fetchTasks = async () => {
     try {
@@ -34,8 +38,20 @@ const KanbanPage = () => {
   }, []);
 
   const handleTaskClick = (task: any) => {
-    console.log('Task clicked:', task);
-    // You can add task detail modal logic here
+    setSelectedTask(task);
+    setShowSidebar(true);
+    setEditMode(false);
+  };
+
+  const handleEditTask = (task: any, editMode: boolean) => {
+    setSelectedTask(task);
+    setShowSidebar(true);
+    setEditMode(editMode);
+  };
+
+  const handleCloseSidebar = () => {
+    setShowSidebar(false);
+    setEditMode(false);
   };
 
   const handleTaskUpdate = () => {
@@ -60,8 +76,23 @@ const KanbanPage = () => {
         <p className="text-garden-green font-medium">Manage your content creation workflow</p>
       </div>
       <div className="p-6">
-        <KanbanBoard tasks={tasks} onTaskClick={handleTaskClick} onTaskUpdate={handleTaskUpdate} />
+        <KanbanBoard 
+          tasks={tasks} 
+          onTaskClick={handleTaskClick} 
+          onTaskEdit={handleEditTask}
+          onTaskUpdate={handleTaskUpdate} 
+        />
       </div>
+
+      {selectedTask && (
+        <ContentSidebar
+          task={selectedTask}
+          isOpen={showSidebar}
+          onClose={handleCloseSidebar}
+          onTaskUpdate={handleTaskUpdate}
+          initialEditMode={editMode}
+        />
+      )}
     </div>
   );
 };

@@ -1,7 +1,6 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy, ExternalLink, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";
@@ -9,13 +8,20 @@ import { stripHtmlAndFormat } from "./contentUtils";
 interface ReadyToPostItemProps {
   task: any;
   onClick: (task: any) => void;
+  onEdit?: (task: any, editMode: boolean) => void;
 }
 
-export const ReadyToPostItem = ({ task, onClick }: ReadyToPostItemProps) => {
+export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps) => {
   const handleCopyContent = (content: string, postType: string) => {
     const cleanContent = stripHtmlAndFormat(content);
     navigator.clipboard.writeText(cleanContent);
     toast.success(`${postType} content copied to clipboard`);
+  };
+  
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEdit) onEdit(task, true);
+    else onClick(task); // Fallback to regular click if onEdit not provided
   };
 
   return (
@@ -34,7 +40,17 @@ export const ReadyToPostItem = ({ task, onClick }: ReadyToPostItemProps) => {
             ✅ Ready
           </Badge>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleEdit}
+            className="h-7 px-2"
+          >
+            <Edit className="w-3 h-3 mr-1" />
+            Edit
+          </Button>
+          
           <Button
             size="sm"
             variant="ghost"
@@ -46,6 +62,7 @@ export const ReadyToPostItem = ({ task, onClick }: ReadyToPostItemProps) => {
           >
             <Copy className="w-3 h-3" />
           </Button>
+          
           <Button
             size="sm"
             variant="ghost"
