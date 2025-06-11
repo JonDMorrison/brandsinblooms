@@ -96,9 +96,10 @@ Location Info: ${companyProfile.location_info || ''}`;
 6. NATURAL FLOW: Write in flowing paragraphs, not lists or formatted blocks
 
 🚨 ABSOLUTE PROHIBITIONS (VIOLATION = IMMEDIATE REGENERATION):
+- NO "Welcome to" phrases - ABSOLUTELY FORBIDDEN
+- NO week numbers or week references (week 1, week 23, this week, etc.) - ABSOLUTELY FORBIDDEN
 - NO "Green Thumbs", "green thumb", or any variation
 - NO bullet points (•), numbered lists (1., 2., 3.), or dashes (-)
-- NO "Welcome to" openings or week number references
 - NO emojis anywhere in content
 - NO square bracket placeholders like [Company Name], [Region], [Location]
 - NO markdown formatting like **bold**, *italic*, or \`code\`
@@ -110,7 +111,8 @@ CONTENT MUST BE:
 - Broken into short, mobile-friendly paragraphs
 - Completely free of any placeholder text
 - Specific to the "${campaignTitle}" theme
-- Authentic and personal without generic references`;
+- Authentic and personal without generic references
+- NEVER mention weeks, week numbers, or use "Welcome to" phrases`;
   
   return prompt;
 }

@@ -59,6 +59,8 @@ export const FORBIDDEN_PATTERNS = [
   /welcome\s*to/gi,
   /week\s*\d+/gi,
   /this\s*week/gi,
+  /week\s*number/gi,
+  /\bweek\s*(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty)\b/gi,
   /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu,
   /^\s*[-•]\s/gm,
   /^\s*\d+\.\s/gm,
