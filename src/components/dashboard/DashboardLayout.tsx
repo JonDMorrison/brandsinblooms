@@ -1,17 +1,15 @@
 
 import { ReactNode } from "react";
 import { AppSidebar } from "@/components/AppSidebar";
-import { DashboardHeader } from "./DashboardHeader";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  currentView: string;
-  onViewChange: (view: "home" | "kanban" | "calendar" | "team" | "profile") => void;
+  currentView: "home" | "calendar" | "team" | "profile";
+  onViewChange: (view: "home" | "calendar" | "team" | "profile") => void;
   onboardingData: any;
-  onBusinessNameChange: (newName: string) => void;
-  onCampaignCreated: () => void;
-  isLoading?: boolean;
+  onBusinessNameChange?: (newName: string) => void;
+  onCampaignCreated?: () => void;
 }
 
 export const DashboardLayout = ({
@@ -20,28 +18,21 @@ export const DashboardLayout = ({
   onViewChange,
   onboardingData,
   onBusinessNameChange,
-  onCampaignCreated,
-  isLoading = false
+  onCampaignCreated
 }: DashboardLayoutProps) => {
-  const validCurrentView = currentView as "home" | "kanban" | "calendar" | "team" | "profile";
-
   return (
     <SidebarProvider>
-      <AppSidebar 
-        currentView={validCurrentView}
-        onViewChange={onViewChange}
-        onboardingData={onboardingData}
-        onBusinessNameChange={onBusinessNameChange}
-      />
-      <SidebarInset className="flex flex-col min-h-screen">
-        <DashboardHeader 
-          currentView={validCurrentView}
-          onCampaignCreated={onCampaignCreated}
+      <div className="flex min-h-screen w-full bg-garden-background">
+        <AppSidebar
+          currentView={currentView}
+          onViewChange={onViewChange}
+          onboardingData={onboardingData}
+          onBusinessNameChange={onBusinessNameChange}
         />
-        <main className="flex-1 bg-garden-background">
+        <main className="flex-1 overflow-auto">
           {children}
         </main>
-      </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 };

@@ -1,8 +1,9 @@
 
 import { Button } from "@/components/ui/button";
-import { LogIn } from "lucide-react";
+import { LogIn, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "@/components/UserMenu";
+import { useNavigate } from "react-router-dom";
 
 interface LandingPageHeaderProps {
   onLogin: () => void;
@@ -11,11 +12,28 @@ interface LandingPageHeaderProps {
 
 export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageHeaderProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleReturnToDashboard = () => {
+    navigate('/app');
+  };
 
   return (
     <nav className="flex justify-between items-center px-6 py-4">
-      <div className="text-2xl font-bold text-garden-green-dark">
-        BloomSuite
+      <div className="flex items-center gap-4">
+        {user && (
+          <Button 
+            onClick={handleReturnToDashboard}
+            variant="outline"
+            className="border-garden-green text-garden-green hover:bg-garden-green hover:text-white"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Return to Dashboard
+          </Button>
+        )}
+        <div className="text-2xl font-bold text-garden-green-dark">
+          BloomSuite
+        </div>
       </div>
       <div className="flex items-center gap-4">
         {user && showUserMenu ? (

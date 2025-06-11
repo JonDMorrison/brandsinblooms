@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
@@ -14,7 +13,7 @@ const Index = () => {
   const [showLanding, setShowLanding] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
-  const [currentView, setCurrentView] = useState<"home" | "kanban" | "calendar" | "team" | "profile">("home");
+  const [currentView, setCurrentView] = useState<"home" | "calendar" | "team" | "profile">("home");
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
