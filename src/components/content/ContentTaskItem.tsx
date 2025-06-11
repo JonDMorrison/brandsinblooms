@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -298,7 +297,7 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
             </div>
             {isStuckGenerating && (
               <Button
-                size="xs"
+                size="sm"
                 variant="outline"
                 onClick={handleRetryGeneration}
                 disabled={retryingGeneration}
