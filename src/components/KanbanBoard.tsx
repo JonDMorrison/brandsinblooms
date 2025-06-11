@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Task {
-  id: number;
+  id: string;
   status: string;
   scheduled_date: string;
   ai_output: string;
@@ -27,7 +27,7 @@ interface KanbanBoardProps {
 }
 
 export const KanbanBoard = ({ tasks, onTaskClick, onTaskEdit, onTaskUpdate }: KanbanBoardProps) => {
-  const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -61,7 +61,7 @@ export const KanbanBoard = ({ tasks, onTaskClick, onTaskEdit, onTaskUpdate }: Ka
     setEditContent("");
   };
 
-  const handleEditSave = async (taskId: number) => {
+  const handleEditSave = async (taskId: string) => {
     setIsSaving(true);
     try {
       const { error } = await supabase
