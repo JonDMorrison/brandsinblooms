@@ -1,4 +1,3 @@
-
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,7 +32,7 @@ export const CompanyProfileFormFields = ({ formData, isEditing, onInputChange }:
           value={formData.company_name}
           onChange={(e) => onInputChange('company_name', e.target.value)}
           disabled={!isEditing}
-          className="text-lg p-4 h-12"
+          className="text-xl p-4 h-12"
         />
       </div>
 
