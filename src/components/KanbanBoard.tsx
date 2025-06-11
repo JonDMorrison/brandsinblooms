@@ -16,10 +16,11 @@ interface Task {
 interface KanbanBoardProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
+  onTaskEdit: (task: Task, editMode: boolean) => void;
   onTaskUpdate: () => void;
 }
 
-export const KanbanBoard = ({ tasks, onTaskClick, onTaskUpdate }: KanbanBoardProps) => {
+export const KanbanBoard = ({ tasks, onTaskClick, onTaskEdit, onTaskUpdate }: KanbanBoardProps) => {
   const columns = [
     { id: "planned", title: "Planned", color: "bg-gray-50 border-gray-200" },
     { id: "generating", title: "Generating", color: "bg-blue-50 border-blue-200" },
