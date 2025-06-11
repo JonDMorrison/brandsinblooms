@@ -7,6 +7,48 @@ export const getSeasonalGreeting = () => {
   return { emoji: "❄️", text: "Winter magic!" };
 };
 
+// New function to get a rotating daily welcome message
+export const getWelcomeMessage = (businessName?: string) => {
+  // Use date to create a predictable but changing rotation
+  const date = new Date();
+  const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+  
+  // Business name or fallback
+  const name = businessName || "Garden Center";
+  
+  // Array of welcome messages with different themes
+  const welcomeMessages = [
+    // Business-themed greetings
+    `Welcome back to your blooming business, ${name}!`,
+    `Ready to grow your garden empire today?`,
+    `The plants are waiting for you, ${name}!`,
+    
+    // Seasonal messages
+    `${getSeasonalGreeting().emoji} ${getSeasonalGreeting().text} Let's make it count!`,
+    `Another beautiful day to nurture growth!`,
+    `Garden wisdom awaits you today!`,
+    
+    // Motivation & fun
+    `Let's dig into some marketing magic!`,
+    `Planting seeds of success today?`,
+    `Green thumbs, green profits!`,
+    
+    // Time-based
+    `Rise and shine! The plants are awake too.`,
+    `Good day for garden greatness!`,
+    `Welcome to another fruitful day!`,
+    
+    // Playful
+    `Lettuce celebrate another day of growth!`,
+    `Aloe there! Ready to grow your business?`,
+    `Unbeleafable things await you today!`
+  ];
+  
+  // Pick a message based on the day of the year for daily rotation
+  const messageIndex = dayOfYear % welcomeMessages.length;
+  return welcomeMessages[messageIndex];
+};
+
 export const getSeasonalContent = () => {
   const month = new Date().getMonth() + 1;
   
