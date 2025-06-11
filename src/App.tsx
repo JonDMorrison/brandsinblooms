@@ -18,7 +18,6 @@ import NotFound from "./pages/NotFound";
 import OnboardingPage from "./pages/OnboardingPage";
 import ProfilePage from "./pages/ProfilePage";
 import CalendarPage from "./pages/CalendarPage";
-import KanbanPage from "./pages/KanbanPage";
 import TeamPage from "./pages/TeamPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ContentLibraryPage from "./pages/ContentLibraryPage";
@@ -80,6 +79,9 @@ const App = () => (
                 <Route path="/login" element={<Navigate to="/auth" replace />} />
                 <Route path="/get-started" element={<Navigate to="/auth" replace />} />
                 
+                {/* Redirect removed Kanban route to dashboard */}
+                <Route path="/kanban" element={<Navigate to="/app" replace />} />
+                
                 {/* Protected routes - require authentication */}
                 <Route 
                   path="/app" 
@@ -127,16 +129,6 @@ const App = () => (
                     <ProtectedRoute>
                       <ErrorBoundary>
                         <CalendarPage />
-                      </ErrorBoundary>
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/kanban" 
-                  element={
-                    <ProtectedRoute>
-                      <ErrorBoundary>
-                        <KanbanPage />
                       </ErrorBoundary>
                     </ProtectedRoute>
                   } 

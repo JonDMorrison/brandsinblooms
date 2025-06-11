@@ -1,13 +1,12 @@
-
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, BarChart3, Home, Leaf, Building, CreditCard } from "lucide-react";
+import { Calendar, Users, Settings, Home, Leaf, Building, CreditCard } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
 import { useNavigate, useLocation } from "react-router-dom";
 
 interface AppSidebarProps {
-  currentView: "home" | "kanban" | "calendar" | "team" | "profile";
-  onViewChange: (view: "home" | "kanban" | "calendar" | "team" | "profile") => void;
+  currentView: "home" | "calendar" | "team" | "profile";
+  onViewChange: (view: "home" | "calendar" | "team" | "profile") => void;
   onboardingData: any;
   onBusinessNameChange?: (newName: string) => void;
 }
@@ -18,7 +17,6 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
 
   const menuItems = [
     { title: "Dashboard", view: "home", icon: Home, path: "/app" },
-    { title: "Content Pipeline", view: "kanban", icon: BarChart3, path: "/kanban" },
     { title: "Campaign Calendar", view: "calendar", icon: Calendar, path: "/calendar" },
     { title: "Company Profile", view: "profile", icon: Building, path: "/profile" },
   ];
