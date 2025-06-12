@@ -30,23 +30,25 @@ interface CalendarViewProps {
   onDataUpdate?: () => void;
 }
 
-export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarViewProps) => {
-  const [localCampaigns, setLocalCampaigns] = useState(campaigns);
+export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: CalendarViewProps) => {
+  const [localCampaigns, setLocalCampaigns] = useState<Campaign[]>(campaigns);
   const currentYear = new Date().getFullYear();
   const currentWeekNumber = getCurrentWeekNumber();
 
   // Update local campaigns when props change
   useEffect(() => {
-    setLocalCampaigns(campaigns);
+    if (Array.isArray(campaigns)) {
+      setLocalCampaigns(campaigns);
+    }
   }, [campaigns]);
 
-  // Check if campaigns need AI-generated themes
-  const campaignsNeedingThemes = localCampaigns.filter(campaign => 
-    !campaign.theme || campaign.theme.includes("Summer Heat Solutions") || campaign.theme === campaign.title
-  );
+  // Check if campaigns need AI-generated themes - add safety check
+  const campaignsNeedingThemes = Array.isArray(localCampaigns) ? localCampaigns.filter(campaign => 
+    !campaign?.theme || campaign.theme.includes("Summer Heat Solutions") || campaign.theme === campaign.title
+  ) : [];
 
-  // Sort campaigns starting with current week, then subsequent weeks in order
-  const sortedCampaigns = [...localCampaigns].sort((a, b) => {
+  // Sort campaigns starting with current week, then subsequent weeks in order - add safety check
+  const sortedCampaigns = Array.isArray(localCampaigns) ? [...localCampaigns].sort((a, b) => {
     // Calculate order starting from current week
     const aOrder = a.week_number >= currentWeekNumber 
       ? a.week_number - currentWeekNumber
@@ -57,28 +59,34 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
       : (52 - currentWeekNumber) + b.week_number;
     
     return aOrder - bOrder;
-  });
+  }) : [];
 
   const groupedCampaigns = sortedCampaigns.reduce((acc, campaign) => {
-    const week = `Week ${campaign.week_number}`;
-    if (!acc[week]) acc[week] = [];
-    acc[week].push(campaign);
+    if (campaign && typeof campaign.week_number === 'number') {
+      const week = `Week ${campaign.week_number}`;
+      if (!acc[week]) acc[week] = [];
+      acc[week].push(campaign);
+    }
     return acc;
   }, {} as Record<string, Campaign[]>);
 
   const handleThemeUpdate = (campaignId: string, newTheme: string, newDescription?: string) => {
     setLocalCampaigns(prev => 
       prev.map(campaign => 
-        campaign.id.toString() === campaignId 
+        campaign?.id?.toString() === campaignId 
           ? { ...campaign, theme: newTheme, description: newDescription }
           : campaign
       )
     );
-    onDataUpdate?.();
+    if (onDataUpdate) {
+      onDataUpdate();
+    }
   };
 
   const handleThemesGenerated = () => {
-    onDataUpdate?.();
+    if (onDataUpdate) {
+      onDataUpdate();
+    }
   };
 
   return (
@@ -118,21 +126,31 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
 
       {/* Weekly Campaign Cards */}
       <div className="space-y-4">
-        {Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => {
-          const weekNumber = weekCampaigns[0].week_number;
-          const isCurrentWeek = weekNumber === currentWeekNumber;
-          
-          return (
-            <WeekCard
-              key={week}
-              week={week}
-              weekCampaigns={weekCampaigns}
-              currentYear={currentYear}
-              isCurrentWeek={isCurrentWeek}
-              onThemeUpdate={handleThemeUpdate}
-            />
-          );
-        })}
+        {Object.entries(groupedCampaigns).length > 0 ? (
+          Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => {
+            if (!weekCampaigns || weekCampaigns.length === 0) return null;
+            
+            const weekNumber = weekCampaigns[0]?.week_number;
+            if (typeof weekNumber !== 'number') return null;
+            
+            const isCurrentWeek = weekNumber === currentWeekNumber;
+            
+            return (
+              <WeekCard
+                key={week}
+                week={week}
+                weekCampaigns={weekCampaigns}
+                currentYear={currentYear}
+                isCurrentWeek={isCurrentWeek}
+                onThemeUpdate={handleThemeUpdate}
+              />
+            );
+          })
+        ) : (
+          <div className="text-center py-12 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">No campaigns found. Create your first campaign to get started!</p>
+          </div>
+        )}
       </div>
     </div>
   );
