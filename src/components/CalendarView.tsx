@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Palette, Sparkles } from "lucide-react";
 import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
 import { WeekCard } from "./calendar/WeekCard";
@@ -36,9 +36,9 @@ export const CalendarView = ({ campaigns, tasks = [], onDataUpdate }: CalendarVi
   const currentWeekNumber = getCurrentWeekNumber();
 
   // Update local campaigns when props change
-  useState(() => {
+  useEffect(() => {
     setLocalCampaigns(campaigns);
-  });
+  }, [campaigns]);
 
   // Check if campaigns need AI-generated themes
   const campaignsNeedingThemes = localCampaigns.filter(campaign => 

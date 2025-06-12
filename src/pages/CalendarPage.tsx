@@ -1,8 +1,8 @@
 
 import { CalendarView } from "@/components/CalendarView";
-import { UserMenu } from "@/components/UserMenu";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 
 const CalendarPage = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -43,38 +43,31 @@ const CalendarPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-primary font-medium">Loading calendar...</p>
+      <ProtectedPageWrapper>
+        <div className="min-h-screen flex items-center justify-center bg-white">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-primary font-medium">Loading calendar...</p>
+          </div>
         </div>
-      </div>
+      </ProtectedPageWrapper>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white w-full overflow-x-hidden">
-      {/* Fixed UserMenu - always visible in top right */}
-      <div className="fixed top-4 right-4 z-50">
-        <UserMenu />
+    <ProtectedPageWrapper>
+      <div className="p-6 border-b border-green-200 bg-white">
+        <h1 className="text-3xl font-bold text-garden-green-dark">Campaign Calendar</h1>
+        <p className="text-garden-green font-medium">View and schedule your marketing campaigns</p>
       </div>
-      
-      <div className="p-4 sm:p-6 border-b border-gray-200 bg-white">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-black truncate">Campaign Calendar</h1>
-            <p className="text-gray-600 font-medium">View and schedule your marketing campaigns</p>
-          </div>
-        </div>
-      </div>
-      <div className="p-4 sm:p-6 bg-white w-full">
+      <div className="p-6 bg-white w-full">
         <CalendarView 
           campaigns={campaigns} 
           tasks={tasks}
           onDataUpdate={fetchData}
         />
       </div>
-    </div>
+    </ProtectedPageWrapper>
   );
 };
 
