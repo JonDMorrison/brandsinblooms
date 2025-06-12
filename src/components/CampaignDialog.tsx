@@ -7,12 +7,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CalendarIcon, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { generateThemeDescription } from "./calendar/ThemeDescriptionGenerator";
+import { getCurrentWeekNumber } from "./homepage/homepageUtils";
 
 interface CampaignDialogProps {
   onCampaignCreated?: () => void;
@@ -25,13 +27,43 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
   const [title, setTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [eventDate, setEventDate] = useState<Date>();
-  const [promotionStartDate, setPromotionStartDate] = useState<Date>();
+  const [selectedWeek, setSelectedWeek] = useState<string>("");
   const { toast } = useToast();
+
+  const currentWeekNumber = getCurrentWeekNumber();
+
+  // Generate week options (current week + next 12 weeks)
+  const generateWeekOptions = () => {
+    const options = [];
+    for (let i = 0; i < 13; i++) {
+      const weekNumber = ((currentWeekNumber + i - 1) % 52) + 1;
+      const isCurrentWeek = i === 0;
+      options.push({
+        value: weekNumber.toString(),
+        label: `Week ${weekNumber}${isCurrentWeek ? ' (Current Week)' : ''}`
+      });
+    }
+    return options;
+  };
+
+  const calculateStartDate = (weekNumber: number) => {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    
+    // Calculate the start of the year
+    const startOfYear = new Date(currentYear, 0, 1);
+    
+    // Calculate the start date for the selected week
+    const daysToAdd = (weekNumber - 1) * 7;
+    const weekStartDate = new Date(startOfYear.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    
+    return weekStartDate.toISOString().split('T')[0];
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!title.trim() || !eventDate || !promotionStartDate) {
+    if (!title.trim() || !eventDate || !selectedWeek) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields",
@@ -43,11 +75,8 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
     setLoading(true);
 
     try {
-      // Calculate week number from promotion start date for database compatibility
-      const promotionStartYear = promotionStartDate.getFullYear();
-      const firstDayOfYear = new Date(promotionStartYear, 0, 1);
-      const pastDaysOfYear = (promotionStartDate.getTime() - firstDayOfYear.getTime()) / 86400000;
-      const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+      const weekNumber = parseInt(selectedWeek);
+      const startDate = calculateStartDate(weekNumber);
 
       // Generate description for the theme
       let themeDescription = "";
@@ -75,7 +104,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
         .insert({
           title: title.trim(),
           prompt: prompt.trim() || null,
-          start_date: format(promotionStartDate, 'yyyy-MM-dd'),
+          start_date: startDate,
           week_number: weekNumber,
           theme: title.trim(),
           description: themeDescription
@@ -92,7 +121,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       setTitle("");
       setPrompt("");
       setEventDate(undefined);
-      setPromotionStartDate(undefined);
+      setSelectedWeek("");
       setOpen(false);
       
       onCampaignCreated?.();
@@ -161,29 +190,19 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
           </div>
 
           <div className="space-y-2">
-            <Label>Start Promoting On *</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !promotionStartDate && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {promotionStartDate ? format(promotionStartDate, "PPP") : "When to start promoting?"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={promotionStartDate}
-                  onSelect={setPromotionStartDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <Label>Schedule for Week *</Label>
+            <Select value={selectedWeek} onValueChange={setSelectedWeek}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a week for the campaign" />
+              </SelectTrigger>
+              <SelectContent>
+                {generateWeekOptions().map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

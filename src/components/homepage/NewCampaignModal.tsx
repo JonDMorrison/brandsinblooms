@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentWeekNumber } from "./homepageUtils";
@@ -23,8 +24,39 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
+  const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const currentWeekNumber = getCurrentWeekNumber();
+
+  // Generate week options (current week + next 12 weeks)
+  const generateWeekOptions = () => {
+    const options = [];
+    for (let i = 0; i < 13; i++) {
+      const weekNumber = ((currentWeekNumber + i - 1) % 52) + 1;
+      const isCurrentWeek = i === 0;
+      options.push({
+        value: weekNumber.toString(),
+        label: `Week ${weekNumber}${isCurrentWeek ? ' (Current Week)' : ''}`
+      });
+    }
+    return options;
+  };
+
+  const calculateStartDate = (weekNumber: number) => {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    
+    // Calculate the start of the year
+    const startOfYear = new Date(currentYear, 0, 1);
+    
+    // Calculate the start date for the selected week
+    const daysToAdd = (weekNumber - 1) * 7;
+    const weekStartDate = new Date(startOfYear.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+    
+    return weekStartDate.toISOString().split('T')[0];
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,13 +76,21 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       return;
     }
 
+    if (!selectedWeek) {
+      setError("Please select a week for the campaign");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
     try {
-      console.log('NewCampaignModal: Creating campaign:', title);
+      console.log('NewCampaignModal: Creating campaign:', title, 'for week:', selectedWeek);
 
       const campaignPrompt = `Create a marketing campaign for "${title}" ${theme ? `with theme: ${theme}` : ''} ${description ? `- ${description}` : ''}. Generate engaging content that promotes this campaign effectively.`;
+
+      const weekNumber = parseInt(selectedWeek);
+      const startDate = calculateStartDate(weekNumber);
 
       const { data, error: insertError } = await supabase
         .from('campaigns')
@@ -59,8 +99,8 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
           description: description.trim() || null,
           theme: theme.trim() || null,
           prompt: campaignPrompt,
-          start_date: new Date().toISOString().split('T')[0],
-          week_number: getCurrentWeekNumber(),
+          start_date: startDate,
+          week_number: weekNumber,
           source: 'quick_action'
         })
         .select()
@@ -77,6 +117,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       setTitle("");
       setDescription("");
       setTheme("");
+      setSelectedWeek("");
       setError(null);
 
       onCampaignCreated();
@@ -96,6 +137,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       setTitle("");
       setDescription("");
       setTheme("");
+      setSelectedWeek("");
       setError(null);
       onOpenChange(false);
     }
@@ -132,6 +174,24 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               className="border-garden-green-light focus:border-garden-green"
               disabled={loading}
             />
+          </div>
+
+          <div>
+            <Label htmlFor="week" className="text-garden-green-dark">
+              Schedule for Week *
+            </Label>
+            <Select value={selectedWeek} onValueChange={setSelectedWeek} disabled={loading}>
+              <SelectTrigger className="border-garden-green-light focus:border-garden-green">
+                <SelectValue placeholder="Select a week for the campaign" />
+              </SelectTrigger>
+              <SelectContent>
+                {generateWeekOptions().map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div>
@@ -174,7 +234,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim() || loading}
+              disabled={!title.trim() || !selectedWeek || loading}
               className="bg-garden-green hover:bg-garden-green-dark text-white"
             >
               {loading ? (
