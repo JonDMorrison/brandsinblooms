@@ -34,11 +34,13 @@ export const DashboardContent = ({
   } = useDashboardData();
 
   const handleTaskClick = (task: any) => {
+    console.log('DashboardContent: Task clicked:', task);
     setSelectedTask(task);
     setIsSidebarOpen(true);
   };
 
   const handleSidebarClose = () => {
+    console.log('DashboardContent: Closing sidebar');
     setIsSidebarOpen(false);
     setSelectedTask(null);
   };
