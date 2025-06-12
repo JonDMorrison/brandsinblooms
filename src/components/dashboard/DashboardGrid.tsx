@@ -1,6 +1,7 @@
 
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
 import { CustomCampaignsSection } from "@/components/dashboard/CustomCampaignsSection";
+import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 
 interface DashboardGridProps {
   activeCampaign: any;
@@ -55,6 +56,13 @@ export const DashboardGrid = ({
         onCampaignUpdate={onCampaignUpdate}
         onCampaignDelete={onCampaignDelete}
         onCreateCampaign={onCreateCampaign}
+      />
+
+      {/* Ready To Post Section */}
+      <ReadyToPostCard 
+        tasks={tasks}
+        onTaskClick={onTaskClick}
+        onTaskUpdate={onTaskUpdate}
       />
     </div>
   );
