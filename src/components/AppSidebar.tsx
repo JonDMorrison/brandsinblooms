@@ -1,6 +1,7 @@
+
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, Home, Leaf, Building, CreditCard } from "lucide-react";
+import { Calendar, Users, Settings, Home, Leaf, Building, CreditCard, BarChart3, BookOpen } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -18,6 +19,8 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
   const menuItems = [
     { title: "Dashboard", view: "home", icon: Home, path: "/app" },
     { title: "Campaign Calendar", view: "calendar", icon: Calendar, path: "/calendar" },
+    { title: "Analytics", view: "analytics", icon: BarChart3, path: "/analytics" },
+    { title: "Content Library", view: "content-library", icon: BookOpen, path: "/content-library" },
     { title: "Company Profile", view: "profile", icon: Building, path: "/profile" },
   ];
 
@@ -106,7 +109,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
                   <button 
                     onClick={() => navigate("/team")}
                     className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
-                      currentView === "team" 
+                      location.pathname === "/team" 
                         ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
                         : "hover:bg-green-100 text-garden-green-dark"
                     }`}

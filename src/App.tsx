@@ -12,6 +12,7 @@ import { TrialBanner } from "@/components/TrialBanner";
 import { LandingPage } from "@/components/LandingPage";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PublicRoute } from "@/components/PublicRoute";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -82,7 +83,7 @@ const App = () => (
                 {/* Redirect removed Kanban route to dashboard */}
                 <Route path="/kanban" element={<Navigate to="/app" replace />} />
                 
-                {/* Protected routes - require authentication */}
+                {/* Protected routes with sidebar - require authentication */}
                 <Route 
                   path="/app" 
                   element={

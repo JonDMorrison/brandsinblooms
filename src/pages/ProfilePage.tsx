@@ -1,8 +1,13 @@
 
 import { CompanyProfilePage } from "@/components/CompanyProfilePage";
+import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 
 const ProfilePage = () => {
-  return <CompanyProfilePage />;
+  return (
+    <ProtectedPageWrapper>
+      <CompanyProfilePage />
+    </ProtectedPageWrapper>
+  );
 };
 
 export default ProfilePage;

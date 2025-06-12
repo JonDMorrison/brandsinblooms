@@ -2,6 +2,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { Navigate } from "react-router-dom";
+import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 
 const AdminPage = () => {
   const { user } = useAuth();
@@ -12,11 +13,11 @@ const AdminPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-garden-background">
+    <ProtectedPageWrapper>
       <div className="max-w-7xl mx-auto p-6">
         <AdminDashboard />
       </div>
-    </div>
+    </ProtectedPageWrapper>
   );
 };
 
