@@ -76,12 +76,12 @@ export const useContentGeneration = () => {
         console.log(`🤖 Generating content for ${task.post_type} task:`, task.id);
 
         try {
-          // Update status to generating
+          // Update task status to generating first
           await supabase
             .from('content_tasks')
             .update({ status: 'generating' })
             .eq('id', task.id);
-
+          
           let aiOutput = '';
           let validationAttempts = 1;
 
@@ -142,12 +142,12 @@ export const useContentGeneration = () => {
             console.log(`✅ ${task.post_type} content passed validation on first attempt`);
           }
 
-          // Update task with generated content
+          // Update task with generated content and set to draft for review
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: aiOutput,
-              status: 'ready_to_post',
+              status: 'draft', // All generated content goes to review
               hashtags: getHashtagsForType(task.post_type),
               image_idea: getImageIdeaForType(task.post_type)
             })
@@ -156,7 +156,7 @@ export const useContentGeneration = () => {
           if (updateError) {
             console.error(`❌ Error updating ${task.post_type} task:`, updateError);
           } else {
-            console.log(`✅ Successfully generated ${task.post_type} content (${validationAttempts} attempts)`);
+            console.log(`✅ Successfully generated ${task.post_type} content (${validationAttempts} attempts) - awaiting review`);
           }
 
         } catch (contentError) {
@@ -171,7 +171,7 @@ export const useContentGeneration = () => {
       }
 
       if (missingTypes.length > 0 || (allTasks && allTasks.length > 0)) {
-        toast.success(`Auto-generated content for ${campaignTitle}!`);
+        toast.success(`Auto-generated content for ${campaignTitle} - awaiting review!`);
         return true;
       }
 

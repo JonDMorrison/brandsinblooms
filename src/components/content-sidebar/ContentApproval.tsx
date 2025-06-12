@@ -18,11 +18,11 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      console.log('Approving task with status change to: scheduled');
+      console.log('Approving task with status change to: completed');
       
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'scheduled' })
+        .update({ status: 'completed' })
         .eq('id', task.id);
 
       if (error) {
@@ -35,7 +35,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
       } else {
         toast({
           title: "Content Approved! ✅",
-          description: "Content has been moved to Scheduled status.",
+          description: "Content has been approved and is ready to post.",
         });
         if (onTaskUpdate) onTaskUpdate();
         onClose();
@@ -53,14 +53,14 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   };
 
   // Show approval button for content that's ready for review
-  if (task?.status !== 'scheduled' && task?.ai_output) {
+  if (task?.status === 'draft' && task?.ai_output) {
     return (
       <Card className="border-orange-200 bg-orange-50">
         <CardContent className="p-4">
           <div className="text-center">
             <h3 className="font-semibold text-orange-800 mb-2">Ready for Approval</h3>
             <p className="text-sm text-orange-700 mb-4">
-              Review the content below and approve it to move to Scheduled status.
+              Review the content below and approve it to make it ready for posting.
             </p>
             <Button 
               onClick={handleApprove}
@@ -68,7 +68,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               <CheckCircle className="w-4 h-4 mr-2" />
-              {isApproving ? "Approving..." : "Approve & Move to Scheduled"}
+              {isApproving ? "Approving..." : "Approve & Mark Ready to Post"}
             </Button>
           </div>
         </CardContent>
@@ -77,7 +77,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   }
 
   // Show status for already approved content
-  if (task?.status === 'scheduled') {
+  if (task?.status === 'completed') {
     return (
       <Card className="border-green-200 bg-green-50">
         <CardContent className="p-4">
@@ -85,7 +85,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
             <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-600" />
             <h3 className="font-semibold text-green-800 mb-1">Content Approved</h3>
             <p className="text-sm text-green-700">
-              This content is scheduled and ready for posting.
+              This content is approved and ready for posting.
             </p>
           </div>
         </CardContent>

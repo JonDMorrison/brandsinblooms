@@ -49,7 +49,7 @@ export const generateRequiredTasks = async (
     const tasksToCreate = missingPostTypes.map(postType => ({
       campaign_id: campaignId,
       post_type: postType,
-      status: 'planned', // Use valid status
+      status: 'planned', // Start with planned status
       scheduled_date: campaign.start_date
     }));
 
@@ -71,8 +71,7 @@ export const generateRequiredTasks = async (
     if (createdTasks) {
       for (const task of createdTasks) {
         try {
-          console.log(`=== Generating content for ${task.post_type} ===`);
-          console.log('Task details:', task);
+          console.log(`🤖 Generating content for ${task.post_type} task:`, task.id);
           
           // Update task status to generating first
           await supabase
@@ -125,20 +124,20 @@ export const generateRequiredTasks = async (
             continue;
           }
           
-          // Update task with generated content and set status to 'ready_to_post' (valid status)
+          // Update task with generated content and set status to 'draft' for review
           console.log(`Updating task ${task.id} with generated content`);
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: content,
-              status: 'ready_to_post' // Use valid status instead of 'completed'
+              status: 'draft' // Set to draft so it goes through review process
             })
             .eq('id', task.id);
 
           if (updateError) {
             console.error(`Error updating task ${task.id}:`, updateError);
           } else {
-            console.log(`Generated ${task.post_type} content successfully`);
+            console.log(`Generated ${task.post_type} content successfully - awaiting review`);
           }
         } catch (error) {
           console.error(`Error generating ${task.post_type} content:`, error);
@@ -151,10 +150,10 @@ export const generateRequiredTasks = async (
       }
     }
 
-    console.log('Content generation completed');
+    console.log('Content generation completed - all content awaiting review');
     onTaskUpdate();
     
-    return { message: 'Content generation completed', tasksCreated: createdTasks?.length || 0 };
+    return { message: 'Content generation completed - awaiting review', tasksCreated: createdTasks?.length || 0 };
     
   } catch (error) {
     console.error('=== ERROR IN GENERATE REQUIRED TASKS ===');
