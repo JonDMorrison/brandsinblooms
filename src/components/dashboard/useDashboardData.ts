@@ -43,6 +43,13 @@ const isNetworkError = (error: any) => {
          error?.message?.includes('ERR_INTERNET_DISCONNECTED');
 };
 
+const getCurrentWeekNumber = () => {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1);
+  const pastDaysOfYear = (now.getTime() - startOfYear.getTime()) / 86400000;
+  return Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
+};
+
 export const useDashboardData = () => {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -200,9 +207,33 @@ export const useDashboardData = () => {
     }
   };
 
+  // Process the data to match what DashboardContent expects
+  const currentWeekNumber = getCurrentWeekNumber();
+  
+  // Find active campaign for current week
+  const activeCampaign = campaigns.find(campaign => 
+    campaign.week_number === currentWeekNumber
+  );
+
+  // User created campaigns (non-template campaigns)
+  const userCreatedCampaigns = campaigns.filter(campaign => 
+    campaign.user_id || campaign.created_by || !campaign.is_template
+  );
+
+  // Calculate task counts
+  const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
+  const totalTasksCount = tasks.length;
+  const pendingTasksCount = tasks.filter(task => task.status === 'pending' || task.status === 'draft').length;
+
   return {
     campaigns,
     tasks,
+    activeCampaign,
+    userCreatedCampaigns,
+    currentWeekNumber,
+    completedTasksCount,
+    totalTasksCount,
+    pendingTasksCount,
     loading,
     error,
     isOffline,
