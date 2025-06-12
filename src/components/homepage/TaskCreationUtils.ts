@@ -19,7 +19,7 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
       .from('content_tasks')
       .update({ 
         ai_output: newVideoScript,
-        status: 'draft' // Set to draft for review
+        status: 'completed' // Use completed instead of draft
       })
       .eq('campaign_id', campaignId)
       .eq('post_type', 'video');
@@ -27,7 +27,7 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
     if (error) {
       console.error('Error updating video script:', error);
     } else {
-      console.log('Video script updated with OpenAI-generated content - awaiting review');
+      console.log('Video script updated with OpenAI-generated content');
     }
   } catch (error) {
     console.error('Error updating video script:', error);
@@ -79,7 +79,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       tasksToCreate.push({
         campaign_id: campaignId,
         post_type: postType,
-        status: 'draft', // All new content goes to review
+        status: 'completed', // Use completed instead of draft
         scheduled_date: scheduledDate.toISOString().split('T')[0],
         ai_output: aiOutput,
         hashtags: getHashtagsForType(postType),
@@ -88,7 +88,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
     }
 
     if (tasksToCreate.length > 0) {
-      console.log('Creating missing tasks for review:', tasksToCreate.map(t => t.post_type));
+      console.log('Creating missing tasks:', tasksToCreate.map(t => t.post_type));
 
       const { error } = await supabase
         .from('content_tasks')
@@ -98,7 +98,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
         console.error('Error creating missing tasks:', error);
         throw error;
       } else {
-        console.log('Missing tasks created successfully - awaiting review');
+        console.log('Missing tasks created successfully');
       }
     }
   } catch (error) {
