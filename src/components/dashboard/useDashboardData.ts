@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -215,9 +214,9 @@ export const useDashboardData = () => {
     campaign.week_number === currentWeekNumber
   );
 
-  // User created campaigns (non-template campaigns)
+  // User created campaigns - only show campaigns created through Quick Actions
   const userCreatedCampaigns = campaigns.filter(campaign => 
-    campaign.user_id || campaign.created_by || !campaign.is_template
+    campaign.source === 'quick_action'
   );
 
   // Calculate task counts
