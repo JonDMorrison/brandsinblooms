@@ -12,24 +12,24 @@ export const getFallbackThemes = () => {
     seasonalThemes = [
       {
         week: currentWeek,
-        title: `Spring Growth Strategy - Week ${currentWeek}`,
-        description: 'Harness the energy of spring renewal to drive customer engagement with fresh marketing approaches, new product launches, and revitalized brand messaging.',
+        title: `Spring Garden Renaissance - Week ${currentWeek}`,
+        description: 'Celebrate the awakening of spring with fresh plantings, soil preparation, and garden renewal activities that capture the excitement of the growing season.',
         content_ideas: [
-          'Fresh marketing strategy rollouts',
-          'New product or service launches',
-          'Brand refresh and messaging updates',
-          'Customer engagement campaigns'
+          'Spring soil preparation and testing',
+          'Early season vegetable planting',
+          'Spring cleanup and garden renewal',
+          'Container garden design for patios'
         ]
       },
       {
         week: currentWeek + 1,
-        title: `Innovation & Renewal Campaign`,
-        description: 'Focus on innovation and business renewal with forward-thinking strategies that capture the spirit of growth and new beginnings.',
+        title: `Early Season Planting Guide`,
+        description: 'Focus on early season planting opportunities with cool-weather crops, soil amendments, and garden bed preparation for the growing season ahead.',
         content_ideas: [
-          'Innovation showcase content',
-          'Process improvement highlights',
-          'Team development spotlights',
-          'Future vision communications'
+          'Cool-weather vegetable varieties',
+          'Soil amendment techniques',
+          'Garden bed preparation',
+          'Spring fertilization schedules'
         ]
       }
     ];
@@ -38,24 +38,24 @@ export const getFallbackThemes = () => {
     seasonalThemes = [
       {
         week: currentWeek,
-        title: `Summer Success Campaign - Week ${currentWeek}`,
-        description: 'Maximize peak season opportunities with high-energy marketing, customer retention strategies, and community engagement that captures summer enthusiasm.',
+        title: `Summer Garden Mastery - Week ${currentWeek}`,
+        description: 'Master the art of summer gardening with heat-tolerant plants, water-wise techniques, and harvest celebrations that make the most of peak growing season.',
         content_ideas: [
-          'Peak performance strategies',
-          'Customer success stories',
-          'Community engagement activities',
-          'High-energy promotional content'
+          'Heat-tolerant plant selections',
+          'Water conservation techniques',
+          'Summer harvest and preservation',
+          'Shade gardening solutions'
         ]
       },
       {
         week: currentWeek + 1,
-        title: `Peak Performance Focus`,
-        description: 'Emphasize peak performance and results-driven content that showcases your business at its best during the high-activity summer season.',
+        title: `Heat & Drought Solutions`,
+        description: 'Address summer gardening challenges with drought-resistant plants, efficient watering systems, and heat stress management for thriving gardens.',
         content_ideas: [
-          'Performance metric highlights',
-          'Success milestone celebrations',
-          'Customer testimonials',
-          'Results-driven case studies'
+          'Drought-resistant plant varieties',
+          'Efficient irrigation systems',
+          'Heat stress management',
+          'Summer mulching techniques'
         ]
       }
     ];
@@ -64,24 +64,24 @@ export const getFallbackThemes = () => {
     seasonalThemes = [
       {
         week: currentWeek,
-        title: `Autumn Achievement Focus - Week ${currentWeek}`,
-        description: 'Celebrate accomplishments and prepare for year-end success with strategic campaigns that showcase results and build momentum for the future.',
+        title: `Autumn Garden Harvest - Week ${currentWeek}`,
+        description: 'Embrace fall\'s bounty with harvest preservation, autumn color displays, and winter preparation activities that celebrate the season\'s abundance.',
         content_ideas: [
-          'Achievement celebrations',
-          'Year-end goal tracking',
-          'Strategic planning content',
-          'Future preparation activities'
+          'Fall harvest and preservation',
+          'Autumn color plant displays',
+          'Winter garden preparation',
+          'Fall planting opportunities'
         ]
       },
       {
         week: currentWeek + 1,
-        title: `Strategic Planning Season`,
-        description: 'Focus on strategic planning and preparation with content that positions your business for continued success and growth.',
+        title: `Fall Planting & Preparation`,
+        description: 'Maximize fall planting opportunities and prepare gardens for winter with strategic plantings, soil care, and protection strategies.',
         content_ideas: [
-          'Strategic planning insights',
-          'Goal setting frameworks',
-          'Business planning resources',
-          'Growth strategy development'
+          'Fall bulb planting schedules',
+          'Winter vegetable gardens',
+          'Soil preparation for spring',
+          'Plant protection strategies'
         ]
       }
     ];
@@ -90,24 +90,24 @@ export const getFallbackThemes = () => {
     seasonalThemes = [
       {
         week: currentWeek,
-        title: `Winter Planning & Vision - Week ${currentWeek}`,
-        description: 'Transform quiet season into strategic advantage with forward-thinking content, planning resources, and vision-setting activities that prepare for future growth.',
+        title: `Winter Garden Planning - Week ${currentWeek}`,
+        description: 'Transform winter into productive planning time with indoor gardening, tool maintenance, and next year\'s garden design and preparation.',
         content_ideas: [
-          'Strategic vision development',
-          'Planning and preparation focus',
-          'Reflection and goal setting',
-          'Future opportunity identification'
+          'Indoor gardening and houseplants',
+          'Garden planning and design',
+          'Tool maintenance and care',
+          'Seed catalog and variety selection'
         ]
       },
       {
         week: currentWeek + 1,
-        title: `Vision & Planning Campaign`,
-        description: 'Emphasize vision setting and strategic planning with content that prepares your audience for upcoming opportunities and growth.',
+        title: `Indoor Growing & Planning`,
+        description: 'Focus on indoor growing opportunities and strategic planning with houseplant care, seed starting preparation, and garden design for the upcoming season.',
         content_ideas: [
-          'Vision setting activities',
-          'Strategic planning tools',
-          'Future growth preparation',
-          'Opportunity identification'
+          'Houseplant care and propagation',
+          'Seed starting preparation',
+          'Garden design planning',
+          'Winter growing techniques'
         ]
       }
     ];

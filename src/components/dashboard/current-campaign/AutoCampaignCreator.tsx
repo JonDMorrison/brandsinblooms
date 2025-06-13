@@ -27,7 +27,7 @@ export const AutoCampaignCreator = ({
     const autoCreateWeeklyContent = async () => {
       if (!user || activeCampaign || isAutoCreating) return;
 
-      console.log('🎯 No campaign found for current week, auto-creating with business-focused themes...');
+      console.log('🎯 No campaign found for current week, auto-creating with garden center themes...');
       setIsAutoCreating(true);
 
       try {
@@ -47,7 +47,7 @@ export const AutoCampaignCreator = ({
         
         if (masterTemplate) {
           // Use rich seasonal theme from master template
-          console.log('✅ Found rich seasonal theme:', masterTemplate.title);
+          console.log('✅ Found rich garden center theme:', masterTemplate.title);
           campaignData = {
             title: masterTemplate.title,
             description: `${masterTemplate.seasonal_focus}: ${masterTemplate.content_ideas}`,
@@ -82,38 +82,38 @@ export const AutoCampaignCreator = ({
               throw new Error('Failed to generate AI theme');
             }
           } catch (aiError) {
-            console.warn('⚠️ AI theme generation failed, using enhanced fallback');
-            // Enhanced fallback with seasonal context - UPDATED for general business
+            console.warn('⚠️ AI theme generation failed, using enhanced garden center fallback');
+            // Enhanced fallback with seasonal garden center context
             const month = new Date().getMonth() + 1;
             let seasonalTheme;
             
             if (month >= 3 && month <= 5) {
               seasonalTheme = {
-                title: `Spring Growth Strategy - Week ${currentWeekNumber}`,
-                description: 'Harness the energy of spring renewal to drive customer engagement with fresh marketing approaches, new product launches, and revitalized brand messaging.',
-                theme: 'Spring Growth Strategy',
-                prompt: 'Create inspiring spring business content focused on renewal, fresh strategies, and seasonal marketing opportunities.'
+                title: `Spring Garden Renaissance - Week ${currentWeekNumber}`,
+                description: 'Celebrate the awakening of spring with fresh plantings, soil preparation, and garden renewal activities that capture the excitement of the growing season.',
+                theme: 'Spring Garden Renaissance',
+                prompt: 'Create inspiring spring garden content focused on soil preparation, early plantings, and seasonal garden renewal activities.'
               };
             } else if (month >= 6 && month <= 8) {
               seasonalTheme = {
-                title: `Summer Success Campaign - Week ${currentWeekNumber}`,
-                description: 'Maximize peak season opportunities with high-energy marketing, customer retention strategies, and community engagement that captures summer enthusiasm.',
-                theme: 'Summer Success Campaign',
-                prompt: 'Create engaging summer business content focused on peak performance, community engagement, and customer satisfaction.'
+                title: `Summer Garden Mastery - Week ${currentWeekNumber}`,
+                description: 'Master the art of summer gardening with heat-tolerant plants, water-wise techniques, and harvest celebrations that make the most of peak growing season.',
+                theme: 'Summer Garden Mastery',
+                prompt: 'Create engaging summer garden content focused on heat tolerance, water conservation, and peak season gardening techniques.'
               };
             } else if (month >= 9 && month <= 11) {
               seasonalTheme = {
-                title: `Autumn Achievement Focus - Week ${currentWeekNumber}`,
-                description: 'Celebrate accomplishments and prepare for year-end success with strategic campaigns that showcase results and build momentum for the future.',
-                theme: 'Autumn Achievement Focus',
-                prompt: 'Create compelling autumn content focused on achievements, strategic planning, and preparing for successful year-end results.'
+                title: `Autumn Garden Harvest - Week ${currentWeekNumber}`,
+                description: 'Embrace fall\'s bounty with harvest preservation, autumn color displays, and winter preparation activities that celebrate the season\'s abundance.',
+                theme: 'Autumn Garden Harvest',
+                prompt: 'Create compelling fall garden content focused on harvest, autumn colors, and winter preparation activities.'
               };
             } else {
               seasonalTheme = {
-                title: `Winter Planning & Vision - Week ${currentWeekNumber}`,
-                description: 'Transform quiet season into strategic advantage with forward-thinking content, planning resources, and vision-setting activities that prepare for future growth.',
-                theme: 'Winter Planning & Vision',
-                prompt: 'Create thoughtful winter content focused on strategic planning, vision setting, and preparing for upcoming growth opportunities.'
+                title: `Winter Garden Planning - Week ${currentWeekNumber}`,
+                description: 'Transform winter into productive planning time with indoor gardening, tool maintenance, and next year\'s garden design and preparation.',
+                theme: 'Winter Garden Planning',
+                prompt: 'Create thoughtful winter garden content focused on planning, indoor growing, and preparation for the upcoming growing season.'
               };
             }
             
@@ -124,14 +124,14 @@ export const AutoCampaignCreator = ({
           }
         }
 
-        // Create the campaign with rich seasonal data
+        // Create the campaign with rich seasonal garden center data
         const startDate = new Date();
         const dayOfWeek = startDate.getDay();
         const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
         const weekStartDate = new Date(startDate);
         weekStartDate.setDate(startDate.getDate() + mondayOffset);
 
-        console.log('🏗️ Creating campaign with business-focused data:', campaignData.title);
+        console.log('🏗️ Creating campaign with garden center data:', campaignData.title);
 
         const { data: newCampaign, error: campaignError } = await supabase
           .from('campaigns')
@@ -154,20 +154,20 @@ export const AutoCampaignCreator = ({
           return;
         }
 
-        console.log('✅ Auto-created business-focused campaign:', newCampaign);
+        console.log('✅ Auto-created garden center campaign:', newCampaign);
 
         if (newCampaign) {
           await generateRequiredTasks(newCampaign.id, [newCampaign], user.id, onTaskUpdate);
           
           const sourceMessage = masterTemplate 
-            ? `🌟 Created "${campaignData.title}" with curated business themes!`
-            : `🚀 Created "${campaignData.title}" with strategic marketing content!`;
+            ? `🌱 Created "${campaignData.title}" with curated garden center themes!`
+            : `🌿 Created "${campaignData.title}" with seasonal gardening content!`;
           
           toast.success(sourceMessage);
           onCampaignCreated();
         }
       } catch (error) {
-        console.error('❌ Error auto-creating weekly content:', error);
+        console.error('❌ Error auto-creating weekly garden content:', error);
         toast.error('Failed to create weekly campaign. Please try creating one manually.');
       } finally {
         setIsAutoCreating(false);
