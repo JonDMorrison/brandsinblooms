@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { ThemeDisplay } from "./ThemeDisplay";
 import { ThemeEditor } from "./ThemeEditor";
+import { CampaignContentSection } from "./CampaignContentSection";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -28,6 +29,7 @@ interface CampaignDetailsModalProps {
 
 export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: CampaignDetailsModalProps) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [contentUpdateKey, setContentUpdateKey] = useState(0);
 
   if (!campaign) return null;
 
@@ -61,8 +63,12 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
   };
 
   const handleContentGenerated = () => {
-    toast.success('Content generated! Check the review queue to approve your new content.');
-    // Optionally close the modal or refresh data
+    toast.success('Content generated! Review it in the Generated Content section below.');
+    setContentUpdateKey(prev => prev + 1);
+  };
+
+  const handleContentUpdate = () => {
+    setContentUpdateKey(prev => prev + 1);
   };
 
   const getStatusBadge = () => {
@@ -80,9 +86,12 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
     }
   };
 
+  const hasTheme = campaign.theme && campaign.theme.trim() !== "";
+  const hasDescription = campaign.description && campaign.description.trim() !== "";
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
         <DialogHeader className="space-y-4 pb-6 border-b border-gray-200">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
@@ -175,6 +184,18 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
                 />
               )}
             </div>
+          </div>
+
+          {/* Generated Content Section */}
+          <div className="space-y-4">
+            <CampaignContentSection
+              key={contentUpdateKey}
+              campaignId={campaign.id.toString()}
+              campaignTitle={campaign.title}
+              hasTheme={hasTheme}
+              hasDescription={hasDescription}
+              onContentUpdate={handleContentUpdate}
+            />
           </div>
 
           {/* Additional Campaign Details */}

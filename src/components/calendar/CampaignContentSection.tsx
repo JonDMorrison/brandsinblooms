@@ -1,0 +1,118 @@
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { ChevronDown, ChevronUp, FileText, AlertCircle } from "lucide-react";
+import { ContentViewer } from "@/components/content/ContentViewer";
+import { Badge } from "@/components/ui/badge";
+
+interface CampaignContentSectionProps {
+  campaignId: string;
+  campaignTitle: string;
+  hasTheme: boolean;
+  hasDescription: boolean;
+  onContentUpdate?: () => void;
+}
+
+export const CampaignContentSection = ({ 
+  campaignId, 
+  campaignTitle, 
+  hasTheme, 
+  hasDescription,
+  onContentUpdate 
+}: CampaignContentSectionProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showContentViewer, setShowContentViewer] = useState(false);
+
+  const canGenerateContent = hasTheme && hasDescription;
+
+  const handleViewContent = () => {
+    setShowContentViewer(true);
+  };
+
+  const handleContentUpdate = () => {
+    if (onContentUpdate) {
+      onContentUpdate();
+    }
+  };
+
+  if (!canGenerateContent) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+            <FileText className="w-4 h-4" />
+            Generated Content
+          </h4>
+          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+            <AlertCircle className="w-3 h-3 mr-1" />
+            Setup Required
+          </Badge>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <p className="text-sm text-amber-700">
+            Complete the theme and content focus above to enable content generation and review.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+          <FileText className="w-4 h-4" />
+          Generated Content
+        </h4>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-xs px-2 py-1"
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="w-3 h-3 mr-1" />
+                Hide Content
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-3 h-3 mr-1" />
+                Show Content
+              </>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleViewContent}
+            className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700"
+          >
+            <FileText className="w-3 h-3 mr-1" />
+            Review All
+          </Button>
+        </div>
+      </div>
+
+      {isExpanded && (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <p className="text-sm text-gray-600 mb-3">
+            Generated content for this campaign will appear here after generation. 
+            Use the "Generate Content Pack" button above to create content.
+          </p>
+          <div className="text-xs text-gray-500">
+            Content types: Social media posts, email content, newsletter content, and more.
+          </div>
+        </div>
+      )}
+
+      <ContentViewer
+        campaignId={campaignId}
+        campaignTitle={campaignTitle}
+        isOpen={showContentViewer}
+        onClose={() => setShowContentViewer(false)}
+        onTaskUpdate={handleContentUpdate}
+      />
+    </div>
+  );
+};
