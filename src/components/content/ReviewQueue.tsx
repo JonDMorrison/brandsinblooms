@@ -11,11 +11,7 @@ import { useReviewQueue } from "./useReviewQueue";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
-
-interface ReviewQueueProps {
-  onTaskUpdate?: () => void;
-  onTaskClick?: (task: any) => void;
-}
+import { ContentTask, ReviewQueueProps } from "@/types/content";
 
 export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => {
   const {
@@ -29,11 +25,9 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
 
   const [bulkApproving, setBulkApproving] = useState(false);
 
-  // Ensure pendingTasks is always an array
   const tasksArray = Array.isArray(pendingTasks) ? pendingTasks : [];
 
-  // Group tasks by theme/campaign for batch operations with explicit typing
-  const tasksByTheme = tasksArray.reduce((acc: Record<string, any[]>, task: any) => {
+  const tasksByTheme = tasksArray.reduce((acc: Record<string, ContentTask[]>, task: ContentTask) => {
     const theme = task.notes?.includes('Generated from theme:') 
       ? task.notes.replace('Generated from theme: ', '').trim()
       : 'Other';
@@ -41,9 +35,9 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
     if (!acc[theme]) acc[theme] = [];
     acc[theme].push(task);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, ContentTask[]>);
 
-  const handleBulkApprove = async (themeTasks: any[]) => {
+  const handleBulkApprove = async (themeTasks: ContentTask[]) => {
     setBulkApproving(true);
     
     try {
@@ -59,28 +53,18 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
       toast.success(`Approved ${themeTasks.length} pieces of content!`);
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
-      console.error('Error bulk approving tasks:', error);
       toast.error('Failed to approve content batch');
     } finally {
       setBulkApproving(false);
     }
   };
 
-  if (loading) {
-    return <ReviewQueueLoading />;
-  }
-
-  if (error) {
-    return <ReviewQueueError error={error} onRetry={handleRetry} />;
-  }
-
-  if (tasksArray.length === 0) {
-    return <ReviewQueueEmpty />;
-  }
+  if (loading) return <ReviewQueueLoading />;
+  if (error) return <ReviewQueueError error={error} onRetry={handleRetry} />;
+  if (tasksArray.length === 0) return <ReviewQueueEmpty />;
 
   const hasGeneratedContent = Object.keys(tasksByTheme).some(theme => theme !== 'Other');
-  // Safely get other tasks with type guard
-  const otherTasks: any[] = Array.isArray(tasksByTheme['Other']) ? tasksByTheme['Other'] : [];
+  const otherTasks: ContentTask[] = Array.isArray(tasksByTheme['Other']) ? tasksByTheme['Other'] : [];
 
   return (
     <Card className="border-orange-200">
@@ -97,10 +81,9 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Show generated content batches first */}
         {hasGeneratedContent && Object.entries(tasksByTheme)
           .filter(([theme]) => theme !== 'Other')
-          .map(([theme, tasks]: [string, any[]]) => (
+          .map(([theme, tasks]: [string, ContentTask[]]) => (
             <div key={theme} className="border border-purple-200 rounded-lg p-4 bg-purple-50">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -122,7 +105,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
               </div>
               <p className="text-sm text-purple-700 mb-3 font-medium">Theme: {theme}</p>
               <div className="space-y-2">
-                {tasks.map((task: any) => (
+                {tasks.map((task: ContentTask) => (
                   <ReviewQueueItem
                     key={task.id}
                     task={task}
@@ -136,10 +119,9 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
             </div>
           ))}
 
-        {/* Show other content */}
         {otherTasks.length > 0 && (
           <div className="space-y-3">
-            {otherTasks.slice(0, 3).map((task: any) => (
+            {otherTasks.slice(0, 3).map((task: ContentTask) => (
               <ReviewQueueItem
                 key={task.id}
                 task={task}

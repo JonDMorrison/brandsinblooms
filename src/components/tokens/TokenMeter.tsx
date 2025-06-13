@@ -2,6 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Coins, AlertTriangle } from "lucide-react";
 import { useTokens } from "@/hooks/useTokens";
+import { TOKEN_CONSTANTS } from "@/constants/tokens";
 
 export const TokenMeter = () => {
   const { tokenBalance, loading, getOverageAmount } = useTokens();
@@ -17,7 +18,6 @@ export const TokenMeter = () => {
 
   const isInOverage = tokenBalance.tokens_balance < 0;
   const overageAmount = getOverageAmount();
-  const baseAllowance = 100; // Default base allowance
 
   return (
     <div className="flex items-center justify-between">
@@ -27,7 +27,7 @@ export const TokenMeter = () => {
           <span className="font-semibold text-sm">
             {isInOverage ? 0 : tokenBalance.tokens_balance}
           </span>
-          <span className="text-gray-500 text-sm">/ {baseAllowance}</span>
+          <span className="text-gray-500 text-sm">/ {TOKEN_CONSTANTS.BASE_ALLOWANCE}</span>
           {tokenBalance.is_trial && (
             <Badge variant="outline" className="text-xs px-1 py-0 ml-1">
               Trial

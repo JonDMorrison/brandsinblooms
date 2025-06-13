@@ -3,21 +3,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-
-interface TokenBalance {
-  tokens_balance: number;
-  tokens_reset_at: string;
-  is_trial: boolean;
-}
-
-interface TokenUsage {
-  id: string;
-  action_type: string;
-  tokens_consumed: number;
-  tokens_remaining: number;
-  content_type: string | null;
-  created_at: string;
-}
+import { TokenBalance, TokenUsage } from '@/types/tokens';
+import { TOKEN_CONSTANTS } from '@/constants/tokens';
+import { handleError, logError } from '@/utils/errorHandling';
 
 export const useTokens = () => {
   const { user } = useAuth();
@@ -39,8 +27,8 @@ export const useTokens = () => {
         setTokenBalance(data[0]);
       }
     } catch (error) {
-      console.error('Error fetching token balance:', error);
-      toast.error('Failed to load token balance');
+      logError(error, 'fetchTokenBalance');
+      handleError(error, 'token balance loading');
     }
   };
 
@@ -57,7 +45,7 @@ export const useTokens = () => {
       if (error) throw error;
       setTokenUsage(data || []);
     } catch (error) {
-      console.error('Error fetching token usage:', error);
+      logError(error, 'fetchTokenUsage');
     }
   };
 
@@ -80,21 +68,20 @@ export const useTokens = () => {
 
       if (error) throw error;
       
-      // Refresh balance after spending
       await fetchTokenBalance();
       await fetchTokenUsage();
       
       return data;
     } catch (error) {
-      console.error('Error spending tokens:', error);
-      toast.error('Failed to process token usage');
+      logError(error, 'spendTokens');
+      handleError(error, 'token usage processing');
       return false;
     }
   };
 
   const checkTokenAvailability = (tokensNeeded: number) => {
     if (!tokenBalance) return false;
-    return tokenBalance.tokens_balance >= tokensNeeded || tokenBalance.tokens_balance < 0; // Allow overage
+    return tokenBalance.tokens_balance >= tokensNeeded || tokenBalance.tokens_balance < 0;
   };
 
   const getOverageAmount = () => {
@@ -104,7 +91,7 @@ export const useTokens = () => {
 
   const getOverageCost = () => {
     const overage = getOverageAmount();
-    return overage * 0.25; // $0.25 per token
+    return overage * TOKEN_CONSTANTS.OVERAGE_RATE;
   };
 
   useEffect(() => {
