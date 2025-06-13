@@ -21,11 +21,12 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
       if (!user) return;
 
       try {
+        // Use maybeSingle to handle cases where multiple profiles might exist
         const { data: profile, error } = await supabase
           .from('company_profiles')
-          .select('first_content_generated, company_name, onboarding_completed_at')
+          .select('first_content_generated, company_name, onboarding_completed_at, first_welcome_dismissed')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error checking first time user status:', error);
@@ -35,11 +36,32 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
         if (profile) {
           setCompanyName(profile.company_name || "Your Garden Center");
           
-          // Check if this is their first time seeing generated content
-          const isNewUser = profile.onboarding_completed_at && 
-                           new Date(profile.onboarding_completed_at) > new Date(Date.now() - 10 * 60 * 1000); // Within last 10 minutes
+          // Show welcome if:
+          // 1. They have content (tasksCount >= 5) AND
+          // 2. They haven't dismissed the welcome AND
+          // 3. Either they have first_content_generated OR completed onboarding recently
+          const hasRecentOnboarding = profile.onboarding_completed_at && 
+                                    new Date(profile.onboarding_completed_at) > new Date(Date.now() - 60 * 60 * 1000); // Within last hour
           
-          setIsFirstTime(!!isNewUser && profile.first_content_generated && tasksCount >= 5);
+          const shouldShowWelcome = tasksCount >= 5 && 
+                                  !profile.first_welcome_dismissed && 
+                                  (profile.first_content_generated || hasRecentOnboarding);
+          
+          console.log('Welcome check:', {
+            tasksCount,
+            first_welcome_dismissed: profile.first_welcome_dismissed,
+            first_content_generated: profile.first_content_generated,
+            hasRecentOnboarding,
+            shouldShowWelcome
+          });
+          
+          setIsFirstTime(shouldShowWelcome);
+        } else {
+          // No profile found, check if we have content anyway (fallback)
+          if (tasksCount >= 5) {
+            setCompanyName("Your Garden Center");
+            setIsFirstTime(true);
+          }
         }
       } catch (error) {
         console.error('Error checking first time user status:', error);
@@ -77,7 +99,7 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
             <CardTitle className="text-2xl font-bold text-green-800 flex items-center gap-2">
               🎉 Welcome to BloomSuite, {companyName}!
             </CardTitle>
-            <p className="text-green-700 mt-1">Your AI marketing assistant has been busy...</p>
+            <p className="text-green-700 mt-1">Your AI marketing assistant has created amazing garden center content...</p>
           </div>
         </div>
       </CardHeader>
@@ -86,12 +108,12 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
         <div className="bg-white rounded-lg p-4 border border-green-200">
           <div className="flex items-center gap-3 mb-3">
             <CheckCircle className="w-6 h-6 text-green-600" />
-            <h3 className="font-semibold text-gray-800">Your First Week's Content is Ready!</h3>
+            <h3 className="font-semibold text-gray-800">Your Garden Center Content is Ready!</h3>
           </div>
           
           <p className="text-gray-600 mb-4">
-            We've analyzed your garden center and automatically created {tasksCount} pieces of marketing content 
-            for this week, perfectly tailored to your business and the current gardening season.
+            We've analyzed your garden center business and automatically created {tasksCount} pieces of professional 
+            marketing content tailored specifically for garden centers and the current growing season.
           </p>
           
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
@@ -102,6 +124,13 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
               </div>
             ))}
           </div>
+          
+          <div className="bg-green-50 rounded-lg p-3 border border-green-200 mt-3">
+            <p className="text-sm text-green-800 font-medium">
+              ✨ Each piece includes seasonal gardening tips, plant care advice, and promotional content 
+              perfectly suited for your garden center audience!
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -109,7 +138,7 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
             onClick={onGetStarted}
             className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
           >
-            Review Your Content
+            Review Your Garden Center Content
             <ArrowRight className="w-4 h-4" />
           </Button>
           

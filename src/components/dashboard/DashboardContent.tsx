@@ -6,6 +6,8 @@ import { DashboardError } from "./DashboardError";
 import { useDashboardData } from "./useDashboardData";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
+import { useAuth } from "@/contexts/AuthContext";
+import { cleanupDuplicateProfiles, ensureFirstTimeFlags } from "@/utils/profileCleanup";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -18,8 +20,10 @@ export const DashboardContent = ({
   onBusinessNameChange,
   onCampaignCreated
 }: DashboardContentProps) => {
+  const { user } = useAuth();
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [hasRunCleanup, setHasRunCleanup] = useState(false);
 
   const {
     activeCampaign,
@@ -33,6 +37,30 @@ export const DashboardContent = ({
     error,
     refetch
   } = useDashboardData();
+
+  // Run cleanup once when component mounts
+  useEffect(() => {
+    const runCleanup = async () => {
+      if (!user || hasRunCleanup) return;
+      
+      console.log('Running dashboard cleanup for first impression...');
+      
+      // Clean up any duplicate profiles
+      await cleanupDuplicateProfiles(user.id);
+      
+      // Ensure first time flags are set correctly if user has content
+      await ensureFirstTimeFlags(user.id);
+      
+      setHasRunCleanup(true);
+      
+      // Refetch data after cleanup
+      setTimeout(() => {
+        refetch();
+      }, 1000);
+    };
+    
+    runCleanup();
+  }, [user, hasRunCleanup, refetch]);
 
   const handleTaskClick = (task: any) => {
     console.log('DashboardContent: Task clicked:', task);
@@ -63,12 +91,14 @@ export const DashboardContent = ({
   const handleFirstTimeGetStarted = () => {
     // Scroll to the content section or open the first task
     if (tasks.length > 0) {
-      const firstTask = tasks[0];
-      handleTaskClick(firstTask);
+      const firstTask = tasks.find(task => task.status === 'review');
+      if (firstTask) {
+        handleTaskClick(firstTask);
+      }
     }
   };
 
-  if (loading) {
+  if (loading && !hasRunCleanup) {
     return <DashboardSkeleton />;
   }
 
