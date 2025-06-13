@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { Card, CardContent } from "@/components/ui/card";
 import { Home, TrendingUp, Users, Clock, BarChart3 } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
@@ -90,20 +91,13 @@ const Index = () => {
   return (
     <ProtectedPageWrapper>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-        {/* Enhanced Header */}
+        {/* Enhanced Header with Seasonal Welcome */}
         <div className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-6 py-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="space-y-2">
-                <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
-                  <Home className="w-10 h-10 text-blue-600" />
-                  Dashboard Overview
-                </h1>
-                <p className="text-lg text-gray-600 font-medium">
-                  Your marketing hub at a glance
-                </p>
-              </div>
-            </div>
+            <WelcomeSection 
+              onboardingData={onboardingData}
+              onBusinessNameChange={handleBusinessNameChange}
+            />
           </div>
         </div>
         
