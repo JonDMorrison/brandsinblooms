@@ -104,7 +104,6 @@ export const EditableTheme = ({
       currentDescription={currentDescription}
       weekNumber={weekNumber}
       onEdit={() => setIsEditing(true)}
-      onThemeUpdate={onThemeUpdate}
     />
   );
 };

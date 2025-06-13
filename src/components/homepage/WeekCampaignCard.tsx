@@ -166,6 +166,7 @@ export const WeekCampaignCard = ({
             {(currentCampaign.theme || currentCampaign.description) && (
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                 <ThemeDisplay
+                  campaignId={currentCampaign.id.toString()}
                   currentTheme={currentCampaign.theme || currentCampaign.title}
                   currentDescription={currentCampaign.description}
                   onEdit={() => {

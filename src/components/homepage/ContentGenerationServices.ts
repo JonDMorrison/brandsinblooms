@@ -142,3 +142,81 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
     throw error;
   }
 };
+
+export const generateContentForCampaign = async (
+  campaignId: string,
+  theme: string,
+  description: string,
+  userId: string,
+  weekNumber?: number
+) => {
+  console.log(`🎯 Generating content pack for campaign: ${campaignId}`);
+  
+  try {
+    // Spend tokens for content generation (5 content types = 5 tokens)
+    const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
+      p_user_id: userId,
+      p_tokens: 5,
+      p_action_type: 'generation',
+      p_content_type: 'content_pack',
+      p_campaign_id: campaignId
+    });
+
+    if (tokenError) {
+      console.error('❌ Error spending tokens:', tokenError);
+      throw new Error('Failed to process tokens for content generation');
+    }
+
+    // Generate content for all required types
+    const contentTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
+    const results = [];
+
+    for (const type of contentTypes) {
+      try {
+        let content;
+        if (type === 'newsletter') {
+          content = await generateNewsletterContent(campaignId, theme, weekNumber || 1, userId, description);
+        } else if (type === 'video') {
+          content = await generateVideoScript(theme, userId, description);
+        } else {
+          content = await generatePersonalizedContent(type, theme, userId, description);
+        }
+
+        // Create content task
+        const { data: task, error: taskError } = await supabase
+          .from('content_tasks')
+          .insert({
+            campaign_id: campaignId,
+            post_type: type,
+            ai_output: content,
+            status: 'generated',
+            scheduled_date: new Date().toISOString().split('T')[0],
+            user_id: userId
+          })
+          .select()
+          .single();
+
+        if (taskError) {
+          console.error(`❌ Error creating ${type} task:`, taskError);
+        } else {
+          results.push(task);
+          console.log(`✅ Created ${type} content task`);
+        }
+      } catch (error) {
+        console.error(`❌ Error generating ${type} content:`, error);
+      }
+    }
+
+    return {
+      success: true,
+      message: `Generated ${results.length} content pieces successfully`,
+      tasks: results
+    };
+  } catch (error) {
+    console.error('❌ Error in generateContentForCampaign:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to generate content'
+    };
+  }
+};
