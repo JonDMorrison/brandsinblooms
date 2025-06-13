@@ -6,7 +6,6 @@ import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { AutoCampaignCreator } from "./current-campaign/AutoCampaignCreator";
 import { NoCampaignState } from "./current-campaign/NoCampaignState";
 import { QuickActionsSection } from "./current-campaign/QuickActionsSection";
-import { SeasonalContentPreview } from "./current-campaign/SeasonalContentPreview";
 import { ContentPreviewSection } from "./ContentPreviewSection";
 import { supabase } from "@/integrations/supabase/client";
 import type { Campaign } from "@/types";
@@ -78,11 +77,6 @@ export const CurrentCampaignSection = ({
     onCampaignCreated();
   };
 
-  const handleGenerateContent = () => {
-    // This will be handled by the CampaignCard component
-    console.log('Generate content clicked');
-  };
-
   return (
     <div>
       <h2 className="text-xl font-semibold text-gray-800 mb-4">
@@ -104,12 +98,6 @@ export const CurrentCampaignSection = ({
               onTaskUpdate={onTaskUpdate}
             />
           </div>
-          
-          <SeasonalContentPreview 
-            campaign={activeCampaign}
-            onGenerateContent={handleGenerateContent}
-            hasContent={hasContent}
-          />
         </>
       ) : (
         <NoCampaignState
