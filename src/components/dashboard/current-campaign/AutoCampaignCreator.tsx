@@ -27,7 +27,7 @@ export const AutoCampaignCreator = ({
     const autoCreateWeeklyContent = async () => {
       if (!user || activeCampaign || isAutoCreating) return;
 
-      console.log('🎯 No campaign found for current week, auto-creating with rich seasonal themes...');
+      console.log('🎯 No campaign found for current week, auto-creating with business-focused themes...');
       setIsAutoCreating(true);
 
       try {
@@ -83,37 +83,37 @@ export const AutoCampaignCreator = ({
             }
           } catch (aiError) {
             console.warn('⚠️ AI theme generation failed, using enhanced fallback');
-            // Enhanced fallback with seasonal context
+            // Enhanced fallback with seasonal context - UPDATED for general business
             const month = new Date().getMonth() + 1;
             let seasonalTheme;
             
             if (month >= 3 && month <= 5) {
               seasonalTheme = {
-                title: `Spring Garden Renaissance - Week ${currentWeekNumber}`,
-                description: 'Celebrate the awakening of spring with fresh plantings, soil preparation, and garden renewal activities that capture the excitement of the growing season.',
-                theme: 'Spring Garden Renaissance',
-                prompt: 'Create inspiring spring garden content focused on renewal, fresh plantings, and seasonal garden activities.'
+                title: `Spring Growth Strategy - Week ${currentWeekNumber}`,
+                description: 'Harness the energy of spring renewal to drive customer engagement with fresh marketing approaches, new product launches, and revitalized brand messaging.',
+                theme: 'Spring Growth Strategy',
+                prompt: 'Create inspiring spring business content focused on renewal, fresh strategies, and seasonal marketing opportunities.'
               };
             } else if (month >= 6 && month <= 8) {
               seasonalTheme = {
-                title: `Summer Garden Mastery - Week ${currentWeekNumber}`,
-                description: 'Master the art of summer gardening with heat-tolerant plants, water-wise techniques, and harvest celebrations that make the most of peak growing season.',
-                theme: 'Summer Garden Mastery',
-                prompt: 'Create engaging summer garden content focused on heat management, water conservation, and abundant harvests.'
+                title: `Summer Success Campaign - Week ${currentWeekNumber}`,
+                description: 'Maximize peak season opportunities with high-energy marketing, customer retention strategies, and community engagement that captures summer enthusiasm.',
+                theme: 'Summer Success Campaign',
+                prompt: 'Create engaging summer business content focused on peak performance, community engagement, and customer satisfaction.'
               };
             } else if (month >= 9 && month <= 11) {
               seasonalTheme = {
-                title: `Autumn Garden Harvest - Week ${currentWeekNumber}`,
-                description: 'Embrace fall\'s bounty with harvest preservation, autumn color displays, and winter preparation activities that celebrate the season\'s abundance.',
-                theme: 'Autumn Garden Harvest',
-                prompt: 'Create rich autumn content focused on harvest celebration, fall colors, and winter garden preparation.'
+                title: `Autumn Achievement Focus - Week ${currentWeekNumber}`,
+                description: 'Celebrate accomplishments and prepare for year-end success with strategic campaigns that showcase results and build momentum for the future.',
+                theme: 'Autumn Achievement Focus',
+                prompt: 'Create compelling autumn content focused on achievements, strategic planning, and preparing for successful year-end results.'
               };
             } else {
               seasonalTheme = {
-                title: `Winter Garden Planning - Week ${currentWeekNumber}`,
-                description: 'Transform winter into productive planning time with indoor gardening, tool maintenance, and next year\'s garden design and preparation.',
-                theme: 'Winter Garden Planning',
-                prompt: 'Create thoughtful winter content focused on planning, indoor gardening, and preparation for the coming growing season.'
+                title: `Winter Planning & Vision - Week ${currentWeekNumber}`,
+                description: 'Transform quiet season into strategic advantage with forward-thinking content, planning resources, and vision-setting activities that prepare for future growth.',
+                theme: 'Winter Planning & Vision',
+                prompt: 'Create thoughtful winter content focused on strategic planning, vision setting, and preparing for upcoming growth opportunities.'
               };
             }
             
@@ -131,7 +131,7 @@ export const AutoCampaignCreator = ({
         const weekStartDate = new Date(startDate);
         weekStartDate.setDate(startDate.getDate() + mondayOffset);
 
-        console.log('🏗️ Creating campaign with rich seasonal data:', campaignData.title);
+        console.log('🏗️ Creating campaign with business-focused data:', campaignData.title);
 
         const { data: newCampaign, error: campaignError } = await supabase
           .from('campaigns')
@@ -154,14 +154,14 @@ export const AutoCampaignCreator = ({
           return;
         }
 
-        console.log('✅ Auto-created rich seasonal campaign:', newCampaign);
+        console.log('✅ Auto-created business-focused campaign:', newCampaign);
 
         if (newCampaign) {
           await generateRequiredTasks(newCampaign.id, [newCampaign], user.id, onTaskUpdate);
           
           const sourceMessage = masterTemplate 
-            ? `🌟 Created "${campaignData.title}" with curated seasonal themes!`
-            : `🚀 Created "${campaignData.title}" with AI-powered seasonal content!`;
+            ? `🌟 Created "${campaignData.title}" with curated business themes!`
+            : `🚀 Created "${campaignData.title}" with strategic marketing content!`;
           
           toast.success(sourceMessage);
           onCampaignCreated();
