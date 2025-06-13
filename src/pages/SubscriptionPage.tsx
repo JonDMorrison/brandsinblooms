@@ -6,13 +6,14 @@ import { CreditCard, Star, Crown, Zap, TrendingUp, Users, Clock, Shield, Link } 
 import { useState, useEffect } from "react";
 import { SocialConnectionManager } from "@/components/analytics/SocialConnectionManager";
 import { AnalyticsSetupWizard } from "@/components/analytics/AnalyticsSetupWizard";
+import { TokenUsageDashboard } from "@/components/tokens/TokenUsageDashboard";
 
 const SubscriptionPage = () => {
   const [loading, setLoading] = useState(true);
 
   // Mock subscription stats
   const [stats, setStats] = useState({
-    currentPlan: 'Professional',
+    currentPlan: 'Growth',
     billingCycle: 'Monthly',
     nextBilling: 'Dec 15, 2024',
     usagePercent: 67
@@ -118,6 +119,16 @@ const SubscriptionPage = () => {
         {/* Account Settings Content */}
         <div className="max-w-7xl mx-auto p-6">
           <div className="grid gap-6">
+            {/* Token Usage Dashboard */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-4">
+                <CreditCard className="w-6 h-6 text-blue-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Token Usage & Billing</h2>
+              </div>
+              
+              <TokenUsageDashboard />
+            </div>
+
             {/* Current Plan Card */}
             <Card className="shadow-lg border-0 bg-white">
               <CardHeader className="pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
@@ -129,7 +140,7 @@ const SubscriptionPage = () => {
               <CardContent className="p-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-semibold">Professional Plan</span>
+                    <span className="text-lg font-semibold">Growth Plan</span>
                     <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                       Active
                     </span>
@@ -137,8 +148,8 @@ const SubscriptionPage = () => {
                   <div className="grid grid-cols-2 gap-4 text-sm text-gray-600">
                     <div>Next billing: {stats.nextBilling}</div>
                     <div>Billing cycle: {stats.billingCycle}</div>
-                    <div>Usage: {stats.usagePercent}% of monthly limit</div>
-                    <div>Auto-renewal: Enabled</div>
+                    <div>Base allowance: 100 tokens/month</div>
+                    <div>Overage rate: $0.25/token</div>
                   </div>
                   <div className="flex gap-3 pt-4">
                     <Button 

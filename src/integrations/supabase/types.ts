@@ -156,6 +156,8 @@ export type Database = {
           seasonal_focus: string | null
           specializations: string | null
           target_audience: string | null
+          tokens_balance: number | null
+          tokens_reset_at: string | null
           tone_of_writing: string | null
           unique_selling_points: string | null
           updated_at: string
@@ -173,6 +175,8 @@ export type Database = {
           seasonal_focus?: string | null
           specializations?: string | null
           target_audience?: string | null
+          tokens_balance?: number | null
+          tokens_reset_at?: string | null
           tone_of_writing?: string | null
           unique_selling_points?: string | null
           updated_at?: string
@@ -190,6 +194,8 @@ export type Database = {
           seasonal_focus?: string | null
           specializations?: string | null
           target_audience?: string | null
+          tokens_balance?: number | null
+          tokens_reset_at?: string | null
           tone_of_writing?: string | null
           unique_selling_points?: string | null
           updated_at?: string
@@ -454,38 +460,47 @@ export type Database = {
       }
       subscriptions: {
         Row: {
+          base_token_allowance: number | null
           billing_interval:
             | Database["public"]["Enums"]["billing_interval"]
             | null
           created_at: string
           end_date: string
           id: string
+          overage_token_price: number | null
           plan: Database["public"]["Enums"]["subscription_plan"]
           start_date: string
+          stripe_subscription_item_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          base_token_allowance?: number | null
           billing_interval?:
             | Database["public"]["Enums"]["billing_interval"]
             | null
           created_at?: string
           end_date: string
           id?: string
+          overage_token_price?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
           start_date?: string
+          stripe_subscription_item_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          base_token_allowance?: number | null
           billing_interval?:
             | Database["public"]["Enums"]["billing_interval"]
             | null
           created_at?: string
           end_date?: string
           id?: string
+          overage_token_price?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
           start_date?: string
+          stripe_subscription_item_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -563,6 +578,50 @@ export type Database = {
         }
         Relationships: []
       }
+      token_usage: {
+        Row: {
+          action_type: string
+          campaign_id: string | null
+          content_type: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          tokens_consumed: number
+          tokens_remaining: number
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          campaign_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          tokens_consumed: number
+          tokens_remaining: number
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          campaign_id?: string | null
+          content_type?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          tokens_consumed?: number
+          tokens_remaining?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_usage_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
@@ -596,9 +655,31 @@ export type Database = {
         Args: { target_user_id?: string }
         Returns: number
       }
+      get_token_balance: {
+        Args: { p_user_id: string }
+        Returns: {
+          tokens_balance: number
+          tokens_reset_at: string
+          is_trial: boolean
+        }[]
+      }
       increment_template_usage: {
         Args: { template_id: string }
         Returns: undefined
+      }
+      refill_tokens: {
+        Args: { p_user_id: string; p_tokens?: number }
+        Returns: boolean
+      }
+      spend_tokens: {
+        Args: {
+          p_user_id: string
+          p_tokens: number
+          p_action_type?: string
+          p_content_type?: string
+          p_campaign_id?: string
+        }
+        Returns: boolean
       }
     }
     Enums: {

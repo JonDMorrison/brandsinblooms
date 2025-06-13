@@ -5,6 +5,23 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
   console.log(`🎯 Generating validated ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
+    // Spend token before generation
+    if (userId) {
+      const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
+        p_user_id: userId,
+        p_tokens: 1,
+        p_action_type: 'generation',
+        p_content_type: postType
+      });
+
+      if (tokenError) {
+        console.error('❌ Error spending token:', tokenError);
+        throw new Error('Failed to process token for content generation');
+      }
+
+      console.log('✅ Token spent for content generation');
+    }
+
     const { data, error } = await supabase.functions.invoke('generate-content', {
       body: {
         postType: postType,
@@ -41,6 +58,24 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
   console.log(`🎯 Generating region-aware newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
   
   try {
+    // Spend token before generation
+    if (userId) {
+      const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
+        p_user_id: userId,
+        p_tokens: 2, // Newsletter costs 2 tokens as it's more complex
+        p_action_type: 'generation',
+        p_content_type: 'newsletter',
+        p_campaign_id: campaignId
+      });
+
+      if (tokenError) {
+        console.error('❌ Error spending token:', tokenError);
+        throw new Error('Failed to process token for newsletter generation');
+      }
+
+      console.log('✅ Tokens spent for newsletter generation');
+    }
+
     const { data, error } = await supabase.functions.invoke('generate-newsletter', {
       body: {
         campaignId: campaignId,
@@ -69,6 +104,23 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
   console.log(`🎯 Generating region-aware video script for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
+    // Spend token before generation
+    if (userId) {
+      const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
+        p_user_id: userId,
+        p_tokens: 2, // Video script costs 2 tokens as it's more complex
+        p_action_type: 'generation',
+        p_content_type: 'video'
+      });
+
+      if (tokenError) {
+        console.error('❌ Error spending token:', tokenError);
+        throw new Error('Failed to process token for video script generation');
+      }
+
+      console.log('✅ Tokens spent for video script generation');
+    }
+
     const { data, error } = await supabase.functions.invoke('generate-video-script', {
       body: {
         campaignTitle: campaignTitle,

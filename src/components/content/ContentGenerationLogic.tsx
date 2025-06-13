@@ -8,6 +8,23 @@ export const useContentGeneration = () => {
     console.log('🚀 Auto-generating missing content for campaign:', campaignId, 'Title:', campaignTitle);
     
     try {
+      // Check token balance before starting
+      const { data: tokenBalance, error: balanceError } = await supabase.rpc('get_token_balance', {
+        p_user_id: userId
+      });
+
+      if (balanceError) {
+        console.error('❌ Error checking token balance:', balanceError);
+        toast.error('Failed to check token balance');
+        return false;
+      }
+
+      const balance = tokenBalance && tokenBalance.length > 0 ? tokenBalance[0] : null;
+      if (!balance) {
+        toast.error('Unable to verify token balance');
+        return false;
+      }
+
       // Get all existing task types for this campaign
       const existingTypes = existingTasks.map(task => task.post_type);
       console.log('📊 Existing types:', existingTypes);
@@ -20,6 +37,35 @@ export const useContentGeneration = () => {
       const tasksNeedingContent = existingTasks.filter(task => !task.ai_output || task.ai_output.trim() === '');
       console.log('🎯 Tasks needing content generation:', tasksNeedingContent.length, 'tasks');
       
+      // Calculate total tokens needed
+      const totalTokensNeeded = tasksNeedingContent.reduce((total, task) => {
+        if (task.post_type === 'newsletter' || task.post_type === 'video') {
+          return total + 2; // Complex content types cost 2 tokens
+        }
+        return total + 1; // Simple content types cost 1 token
+      }, 0);
+
+      console.log(`💰 Total tokens needed: ${totalTokensNeeded}, Current balance: ${balance.tokens_balance}`);
+
+      // Check if user has enough tokens or if they'll go into overage
+      const willGoIntoOverage = balance.tokens_balance < totalTokensNeeded;
+      const overageAmount = willGoIntoOverage ? totalTokensNeeded - Math.max(0, balance.tokens_balance) : 0;
+      const overageCost = overageAmount * 0.25;
+
+      if (willGoIntoOverage) {
+        const proceed = window.confirm(
+          `This will generate ${tasksNeedingContent.length} pieces of content requiring ${totalTokensNeeded} tokens.\n\n` +
+          `Current balance: ${Math.max(0, balance.tokens_balance)} tokens\n` +
+          `Overage: ${overageAmount} tokens (+$${overageCost.toFixed(2)})\n\n` +
+          `Do you want to proceed?`
+        );
+        
+        if (!proceed) {
+          toast.info('Content generation cancelled');
+          return false;
+        }
+      }
+
       // Generate content for existing tasks without content
       for (const task of tasksNeedingContent) {
         console.log(`🤖 Generating content for ${task.post_type} task:`, task.id);
@@ -79,8 +125,14 @@ export const useContentGeneration = () => {
           
         } catch (error) {
           console.error(`❌ Error generating ${task.post_type} content:`, error);
-          toast.error(`Failed to generate ${task.post_type} content`);
+          toast.error(`Failed to generate ${task.post_type} content: ${error.message}`);
         }
+      }
+      
+      if (willGoIntoOverage && overageAmount > 0) {
+        toast.success(`Content generated successfully! Overage charge: $${overageCost.toFixed(2)}`);
+      } else {
+        toast.success('Content generated successfully!');
       }
       
       return true;

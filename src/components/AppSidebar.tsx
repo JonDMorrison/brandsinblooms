@@ -1,7 +1,9 @@
+
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
 import { Calendar, Users, Settings, Home, Leaf, Building, CreditCard, BarChart3, ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
+import { TokenMeter } from "@/components/tokens/TokenMeter";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 
@@ -84,6 +86,11 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
                   businessName={businessName}
                   onBusinessNameChange={handleBusinessNameChange}
                 />
+                
+                {/* Token Meter */}
+                <div className="mt-3 pt-3 border-t border-green-200">
+                  <TokenMeter />
+                </div>
               </>
             )}
             
