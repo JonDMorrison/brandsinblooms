@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 import { getPostTypeIcon, getStatusColor, handleCopy, formatContentForDisplay } from "./ContentViewerUtils";
 import { ContentSidebar } from "@/components/ContentSidebar";
+import { ApproveButton } from "@/components/ui/approve-button";
 
 interface ContentTaskItemProps {
   task: any;
@@ -171,6 +172,7 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   const isGenerating = task.status === 'generating';
   const hasFailedGeneration = task.status === 'generating' && !task.ai_output;
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
+  const isApproved = task.status === 'completed';
 
   return (
     <>
@@ -235,15 +237,11 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
               {canApprove && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                      onClick={handleApprove}
+                    <ApproveButton
+                      isApproved={isApproved}
+                      onApprove={handleApprove}
                       disabled={approvingTask}
-                    >
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      {approvingTask ? 'Approving...' : 'Approve'}
-                    </Button>
+                    />
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>Approve this content and send it to the Ready to Post section</p>
@@ -321,7 +319,7 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
                   disabled={retryingGeneration}
                   className="border-orange-300 text-orange-600 hover:bg-orange-50 text-xs px-2 py-1"
                 >
-                  <RefreshCw className={`w-3 h-3 ${retryingGeneration ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3 h-3 mr-1 ${retryingGeneration ? 'animate-spin' : ''}`} />
                 </Button>
               )}
             </div>
