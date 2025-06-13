@@ -38,7 +38,6 @@ export const CalendarDayCell = ({
   weekNumber
 }: CalendarDayCellProps) => {
   const dayNumber = format(date, 'd');
-  const isMonday = date.getDay() === 1;
 
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
@@ -53,21 +52,14 @@ export const CalendarDayCell = ({
       )}
     >
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span
-            className={cn(
-              "text-sm font-medium",
-              isToday && "text-blue-600 font-bold"
-            )}
-          >
-            {dayNumber}
-          </span>
-          {isMonday && weekNumber && isCurrentMonth && (
-            <Badge variant="outline" className="text-xs px-1 py-0">
-              W{weekNumber}
-            </Badge>
+        <span
+          className={cn(
+            "text-sm font-medium",
+            isToday && "text-blue-600 font-bold"
           )}
-        </div>
+        >
+          {dayNumber}
+        </span>
         {isCurrentMonth && !selectionMode && (
           <Button
             variant="ghost"
