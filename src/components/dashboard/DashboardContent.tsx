@@ -5,6 +5,7 @@ import { DashboardSkeleton } from "./DashboardSkeleton";
 import { DashboardError } from "./DashboardError";
 import { useDashboardData } from "./useDashboardData";
 import { ContentSidebar } from "@/components/ContentSidebar";
+import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -59,6 +60,14 @@ export const DashboardContent = ({
     console.log('Create campaign clicked');
   };
 
+  const handleFirstTimeGetStarted = () => {
+    // Scroll to the content section or open the first task
+    if (tasks.length > 0) {
+      const firstTask = tasks[0];
+      handleTaskClick(firstTask);
+    }
+  };
+
   if (loading) {
     return <DashboardSkeleton />;
   }
@@ -70,6 +79,12 @@ export const DashboardContent = ({
   return (
     <div className="flex h-full">
       <div className="flex-1 p-6">
+        {/* First Time User Welcome - Shows amazing first impression */}
+        <FirstTimeUserWelcome 
+          onGetStarted={handleFirstTimeGetStarted}
+          tasksCount={totalTasksCount}
+        />
+        
         <DashboardGrid
           activeCampaign={activeCampaign}
           userCreatedCampaigns={userCreatedCampaigns}

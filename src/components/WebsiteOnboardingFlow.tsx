@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -9,6 +10,7 @@ import { OnboardingFlow } from "./OnboardingFlow";
 import { useWebsiteAnalysis } from "@/hooks/useWebsiteAnalysis";
 import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./onboarding/CompanyProfileCreator";
 import { LandingPageHeader } from "./landing/LandingPageHeader";
+import { OnboardingContentLoader } from "./onboarding/OnboardingContentLoader";
 
 interface WebsiteOnboardingFlowProps {
   onComplete: (data: any) => void;
@@ -56,7 +58,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       return;
     }
 
-    console.log('Starting onboarding completion...');
+    console.log('Starting enhanced onboarding completion with content generation...');
     setIsCompleting(true);
     
     try {
@@ -68,12 +70,12 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
         websiteUrl: websiteUrl
       };
       
-      console.log('Completing onboarding with data:', finalData);
+      console.log('Completing onboarding with enhanced data:', finalData);
       
       // Save onboarding response to database
       await saveOnboardingResponse(finalData, user.id);
       
-      // Create company profile from onboarding data
+      // 🚀 NEW: Enhanced company profile creation that includes automatic content generation
       await createCompanyProfileFromOnboarding(finalData, user.id);
       
       // Store the onboarding data in localStorage as backup
@@ -82,13 +84,13 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       // Call the onComplete callback with the data
       onComplete(finalData);
       
-      toast.success("Setup complete! Welcome to BloomSuite!");
+      toast.success("🎉 Setup complete! Your first week's content is ready to review!");
       
       // Navigate to the app - OnboardingGuard will now allow access
       navigate('/app');
       
     } catch (error) {
-      console.error('Error completing onboarding:', error);
+      console.error('Error completing enhanced onboarding:', error);
       toast.error("Failed to complete setup. Please try again.");
     } finally {
       setIsCompleting(false);
@@ -123,11 +125,12 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
             <p className="text-sm text-muted-foreground">Step {currentStep} of {steps.length}</p>
           </div>
 
-          {/* Loading state - Show when analyzing */}
+          {/* Loading state - Show when analyzing or completing */}
           <WebsiteAnalysisLoader isAnalyzing={isAnalyzing} />
+          <OnboardingContentLoader isCompleting={isCompleting} />
 
-          {/* Main form - Hide when analyzing */}
-          {!isAnalyzing && (
+          {/* Main form - Hide when analyzing or completing */}
+          {!isAnalyzing && !isCompleting && (
             <>
               {currentStep === 1 ? (
                 <UrlInputStep

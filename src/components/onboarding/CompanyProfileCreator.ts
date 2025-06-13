@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 
 export const createCompanyProfileFromOnboarding = async (onboardingData: any, userId: string) => {
   try {
@@ -38,9 +39,19 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
     console.log('Company profile created successfully:', savedProfile);
 
+    // Calculate current week number
+    const getCurrentWeekNumber = () => {
+      const today = new Date();
+      const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+      const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
+      return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    };
+
+    const currentWeek = getCurrentWeekNumber();
+
     // Automatically generate 52-week themes starting from current week
     try {
-      console.log('Auto-generating 52-week themes starting from current week...');
+      console.log('🎯 Auto-generating 52-week garden center themes starting from current week...');
       
       const { data: themesData, error: themesError } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
@@ -54,15 +65,6 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         console.error('Error auto-generating themes:', themesError);
         // Don't throw here - profile creation was successful, themes are optional
       } else if (themesData?.themes && Array.isArray(themesData.themes)) {
-        // Calculate current week number
-        const getCurrentWeekNumber = () => {
-          const today = new Date();
-          const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-          const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
-          return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-        };
-
-        const currentWeek = getCurrentWeekNumber();
         
         // Save themes starting from current week
         const campaigns = themesData.themes.map((theme: any, index: number) => {
@@ -78,18 +80,57 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
             theme: theme.title,
             description: theme.description,
             start_date: startDate.toISOString().split('T')[0],
-            prompt: theme.content_ideas.join(' • ')
+            prompt: theme.content_ideas.join(' • '),
+            user_id: userId
           };
         });
 
-        const { error: campaignError } = await supabase
+        const { data: createdCampaigns, error: campaignError } = await supabase
           .from('campaigns')
-          .insert(campaigns);
+          .insert(campaigns)
+          .select();
 
         if (campaignError) {
           console.error('Error saving auto-generated campaigns:', campaignError);
         } else {
-          console.log(`Successfully auto-generated ${themesData.themes.length} weekly themes starting from week ${currentWeek}`);
+          console.log(`✅ Successfully auto-generated ${themesData.themes.length} weekly garden center themes starting from week ${currentWeek}`);
+          
+          // 🚀 NEW: Automatically generate content for the FIRST week to create amazing first impression
+          if (createdCampaigns && createdCampaigns.length > 0) {
+            const firstWeekCampaign = createdCampaigns[0]; // This is the current week's campaign
+            
+            console.log('🎯 Auto-generating FIRST WEEK content for immediate wow factor:', firstWeekCampaign.title);
+            
+            try {
+              // Create a dummy callback function for onTaskUpdate since we're in onboarding
+              const dummyTaskUpdate = () => {
+                console.log('Task update during onboarding');
+              };
+              
+              // Generate all 5 content pieces for the first week
+              await generateRequiredTasks(
+                firstWeekCampaign.id, 
+                createdCampaigns, 
+                userId, 
+                dummyTaskUpdate
+              );
+              
+              console.log('🎉 FIRST WEEK CONTENT GENERATED! User will see 5 ready posts on dashboard');
+              
+              // Mark this user as having completed their first onboarding content generation
+              await supabase
+                .from('company_profiles')
+                .update({ 
+                  first_content_generated: true,
+                  onboarding_completed_at: new Date().toISOString()
+                })
+                .eq('user_id', userId);
+                
+            } catch (contentError) {
+              console.error('Error generating first week content during onboarding:', contentError);
+              // Don't throw - profile and themes were successful
+            }
+          }
         }
       }
     } catch (themeError) {
