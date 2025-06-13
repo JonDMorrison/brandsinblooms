@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { CalendarDayCell } from "./CalendarDayCell";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 interface Campaign {
   id: number;
@@ -38,29 +37,8 @@ export const CalendarGrid = ({
   const monthEnd = endOfMonth(currentDate);
   const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Get current week number for proper seasonal alignment
-  const currentWeekNumber = getCurrentWeekNumber();
-  
-  // Map campaigns to appropriate weeks based on current week
-  const adjustedCampaigns = campaigns.map(campaign => {
-    // Calculate the actual week this campaign should represent
-    // If we're in week 24 and this is stored as week 1, it should show as week 24
-    const weekOffset = campaign.week_number - 1; // 0-based offset
-    const actualWeekNumber = ((currentWeekNumber - 1 + weekOffset) % 52) + 1;
-    
-    // Calculate the actual date this campaign should be for
-    const campaignDate = new Date();
-    campaignDate.setDate(campaignDate.getDate() + (weekOffset * 7));
-    
-    return {
-      ...campaign,
-      start_date: campaignDate.toISOString().split('T')[0],
-      week_number: actualWeekNumber
-    };
-  });
-
-  // Group campaigns by date using the adjusted campaigns
-  const campaignsByDate = adjustedCampaigns.reduce((acc, campaign) => {
+  // Group campaigns by date directly without adjustment
+  const campaignsByDate = campaigns.reduce((acc, campaign) => {
     const dateKey = format(new Date(campaign.start_date), 'yyyy-MM-dd');
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(campaign);
