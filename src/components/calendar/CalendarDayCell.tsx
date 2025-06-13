@@ -1,7 +1,8 @@
+
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Check, Calendar, GripVertical } from "lucide-react";
+import { Check, Calendar, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Campaign {
@@ -107,7 +108,7 @@ export const CalendarDayCell = ({
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* Day number and add button */}
+      {/* Day number */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span
@@ -126,20 +127,6 @@ export const CalendarDayCell = ({
             </Badge>
           )}
         </div>
-        
-        {isCurrentMonth && !selectionMode && !isDragging && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className={cn(
-              "h-7 w-7 p-0 transition-opacity duration-200",
-              "opacity-0 group-hover:opacity-100 hover:bg-blue-100 hover:text-blue-600"
-            )}
-            onClick={() => onCreateCampaign?.(date)}
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </Button>
-        )}
       </div>
       
       {/* Drop zone indicator */}
@@ -244,13 +231,6 @@ export const CalendarDayCell = ({
         {(campaigns.length + tasks.length) > 3 && (
           <div className="text-xs text-gray-500 text-center py-1 bg-gray-50 rounded-md border border-gray-200">
             +{(campaigns.length + tasks.length) - 3} more item{(campaigns.length + tasks.length) - 3 !== 1 ? 's' : ''}
-          </div>
-        )}
-        
-        {(campaigns.length + tasks.length) === 0 && isCurrentMonth && !selectionMode && !isDragging && (
-          <div className="text-xs text-gray-400 text-center py-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <Plus className="w-4 h-4 mx-auto mb-1 text-gray-300" />
-            Add campaign
           </div>
         )}
       </div>
