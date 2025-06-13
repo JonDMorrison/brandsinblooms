@@ -20,6 +20,29 @@ const Auth = () => {
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
+  const checkOnboardingAndRedirect = async (userId: string) => {
+    try {
+      // Check if user has completed onboarding
+      const { data: profile } = await supabase
+        .from('company_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (profile) {
+        // User has completed onboarding, go to app
+        window.location.href = "/app";
+      } else {
+        // New user, needs onboarding
+        window.location.href = "/onboarding";
+      }
+    } catch (error) {
+      console.error('Error checking onboarding status:', error);
+      // Default to onboarding for safety
+      window.location.href = "/onboarding";
+    }
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -34,8 +57,7 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Force redirect to app
-        window.location.href = "/app";
+        await checkOnboardingAndRedirect(data.user.id);
       }
     } catch (error: any) {
       setError(error.message);
@@ -57,7 +79,7 @@ const Auth = () => {
     }
 
     try {
-      const redirectUrl = `${window.location.origin}/app`;
+      const redirectUrl = `${window.location.origin}/onboarding`;
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -74,7 +96,8 @@ const Auth = () => {
 
       if (data.user) {
         if (data.user.email_confirmed_at) {
-          window.location.href = "/app";
+          // Email already confirmed, redirect to onboarding
+          window.location.href = "/onboarding";
         } else {
           setMessage("Please check your email for a confirmation link");
         }
@@ -94,7 +117,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/app`
+          redirectTo: `${window.location.origin}/onboarding`
         }
       });
 

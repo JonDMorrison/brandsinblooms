@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { DevNavigation } from "@/components/DevNavigation";
 import { TrialBanner } from "@/components/TrialBanner";
 import { LandingPage } from "@/components/LandingPage";
@@ -83,17 +84,7 @@ const App = () => (
                 {/* Redirect removed Kanban route to dashboard */}
                 <Route path="/kanban" element={<Navigate to="/app" replace />} />
                 
-                {/* Protected routes with sidebar - require authentication */}
-                <Route 
-                  path="/app" 
-                  element={
-                    <ProtectedRoute>
-                      <ErrorBoundary>
-                        <Index />
-                      </ErrorBoundary>
-                    </ProtectedRoute>
-                  } 
-                />
+                {/* Onboarding route - protected but doesn't require onboarding completion */}
                 <Route 
                   path="/onboarding" 
                   element={
@@ -104,13 +95,29 @@ const App = () => (
                     </ProtectedRoute>
                   } 
                 />
+                
+                {/* Protected routes with onboarding guard - require authentication AND completed onboarding */}
+                <Route 
+                  path="/app" 
+                  element={
+                    <ProtectedRoute>
+                      <OnboardingGuard>
+                        <ErrorBoundary>
+                          <Index />
+                        </ErrorBoundary>
+                      </OnboardingGuard>
+                    </ProtectedRoute>
+                  } 
+                />
                 <Route 
                   path="/profile" 
                   element={
                     <ProtectedRoute>
-                      <ErrorBoundary>
-                        <ProfilePage />
-                      </ErrorBoundary>
+                      <OnboardingGuard>
+                        <ErrorBoundary>
+                          <ProfilePage />
+                        </ErrorBoundary>
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   } 
                 />
@@ -118,9 +125,11 @@ const App = () => (
                   path="/subscription" 
                   element={
                     <ProtectedRoute>
-                      <ErrorBoundary>
-                        <SubscriptionPage />
-                      </ErrorBoundary>
+                      <OnboardingGuard>
+                        <ErrorBoundary>
+                          <SubscriptionPage />
+                        </ErrorBoundary>
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   } 
                 />
@@ -128,9 +137,11 @@ const App = () => (
                   path="/calendar" 
                   element={
                     <ProtectedRoute>
-                      <ErrorBoundary>
-                        <CalendarPage />
-                      </ErrorBoundary>
+                      <OnboardingGuard>
+                        <ErrorBoundary>
+                          <CalendarPage />
+                        </ErrorBoundary>
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   } 
                 />
@@ -138,9 +149,11 @@ const App = () => (
                   path="/team" 
                   element={
                     <ProtectedRoute>
-                      <ErrorBoundary>
-                        <TeamPage />
-                      </ErrorBoundary>
+                      <OnboardingGuard>
+                        <ErrorBoundary>
+                          <TeamPage />
+                        </ErrorBoundary>
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   } 
                 />
@@ -148,9 +161,11 @@ const App = () => (
                   path="/analytics" 
                   element={
                     <ProtectedRoute>
-                      <ErrorBoundary>
-                        <AnalyticsPage />
-                      </ErrorBoundary>
+                      <OnboardingGuard>
+                        <ErrorBoundary>
+                          <AnalyticsPage />
+                        </ErrorBoundary>
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   } 
                 />
@@ -158,9 +173,11 @@ const App = () => (
                   path="/content-library" 
                   element={
                     <ProtectedRoute>
-                      <ErrorBoundary>
-                        <ContentLibraryPage />
-                      </ErrorBoundary>
+                      <OnboardingGuard>
+                        <ErrorBoundary>
+                          <ContentLibraryPage />
+                        </ErrorBoundary>
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   } 
                 />
@@ -168,9 +185,11 @@ const App = () => (
                   path="/admin" 
                   element={
                     <ProtectedRoute>
-                      <ErrorBoundary>
-                        <AdminPage />
-                      </ErrorBoundary>
+                      <OnboardingGuard>
+                        <ErrorBoundary>
+                          <AdminPage />
+                        </ErrorBoundary>
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   } 
                 />

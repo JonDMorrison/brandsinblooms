@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -83,9 +82,9 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       // Call the onComplete callback with the data
       onComplete(finalData);
       
-      toast.success("Setup complete! Your company profile has been created.");
+      toast.success("Setup complete! Welcome to BloomSuite!");
       
-      // Navigate directly to the app without any view parameter
+      // Navigate to the app - OnboardingGuard will now allow access
       navigate('/app');
       
     } catch (error) {

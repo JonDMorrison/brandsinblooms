@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,9 +109,9 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
       // Call the onComplete callback with the data
       onComplete(formData);
       
-      toast.success("Setup complete! Your company profile has been created.");
+      toast.success("Setup complete! Welcome to BloomSuite!");
       
-      // Navigate directly to the app
+      // Navigate to the app - OnboardingGuard will now allow access
       navigate('/app');
       
     } catch (error) {
