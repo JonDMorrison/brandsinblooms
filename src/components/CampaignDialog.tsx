@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { generateThemeDescription } from "./calendar/ThemeDescriptionGenerator";
-import { getCurrentWeekNumber } from "./homepage/homepageUtils";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 interface CampaignDialogProps {
   onCampaignCreated?: () => void;

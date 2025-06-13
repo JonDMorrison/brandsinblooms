@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,7 +7,8 @@ import { generateRequiredTasks } from "./homepage/RequiredTasksGenerator";
 import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getCurrentWeekNumber } from "./homepage/homepageUtils";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { getCurrentWeekCampaign } from "./homepage/homepageUtils";
 import { HomepageHeader } from "./homepage/HomepageHeader";
 import { HomepageActions } from "./homepage/HomepageActions";
 import { HomepageMainContent } from "./homepage/HomepageMainContent";
