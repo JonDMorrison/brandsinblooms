@@ -95,7 +95,11 @@ export const useDashboardData = () => {
           throw new Error(`Failed to load content tasks: ${tasksError.message}`);
         }
       } else {
-        const tasks = tasksData || [];
+        // Type assertion to ensure status field matches our ContentTask interface
+        const tasks = (tasksData || []).map(task => ({
+          ...task,
+          status: task.status as ContentTask['status']
+        })) as ContentTask[];
         setTasks(tasks);
         setCachedData(CACHE_KEYS.tasks, tasks);
       }
