@@ -34,11 +34,11 @@ export const WeekCampaignCard = ({
     setApprovingTasks(prev => new Set(prev).add(taskId));
     
     try {
-      console.log('Approving task with status change to: completed');
+      console.log('Approving task with status change to: posted');
       
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'completed' })
+        .update({ status: 'posted' })
         .eq('id', taskId);
 
       if (error) {
@@ -185,7 +185,7 @@ export const WeekCampaignCard = ({
                 const task = tasksByType[type];
                 const hasTask = !!task;
                 const hasContent = task?.ai_output && task.ai_output.trim() !== '';
-                const isApproved = task?.status === 'completed';
+                const isApproved = task?.status === 'posted';
                 
                 return (
                   <div 

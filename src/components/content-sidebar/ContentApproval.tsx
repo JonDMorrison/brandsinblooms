@@ -18,11 +18,11 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   const handleApprove = async () => {
     setIsApproving(true);
     try {
-      console.log('Approving task with status change to: completed');
+      console.log('Approving task with status change to: posted');
       
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'completed' })
+        .update({ status: 'posted' })
         .eq('id', task.id);
 
       if (error) {
@@ -77,7 +77,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   }
 
   // Show status for already approved content
-  if (task?.status === 'completed') {
+  if (task?.status === 'posted') {
     return (
       <Card className="border-green-200 bg-green-50">
         <CardContent className="p-4">

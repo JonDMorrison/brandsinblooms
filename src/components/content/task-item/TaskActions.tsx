@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -27,7 +26,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'completed' })
+        .update({ status: 'posted' })
         .eq('id', task.id);
 
       if (error) {
@@ -190,13 +189,13 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
     }
   };
 
-  const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'completed';
-  const canApprove = ['scheduled', 'pending', 'draft', 'ready'].includes(task.status) && task.ai_output;
+  const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'posted';
+  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review'].includes(task.status) && task.ai_output;
   const canEdit = task.ai_output && task.status !== 'published';
   const isGenerating = task.status === 'generating';
   const hasFailedGeneration = task.status === 'generating' && !task.ai_output;
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
-  const isApproved = task.status === 'completed';
+  const isApproved = task.status === 'posted';
 
   return (
     <TooltipProvider>
@@ -280,7 +279,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
               </>
             )}
           </Button>
-        ) : task.status === 'completed' && task.post_type !== 'facebook' && task.post_type !== 'instagram' ? (
+        ) : task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' ? (
           <Button
             size="sm"
             variant="outline"
