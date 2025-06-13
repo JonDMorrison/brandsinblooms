@@ -1,12 +1,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Trash2, Edit } from "lucide-react";
+import { Trash2, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { getPostTypeIcon } from "@/components/homepage/ready-to-post/postTypeUtils";
+import { ApproveButton } from "@/components/ui/approve-button";
 
 interface ReviewQueueItemProps {
   task: any;
@@ -38,7 +39,7 @@ export const ReviewQueueItem = ({
   const handleEdit = (event: React.MouseEvent) => {
     event.stopPropagation();
     if (onEdit) onEdit(task, true);
-    else onClick(task); // Fallback to regular click if onEdit not provided
+    else onClick(task);
   };
 
   const handleDelete = async (event: React.MouseEvent) => {
@@ -71,6 +72,12 @@ export const ReviewQueueItem = ({
     }
   };
 
+  const handleApproveWrapper = async (event: React.MouseEvent) => {
+    await onApprove(task.id, event);
+  };
+
+  const isApproved = task.status === 'completed' || task.status === 'scheduled';
+
   return (
     <div
       key={task.id}
@@ -100,15 +107,11 @@ export const ReviewQueueItem = ({
             Edit
           </Button>
           
-          <Button
-            size="sm"
-            className="bg-green-600 hover:bg-green-700 text-white"
-            onClick={(e) => onApprove(task.id, e)}
+          <ApproveButton
+            isApproved={isApproved}
+            onApprove={handleApproveWrapper}
             disabled={isApproving}
-          >
-            <CheckCircle className="w-3 h-3 mr-1" />
-            {isApproving ? 'Approving...' : 'Approve'}
-          </Button>
+          />
           
           <TooltipProvider>
             <Tooltip>

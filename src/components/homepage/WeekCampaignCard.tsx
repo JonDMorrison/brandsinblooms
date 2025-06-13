@@ -7,6 +7,7 @@ import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeDisplay } from "../calendar/ThemeDisplay";
+import { ApproveButton } from "@/components/ui/approve-button";
 
 interface WeekCampaignCardProps {
   currentCampaign: any;
@@ -184,6 +185,7 @@ export const WeekCampaignCard = ({
                 const task = tasksByType[type];
                 const hasTask = !!task;
                 const hasContent = task?.ai_output && task.ai_output.trim() !== '';
+                const isApproved = task?.status === 'scheduled' || task?.status === 'completed';
                 
                 return (
                   <div 
@@ -211,38 +213,13 @@ export const WeekCampaignCard = ({
                         )}
                       </div>
                       
-                      {hasTask && hasContent && task.status !== 'scheduled' && (
+                      {hasTask && hasContent && (
                         <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={(e) => handleApprove(String(task.id), e)}
+                          <ApproveButton
+                            isApproved={isApproved}
+                            onApprove={(e) => handleApprove(String(task.id), e)}
                             disabled={approvingTasks.has(String(task.id))}
-                          >
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            {approvingTasks.has(String(task.id)) ? "Approve" : "Approve"}
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="border-gray-300 text-gray-700 hover:bg-gray-100"
-                            onClick={(e) => handleEdit(task, e)}
-                          >
-                            <Edit className="w-3 h-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-100">
-                            <Copy className="w-3 h-3 mr-1" />
-                            Copy
-                          </Button>
-                        </div>
-                      )}
-
-                      {hasTask && hasContent && task.status === 'scheduled' && (
-                        <div className="flex gap-2">
-                          <Badge className="bg-green-100 text-green-800 font-medium">
-                            ✅ Approved
-                          </Badge>
+                          />
                           <Button 
                             size="sm" 
                             variant="outline" 
