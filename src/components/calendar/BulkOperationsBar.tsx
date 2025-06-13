@@ -66,7 +66,7 @@ export const BulkOperationsBar = ({
       const { error } = await supabase
         .from('campaigns')
         .delete()
-        .in('id', selectedCampaigns.map(c => c.id));
+        .in('id', selectedCampaigns.map(c => c.id.toString()));
 
       if (error) throw error;
 
@@ -98,7 +98,7 @@ export const BulkOperationsBar = ({
         newDate.setDate(newDate.getDate() + (shiftAmount * 7));
         
         return {
-          id: campaign.id,
+          id: campaign.id.toString(),
           week_number: campaign.week_number + shiftAmount,
           start_date: newDate.toISOString().split('T')[0]
         };

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Palette, Calendar as CalendarIcon, Grid, Timeline, CheckSquare } from "lucide-react";
+import { Palette, Calendar as CalendarIcon, Grid, Calendar, CheckSquare } from "lucide-react";
 import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
 import { CalendarGrid } from "./calendar/CalendarGrid";
 import { CampaignDetailsModal } from "./calendar/CampaignDetailsModal";
@@ -114,7 +114,7 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
           theme: template.theme,
           description: template.description
         })
-        .eq('id', selectedCampaign.id);
+        .eq('id', selectedCampaign.id.toString());
 
       if (error) throw error;
 
@@ -202,7 +202,7 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
             Calendar View
           </TabsTrigger>
           <TabsTrigger value="schedule" className="flex items-center gap-2">
-            <Timeline className="w-4 h-4" />
+            <Calendar className="w-4 h-4" />
             Publishing Schedule
           </TabsTrigger>
         </TabsList>
