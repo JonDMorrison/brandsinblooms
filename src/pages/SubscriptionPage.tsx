@@ -2,8 +2,10 @@
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CreditCard, Star, Crown, Zap, TrendingUp, Users, Clock, Shield } from "lucide-react";
+import { CreditCard, Star, Crown, Zap, TrendingUp, Users, Clock, Shield, Link } from "lucide-react";
 import { useState, useEffect } from "react";
+import { SocialConnectionManager } from "@/components/analytics/SocialConnectionManager";
+import { AnalyticsSetupWizard } from "@/components/analytics/AnalyticsSetupWizard";
 
 const SubscriptionPage = () => {
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,7 @@ const SubscriptionPage = () => {
           </div>
         </div>
         
-        {/* Subscription Content */}
+        {/* Account Settings Content */}
         <div className="max-w-7xl mx-auto p-6">
           <div className="grid gap-6">
             {/* Current Plan Card */}
@@ -157,6 +159,17 @@ const SubscriptionPage = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Social Media Connections Section */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-4">
+                <Link className="w-6 h-6 text-blue-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Social Media Connections</h2>
+              </div>
+              
+              <SocialConnectionManager />
+              <AnalyticsSetupWizard />
+            </div>
 
             {/* Quick Actions Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

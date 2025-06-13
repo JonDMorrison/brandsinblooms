@@ -13,6 +13,22 @@ interface AnalyticsMetric {
   platform_account_name: string;
 }
 
+interface SocialConnectionsJoin {
+  platform: string;
+  platform_account_name: string;
+}
+
+interface AnalyticsDataWithConnection {
+  id: string;
+  connection_id: string;
+  metric_type: string;
+  metric_value: number;
+  date_collected: string;
+  metadata: any;
+  created_at: string;
+  social_connections: SocialConnectionsJoin;
+}
+
 export const RealAnalyticsData = () => {
   const { user } = useAuth();
   const [metrics, setMetrics] = useState<AnalyticsMetric[]>([]);
@@ -37,7 +53,7 @@ export const RealAnalyticsData = () => {
       if (error) throw error;
 
       // Transform the data to flatten the social_connections relation
-      const transformedData = data?.map(item => ({
+      const transformedData = (data as AnalyticsDataWithConnection[])?.map(item => ({
         ...item,
         platform: item.social_connections.platform,
         platform_account_name: item.social_connections.platform_account_name,
@@ -70,7 +86,7 @@ export const RealAnalyticsData = () => {
 
   const getMetricsByPlatform = () => {
     const platforms = ['facebook', 'instagram', 'google_my_business'];
-    const result = {};
+    const result: Record<string, AnalyticsMetric[]> = {};
 
     platforms.forEach(platform => {
       const platformMetrics = metrics.filter(m => m.platform === platform);
@@ -86,11 +102,6 @@ export const RealAnalyticsData = () => {
     return metricType.split('_').map(word => 
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
-  };
-
-  const calculateTrend = (currentValue: number, previousValue: number) => {
-    if (previousValue === 0) return 0;
-    return ((currentValue - previousValue) / previousValue) * 100;
   };
 
   if (loading) {
@@ -138,7 +149,7 @@ export const RealAnalyticsData = () => {
                            platform.charAt(0).toUpperCase() + platform.slice(1);
         
         // Group metrics by type and get the latest value
-        const latestMetrics = {};
+        const latestMetrics: Record<string, AnalyticsMetric> = {};
         platformMetrics.forEach(metric => {
           if (!latestMetrics[metric.metric_type] || 
               new Date(metric.date_collected) > new Date(latestMetrics[metric.metric_type].date_collected)) {
@@ -161,7 +172,7 @@ export const RealAnalyticsData = () => {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Object.values(latestMetrics).map((metric: any) => {
+                {Object.values(latestMetrics).map((metric) => {
                   const Icon = getMetricIcon(metric.metric_type);
                   
                   // Calculate trend (this is simplified - in production you'd compare with previous period)
