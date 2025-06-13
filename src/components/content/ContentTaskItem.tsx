@@ -207,7 +207,9 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   };
 
   const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'completed';
-  const canApprove = task.status === 'scheduled' && task.ai_output;
+  
+  const canApprove = ['scheduled', 'pending', 'draft', 'ready'].includes(task.status) && task.ai_output;
+  
   const canEdit = task.ai_output && task.status !== 'published';
   const isGenerating = task.status === 'generating';
   const hasFailedGeneration = task.status === 'generating' && !task.ai_output;
