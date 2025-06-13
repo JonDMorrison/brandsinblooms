@@ -1,7 +1,6 @@
-
 import { Button } from "@/components/ui/button";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, Home, Leaf, Building, CreditCard, BarChart3, BookOpen, ChevronLeft, ChevronRight, Expand } from "lucide-react";
+import { Calendar, Users, Settings, Home, Leaf, Building, CreditCard, BarChart3, ChevronLeft, ChevronRight, Expand } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -22,7 +21,6 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
     { title: "Dashboard", view: "home", icon: Home, path: "/app" },
     { title: "Campaign Calendar", view: "calendar", icon: Calendar, path: "/calendar" },
     { title: "Analytics", view: "analytics", icon: BarChart3, path: "/analytics" },
-    { title: "Content Library", view: "content-library", icon: BookOpen, path: "/content-library" },
     { title: "Company Profile", view: "profile", icon: Building, path: "/profile" },
   ];
 
