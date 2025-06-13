@@ -133,61 +133,66 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
 
   return (
     <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
-      {/* Header with Quick Actions */}
+      {/* Simplified Header */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="px-4 sm:px-6 py-4 sm:py-5">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="p-2 bg-green-50 rounded-lg flex-shrink-0">
-              <CalendarIcon className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
-                Campaign Calendar
-              </h2>
-              <p className="text-sm text-gray-600 mt-0.5">
-                Plan, organize, and manage your year-long content strategy
-              </p>
+        <div className="px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <CalendarIcon className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Campaign Calendar
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Plan and organize your content strategy
+                </p>
+              </div>
             </div>
             
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Quick Action Buttons */}
+            {/* Primary Actions */}
+            <div className="flex items-center gap-3">
               <Button
-                size="sm"
-                variant="outline"
                 onClick={() => setShowNewCampaignModal(true)}
                 className="flex items-center gap-2"
               >
                 <PlusCircle className="w-4 h-4" />
-                Create Campaign
+                New Campaign
               </Button>
               
               <Button
-                size="sm"
                 variant="outline"
                 onClick={() => setShowAddEventDialog(true)}
                 className="flex items-center gap-2"
               >
                 <CalendarPlus className="w-4 h-4" />
-                Promote Event
+                Add Event
               </Button>
-              
+            </div>
+          </div>
+          
+          {/* Secondary Actions */}
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+            <div className="flex items-center gap-2">
               <CampaignTemplateManager
                 onTemplateApply={handleTemplateApply}
                 selectedCampaign={selectedCampaign || undefined}
               />
-              
-              <Button
-                size="sm"
-                variant={selectionMode ? "default" : "outline"}
-                onClick={() => {
-                  setSelectionMode(!selectionMode);
-                  if (selectionMode) clearSelection();
-                }}
-              >
-                <CheckSquare className="w-4 h-4 mr-2" />
-                {selectionMode ? 'Exit Selection' : 'Select Multiple'}
-              </Button>
             </div>
+            
+            <Button
+              size="sm"
+              variant={selectionMode ? "default" : "outline"}
+              onClick={() => {
+                setSelectionMode(!selectionMode);
+                if (selectionMode) clearSelection();
+              }}
+              className="flex items-center gap-2"
+            >
+              <CheckSquare className="w-4 h-4" />
+              {selectionMode ? 'Exit Selection' : 'Select Multiple'}
+            </Button>
           </div>
         </div>
       </div>
