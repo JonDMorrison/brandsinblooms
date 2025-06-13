@@ -33,7 +33,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
   const tasksArray = Array.isArray(pendingTasks) ? pendingTasks : [];
 
   // Group tasks by theme/campaign for batch operations
-  const tasksByTheme = tasksArray.reduce((acc: Record<string, any[]>, task: any) => {
+  const tasksByTheme = tasksArray.reduce((acc, task) => {
     const theme = task.notes?.includes('Generated from theme:') 
       ? task.notes.replace('Generated from theme: ', '').trim()
       : 'Other';
