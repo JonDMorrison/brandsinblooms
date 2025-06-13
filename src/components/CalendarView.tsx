@@ -188,7 +188,7 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
 
       {/* Task Content Modal */}
       <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white z-[100] border border-gray-200 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <span className="text-2xl">
