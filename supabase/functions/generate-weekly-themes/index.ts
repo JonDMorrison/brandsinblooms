@@ -21,7 +21,10 @@ serve(async (req) => {
     const { userId, startYear, startFromCurrentWeek = false, weekNumber } = await req.json();
     const year = startYear || new Date().getFullYear();
 
+    console.log(`🎯 Starting theme generation for user: ${userId}, week: ${weekNumber || 'current'}`);
+
     if (!openAIApiKey) {
+      console.error('❌ OpenAI API key not configured');
       throw new Error('OpenAI API key not configured');
     }
 
@@ -31,6 +34,7 @@ serve(async (req) => {
     // Fetch company profile for personalization
     let companyProfile = null;
     if (userId) {
+      console.log('🏢 Fetching company profile...');
       const { data: profileData, error: profileError } = await supabase
         .from('company_profiles')
         .select('*')
@@ -39,29 +43,28 @@ serve(async (req) => {
 
       if (!profileError && profileData) {
         companyProfile = profileData;
+        console.log('✅ Company profile loaded:', companyProfile.company_name);
+      } else {
+        console.log('⚠️ No company profile found for user');
       }
     }
 
-    // Calculate starting week if needed
+    // Calculate starting week and context
     let startingWeek = 1;
     let seasonalContext = '';
     let requestedWeeks = 52;
     
-    if (startFromCurrentWeek) {
+    if (startFromCurrentWeek || weekNumber) {
       const today = new Date();
       const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
       const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
-      startingWeek = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+      const currentWeek = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+      
+      startingWeek = weekNumber || currentWeek;
+      requestedWeeks = 1;
       
       const currentMonth = today.toLocaleString('default', { month: 'long' });
-      seasonalContext = `\n\nIMPORTANT: Start the themes from the current week ${startingWeek} of the year, which is in ${currentMonth}. The first theme should be relevant for the current season and time of year, not January themes.`;
-      
-      // If specific week requested, generate just that week plus a few around it
-      if (weekNumber) {
-        startingWeek = weekNumber;
-        requestedWeeks = 1;
-        seasonalContext = `\n\nIMPORTANT: Generate a theme specifically for week ${weekNumber} of the year, which is in ${currentMonth}. Make it highly relevant for the current season.`;
-      }
+      seasonalContext = `\n\nIMPORTANT: Generate a theme specifically for week ${startingWeek} of the year, which is in ${currentMonth}. Make it highly relevant for the current season and time of year, focusing on what garden center customers need right now.`;
     }
 
     // Build company context for AI
@@ -70,87 +73,81 @@ serve(async (req) => {
       companyContext = `
 COMPANY PROFILE:
 Company Name: ${companyProfile.company_name || 'Garden Center'}
-Specializations: ${companyProfile.specializations || 'General gardening'}
-Target Audience: ${companyProfile.target_audience || 'Home gardeners'}
-Location: ${companyProfile.location_info || 'General climate'}
-Unique Selling Points: ${companyProfile.unique_selling_points || ''}
-Brand Voice: ${companyProfile.brand_voice || 'Professional and helpful'}
+Location: ${companyProfile.location_info || 'General climate zone'}
+Specializations: ${companyProfile.specializations || 'Full-service garden center'}
+Target Audience: ${companyProfile.target_audience || 'Home gardeners and landscapers'}
+Unique Selling Points: ${companyProfile.unique_selling_points || 'Expert advice and quality plants'}
+Brand Voice: ${companyProfile.brand_voice || 'Knowledgeable and helpful'}
+Seasonal Focus: ${companyProfile.seasonal_focus || 'Year-round gardening support'}
 `;
     }
 
-    const prompt = `Generate ${requestedWeeks} unique weekly marketing theme${requestedWeeks > 1 ? 's' : ''} for a garden center's ${year} content calendar. ${companyContext}${seasonalContext}
+    const prompt = `Generate ${requestedWeeks} strategic weekly marketing theme${requestedWeeks > 1 ? 's' : ''} for a garden center's ${year} content calendar. ${companyContext}${seasonalContext}
 
-IMPORTANT: Incorporate these seasonal events, holidays, and horticultural celebrations:
+SEASONAL FRAMEWORK - Incorporate these key elements:
 
-FLOWER & PLANT MONTHS:
-- January: Houseplant Month, Poinsettia Month
-- February: Amaryllis Month, Houseplant Month continues
-- March: Daffodil Month, Orchid Month
-- April: Garden Month, Sweet Pea Month, Tulip Month
-- May: Rose Month begins, Lilac Month, National Garden Month
-- June: Rose Month (peak), Peony Month, Lily Month
-- July: Dahlia Month, Sunflower Month, Delphinium Month
-- August: Gladiolus Month, Poppy Month
-- September: Aster Month, Chrysanthemum Month begins
-- October: Chrysanthemum Month (peak), Pumpkin Season
-- November: Poinsettia prep, Holly Month
-- December: Poinsettia Month, Evergreen Month, Holiday Wreaths
+SPRING THEMES (March-May):
+- Soil preparation, spring cleanup, early vegetables
+- Tree and shrub planting, spring-flowering bulbs in bloom
+- Garden planning, seed starting, lawn care revival
 
-MAJOR HOLIDAYS & GARDEN-RELATED EVENTS:
+SUMMER THEMES (June-August):
+- Watering strategies, heat-tolerant plants, summer vegetables
+- Outdoor living spaces, container gardens, pest management
+- Harvest celebrations, preservation techniques
+
+FALL THEMES (September-November):
+- Fall planting season, winter prep, harvest festivals
+- Tree care, bulb planting for next year, seasonal decorations
+- Thanksgiving arrangements, winter protection strategies
+
+WINTER THEMES (December-February):
+- Holiday plants and arrangements, indoor gardening
+- Tool maintenance, planning next year's garden
+- Winter interest plants, bird feeding, houseplant care
+
+KEY HOLIDAYS & EVENTS TO INCORPORATE:
 - Valentine's Day (Feb 14) - romantic plants, red flowers
-- St. Patrick's Day (Mar 17) - green plants, shamrocks
-- Easter (varies) - Easter lilies, spring bulbs, pastel themes
-- Mother's Day (May, 2nd Sunday) - hanging baskets, potted plants
-- Memorial Day (May, last Monday) - red, white, blue plantings
-- Father's Day (June, 3rd Sunday) - tools, outdoor projects
-- Independence Day (July 4) - patriotic plantings
-- Labor Day (September) - end of summer care
-- Halloween (Oct 31) - pumpkins, fall decorations, orange/black plants
+- Easter (spring) - Easter lilies, spring bulbs, pastel themes
+- Mother's Day (May) - hanging baskets, potted plants, gifts
+- Memorial Day (late May) - red, white, blue plantings
+- Father's Day (June) - tools, outdoor projects, masculine plants
+- Independence Day (July 4) - patriotic plantings, summer BBQ gardens
+- Halloween (Oct 31) - pumpkins, fall decorations, orange plants
 - Thanksgiving (November) - autumn harvest, gratitude themes
 - Christmas (Dec 25) - evergreens, poinsettias, holiday arrangements
 
-HORTICULTURAL OBSERVANCES:
-- National Seed Swap Day (Jan 25)
-- National Garden Week (first week of June)
-- National Pollinator Week (3rd week of June)
-- National Garden Month (April)
-- National Herb Week (3rd week of May)
-- National Tree Week (1st week of May)
-- Arbor Day (varies by state, typically April)
-- Earth Day (April 22)
-- World Soil Day (Dec 5)
-
-Requirements:
-- Create themes that incorporate these holidays and observances naturally
-- Follow natural gardening seasons and growth cycles
-- Include seasonal plant care, new arrivals, educational content, and promotional themes
-- Vary between practical tips, product spotlights, customer engagement, and seasonal celebrations
-- Make each theme specific and actionable for content creation
-- Reference flower months and holidays where relevant
-- Consider major gardening milestones throughout the year
-- Include both evergreen content and timely seasonal topics
-- Balance educational value with promotional opportunities
-- Align themes with holiday shopping patterns and gift-giving occasions
+SPECIALIZED GARDEN CENTER FOCUS:
+- Weekly plant spotlights and new arrivals
+- Seasonal care tips and problem-solving
+- Workshop and event promotion opportunities
+- Customer education and engagement strategies
+- Regional growing conditions and timing
 
 For each week, provide:
-1. Week number (${startingWeek}${requestedWeeks > 1 ? ` to ${startingWeek + requestedWeeks - 1}` : ''}, wrapping around to 1-52 as needed)
-2. Theme title (3-5 words, incorporating relevant holidays/flower months when applicable)
-3. Brief description (1-2 sentences explaining the week's focus and strategic marketing goals)
-4. Key content ideas (2-3 bullet points with specific, actionable content suggestions)
+1. Week number (${startingWeek}${requestedWeeks > 1 ? ` to ${startingWeek + requestedWeeks - 1}` : ''})
+2. Compelling theme title (4-6 words that capture the essence)
+3. Strategic description (2-3 sentences explaining customer value and business opportunity)
+4. Actionable content ideas (3-4 specific, implementable suggestions)
 
-Format as JSON array with this structure:
+Format as JSON array:
 [
   {
     "week": ${startingWeek},
-    "title": "Current Season Appropriate Title",
-    "description": "Strategic description relevant to the current time of year and customer needs, focusing on specific business goals and seasonal opportunities.",
-    "content_ideas": ["Specific actionable content idea", "Customer-focused seasonal activity", "Promotional opportunity with clear value"]
+    "title": "Engaging Seasonal Theme Title",
+    "description": "Strategic description focused on current customer needs and business opportunities. Emphasizes seasonal relevance and practical value for garden center customers.",
+    "content_ideas": [
+      "Specific plant spotlight or seasonal activity",
+      "Educational content addressing current garden needs", 
+      "Promotional opportunity tied to seasonal demand",
+      "Community engagement or workshop idea"
+    ]
   }
 ]
 
-Make it comprehensive, seasonal, and engaging for the full year while incorporating all relevant horticultural holidays and observances. Start with themes appropriate for the current season and focus on driving customer engagement and sales.`;
+Create themes that drive customer engagement, sales, and position the garden center as the trusted seasonal gardening resource.`;
 
-    console.log(`Generating ${requestedWeeks}-week themes with holidays and horticultural events, starting from week:`, startingWeek);
+    console.log(`📝 Generating content with OpenAI for ${requestedWeeks} week(s)...`);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -163,39 +160,60 @@ Make it comprehensive, seasonal, and engaging for the full year while incorporat
         messages: [
           { 
             role: 'system', 
-            content: 'You are a professional marketing strategist specializing in garden center content planning with deep knowledge of horticultural holidays, flower months, and seasonal observances. Create comprehensive, seasonal marketing themes that align with natural gardening cycles, holidays, and special horticultural events. Focus on driving customer engagement and sales through strategic, actionable content planning. Always respond with valid JSON.' 
+            content: 'You are an expert garden center marketing strategist with deep knowledge of seasonal gardening cycles, plant care, and retail horticulture. Create compelling, actionable marketing themes that drive customer engagement and sales while educating gardeners. Always respond with valid JSON only.' 
           },
           { role: 'user', content: prompt }
         ],
         temperature: 0.8,
-        max_tokens: 4000,
+        max_tokens: 3000,
       }),
     });
 
     if (!response.ok) {
+      console.error(`❌ OpenAI API error: ${response.status}`);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
     const data = await response.json();
     const responseText = data.choices[0].message.content;
     
-    // Parse JSON response
+    console.log('📄 Raw OpenAI response:', responseText?.substring(0, 200) + '...');
+    
+    // Parse JSON response with better error handling
     let weeklyThemes;
     try {
-      weeklyThemes = JSON.parse(responseText);
+      // Clean the response text to ensure it's valid JSON
+      const cleanedResponse = responseText.trim();
+      weeklyThemes = JSON.parse(cleanedResponse);
     } catch (parseError) {
-      console.error('Failed to parse JSON response:', responseText);
-      throw new Error('Invalid JSON response from AI');
+      console.error('❌ Failed to parse JSON response:', parseError);
+      console.error('Raw response:', responseText);
+      throw new Error('Invalid JSON response from AI - please try again');
     }
 
-    console.log('Generated weekly themes with holidays and events:', weeklyThemes.length);
+    // Validate the response structure
+    if (!Array.isArray(weeklyThemes) || weeklyThemes.length === 0) {
+      console.error('❌ Invalid themes structure:', weeklyThemes);
+      throw new Error('No valid themes generated');
+    }
 
-    return new Response(JSON.stringify({ themes: weeklyThemes }), {
+    console.log(`✅ Successfully generated ${weeklyThemes.length} weekly theme(s)`);
+    console.log('First theme:', weeklyThemes[0]);
+
+    return new Response(JSON.stringify({ 
+      themes: weeklyThemes,
+      success: true,
+      message: `Generated ${weeklyThemes.length} seasonal theme(s)` 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in generate-weekly-themes function:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('❌ Error in generate-weekly-themes function:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      success: false,
+      themes: [] 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

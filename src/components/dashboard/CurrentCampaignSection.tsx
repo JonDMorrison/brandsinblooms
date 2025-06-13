@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CampaignCard } from "@/components/homepage/CampaignCard";
 import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
@@ -7,6 +7,7 @@ import { AutoCampaignCreator } from "./current-campaign/AutoCampaignCreator";
 import { NoCampaignState } from "./current-campaign/NoCampaignState";
 import { QuickActionsSection } from "./current-campaign/QuickActionsSection";
 import { SeasonalContentPreview } from "./current-campaign/SeasonalContentPreview";
+import { supabase } from "@/integrations/supabase/client";
 import type { Campaign } from "@/types";
 
 interface CurrentCampaignSectionProps {
@@ -34,6 +35,7 @@ export const CurrentCampaignSection = ({
 }: CurrentCampaignSectionProps) => {
   const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
+  const [hasContent, setHasContent] = useState(false);
 
   const { isAutoCreating } = AutoCampaignCreator({
     activeCampaign,
@@ -41,6 +43,29 @@ export const CurrentCampaignSection = ({
     onCampaignCreated,
     onTaskUpdate
   });
+
+  // Check if campaign has content
+  useEffect(() => {
+    const checkForContent = async () => {
+      if (!activeCampaign?.id) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('content_tasks')
+          .select('id, ai_output')
+          .eq('campaign_id', activeCampaign.id);
+
+        if (!error && data) {
+          const contentExists = data.some(task => task.ai_output && task.ai_output.trim() !== '');
+          setHasContent(contentExists);
+        }
+      } catch (error) {
+        console.error('Error checking for content:', error);
+      }
+    };
+
+    checkForContent();
+  }, [activeCampaign?.id, totalTasksCount]);
 
   const handleNewCampaignCreate = (newCampaign: any) => {
     setShowNewCampaignDialog(false);
@@ -50,6 +75,11 @@ export const CurrentCampaignSection = ({
   const handleEventCreated = () => {
     setShowAddEventDialog(false);
     onCampaignCreated();
+  };
+
+  const handleGenerateContent = () => {
+    // This will be handled by the CampaignCard component
+    console.log('Generate content clicked');
   };
 
   return (
@@ -65,7 +95,11 @@ export const CurrentCampaignSection = ({
             onTaskUpdate={onTaskUpdate}
             onCampaignUpdate={onTaskUpdate}
           />
-          <SeasonalContentPreview campaign={activeCampaign} />
+          <SeasonalContentPreview 
+            campaign={activeCampaign}
+            onGenerateContent={handleGenerateContent}
+            hasContent={hasContent}
+          />
         </>
       ) : (
         <NoCampaignState
