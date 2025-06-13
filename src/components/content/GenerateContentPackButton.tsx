@@ -91,7 +91,7 @@ export const GenerateContentPackButton = ({
         disabled={isGenerating || !theme.trim()}
         size={size}
         variant={variant}
-        className={`${className} ${variant === 'default' ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700' : ''}`}
+        className={`${className} bg-green-600 hover:bg-green-700 text-white border-green-600`}
       >
         {isGenerating ? (
           <>
