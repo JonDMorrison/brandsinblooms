@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentWeekNumber } from "./homepageUtils";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { 
   generateNewsletterContent, 
   generateVideoScript, 
