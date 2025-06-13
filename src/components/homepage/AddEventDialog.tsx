@@ -144,7 +144,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[425px] bg-white">
+        <DialogContent className="sm:max-w-[425px] bg-white z-[100] border border-gray-200 shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-garden-green-dark">Add Event to Promote</DialogTitle>
           </DialogHeader>
@@ -209,13 +209,13 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-gray-100 z-10"
                       disabled={loading}
                     >
                       <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-[110]" align="start">
                     <Calendar
                       mode="single"
                       selected={selectedDate}
@@ -276,7 +276,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         <>
           {/* Generation timing note */}
           {showGenerationNote && (
-            <Alert className="fixed top-4 right-4 z-50 max-w-sm border-blue-200 bg-blue-50">
+            <Alert className="fixed top-4 right-4 z-[120] max-w-sm border-blue-200 bg-blue-50">
               <Clock className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
                 <strong>Content is generating...</strong> This usually takes 1-2 minutes. You can close this window and the content will be saved to your campaigns.
