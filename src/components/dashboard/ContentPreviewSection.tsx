@@ -202,7 +202,7 @@ export const ContentPreviewSection = ({ campaign, onTaskUpdate }: ContentPreview
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
-              AI-Generated Content Preview
+              First Look At Your Content This Week
             </CardTitle>
             <Badge className="bg-green-100 text-green-800 border-green-200">
               ✨ Ready
