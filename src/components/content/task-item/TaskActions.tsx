@@ -1,10 +1,10 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy, Edit, ExternalLink, Instagram, Facebook, Trash2, RefreshCw } from "lucide-react";
+import { Copy, Edit, ExternalLink, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 import { handleCopy } from "../ContentViewerUtils";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { generatePersonalizedContent } from "@/components/homepage/ContentGenerationServices";
@@ -176,21 +176,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
     }
   };
 
-  const handleSocialMediaPost = () => {
-    const cleanContent = task.ai_output
-      .replace(/<[^>]*>/g, '')
-      .replace(/\\n/g, '\n')
-      .trim();
-
-    if (task.post_type === 'facebook') {
-      postToFacebook(cleanContent);
-    } else if (task.post_type === 'instagram') {
-      postToInstagram(cleanContent);
-    }
-  };
-
-  const showSocialMediaButton = (task.post_type === 'facebook' || task.post_type === 'instagram') && task.status === 'posted';
-  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review'].includes(task.status) && task.ai_output;
+  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review', 'posted'].includes(task.status) && task.ai_output;
   const canEdit = task.ai_output && task.status !== 'published';
   const isGenerating = task.status === 'generating';
   const hasFailedGeneration = task.status === 'generating' && !task.ai_output;
@@ -256,30 +242,12 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
               />
             </TooltipTrigger>
             <TooltipContent>
-              <p>Approve this content and send it to the Ready to Post section</p>
+              <p>{isApproved ? 'Content is approved' : 'Approve this content and send it to the Ready to Post section'}</p>
             </TooltipContent>
           </Tooltip>
         )}
         
-        {showSocialMediaButton ? (
-          <Button
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={handleSocialMediaPost}
-          >
-            {task.post_type === 'facebook' ? (
-              <>
-                <Facebook className="w-3 h-3 mr-1" />
-                Post to Facebook
-              </>
-            ) : (
-              <>
-                <Instagram className="w-3 h-3 mr-1" />
-                Post to Instagram
-              </>
-            )}
-          </Button>
-        ) : task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' ? (
+        {task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
           <Button
             size="sm"
             variant="outline"
@@ -288,7 +256,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
             <ExternalLink className="w-3 h-3 mr-1" />
             Publish
           </Button>
-        ) : null}
+        )}
 
         <Tooltip>
           <TooltipTrigger asChild>

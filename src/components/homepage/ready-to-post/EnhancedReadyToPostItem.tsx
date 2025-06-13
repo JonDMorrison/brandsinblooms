@@ -2,13 +2,13 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Instagram, Facebook, ExternalLink, Trash2, Edit } from "lucide-react";
+import { Copy, ExternalLink, Trash2, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";
+import { ApproveButton } from "@/components/ui/approve-button";
 
 interface EnhancedReadyToPostItemProps {
   task: any;
@@ -31,17 +31,6 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
     e.stopPropagation();
     if (onEdit) onEdit(task, true);
     else onClick(task); // Fallback to regular click if onEdit not provided
-  };
-
-  const handleSocialMediaPost = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    const cleanContent = stripHtmlAndFormat(task.ai_output);
-    
-    if (task.post_type === 'facebook') {
-      postToFacebook(cleanContent);
-    } else if (task.post_type === 'instagram') {
-      postToInstagram(cleanContent);
-    }
   };
 
   const handleDelete = async (event: React.MouseEvent) => {
@@ -74,7 +63,7 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
     }
   };
 
-  const showSocialMediaButton = task.post_type === 'facebook' || task.post_type === 'instagram';
+  const isApproved = task.status === 'posted';
 
   return (
     <div
@@ -142,38 +131,24 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
           </Tooltip>
         </TooltipProvider>
 
-        {showSocialMediaButton ? (
-          <Button
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={handleSocialMediaPost}
-          >
-            {task.post_type === 'facebook' ? (
-              <>
-                <Facebook className="w-3 h-3 mr-1" />
-                Post to Facebook
-              </>
-            ) : (
-              <>
-                <Instagram className="w-3 h-3 mr-1" />
-                Post to Instagram
-              </>
-            )}
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={(e) => {
-              e.stopPropagation();
-              toast.info('Publishing integration coming soon');
-            }}
-            className="border-blue-300 text-blue-600 hover:bg-blue-50"
-          >
-            <ExternalLink className="w-3 h-3 mr-1" />
-            Publish
-          </Button>
-        )}
+        <ApproveButton
+          isApproved={isApproved}
+          onApprove={() => {}} // No action needed since it's already approved
+          disabled={true}
+        />
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={(e) => {
+            e.stopPropagation();
+            toast.info('Publishing integration coming soon');
+          }}
+          className="border-blue-300 text-blue-600 hover:bg-blue-50"
+        >
+          <ExternalLink className="w-3 h-3 mr-1" />
+          Publish
+        </Button>
 
         <Tooltip>
           <TooltipTrigger asChild>
