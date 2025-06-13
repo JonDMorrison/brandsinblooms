@@ -44,6 +44,7 @@ export const PublishingScheduleView = () => {
         `)
         .gte('scheduled_date', format(weekStart, 'yyyy-MM-dd'))
         .lte('scheduled_date', format(weekEnd, 'yyyy-MM-dd'))
+        .in('status', ['completed', 'scheduled', 'published'])
         .order('scheduled_date');
 
       if (error) throw error;
@@ -69,7 +70,7 @@ export const PublishingScheduleView = () => {
     switch (status) {
       case 'completed': return 'bg-green-100 text-green-800';
       case 'scheduled': return 'bg-blue-100 text-blue-800';
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
+      case 'published': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -85,13 +86,22 @@ export const PublishingScheduleView = () => {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'completed': return 'Approved';
+      case 'scheduled': return 'Scheduled';
+      case 'published': return 'Published';
+      default: return status;
+    }
+  };
+
   return (
     <Card className="w-full">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Publishing Schedule
+            Publishing Schedule - Approved Content
           </CardTitle>
           <div className="flex items-center gap-2">
             <button
@@ -140,17 +150,20 @@ export const PublishingScheduleView = () => {
                   {dayTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="text-xs p-2 rounded border bg-white"
+                      className="text-xs p-2 rounded border bg-white shadow-sm"
                     >
                       <div className="flex items-center gap-1 mb-1">
                         <span>{getPostTypeIcon(task.post_type)}</span>
                         <span className="font-medium capitalize">
                           {task.post_type}
                         </span>
+                        {task.status === 'completed' && (
+                          <CheckCircle className="w-3 h-3 text-green-600" />
+                        )}
                       </div>
                       
                       <Badge className={`text-xs ${getStatusColor(task.status)}`} variant="secondary">
-                        {task.status}
+                        {getStatusLabel(task.status)}
                       </Badge>
                       
                       {task.campaigns && (
@@ -158,12 +171,18 @@ export const PublishingScheduleView = () => {
                           {task.campaigns.title}
                         </div>
                       )}
+                      
+                      {task.ai_output && (
+                        <div className="text-gray-500 mt-1 text-xs line-clamp-2">
+                          {task.ai_output.replace(/<[^>]*>/g, '').substring(0, 50)}...
+                        </div>
+                      )}
                     </div>
                   ))}
                   
                   {dayTasks.length === 0 && (
                     <div className="text-xs text-gray-400 text-center mt-8">
-                      No content scheduled
+                      No approved content
                     </div>
                   )}
                 </div>

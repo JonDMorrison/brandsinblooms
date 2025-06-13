@@ -73,7 +73,25 @@ export const ReviewQueueItem = ({
   };
 
   const handleApproveWrapper = async (event: React.MouseEvent) => {
-    await onApprove(task.id, event);
+    try {
+      // Update status to 'completed' so it appears in the calendar
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ status: 'completed' })
+        .eq('id', task.id);
+
+      if (error) {
+        console.error('Error approving task:', error);
+        toast.error('Failed to approve content');
+        return;
+      }
+
+      toast.success('Content approved and added to calendar!');
+      if (onTaskUpdate) onTaskUpdate();
+    } catch (error) {
+      console.error('Error approving task:', error);
+      toast.error('Failed to approve content');
+    }
   };
 
   const isApproved = task.status === 'completed' || task.status === 'scheduled';

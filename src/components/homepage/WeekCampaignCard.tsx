@@ -34,11 +34,11 @@ export const WeekCampaignCard = ({
     setApprovingTasks(prev => new Set(prev).add(taskId));
     
     try {
-      console.log('Approving task with status change to: scheduled');
+      console.log('Approving task with status change to: completed');
       
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'scheduled' })
+        .update({ status: 'completed' })
         .eq('id', taskId);
 
       if (error) {
@@ -51,7 +51,7 @@ export const WeekCampaignCard = ({
       } else {
         toast({
           title: "Content Approved! ✅",
-          description: "Content has been approved successfully.",
+          description: "Content has been approved and added to the calendar.",
         });
         if (onTaskUpdate) onTaskUpdate();
       }
@@ -185,7 +185,7 @@ export const WeekCampaignCard = ({
                 const task = tasksByType[type];
                 const hasTask = !!task;
                 const hasContent = task?.ai_output && task.ai_output.trim() !== '';
-                const isApproved = task?.status === 'scheduled' || task?.status === 'completed';
+                const isApproved = task?.status === 'completed';
                 
                 return (
                   <div 
