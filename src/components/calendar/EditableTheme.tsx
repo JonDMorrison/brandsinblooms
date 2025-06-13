@@ -82,6 +82,7 @@ export const EditableTheme = ({
   if (isEditing) {
     return (
       <ThemeEditor
+        currentTheme={currentTheme}
         editTheme={editTheme}
         editDescription={editDescription}
         isLoading={isLoading}

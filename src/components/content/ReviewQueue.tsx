@@ -29,8 +29,11 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
 
   const [bulkApproving, setBulkApproving] = useState(false);
 
+  // Ensure pendingTasks is always an array
+  const tasksArray = Array.isArray(pendingTasks) ? pendingTasks : [];
+
   // Group tasks by theme/campaign for batch operations
-  const tasksByTheme = pendingTasks.reduce((acc: Record<string, any[]>, task: any) => {
+  const tasksByTheme = tasksArray.reduce((acc: Record<string, any[]>, task: any) => {
     const theme = task.notes?.includes('Generated from theme:') 
       ? task.notes.replace('Generated from theme: ', '').trim()
       : 'Other';
@@ -71,7 +74,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
     return <ReviewQueueError error={error} onRetry={handleRetry} />;
   }
 
-  if (pendingTasks.length === 0) {
+  if (tasksArray.length === 0) {
     return <ReviewQueueEmpty />;
   }
 
@@ -84,7 +87,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
           <Clock className="w-5 h-5" />
           Review Queue
           <Badge className="bg-orange-100 text-orange-800">
-            {pendingTasks.length}
+            {tasksArray.length}
           </Badge>
         </CardTitle>
         <CardDescription className="text-black">
@@ -147,9 +150,9 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
           </div>
         )}
         
-        {pendingTasks.length > 6 && (
+        {tasksArray.length > 6 && (
           <Button variant="outline" className="w-full">
-            View All {pendingTasks.length} Items
+            View All {tasksArray.length} Items
           </Button>
         )}
       </CardContent>
