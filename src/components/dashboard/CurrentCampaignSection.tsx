@@ -7,6 +7,7 @@ import { AutoCampaignCreator } from "./current-campaign/AutoCampaignCreator";
 import { NoCampaignState } from "./current-campaign/NoCampaignState";
 import { QuickActionsSection } from "./current-campaign/QuickActionsSection";
 import { SeasonalContentPreview } from "./current-campaign/SeasonalContentPreview";
+import { ContentPreviewSection } from "./ContentPreviewSection";
 import { supabase } from "@/integrations/supabase/client";
 import type { Campaign } from "@/types";
 
@@ -95,6 +96,15 @@ export const CurrentCampaignSection = ({
             onTaskUpdate={onTaskUpdate}
             onCampaignUpdate={onTaskUpdate}
           />
+          
+          {/* AI Content Preview - This is what users see first! */}
+          <div className="mt-6">
+            <ContentPreviewSection
+              campaign={activeCampaign}
+              onTaskUpdate={onTaskUpdate}
+            />
+          </div>
+          
           <SeasonalContentPreview 
             campaign={activeCampaign}
             onGenerateContent={handleGenerateContent}
