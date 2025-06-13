@@ -7,7 +7,7 @@ import { generateThemeDescription } from "./ThemeDescriptionGenerator";
 import { SmartThemeSelector } from "../theme-generation/SmartThemeSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface ThemeEditorProps {
   campaignId?: string;
@@ -54,13 +54,68 @@ export const ThemeEditor = ({
   const onDescriptionChange = propOnDescriptionChange || setLocalEditDescription;
   const onLoadingChange = propOnLoadingChange || setLocalIsLoading;
 
-  const handleGenerateDescription = async () => {
+  // Auto-generation state
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
+  const [lastGeneratedTheme, setLastGeneratedTheme] = useState("");
+  const debounceRef = useRef<NodeJS.Timeout>();
+
+  // Auto-generate description when theme changes
+  useEffect(() => {
+    // Clear existing debounce
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    // Don't auto-generate if:
+    // - Theme is empty
+    // - Theme hasn't changed significantly
+    // - Description already exists (user may have customized it)
+    // - Already loading
+    if (!editTheme.trim() || 
+        editTheme === lastGeneratedTheme || 
+        (editDescription && editDescription.trim() && !isAutoGenerating) ||
+        isLoading) {
+      return;
+    }
+
+    // Debounce auto-generation
+    debounceRef.current = setTimeout(async () => {
+      console.log('Auto-generating description for theme:', editTheme);
+      setIsAutoGenerating(true);
+      setLastGeneratedTheme(editTheme);
+      
+      try {
+        await generateThemeDescription(
+          editTheme, 
+          (description) => {
+            onDescriptionChange(description);
+            setIsAutoGenerating(false);
+          }, 
+          onLoadingChange, 
+          user?.id
+        );
+      } catch (error) {
+        console.error('Auto-generation failed:', error);
+        setIsAutoGenerating(false);
+      }
+    }, 1500); // Wait 1.5 seconds after user stops typing
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [editTheme, user?.id, lastGeneratedTheme, editDescription, isAutoGenerating, isLoading, onDescriptionChange, onLoadingChange]);
+
+  const handleManualGenerate = async () => {
+    setLastGeneratedTheme(editTheme); // Update to prevent auto-generation conflicts
     await generateThemeDescription(editTheme, onDescriptionChange, onLoadingChange, user?.id);
   };
 
   const handleSmartThemeSelect = (theme: string, description: string) => {
     onThemeChange(theme);
     onDescriptionChange(description);
+    setLastGeneratedTheme(theme); // Prevent auto-generation for smart-selected themes
   };
 
   const handleSave = () => {
@@ -109,6 +164,8 @@ export const ThemeEditor = ({
   };
 
   const suggestions = editTheme ? getContentFocusSuggestions(editTheme) : [];
+  const showGenerateButton = editTheme.trim() && !isAutoGenerating;
+  const showAutoGeneratingIndicator = isAutoGenerating;
 
   return (
     <div className="space-y-4 bg-white">
@@ -120,20 +177,18 @@ export const ThemeEditor = ({
           className="h-8 text-sm bg-white border-gray-300"
           autoFocus
         />
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleGenerateDescription}
-          disabled={isLoading || !editTheme.trim()}
-          className="h-8 px-3 text-xs bg-white hover:bg-gray-100 border-gray-300"
-        >
-          {isLoading ? (
-            <Sparkles className="w-3 h-3 animate-spin" />
-          ) : (
+        {showGenerateButton && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleManualGenerate}
+            disabled={isLoading}
+            className="h-8 px-3 text-xs bg-white hover:bg-gray-100 border-gray-300"
+          >
             <Sparkles className="w-3 h-3" />
-          )}
-          Generate
-        </Button>
+            Regenerate
+          </Button>
+        )}
       </div>
 
       {weekNumber && (
@@ -151,20 +206,27 @@ export const ThemeEditor = ({
           <label className="text-xs font-medium text-gray-700">Content Focus Description:</label>
           <Badge variant="outline" className="text-xs">
             <Lightbulb className="w-3 h-3 mr-1" />
-            Guides AI Generation
+            {showAutoGeneratingIndicator ? "Auto-generating..." : "Guides AI Generation"}
           </Badge>
+          {showAutoGeneratingIndicator && (
+            <Sparkles className="w-3 h-3 animate-spin text-purple-600" />
+          )}
         </div>
         
         <Textarea
           value={editDescription}
-          onChange={(e) => onDescriptionChange(e.target.value)}
-          placeholder="Describe what your content should focus on this week. Be specific about goals, audience needs, and key messages..."
+          onChange={(e) => {
+            onDescriptionChange(e.target.value);
+            setLastGeneratedTheme(""); // Allow auto-generation again if user clears description
+          }}
+          placeholder={showAutoGeneratingIndicator ? "Generating strategic content focus..." : "Describe what your content should focus on this week. Be specific about goals, audience needs, and key messages..."}
           className="text-sm min-h-[80px] bg-white border-gray-300"
           rows={4}
+          disabled={showAutoGeneratingIndicator}
         />
         
-        {/* Content Focus Suggestions */}
-        {suggestions.length > 0 && !editDescription && (
+        {/* Content Focus Suggestions - only show if no description and not auto-generating */}
+        {suggestions.length > 0 && !editDescription && !showAutoGeneratingIndicator && (
           <div className="space-y-2">
             <p className="text-xs font-medium text-blue-700 flex items-center gap-1">
               <Lightbulb className="w-3 h-3" />
@@ -174,7 +236,10 @@ export const ThemeEditor = ({
               {suggestions.map((suggestion, index) => (
                 <button
                   key={index}
-                  onClick={() => onDescriptionChange(suggestion)}
+                  onClick={() => {
+                    onDescriptionChange(suggestion);
+                    setLastGeneratedTheme(editTheme); // Prevent auto-generation after manual selection
+                  }}
                   className="text-left text-xs text-gray-600 p-2 rounded border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors w-full"
                 >
                   {suggestion}
@@ -186,7 +251,8 @@ export const ThemeEditor = ({
         
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-xs text-blue-800 leading-relaxed">
-            <strong>Why this matters:</strong> This description guides AI to create focused, strategic content across all platforms (social media, email, newsletter, video). 
+            <strong>Smart Generation:</strong> Content focus automatically generates when you enter a theme. 
+            This description guides AI to create focused, strategic content across all platforms. 
             The more specific you are about customer needs and business goals, the better your generated content will be.
           </p>
         </div>
@@ -197,7 +263,7 @@ export const ThemeEditor = ({
           size="sm"
           variant="outline"
           onClick={handleSave}
-          disabled={isLoading || !editTheme.trim()}
+          disabled={isLoading || !editTheme.trim() || showAutoGeneratingIndicator}
           className="h-8 px-3 bg-white hover:bg-green-100 border-green-200 text-green-700"
         >
           <Check className="w-3 h-3 mr-1" />
@@ -207,7 +273,7 @@ export const ThemeEditor = ({
           size="sm"
           variant="outline"
           onClick={onCancel}
-          disabled={isLoading}
+          disabled={isLoading || showAutoGeneratingIndicator}
           className="h-8 px-3 bg-white hover:bg-gray-100 border-gray-300"
         >
           <X className="w-3 h-3 mr-1" />
