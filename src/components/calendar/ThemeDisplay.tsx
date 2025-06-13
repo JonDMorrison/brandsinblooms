@@ -1,11 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit2, Sparkles, FileText, Lightbulb } from "lucide-react";
-import { useState } from "react";
-import { generateContentForCampaign } from "@/components/homepage/ContentGenerationServices";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { Edit2, FileText, Lightbulb } from "lucide-react";
 
 interface ThemeDisplayProps {
   campaignId: string;
@@ -13,7 +9,6 @@ interface ThemeDisplayProps {
   currentDescription?: string;
   weekNumber?: number;
   onEdit: () => void;
-  onContentGenerated?: () => void;
 }
 
 export const ThemeDisplay = ({
@@ -21,44 +16,8 @@ export const ThemeDisplay = ({
   currentTheme,
   currentDescription,
   weekNumber,
-  onEdit,
-  onContentGenerated
+  onEdit
 }: ThemeDisplayProps) => {
-  const { user } = useAuth();
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  const handleGenerateContent = async () => {
-    if (!user) {
-      toast.error('Please log in to generate content');
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      const result = await generateContentForCampaign(
-        campaignId,
-        currentTheme,
-        currentDescription || '',
-        user.id,
-        weekNumber
-      );
-
-      if (result.success) {
-        toast.success('Content generated successfully!');
-        if (onContentGenerated) {
-          onContentGenerated();
-        }
-      } else {
-        toast.error(result.message || 'Failed to generate content');
-      }
-    } catch (error) {
-      console.error('Error generating content:', error);
-      toast.error('Failed to generate content');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       {currentTheme ? (
@@ -90,27 +49,6 @@ export const ThemeDisplay = ({
             >
               <Edit2 className="w-4 h-4" />
               Edit
-            </Button>
-          </div>
-
-          <div className="flex justify-center">
-            <Button
-              onClick={handleGenerateContent}
-              disabled={isGenerating}
-              className="bg-green-600 hover:bg-green-700 text-white"
-              size="lg"
-            >
-              {isGenerating ? (
-                <>
-                  <div className="w-4 h-4 mr-2 animate-spin border-2 border-white border-t-transparent rounded-full"></div>
-                  Generating Content...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Content For This Campaign
-                </>
-              )}
             </Button>
           </div>
         </div>
