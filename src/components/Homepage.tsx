@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ensureCampaignHasTasks } from "./homepage/CampaignAutoManager";
 import { generateRequiredTasks } from "./homepage/RequiredTasksGenerator";
 import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
+import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
@@ -199,6 +200,12 @@ export const Homepage = () => {
         <HomepageActions 
           onNewCampaignClick={() => setOpenNewCampaign(true)} 
           onImportComplete={fetchCampaigns} 
+        />
+
+        {/* Add Ready to Post section */}
+        <ReadyToPostCard 
+          tasks={tasks}
+          onTaskUpdate={handleTaskUpdate}
         />
 
         <div className="grid lg:grid-cols-3 gap-6">
