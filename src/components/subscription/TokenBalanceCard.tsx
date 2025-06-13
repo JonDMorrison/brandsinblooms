@@ -24,12 +24,6 @@ export const TokenBalanceCard = ({
 
   return (
     <Card className="shadow-lg border-0 bg-white">
-      <CardHeader className="pb-6 bg-gradient-to-r from-green-50 to-blue-50 border-b border-green-100">
-        <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <Coins className="w-6 h-6 text-green-600" />
-          Token Balance Overview
-        </CardTitle>
-      </CardHeader>
       <CardContent>
         <div className="space-y-6">
           {/* Current Balance Display */}
