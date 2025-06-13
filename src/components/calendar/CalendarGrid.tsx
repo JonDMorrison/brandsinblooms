@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { CalendarDayCell } from "./CalendarDayCell";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 interface Campaign {
   id: number;
@@ -37,9 +38,36 @@ export const CalendarGrid = ({
   const monthEnd = endOfMonth(currentDate);
   const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Group campaigns by date directly without adjustment
-  const campaignsByDate = campaigns.reduce((acc, campaign) => {
-    const dateKey = format(new Date(campaign.start_date), 'yyyy-MM-dd');
+  // Get current week number for proper seasonal alignment
+  const currentWeekNumber = getCurrentWeekNumber();
+  
+  // Create a map to ensure only one campaign per date
+  const campaignsByDate = new Map<string, Campaign>();
+
+  campaigns.forEach(campaign => {
+    // Calculate the week offset from the stored campaign
+    const weekOffset = campaign.week_number - 1; // 0-based offset
+    
+    // Calculate the actual date this campaign should appear on
+    const campaignDate = new Date();
+    // Start from the beginning of the current week, then add the offset
+    const currentWeekStart = new Date();
+    currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay()); // Go to Sunday
+    campaignDate.setTime(currentWeekStart.getTime() + (weekOffset * 7 * 24 * 60 * 60 * 1000));
+    
+    const dateKey = format(campaignDate, 'yyyy-MM-dd');
+    
+    // Only add if this date doesn't already have a campaign (prevents duplicates)
+    if (!campaignsByDate.has(dateKey)) {
+      campaignsByDate.set(dateKey, {
+        ...campaign,
+        start_date: dateKey
+      });
+    }
+  });
+
+  // Convert map back to the expected format
+  const campaignsByDateObject = Array.from(campaignsByDate.entries()).reduce((acc, [dateKey, campaign]) => {
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(campaign);
     return acc;
@@ -101,7 +129,7 @@ export const CalendarGrid = ({
         <div className="grid grid-cols-7 gap-1">
           {monthDays.map((day) => {
             const dateKey = format(day, 'yyyy-MM-dd');
-            const dayCampaigns = campaignsByDate[dateKey] || [];
+            const dayCampaigns = campaignsByDateObject[dateKey] || [];
             
             return (
               <CalendarDayCell
