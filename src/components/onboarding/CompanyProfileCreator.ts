@@ -38,14 +38,15 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
     console.log('Company profile created successfully:', savedProfile);
 
-    // Automatically generate 52-week themes after profile creation
+    // Automatically generate 52-week themes starting from current week
     try {
-      console.log('Auto-generating 52-week themes for new user...');
+      console.log('Auto-generating 52-week themes starting from current week...');
       
       const { data: themesData, error: themesError } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
           userId: userId,
-          startYear: new Date().getFullYear()
+          startYear: new Date().getFullYear(),
+          startFromCurrentWeek: true
         }
       });
 
@@ -53,13 +54,26 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         console.error('Error auto-generating themes:', themesError);
         // Don't throw here - profile creation was successful, themes are optional
       } else if (themesData?.themes && Array.isArray(themesData.themes)) {
-        // Save themes directly to campaigns
+        // Calculate current week number
+        const getCurrentWeekNumber = () => {
+          const today = new Date();
+          const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
+          const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
+          return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        };
+
+        const currentWeek = getCurrentWeekNumber();
+        
+        // Save themes starting from current week
         const campaigns = themesData.themes.map((theme: any, index: number) => {
           const startDate = new Date();
           startDate.setDate(startDate.getDate() + (index * 7));
           
+          // Calculate actual week number (wrapping around year if necessary)
+          const actualWeekNumber = ((currentWeek - 1 + index) % 52) + 1;
+          
           return {
-            week_number: theme.week,
+            week_number: actualWeekNumber,
             title: theme.title,
             theme: theme.title,
             description: theme.description,
@@ -75,7 +89,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         if (campaignError) {
           console.error('Error saving auto-generated campaigns:', campaignError);
         } else {
-          console.log(`Successfully auto-generated ${themesData.themes.length} weekly themes`);
+          console.log(`Successfully auto-generated ${themesData.themes.length} weekly themes starting from week ${currentWeek}`);
         }
       }
     } catch (themeError) {
