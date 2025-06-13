@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
+import { UserMenu } from "@/components/UserMenu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Home, TrendingUp, Users, Clock, BarChart3 } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
@@ -91,6 +92,11 @@ const Index = () => {
   return (
     <ProtectedPageWrapper>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        {/* Fixed UserMenu in top right corner */}
+        <div className="fixed top-4 right-4 z-50">
+          <UserMenu />
+        </div>
+
         {/* Enhanced Header with Seasonal Welcome */}
         <div className="bg-white border-b border-gray-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-6 py-8">
