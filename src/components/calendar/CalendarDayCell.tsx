@@ -23,6 +23,7 @@ interface CalendarDayCellProps {
   onCreateCampaign?: (date: Date) => void;
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
+  weekNumber?: number;
 }
 
 export const CalendarDayCell = ({
@@ -33,9 +34,11 @@ export const CalendarDayCell = ({
   onCampaignClick,
   onCreateCampaign,
   selectionMode = false,
-  selectedCampaigns = []
+  selectedCampaigns = [],
+  weekNumber
 }: CalendarDayCellProps) => {
   const dayNumber = format(date, 'd');
+  const isMonday = date.getDay() === 1;
 
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
@@ -44,20 +47,27 @@ export const CalendarDayCell = ({
   return (
     <div
       className={cn(
-        "min-h-[120px] p-2 border border-gray-200 bg-white hover:bg-gray-50 transition-colors",
+        "min-h-[120px] p-2 border border-gray-200 bg-white hover:bg-gray-50 transition-colors relative",
         !isCurrentMonth && "text-gray-400 bg-gray-50",
         isToday && "bg-blue-50 border-blue-200"
       )}
     >
       <div className="flex items-center justify-between mb-2">
-        <span
-          className={cn(
-            "text-sm font-medium",
-            isToday && "text-blue-600 font-bold"
+        <div className="flex items-center gap-2">
+          <span
+            className={cn(
+              "text-sm font-medium",
+              isToday && "text-blue-600 font-bold"
+            )}
+          >
+            {dayNumber}
+          </span>
+          {isMonday && weekNumber && isCurrentMonth && (
+            <Badge variant="outline" className="text-xs px-1 py-0">
+              W{weekNumber}
+            </Badge>
           )}
-        >
-          {dayNumber}
-        </span>
+        </div>
         {isCurrentMonth && !selectionMode && (
           <Button
             variant="ghost"
@@ -99,6 +109,9 @@ export const CalendarDayCell = ({
                   {campaign.theme}
                 </div>
               )}
+              <div className="text-xs text-gray-500">
+                Week {campaign.week_number}
+              </div>
             </div>
           );
         })}

@@ -1,19 +1,30 @@
 
+// Get ISO week number (Week 1 is the first week with at least 4 days in January)
+export const getCurrentWeekNumber = () => {
+  const today = new Date();
+  return getISOWeekNumber(today);
+};
+
+export const getISOWeekNumber = (date: Date) => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+};
+
 export const getWeekDateRange = (weekNumber: number, year: number) => {
-  // Calculate the first day of the year
-  const firstDayOfYear = new Date(year, 0, 1);
+  // Calculate the date of the first day of the given ISO week
+  const jan4 = new Date(year, 0, 4);
+  const jan4WeekDay = jan4.getDay() || 7; // Make Sunday = 7
   
-  // Calculate which day of the week January 1st falls on (0 = Sunday, 1 = Monday, etc.)
-  const firstDayWeekday = firstDayOfYear.getDay();
+  // Find the Monday of week 1
+  const week1Monday = new Date(jan4);
+  week1Monday.setDate(jan4.getDate() - jan4WeekDay + 1);
   
-  // Calculate the date of the first Monday of the year (start of week 1)
-  const firstMonday = new Date(firstDayOfYear);
-  const daysToFirstMonday = firstDayWeekday === 0 ? 1 : (8 - firstDayWeekday);
-  firstMonday.setDate(firstDayOfYear.getDate() + daysToFirstMonday);
-  
-  // Calculate the start date of the specified week
-  const weekStartDate = new Date(firstMonday);
-  weekStartDate.setDate(firstMonday.getDate() + (weekNumber - 1) * 7);
+  // Calculate the Monday of the target week
+  const weekStartDate = new Date(week1Monday);
+  weekStartDate.setDate(week1Monday.getDate() + (weekNumber - 1) * 7);
   
   // Calculate the end date of the week (Sunday)
   const weekEndDate = new Date(weekStartDate);
@@ -22,9 +33,13 @@ export const getWeekDateRange = (weekNumber: number, year: number) => {
   return { startDate: weekStartDate, endDate: weekEndDate };
 };
 
-export const getCurrentWeekNumber = () => {
-  const today = new Date();
-  const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-  const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+// Get the date for a specific week number in the current year
+export const getDateForWeek = (weekNumber: number, year = new Date().getFullYear()) => {
+  const { startDate } = getWeekDateRange(weekNumber, year);
+  return startDate;
+};
+
+// Convert a date to its ISO week number
+export const dateToWeekNumber = (date: Date) => {
+  return getISOWeekNumber(date);
 };

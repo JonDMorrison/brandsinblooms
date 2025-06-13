@@ -1,3 +1,5 @@
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
+
 export const getCurrentWeekCampaign = (campaigns: any[]) => {
   if (campaigns.length === 0) return null;
   

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday } from "date-fns";
 import { CalendarDayCell } from "./CalendarDayCell";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { getCurrentWeekNumber, getDateForWeek, dateToWeekNumber } from "@/utils/dateUtils";
 
 interface Campaign {
   id: number;
@@ -38,26 +38,19 @@ export const CalendarGrid = ({
   const monthEnd = endOfMonth(currentDate);
   const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-  // Get current week number for proper seasonal alignment
+  // Get current week number for display
   const currentWeekNumber = getCurrentWeekNumber();
+  const currentYear = currentDate.getFullYear();
   
-  // Create a map to ensure only one campaign per date
+  // Create a map of campaigns by date, using proper week number calculation
   const campaignsByDate = new Map<string, Campaign>();
 
   campaigns.forEach(campaign => {
-    // Calculate the week offset from the stored campaign
-    const weekOffset = campaign.week_number - 1; // 0-based offset
-    
-    // Calculate the actual date this campaign should appear on
-    const campaignDate = new Date();
-    // Start from the beginning of the current week, then add the offset
-    const currentWeekStart = new Date();
-    currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay()); // Go to Sunday
-    campaignDate.setTime(currentWeekStart.getTime() + (weekOffset * 7 * 24 * 60 * 60 * 1000));
-    
+    // Use the actual week number from the campaign to get the correct date
+    const campaignDate = getDateForWeek(campaign.week_number, currentYear);
     const dateKey = format(campaignDate, 'yyyy-MM-dd');
     
-    // Only add if this date doesn't already have a campaign (prevents duplicates)
+    // Only add campaigns that fall within a reasonable range and don't duplicate
     if (!campaignsByDate.has(dateKey)) {
       campaignsByDate.set(dateKey, {
         ...campaign,
@@ -66,7 +59,7 @@ export const CalendarGrid = ({
     }
   });
 
-  // Convert map back to the expected format
+  // Convert map back to the expected format for rendering
   const campaignsByDateObject = Array.from(campaignsByDate.entries()).reduce((acc, [dateKey, campaign]) => {
     if (!acc[dateKey]) acc[dateKey] = [];
     acc[dateKey].push(campaign);
@@ -83,9 +76,14 @@ export const CalendarGrid = ({
     <Card className="w-full">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-2xl font-bold">
-            {format(currentDate, 'MMMM yyyy')}
-          </CardTitle>
+          <div className="flex items-center gap-4">
+            <CardTitle className="text-2xl font-bold">
+              {format(currentDate, 'MMMM yyyy')}
+            </CardTitle>
+            <div className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded-full">
+              Current Week: {currentWeekNumber}
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -130,6 +128,7 @@ export const CalendarGrid = ({
           {monthDays.map((day) => {
             const dateKey = format(day, 'yyyy-MM-dd');
             const dayCampaigns = campaignsByDateObject[dateKey] || [];
+            const dayWeekNumber = dateToWeekNumber(day);
             
             return (
               <CalendarDayCell
@@ -142,6 +141,7 @@ export const CalendarGrid = ({
                 onCreateCampaign={onCreateCampaign}
                 selectionMode={selectionMode}
                 selectedCampaigns={selectedCampaigns}
+                weekNumber={dayWeekNumber}
               />
             );
           })}
