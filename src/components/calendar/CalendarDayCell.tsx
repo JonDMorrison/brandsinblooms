@@ -1,9 +1,9 @@
 
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Check, Calendar, GripVertical } from "lucide-react";
+import { Check, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CalendarTaskItem } from "./CalendarTaskItem";
 
 interface Campaign {
   id: number;
@@ -32,15 +32,20 @@ interface CalendarDayCellProps {
   isCurrentMonth: boolean;
   isToday: boolean;
   onCampaignClick?: (campaign: Campaign) => void;
-  onCreateCampaign?: (date: Date) => void;
+  onTaskClick?: (task: Task) => void;
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
+  selectedTasks?: Task[];
   weekNumber?: number;
   isDragging?: boolean;
-  draggedTask?: Task | null;
-  onDragStart?: (task: Task) => void;
+  draggedTasks?: Task[];
+  dragPreview?: string;
+  onTaskSelection?: (task: Task, ctrlKey: boolean) => void;
+  onDragStart?: (tasks: Task[]) => void;
   onDragEnd?: () => void;
   onDrop?: (date: Date) => void;
+  isTaskSelected?: (task: Task) => boolean;
+  taskSelectionMode?: boolean;
 }
 
 export const CalendarDayCell = ({
@@ -50,15 +55,20 @@ export const CalendarDayCell = ({
   isCurrentMonth,
   isToday,
   onCampaignClick,
-  onCreateCampaign,
+  onTaskClick,
   selectionMode = false,
   selectedCampaigns = [],
+  selectedTasks = [],
   weekNumber,
   isDragging = false,
-  draggedTask,
+  draggedTasks = [],
+  dragPreview = '',
+  onTaskSelection,
   onDragStart,
   onDragEnd,
-  onDrop
+  onDrop,
+  isTaskSelected,
+  taskSelectionMode = false
 }: CalendarDayCellProps) => {
   const dayNumber = format(date, 'd');
   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
@@ -66,17 +76,6 @@ export const CalendarDayCell = ({
 
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
-  };
-
-  const getPostTypeIcon = (type: string) => {
-    switch (type) {
-      case 'facebook': return '📘';
-      case 'instagram': return '📷';
-      case 'email': return '📧';
-      case 'newsletter': return '📰';
-      case 'video': return '🎥';
-      default: return '📝';
-    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -90,8 +89,26 @@ export const CalendarDayCell = ({
     }
   };
 
+  const handleTaskClick = (task: Task, ctrlKey: boolean = false) => {
+    if (taskSelectionMode || ctrlKey) {
+      onTaskSelection?.(task, ctrlKey);
+    } else {
+      onTaskClick?.(task);
+    }
+  };
+
+  const handleTaskDragStart = (task: Task) => {
+    if (onDragStart) {
+      // If task is selected, drag all selected tasks, otherwise just this task
+      const tasksToMove = isTaskSelected?.(task) && selectedTasks.length > 1 
+        ? selectedTasks 
+        : [task];
+      onDragStart(tasksToMove);
+    }
+  };
+
   const isValidDropTarget = isDragging && !isPastDate && isCurrentMonth;
-  const isDraggedTaskInThisCell = draggedTask && tasks.some(task => task.id === draggedTask.id);
+  const isTaskBeingDragged = (task: Task) => draggedTasks.some(t => t.id === task.id);
 
   return (
     <div
@@ -102,7 +119,7 @@ export const CalendarDayCell = ({
         isToday && "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 shadow-md",
         isWeekend && isCurrentMonth && "bg-gray-50/80",
         selectionMode && "cursor-pointer",
-        isValidDropTarget && "bg-green-50 border-green-300 border-2 border-dashed",
+        isValidDropTarget && "bg-green-50 border-green-300 border-2 border-dashed animate-pulse",
         isPastDate && "opacity-60"
       )}
       onDragOver={handleDragOver}
@@ -131,8 +148,11 @@ export const CalendarDayCell = ({
       
       {/* Drop zone indicator */}
       {isValidDropTarget && (
-        <div className="absolute inset-2 border-2 border-green-400 border-dashed rounded-lg bg-green-50/50 flex items-center justify-center text-green-700 text-xs font-medium">
-          Drop here to reschedule
+        <div className="absolute inset-2 border-2 border-green-400 border-dashed rounded-lg bg-green-50/50 flex items-center justify-center text-green-700 text-xs font-medium animate-bounce">
+          <div className="text-center">
+            <div className="font-semibold">Drop here</div>
+            {dragPreview && <div className="text-xs mt-1">{dragPreview}</div>}
+          </div>
         </div>
       )}
       
@@ -183,53 +203,24 @@ export const CalendarDayCell = ({
           );
         })}
 
-        {/* Approved Content Tasks */}
+        {/* Content Tasks */}
         {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task, index) => (
-          <div
+          <CalendarTaskItem
             key={task.id}
-            draggable={!selectionMode && !isPastDate}
-            onDragStart={(e) => {
-              if (onDragStart && !selectionMode && !isPastDate) {
-                onDragStart(task);
-              }
-            }}
-            onDragEnd={onDragEnd}
-            className={cn(
-              "relative text-xs p-2 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 hover:from-green-100 hover:to-emerald-100 transition-all duration-200 group/task",
-              !selectionMode && !isPastDate && "cursor-move hover:shadow-md",
-              isDraggedTaskInThisCell && "opacity-50",
-              isPastDate && "cursor-not-allowed"
-            )}
-          >
-            <div className="flex items-start gap-2">
-              <div className="flex items-center gap-1">
-                {!selectionMode && !isPastDate && (
-                  <GripVertical className="w-3 h-3 text-gray-400 opacity-0 group-hover/task:opacity-100 transition-opacity" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1 mb-1">
-                  <span>{getPostTypeIcon(task.post_type)}</span>
-                  <span className="font-semibold text-green-800 capitalize">
-                    {task.post_type}
-                  </span>
-                </div>
-                <Badge className="bg-green-100 text-green-700 border-green-300 text-xs px-1 py-0.5">
-                  Approved
-                </Badge>
-                {task.campaigns && (
-                  <div className="text-green-700 truncate mt-1 leading-tight">
-                    {task.campaigns.title}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+            task={task}
+            isSelected={isTaskSelected?.(task) || false}
+            isBeingDragged={isTaskBeingDragged(task)}
+            isPastDate={isPastDate}
+            selectionMode={taskSelectionMode}
+            onTaskClick={handleTaskClick}
+            onDragStart={handleTaskDragStart}
+            onDragEnd={onDragEnd || (() => {})}
+          />
         ))}
         
         {/* Show more indicator */}
         {(campaigns.length + tasks.length) > 3 && (
-          <div className="text-xs text-gray-500 text-center py-1 bg-gray-50 rounded-md border border-gray-200">
+          <div className="text-xs text-gray-500 text-center py-1 bg-gray-50 rounded-md border border-gray-200 hover:bg-gray-100 transition-colors">
             +{(campaigns.length + tasks.length) - 3} more item{(campaigns.length + tasks.length) - 3 !== 1 ? 's' : ''}
           </div>
         )}

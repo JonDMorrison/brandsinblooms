@@ -31,28 +31,38 @@ interface CalendarGridProps {
   campaigns: Campaign[];
   tasks?: Task[];
   onCampaignClick?: (campaign: Campaign) => void;
-  onCreateCampaign?: (date: Date) => void;
+  onTaskClick?: (task: Task) => void;
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
+  selectedTasks?: Task[];
   isDragging?: boolean;
-  draggedTask?: Task | null;
-  onDragStart?: (task: Task) => void;
+  draggedTasks?: Task[];
+  dragPreview?: string;
+  onTaskSelection?: (task: Task, ctrlKey: boolean) => void;
+  onDragStart?: (tasks: Task[]) => void;
   onDragEnd?: () => void;
   onDrop?: (date: Date) => void;
+  isTaskSelected?: (task: Task) => boolean;
+  taskSelectionMode?: boolean;
 }
 
 export const CalendarGrid = ({ 
   campaigns, 
   tasks = [],
-  onCampaignClick, 
-  onCreateCampaign,
+  onCampaignClick,
+  onTaskClick,
   selectionMode = false,
   selectedCampaigns = [],
+  selectedTasks = [],
   isDragging = false,
-  draggedTask,
+  draggedTasks = [],
+  dragPreview = '',
+  onTaskSelection,
   onDragStart,
   onDragEnd,
-  onDrop
+  onDrop,
+  isTaskSelected,
+  taskSelectionMode = false
 }: CalendarGridProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -172,9 +182,17 @@ export const CalendarGrid = ({
         )}
 
         {isDragging && (
-          <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">
+          <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg animate-pulse">
             <div className="text-sm text-orange-800 font-medium">
-              Dragging "{draggedTask?.post_type}" content - drop on a date to reschedule
+              Dragging {dragPreview} - drop on a date to reschedule
+            </div>
+          </div>
+        )}
+
+        {taskSelectionMode && selectedTasks && selectedTasks.length > 0 && (
+          <div className="mt-4 p-3 bg-blue-100 border border-blue-200 rounded-lg">
+            <div className="text-sm text-blue-800 font-medium">
+              {selectedTasks.length} task{selectedTasks.length !== 1 ? 's' : ''} selected - Ctrl+Click to select multiple, drag to move
             </div>
           </div>
         )}
@@ -215,15 +233,20 @@ export const CalendarGrid = ({
                   isCurrentMonth={isSameMonth(day, currentDate)}
                   isToday={isToday(day)}
                   onCampaignClick={onCampaignClick}
-                  onCreateCampaign={onCreateCampaign}
+                  onTaskClick={onTaskClick}
                   selectionMode={selectionMode}
                   selectedCampaigns={selectedCampaigns}
+                  selectedTasks={selectedTasks}
                   weekNumber={dayWeekNumber}
                   isDragging={isDragging}
-                  draggedTask={draggedTask}
+                  draggedTasks={draggedTasks}
+                  dragPreview={dragPreview}
+                  onTaskSelection={onTaskSelection}
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}
                   onDrop={onDrop}
+                  isTaskSelected={isTaskSelected}
+                  taskSelectionMode={taskSelectionMode}
                 />
               </div>
             );

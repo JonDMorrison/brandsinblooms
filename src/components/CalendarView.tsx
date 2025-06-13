@@ -1,15 +1,15 @@
+
 import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Grid, Calendar, CheckSquare } from "lucide-react";
+import { Grid, Calendar } from "lucide-react";
 import { CalendarGrid } from "./calendar/CalendarGrid";
 import { CampaignDetailsModal } from "./calendar/CampaignDetailsModal";
 import { BulkOperationsBar } from "./calendar/BulkOperationsBar";
 import { PublishingScheduleView } from "./calendar/PublishingScheduleView";
-import { CampaignTemplateManager } from "./calendar/CampaignTemplateManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { useDragAndDrop } from "@/hooks/useDragAndDrop";
+import { useTaskSelection } from "@/hooks/useTaskSelection";
+import { useEnhancedDragAndDrop } from "@/hooks/useEnhancedDragAndDrop";
+import { ContentTaskItem } from "@/components/content/ContentTaskItem";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Campaign {
   id: number;
@@ -43,6 +43,32 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeView, setActiveView] = useState<"calendar" | "schedule">("calendar");
   const [selectionMode, setSelectionMode] = useState(false);
+  
+  // Task viewing
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  // Task selection and drag & drop
+  const {
+    selectedTasks,
+    selectionMode: taskSelectionMode,
+    toggleTaskSelection,
+    clearSelection: clearTaskSelection,
+    isTaskSelected
+  } = useTaskSelection();
+
+  const {
+    isDragging,
+    draggedTasks,
+    dragPreview,
+    handleDragStart,
+    handleDragEnd,
+    handleDrop
+  } = useEnhancedDragAndDrop(() => {
+    if (onDataUpdate) {
+      onDataUpdate();
+    }
+  });
 
   // Update local campaigns when props change
   useEffect(() => {
@@ -50,6 +76,20 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
       setLocalCampaigns(campaigns);
     }
   }, [campaigns]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        clearTaskSelection();
+        setSelectedCampaigns([]);
+        setSelectionMode(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [clearTaskSelection]);
 
   const handleCampaignClick = (campaign: Campaign) => {
     if (selectionMode) {
@@ -65,9 +105,11 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     }
   };
 
-  const handleCreateCampaign = (date: Date) => {
-    console.log('Create campaign for date:', date);
-    // TODO: Implement campaign creation
+  const handleTaskClick = (task: Task) => {
+    if (!taskSelectionMode) {
+      setSelectedTask(task);
+      setIsTaskModalOpen(true);
+    }
   };
 
   const handleCampaignUpdate = (updatedCampaign: Campaign) => {
@@ -81,47 +123,19 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     }
   };
 
-  const handleTemplateApply = async (template: any) => {
-    if (!selectedCampaign) return;
-
-    try {
-      const { error } = await supabase
-        .from('campaigns')
-        .update({
-          theme: template.theme,
-          description: template.description
-        })
-        .eq('id', selectedCampaign.id.toString());
-
-      if (error) throw error;
-
-      handleCampaignUpdate({
-        ...selectedCampaign,
-        theme: template.theme,
-        description: template.description
-      });
-    } catch (error) {
-      console.error('Error applying template:', error);
-      toast.error('Failed to apply template');
-    }
-  };
-
   const clearSelection = () => {
     setSelectedCampaigns([]);
     setSelectionMode(false);
+    clearTaskSelection();
   };
 
-  const {
-    isDragging,
-    draggedTask,
-    handleDragStart,
-    handleDragEnd,
-    handleDrop
-  } = useDragAndDrop(() => {
-    if (onDataUpdate) {
-      onDataUpdate();
+  const handleTaskDragStart = (tasksToMove: Task[]) => {
+    // Clear any existing task selection when starting drag
+    if (!taskSelectionMode) {
+      clearTaskSelection();
     }
-  });
+    handleDragStart(tasksToMove);
+  };
 
   return (
     <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
@@ -143,14 +157,19 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
             campaigns={localCampaigns}
             tasks={tasks}
             onCampaignClick={handleCampaignClick}
-            onCreateCampaign={handleCreateCampaign}
+            onTaskClick={handleTaskClick}
             selectionMode={selectionMode}
             selectedCampaigns={selectedCampaigns}
+            selectedTasks={selectedTasks}
             isDragging={isDragging}
-            draggedTask={draggedTask}
-            onDragStart={handleDragStart}
+            draggedTasks={draggedTasks}
+            dragPreview={dragPreview}
+            onTaskSelection={toggleTaskSelection}
+            onDragStart={handleTaskDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}
+            isTaskSelected={isTaskSelected}
+            taskSelectionMode={taskSelectionMode}
           />
         </TabsContent>
         
@@ -167,6 +186,39 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
         onUpdate={handleCampaignUpdate}
       />
 
+      {/* Task Content Modal */}
+      <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">
+                {selectedTask?.post_type === 'facebook' && '📘'}
+                {selectedTask?.post_type === 'instagram' && '📷'}
+                {selectedTask?.post_type === 'email' && '📧'}
+                {selectedTask?.post_type === 'newsletter' && '📰'}
+                {selectedTask?.post_type === 'video' && '🎥'}
+                {(!selectedTask?.post_type || !['facebook', 'instagram', 'email', 'newsletter', 'video'].includes(selectedTask.post_type)) && '📝'}
+              </span>
+              {selectedTask?.post_type && (
+                <span className="capitalize">{selectedTask.post_type} Content</span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedTask && (
+            <div className="mt-4">
+              <ContentTaskItem 
+                task={selectedTask} 
+                onTaskUpdate={() => {
+                  if (onDataUpdate) onDataUpdate();
+                  setIsTaskModalOpen(false);
+                }} 
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Bulk Operations Bar */}
       <BulkOperationsBar
         selectedCampaigns={selectedCampaigns}
@@ -176,6 +228,21 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
           if (onDataUpdate) onDataUpdate();
         }}
       />
+
+      {/* Task Selection Info */}
+      {taskSelectionMode && selectedTasks.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-3">
+          <span className="font-medium">
+            {selectedTasks.length} task{selectedTasks.length !== 1 ? 's' : ''} selected
+          </span>
+          <button 
+            onClick={clearTaskSelection}
+            className="text-blue-200 hover:text-white transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+      )}
     </div>
   );
 };
