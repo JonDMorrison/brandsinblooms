@@ -36,6 +36,77 @@ export type Database = {
         }
         Relationships: []
       }
+      analytics_data: {
+        Row: {
+          connection_id: string
+          created_at: string
+          date_collected: string
+          id: string
+          metadata: Json | null
+          metric_type: string
+          metric_value: number
+        }
+        Insert: {
+          connection_id: string
+          created_at?: string
+          date_collected: string
+          id?: string
+          metadata?: Json | null
+          metric_type: string
+          metric_value: number
+        }
+        Update: {
+          connection_id?: string
+          created_at?: string
+          date_collected?: string
+          id?: string
+          metadata?: Json | null
+          metric_type?: string
+          metric_value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_data_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      analytics_settings: {
+        Row: {
+          auto_sync_enabled: boolean
+          created_at: string
+          email_frequency: string
+          email_reports_enabled: boolean
+          id: string
+          sync_frequency: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_sync_enabled?: boolean
+          created_at?: string
+          email_frequency?: string
+          email_reports_enabled?: boolean
+          id?: string
+          sync_frequency?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_sync_enabled?: boolean
+          created_at?: string
+          email_frequency?: string
+          email_reports_enabled?: boolean
+          id?: string
+          sync_frequency?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           created_at: string
@@ -249,6 +320,48 @@ export type Database = {
           id?: string
           tone_samples?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      social_connections: {
+        Row: {
+          access_token: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          platform: string
+          platform_account_id: string
+          platform_account_name: string | null
+          refresh_token: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          platform: string
+          platform_account_id: string
+          platform_account_name?: string | null
+          refresh_token?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          platform?: string
+          platform_account_id?: string
+          platform_account_name?: string | null
+          refresh_token?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

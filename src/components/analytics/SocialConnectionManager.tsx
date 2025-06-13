@@ -1,0 +1,285 @@
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Facebook, Instagram, MapPin, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+
+interface SocialConnection {
+  id: string;
+  platform: string;
+  platform_account_name: string;
+  is_active: boolean;
+  expires_at: string;
+  created_at: string;
+}
+
+export const SocialConnectionManager = () => {
+  const { user } = useAuth();
+  const [connections, setConnections] = useState<SocialConnection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      fetchConnections();
+    }
+  }, [user]);
+
+  const fetchConnections = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('social_connections')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setConnections(data || []);
+    } catch (error) {
+      console.error('Error fetching connections:', error);
+      toast.error('Failed to load social media connections');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const connectFacebook = async () => {
+    setConnecting('facebook');
+    
+    const clientId = 'YOUR_FACEBOOK_APP_ID'; // This would be from environment
+    const redirectUri = `${window.location.origin}/auth/facebook/callback`;
+    const scope = 'pages_read_engagement,pages_show_list,instagram_basic,instagram_manage_insights';
+    
+    const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=facebook`;
+    
+    // For demo purposes, show a message about setup
+    toast.info('Facebook connection requires app setup. This would redirect to Facebook OAuth in production.');
+    setConnecting(null);
+  };
+
+  const connectInstagram = async () => {
+    setConnecting('instagram');
+    
+    // Instagram uses Facebook OAuth with additional permissions
+    const clientId = 'YOUR_FACEBOOK_APP_ID';
+    const redirectUri = `${window.location.origin}/auth/facebook/callback`;
+    const scope = 'pages_read_engagement,pages_show_list,instagram_basic,instagram_manage_insights';
+    
+    const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=instagram`;
+    
+    toast.info('Instagram connection requires Meta Business setup. This would redirect to Facebook OAuth in production.');
+    setConnecting(null);
+  };
+
+  const connectGoogleBusiness = async () => {
+    setConnecting('google_my_business');
+    
+    const clientId = 'YOUR_GOOGLE_CLIENT_ID';
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
+    const scope = 'https://www.googleapis.com/auth/business.manage';
+    
+    const authUrl = `https://accounts.google.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&access_type=offline`;
+    
+    toast.info('Google My Business connection requires Google Cloud setup. This would redirect to Google OAuth in production.');
+    setConnecting(null);
+  };
+
+  const disconnectPlatform = async (connectionId: string, platform: string) => {
+    try {
+      const { error } = await supabase
+        .from('social_connections')
+        .delete()
+        .eq('id', connectionId);
+
+      if (error) throw error;
+
+      toast.success(`${platform} disconnected successfully`);
+      fetchConnections();
+    } catch (error) {
+      console.error('Error disconnecting platform:', error);
+      toast.error(`Failed to disconnect ${platform}`);
+    }
+  };
+
+  const syncAnalytics = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('sync-analytics');
+      
+      if (error) throw error;
+
+      toast.success(`Analytics synced for ${data.synced} connections`);
+      
+    } catch (error) {
+      console.error('Error syncing analytics:', error);
+      toast.error('Failed to sync analytics data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const platforms = [
+    {
+      id: 'facebook',
+      name: 'Facebook',
+      icon: Facebook,
+      description: 'Connect your Facebook page to track post performance and audience insights',
+      color: 'bg-blue-600'
+    },
+    {
+      id: 'instagram',
+      name: 'Instagram',
+      icon: Instagram,
+      description: 'Monitor your Instagram business account engagement and reach',
+      color: 'bg-gradient-to-r from-purple-600 to-pink-600'
+    },
+    {
+      id: 'google_my_business',
+      name: 'Google My Business',
+      icon: MapPin,
+      description: 'Track local search performance, calls, and direction requests',
+      color: 'bg-green-600'
+    }
+  ];
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Social Media Connections</CardTitle>
+          <CardDescription>Loading your connected accounts...</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 bg-gray-100 rounded animate-pulse" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Social Media Connections</CardTitle>
+          <CardDescription>
+            Connect your social media accounts to track real analytics data
+          </CardDescription>
+        </div>
+        
+        {connections.length > 0 && (
+          <Button 
+            onClick={syncAnalytics}
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Sync Data
+          </Button>
+        )}
+      </CardHeader>
+      
+      <CardContent className="space-y-4">
+        {platforms.map((platform) => {
+          const connection = connections.find(c => c.platform === platform.id);
+          const isConnected = !!connection;
+          const isExpired = connection && new Date(connection.expires_at) < new Date();
+          const Icon = platform.icon;
+
+          return (
+            <div key={platform.id} className="flex items-center justify-between p-4 border rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className={`p-2 rounded-lg ${platform.color} text-white`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium">{platform.name}</h3>
+                    {isConnected && (
+                      <Badge variant={isExpired ? "destructive" : "default"} className="text-xs">
+                        {isExpired ? (
+                          <>
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Token Expired
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Connected
+                          </>
+                        )}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600">{platform.description}</p>
+                  {isConnected && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Connected as: {connection.platform_account_name}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {isConnected ? (
+                  <>
+                    {isExpired && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          if (platform.id === 'facebook') connectFacebook();
+                          else if (platform.id === 'instagram') connectInstagram();
+                          else if (platform.id === 'google_my_business') connectGoogleBusiness();
+                        }}
+                        disabled={connecting === platform.id}
+                      >
+                        Reconnect
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => disconnectPlatform(connection.id, platform.name)}
+                    >
+                      Disconnect
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      if (platform.id === 'facebook') connectFacebook();
+                      else if (platform.id === 'instagram') connectInstagram();
+                      else if (platform.id === 'google_my_business') connectGoogleBusiness();
+                    }}
+                    disabled={connecting === platform.id}
+                    className={platform.color}
+                  >
+                    {connecting === platform.id ? 'Connecting...' : 'Connect'}
+                  </Button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {connections.length === 0 && (
+          <div className="text-center py-8 text-gray-500">
+            <p className="mb-2">No social media accounts connected yet</p>
+            <p className="text-sm">Connect your accounts to start tracking real analytics data</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};

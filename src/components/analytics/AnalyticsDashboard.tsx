@@ -6,6 +6,9 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { TrendingUp, Users, Eye, Heart, MessageCircle, Share } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { SocialConnectionManager } from "./SocialConnectionManager";
+import { RealAnalyticsData } from "./RealAnalyticsData";
+import { AnalyticsSetupWizard } from "./AnalyticsSetupWizard";
 
 interface AnalyticsDashboardProps {
   campaigns: any[];
@@ -36,10 +39,8 @@ export const AnalyticsDashboard = ({ campaigns, tasks }: AnalyticsDashboardProps
     const completedTasks = tasks.filter(task => task.status === 'published').length;
     const completionRate = totalPosts > 0 ? Math.round((completedTasks / totalPosts) * 100) : 0;
     
-    // Generate mock engagement data (in real app, this would come from social media APIs)
     const avgEngagement = Math.floor(Math.random() * 50) + 25;
 
-    // Campaign performance data
     const campaignPerformance = campaigns.map(campaign => {
       const campaignTasks = tasks.filter(task => task.campaign_id === campaign.id);
       const completed = campaignTasks.filter(task => task.status === 'published').length;
@@ -55,7 +56,6 @@ export const AnalyticsDashboard = ({ campaigns, tasks }: AnalyticsDashboardProps
       };
     });
 
-    // Content types distribution
     const typeCount = tasks.reduce((acc, task) => {
       const type = task.post_type || 'General';
       acc[type] = (acc[type] || 0) + 1;
@@ -68,7 +68,6 @@ export const AnalyticsDashboard = ({ campaigns, tasks }: AnalyticsDashboardProps
       color: getColorForType(name)
     }));
 
-    // Weekly activity (last 7 weeks)
     const weeklyActivity = Array.from({ length: 7 }, (_, i) => {
       const weekNumber = getCurrentWeek() - i;
       const weekTasks = tasks.filter(task => {
@@ -138,6 +137,12 @@ export const AnalyticsDashboard = ({ campaigns, tasks }: AnalyticsDashboardProps
 
   return (
     <div className="space-y-6">
+      {/* Social Media Connections */}
+      <SocialConnectionManager />
+
+      {/* Real Analytics Data */}
+      <RealAnalyticsData />
+
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-green-200">
@@ -185,12 +190,13 @@ export const AnalyticsDashboard = ({ campaigns, tasks }: AnalyticsDashboardProps
         </Card>
       </div>
 
-      {/* Charts */}
+      {/* Charts and Settings */}
       <Tabs defaultValue="campaigns" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="campaigns">Campaign Performance</TabsTrigger>
           <TabsTrigger value="content">Content Types</TabsTrigger>
           <TabsTrigger value="activity">Weekly Activity</TabsTrigger>
+          <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="campaigns" className="space-y-4">
@@ -268,6 +274,10 @@ export const AnalyticsDashboard = ({ campaigns, tasks }: AnalyticsDashboardProps
               </ChartContainer>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <AnalyticsSetupWizard />
         </TabsContent>
       </Tabs>
     </div>
