@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -40,11 +39,13 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
   // State for calendar
   const [selectedDate, setSelectedDate] = useState<Date>();
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setEventDate(format(date, "PPP"));
       setSelectedDate(date);
+      setIsCalendarOpen(false); // Close the popover when date is selected
     }
   };
 
@@ -203,7 +204,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
                   className="border-black focus:border-black pr-10"
                   disabled={loading}
                 />
-                <Popover>
+                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       type="button"
