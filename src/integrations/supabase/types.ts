@@ -153,9 +153,12 @@ export type Database = {
           company_overview: string | null
           company_values: string | null
           created_at: string
+          first_content_generated: boolean | null
+          first_welcome_dismissed: boolean | null
           id: string
           ideal_customer: string | null
           location_info: string | null
+          onboarding_completed_at: string | null
           seasonal_focus: string | null
           specializations: string | null
           target_audience: string | null
@@ -172,9 +175,12 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          first_content_generated?: boolean | null
+          first_welcome_dismissed?: boolean | null
           id?: string
           ideal_customer?: string | null
           location_info?: string | null
+          onboarding_completed_at?: string | null
           seasonal_focus?: string | null
           specializations?: string | null
           target_audience?: string | null
@@ -191,9 +197,12 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          first_content_generated?: boolean | null
+          first_welcome_dismissed?: boolean | null
           id?: string
           ideal_customer?: string | null
           location_info?: string | null
+          onboarding_completed_at?: string | null
           seasonal_focus?: string | null
           specializations?: string | null
           target_audience?: string | null

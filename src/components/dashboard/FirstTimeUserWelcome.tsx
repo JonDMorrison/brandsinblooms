@@ -21,11 +21,16 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
       if (!user) return;
 
       try {
-        const { data: profile } = await supabase
+        const { data: profile, error } = await supabase
           .from('company_profiles')
           .select('first_content_generated, company_name, onboarding_completed_at')
           .eq('user_id', user.id)
           .single();
+
+        if (error) {
+          console.error('Error checking first time user status:', error);
+          return;
+        }
 
         if (profile) {
           setCompanyName(profile.company_name || "Your Garden Center");
@@ -48,10 +53,14 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
     setIsFirstTime(false);
     // Mark that they've seen the welcome
     if (user) {
-      await supabase
+      const { error } = await supabase
         .from('company_profiles')
         .update({ first_welcome_dismissed: true })
         .eq('user_id', user.id);
+        
+      if (error) {
+        console.error('Error updating welcome dismissed status:', error);
+      }
     }
   };
 

@@ -118,13 +118,17 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
               console.log('🎉 FIRST WEEK CONTENT GENERATED! User will see 5 ready posts on dashboard');
               
               // Mark this user as having completed their first onboarding content generation
-              await supabase
+              const { error: updateError } = await supabase
                 .from('company_profiles')
                 .update({ 
                   first_content_generated: true,
                   onboarding_completed_at: new Date().toISOString()
                 })
                 .eq('user_id', userId);
+                
+              if (updateError) {
+                console.error('Error updating first content generated status:', updateError);
+              }
                 
             } catch (contentError) {
               console.error('Error generating first week content during onboarding:', contentError);
