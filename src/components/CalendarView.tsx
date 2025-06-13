@@ -1,10 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Palette, Calendar as CalendarIcon, Grid, Calendar, CheckSquare, PlusCircle, CalendarPlus } from "lucide-react";
 import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
 import { CalendarGrid } from "./calendar/CalendarGrid";
 import { CampaignDetailsModal } from "./calendar/CampaignDetailsModal";
 import { BulkOperationsBar } from "./calendar/BulkOperationsBar";
-import { ContentPillarManager } from "./calendar/ContentPillarManager";
 import { PublishingScheduleView } from "./calendar/PublishingScheduleView";
 import { CampaignTemplateManager } from "./calendar/CampaignTemplateManager";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
@@ -45,7 +45,6 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [selectedCampaigns, setSelectedCampaigns] = useState<Campaign[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedPillar, setSelectedPillar] = useState<string | undefined>();
   const [activeView, setActiveView] = useState<"calendar" | "schedule">("calendar");
   const [selectionMode, setSelectionMode] = useState(false);
   
@@ -64,14 +63,6 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
   const campaignsNeedingThemes = Array.isArray(localCampaigns) ? localCampaigns.filter(campaign => 
     !campaign?.theme || campaign.theme.includes("Summer Heat Solutions") || campaign.theme === campaign.title
   ) : [];
-
-  // Filter campaigns by selected pillar
-  const filteredCampaigns = selectedPillar 
-    ? localCampaigns.filter(campaign => 
-        campaign.theme?.toLowerCase().includes(selectedPillar.toLowerCase()) ||
-        campaign.description?.toLowerCase().includes(selectedPillar.toLowerCase())
-      )
-    : localCampaigns;
 
   const handleCampaignClick = (campaign: Campaign) => {
     if (selectionMode) {
@@ -227,12 +218,6 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
         </div>
       </div>
 
-      {/* Content Pillar Filter */}
-      <ContentPillarManager
-        selectedPillar={selectedPillar}
-        onPillarSelect={setSelectedPillar}
-      />
-
       {/* View Tabs */}
       <Tabs value={activeView} onValueChange={(value) => setActiveView(value as "calendar" | "schedule")}>
         <TabsList className="grid w-full grid-cols-2">
@@ -248,7 +233,7 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
         
         <TabsContent value="calendar" className="mt-6">
           <CalendarGrid
-            campaigns={filteredCampaigns}
+            campaigns={localCampaigns}
             onCampaignClick={handleCampaignClick}
             onCreateCampaign={handleCreateCampaign}
             selectionMode={selectionMode}
