@@ -17,8 +17,20 @@ interface Campaign {
   description?: string;
 }
 
+interface Task {
+  id: string;
+  scheduled_date: string;
+  post_type: string;
+  status: string;
+  ai_output?: string;
+  campaigns?: {
+    title: string;
+  };
+}
+
 interface CalendarGridProps {
   campaigns: Campaign[];
+  tasks?: Task[];
   onCampaignClick?: (campaign: Campaign) => void;
   onCreateCampaign?: (date: Date) => void;
   selectionMode?: boolean;
@@ -27,6 +39,7 @@ interface CalendarGridProps {
 
 export const CalendarGrid = ({ 
   campaigns, 
+  tasks = [],
   onCampaignClick, 
   onCreateCampaign,
   selectionMode = false,
@@ -56,6 +69,17 @@ export const CalendarGrid = ({
         start_date: dateKey
       });
     }
+  });
+
+  // Create a map of approved tasks by date
+  const tasksByDate = new Map<string, Task[]>();
+  
+  tasks.filter(task => task.status === 'posted' && task.scheduled_date).forEach(task => {
+    const dateKey = task.scheduled_date;
+    if (!tasksByDate.has(dateKey)) {
+      tasksByDate.set(dateKey, []);
+    }
+    tasksByDate.get(dateKey)!.push(task);
   });
 
   // Convert map back to the expected format for rendering
@@ -155,6 +179,7 @@ export const CalendarGrid = ({
           {calendarDays.map((day, index) => {
             const dateKey = format(day, 'yyyy-MM-dd');
             const dayCampaigns = campaignsByDateObject[dateKey] || [];
+            const dayTasks = tasksByDate.get(dateKey) || [];
             const dayWeekNumber = dateToWeekNumber(day);
             const isLastInRow = (index + 1) % 7 === 0;
             
@@ -169,6 +194,7 @@ export const CalendarGrid = ({
                 <CalendarDayCell
                   date={day}
                   campaigns={dayCampaigns}
+                  tasks={dayTasks}
                   isCurrentMonth={isSameMonth(day, currentDate)}
                   isToday={isToday(day)}
                   onCampaignClick={onCampaignClick}

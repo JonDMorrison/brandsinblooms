@@ -128,6 +128,7 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
         <TabsContent value="calendar" className="mt-6">
           <CalendarGrid
             campaigns={localCampaigns}
+            tasks={tasks}
             onCampaignClick={handleCampaignClick}
             onCreateCampaign={handleCreateCampaign}
             selectionMode={selectionMode}

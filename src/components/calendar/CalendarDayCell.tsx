@@ -2,7 +2,7 @@
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Check, Calendar } from "lucide-react";
+import { Plus, Check, Calendar, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Campaign {
@@ -14,9 +14,21 @@ interface Campaign {
   description?: string;
 }
 
+interface Task {
+  id: string;
+  scheduled_date: string;
+  post_type: string;
+  status: string;
+  ai_output?: string;
+  campaigns?: {
+    title: string;
+  };
+}
+
 interface CalendarDayCellProps {
   date: Date;
   campaigns: Campaign[];
+  tasks?: Task[];
   isCurrentMonth: boolean;
   isToday: boolean;
   onCampaignClick?: (campaign: Campaign) => void;
@@ -29,6 +41,7 @@ interface CalendarDayCellProps {
 export const CalendarDayCell = ({
   date,
   campaigns,
+  tasks = [],
   isCurrentMonth,
   isToday,
   onCampaignClick,
@@ -42,6 +55,17 @@ export const CalendarDayCell = ({
 
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
+  };
+
+  const getPostTypeIcon = (type: string) => {
+    switch (type) {
+      case 'facebook': return '📘';
+      case 'instagram': return '📷';
+      case 'email': return '📧';
+      case 'newsletter': return '📰';
+      case 'video': return '🎥';
+      default: return '📝';
+    }
   };
 
   return (
@@ -90,9 +114,10 @@ export const CalendarDayCell = ({
         )}
       </div>
       
-      {/* Campaigns */}
+      {/* Content container */}
       <div className="space-y-2">
-        {campaigns.slice(0, 3).map((campaign, index) => {
+        {/* Campaigns */}
+        {campaigns.slice(0, 2).map((campaign, index) => {
           const isSelected = isCampaignSelected(campaign);
           
           return (
@@ -135,14 +160,43 @@ export const CalendarDayCell = ({
             </div>
           );
         })}
+
+        {/* Approved Content Tasks */}
+        {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task, index) => (
+          <div
+            key={task.id}
+            className="relative text-xs p-2 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 hover:from-green-100 hover:to-emerald-100 transition-all duration-200"
+          >
+            <div className="flex items-start gap-2">
+              <CheckCircle className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1 mb-1">
+                  <span>{getPostTypeIcon(task.post_type)}</span>
+                  <span className="font-semibold text-green-800 capitalize">
+                    {task.post_type}
+                  </span>
+                </div>
+                <Badge className="bg-green-100 text-green-700 border-green-300 text-xs px-1 py-0.5">
+                  Approved
+                </Badge>
+                {task.campaigns && (
+                  <div className="text-green-700 truncate mt-1 leading-tight">
+                    {task.campaigns.title}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
         
-        {campaigns.length > 3 && (
+        {/* Show more indicator */}
+        {(campaigns.length + tasks.length) > 3 && (
           <div className="text-xs text-gray-500 text-center py-1 bg-gray-50 rounded-md border border-gray-200">
-            +{campaigns.length - 3} more campaign{campaigns.length - 3 !== 1 ? 's' : ''}
+            +{(campaigns.length + tasks.length) - 3} more item{(campaigns.length + tasks.length) - 3 !== 1 ? 's' : ''}
           </div>
         )}
         
-        {campaigns.length === 0 && isCurrentMonth && !selectionMode && (
+        {(campaigns.length + tasks.length) === 0 && isCurrentMonth && !selectionMode && (
           <div className="text-xs text-gray-400 text-center py-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <Plus className="w-4 h-4 mx-auto mb-1 text-gray-300" />
             Add campaign
