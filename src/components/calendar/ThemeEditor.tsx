@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +6,8 @@ import { generateThemeDescription } from "./ThemeDescriptionGenerator";
 import { SmartThemeSelector } from "../theme-generation/SmartThemeSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
+import { useAutoThemeDescription } from "./useAutoThemeDescription";
 
 interface ThemeEditorProps {
   campaignId?: string;
@@ -54,58 +54,15 @@ export const ThemeEditor = ({
   const onDescriptionChange = propOnDescriptionChange || setLocalEditDescription;
   const onLoadingChange = propOnLoadingChange || setLocalIsLoading;
 
-  // Auto-generation state
-  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
-  const [lastGeneratedTheme, setLastGeneratedTheme] = useState("");
-  const debounceRef = useRef<NodeJS.Timeout>();
-
-  // Auto-generate description when theme changes
-  useEffect(() => {
-    // Clear existing debounce
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    // Don't auto-generate if:
-    // - Theme is empty
-    // - Theme hasn't changed significantly
-    // - Description already exists (user may have customized it)
-    // - Already loading
-    if (!editTheme.trim() || 
-        editTheme === lastGeneratedTheme || 
-        (editDescription && editDescription.trim() && !isAutoGenerating) ||
-        isLoading) {
-      return;
-    }
-
-    // Debounce auto-generation
-    debounceRef.current = setTimeout(async () => {
-      console.log('Auto-generating description for theme:', editTheme);
-      setIsAutoGenerating(true);
-      setLastGeneratedTheme(editTheme);
-      
-      try {
-        await generateThemeDescription(
-          editTheme, 
-          (description) => {
-            onDescriptionChange(description);
-            setIsAutoGenerating(false);
-          }, 
-          onLoadingChange, 
-          user?.id
-        );
-      } catch (error) {
-        console.error('Auto-generation failed:', error);
-        setIsAutoGenerating(false);
-      }
-    }, 1500); // Wait 1.5 seconds after user stops typing
-
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, [editTheme, user?.id, lastGeneratedTheme, editDescription, isAutoGenerating, isLoading, onDescriptionChange, onLoadingChange]);
+  // Auto-generation using shared hook
+  const { isGenerating: isAutoGenerating, setLastGeneratedTheme } = useAutoThemeDescription({
+    theme: editTheme,
+    currentDescription: editDescription,
+    onDescriptionGenerated: (description) => {
+      onDescriptionChange(description);
+    },
+    enabled: true
+  });
 
   const handleManualGenerate = async () => {
     setLastGeneratedTheme(editTheme); // Update to prevent auto-generation conflicts

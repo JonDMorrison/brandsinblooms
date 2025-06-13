@@ -82,6 +82,7 @@ export const EditableTheme = ({
   if (isEditing) {
     return (
       <ThemeEditor
+        campaignId={campaignId}
         currentTheme={currentTheme}
         editTheme={editTheme}
         editDescription={editDescription}
@@ -98,9 +99,12 @@ export const EditableTheme = ({
 
   return (
     <ThemeDisplay
+      campaignId={campaignId}
       currentTheme={currentTheme}
       currentDescription={currentDescription}
+      weekNumber={weekNumber}
       onEdit={() => setIsEditing(true)}
+      onThemeUpdate={onThemeUpdate}
     />
   );
 };

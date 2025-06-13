@@ -1,10 +1,13 @@
 
 import { Button } from "@/components/ui/button";
-import { Edit2, Palette, FileText, Sparkles, AlertCircle } from "lucide-react";
+import { Edit2, Palette, FileText, Sparkles, AlertCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { generateThemeDescription } from "./ThemeDescriptionGenerator";
 import { useAuth } from "@/contexts/AuthContext";
 import { GenerateContentPackButton } from "@/components/content/GenerateContentPackButton";
+import { useAutoThemeDescription } from "./useAutoThemeDescription";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ThemeDisplayProps {
   campaignId?: string;
@@ -13,6 +16,7 @@ interface ThemeDisplayProps {
   weekNumber?: number;
   onEdit: () => void;
   onContentGenerated?: () => void;
+  onThemeUpdate?: (newTheme: string, newDescription?: string) => void;
 }
 
 export const ThemeDisplay = ({ 
@@ -21,11 +25,44 @@ export const ThemeDisplay = ({
   currentDescription, 
   weekNumber,
   onEdit, 
-  onContentGenerated 
+  onContentGenerated,
+  onThemeUpdate
 }: ThemeDisplayProps) => {
   const { user } = useAuth();
   const [isGeneratingHeadline, setIsGeneratingHeadline] = useState(false);
   const [generatedHeadline, setGeneratedHeadline] = useState<string>("");
+  const [localDescription, setLocalDescription] = useState(currentDescription);
+
+  // Auto-generate description when theme exists but description doesn't
+  const { isGenerating } = useAutoThemeDescription({
+    theme: currentTheme,
+    currentDescription: localDescription,
+    onDescriptionGenerated: async (description) => {
+      setLocalDescription(description);
+      
+      // Save to database if we have a campaign ID
+      if (campaignId) {
+        try {
+          const { error } = await supabase
+            .from('campaigns')
+            .update({ description: description.trim() })
+            .eq('id', campaignId);
+
+          if (error) {
+            console.error('Error saving auto-generated description:', error);
+          } else {
+            // Update parent component
+            if (onThemeUpdate) {
+              onThemeUpdate(currentTheme, description.trim());
+            }
+          }
+        } catch (error) {
+          console.error('Error in auto-save:', error);
+        }
+      }
+    },
+    enabled: true
+  });
 
   const handleEditClick = () => {
     console.log('Edit clicked from ThemeDisplay');
@@ -102,7 +139,8 @@ export const ThemeDisplay = ({
 
   const displayTheme = generatedHeadline || cleanTheme(currentTheme);
   const hasTheme = currentTheme && currentTheme.trim() !== "";
-  const hasDescription = currentDescription && currentDescription.trim() !== "";
+  const displayDescription = localDescription || currentDescription;
+  const hasDescription = displayDescription && displayDescription.trim() !== "";
 
   return (
     <div className="space-y-4 bg-white">
@@ -140,13 +178,23 @@ export const ThemeDisplay = ({
         </div>
       )}
       
-      {hasDescription ? (
+      {isGenerating ? (
+        <div className="flex items-start gap-2 bg-white">
+          <Loader2 className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0 animate-spin" />
+          <div className="flex-1 bg-white">
+            <span className="text-sm font-medium text-purple-700 block mb-1">Generating Content Focus...</span>
+            <p className="text-sm text-purple-600 leading-relaxed">
+              AI is creating a strategic content focus description for your theme.
+            </p>
+          </div>
+        </div>
+      ) : hasDescription ? (
         <div className="flex items-start gap-2 bg-white">
           <FileText className="w-4 h-4 text-gray-500 mt-0.5 flex-shrink-0" />
           <div className="flex-1 bg-white">
             <span className="text-sm font-medium text-gray-700 block mb-1">Content Focus:</span>
             <p className="text-sm text-gray-600 leading-relaxed">
-              {currentDescription}
+              {displayDescription}
             </p>
           </div>
         </div>
@@ -204,7 +252,7 @@ export const ThemeDisplay = ({
             campaignId={campaignId}
             campaignTitle={displayTheme}
             theme={currentTheme}
-            description={currentDescription}
+            description={displayDescription}
             weekNumber={weekNumber}
             onGenerated={onContentGenerated}
             size="sm"
@@ -214,8 +262,8 @@ export const ThemeDisplay = ({
         </div>
       )}
 
-      {/* Show warning if theme exists but no description */}
-      {campaignId && hasTheme && !hasDescription && (
+      {/* Show warning if theme exists but no description and not generating */}
+      {campaignId && hasTheme && !hasDescription && !isGenerating && (
         <div className="pt-3 border-t border-amber-200 bg-amber-50 p-3 rounded-lg">
           <div className="flex items-center gap-2 text-amber-700 text-sm">
             <AlertCircle className="w-4 h-4" />
