@@ -18,7 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, startYear, startFromCurrentWeek = false } = await req.json();
+    const { userId, startYear, startFromCurrentWeek = false, weekNumber } = await req.json();
     const year = startYear || new Date().getFullYear();
 
     if (!openAIApiKey) {
@@ -45,6 +45,7 @@ serve(async (req) => {
     // Calculate starting week if needed
     let startingWeek = 1;
     let seasonalContext = '';
+    let requestedWeeks = 52;
     
     if (startFromCurrentWeek) {
       const today = new Date();
@@ -54,6 +55,13 @@ serve(async (req) => {
       
       const currentMonth = today.toLocaleString('default', { month: 'long' });
       seasonalContext = `\n\nIMPORTANT: Start the themes from the current week ${startingWeek} of the year, which is in ${currentMonth}. The first theme should be relevant for the current season and time of year, not January themes.`;
+      
+      // If specific week requested, generate just that week plus a few around it
+      if (weekNumber) {
+        startingWeek = weekNumber;
+        requestedWeeks = 1;
+        seasonalContext = `\n\nIMPORTANT: Generate a theme specifically for week ${weekNumber} of the year, which is in ${currentMonth}. Make it highly relevant for the current season.`;
+      }
     }
 
     // Build company context for AI
@@ -70,7 +78,7 @@ Brand Voice: ${companyProfile.brand_voice || 'Professional and helpful'}
 `;
     }
 
-    const prompt = `Generate 52 unique weekly marketing themes for a garden center's ${year} content calendar. ${companyContext}${seasonalContext}
+    const prompt = `Generate ${requestedWeeks} unique weekly marketing theme${requestedWeeks > 1 ? 's' : ''} for a garden center's ${year} content calendar. ${companyContext}${seasonalContext}
 
 IMPORTANT: Incorporate these seasonal events, holidays, and horticultural celebrations:
 
@@ -125,24 +133,24 @@ Requirements:
 - Align themes with holiday shopping patterns and gift-giving occasions
 
 For each week, provide:
-1. Week number (${startingWeek} to ${startingWeek + 51}, wrapping around to 1-52 as needed)
+1. Week number (${startingWeek}${requestedWeeks > 1 ? ` to ${startingWeek + requestedWeeks - 1}` : ''}, wrapping around to 1-52 as needed)
 2. Theme title (3-5 words, incorporating relevant holidays/flower months when applicable)
-3. Brief description (1-2 sentences explaining the week's focus)
-4. Key content ideas (2-3 bullet points)
+3. Brief description (1-2 sentences explaining the week's focus and strategic marketing goals)
+4. Key content ideas (2-3 bullet points with specific, actionable content suggestions)
 
 Format as JSON array with this structure:
 [
   {
     "week": ${startingWeek},
     "title": "Current Season Appropriate Title",
-    "description": "Description relevant to the current time of year and season.",
-    "content_ideas": ["Seasonally appropriate content", "Current month activities", "Timely gardening tips"]
+    "description": "Strategic description relevant to the current time of year and customer needs, focusing on specific business goals and seasonal opportunities.",
+    "content_ideas": ["Specific actionable content idea", "Customer-focused seasonal activity", "Promotional opportunity with clear value"]
   }
 ]
 
-Make it comprehensive, seasonal, and engaging for the full year while incorporating all relevant horticultural holidays and observances. Start with themes appropriate for the current season.`;
+Make it comprehensive, seasonal, and engaging for the full year while incorporating all relevant horticultural holidays and observances. Start with themes appropriate for the current season and focus on driving customer engagement and sales.`;
 
-    console.log('Generating 52-week themes with holidays and horticultural events, starting from week:', startingWeek);
+    console.log(`Generating ${requestedWeeks}-week themes with holidays and horticultural events, starting from week:`, startingWeek);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -155,7 +163,7 @@ Make it comprehensive, seasonal, and engaging for the full year while incorporat
         messages: [
           { 
             role: 'system', 
-            content: 'You are a professional marketing strategist specializing in garden center content planning with deep knowledge of horticultural holidays, flower months, and seasonal observances. Create comprehensive, seasonal marketing themes that align with natural gardening cycles, holidays, and special horticultural events. Always respond with valid JSON.' 
+            content: 'You are a professional marketing strategist specializing in garden center content planning with deep knowledge of horticultural holidays, flower months, and seasonal observances. Create comprehensive, seasonal marketing themes that align with natural gardening cycles, holidays, and special horticultural events. Focus on driving customer engagement and sales through strategic, actionable content planning. Always respond with valid JSON.' 
           },
           { role: 'user', content: prompt }
         ],

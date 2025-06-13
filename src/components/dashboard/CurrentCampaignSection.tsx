@@ -6,6 +6,7 @@ import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { AutoCampaignCreator } from "./current-campaign/AutoCampaignCreator";
 import { NoCampaignState } from "./current-campaign/NoCampaignState";
 import { QuickActionsSection } from "./current-campaign/QuickActionsSection";
+import { SeasonalContentPreview } from "./current-campaign/SeasonalContentPreview";
 import type { Campaign } from "@/types";
 
 interface CurrentCampaignSectionProps {
@@ -58,11 +59,14 @@ export const CurrentCampaignSection = ({
       </h2>
       
       {activeCampaign ? (
-        <CampaignCard 
-          campaign={activeCampaign} 
-          onTaskUpdate={onTaskUpdate}
-          onCampaignUpdate={onTaskUpdate}
-        />
+        <>
+          <CampaignCard 
+            campaign={activeCampaign} 
+            onTaskUpdate={onTaskUpdate}
+            onCampaignUpdate={onTaskUpdate}
+          />
+          <SeasonalContentPreview campaign={activeCampaign} />
+        </>
       ) : (
         <NoCampaignState
           currentWeekNumber={currentWeekNumber}

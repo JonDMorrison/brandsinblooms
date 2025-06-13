@@ -11,9 +11,9 @@ import {
   getImageIdeaForType 
 } from "./ContentMetadataUtils";
 
-export const updateVideoTasksWithNewScript = async (campaignId: string, campaignTitle: string, userId?: string) => {
+export const updateVideoTasksWithNewScript = async (campaignId: string, campaignTitle: string, userId?: string, campaignDescription?: string) => {
   try {
-    const newVideoScript = await generateVideoScript(campaignTitle, userId);
+    const newVideoScript = await generateVideoScript(campaignTitle, userId, campaignDescription);
     
     const { error } = await supabase
       .from('content_tasks')
@@ -34,7 +34,7 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
   }
 };
 
-export const createMissingTasks = async (campaignId: string, missingTypes: string[], campaignTitle: string, userId?: string) => {
+export const createMissingTasks = async (campaignId: string, missingTypes: string[], campaignTitle: string, userId?: string, campaignDescription?: string) => {
   try {
     // First check if any of these "missing" types already exist to prevent duplicates
     const { data: existingTasks } = await supabase
@@ -65,11 +65,11 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       
       try {
         if (postType === 'newsletter') {
-          aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId);
+          aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, campaignDescription);
         } else if (postType === 'video') {
-          aiOutput = await generateVideoScript(campaignTitle, userId);
+          aiOutput = await generateVideoScript(campaignTitle, userId, campaignDescription);
         } else {
-          aiOutput = await generatePersonalizedContent(postType, campaignTitle, userId);
+          aiOutput = await generatePersonalizedContent(postType, campaignTitle, userId, campaignDescription);
         }
       } catch (error) {
         console.error(`Error generating ${postType} content with OpenAI:`, error);
