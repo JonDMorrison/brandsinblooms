@@ -30,7 +30,7 @@ export const TokenBalanceCard = ({
           Token Balance Overview
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6">
+      <CardContent>
         <div className="space-y-6">
           {/* Current Balance Display */}
           <div className="flex items-center justify-between">
