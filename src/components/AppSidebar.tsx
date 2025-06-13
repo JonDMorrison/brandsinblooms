@@ -174,7 +174,7 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
           variant="ghost"
           size="icon"
           onClick={toggleSidebar}
-          className="fixed left-20 top-4 z-50 h-8 w-8 bg-white border border-green-200 shadow-sm hover:bg-green-50"
+          className="fixed left-2 top-4 z-50 h-8 w-8 bg-white border border-green-200 shadow-sm hover:bg-green-50"
           title="Expand sidebar"
         >
           <Expand className="h-4 w-4" />
