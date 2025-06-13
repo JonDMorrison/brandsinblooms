@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from "react";
-import { Palette, Sparkles } from "lucide-react";
+import { Palette, Calendar as CalendarIcon } from "lucide-react";
 import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
-import { WeekCard } from "./calendar/WeekCard";
+import { CalendarGrid } from "./calendar/CalendarGrid";
+import { CampaignDetailsModal } from "./calendar/CampaignDetailsModal";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 interface Campaign {
@@ -32,8 +33,8 @@ interface CalendarViewProps {
 
 export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: CalendarViewProps) => {
   const [localCampaigns, setLocalCampaigns] = useState<Campaign[]>(campaigns);
-  const currentYear = new Date().getFullYear();
-  const currentWeekNumber = getCurrentWeekNumber();
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Update local campaigns when props change
   useEffect(() => {
@@ -47,40 +48,14 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     !campaign?.theme || campaign.theme.includes("Summer Heat Solutions") || campaign.theme === campaign.title
   ) : [];
 
-  // Sort campaigns starting with current week, then subsequent weeks in order - add safety check
-  const sortedCampaigns = Array.isArray(localCampaigns) ? [...localCampaigns].sort((a, b) => {
-    // Calculate order starting from current week
-    const aOrder = a.week_number >= currentWeekNumber 
-      ? a.week_number - currentWeekNumber
-      : (52 - currentWeekNumber) + a.week_number;
-    
-    const bOrder = b.week_number >= currentWeekNumber 
-      ? b.week_number - currentWeekNumber
-      : (52 - currentWeekNumber) + b.week_number;
-    
-    return aOrder - bOrder;
-  }) : [];
+  const handleCampaignClick = (campaign: Campaign) => {
+    setSelectedCampaign(campaign);
+    setIsModalOpen(true);
+  };
 
-  const groupedCampaigns = sortedCampaigns.reduce((acc, campaign) => {
-    if (campaign && typeof campaign.week_number === 'number') {
-      const week = `Week ${campaign.week_number}`;
-      if (!acc[week]) acc[week] = [];
-      acc[week].push(campaign);
-    }
-    return acc;
-  }, {} as Record<string, Campaign[]>);
-
-  const handleThemeUpdate = (campaignId: string, newTheme: string, newDescription?: string) => {
-    setLocalCampaigns(prev => 
-      prev.map(campaign => 
-        campaign?.id?.toString() === campaignId 
-          ? { ...campaign, theme: newTheme, description: newDescription }
-          : campaign
-      )
-    );
-    if (onDataUpdate) {
-      onDataUpdate();
-    }
+  const handleCreateCampaign = (date: Date) => {
+    console.log('Create campaign for date:', date);
+    // TODO: Implement campaign creation
   };
 
   const handleThemesGenerated = () => {
@@ -89,22 +64,33 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     }
   };
 
+  const handleCampaignUpdate = (updatedCampaign: Campaign) => {
+    setLocalCampaigns(prev => 
+      prev.map(campaign => 
+        campaign.id === updatedCampaign.id ? updatedCampaign : campaign
+      )
+    );
+    if (onDataUpdate) {
+      onDataUpdate();
+    }
+  };
+
   return (
     <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
-      {/* Weekly Content Themes Header */}
+      {/* Header with Theme Generator */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
         <div className="px-4 sm:px-6 py-4 sm:py-5">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg flex-shrink-0">
-                <Palette className="w-6 h-6 text-purple-600" />
+              <div className="p-2 bg-green-50 rounded-lg flex-shrink-0">
+                <CalendarIcon className="w-6 h-6 text-green-600" />
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
-                  Weekly Content Themes
+                  Campaign Calendar
                 </h2>
                 <p className="text-sm text-gray-600 mt-0.5">
-                  Organize and plan your marketing campaigns by week
+                  View and manage your marketing campaigns in calendar format
                 </p>
               </div>
             </div>
@@ -112,7 +98,7 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
             {campaignsNeedingThemes.length > 0 && (
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-full">
-                  <Sparkles className="w-4 h-4 text-purple-600 flex-shrink-0" />
+                  <Palette className="w-4 h-4 text-purple-600 flex-shrink-0" />
                   <span className="text-sm font-medium text-purple-700 whitespace-nowrap">
                     {campaignsNeedingThemes.length} {campaignsNeedingThemes.length === 1 ? 'campaign needs' : 'campaigns need'} themes
                   </span>
@@ -124,34 +110,20 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
         </div>
       </div>
 
-      {/* Weekly Campaign Cards */}
-      <div className="space-y-4">
-        {Object.entries(groupedCampaigns).length > 0 ? (
-          Object.entries(groupedCampaigns).map(([week, weekCampaigns]) => {
-            if (!weekCampaigns || weekCampaigns.length === 0) return null;
-            
-            const weekNumber = weekCampaigns[0]?.week_number;
-            if (typeof weekNumber !== 'number') return null;
-            
-            const isCurrentWeek = weekNumber === currentWeekNumber;
-            
-            return (
-              <WeekCard
-                key={week}
-                week={week}
-                weekCampaigns={weekCampaigns}
-                currentYear={currentYear}
-                isCurrentWeek={isCurrentWeek}
-                onThemeUpdate={handleThemeUpdate}
-              />
-            );
-          })
-        ) : (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">No campaigns found. Create your first campaign to get started!</p>
-          </div>
-        )}
-      </div>
+      {/* Calendar Grid */}
+      <CalendarGrid
+        campaigns={localCampaigns}
+        onCampaignClick={handleCampaignClick}
+        onCreateCampaign={handleCreateCampaign}
+      />
+
+      {/* Campaign Details Modal */}
+      <CampaignDetailsModal
+        campaign={selectedCampaign}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onUpdate={handleCampaignUpdate}
+      />
     </div>
   );
 };
