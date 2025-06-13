@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, RefreshCw } from "lucide-react";
+import { Calendar, RefreshCw, Clock } from "lucide-react";
 import { ReadyPostModal } from "./ReadyPostModal";
 import { ReadyToPostEmptyState } from "./ready-to-post/ReadyToPostEmptyState";
 import { EnhancedReadyToPostItem } from "./ready-to-post/EnhancedReadyToPostItem";
@@ -45,11 +45,18 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             if (payload.new.status === 'completed') {
-              setRealtimeTasks(prev => {
-                const filtered = prev.filter(task => task.id !== payload.new.id);
-                return [...filtered, payload.new];
-              });
-              toast.success('Content approved and ready to post!');
+              // Check if content is within 2 weeks
+              const updatedAt = new Date(payload.new.updated_at);
+              const twoWeeksAgo = new Date();
+              twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+              
+              if (updatedAt > twoWeeksAgo) {
+                setRealtimeTasks(prev => {
+                  const filtered = prev.filter(task => task.id !== payload.new.id);
+                  return [...filtered, payload.new];
+                });
+                toast.success('Content approved and ready to post!');
+              }
             }
           } else if (payload.eventType === 'DELETE') {
             setRealtimeTasks(prev => prev.filter(task => task.id !== payload.old.id));
@@ -63,8 +70,17 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
     };
   }, []);
 
-  // Filter for only completed content that's truly ready to post
-  const readyTasks = realtimeTasks.filter(task => task.status === 'completed');
+  // Filter for only completed content from the last 2 weeks
+  const readyTasks = realtimeTasks.filter(task => {
+    if (task.status !== 'completed') return false;
+    
+    // Check if content is within 2 weeks
+    const updatedAt = new Date(task.updated_at);
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+    
+    return updatedAt > twoWeeksAgo;
+  });
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
@@ -88,10 +104,15 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
+      // Calculate 2 weeks ago
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
       const { data: freshTasks, error } = await supabase
         .from('content_tasks')
         .select('*')
         .eq('status', 'completed')
+        .gte('updated_at', twoWeeksAgo.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -140,8 +161,9 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </Button>
           </div>
-          <CardDescription className="text-green-700">
-            Your approved content is ready for publishing
+          <CardDescription className="text-green-700 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Your approved content (available for 2 weeks)
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
