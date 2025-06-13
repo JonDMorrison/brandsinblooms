@@ -9,6 +9,7 @@ import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 import { getPostTypeIcon, getStatusColor, handleCopy, formatContentForDisplay } from "./ContentViewerUtils";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { ApproveButton } from "@/components/ui/approve-button";
+import { generatePersonalizedContent } from "@/components/homepage/ContentGenerationServices";
 
 interface ContentTaskItemProps {
   task: any;
@@ -80,6 +81,26 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
     try {
       console.log(`Manually retrying content generation for ${task.post_type} task:`, task.id);
       
+      // First, fetch the campaign data to get the proper theme and context
+      let campaignTitle = 'Content Generation';
+      let weekDescription = '';
+      
+      if (task.campaign_id) {
+        const { data: campaignData, error: campaignError } = await supabase
+          .from('campaigns')
+          .select('title, theme, description')
+          .eq('id', task.campaign_id)
+          .maybeSingle();
+        
+        if (campaignError) {
+          console.error('Error fetching campaign data:', campaignError);
+        } else if (campaignData) {
+          campaignTitle = campaignData.title || campaignData.theme || 'Content Generation';
+          weekDescription = campaignData.description || '';
+          console.log('Using campaign context:', { campaignTitle, weekDescription });
+        }
+      }
+      
       // Reset the task to trigger content generation
       const { error } = await supabase
         .from('content_tasks')
@@ -92,44 +113,63 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
       if (error) {
         console.error('Error retrying content generation:', error);
         toast.error('Failed to retry content generation');
-      } else {
-        toast.success('Content generation restarted');
-        if (onTaskUpdate) onTaskUpdate();
+        return;
+      }
+
+      toast.success('Content generation restarted');
+      if (onTaskUpdate) onTaskUpdate();
+      
+      // Generate content using the proper service with campaign context
+      try {
+        console.log(`Generating ${task.post_type} content with theme: ${campaignTitle}`);
         
-        // Force a content generation attempt by calling the edge function directly
-        try {
-          const { data: generationData, error: generationError } = await supabase.functions.invoke('generate-content', {
-            body: {
-              postType: task.post_type,
-              campaignTitle: 'Facebook Post Generation',
-              userId: null,
-              enforceCompanyName: true
-            }
-          });
+        const generatedContent = await generatePersonalizedContent(
+          task.post_type, 
+          campaignTitle, 
+          null, // userId - will be handled by the service
+          weekDescription
+        );
 
-          if (generationError) {
-            console.error('Error in manual content generation:', generationError);
-            toast.error('Failed to generate content automatically');
-          } else if (generationData?.content) {
-            // Update the task with the generated content
-            const { error: updateError } = await supabase
-              .from('content_tasks')
-              .update({ 
-                status: 'scheduled',
-                ai_output: generationData.content 
-              })
-              .eq('id', task.id);
-
-            if (updateError) {
-              console.error('Error updating task with generated content:', updateError);
-            } else {
-              toast.success('Content generated successfully!');
-              if (onTaskUpdate) onTaskUpdate();
-            }
-          }
-        } catch (genError) {
-          console.error('Error calling generate-content function:', genError);
+        if (!generatedContent || generatedContent.trim() === '') {
+          throw new Error('Generated content is empty');
         }
+
+        // Validate content doesn't contain forbidden patterns
+        const hasPlaceholders = generatedContent.includes('[') && generatedContent.includes(']');
+        const hasWeekNumbers = /week\s+\d+/i.test(generatedContent);
+        const hasWelcomePhrase = generatedContent.toLowerCase().includes('welcome to');
+        
+        if (hasPlaceholders || hasWeekNumbers || hasWelcomePhrase) {
+          console.warn('Generated content contains validation issues, but proceeding');
+        }
+
+        // Update the task with the generated content
+        const { error: updateError } = await supabase
+          .from('content_tasks')
+          .update({ 
+            status: 'scheduled',
+            ai_output: generatedContent 
+          })
+          .eq('id', task.id);
+
+        if (updateError) {
+          console.error('Error updating task with generated content:', updateError);
+          toast.error('Failed to save generated content');
+        } else {
+          console.log(`Successfully generated and saved ${task.post_type} content for theme: ${campaignTitle}`);
+          toast.success('Content generated successfully!');
+          if (onTaskUpdate) onTaskUpdate();
+        }
+      } catch (genError) {
+        console.error('Error generating content:', genError);
+        
+        // Update task status back to failed/scheduled if generation fails
+        await supabase
+          .from('content_tasks')
+          .update({ status: 'scheduled' })
+          .eq('id', task.id);
+          
+        toast.error('Failed to generate content. Please try again.');
       }
     } catch (error) {
       console.error('Error retrying content generation:', error);
