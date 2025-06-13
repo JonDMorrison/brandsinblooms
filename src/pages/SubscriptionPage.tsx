@@ -7,9 +7,12 @@ import { useState, useEffect } from "react";
 import { SocialConnectionManager } from "@/components/analytics/SocialConnectionManager";
 import { AnalyticsSetupWizard } from "@/components/analytics/AnalyticsSetupWizard";
 import { TokenUsageDashboard } from "@/components/tokens/TokenUsageDashboard";
+import { useTokens } from "@/hooks/useTokens";
+import { formatDistanceToNow } from "date-fns";
 
 const SubscriptionPage = () => {
   const [loading, setLoading] = useState(true);
+  const { tokenBalance } = useTokens();
 
   // Mock subscription stats
   const [stats, setStats] = useState({
@@ -45,6 +48,20 @@ const SubscriptionPage = () => {
     // Implementation for subscription cancellation
   };
 
+  const getTokenUsageStats = () => {
+    if (!tokenBalance) return { usagePercent: 0, resetTime: 'Unknown' };
+    
+    const baseAllowance = 100;
+    const usagePercent = tokenBalance.tokens_balance < 0 ? 100 : 
+      Math.round(((baseAllowance - tokenBalance.tokens_balance) / baseAllowance) * 100);
+    
+    const resetTime = formatDistanceToNow(new Date(tokenBalance.tokens_reset_at), { addSuffix: true });
+    
+    return { usagePercent, resetTime };
+  };
+
+  const tokenStats = getTokenUsageStats();
+
   return (
     <ProtectedPageWrapper>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -61,7 +78,7 @@ const SubscriptionPage = () => {
                   Manage your subscription, billing, and account preferences
                 </p>
                 
-                {/* Quick stats */}
+                {/* Quick stats with token information */}
                 <div className="flex items-center gap-6 mt-4">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Crown className="w-4 h-4 text-green-600" />
@@ -73,11 +90,11 @@ const SubscriptionPage = () => {
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <TrendingUp className="w-4 h-4 text-purple-600" />
-                    <span className="font-medium">{stats.usagePercent}%</span> usage
+                    <span className="font-medium">{tokenStats.usagePercent}%</span> token usage
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Shield className="w-4 h-4 text-orange-600" />
-                    <span className="font-medium">Next: {stats.nextBilling}</span>
+                    <span className="font-medium">Resets {tokenStats.resetTime}</span>
                   </div>
                 </div>
               </div>
