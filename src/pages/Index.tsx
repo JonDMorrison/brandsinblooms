@@ -3,9 +3,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Home, TrendingUp, Users, Clock, PlusCircle, BarChart3 } from "lucide-react";
+import { Home, TrendingUp, Users, Clock, BarChart3 } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { toast } from "sonner";
@@ -123,26 +122,6 @@ const Index = () => {
                     <span className="font-medium">{stats.pendingTasks}</span> pending
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={() => setShowAddEventDialog(true)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md"
-                  size="lg"
-                >
-                  <BarChart3 className="w-5 h-5" />
-                  Promote Event
-                </Button>
-                
-                <Button
-                  onClick={() => setShowNewCampaignModal(true)}
-                  className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-md"
-                  size="lg"
-                >
-                  <PlusCircle className="w-5 h-5" />
-                  Create Campaign
-                </Button>
               </div>
             </div>
           </div>
