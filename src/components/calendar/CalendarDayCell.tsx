@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Check, Calendar, CheckCircle, GripVertical } from "lucide-react";
+import { Plus, Check, Calendar, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Campaign {
@@ -219,7 +219,6 @@ export const CalendarDayCell = ({
                 {!selectionMode && !isPastDate && (
                   <GripVertical className="w-3 h-3 text-gray-400 opacity-0 group-hover/task:opacity-100 transition-opacity" />
                 )}
-                <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1 mb-1">
