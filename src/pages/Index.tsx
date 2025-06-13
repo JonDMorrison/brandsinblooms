@@ -102,26 +102,6 @@ const Index = () => {
                 <p className="text-lg text-gray-600 font-medium">
                   Your marketing hub at a glance
                 </p>
-                
-                {/* Quick stats */}
-                <div className="flex items-center gap-6 mt-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                    <span className="font-medium">{stats.totalCampaigns}</span> total campaigns
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4 text-blue-600" />
-                    <span className="font-medium">{stats.activeCampaigns}</span> active
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <BarChart3 className="w-4 h-4 text-purple-600" />
-                    <span className="font-medium">{stats.completedTasks}</span> tasks completed
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4 text-orange-600" />
-                    <span className="font-medium">{stats.pendingTasks}</span> pending
-                  </div>
-                </div>
               </div>
             </div>
           </div>
