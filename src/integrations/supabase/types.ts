@@ -117,6 +117,7 @@ export type Database = {
           start_date: string
           theme: string | null
           title: string
+          user_id: string | null
           week_number: number
         }
         Insert: {
@@ -128,6 +129,7 @@ export type Database = {
           start_date: string
           theme?: string | null
           title: string
+          user_id?: string | null
           week_number: number
         }
         Update: {
@@ -139,6 +141,7 @@ export type Database = {
           start_date?: string
           theme?: string | null
           title?: string
+          user_id?: string | null
           week_number?: number
         }
         Relationships: []

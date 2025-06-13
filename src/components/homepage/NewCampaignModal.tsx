@@ -101,7 +101,8 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
           prompt: campaignPrompt,
           start_date: startDate,
           week_number: weekNumber,
-          source: 'quick_action'
+          source: 'quick_action',
+          user_id: user.id
         })
         .select()
         .single();

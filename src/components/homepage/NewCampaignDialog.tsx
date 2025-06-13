@@ -10,6 +10,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Campaign {
   title: string;
@@ -19,6 +21,7 @@ interface Campaign {
   week_number: number;
   prompt?: string | null;
   source?: string | null;
+  user_id: string;
 }
 
 interface NewCampaignDialogProps {
@@ -28,6 +31,7 @@ interface NewCampaignDialogProps {
 }
 
 export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignDialogProps) => {
+  const { user } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
@@ -68,6 +72,11 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      setError("You must be logged in to create a campaign");
+      return;
+    }
+    
     // Validation
     if (!title.trim()) {
       setError("Campaign title is required");
@@ -102,10 +111,23 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
         prompt: campaignPrompt,
         start_date: startDate,
         week_number: weekNumber,
-        source: 'quick_action'
+        source: 'quick_action',
+        user_id: user.id
       };
 
-      await onCreate(newCampaign);
+      // Create campaign directly in Supabase
+      const { data, error: insertError } = await supabase
+        .from('campaigns')
+        .insert(newCampaign)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('NewCampaignDialog: Error creating campaign:', insertError);
+        throw new Error(insertError.message);
+      }
+
+      console.log('NewCampaignDialog: Campaign created successfully:', data);
       
       // Reset form on success
       setTitle("");
@@ -116,6 +138,8 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
       
       console.log('NewCampaignDialog: Campaign created successfully');
       toast.success('Campaign created successfully!');
+      onOpenChange(false);
+      onCreate(data);
       
     } catch (error: any) {
       console.error('NewCampaignDialog: Error creating campaign:', error);
