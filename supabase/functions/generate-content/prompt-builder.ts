@@ -43,14 +43,14 @@ Location Info: ${companyProfile.location_info || ''}`;
     if (companyName && companyName.trim() !== '') {
       prompt += `\n\n🚨 CRITICAL RULE - COMPANY NAME ENFORCEMENT (FAILURE = REGENERATION):
 - ALWAYS use the exact company name "${companyName}" when referring to the business
-- NEVER use "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- NEVER use "[Company Name]", "[Business Name]", "Your Business", or generic placeholder names
 - NEVER use any placeholder text in square brackets like [business name] or [location]
 - When mentioning the business, ALWAYS use "${companyName}" specifically
 - Make the content personal and authentic to ${companyName}
 - This rule CANNOT be violated under any circumstances`;
     } else {
       prompt += `\n\n🚨 CRITICAL RULE - NO PLACEHOLDER TEXT (FAILURE = REGENERATION):
-- NEVER use "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
+- NEVER use "[Company Name]", "[Business Name]", "Your Business", or generic placeholder names
 - NEVER use any placeholder text in square brackets like [business name] or [location]
 - Use "we", "us", "our team", or "our experts" instead of placeholder company names
 - Make the content personal and authentic without generic placeholders
@@ -61,14 +61,14 @@ Location Info: ${companyProfile.location_info || ''}`;
       const locationInfo = companyProfile.location_info;
       prompt += `\n\n🚨 CRITICAL RULE - LOCATION ENFORCEMENT (FAILURE = REGENERATION):
 - ALWAYS use the actual location "${locationInfo}" when referring to the region
-- NEVER use "[Region]", "[Location]", or "[Garden Center Location]"
+- NEVER use "[Region]", "[Location]", or "[Business Location]"
 - NEVER use any placeholder text in square brackets
 - Reference the specific city, region, or area name directly
 - Make location references authentic and specific to ${locationInfo}
 - This rule CANNOT be violated under any circumstances`;
     } else {
       prompt += `\n\n🚨 CRITICAL RULE - NO LOCATION PLACEHOLDERS (FAILURE = REGENERATION):
-- NEVER use "[Region]", "[Location]", or "[Garden Center Location]"
+- NEVER use "[Region]", "[Location]", or "[Business Location]"
 - NEVER use any placeholder text in square brackets
 - Use "your area", "your region", or "locally" instead of placeholder locations
 - Make location references authentic without generic placeholders
@@ -79,8 +79,8 @@ Location Info: ${companyProfile.location_info || ''}`;
     prompt += `\n${FALLBACK_MESSAGES.missing_location}`;
     
     prompt += `\n\n🚨 CRITICAL RULE - NO PLACEHOLDER TEXT (FAILURE = REGENERATION):
-- NEVER use "[Company Name]", "[Garden Center Name]", "Garden Center", or "Your Garden Center"
-- NEVER use "[Region]", "[Location]", or "[Garden Center Location]"
+- NEVER use "[Company Name]", "[Business Name]", "Your Business", or generic placeholder names
+- NEVER use "[Region]", "[Location]", or "[Business Location]"
 - NEVER use any placeholder text in square brackets
 - Use "we", "us", "our team", or "our experts" instead of placeholder company names
 - Use "your area", "your region", or "locally" instead of placeholder locations
@@ -92,13 +92,12 @@ Location Info: ${companyProfile.location_info || ''}`;
 2. SHORT PARAGRAPHS: Maximum 2-3 sentences per paragraph for mobile readability
 3. NO TECHNICAL FORMATTING: Absolutely no markdown, code blocks, bullet points, or numbered lists
 4. NO SQUARE BRACKETS: Never use [anything] - all content must be complete and specific
-5. CONVERSATIONAL TONE: Sound like a local garden expert talking to familiar customers
+5. CONVERSATIONAL TONE: Sound like a knowledgeable business expert talking to familiar customers
 6. NATURAL FLOW: Write in flowing paragraphs, not lists or formatted blocks
 
 🚨 ABSOLUTE PROHIBITIONS (VIOLATION = IMMEDIATE REGENERATION):
 - NO "Welcome to" phrases - ABSOLUTELY FORBIDDEN
 - NO week numbers or week references (week 1, week 23, this week, etc.) - ABSOLUTELY FORBIDDEN
-- NO "Green Thumbs", "green thumb", or any variation
 - NO bullet points (•), numbered lists (1., 2., 3.), or dashes (-)
 - NO emojis anywhere in content
 - NO square bracket placeholders like [Company Name], [Region], [Location]
@@ -112,7 +111,8 @@ CONTENT MUST BE:
 - Completely free of any placeholder text
 - Specific to the "${campaignTitle}" theme
 - Authentic and personal without generic references
-- NEVER mention weeks, week numbers, or use "Welcome to" phrases`;
+- NEVER mention weeks, week numbers, or use "Welcome to" phrases
+- Focus on business value and customer benefits rather than assuming specific industry`;
   
   return prompt;
 }

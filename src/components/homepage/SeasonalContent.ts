@@ -1,4 +1,3 @@
-
 export const getSeasonalGreeting = () => {
   const month = new Date().getMonth() + 1;
   if (month >= 3 && month <= 5) return { emoji: "🌸", text: "Spring is here!" };
@@ -7,7 +6,7 @@ export const getSeasonalGreeting = () => {
   return { emoji: "❄️", text: "Winter magic!" };
 };
 
-// Fixed function to get a rotating daily welcome message with emoji
+// Marketing-focused welcome messages with plant metaphors
 export const getWelcomeMessage = (businessName?: string, firstName?: string) => {
   // Use date to create a predictable but changing rotation
   const date = new Date();
@@ -19,38 +18,43 @@ export const getWelcomeMessage = (businessName?: string, firstName?: string) => 
   const dayOfYear = Math.floor(diff / oneDay);
   
   // Business name or fallback
-  const name = businessName || "Garden Center";
+  const name = businessName || "Your Business";
   const userFirstName = firstName || "there";
   
-  // Array of welcome messages with different themes and emojis
+  // Array of marketing-focused welcome messages with plant metaphors
   const welcomeMessages = [
-    // Business-themed greetings
-    { text: `Welcome back to your blooming business, ${name}!`, emoji: "🌺" },
-    { text: `Ready to grow your garden empire today, ${userFirstName}?`, emoji: "🌱" },
-    { text: `The plants are waiting for you, ${userFirstName}!`, emoji: "🪴" },
+    // Business growth themes
+    { text: `Welcome back to your growing business, ${name}!`, emoji: "🌱" },
+    { text: `Ready to cultivate success today, ${userFirstName}?`, emoji: "🌿" },
+    { text: `Time to plant some marketing seeds, ${userFirstName}!`, emoji: "🌰" },
     
-    // Seasonal messages
-    { text: `${getSeasonalGreeting().emoji} ${getSeasonalGreeting().text} Let's make it count, ${userFirstName}!`, emoji: getSeasonalGreeting().emoji },
-    { text: `Another beautiful day to nurture growth, ${userFirstName}!`, emoji: "🌿" },
-    { text: `Garden wisdom awaits you today, ${userFirstName}!`, emoji: "🧠" },
+    // Seasonal marketing messages
+    { text: `${getSeasonalGreeting().emoji} ${getSeasonalGreeting().text} Let's grow your reach, ${userFirstName}!`, emoji: getSeasonalGreeting().emoji },
+    { text: `Another day to nurture customer relationships, ${userFirstName}!`, emoji: "🌸" },
+    { text: `Marketing wisdom awaits you today, ${userFirstName}!`, emoji: "🧠" },
     
-    // Motivation & fun
+    // Creative & fun marketing
     { text: `Let's dig into some marketing magic, ${userFirstName}!`, emoji: "✨" },
-    { text: `Planting seeds of success today, ${userFirstName}?`, emoji: "🌰" },
-    { text: `Green thumbs, green profits, ${userFirstName}!`, emoji: "💚" },
+    { text: `Planting seeds of engagement today, ${userFirstName}?`, emoji: "📱" },
+    { text: `Fresh content, fresh opportunities, ${userFirstName}!`, emoji: "💚" },
     
-    // Time-based
-    { text: `Rise and shine, ${userFirstName}! The plants are awake too.`, emoji: "🌅" },
-    { text: `Good day for garden greatness, ${userFirstName}!`, emoji: "⭐" },
-    { text: `Welcome to another fruitful day, ${userFirstName}!`, emoji: "🍎" },
+    // Success & motivation
+    { text: `Rise and shine, ${userFirstName}! Your audience is waiting.`, emoji: "🌅" },
+    { text: `Good day for marketing greatness, ${userFirstName}!`, emoji: "⭐" },
+    { text: `Welcome to another fruitful day of growth, ${userFirstName}!`, emoji: "🍎" },
     
-    // Playful with fruits
-    { text: `Orange you glad it's a new day, ${userFirstName}?`, emoji: "🍊" },
-    { text: `Berry excited to see you today, ${userFirstName}!`, emoji: "🍓" },
-    { text: `You're grape at what you do, ${userFirstName}!`, emoji: "🍇" },
-    { text: `Lettuce celebrate another day of growth, ${userFirstName}!`, emoji: "🥬" },
-    { text: `Aloe there, ${userFirstName}! Ready to grow your business?`, emoji: "🌵" },
-    { text: `Unbeleafable things await you today, ${userFirstName}!`, emoji: "🍃" }
+    // Playful marketing puns
+    { text: `Orange you excited for today's content, ${userFirstName}?`, emoji: "🍊" },
+    { text: `Berry excited to boost your business today, ${userFirstName}!`, emoji: "🍓" },
+    { text: `You're grape at marketing, ${userFirstName}!`, emoji: "🍇" },
+    { text: `Lettuce create amazing content together, ${userFirstName}!`, emoji: "🥬" },
+    { text: `Aloe there, ${userFirstName}! Ready to grow your brand?`, emoji: "🌵" },
+    { text: `Unbeleafable marketing potential ahead, ${userFirstName}!`, emoji: "🍃" },
+    
+    // Customer engagement themes
+    { text: `Time to bloom where your customers are, ${userFirstName}!`, emoji: "🌺" },
+    { text: `Your brand deserves to flourish, ${userFirstName}!`, emoji: "🌻" },
+    { text: `Let's help your business blossom, ${userFirstName}!`, emoji: "🌷" }
   ];
   
   // Pick a message based on the day of the year for daily rotation
@@ -62,312 +66,312 @@ export const getSeasonalContent = () => {
   const month = new Date().getMonth() + 1;
   
   if (month >= 3 && month <= 5) {
-    // Spring content
+    // Spring marketing content
     return {
-      theme: "Spring Garden Revival",
+      theme: "Spring Marketing Revival",
       posts: [
         {
           type: 'instagram',
-          content: `🌸 Spring has officially sprung at Green Thumb Garden Center, and we couldn't be more excited to share this magical season with you! Our greenhouse is absolutely bursting with fresh seedlings, vibrant annuals, and everything you need to transform your outdoor space into a spring paradise.
+          content: `🌸 Spring has officially arrived, and we couldn't be more excited to share this season of renewal and fresh opportunities with you! Our marketing approach is flourishing with new strategies, innovative campaigns, and everything you need to transform your brand presence into a springtime sensation.
 
-Whether you're a seasoned gardener or just starting your green journey, our expert team is here to guide you through selecting the perfect plants for your unique space and growing conditions. From colorful pansies and cheerful marigolds to hardy perennials that will return year after year, we've carefully curated a selection that thrives in our local climate.
+Whether you're a seasoned business owner or just starting your entrepreneurial journey, our expert team is here to guide you through selecting the perfect marketing strategies for your unique audience and business goals. From vibrant social media campaigns and engaging email newsletters to compelling video content that resonates year-round, we've carefully cultivated approaches that thrive in today's digital landscape.
 
-This week, we're featuring our premium organic soil amendments and natural fertilizers that will give your plants the nutrients they need to flourish. Plus, don't miss our Spring Plant Sale happening all month long - it's the perfect time to stock up on your garden favorites!
+This week, we're featuring our premium content creation services and organic growth strategies that will give your brand the visibility it needs to flourish. Plus, don't miss our Spring Marketing Campaign happening all month long - it's the perfect time to plant the seeds for sustainable business growth!
 
-What's first on your spring planting list? Drop a comment below and let us know what you're most excited to grow this season! 🌱✨`,
-          hashtags: '#SpringGardening #FreshStart #GreenThumb #PlantLovers #SpringSale #OrganicGardening #LocalNursery #GardenLife',
-          imageIdea: 'Colorful spring flowers display in greenhouse with customers browsing'
+What's first on your spring marketing list? Drop a comment below and let us know what you're most excited to grow this season! 🌱✨`,
+          hashtags: '#SpringMarketing #FreshStart #BrandGrowth #MarketingStrategy #ContentCreation #DigitalMarketing #BusinessGrowth #MarketingTips',
+          imageIdea: 'Vibrant spring-themed marketing materials with fresh, colorful design elements'
         },
         {
           type: 'facebook',
-          content: `🌱 Spring Gardening Workshop this Saturday! Join our experts as we share tips for preparing your garden beds, choosing the right plants for your space, and getting the most out of your spring planting.
+          content: `🌱 Spring Marketing Workshop this Saturday! Join our experts as we share strategies for refreshing your brand message, choosing the right platforms for your audience, and getting the most out of your spring campaigns.
 
-This hands-on workshop will cover everything from soil preparation and proper planting techniques to watering schedules and pest prevention. You'll leave with practical knowledge and a starter kit to begin your spring gardening journey.
+This hands-on workshop will cover everything from content planning and audience engagement to campaign optimization and performance tracking. You'll leave with actionable strategies and a starter toolkit to launch your spring marketing initiatives.
 
-Whether you're dealing with clay soil, shade challenges, or limited space, our team has solutions that work. We'll also discuss companion planting strategies that can help your garden thrive naturally while reducing maintenance.
+Whether you're dealing with limited budgets, audience challenges, or time constraints, our team has solutions that work. We'll also discuss cross-platform strategies that can help your marketing efforts grow naturally while reducing complexity.
 
-Register now - limited spots available! Workshop includes refreshments and a 15% discount on all plants purchased the day of the event.`,
-          hashtags: '#SpringWorkshop #GardeningTips #CommunityEvent',
-          imageIdea: 'Workshop setup with gardening tools and soil'
+Register now - limited spots available! Workshop includes resources and a 15% discount on all marketing services booked the day of the event.`,
+          hashtags: '#SpringWorkshop #MarketingTips #BusinessEvent',
+          imageIdea: 'Workshop setup with marketing materials and planning tools'
         },
         {
           type: 'email',
-          content: `Subject: Your Spring Garden Awaits! 🌻
+          content: `Subject: Your Spring Marketing Transformation Awaits! 🌻
 
-Dear Garden Enthusiasts,
+Dear Business Leaders,
 
-Spring is the perfect time to transform your outdoor space! This week we're featuring our premium soil amendments, organic fertilizers, and a stunning selection of spring perennials.
+Spring is the perfect time to refresh your marketing approach! This week we're featuring our premium content strategies, organic growth techniques, and a stunning collection of spring campaign ideas.
 
-Our spring collection includes everything you need for a successful growing season:
-- Hardy perennials that provide years of beauty
-- Colorful annuals for instant impact
-- Organic soil conditioners for healthier plants
-- Natural pest control solutions
+Our spring marketing collection includes everything you need for a successful season:
+- Engaging content frameworks that provide lasting impact
+- Seasonal campaigns for immediate results
+- Organic growth strategies for sustainable success
+- Performance tracking solutions for better ROI
 
-Plus, don't miss our Spring Plant Sale happening all month long - save up to 25% on select varieties!
+Plus, don't miss our Spring Marketing Package happening all month long - save up to 25% on select services!
 
-Visit us this week to see what's blooming and get personalized advice from our gardening experts.
+Visit us this week to see what's blooming in marketing and get personalized advice from our strategy experts.
 
-Happy Gardening!
-The Green Thumb Team`,
-          hashtags: '#SpringNewsletter #PlantSale #GardeningTips',
-          imageIdea: 'Newsletter header with spring garden scene'
+Happy Marketing!
+Your Growth Team`,
+          hashtags: '#SpringNewsletter #MarketingPackage #BusinessGrowth',
+          imageIdea: 'Newsletter header with spring business growth imagery'
         },
         {
           type: 'newsletter',
-          content: `GREEN THUMB QUARTERLY
+          content: `MARKETING GROWTH QUARTERLY
 Spring Edition - Volume 12
 
-WELCOME TO SPRING!
-The season of renewal is here, and we're thrilled to share the latest from Green Thumb Garden Center. This quarter brings exciting new arrivals, expert growing tips, and community events to help you create your dream garden.
+WELCOME TO SPRING MARKETING!
+The season of renewal is here, and we're thrilled to share the latest marketing strategies and growth opportunities. This quarter brings exciting new approaches, expert insights, and community initiatives to help you create your dream marketing results.
 
 FEATURED THIS MONTH
-Our spring collection showcases carefully selected varieties that thrive in local conditions. From drought-resistant perennials to pollinator-friendly natives, we've curated plants that bring both beauty and purpose to your landscape.
+Our spring marketing collection showcases carefully selected strategies that thrive in today's business climate. From audience-focused content to performance-driven campaigns, we've curated approaches that bring both engagement and measurable results to your business.
 
-GARDENING WISDOM
-Spring planting success starts with soil preparation. Our experts recommend testing soil pH and adding organic matter before planting. This simple step can dramatically improve plant health and garden productivity throughout the growing season.
+MARKETING WISDOM
+Spring campaign success starts with audience research. Our experts recommend understanding your customer journey and adding value-driven content before launching campaigns. This fundamental step can dramatically improve engagement and business growth throughout the season.
 
 COMMUNITY SPOTLIGHT
-Thank you to all our customers who participated in last month's community garden project. Together, we planted over 200 native plants that will provide habitat for local wildlife while beautifying our neighborhood.
+Thank you to all our clients who participated in last month's collaborative marketing initiative. Together, we launched over 200 pieces of content that generated significant engagement while building stronger brand communities.
 
 UPCOMING EVENTS
-- Spring Planting Workshop: March 15th
-- Native Plant Sale: March 22-24
-- Children's Garden Club: Starting April 1st
+- Spring Campaign Workshop: March 15th
+- Content Strategy Bootcamp: March 22-24
+- Business Growth Accelerator: Starting April 1st
 
-Stay connected with us for the latest updates and gardening inspiration!`,
-          hashtags: '#Quarterly #SpringGardening #CommunityEvents',
-          imageIdea: 'Professional newsletter layout with garden photos'
+Stay connected with us for the latest updates and marketing inspiration!`,
+          hashtags: '#Quarterly #SpringMarketing #BusinessEvents',
+          imageIdea: 'Professional newsletter layout with spring marketing themes'
         }
       ]
     };
   } else if (month >= 6 && month <= 8) {
-    // Summer content
+    // Summer marketing content
     return {
-      theme: "Summer Heat Solutions",
+      theme: "Summer Marketing Momentum",
       posts: [
         {
           type: 'instagram',
-          content: `☀️ Summer heat got you worried about your garden? Don't sweat it! Our incredible collection of drought-resistant beauties are here to save the day and keep your outdoor space looking absolutely stunning even during the hottest months of the year.
+          content: `☀️ Summer marketing got you worried about engagement drops? Don't sweat it! Our incredible collection of high-impact strategies are here to save the day and keep your brand visibility absolutely soaring even during the traditionally slower months of the year.
 
-These hardy perennials, succulents, and heat-loving annuals are nature's champions - they've evolved to thrive in challenging conditions while still providing the color, texture, and beauty you want in your garden. From striking agaves and colorful sedums to vibrant lantana and resilient lavender, these plants prove that water-wise doesn't mean sacrificing style.
+These proven techniques, engagement boosters, and audience-focused campaigns are marketing champions - they've evolved to thrive in challenging seasonal conditions while still providing the reach, interaction, and business results you want. From dynamic social media content and targeted email sequences to compelling video marketing and resilient SEO strategies, these approaches prove that summer slowdown doesn't mean sacrificing growth.
 
-Summer gardening is all about working with nature, not against it. Our carefully selected drought-tolerant plants not only survive the heat but actually flourish, requiring minimal water once established.
+Summer marketing is all about working with seasonal behaviors, not against them. Our carefully selected high-performance strategies not only survive the summer lull but actually flourish, requiring minimal adjustment once implemented.
 
-Stop by this week for personalized advice on creating a drought-resistant garden that works with your specific space, soil, and style preferences. 🌵🏜️`,
-          hashtags: '#SummerGardening #DroughtResistant #HeatTolerant #WaterWise #SustainableGardening #XericGardening #LowMaintenance #EcoFriendly',
-          imageIdea: 'Display of drought-resistant plants and succulents in summer garden setting'
+Stop by this week for personalized advice on creating a summer marketing plan that works with your specific audience, industry, and business goals. 🌊🏖️`,
+          hashtags: '#SummerMarketing #HighImpact #AudienceEngagement #SeasonalStrategy #DigitalMarketing #ContentStrategy #BusinessGrowth #MarketingMomentum',
+          imageIdea: 'Dynamic summer marketing visuals with high-energy campaign elements'
         },
         {
           type: 'facebook',
-          content: `🌻 Summer Herb Workshop Series continues this week! Learn how to grow, harvest, and preserve herbs from your garden. This week we're focusing on basil, oregano, and summer savory.
+          content: `🌻 Summer Content Workshop Series continues this week! Learn how to create, optimize, and distribute content that engages your audience during the summer months. This week we're focusing on visual content, storytelling, and seasonal campaigns.
 
-Join us for an interactive session where you'll discover the secrets of successful herb gardening, from seed to table. We'll cover optimal growing conditions, companion planting strategies, and preservation techniques that will keep your herbs flavorful all year long.
+Join us for an interactive session where you'll discover the secrets of successful summer marketing, from strategy to execution. We'll cover optimal content types, audience engagement tactics, and performance measurement techniques that will keep your marketing effective all season long.
 
-Perfect timing for your summer cooking adventures! Each participant receives a starter herb collection and recipe cards featuring seasonal favorites.`,
-          hashtags: '#HerbWorkshop #SummerHerbs #CookingWithHerbs',
-          imageIdea: 'Fresh herbs arranged for cooking demonstration'
+Perfect timing for your summer business initiatives! Each participant receives a starter content toolkit and strategy templates featuring seasonal favorites.`,
+          hashtags: '#ContentWorkshop #SummerMarketing #EngagementStrategies',
+          imageIdea: 'Fresh content marketing materials arranged for workshop demonstration'
         },
         {
           type: 'email',
-          content: `Subject: Summer Garden Care Made Easy! 🌞
+          content: `Subject: Summer Marketing Made Easy! 🌞
 
-Hello Green Thumbs!
+Hello Growth Champions!
 
-Summer gardening doesn't have to be a struggle! Our latest newsletter features water-saving tips, pest management strategies, and the best plants for summer containers.
+Summer marketing doesn't have to be a struggle! Our latest newsletter features engagement-boosting tips, audience retention strategies, and the best approaches for summer campaigns.
 
-BEAT THE HEAT:
-- Deep watering techniques that save time and water
-- Mulching strategies for moisture retention
-- Shade solutions for delicate plants
+BEAT THE SUMMER SLUMP:
+- Attention-grabbing content techniques that save time and resources
+- Engagement strategies for maintaining audience interest
+- Seasonal solutions for consistent performance
 
-SUMMER CONTAINER GARDENS:
-Create stunning displays that thrive in heat with our expert plant combinations.
+SUMMER CAMPAIGN IDEAS:
+Create stunning marketing initiatives that thrive in summer with our expert strategy combinations.
 
-Visit us for personalized summer gardening advice and take advantage of our climate-specific plant recommendations.
+Visit us for personalized summer marketing advice and take advantage of our season-specific recommendations.
 
 Keep growing!
-Your Garden Center Team`,
-          hashtags: '#SummerCare #WaterSaving #ContainerGardening',
-          imageIdea: 'Summer container garden arrangements'
+Your Marketing Team`,
+          hashtags: '#SummerMarketing #EngagementBoost #CampaignStrategy',
+          imageIdea: 'Summer marketing campaign arrangements'
         },
         {
           type: 'newsletter',
-          content: `GREEN THUMB QUARTERLY
+          content: `MARKETING GROWTH QUARTERLY
 Summer Edition - Volume 13
 
-SUMMER SURVIVAL GUIDE
-As temperatures rise, successful gardening means working smarter, not harder. This edition focuses on creating beautiful, sustainable gardens that thrive in summer heat while conserving water and reducing maintenance.
+SUMMER MARKETING SURVIVAL GUIDE
+As temperatures rise and attention spans shorten, successful marketing means working smarter, not harder. This edition focuses on creating beautiful, sustainable campaigns that thrive in summer while maintaining engagement and reducing effort.
 
-DROUGHT-SMART GARDENING
-Discover plants that flourish in hot, dry conditions. Our summer selection emphasizes varieties that provide stunning color and texture while requiring minimal supplemental watering once established.
+SUMMER-SMART STRATEGIES
+Discover approaches that flourish in challenging conditions. Our summer selection emphasizes techniques that provide stunning results and engagement while requiring minimal maintenance once established.
 
-WATER-WISE TECHNIQUES
-Learn professional irrigation strategies that maximize plant health while minimizing water use. From drip irrigation basics to mulching mastery, small changes can make a big difference.
+ATTENTION-WISE TECHNIQUES
+Learn professional engagement strategies that maximize audience retention while minimizing resource use. From automated sequences to content repurposing mastery, small changes can make a big difference.
 
 UPCOMING SUMMER EVENTS
-- Heat-Tolerant Plant Sale: July 4th weekend
-- Evening Garden Tours: Every Friday in July
-- Summer Herb Harvest Workshop: July 20th
+- High-Impact Campaign Workshop: July 4th weekend
+- Evening Strategy Sessions: Every Friday in July
+- Summer Content Creation Workshop: July 20th
 
 Stay cool and keep growing!`,
-          hashtags: '#SummerQuarterly #DroughtTolerant #WaterWise',
-          imageIdea: 'Professional newsletter with summer garden photography'
+          hashtags: '#SummerQuarterly #EngagementStrategies #MarketingWisdom',
+          imageIdea: 'Professional newsletter with summer marketing photography'
         }
       ]
     };
   } else if (month >= 9 && month <= 11) {
-    // Fall content
+    // Fall marketing content
     return {
-      theme: "Autumn Garden Preparations",
+      theme: "Autumn Marketing Harvest",
       posts: [
         {
           type: 'instagram',
-          content: `🍂 Fall is absolutely nature's grand finale, and right now our garden center is putting on the most spectacular show of the year! Our stunning mums in every shade imaginable, gorgeous asters painting the landscape in purples and whites, and vibrant ornamental kales are creating a breathtaking autumn display.
+          content: `🍂 Fall is absolutely marketing's grand finale, and right now our strategy collection is putting on the most spectacular performance of the year! Our stunning campaign frameworks in every approach imaginable, powerful conversion tactics painting results in remarkable numbers, and vibrant customer engagement strategies are creating a breathtaking autumn business landscape.
 
-But here's a secret that many gardeners don't know: fall is actually one of THE BEST times to plant trees and shrubs! While everyone else is thinking about winding down their gardening for the year, smart gardeners are taking advantage of cooler temperatures and autumn rains to establish new plantings.
+But here's a secret that many marketers don't know: fall is actually one of THE BEST times to launch major campaigns and initiatives! While everyone else is thinking about winding down their marketing efforts for the year, smart business owners are taking advantage of increased consumer activity and holiday preparation seasons to establish new market presence.
 
-Fall planting offers so many advantages - less heat stress on new plants, natural rainfall that reduces watering needs, and the opportunity to see exactly how plants will look in your landscape before they go dormant.
+Fall marketing offers so many advantages - higher audience engagement, natural seasonal relevance that reduces content creation needs, and the opportunity to capture attention before the holiday rush begins.
 
-What fall colors are calling to your garden this year? Come explore our autumn wonderland! 🌳🍁`,
-          hashtags: '#FallColors #Mums #TreePlanting #AutumnGarden #LandscapePlanting #FallPlanting #SeasonalGardening #GardenDesign',
-          imageIdea: 'Colorful fall mums and ornamental plants display with autumn trees in background'
+What fall strategies are calling to your business this year? Come explore our autumn marketing wonderland! 🎯🍁`,
+          hashtags: '#FallMarketing #AutumnStrategy #CampaignLaunch #HolidayPrep #SeasonalMarketing #ConversionBoost #BusinessStrategy #MarketingHarvest',
+          imageIdea: 'Rich autumn-themed marketing materials with harvest and results imagery'
         },
         {
           type: 'facebook',
-          content: `🌰 Fall Garden Prep Workshop this weekend! Learn the secrets of preparing your garden for winter, proper mulching techniques, and which plants to divide now for next year's garden.
+          content: `🌰 Fall Marketing Prep Workshop this weekend! Learn the secrets of preparing your business for holiday season, proper campaign planning techniques, and which strategies to implement now for next quarter's success.
 
-This comprehensive workshop covers essential fall tasks that will set your garden up for success next spring. We'll demonstrate proper pruning techniques, show you how to protect tender plants, and share strategies for extending your growing season.
+This comprehensive workshop covers essential fall marketing tasks that will set your business up for success through the end of the year. We'll demonstrate proper audience segmentation techniques, show you how to protect your marketing budget, and share strategies for extending your campaign effectiveness.
 
-Workshop participants receive a seasonal care guide, bulb planting tool, and 15% off all fall plants and supplies.`,
-          hashtags: '#FallPrep #WinterReady #GardeningWorkshop',
-          imageIdea: 'Garden tools and mulch for fall preparation'
+Workshop participants receive a seasonal planning guide, campaign calendar template, and 15% off all fall marketing services.`,
+          hashtags: '#FallPrep #HolidayReady #MarketingWorkshop',
+          imageIdea: 'Marketing planning tools and campaign calendars for fall preparation'
         },
         {
           type: 'email',
-          content: `Subject: Fall Into Gardening Success! 🍁
+          content: `Subject: Fall Into Marketing Success! 🍁
 
-Dear Gardening Friends,
+Dear Marketing Friends,
 
-Fall is the secret season for gardeners! While others are winding down, smart gardeners are planting bulbs for spring, dividing perennials, and preparing for next year's garden.
+Fall is the secret season for business growth! While others are winding down, smart marketers are planning holiday campaigns, optimizing conversion funnels, and preparing for next quarter's success.
 
-FALL PLANTING OPPORTUNITIES:
-- Spring bulbs for early color
-- Trees and shrubs for long-term beauty
-- Cool-season vegetables for extended harvest
+FALL MARKETING OPPORTUNITIES:
+- Holiday campaign planning for maximum impact
+- Year-end promotions and customer appreciation
+- Strategic planning for Q1 success
 
-DON'T MISS OUR FALL BULB SALE:
-Save 30% on premium spring bulbs including tulips, daffodils, crocuses, and specialty varieties.
+DON'T MISS OUR FALL STRATEGY SALE:
+Save 30% on premium marketing services including campaign development, content creation, and performance optimization.
 
-Happy Fall Gardening!
-Green Thumb Garden Center`,
-          hashtags: '#FallBulbs #GardenPrep #SpringPlanning',
-          imageIdea: 'Variety of spring bulbs for fall planting'
+Happy Fall Marketing!
+Your Growth Strategy Team`,
+          hashtags: '#FallMarketing #BusinessPrep #HolidayPlanning',
+          imageIdea: 'Variety of fall-themed marketing materials and planning documents'
         },
         {
           type: 'newsletter',
-          content: `GREEN THUMB QUARTERLY
+          content: `MARKETING GROWTH QUARTERLY
 Fall Edition - Volume 14
 
 AUTUMN OPPORTUNITIES
-Fall gardening offers unique opportunities for both immediate enjoyment and long-term garden success. This season's focus is on maximizing autumn beauty while preparing for the year ahead.
+Fall marketing offers unique opportunities for both immediate results and long-term business success. This season's focus is on maximizing autumn engagement while preparing for the year ahead.
 
-FALL PLANTING ADVANTAGES
-Cooler temperatures and natural rainfall make fall ideal for establishing new plants. Trees, shrubs, and perennials planted now develop strong root systems over winter, ensuring vigorous growth next spring.
+FALL CAMPAIGN ADVANTAGES
+Increased consumer activity and holiday preparation make fall ideal for launching new initiatives. Campaigns started now develop strong audience connections over winter, ensuring vigorous growth next spring.
 
-SPRING BULB PLANNING
-Now is the time to plant spring bulbs for next year's early color. Our fall bulb selection includes both classic favorites and exciting new varieties that will transform your garden come spring.
+HOLIDAY PLANNING
+Now is the time to prepare holiday marketing for maximum impact. Our fall strategy selection includes both classic approaches and exciting new techniques that will transform your business results come holiday season.
 
 SEASONAL MAINTENANCE
-Proper fall garden care sets the foundation for next year's success. From dividing perennials to protecting tender plants, autumn tasks ensure a healthy, beautiful garden.
+Proper fall marketing preparation sets the foundation for next year's success. From audience segmentation to campaign optimization, autumn tasks ensure a healthy, profitable business.
 
 NOVEMBER EVENTS
-- Fall Cleanup Workshop: November 2nd
-- Winter Protection Clinic: November 16th
-- Holiday Wreath Making: November 30th
+- Holiday Campaign Workshop: November 2nd
+- Year-End Strategy Clinic: November 16th
+- Content Planning Session: November 30th
 
 Embrace the season!`,
-          hashtags: '#FallQuarterly #BulbPlanting #SeasonalMaintenance',
-          imageIdea: 'Professional newsletter with fall garden scenes'
+          hashtags: '#FallQuarterly #HolidayPlanning #SeasonalStrategy',
+          imageIdea: 'Professional newsletter with fall marketing scenes'
         }
       ]
     };
   } else {
-    // Winter content
+    // Winter marketing content
     return {
-      theme: "Winter Garden Magic",
+      theme: "Winter Marketing Planning",
       posts: [
         {
           type: 'instagram',
-          content: `❄️ Think winter means your garden has to disappear until spring? Think again! Winter gardening is one of our absolute favorite topics because there are so many ways to keep beauty, color, and life thriving in your outdoor space even during the coldest months.
+          content: `❄️ Think winter means your marketing has to hibernate until spring? Think again! Winter marketing is one of our absolute favorite topics because there are so many ways to keep engagement, conversions, and business growth thriving in your strategy even during the quietest months.
 
-Our carefully selected evergreens provide the backbone of winter interest - from towering spruces and fragrant pines to compact junipers and elegant hollies. These year-round champions don't just survive winter; they define it with their rich textures and steadfast presence.
+Our carefully selected evergreen campaigns provide the backbone of winter marketing - from year-round email sequences and consistent social media presence to strategic content marketing and reliable SEO foundations. These always-on champions don't just survive winter; they define it with their consistent performance and steadfast results.
 
-Winter berries add pops of brilliant color against snowy backdrops - think bright red winterberry holly, orange persimmon fruits, and deep purple beautyberry clusters. Cold-hardy ornamental grasses sway gracefully in winter breezes.
+Winter planning also adds strategic preparation opportunities - think detailed customer research, comprehensive strategy development, and thorough market analysis. Smart business owners use winter's natural reflection period for planning next year's major initiatives.
 
-Winter is also the perfect time for planning next year's garden! What winter elements are you planning to add? ❄️🌲`,
-          hashtags: '#WinterGarden #Evergreens #GardenPlanning #WinterBeauty #SeasonalInterest #WinterLandscape #GardenDesign #YearRoundGarden',
-          imageIdea: 'Evergreen plants and winter berry displays with snow accents'
+Winter is also the perfect time for optimizing existing campaigns! What winter strategies are you planning to implement? ❄️📈`,
+          hashtags: '#WinterMarketing #EvergreenStrategy #BusinessPlanning #MarketingOptimization #CustomerResearch #StrategicPlanning #YearRoundGrowth #MarketingFoundation',
+          imageIdea: 'Professional winter planning visuals with strategy and analysis elements'
         },
         {
           type: 'facebook',
-          content: `🌲 Holiday Wreath Workshop this Saturday! Create beautiful, natural decorations using fresh evergreen boughs, berries, and pinecones from local sources.
+          content: `🌲 Holiday Campaign Workshop this Saturday! Create beautiful, effective marketing using proven strategies, engagement techniques, and conversion optimization from industry experts.
 
-Join us for this festive hands-on workshop where you'll learn traditional wreath-making techniques while creating stunning holiday decorations for your home. We'll provide all materials including wire frames, fresh greenery, and natural embellishments.
+Join us for this strategic hands-on workshop where you'll learn professional campaign development techniques while creating stunning holiday marketing for your business. We'll provide all frameworks, templates, and strategic guidance.
 
-All materials provided - just bring your creativity! Each participant creates one 18-inch wreath to take home, plus receives a 20% discount on additional holiday greenery.`,
-          hashtags: '#HolidayWorkshop #WreathMaking #NaturalDecor',
-          imageIdea: 'Workshop table with wreath-making materials'
+All materials provided - just bring your creativity! Each participant creates one complete holiday campaign to implement, plus receives a 20% discount on additional marketing services.`,
+          hashtags: '#HolidayWorkshop #CampaignPlanning #MarketingSuccess',
+          imageIdea: 'Workshop table with marketing planning materials'
         },
         {
           type: 'email',
-          content: `Subject: Winter Garden Magic Awaits! ⛄
+          content: `Subject: Winter Marketing Magic Awaits! ⛄
 
 Warm Greetings!
 
-Winter is the perfect time for garden planning and indoor plant care. Our houseplant collection is thriving, and we're here to help you bring green life into your home during the colder months.
+Winter is the perfect time for marketing planning and audience nurturing. Our strategy collection is thriving, and we're here to help you bring new life into your business during the quieter months.
 
-WINTER HOUSEPLANT CARE:
-- Adjusting watering for dormant season
-- Providing adequate humidity in dry indoor air
-- Positioning plants for optimal winter light
+WINTER MARKETING CARE:
+- Adjusting campaigns for seasonal consumer behavior
+- Providing adequate engagement in competitive markets
+- Positioning content for optimal winter conversion
 
-HOLIDAY GREENERY:
-Fresh-cut wreaths, garlands, and arrangements using locally sourced evergreens. Custom designs available for your holiday decorating needs.
+HOLIDAY MARKETING:
+Fresh campaign ideas, engagement strategies, and conversion optimization using proven techniques. Custom strategies available for your holiday marketing needs.
 
 Stay warm and keep planning!
-Your Winter Garden Team`,
-          hashtags: '#WinterNewsletter #Houseplants #IndoorGardening',
-          imageIdea: 'Cozy indoor plant display for winter'
+Your Winter Marketing Team`,
+          hashtags: '#WinterNewsletter #MarketingPlanning #BusinessStrategy',
+          imageIdea: 'Cozy winter marketing planning scene'
         },
         {
           type: 'newsletter',
-          content: `GREEN THUMB QUARTERLY
+          content: `MARKETING GROWTH QUARTERLY
 Winter Edition - Volume 15
 
 WINTER WONDER
-Winter gardening extends far beyond houseplants and holiday decorations. This season offers unique opportunities to appreciate garden structure, plan improvements, and prepare for the growing year ahead.
+Winter marketing extends far beyond holiday campaigns and year-end promotions. This season offers unique opportunities to appreciate business foundations, plan improvements, and prepare for the growing year ahead.
 
-INDOOR GARDENING
-Bring the garden indoors with our extensive houseplant collection. From low-light champions to statement plants, winter is perfect for expanding your indoor garden and improving air quality.
+STRATEGIC PLANNING
+Bring your marketing vision to life with our extensive strategy development process. From audience analysis to campaign frameworks, winter is perfect for expanding your marketing foundation and improving business results.
 
-GARDEN STRUCTURE
-Appreciate the "bones" of your garden during winter months. Evergreens, interesting bark, and architectural elements become focal points, revealing design opportunities for enhancement.
+BUSINESS STRUCTURE
+Appreciate the "bones" of your business during winter months. Core offerings, customer journeys, and foundational messaging become focal points, revealing optimization opportunities for enhancement.
 
 PLANNING AND PREPARATION
-Winter's quiet months are ideal for garden planning. Review last year's successes and challenges, research new varieties, and design next year's improvements.
+Winter's quiet months are ideal for marketing planning. Review last year's successes and challenges, research new approaches, and design next year's improvements.
 
 WINTER WORKSHOPS
-Educational opportunities continue through winter with indoor gardening, design planning, and preparation workshops that set the stage for spring success.
+Educational opportunities continue through winter with strategic planning, campaign development, and preparation workshops that set the stage for spring success.
 
 FEBRUARY PREVIEW
-- Early seed starting programs
-- Garden design consultations
-- Houseplant maintenance clinics
+- Early campaign development programs
+- Marketing design consultations
+- Business growth strategy clinics
 
 Embrace winter's gifts!`,
-          hashtags: '#WinterQuarterly #IndoorGardening #GardenPlanning',
-          imageIdea: 'Professional newsletter with winter garden and houseplant photos'
+          hashtags: '#WinterQuarterly #MarketingPlanning #BusinessStrategy',
+          imageIdea: 'Professional newsletter with winter business planning photos'
         }
       ]
     };

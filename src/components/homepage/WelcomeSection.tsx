@@ -14,7 +14,7 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
   const seasonal = getSeasonalGreeting();
   
   // Extract business name from onboarding data with better fallback logic
-  let businessName = "Your Garden Center";
+  let businessName = "Your Business";
   
   if (onboardingData?.aboutBusiness) {
     // Try to extract business name from the beginning of the aboutBusiness text
@@ -49,7 +49,7 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
           </h1>
         </div>
         <p className="text-lg text-gray-700 mb-6">
-          Your AI-powered marketing assistant is ready to help you create engaging content that grows your business.
+          Your AI-powered marketing assistant is ready to help you create engaging content that grows your business and cultivates customer relationships.
         </p>
       </div>
     </div>
