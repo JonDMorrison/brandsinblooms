@@ -79,6 +79,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
   }
 
   const hasGeneratedContent = Object.keys(tasksByTheme).some(theme => theme !== 'Other');
+  const otherTasks = tasksByTheme['Other'] || [];
 
   return (
     <Card className="border-orange-200">
@@ -135,9 +136,9 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
           ))}
 
         {/* Show other content */}
-        {tasksByTheme['Other'] && (
+        {otherTasks.length > 0 && (
           <div className="space-y-3">
-            {tasksByTheme['Other'].slice(0, 3).map((task) => (
+            {otherTasks.slice(0, 3).map((task) => (
               <ReviewQueueItem
                 key={task.id}
                 task={task}
