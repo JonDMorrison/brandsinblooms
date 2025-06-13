@@ -33,7 +33,6 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
     location_info: ''
   });
   const [isSaving, setIsSaving] = useState(false);
-  const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
   const [isAutoPopulating, setIsAutoPopulating] = useState(false);
 
   useEffect(() => {
@@ -52,14 +51,33 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
         specializations: profile.specializations || '',
         location_info: profile.location_info || ''
       });
-    } else if (!hasAutoPopulated) {
-      // Only auto-populate if we have actual onboarding data, not sample data
-      handleAutoPopulate();
     }
-  }, [profile, hasAutoPopulated]);
+  }, [profile]);
+
+  // Separate effect for auto-populate logic that only runs once when no profile exists
+  useEffect(() => {
+    const shouldAutoPopulate = async () => {
+      if (!user || profile !== null) return; // Don't run if profile exists or user not loaded
+      
+      // Check if we've already attempted auto-populate for this user
+      const autoPopulateKey = `garden-center-autopopulated-${user.id}`;
+      const hasAlreadyTriedAutoPopulate = localStorage.getItem(autoPopulateKey);
+      
+      if (hasAlreadyTriedAutoPopulate) {
+        console.log('Auto-populate already attempted for this user');
+        return;
+      }
+
+      await handleAutoPopulate();
+      // Mark that we've attempted auto-populate for this user
+      localStorage.setItem(autoPopulateKey, 'true');
+    };
+
+    shouldAutoPopulate();
+  }, [user, profile]); // Only depend on user and profile
 
   const handleAutoPopulate = async () => {
-    if (!user || hasAutoPopulated) return;
+    if (!user) return;
 
     setIsAutoPopulating(true);
     
@@ -71,7 +89,6 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       if (!onboardingData) {
         // No onboarding data exists - leave fields blank for new users
         console.log('No onboarding data found - leaving fields blank for new user');
-        setHasAutoPopulated(true);
         setIsAutoPopulating(false);
         return;
       }
@@ -80,6 +97,8 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       
       // Only proceed if we have meaningful onboarding data (not just sample data)
       if (parsedOnboardingData.aboutBusiness && parsedOnboardingData.aboutBusiness.trim()) {
+        console.log('Auto-populating company profile from onboarding data...');
+        
         const { data, error } = await supabase.functions.invoke('generate-company-profile', {
           body: {
             aboutBusiness: parsedOnboardingData.aboutBusiness,
@@ -94,11 +113,12 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
           setFormData(data.profileData);
           toast.success('Company profile auto-populated based on your onboarding responses!');
         }
+      } else {
+        console.log('No meaningful onboarding data found - skipping auto-populate');
       }
     } catch (error) {
       console.error('Error in handleAutoPopulate:', error);
     } finally {
-      setHasAutoPopulated(true);
       setIsAutoPopulating(false);
     }
   };
