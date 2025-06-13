@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Calendar as CalendarIcon, Grid, Calendar, CheckSquare, PlusCircle, CalendarPlus } from "lucide-react";
 import { CalendarGrid } from "./calendar/CalendarGrid";
@@ -154,45 +153,21 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
             {/* Primary Actions */}
             <div className="flex items-center gap-3">
               <Button
-                onClick={() => setShowNewCampaignModal(true)}
-                className="flex items-center gap-2"
-              >
-                <PlusCircle className="w-4 h-4" />
-                New Campaign
-              </Button>
-              
-              <Button
-                variant="outline"
                 onClick={() => setShowAddEventDialog(true)}
                 className="flex items-center gap-2"
               >
                 <CalendarPlus className="w-4 h-4" />
-                Add Event
+                Promote Event
+              </Button>
+              
+              <Button
+                onClick={() => setShowNewCampaignModal(true)}
+                className="flex items-center gap-2"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Create Campaign
               </Button>
             </div>
-          </div>
-          
-          {/* Secondary Actions */}
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-center gap-2">
-              <CampaignTemplateManager
-                onTemplateApply={handleTemplateApply}
-                selectedCampaign={selectedCampaign || undefined}
-              />
-            </div>
-            
-            <Button
-              size="sm"
-              variant={selectionMode ? "default" : "outline"}
-              onClick={() => {
-                setSelectionMode(!selectionMode);
-                if (selectionMode) clearSelection();
-              }}
-              className="flex items-center gap-2"
-            >
-              <CheckSquare className="w-4 h-4" />
-              {selectionMode ? 'Exit Selection' : 'Select Multiple'}
-            </Button>
           </div>
         </div>
       </div>
