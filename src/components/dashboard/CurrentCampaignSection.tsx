@@ -1,4 +1,3 @@
-
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Calendar, Sparkles, CalendarPlus, Loader2 } from "lucide-react";
@@ -187,7 +186,7 @@ export const CurrentCampaignSection = ({
               )}
               {!isAutoCreating && (
                 <Button 
-                  onClick={onCreateCampaign}
+                  onClick={() => setShowNewCampaignDialog(true)}
                   className="bg-primary hover:bg-primary-600 text-white"
                 >
                   <PlusCircle className="w-4 h-4 mr-2" />
