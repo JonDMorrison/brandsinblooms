@@ -1,8 +1,7 @@
-
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Check, Calendar, CheckCircle } from "lucide-react";
+import { Plus, Check, Calendar, CheckCircle, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Campaign {
@@ -36,6 +35,11 @@ interface CalendarDayCellProps {
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
   weekNumber?: number;
+  isDragging?: boolean;
+  draggedTask?: Task | null;
+  onDragStart?: (task: Task) => void;
+  onDragEnd?: () => void;
+  onDrop?: (date: Date) => void;
 }
 
 export const CalendarDayCell = ({
@@ -48,10 +52,16 @@ export const CalendarDayCell = ({
   onCreateCampaign,
   selectionMode = false,
   selectedCampaigns = [],
-  weekNumber
+  weekNumber,
+  isDragging = false,
+  draggedTask,
+  onDragStart,
+  onDragEnd,
+  onDrop
 }: CalendarDayCellProps) => {
   const dayNumber = format(date, 'd');
   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+  const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
 
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
@@ -68,6 +78,20 @@ export const CalendarDayCell = ({
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (onDrop && !isPastDate) {
+      onDrop(date);
+    }
+  };
+
+  const isValidDropTarget = isDragging && !isPastDate && isCurrentMonth;
+  const isDraggedTaskInThisCell = draggedTask && tasks.some(task => task.id === draggedTask.id);
+
   return (
     <div
       className={cn(
@@ -76,8 +100,12 @@ export const CalendarDayCell = ({
         isCurrentMonth && "bg-white hover:bg-blue-50/30 border-gray-200",
         isToday && "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 shadow-md",
         isWeekend && isCurrentMonth && "bg-gray-50/80",
-        selectionMode && "cursor-pointer"
+        selectionMode && "cursor-pointer",
+        isValidDropTarget && "bg-green-50 border-green-300 border-2 border-dashed",
+        isPastDate && "opacity-60"
       )}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {/* Day number and add button */}
       <div className="flex items-center justify-between mb-3">
@@ -99,7 +127,7 @@ export const CalendarDayCell = ({
           )}
         </div>
         
-        {isCurrentMonth && !selectionMode && (
+        {isCurrentMonth && !selectionMode && !isDragging && (
           <Button
             variant="ghost"
             size="sm"
@@ -113,6 +141,13 @@ export const CalendarDayCell = ({
           </Button>
         )}
       </div>
+      
+      {/* Drop zone indicator */}
+      {isValidDropTarget && (
+        <div className="absolute inset-2 border-2 border-green-400 border-dashed rounded-lg bg-green-50/50 flex items-center justify-center text-green-700 text-xs font-medium">
+          Drop here to reschedule
+        </div>
+      )}
       
       {/* Content container */}
       <div className="space-y-2">
@@ -165,10 +200,27 @@ export const CalendarDayCell = ({
         {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task, index) => (
           <div
             key={task.id}
-            className="relative text-xs p-2 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 hover:from-green-100 hover:to-emerald-100 transition-all duration-200"
+            draggable={!selectionMode && !isPastDate}
+            onDragStart={(e) => {
+              if (onDragStart && !selectionMode && !isPastDate) {
+                onDragStart(task);
+              }
+            }}
+            onDragEnd={onDragEnd}
+            className={cn(
+              "relative text-xs p-2 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 hover:from-green-100 hover:to-emerald-100 transition-all duration-200 group/task",
+              !selectionMode && !isPastDate && "cursor-move hover:shadow-md",
+              isDraggedTaskInThisCell && "opacity-50",
+              isPastDate && "cursor-not-allowed"
+            )}
           >
             <div className="flex items-start gap-2">
-              <CheckCircle className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
+              <div className="flex items-center gap-1">
+                {!selectionMode && !isPastDate && (
+                  <GripVertical className="w-3 h-3 text-gray-400 opacity-0 group-hover/task:opacity-100 transition-opacity" />
+                )}
+                <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1 mb-1">
                   <span>{getPostTypeIcon(task.post_type)}</span>
@@ -196,7 +248,7 @@ export const CalendarDayCell = ({
           </div>
         )}
         
-        {(campaigns.length + tasks.length) === 0 && isCurrentMonth && !selectionMode && (
+        {(campaigns.length + tasks.length) === 0 && isCurrentMonth && !selectionMode && !isDragging && (
           <div className="text-xs text-gray-400 text-center py-4 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <Plus className="w-4 h-4 mx-auto mb-1 text-gray-300" />
             Add campaign

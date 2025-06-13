@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +34,11 @@ interface CalendarGridProps {
   onCreateCampaign?: (date: Date) => void;
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
+  isDragging?: boolean;
+  draggedTask?: Task | null;
+  onDragStart?: (task: Task) => void;
+  onDragEnd?: () => void;
+  onDrop?: (date: Date) => void;
 }
 
 export const CalendarGrid = ({ 
@@ -43,7 +47,12 @@ export const CalendarGrid = ({
   onCampaignClick, 
   onCreateCampaign,
   selectionMode = false,
-  selectedCampaigns = []
+  selectedCampaigns = [],
+  isDragging = false,
+  draggedTask,
+  onDragStart,
+  onDragEnd,
+  onDrop
 }: CalendarGridProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -161,6 +170,14 @@ export const CalendarGrid = ({
             </div>
           </div>
         )}
+
+        {isDragging && (
+          <div className="mt-4 p-3 bg-orange-100 border border-orange-200 rounded-lg">
+            <div className="text-sm text-orange-800 font-medium">
+              Dragging "{draggedTask?.post_type}" content - drop on a date to reschedule
+            </div>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="p-0">
@@ -202,6 +219,11 @@ export const CalendarGrid = ({
                   selectionMode={selectionMode}
                   selectedCampaigns={selectedCampaigns}
                   weekNumber={dayWeekNumber}
+                  isDragging={isDragging}
+                  draggedTask={draggedTask}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                  onDrop={onDrop}
                 />
               </div>
             );

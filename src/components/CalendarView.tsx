@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 
 interface Campaign {
   id: number;
@@ -110,6 +111,18 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     setSelectionMode(false);
   };
 
+  const {
+    isDragging,
+    draggedTask,
+    handleDragStart,
+    handleDragEnd,
+    handleDrop
+  } = useDragAndDrop(() => {
+    if (onDataUpdate) {
+      onDataUpdate();
+    }
+  });
+
   return (
     <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
       {/* View Tabs */}
@@ -133,6 +146,11 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
             onCreateCampaign={handleCreateCampaign}
             selectionMode={selectionMode}
             selectedCampaigns={selectedCampaigns}
+            isDragging={isDragging}
+            draggedTask={draggedTask}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDrop={handleDrop}
           />
         </TabsContent>
         
