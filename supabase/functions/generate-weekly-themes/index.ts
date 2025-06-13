@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
@@ -23,13 +22,109 @@ serve(async (req) => {
 
     console.log(`🎯 Starting theme generation for user: ${userId}, week: ${weekNumber || 'current'}`);
 
-    if (!openAIApiKey) {
-      console.error('❌ OpenAI API key not configured');
-      throw new Error('OpenAI API key not configured');
-    }
-
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+
+    // First, try to get theme from master templates
+    if (weekNumber) {
+      console.log('📚 Checking master templates for week:', weekNumber);
+      const { data: masterTemplate, error: templateError } = await supabase
+        .from('master_campaign_templates')
+        .select('*')
+        .eq('week_number', weekNumber)
+        .maybeSingle();
+
+      if (!templateError && masterTemplate) {
+        console.log('✅ Found master template:', masterTemplate.title);
+        
+        const themeFromTemplate = {
+          week: masterTemplate.week_number,
+          title: masterTemplate.title,
+          description: `${masterTemplate.seasonal_focus}: ${masterTemplate.content_ideas}`,
+          content_ideas: masterTemplate.content_ideas ? masterTemplate.content_ideas.split(',').map(idea => idea.trim()) : []
+        };
+
+        return new Response(JSON.stringify({ 
+          themes: [themeFromTemplate],
+          success: true,
+          source: 'master_template',
+          message: `Retrieved curated seasonal theme for week ${weekNumber}` 
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // If no master template found or OpenAI not available, use fallback themes
+    if (!openAIApiKey) {
+      console.log('⚠️ OpenAI API key not configured, using enhanced fallbacks');
+      
+      const month = new Date().getMonth() + 1;
+      const currentWeek = weekNumber || Math.ceil(
+        ((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
+      );
+      
+      let fallbackTheme;
+      
+      if (month >= 3 && month <= 5) {
+        fallbackTheme = {
+          week: currentWeek,
+          title: `Spring Garden Renaissance - Week ${currentWeek}`,
+          description: 'Celebrate the awakening of spring with fresh plantings, soil preparation, and garden renewal activities that capture the excitement of the growing season.',
+          content_ideas: [
+            'Spring soil preparation and testing',
+            'Early season vegetable planting',
+            'Spring cleanup and garden renewal',
+            'Container garden design for patios'
+          ]
+        };
+      } else if (month >= 6 && month <= 8) {
+        fallbackTheme = {
+          week: currentWeek,
+          title: `Summer Garden Mastery - Week ${currentWeek}`,
+          description: 'Master the art of summer gardening with heat-tolerant plants, water-wise techniques, and harvest celebrations that make the most of peak growing season.',
+          content_ideas: [
+            'Heat-tolerant plant selections',
+            'Water conservation techniques',
+            'Summer harvest and preservation',
+            'Shade gardening solutions'
+          ]
+        };
+      } else if (month >= 9 && month <= 11) {
+        fallbackTheme = {
+          week: currentWeek,
+          title: `Autumn Garden Harvest - Week ${currentWeek}`,
+          description: 'Embrace fall\'s bounty with harvest preservation, autumn color displays, and winter preparation activities that celebrate the season\'s abundance.',
+          content_ideas: [
+            'Fall harvest and preservation',
+            'Autumn color plant displays',
+            'Winter garden preparation',
+            'Fall planting opportunities'
+          ]
+        };
+      } else {
+        fallbackTheme = {
+          week: currentWeek,
+          title: `Winter Garden Planning - Week ${currentWeek}`,
+          description: 'Transform winter into productive planning time with indoor gardening, tool maintenance, and next year\'s garden design and preparation.',
+          content_ideas: [
+            'Indoor gardening and houseplants',
+            'Garden planning and design',
+            'Tool maintenance and care',
+            'Seed catalog and variety selection'
+          ]
+        };
+      }
+
+      return new Response(JSON.stringify({ 
+        themes: [fallbackTheme],
+        success: true,
+        source: 'enhanced_fallback',
+        message: `Generated enhanced seasonal theme for week ${currentWeek}` 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Fetch company profile for personalization
     let companyProfile = null;
@@ -44,8 +139,6 @@ serve(async (req) => {
       if (!profileError && profileData) {
         companyProfile = profileData;
         console.log('✅ Company profile loaded:', companyProfile.company_name);
-      } else {
-        console.log('⚠️ No company profile found for user');
       }
     }
 
@@ -106,24 +199,6 @@ WINTER THEMES (December-February):
 - Tool maintenance, planning next year's garden
 - Winter interest plants, bird feeding, houseplant care
 
-KEY HOLIDAYS & EVENTS TO INCORPORATE:
-- Valentine's Day (Feb 14) - romantic plants, red flowers
-- Easter (spring) - Easter lilies, spring bulbs, pastel themes
-- Mother's Day (May) - hanging baskets, potted plants, gifts
-- Memorial Day (late May) - red, white, blue plantings
-- Father's Day (June) - tools, outdoor projects, masculine plants
-- Independence Day (July 4) - patriotic plantings, summer BBQ gardens
-- Halloween (Oct 31) - pumpkins, fall decorations, orange plants
-- Thanksgiving (November) - autumn harvest, gratitude themes
-- Christmas (Dec 25) - evergreens, poinsettias, holiday arrangements
-
-SPECIALIZED GARDEN CENTER FOCUS:
-- Weekly plant spotlights and new arrivals
-- Seasonal care tips and problem-solving
-- Workshop and event promotion opportunities
-- Customer education and engagement strategies
-- Regional growing conditions and timing
-
 For each week, provide:
 1. Week number (${startingWeek}${requestedWeeks > 1 ? ` to ${startingWeek + requestedWeeks - 1}` : ''})
 2. Compelling theme title (4-6 words that capture the essence)
@@ -182,12 +257,10 @@ Create themes that drive customer engagement, sales, and position the garden cen
     // Parse JSON response with better error handling
     let weeklyThemes;
     try {
-      // Clean the response text to ensure it's valid JSON
       const cleanedResponse = responseText.trim();
       weeklyThemes = JSON.parse(cleanedResponse);
     } catch (parseError) {
       console.error('❌ Failed to parse JSON response:', parseError);
-      console.error('Raw response:', responseText);
       throw new Error('Invalid JSON response from AI - please try again');
     }
 
@@ -198,12 +271,12 @@ Create themes that drive customer engagement, sales, and position the garden cen
     }
 
     console.log(`✅ Successfully generated ${weeklyThemes.length} weekly theme(s)`);
-    console.log('First theme:', weeklyThemes[0]);
 
     return new Response(JSON.stringify({ 
       themes: weeklyThemes,
       success: true,
-      message: `Generated ${weeklyThemes.length} seasonal theme(s)` 
+      source: 'ai_generated',
+      message: `Generated ${weeklyThemes.length} AI-powered seasonal theme(s)` 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
