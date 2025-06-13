@@ -132,27 +132,23 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
 
   return (
     <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
-      {/* Simplified Header with just buttons */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="px-4 sm:px-6 py-4">
-          <div className="flex items-center justify-end gap-3">
-            <Button
-              onClick={() => setShowAddEventDialog(true)}
-              className="flex items-center gap-2"
-            >
-              <CalendarPlus className="w-4 h-4" />
-              Promote Event
-            </Button>
-            
-            <Button
-              onClick={() => setShowNewCampaignModal(true)}
-              className="flex items-center gap-2"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Create Campaign
-            </Button>
-          </div>
-        </div>
+      {/* Quick Action Buttons */}
+      <div className="flex items-center justify-end gap-3 mb-6">
+        <Button
+          onClick={() => setShowAddEventDialog(true)}
+          className="flex items-center gap-2"
+        >
+          <CalendarPlus className="w-4 h-4" />
+          Promote Event
+        </Button>
+        
+        <Button
+          onClick={() => setShowNewCampaignModal(true)}
+          className="flex items-center gap-2"
+        >
+          <PlusCircle className="w-4 h-4" />
+          Create Campaign
+        </Button>
       </div>
 
       {/* View Tabs */}
