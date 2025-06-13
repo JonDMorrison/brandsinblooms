@@ -1,7 +1,8 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Copy, Trash2, Calendar, Archive } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Copy, Trash2, Calendar, Archive, X, CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -45,7 +46,7 @@ export const BulkOperationsBar = ({
 
       if (error) throw error;
 
-      toast.success(`Duplicated ${selectedCampaigns.length} campaigns for next year`);
+      toast.success(`✨ Duplicated ${selectedCampaigns.length} campaigns for next year`);
       onOperationComplete();
       onClearSelection();
     } catch (error) {
@@ -57,7 +58,7 @@ export const BulkOperationsBar = ({
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete ${selectedCampaigns.length} campaigns? This cannot be undone.`)) {
+    if (!confirm(`Are you sure you want to delete ${selectedCampaigns.length} campaigns? This action cannot be undone.`)) {
       return;
     }
 
@@ -70,7 +71,7 @@ export const BulkOperationsBar = ({
 
       if (error) throw error;
 
-      toast.success(`Deleted ${selectedCampaigns.length} campaigns`);
+      toast.success(`🗑️ Deleted ${selectedCampaigns.length} campaigns`);
       onOperationComplete();
       onClearSelection();
     } catch (error) {
@@ -116,7 +117,7 @@ export const BulkOperationsBar = ({
         if (error) throw error;
       }
 
-      toast.success(`Shifted ${selectedCampaigns.length} campaigns by ${shiftAmount} weeks`);
+      toast.success(`📅 Shifted ${selectedCampaigns.length} campaigns by ${shiftAmount} weeks`);
       onOperationComplete();
       onClearSelection();
     } catch (error) {
@@ -130,54 +131,68 @@ export const BulkOperationsBar = ({
   if (selectedCampaigns.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-50">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">
-            {selectedCampaigns.length} selected
-          </Badge>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleDuplicate}
-            disabled={isLoading}
-          >
-            <Copy className="w-4 h-4 mr-2" />
-            Duplicate
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleShift}
-            disabled={isLoading}
-          >
-            <Calendar className="w-4 h-4 mr-2" />
-            Shift Dates
-          </Button>
-          
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleDelete}
-            disabled={isLoading}
-          >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Delete
-          </Button>
-        </div>
-        
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={onClearSelection}
-        >
-          Cancel
-        </Button>
-      </div>
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
+      <Card className="bg-white shadow-2xl border-0 rounded-2xl overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-blue-600" />
+              <Badge className="bg-blue-100 text-blue-800 border-blue-200 font-semibold px-3 py-1">
+                {selectedCampaigns.length} selected
+              </Badge>
+            </div>
+            
+            <div className="h-6 w-px bg-gray-200" />
+            
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDuplicate}
+                disabled={isLoading}
+                className="hover:bg-blue-50 border-blue-200 text-blue-700"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Duplicate
+              </Button>
+              
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleShift}
+                disabled={isLoading}
+                className="hover:bg-green-50 border-green-200 text-green-700"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Shift Dates
+              </Button>
+              
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDelete}
+                disabled={isLoading}
+                className="hover:bg-red-50 border-red-200 text-red-700"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
+            </div>
+            
+            <div className="h-6 w-px bg-gray-200" />
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onClearSelection}
+              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Cancel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -4,10 +4,12 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Button } from "@/components/ui/button";
-import { CalendarPlus, PlusCircle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { CalendarPlus, PlusCircle, Calendar, TrendingUp, Users, Clock } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { toast } from "sonner";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 const CalendarPage = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -85,10 +87,17 @@ const CalendarPage = () => {
   if (loading) {
     return (
       <ProtectedPageWrapper>
-        <div className="min-h-screen flex items-center justify-center bg-white">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-primary font-medium">Loading calendar...</p>
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+          <div className="flex items-center justify-center min-h-screen">
+            <Card className="p-8 shadow-lg border-0">
+              <CardContent className="text-center space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <div>
+                  <p className="text-lg font-semibold text-gray-900">Loading calendar...</p>
+                  <p className="text-sm text-gray-600 mt-1">Preparing your campaign overview</p>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </ProtectedPageWrapper>
@@ -98,71 +107,111 @@ const CalendarPage = () => {
   if (error) {
     return (
       <ProtectedPageWrapper>
-        <div className="min-h-screen flex items-center justify-center bg-white">
-          <div className="text-center">
-            <div className="text-red-600 mb-4">
-              <p className="text-lg font-medium">Error loading calendar</p>
-              <p className="text-sm">{error}</p>
-            </div>
-            <button 
-              onClick={fetchData}
-              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
-            >
-              Try Again
-            </button>
+        <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100">
+          <div className="flex items-center justify-center min-h-screen">
+            <Card className="p-8 shadow-lg border-0 max-w-md">
+              <CardContent className="text-center space-y-4">
+                <div className="text-red-600 mb-4">
+                  <Calendar className="w-12 h-12 mx-auto mb-3" />
+                  <p className="text-lg font-semibold">Error loading calendar</p>
+                  <p className="text-sm text-gray-600 mt-1">{error}</p>
+                </div>
+                <Button 
+                  onClick={fetchData}
+                  className="w-full bg-red-600 hover:bg-red-700"
+                >
+                  Try Again
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </ProtectedPageWrapper>
     );
   }
 
+  const currentWeek = getCurrentWeekNumber();
+  const upcomingCampaigns = campaigns.filter(c => c.week_number >= currentWeek).length;
+  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+
   return (
     <ProtectedPageWrapper>
-      <div className="p-6 border-b border-green-200 bg-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-garden-green-dark">Campaign Calendar</h1>
-            <p className="text-garden-green font-medium">View and schedule your marketing campaigns</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => setShowAddEventDialog(true)}
-              className="flex items-center gap-2"
-            >
-              <CalendarPlus className="w-4 h-4" />
-              Promote Event
-            </Button>
-            
-            <Button
-              onClick={() => setShowNewCampaignModal(true)}
-              className="flex items-center gap-2"
-            >
-              <PlusCircle className="w-4 h-4" />
-              Create Campaign
-            </Button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        {/* Enhanced Header */}
+        <div className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="space-y-2">
+                <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
+                  <Calendar className="w-10 h-10 text-blue-600" />
+                  Campaign Calendar
+                </h1>
+                <p className="text-lg text-gray-600 font-medium">
+                  Plan, schedule, and track your marketing campaigns
+                </p>
+                
+                {/* Quick stats */}
+                <div className="flex items-center gap-6 mt-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    <span className="font-medium">{campaigns.length}</span> total campaigns
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <span className="font-medium">{upcomingCampaigns}</span> upcoming
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Users className="w-4 h-4 text-purple-600" />
+                    <span className="font-medium">{completedTasks}</span> tasks completed
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => setShowAddEventDialog(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md"
+                  size="lg"
+                >
+                  <CalendarPlus className="w-5 h-5" />
+                  Promote Event
+                </Button>
+                
+                <Button
+                  onClick={() => setShowNewCampaignModal(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-md"
+                  size="lg"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                  Create Campaign
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="p-6 bg-white w-full">
-        <CalendarView 
-          campaigns={campaigns} 
-          tasks={tasks}
-          onDataUpdate={fetchData}
+        
+        {/* Calendar Content */}
+        <div className="max-w-7xl mx-auto p-6">
+          <CalendarView 
+            campaigns={campaigns} 
+            tasks={tasks}
+            onDataUpdate={fetchData}
+          />
+        </div>
+
+        {/* Quick Action Modals */}
+        <AddEventDialog 
+          open={showAddEventDialog}
+          onOpenChange={setShowAddEventDialog}
+          onEventCreated={handleEventCreated}
+        />
+
+        <NewCampaignModal 
+          open={showNewCampaignModal}
+          onOpenChange={setShowNewCampaignModal}
+          onCampaignCreated={handleCampaignCreated}
         />
       </div>
-
-      {/* Quick Action Modals */}
-      <AddEventDialog 
-        open={showAddEventDialog}
-        onOpenChange={setShowAddEventDialog}
-        onEventCreated={handleEventCreated}
-      />
-
-      <NewCampaignModal 
-        open={showNewCampaignModal}
-        onOpenChange={setShowNewCampaignModal}
-        onCampaignCreated={handleCampaignCreated}
-      />
     </ProtectedPageWrapper>
   );
 };
