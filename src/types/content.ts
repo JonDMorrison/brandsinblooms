@@ -1,3 +1,4 @@
+
 export interface Campaign {
   id: string;
   title: string;
@@ -14,7 +15,7 @@ export interface Campaign {
 export interface ContentTask {
   id: string;
   post_type?: string;
-  status: 'planned' | 'generating' | 'pending' | 'posted' | 'completed' | 'draft';
+  status: 'planned' | 'generating' | 'pending' | 'posted' | 'completed' | 'draft' | 'review';
   ai_output?: string;
   notes?: string;
   scheduled_date?: string;

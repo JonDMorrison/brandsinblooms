@@ -91,7 +91,7 @@ export const DashboardContent = ({
   const handleFirstTimeGetStarted = () => {
     // Scroll to the content section or open the first task
     if (tasks.length > 0) {
-      const firstTask = tasks.find(task => task.status === 'review');
+      const firstTask = tasks.find(task => task.status === 'pending' || task.status === 'draft');
       if (firstTask) {
         handleTaskClick(firstTask);
       }
