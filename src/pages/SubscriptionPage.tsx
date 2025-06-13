@@ -1,18 +1,19 @@
-
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CreditCard, Star, Crown, Zap, TrendingUp, Users, Clock, Shield, Link } from "lucide-react";
+import { CreditCard, Star, Crown, Zap, TrendingUp, Users, Clock, Shield, Link, Coins, AlertTriangle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { SocialConnectionManager } from "@/components/analytics/SocialConnectionManager";
 import { AnalyticsSetupWizard } from "@/components/analytics/AnalyticsSetupWizard";
 import { TokenUsageDashboard } from "@/components/tokens/TokenUsageDashboard";
 import { useTokens } from "@/hooks/useTokens";
 import { formatDistanceToNow } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 const SubscriptionPage = () => {
   const [loading, setLoading] = useState(true);
-  const { tokenBalance } = useTokens();
+  const { tokenBalance, getOverageAmount, getOverageCost } = useTokens();
 
   // Mock subscription stats
   const [stats, setStats] = useState({
@@ -61,6 +62,27 @@ const SubscriptionPage = () => {
   };
 
   const tokenStats = getTokenUsageStats();
+
+  const getDetailedTokenInfo = () => {
+    if (!tokenBalance) return null;
+    
+    const isInOverage = tokenBalance.tokens_balance < 0;
+    const overageAmount = getOverageAmount();
+    const overageCost = getOverageCost();
+    const baseAllowance = 100;
+    const progressValue = isInOverage ? 0 : (tokenBalance.tokens_balance / baseAllowance) * 100;
+    
+    return {
+      isInOverage,
+      overageAmount,
+      overageCost,
+      baseAllowance,
+      progressValue,
+      resetTime: formatDistanceToNow(new Date(tokenBalance.tokens_reset_at), { addSuffix: true })
+    };
+  };
+
+  const detailedTokenInfo = getDetailedTokenInfo();
 
   return (
     <ProtectedPageWrapper>
@@ -136,11 +158,97 @@ const SubscriptionPage = () => {
         {/* Account Settings Content */}
         <div className="max-w-7xl mx-auto p-6">
           <div className="grid gap-6">
+            {/* Token Balance Summary Card */}
+            {detailedTokenInfo && (
+              <Card className="shadow-lg border-0 bg-white">
+                <CardHeader className="pb-6 bg-gradient-to-r from-green-50 to-blue-50 border-b border-green-100">
+                  <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                    <Coins className="w-6 h-6 text-green-600" />
+                    Token Balance Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {/* Current Balance Display */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Coins className={`w-6 h-6 ${detailedTokenInfo.isInOverage ? 'text-orange-600' : 'text-green-600'}`} />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-2xl font-bold">
+                              {detailedTokenInfo.isInOverage ? 0 : tokenBalance.tokens_balance}
+                            </span>
+                            <span className="text-gray-500">/ {detailedTokenInfo.baseAllowance}</span>
+                            {tokenBalance.is_trial && (
+                              <Badge variant="outline" className="ml-2">
+                                Trial Account
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-500">Available tokens this month</p>
+                        </div>
+                      </div>
+
+                      {detailedTokenInfo.isInOverage && (
+                        <div className="text-right">
+                          <div className="flex items-center gap-2 text-orange-600">
+                            <AlertTriangle className="w-5 h-5" />
+                            <span className="text-lg font-bold">
+                              +{detailedTokenInfo.overageAmount} tokens
+                            </span>
+                          </div>
+                          <p className="text-sm text-orange-700">
+                            ${detailedTokenInfo.overageCost.toFixed(2)} overage charge
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Usage Progress</span>
+                        <span>{Math.round(detailedTokenInfo.progressValue)}%</span>
+                      </div>
+                      <Progress 
+                        value={detailedTokenInfo.progressValue} 
+                        className="h-3"
+                      />
+                    </div>
+
+                    {/* Reset Information */}
+                    <div className="flex items-center gap-2 text-gray-600 bg-gray-50 p-3 rounded-lg">
+                      <Clock className="w-4 h-4" />
+                      <span className="text-sm">
+                        Tokens reset <strong>{detailedTokenInfo.resetTime}</strong>
+                      </span>
+                    </div>
+
+                    {/* Overage Information */}
+                    {detailedTokenInfo.isInOverage && (
+                      <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5" />
+                          <div>
+                            <h4 className="font-semibold text-orange-800">Overage Usage</h4>
+                            <p className="text-sm text-orange-700 mt-1">
+                              You've used {detailedTokenInfo.overageAmount} tokens beyond your monthly allowance. 
+                              These will be charged at $0.25 per token on your next bill.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Token Usage Dashboard */}
             <div className="space-y-6">
               <div className="flex items-center gap-3 mb-4">
                 <CreditCard className="w-6 h-6 text-blue-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Token Usage & Billing</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Detailed Token Usage & Billing</h2>
               </div>
               
               <TokenUsageDashboard />
