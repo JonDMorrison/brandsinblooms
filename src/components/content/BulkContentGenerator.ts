@@ -80,20 +80,44 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
   let generatedCount = 0;
   let totalTokenCost = 0;
 
+  // Build enhanced context prompt with strategic guidance
+  const buildEnhancedContextPrompt = (theme: string, description?: string) => {
+    let contextPrompt = `Theme: ${theme}`;
+    
+    if (description && description.trim()) {
+      contextPrompt += `\nContent Focus & Strategy: ${description}`;
+    } else {
+      // Provide smart default guidance when no description is available
+      contextPrompt += `\nContent Focus & Strategy: Create content that positions our garden center as the trusted local expert for "${theme}". Focus on practical solutions that help customers succeed with their gardening goals. Demonstrate our expertise while highlighting seasonal opportunities and quality products that solve common challenges.`;
+    }
+    
+    // Add strategic content direction
+    contextPrompt += `\n\nContent Goals:
+- Position our team as knowledgeable local experts
+- Address specific customer needs and challenges related to this theme
+- Showcase relevant products and services naturally
+- Create urgency around seasonal timing when appropriate
+- Include practical tips customers can use immediately
+- Drive customers to visit or contact us for expert guidance`;
+    
+    return contextPrompt;
+  };
+
+  const enhancedContextPrompt = buildEnhancedContextPrompt(theme, description);
+
   // Generate content in parallel for better performance
   const generationPromises = contentTypes.map(async ({ type, tokens }) => {
     try {
       console.log(`🤖 Generating ${type} content for theme: ${theme}`);
       
       let generatedContent = '';
-      const contextPrompt = `Theme: ${theme}${description ? `\nDescription: ${description}` : ''}`;
       
       if (type === 'newsletter') {
-        generatedContent = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, contextPrompt);
+        generatedContent = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, enhancedContextPrompt);
       } else if (type === 'video') {
-        generatedContent = await generateVideoScript(campaignTitle, userId, contextPrompt);
+        generatedContent = await generateVideoScript(campaignTitle, userId, enhancedContextPrompt);
       } else {
-        generatedContent = await generatePersonalizedContent(type, campaignTitle, userId, contextPrompt);
+        generatedContent = await generatePersonalizedContent(type, campaignTitle, userId, enhancedContextPrompt);
       }
       
       if (!generatedContent || generatedContent.trim() === '') {
@@ -105,7 +129,11 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
       const scheduledDate = new Date(today);
       scheduledDate.setDate(today.getDate() + contentTypes.findIndex(ct => ct.type === type) + 1);
 
-      // Create content task
+      // Create content task with enhanced notes
+      const taskNotes = description 
+        ? `Generated from theme: ${theme}\nContent Focus: ${description}`
+        : `Generated from theme: ${theme}`;
+
       const { error: insertError } = await supabase
         .from('content_tasks')
         .insert({
@@ -116,7 +144,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
           ai_output: generatedContent,
           hashtags: getHashtagsForType(type),
           image_idea: getImageIdeaForType(type),
-          notes: `Generated from theme: ${theme}`
+          notes: taskNotes
         });
 
       if (insertError) {
@@ -140,7 +168,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
 
   if (generatedCount > 0) {
     const message = generatedCount === contentTypes.length 
-      ? `🎉 Generated ${generatedCount} pieces of content! Check the review queue.`
+      ? `🎉 Generated ${generatedCount} pieces of strategic content! Check the review queue.`
       : `⚠️ Generated ${generatedCount}/${contentTypes.length} pieces of content. ${failedTypes.length} failed.`;
     
     toast.success(message);
