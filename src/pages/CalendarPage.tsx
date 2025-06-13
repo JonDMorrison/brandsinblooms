@@ -3,12 +3,21 @@ import { CalendarView } from "@/components/CalendarView";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
+import { Button } from "@/components/ui/button";
+import { CalendarPlus, PlusCircle } from "lucide-react";
+import { AddEventDialog } from "@/components/homepage/AddEventDialog";
+import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
+import { toast } from "sonner";
 
 const CalendarPage = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Add state for quick action modals
+  const [showAddEventDialog, setShowAddEventDialog] = useState(false);
+  const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -60,6 +69,19 @@ const CalendarPage = () => {
     fetchData();
   }, []);
 
+  // Quick action handlers
+  const handleEventCreated = () => {
+    setShowAddEventDialog(false);
+    fetchData();
+    toast.success('🎉 Event added successfully! Your marketing content will be tailored for this event.');
+  };
+
+  const handleCampaignCreated = () => {
+    setShowNewCampaignModal(false);
+    fetchData();
+    toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
+  };
+
   if (loading) {
     return (
       <ProtectedPageWrapper>
@@ -97,8 +119,29 @@ const CalendarPage = () => {
   return (
     <ProtectedPageWrapper>
       <div className="p-6 border-b border-green-200 bg-white">
-        <h1 className="text-3xl font-bold text-garden-green-dark">Campaign Calendar</h1>
-        <p className="text-garden-green font-medium">View and schedule your marketing campaigns</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-garden-green-dark">Campaign Calendar</h1>
+            <p className="text-garden-green font-medium">View and schedule your marketing campaigns</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setShowAddEventDialog(true)}
+              className="flex items-center gap-2"
+            >
+              <CalendarPlus className="w-4 h-4" />
+              Promote Event
+            </Button>
+            
+            <Button
+              onClick={() => setShowNewCampaignModal(true)}
+              className="flex items-center gap-2"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Create Campaign
+            </Button>
+          </div>
+        </div>
       </div>
       <div className="p-6 bg-white w-full">
         <CalendarView 
@@ -107,6 +150,19 @@ const CalendarPage = () => {
           onDataUpdate={fetchData}
         />
       </div>
+
+      {/* Quick Action Modals */}
+      <AddEventDialog 
+        open={showAddEventDialog}
+        onOpenChange={setShowAddEventDialog}
+        onEventCreated={handleEventCreated}
+      />
+
+      <NewCampaignModal 
+        open={showNewCampaignModal}
+        onOpenChange={setShowNewCampaignModal}
+        onCampaignCreated={handleCampaignCreated}
+      />
     </ProtectedPageWrapper>
   );
 };

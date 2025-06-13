@@ -1,13 +1,10 @@
 import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Grid, Calendar, CheckSquare, PlusCircle, CalendarPlus } from "lucide-react";
+import { Calendar as CalendarIcon, Grid, Calendar, CheckSquare } from "lucide-react";
 import { CalendarGrid } from "./calendar/CalendarGrid";
 import { CampaignDetailsModal } from "./calendar/CampaignDetailsModal";
 import { BulkOperationsBar } from "./calendar/BulkOperationsBar";
 import { PublishingScheduleView } from "./calendar/PublishingScheduleView";
 import { CampaignTemplateManager } from "./calendar/CampaignTemplateManager";
-import { AddEventDialog } from "@/components/homepage/AddEventDialog";
-import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,10 +42,6 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeView, setActiveView] = useState<"calendar" | "schedule">("calendar");
   const [selectionMode, setSelectionMode] = useState(false);
-  
-  // Add state for quick action modals
-  const [showAddEventDialog, setShowAddEventDialog] = useState(false);
-  const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
   // Update local campaigns when props change
   useEffect(() => {
@@ -117,40 +110,8 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     setSelectionMode(false);
   };
 
-  // Quick action handlers
-  const handleEventCreated = () => {
-    setShowAddEventDialog(false);
-    if (onDataUpdate) onDataUpdate();
-    toast.success('🎉 Event added successfully! Your marketing content will be tailored for this event.');
-  };
-
-  const handleCampaignCreated = () => {
-    setShowNewCampaignModal(false);
-    if (onDataUpdate) onDataUpdate();
-    toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
-  };
-
   return (
     <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
-      {/* Quick Action Buttons */}
-      <div className="flex items-center justify-end gap-3 mb-6">
-        <Button
-          onClick={() => setShowAddEventDialog(true)}
-          className="flex items-center gap-2"
-        >
-          <CalendarPlus className="w-4 h-4" />
-          Promote Event
-        </Button>
-        
-        <Button
-          onClick={() => setShowNewCampaignModal(true)}
-          className="flex items-center gap-2"
-        >
-          <PlusCircle className="w-4 h-4" />
-          Create Campaign
-        </Button>
-      </div>
-
       {/* View Tabs */}
       <Tabs value={activeView} onValueChange={(value) => setActiveView(value as "calendar" | "schedule")}>
         <TabsList className="grid w-full grid-cols-2">
@@ -195,19 +156,6 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
           clearSelection();
           if (onDataUpdate) onDataUpdate();
         }}
-      />
-
-      {/* Quick Action Modals */}
-      <AddEventDialog 
-        open={showAddEventDialog}
-        onOpenChange={setShowAddEventDialog}
-        onEventCreated={handleEventCreated}
-      />
-
-      <NewCampaignModal 
-        open={showNewCampaignModal}
-        onOpenChange={setShowNewCampaignModal}
-        onCampaignCreated={handleCampaignCreated}
       />
     </div>
   );
