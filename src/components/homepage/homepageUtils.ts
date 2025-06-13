@@ -23,16 +23,6 @@ export const getCurrentWeekCampaign = (campaigns: any[]) => {
   return null;
 };
 
-// Calculate the actual week number of the year from today's date
-export const getCurrentWeekNumber = () => {
-  const today = new Date();
-  const firstDayOfYear = new Date(today.getFullYear(), 0, 1);
-  const pastDaysOfYear = (today.getTime() - firstDayOfYear.getTime()) / 86400000;
-  const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-  console.log('Current week number calculated:', weekNumber);
-  return weekNumber;
-};
-
 export const getNextStepGuidance = (campaigns: any[], tasks: any[], currentCampaign: any) => {
   if (campaigns.length === 0) {
     return {
