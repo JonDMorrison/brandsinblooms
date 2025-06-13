@@ -37,6 +37,52 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
     }
 
     console.log('Company profile created successfully:', savedProfile);
+
+    // Automatically generate 52-week themes after profile creation
+    try {
+      console.log('Auto-generating 52-week themes for new user...');
+      
+      const { data: themesData, error: themesError } = await supabase.functions.invoke('generate-weekly-themes', {
+        body: { 
+          userId: userId,
+          startYear: new Date().getFullYear()
+        }
+      });
+
+      if (themesError) {
+        console.error('Error auto-generating themes:', themesError);
+        // Don't throw here - profile creation was successful, themes are optional
+      } else if (themesData?.themes && Array.isArray(themesData.themes)) {
+        // Save themes directly to campaigns
+        const campaigns = themesData.themes.map((theme: any, index: number) => {
+          const startDate = new Date();
+          startDate.setDate(startDate.getDate() + (index * 7));
+          
+          return {
+            week_number: theme.week,
+            title: theme.title,
+            theme: theme.title,
+            description: theme.description,
+            start_date: startDate.toISOString().split('T')[0],
+            prompt: theme.content_ideas.join(' • ')
+          };
+        });
+
+        const { error: campaignError } = await supabase
+          .from('campaigns')
+          .insert(campaigns);
+
+        if (campaignError) {
+          console.error('Error saving auto-generated campaigns:', campaignError);
+        } else {
+          console.log(`Successfully auto-generated ${themesData.themes.length} weekly themes`);
+        }
+      }
+    } catch (themeError) {
+      console.error('Error in theme auto-generation:', themeError);
+      // Continue - profile creation was successful
+    }
+    
     return savedProfile;
   } catch (error) {
     console.error('Error creating company profile:', error);
