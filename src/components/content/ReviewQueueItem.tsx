@@ -74,10 +74,10 @@ export const ReviewQueueItem = ({
 
   const handleApproveWrapper = async (event: React.MouseEvent) => {
     try {
-      // Update status to 'completed' so it appears in the calendar
+      // Update status to 'posted' so it appears in the Ready to Post section
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'completed' })
+        .update({ status: 'posted' })
         .eq('id', task.id);
 
       if (error) {
@@ -86,7 +86,7 @@ export const ReviewQueueItem = ({
         return;
       }
 
-      toast.success('Content approved and added to calendar!');
+      toast.success('Content approved and ready to post!');
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
       console.error('Error approving task:', error);
@@ -94,7 +94,7 @@ export const ReviewQueueItem = ({
     }
   };
 
-  const isApproved = task.status === 'completed' || task.status === 'scheduled';
+  const isApproved = task.status === 'posted' || task.status === 'scheduled';
 
   return (
     <div
@@ -102,8 +102,8 @@ export const ReviewQueueItem = ({
       className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer relative group"
       onClick={() => onClick(task)}
     >
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {getPostTypeIcon(task.post_type)}
           <Badge className="bg-orange-100 text-orange-800">
             {task.post_type}
@@ -114,7 +114,7 @@ export const ReviewQueueItem = ({
             </span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             size="sm"
             variant="outline"

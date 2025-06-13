@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,7 +43,7 @@ export const PublishingScheduleView = () => {
         `)
         .gte('scheduled_date', format(weekStart, 'yyyy-MM-dd'))
         .lte('scheduled_date', format(weekEnd, 'yyyy-MM-dd'))
-        .in('status', ['completed', 'scheduled', 'published'])
+        .in('status', ['posted', 'scheduled', 'published'])
         .order('scheduled_date');
 
       if (error) throw error;
@@ -68,7 +67,7 @@ export const PublishingScheduleView = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
+      case 'posted': return 'bg-green-100 text-green-800';
       case 'scheduled': return 'bg-blue-100 text-blue-800';
       case 'published': return 'bg-purple-100 text-purple-800';
       default: return 'bg-gray-100 text-gray-800';
@@ -88,7 +87,7 @@ export const PublishingScheduleView = () => {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'completed': return 'Approved';
+      case 'posted': return 'Approved';
       case 'scheduled': return 'Scheduled';
       case 'published': return 'Published';
       default: return status;
@@ -157,7 +156,7 @@ export const PublishingScheduleView = () => {
                         <span className="font-medium capitalize">
                           {task.post_type}
                         </span>
-                        {task.status === 'completed' && (
+                        {task.status === 'posted' && (
                           <CheckCircle className="w-3 h-3 text-green-600" />
                         )}
                       </div>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,7 +27,7 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
     setRealtimeTasks(tasks);
   }, [tasks]);
 
-  // Set up real-time subscription for completed content only
+  // Set up real-time subscription for posted content only
   useEffect(() => {
     const channel = supabase
       .channel('ready-to-post-updates')
@@ -38,13 +37,13 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
           event: '*',
           schema: 'public',
           table: 'content_tasks',
-          filter: 'status=eq.completed'
+          filter: 'status=eq.posted'
         },
         (payload) => {
           console.log('Real-time update for ready-to-post:', payload);
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            if (payload.new.status === 'completed') {
+            if (payload.new.status === 'posted') {
               // Check if content is within 2 weeks
               const updatedAt = new Date(payload.new.updated_at);
               const twoWeeksAgo = new Date();
@@ -70,9 +69,9 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
     };
   }, []);
 
-  // Filter for only completed content from the last 2 weeks
+  // Filter for only posted content from the last 2 weeks
   const readyTasks = realtimeTasks.filter(task => {
-    if (task.status !== 'completed') return false;
+    if (task.status !== 'posted') return false;
     
     // Check if content is within 2 weeks
     const updatedAt = new Date(task.updated_at);
@@ -111,15 +110,15 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
       const { data: freshTasks, error } = await supabase
         .from('content_tasks')
         .select('*')
-        .eq('status', 'completed')
+        .eq('status', 'posted')
         .gte('updated_at', twoWeeksAgo.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
       setRealtimeTasks(prev => {
-        const nonCompleted = prev.filter(task => task.status !== 'completed');
-        return [...nonCompleted, ...(freshTasks || [])];
+        const nonPosted = prev.filter(task => task.status !== 'posted');
+        return [...nonPosted, ...(freshTasks || [])];
       });
       
       toast.success('Ready to post content refreshed');
