@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Copy, BarChart3 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Template {
   id: string;
@@ -13,12 +14,13 @@ interface Template {
   variables: string[];
   type: string;
   tags: string[];
-  createdAt: string;
-  usageCount: number;
+  created_at: string;
+  usage_count: number;
 }
 
 interface TemplateGridProps {
   templates: Template[];
+  loading: boolean;
   onUseTemplate: (template: Template) => void;
   onEditTemplate: (template: Template) => void;
   onDeleteTemplate: (templateId: string) => void;
@@ -26,6 +28,7 @@ interface TemplateGridProps {
 
 export const TemplateGrid = ({ 
   templates, 
+  loading,
   onUseTemplate, 
   onEditTemplate, 
   onDeleteTemplate 
@@ -39,6 +42,28 @@ export const TemplateGrid = ({
     };
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800';
   };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[...Array(6)].map((_, i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-6 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-20 w-full mb-4" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   if (templates.length === 0) {
     return (
@@ -111,9 +136,9 @@ export const TemplateGrid = ({
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span className="flex items-center gap-1">
                 <BarChart3 className="h-3 w-3" />
-                Used {template.usageCount} times
+                Used {template.usage_count} times
               </span>
-              <span>{template.createdAt}</span>
+              <span>{new Date(template.created_at).toLocaleDateString()}</span>
             </div>
 
             {/* Actions */}

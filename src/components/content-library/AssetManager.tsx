@@ -4,30 +4,31 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Search, Filter, Download, Trash2, Image, Video, FileText, Calendar } from "lucide-react";
+import { Upload, Search, Download, Trash2, Image, Video, FileText } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Asset {
   id: string;
   name: string;
   type: string;
-  size: string;
+  size_bytes: number;
   dimensions?: string;
   duration?: string;
-  uploadedAt: string;
+  created_at: string;
   tags: string[];
-  url: string;
+  url?: string;
 }
 
 interface AssetManagerProps {
   assets: Asset[];
+  loading: boolean;
   onUpload: (files: FileList) => void;
   onDelete: (assetId: string) => void;
 }
 
-export const AssetManager = ({ assets, onUpload, onDelete }: AssetManagerProps) => {
+export const AssetManager = ({ assets, loading, onUpload, onDelete }: AssetManagerProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedType, setSelectedType] = useState("all");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const assetTypes = [
     { id: "all", label: "All Assets", count: assets.length },
@@ -51,12 +52,55 @@ export const AssetManager = ({ assets, onUpload, onDelete }: AssetManagerProps) 
     }
   };
 
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
       onUpload(files);
     }
   };
+
+  const handleDownload = async (asset: Asset) => {
+    if (asset.url) {
+      const link = document.createElement('a');
+      link.href = asset.url;
+      link.download = asset.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Asset Library</CardTitle>
+          <CardDescription>Manage your images, videos, and documents</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {[...Array(8)].map((_, i) => (
+              <Card key={i}>
+                <CardContent className="p-4">
+                  <Skeleton className="aspect-square w-full mb-3" />
+                  <Skeleton className="h-4 w-3/4 mb-2" />
+                  <Skeleton className="h-3 w-1/2" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card>
@@ -66,7 +110,7 @@ export const AssetManager = ({ assets, onUpload, onDelete }: AssetManagerProps) 
       </CardHeader>
       <CardContent>
         {/* Upload Area */}
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 mb-6 text-center hover:border-green-400 transition-colors">
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 mb-6 text-center hover:border-blue-400 transition-colors">
           <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
           <p className="text-gray-600 mb-2">Drag and drop files here, or click to browse</p>
           <input
@@ -120,86 +164,63 @@ export const AssetManager = ({ assets, onUpload, onDelete }: AssetManagerProps) 
             <p className="text-gray-400">Upload some files to get started</p>
           </div>
         ) : (
-          <div className={viewMode === "grid" ? 
-            "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" : 
-            "space-y-2"
-          }>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {filteredAssets.map((asset) => (
               <Card key={asset.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
-                  {viewMode === "grid" ? (
-                    <div className="space-y-3">
-                      <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
-                        {asset.type === "image" ? (
-                          <img 
-                            src={asset.url} 
-                            alt={asset.name}
-                            className="w-full h-full object-cover rounded-lg"
-                          />
-                        ) : (
-                          <div className="text-gray-400">
-                            {getAssetIcon(asset.type)}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <p className="font-medium text-sm line-clamp-1">{asset.name}</p>
-                        <p className="text-xs text-gray-500">{asset.size}</p>
-                        {asset.dimensions && (
-                          <p className="text-xs text-gray-500">{asset.dimensions}</p>
-                        )}
-                        {asset.duration && (
-                          <p className="text-xs text-gray-500">{asset.duration}</p>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap gap-1">
-                        {asset.tags.slice(0, 2).map((tag, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            #{tag}
-                          </Badge>
-                        ))}
-                      </div>
-
-                      <div className="flex gap-1">
-                        <Button size="sm" variant="outline" className="flex-1">
-                          <Download className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => onDelete(asset.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {getAssetIcon(asset.type)}
-                        <div>
-                          <p className="font-medium">{asset.name}</p>
-                          <p className="text-sm text-gray-500">{asset.size} • {asset.uploadedAt}</p>
+                  <div className="space-y-3">
+                    <div className="aspect-square bg-gray-100 rounded-lg flex items-center justify-center">
+                      {asset.type === "image" ? (
+                        <img 
+                          src={asset.url} 
+                          alt={asset.name}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      ) : (
+                        <div className="text-gray-400">
+                          {getAssetIcon(asset.type)}
                         </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Download className="h-3 w-3" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => onDelete(asset.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+                      )}
                     </div>
-                  )}
+                    
+                    <div>
+                      <p className="font-medium text-sm line-clamp-1">{asset.name}</p>
+                      <p className="text-xs text-gray-500">{formatFileSize(asset.size_bytes)}</p>
+                      {asset.dimensions && (
+                        <p className="text-xs text-gray-500">{asset.dimensions}</p>
+                      )}
+                      {asset.duration && (
+                        <p className="text-xs text-gray-500">{asset.duration}</p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      {asset.tags.slice(0, 2).map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="text-xs">
+                          #{tag}
+                        </Badge>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-1">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => handleDownload(asset)}
+                      >
+                        <Download className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => onDelete(asset.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             ))}

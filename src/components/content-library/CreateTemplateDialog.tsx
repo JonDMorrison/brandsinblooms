@@ -26,6 +26,7 @@ export const CreateTemplateDialog = ({ open, onOpenChange, onCreateTemplate }: C
   });
   const [newTag, setNewTag] = useState("");
   const [detectedVariables, setDetectedVariables] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const detectVariables = (content: string) => {
     const variablePattern = /\[([A-Z_]+)\]/g;
@@ -60,22 +61,30 @@ export const CreateTemplateDialog = ({ open, onOpenChange, onCreateTemplate }: C
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (formData.title && formData.category && formData.content) {
-      onCreateTemplate({
-        ...formData,
-        variables: detectedVariables
-      });
-      // Reset form
-      setFormData({
-        title: "",
-        category: "",
-        description: "",
-        content: "",
-        type: "social_post",
-        tags: []
-      });
-      setDetectedVariables([]);
+      setIsSubmitting(true);
+      try {
+        await onCreateTemplate({
+          ...formData,
+          variables: detectedVariables
+        });
+        // Reset form
+        setFormData({
+          title: "",
+          category: "",
+          description: "",
+          content: "",
+          type: "social_post",
+          tags: []
+        });
+        setDetectedVariables([]);
+        setNewTag("");
+      } catch (error) {
+        console.error('Error creating template:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -160,7 +169,7 @@ export const CreateTemplateDialog = ({ open, onOpenChange, onCreateTemplate }: C
                 value={newTag}
                 onChange={(e) => setNewTag(e.target.value)}
                 placeholder="Add a tag..."
-                onKeyPress={(e) => e.key === 'Enter' && addTag()}
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
               />
               <Button type="button" onClick={addTag}>Add</Button>
             </div>
@@ -186,10 +195,10 @@ export const CreateTemplateDialog = ({ open, onOpenChange, onCreateTemplate }: C
           </Button>
           <Button 
             onClick={handleSubmit}
-            disabled={!formData.title || !formData.category || !formData.content}
-            className="bg-green-600 hover:bg-green-700"
+            disabled={!formData.title || !formData.category || !formData.content || isSubmitting}
+            className="bg-blue-600 hover:bg-blue-700"
           >
-            Create Template
+            {isSubmitting ? "Creating..." : "Create Template"}
           </Button>
         </DialogFooter>
       </DialogContent>

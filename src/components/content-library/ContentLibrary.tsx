@@ -1,14 +1,16 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Filter, Download, Edit, Trash2, FileText, Image, Video, Calendar } from "lucide-react";
+import { Search, Plus, FileText, Image, BookOpen, Upload, FolderPlus } from "lucide-react";
 import { TemplateGrid } from "./TemplateGrid";
 import { AssetManager } from "./AssetManager";
 import { CreateTemplateDialog } from "./CreateTemplateDialog";
+import { useContentTemplates } from "@/hooks/useContentTemplates";
+import { useContentAssets } from "@/hooks/useContentAssets";
 
 interface ContentLibraryProps {
   onboardingData: any;
@@ -18,77 +20,9 @@ export const ContentLibrary = ({ onboardingData }: ContentLibraryProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [showCreateTemplate, setShowCreateTemplate] = useState(false);
-  const [templates, setTemplates] = useState([
-    {
-      id: "1",
-      title: "Plant Care Tips",
-      category: "Educational",
-      description: "Weekly plant care advice template",
-      content: "🌱 Plant Care Tip of the Week!\n\nThis week's focus: [PLANT_NAME]\n\n💡 Care Tip: [TIP_CONTENT]\n\n📍 Visit us for all your [PLANT_NAME] needs!\n\n#PlantCare #GreenThumb #[PLANT_NAME] #GardenCenter",
-      variables: ["PLANT_NAME", "TIP_CONTENT"],
-      type: "social_post",
-      tags: ["tips", "education", "plants"],
-      createdAt: "2024-01-15",
-      usageCount: 24
-    },
-    {
-      id: "2",
-      title: "Seasonal Sale Announcement",
-      category: "Promotional",
-      description: "Template for seasonal sales and promotions",
-      content: "🌺 [SEASON] Sale Alert! 🌺\n\n💰 [DISCOUNT_PERCENTAGE]% OFF on [PRODUCT_CATEGORY]\n⏰ Sale ends [END_DATE]\n\n🚗 Visit us at [LOCATION]\n📞 Call [PHONE_NUMBER]\n\n#Sale #[SEASON]Sale #GardenCenter #Plants #Savings",
-      variables: ["SEASON", "DISCOUNT_PERCENTAGE", "PRODUCT_CATEGORY", "END_DATE", "LOCATION", "PHONE_NUMBER"],
-      type: "social_post",
-      tags: ["sale", "promotion", "seasonal"],
-      createdAt: "2024-01-10",
-      usageCount: 18
-    },
-    {
-      id: "3",
-      title: "Workshop Announcement",
-      category: "Community",
-      description: "Template for announcing gardening workshops",
-      content: "🌿 Join Our [WORKSHOP_NAME] Workshop! 🌿\n\n📅 Date: [DATE]\n🕐 Time: [TIME]\n👥 Spaces: [AVAILABLE_SPOTS] available\n💰 Cost: [PRICE]\n\nWhat you'll learn:\n✅ [LEARNING_POINT_1]\n✅ [LEARNING_POINT_2]\n✅ [LEARNING_POINT_3]\n\nRegister now: [REGISTRATION_LINK]\n\n#Workshop #GardeningWorkshop #LearnToGarden #Community",
-      variables: ["WORKSHOP_NAME", "DATE", "TIME", "AVAILABLE_SPOTS", "PRICE", "LEARNING_POINT_1", "LEARNING_POINT_2", "LEARNING_POINT_3", "REGISTRATION_LINK"],
-      type: "social_post",
-      tags: ["workshop", "community", "education"],
-      createdAt: "2024-01-08",
-      usageCount: 12
-    }
-  ]);
-
-  const [assets, setAssets] = useState([
-    {
-      id: "1",
-      name: "spring-garden-hero.jpg",
-      type: "image",
-      size: "2.4 MB",
-      dimensions: "1920x1080",
-      uploadedAt: "2024-01-20",
-      tags: ["spring", "garden", "hero", "seasonal"],
-      url: "/placeholder.svg"
-    },
-    {
-      id: "2",
-      name: "plant-care-infographic.png",
-      type: "image",
-      size: "1.8 MB",
-      dimensions: "1080x1080",
-      uploadedAt: "2024-01-18",
-      tags: ["infographic", "care", "education"],
-      url: "/placeholder.svg"
-    },
-    {
-      id: "3",
-      name: "summer-sale-video.mp4",
-      type: "video",
-      size: "12.5 MB",
-      duration: "30s",
-      uploadedAt: "2024-01-15",
-      tags: ["video", "sale", "summer", "promotional"],
-      url: "/placeholder.svg"
-    }
-  ]);
+  
+  const { templates, loading: templatesLoading, createTemplate, useTemplate, deleteTemplate } = useContentTemplates();
+  const { assets, loading: assetsLoading, uploadAsset, deleteAsset } = useContentAssets();
 
   const categories = [
     { id: "all", label: "All Templates", count: templates.length },
@@ -100,34 +34,98 @@ export const ContentLibrary = ({ onboardingData }: ContentLibraryProps) => {
 
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         template.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesCategory = selectedCategory === "all" || template.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const handleCreateTemplate = (templateData: any) => {
-    const newTemplate = {
-      id: Date.now().toString(),
-      ...templateData,
-      createdAt: new Date().toISOString().split('T')[0],
-      usageCount: 0
-    };
-    setTemplates([...templates, newTemplate]);
-    setShowCreateTemplate(false);
+  const handleCreateTemplate = async (templateData: any) => {
+    try {
+      await createTemplate(templateData);
+      setShowCreateTemplate(false);
+    } catch (error) {
+      // Error is handled in the hook
+    }
+  };
+
+  const handleUseTemplate = async (template: any) => {
+    await useTemplate(template.id);
+    // You could also copy to clipboard or open in editor here
+    navigator.clipboard.writeText(template.content);
+  };
+
+  const handleUploadAssets = async (files: FileList) => {
+    for (const file of Array.from(files)) {
+      try {
+        await uploadAsset(file);
+      } catch (error) {
+        // Error is handled in the hook
+      }
+    }
+  };
+
+  // Quick stats
+  const stats = {
+    totalAssets: assets.length,
+    templates: templates.length,
+    recentUploads: assets.filter(a => {
+      const uploadDate = new Date(a.created_at);
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      return uploadDate > weekAgo;
+    }).length,
+    storageUsed: Math.round((assets.reduce((sum, asset) => sum + asset.size_bytes, 0) / (1024 * 1024 * 100)) * 100) // Percentage of 100MB
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-green-800">Content Library</h1>
-          <p className="text-green-600">Manage your templates and marketing assets</p>
+      {/* Enhanced Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm rounded-lg">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
+                <BookOpen className="w-10 h-10 text-blue-600" />
+                Content Library
+              </h1>
+              <p className="text-lg text-gray-600 font-medium">
+                Manage your assets, templates, and media files
+              </p>
+              
+              {/* Quick stats */}
+              <div className="flex items-center gap-6 mt-4">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <BookOpen className="w-4 h-4 text-green-600" />
+                  <span className="font-medium">{stats.totalAssets}</span> total assets
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Plus className="w-4 h-4 text-blue-600" />
+                  <span className="font-medium">{stats.templates}</span> templates
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Upload className="w-4 h-4 text-purple-600" />
+                  <span className="font-medium">{stats.recentUploads}</span> recent uploads
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <FolderPlus className="w-4 h-4 text-orange-600" />
+                  <span className="font-medium">{stats.storageUsed}%</span> storage used
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => setShowCreateTemplate(true)}
+                className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md"
+                size="lg"
+              >
+                <Plus className="w-5 h-5" />
+                New Template
+              </Button>
+            </div>
+          </div>
         </div>
-        <Button onClick={() => setShowCreateTemplate(true)} className="bg-green-600 hover:bg-green-700">
-          <Plus className="h-4 w-4 mr-2" />
-          New Template
-        </Button>
       </div>
 
       <Tabs defaultValue="templates" className="w-full">
@@ -180,11 +178,10 @@ export const ContentLibrary = ({ onboardingData }: ContentLibraryProps) => {
 
               <TemplateGrid 
                 templates={filteredTemplates}
-                onUseTemplate={(template) => console.log("Using template:", template)}
+                loading={templatesLoading}
+                onUseTemplate={handleUseTemplate}
                 onEditTemplate={(template) => console.log("Editing template:", template)}
-                onDeleteTemplate={(templateId) => {
-                  setTemplates(templates.filter(t => t.id !== templateId));
-                }}
+                onDeleteTemplate={deleteTemplate}
               />
             </CardContent>
           </Card>
@@ -193,10 +190,9 @@ export const ContentLibrary = ({ onboardingData }: ContentLibraryProps) => {
         <TabsContent value="assets" className="space-y-4">
           <AssetManager 
             assets={assets}
-            onUpload={(files) => console.log("Uploading files:", files)}
-            onDelete={(assetId) => {
-              setAssets(assets.filter(a => a.id !== assetId));
-            }}
+            loading={assetsLoading}
+            onUpload={handleUploadAssets}
+            onDelete={deleteAsset}
           />
         </TabsContent>
       </Tabs>

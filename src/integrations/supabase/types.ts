@@ -197,6 +197,48 @@ export type Database = {
         }
         Relationships: []
       }
+      content_assets: {
+        Row: {
+          created_at: string
+          dimensions: string | null
+          duration: string | null
+          file_path: string
+          id: string
+          name: string
+          size_bytes: number
+          tags: string[] | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dimensions?: string | null
+          duration?: string | null
+          file_path: string
+          id?: string
+          name: string
+          size_bytes: number
+          tags?: string[] | null
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dimensions?: string | null
+          duration?: string | null
+          file_path?: string
+          id?: string
+          name?: string
+          size_bytes?: number
+          tags?: string[] | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       content_tasks: {
         Row: {
           ai_output: string | null
@@ -253,6 +295,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      content_templates: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          description: string | null
+          id: string
+          tags: string[] | null
+          title: string
+          type: string
+          updated_at: string
+          usage_count: number | null
+          user_id: string
+          variables: string[] | null
+        }
+        Insert: {
+          category: string
+          content: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          tags?: string[] | null
+          title: string
+          type?: string
+          updated_at?: string
+          usage_count?: number | null
+          user_id: string
+          variables?: string[] | null
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          tags?: string[] | null
+          title?: string
+          type?: string
+          updated_at?: string
+          usage_count?: number | null
+          user_id?: string
+          variables?: string[] | null
+        }
+        Relationships: []
       }
       master_campaign_templates: {
         Row: {
@@ -508,6 +595,10 @@ export type Database = {
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
         Returns: number
+      }
+      increment_template_usage: {
+        Args: { template_id: string }
+        Returns: undefined
       }
     }
     Enums: {
