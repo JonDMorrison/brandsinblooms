@@ -1,9 +1,10 @@
 
 import { Button } from "@/components/ui/button";
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Calendar, Users, Settings, Home, Leaf, Building, CreditCard, BarChart3, BookOpen } from "lucide-react";
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from "@/components/ui/sidebar";
+import { Calendar, Users, Settings, Home, Leaf, Building, CreditCard, BarChart3, BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useSidebar } from "@/components/ui/sidebar";
 
 interface AppSidebarProps {
   currentView: "home" | "calendar" | "team" | "profile";
@@ -15,6 +16,7 @@ interface AppSidebarProps {
 export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusinessNameChange }: AppSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { state, toggleSidebar } = useSidebar();
 
   const menuItems = [
     { title: "Dashboard", view: "home", icon: Home, path: "/app" },
@@ -57,22 +59,44 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
     navigate(item.path);
   };
 
+  const isCollapsed = state === "collapsed";
+
   return (
-    <Sidebar className="w-64 border-r border-green-200 bg-garden-sage">
+    <Sidebar className={`border-r border-green-200 bg-garden-sage transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       <SidebarContent>
-        <div className="p-6 border-b border-green-200 bg-white">
-          <div className="flex items-center gap-3 mb-2">
-            <Leaf className="w-6 h-6 text-primary" />
-            <h2 className="text-xl font-bold text-garden-green-dark">BloomSuite</h2>
-          </div>
-          <EditableBusinessName 
-            businessName={businessName}
-            onBusinessNameChange={handleBusinessNameChange}
-          />
+        {/* Header with toggle button */}
+        <div className="p-4 border-b border-green-200 bg-white relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="absolute top-4 right-2 z-10 h-8 w-8 hover:bg-green-100"
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+          
+          {!isCollapsed && (
+            <>
+              <div className="flex items-center gap-3 mb-2">
+                <Leaf className="w-6 h-6 text-primary" />
+                <h2 className="text-xl font-bold text-garden-green-dark">BloomSuite</h2>
+              </div>
+              <EditableBusinessName 
+                businessName={businessName}
+                onBusinessNameChange={handleBusinessNameChange}
+              />
+            </>
+          )}
+          
+          {isCollapsed && (
+            <div className="flex justify-center">
+              <Leaf className="w-6 h-6 text-primary" />
+            </div>
+          )}
         </div>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-garden-green-dark font-semibold">Navigation</SidebarGroupLabel>
+          {!isCollapsed && <SidebarGroupLabel className="text-garden-green-dark font-semibold">Navigation</SidebarGroupLabel>}
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => {
@@ -87,10 +111,11 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
                     >
                       <button
                         onClick={() => handleNavigation(item)}
-                        className="w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200"
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${isCollapsed ? 'justify-center' : ''}`}
+                        title={isCollapsed ? item.title : undefined}
                       >
-                        <item.icon className="w-5 h-5" />
-                        <span className="font-medium">{item.title}</span>
+                        <item.icon className="w-5 h-5 flex-shrink-0" />
+                        {!isCollapsed && <span className="font-medium">{item.title}</span>}
                       </button>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -101,21 +126,22 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-garden-green-dark font-semibold">Settings</SidebarGroupLabel>
+          {!isCollapsed && <SidebarGroupLabel className="text-garden-green-dark font-semibold">Settings</SidebarGroupLabel>}
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
                   <button 
                     onClick={() => navigate("/team")}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${isCollapsed ? 'justify-center' : ''} ${
                       location.pathname === "/team" 
                         ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
                         : "hover:bg-green-100 text-garden-green-dark"
                     }`}
+                    title={isCollapsed ? "Team" : undefined}
                   >
-                    <Users className="w-5 h-5" />
-                    <span className="font-medium">Team</span>
+                    <Users className="w-5 h-5 flex-shrink-0" />
+                    {!isCollapsed && <span className="font-medium">Team</span>}
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -123,14 +149,15 @@ export const AppSidebar = ({ currentView, onViewChange, onboardingData, onBusine
                 <SidebarMenuButton asChild>
                   <button 
                     onClick={() => navigate("/subscription")}
-                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+                    className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${isCollapsed ? 'justify-center' : ''} ${
                       location.pathname === "/subscription" 
                         ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
                         : "hover:bg-green-100 text-garden-green-dark"
                     }`}
+                    title={isCollapsed ? "Account Settings" : undefined}
                   >
-                    <CreditCard className="w-5 h-5" />
-                    <span className="font-medium">Account Settings</span>
+                    <CreditCard className="w-5 h-5 flex-shrink-0" />
+                    {!isCollapsed && <span className="font-medium">Account Settings</span>}
                   </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
