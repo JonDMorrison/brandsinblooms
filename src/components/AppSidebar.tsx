@@ -23,7 +23,6 @@ import {
   Expand 
 } from "lucide-react";
 import { EditableBusinessName } from "@/components/EditableBusinessName";
-import { TokenMeter } from "@/components/tokens/TokenMeter";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 
@@ -113,11 +112,6 @@ export const AppSidebar = ({
                     businessName={businessName}
                     onBusinessNameChange={handleBusinessNameChange}
                   />
-                </div>
-                
-                {/* Token Meter */}
-                <div className="pt-3 border-t border-green-200">
-                  <TokenMeter />
                 </div>
               </div>
             )}
