@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { Palette, Calendar as CalendarIcon, Grid, Calendar, CheckSquare } from "lucide-react";
+import { Palette, Calendar as CalendarIcon, Grid, Calendar, CheckSquare, PlusCircle, CalendarPlus } from "lucide-react";
 import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
 import { CalendarGrid } from "./calendar/CalendarGrid";
 import { CampaignDetailsModal } from "./calendar/CampaignDetailsModal";
@@ -8,6 +7,8 @@ import { BulkOperationsBar } from "./calendar/BulkOperationsBar";
 import { ContentPillarManager } from "./calendar/ContentPillarManager";
 import { PublishingScheduleView } from "./calendar/PublishingScheduleView";
 import { CampaignTemplateManager } from "./calendar/CampaignTemplateManager";
+import { AddEventDialog } from "@/components/homepage/AddEventDialog";
+import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
@@ -47,6 +48,10 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
   const [selectedPillar, setSelectedPillar] = useState<string | undefined>();
   const [activeView, setActiveView] = useState<"calendar" | "schedule">("calendar");
   const [selectionMode, setSelectionMode] = useState(false);
+  
+  // Add state for quick action modals
+  const [showAddEventDialog, setShowAddEventDialog] = useState(false);
+  const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
   // Update local campaigns when props change
   useEffect(() => {
@@ -134,9 +139,22 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     setSelectionMode(false);
   };
 
+  // Quick action handlers
+  const handleEventCreated = () => {
+    setShowAddEventDialog(false);
+    if (onDataUpdate) onDataUpdate();
+    toast.success('🎉 Event added successfully! Your marketing content will be tailored for this event.');
+  };
+
+  const handleCampaignCreated = () => {
+    setShowNewCampaignModal(false);
+    if (onDataUpdate) onDataUpdate();
+    toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
+  };
+
   return (
     <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
-      {/* Header with Theme Generator */}
+      {/* Header with Theme Generator and Quick Actions */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
         <div className="px-4 sm:px-6 py-4 sm:py-5">
           <div className="flex flex-col gap-4">
@@ -153,7 +171,28 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
                 </p>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Quick Action Buttons */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowNewCampaignModal(true)}
+                  className="flex items-center gap-2"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  Create Campaign
+                </Button>
+                
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowAddEventDialog(true)}
+                  className="flex items-center gap-2"
+                >
+                  <CalendarPlus className="w-4 h-4" />
+                  Promote Event
+                </Button>
+                
                 <CampaignTemplateManager
                   onTemplateApply={handleTemplateApply}
                   selectedCampaign={selectedCampaign || undefined}
@@ -238,6 +277,19 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
           clearSelection();
           if (onDataUpdate) onDataUpdate();
         }}
+      />
+
+      {/* Quick Action Modals */}
+      <AddEventDialog 
+        open={showAddEventDialog}
+        onOpenChange={setShowAddEventDialog}
+        onEventCreated={handleEventCreated}
+      />
+
+      <NewCampaignModal 
+        open={showNewCampaignModal}
+        onOpenChange={setShowNewCampaignModal}
+        onCampaignCreated={handleCampaignCreated}
       />
     </div>
   );
