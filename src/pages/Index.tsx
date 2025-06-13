@@ -1,19 +1,17 @@
+
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { WebsiteOnboardingFlow } from "@/components/WebsiteOnboardingFlow";
+import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
-import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
-import { LandingPage } from "@/components/LandingPage";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Home, TrendingUp, Users, Clock, PlusCircle, BarChart3 } from "lucide-react";
+import { AddEventDialog } from "@/components/homepage/AddEventDialog";
+import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
+import { toast } from "sonner";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 const Index = () => {
-  const { user } = useAuth();
-  const location = useLocation();
-  const [showLanding, setShowLanding] = useState(false);
-  const [isOnboarded, setIsOnboarded] = useState(false);
-  const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true);
-  const [currentView, setCurrentView] = useState<"home" | "calendar" | "team" | "profile">("home");
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
@@ -21,98 +19,48 @@ const Index = () => {
     websiteUrl: ""
   });
 
-  const checkOnboardingStatus = async (userId: string) => {
-    try {
-      // First check localStorage
-      const savedData = localStorage.getItem(`garden-center-onboarding-${userId}`);
-      
-      if (savedData) {
-        console.log('Index: Found onboarding data in localStorage');
-        const parsedData = JSON.parse(savedData);
-        setOnboardingData(parsedData);
-        setIsOnboarded(true);
-        return;
-      }
+  // Add state for quick action modals
+  const [showAddEventDialog, setShowAddEventDialog] = useState(false);
+  const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
-      // If not in localStorage, check the database
-      console.log('Index: No localStorage data, checking database');
-      const { data: dbOnboardingData, error } = await supabase
-        .from('onboarding_responses')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
-        console.error('Error fetching onboarding data:', error);
-        return;
-      }
-
-      if (dbOnboardingData) {
-        console.log('Index: Found onboarding data in database, syncing to localStorage');
-        const syncedData = {
-          aboutBusiness: dbOnboardingData.about_business || "",
-          toneSamples: dbOnboardingData.tone_samples || "",
-          annualEvents: dbOnboardingData.annual_events || "",
-          websiteUrl: "" // This might not be in the database, could be added later
-        };
-        
-        // Sync to localStorage for faster future access
-        localStorage.setItem(`garden-center-onboarding-${userId}`, JSON.stringify(syncedData));
-        setOnboardingData(syncedData);
-        setIsOnboarded(true);
-      } else {
-        console.log('Index: No onboarding data found in database either');
-        setIsOnboarded(false);
-      }
-    } catch (error) {
-      console.error('Error checking onboarding status:', error);
-      setIsOnboarded(false);
-    } finally {
-      setIsCheckingOnboarding(false);
-    }
-  };
+  // Mock stats for demonstration
+  const [stats, setStats] = useState({
+    totalCampaigns: 0,
+    activeCampaigns: 0,
+    completedTasks: 0,
+    pendingTasks: 0
+  });
 
   useEffect(() => {
-    console.log('Index: Auth state changed, user:', user?.id);
-    console.log('Index: Current pathname:', location.pathname);
-    console.log('Index: Current search params:', location.search);
-    
-    if (user) {
-      setIsCheckingOnboarding(true);
-      
-      // Check URL params for navigation - only show landing if explicitly requested
-      const params = new URLSearchParams(location.search);
-      
-      if (params.get('view') === 'landing') {
-        console.log('Index: Showing landing page due to URL param');
-        setShowLanding(true);
-        setIsOnboarded(false);
-        setIsCheckingOnboarding(false);
-      } else {
-        // For authenticated users, always prioritize dashboard flow
-        console.log('Index: Authenticated user - checking onboarding and showing dashboard');
-        checkOnboardingStatus(user.id);
+    // Load stats from database
+    const loadStats = async () => {
+      try {
+        const { data: campaigns } = await supabase
+          .from('campaigns')
+          .select('*');
+
+        const { data: tasks } = await supabase
+          .from('content_tasks')
+          .select('*');
+
+        const currentWeek = getCurrentWeekNumber();
+        const activeCampaigns = campaigns?.filter(c => c.week_number >= currentWeek).length || 0;
+        const completedTasks = tasks?.filter(t => t.status === 'completed').length || 0;
+        const pendingTasks = tasks?.filter(t => t.status === 'pending').length || 0;
+
+        setStats({
+          totalCampaigns: campaigns?.length || 0,
+          activeCampaigns,
+          completedTasks,
+          pendingTasks
+        });
+      } catch (error) {
+        console.error('Error loading stats:', error);
       }
-    } else {
-      setIsCheckingOnboarding(false);
-    }
-  }, [user, location.search, location.pathname]);
+    };
 
-  const handleOnboardingComplete = (data: any) => {
-    console.log('Index: Onboarding completed with data:', data);
-    if (user) {
-      // Store the data and update state immediately
-      localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
-      setOnboardingData(data);
-      setIsOnboarded(true);
-      setShowLanding(false);
-    }
-  };
-
-  const handleGetStarted = () => {
-    console.log('Index: Get started clicked, hiding landing page');
-    setShowLanding(false);
-  };
+    loadStats();
+  }, []);
 
   const handleBusinessNameChange = (newName: string) => {
     const updatedData = {
@@ -120,60 +68,109 @@ const Index = () => {
       aboutBusiness: `${newName} has been serving the community with quality gardening products and expert advice.`
     };
     setOnboardingData(updatedData);
-    
-    if (user) {
-      localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(updatedData));
-    }
   };
 
   const handleCampaignCreated = () => {
-    // Refresh data or trigger any necessary updates
-    console.log('Index: Campaign created, refreshing dashboard data');
+    // Refresh dashboard data
+    window.location.reload();
   };
 
-  if (!user) {
-    console.log('Index: No user found, returning null');
-    return null; // This shouldn't happen due to ProtectedRoute, but just in case
-  }
+  // Quick action handlers
+  const handleEventCreated = () => {
+    setShowAddEventDialog(false);
+    handleCampaignCreated();
+    toast.success('🎉 Event added successfully! Your marketing content will be tailored for this event.');
+  };
 
-  // Show loading state while checking onboarding status
-  if (isCheckingOnboarding) {
-    return (
-      <div className="min-h-screen bg-garden-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-garden-green mx-auto mb-4"></div>
-          <p className="text-garden-green font-medium">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleCampaignCreatedInternal = () => {
+    setShowNewCampaignModal(false);
+    handleCampaignCreated();
+    toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
+  };
 
-  console.log('Index: Final render state - showLanding:', showLanding, 'isOnboarded:', isOnboarded, 'currentView:', currentView);
-
-  // For authenticated users: onboarding (if not completed) > dashboard (default)
-  // Landing page should only show if explicitly requested via URL param
   return (
-    <div className="min-h-screen bg-garden-background">
-      {showLanding ? (
-        <LandingPage onGetStarted={handleGetStarted} />
-      ) : !isOnboarded ? (
-        <WebsiteOnboardingFlow onComplete={handleOnboardingComplete} />
-      ) : (
-        <DashboardLayout
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          onboardingData={onboardingData}
-          onBusinessNameChange={handleBusinessNameChange}
-          onCampaignCreated={handleCampaignCreated}
-        >
+    <ProtectedPageWrapper>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        {/* Enhanced Header */}
+        <div className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="space-y-2">
+                <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
+                  <Home className="w-10 h-10 text-blue-600" />
+                  Dashboard Overview
+                </h1>
+                <p className="text-lg text-gray-600 font-medium">
+                  Your marketing hub at a glance
+                </p>
+                
+                {/* Quick stats */}
+                <div className="flex items-center gap-6 mt-4">
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    <span className="font-medium">{stats.totalCampaigns}</span> total campaigns
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Clock className="w-4 h-4 text-blue-600" />
+                    <span className="font-medium">{stats.activeCampaigns}</span> active
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <BarChart3 className="w-4 h-4 text-purple-600" />
+                    <span className="font-medium">{stats.completedTasks}</span> tasks completed
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <Users className="w-4 h-4 text-orange-600" />
+                    <span className="font-medium">{stats.pendingTasks}</span> pending
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() => setShowAddEventDialog(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md"
+                  size="lg"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  Promote Event
+                </Button>
+                
+                <Button
+                  onClick={() => setShowNewCampaignModal(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 shadow-md"
+                  size="lg"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                  Create Campaign
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Dashboard Content */}
+        <div className="max-w-7xl mx-auto p-6">
           <DashboardContent
             onboardingData={onboardingData}
             onBusinessNameChange={handleBusinessNameChange}
             onCampaignCreated={handleCampaignCreated}
           />
-        </DashboardLayout>
-      )}
-    </div>
+        </div>
+
+        {/* Quick Action Modals */}
+        <AddEventDialog 
+          open={showAddEventDialog}
+          onOpenChange={setShowAddEventDialog}
+          onEventCreated={handleEventCreated}
+        />
+
+        <NewCampaignModal 
+          open={showNewCampaignModal}
+          onOpenChange={setShowNewCampaignModal}
+          onCampaignCreated={handleCampaignCreatedInternal}
+        />
+      </div>
+    </ProtectedPageWrapper>
   );
 };
 
