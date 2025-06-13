@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -209,7 +210,7 @@ export const NewCampaignCard = ({
               {hasContent ? (
                 <>
                   <Eye className="w-4 h-4 mr-2" />
-                  View This Week's Content
+                  View Your Content
                 </>
               ) : (
                 <>
