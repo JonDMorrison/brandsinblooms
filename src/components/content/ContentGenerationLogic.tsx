@@ -62,12 +62,12 @@ export const useContentGeneration = () => {
           
           console.log(`✅ ${task.post_type} content passed validation on first attempt`);
           
-          // Update the task with generated content using 'draft' status
+          // Update the task with generated content using 'review' status
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: generatedContent,
-              status: 'draft' // Changed from 'completed' to 'draft' to match database constraint
+              status: 'review' // Changed from 'draft' to 'review' to match database constraint
             })
             .eq('id', task.id);
           

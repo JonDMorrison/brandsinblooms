@@ -53,7 +53,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   };
 
   // Show approval button for content that's ready for review
-  if (task?.status === 'draft' && task?.ai_output) {
+  if (task?.status === 'review' && task?.ai_output) {
     return (
       <Card className="border-orange-200 bg-orange-50">
         <CardContent className="p-4">

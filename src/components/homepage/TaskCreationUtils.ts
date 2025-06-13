@@ -19,7 +19,7 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
       .from('content_tasks')
       .update({ 
         ai_output: newVideoScript,
-        status: 'completed' // Use completed instead of draft
+        status: 'review' // Changed from 'completed' to 'review'
       })
       .eq('campaign_id', campaignId)
       .eq('post_type', 'video');
@@ -79,7 +79,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       tasksToCreate.push({
         campaign_id: campaignId,
         post_type: postType,
-        status: 'completed', // Use completed instead of draft
+        status: 'review', // Changed from 'completed' to 'review'
         scheduled_date: scheduledDate.toISOString().split('T')[0],
         ai_output: aiOutput,
         hashtags: getHashtagsForType(postType),

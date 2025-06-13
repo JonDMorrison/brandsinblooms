@@ -124,13 +124,13 @@ export const generateRequiredTasks = async (
             continue;
           }
           
-          // Update task with generated content and set status to 'draft' for review
+          // Update task with generated content and set status to 'review' for review
           console.log(`Updating task ${task.id} with generated content`);
           const { error: updateError } = await supabase
             .from('content_tasks')
             .update({ 
               ai_output: content,
-              status: 'draft' // Set to draft so it goes through review process
+              status: 'review' // Changed from 'draft' to 'review' so it goes through review process
             })
             .eq('id', task.id);
 
