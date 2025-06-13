@@ -20,9 +20,17 @@ interface CalendarGridProps {
   campaigns: Campaign[];
   onCampaignClick?: (campaign: Campaign) => void;
   onCreateCampaign?: (date: Date) => void;
+  selectionMode?: boolean;
+  selectedCampaigns?: Campaign[];
 }
 
-export const CalendarGrid = ({ campaigns, onCampaignClick, onCreateCampaign }: CalendarGridProps) => {
+export const CalendarGrid = ({ 
+  campaigns, 
+  onCampaignClick, 
+  onCreateCampaign,
+  selectionMode = false,
+  selectedCampaigns = []
+}: CalendarGridProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const monthStart = startOfMonth(currentDate);
@@ -74,6 +82,12 @@ export const CalendarGrid = ({ campaigns, onCampaignClick, onCreateCampaign }: C
             </Button>
           </div>
         </div>
+        
+        {selectionMode && selectedCampaigns.length > 0 && (
+          <div className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded">
+            {selectedCampaigns.length} campaign{selectedCampaigns.length !== 1 ? 's' : ''} selected
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-7 gap-1 mb-4">
@@ -98,6 +112,8 @@ export const CalendarGrid = ({ campaigns, onCampaignClick, onCreateCampaign }: C
                 isToday={isToday(day)}
                 onCampaignClick={onCampaignClick}
                 onCreateCampaign={onCreateCampaign}
+                selectionMode={selectionMode}
+                selectedCampaigns={selectedCampaigns}
               />
             );
           })}

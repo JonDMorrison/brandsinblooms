@@ -1,10 +1,18 @@
 
 import { useState, useEffect } from "react";
-import { Palette, Calendar as CalendarIcon } from "lucide-react";
+import { Palette, Calendar as CalendarIcon, Grid, Timeline, CheckSquare } from "lucide-react";
 import { WeeklyThemeGenerator } from "./theme-generation/WeeklyThemeGenerator";
 import { CalendarGrid } from "./calendar/CalendarGrid";
 import { CampaignDetailsModal } from "./calendar/CampaignDetailsModal";
+import { BulkOperationsBar } from "./calendar/BulkOperationsBar";
+import { ContentPillarManager } from "./calendar/ContentPillarManager";
+import { PublishingScheduleView } from "./calendar/PublishingScheduleView";
+import { CampaignTemplateManager } from "./calendar/CampaignTemplateManager";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Campaign {
   id: number;
@@ -34,7 +42,11 @@ interface CalendarViewProps {
 export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: CalendarViewProps) => {
   const [localCampaigns, setLocalCampaigns] = useState<Campaign[]>(campaigns);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
+  const [selectedCampaigns, setSelectedCampaigns] = useState<Campaign[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedPillar, setSelectedPillar] = useState<string | undefined>();
+  const [activeView, setActiveView] = useState<"calendar" | "schedule">("calendar");
+  const [selectionMode, setSelectionMode] = useState(false);
 
   // Update local campaigns when props change
   useEffect(() => {
@@ -48,9 +60,26 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     !campaign?.theme || campaign.theme.includes("Summer Heat Solutions") || campaign.theme === campaign.title
   ) : [];
 
+  // Filter campaigns by selected pillar
+  const filteredCampaigns = selectedPillar 
+    ? localCampaigns.filter(campaign => 
+        campaign.theme?.toLowerCase().includes(selectedPillar.toLowerCase()) ||
+        campaign.description?.toLowerCase().includes(selectedPillar.toLowerCase())
+      )
+    : localCampaigns;
+
   const handleCampaignClick = (campaign: Campaign) => {
-    setSelectedCampaign(campaign);
-    setIsModalOpen(true);
+    if (selectionMode) {
+      const isSelected = selectedCampaigns.some(c => c.id === campaign.id);
+      if (isSelected) {
+        setSelectedCampaigns(selectedCampaigns.filter(c => c.id !== campaign.id));
+      } else {
+        setSelectedCampaigns([...selectedCampaigns, campaign]);
+      }
+    } else {
+      setSelectedCampaign(campaign);
+      setIsModalOpen(true);
+    }
   };
 
   const handleCreateCampaign = (date: Date) => {
@@ -75,6 +104,36 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
     }
   };
 
+  const handleTemplateApply = async (template: any) => {
+    if (!selectedCampaign) return;
+
+    try {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({
+          theme: template.theme,
+          description: template.description
+        })
+        .eq('id', selectedCampaign.id);
+
+      if (error) throw error;
+
+      handleCampaignUpdate({
+        ...selectedCampaign,
+        theme: template.theme,
+        description: template.description
+      });
+    } catch (error) {
+      console.error('Error applying template:', error);
+      toast.error('Failed to apply template');
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedCampaigns([]);
+    setSelectionMode(false);
+  };
+
   return (
     <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
       {/* Header with Theme Generator */}
@@ -90,8 +149,27 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
                   Campaign Calendar
                 </h2>
                 <p className="text-sm text-gray-600 mt-0.5">
-                  View and manage your marketing campaigns in calendar format
+                  Plan, organize, and manage your year-long content strategy
                 </p>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <CampaignTemplateManager
+                  onTemplateApply={handleTemplateApply}
+                  selectedCampaign={selectedCampaign || undefined}
+                />
+                
+                <Button
+                  size="sm"
+                  variant={selectionMode ? "default" : "outline"}
+                  onClick={() => {
+                    setSelectionMode(!selectionMode);
+                    if (selectionMode) clearSelection();
+                  }}
+                >
+                  <CheckSquare className="w-4 h-4 mr-2" />
+                  {selectionMode ? 'Exit Selection' : 'Select Multiple'}
+                </Button>
               </div>
             </div>
             
@@ -110,12 +188,39 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
         </div>
       </div>
 
-      {/* Calendar Grid */}
-      <CalendarGrid
-        campaigns={localCampaigns}
-        onCampaignClick={handleCampaignClick}
-        onCreateCampaign={handleCreateCampaign}
+      {/* Content Pillar Filter */}
+      <ContentPillarManager
+        selectedPillar={selectedPillar}
+        onPillarSelect={setSelectedPillar}
       />
+
+      {/* View Tabs */}
+      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as "calendar" | "schedule")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="calendar" className="flex items-center gap-2">
+            <Grid className="w-4 h-4" />
+            Calendar View
+          </TabsTrigger>
+          <TabsTrigger value="schedule" className="flex items-center gap-2">
+            <Timeline className="w-4 h-4" />
+            Publishing Schedule
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="calendar" className="mt-6">
+          <CalendarGrid
+            campaigns={filteredCampaigns}
+            onCampaignClick={handleCampaignClick}
+            onCreateCampaign={handleCreateCampaign}
+            selectionMode={selectionMode}
+            selectedCampaigns={selectedCampaigns}
+          />
+        </TabsContent>
+        
+        <TabsContent value="schedule" className="mt-6">
+          <PublishingScheduleView />
+        </TabsContent>
+      </Tabs>
 
       {/* Campaign Details Modal */}
       <CampaignDetailsModal
@@ -123,6 +228,16 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onUpdate={handleCampaignUpdate}
+      />
+
+      {/* Bulk Operations Bar */}
+      <BulkOperationsBar
+        selectedCampaigns={selectedCampaigns}
+        onClearSelection={clearSelection}
+        onOperationComplete={() => {
+          clearSelection();
+          if (onDataUpdate) onDataUpdate();
+        }}
       />
     </div>
   );

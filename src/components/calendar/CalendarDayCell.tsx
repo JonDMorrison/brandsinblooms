@@ -2,7 +2,7 @@
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Campaign {
@@ -21,6 +21,8 @@ interface CalendarDayCellProps {
   isToday: boolean;
   onCampaignClick?: (campaign: Campaign) => void;
   onCreateCampaign?: (date: Date) => void;
+  selectionMode?: boolean;
+  selectedCampaigns?: Campaign[];
 }
 
 export const CalendarDayCell = ({
@@ -30,8 +32,14 @@ export const CalendarDayCell = ({
   isToday,
   onCampaignClick,
   onCreateCampaign,
+  selectionMode = false,
+  selectedCampaigns = []
 }: CalendarDayCellProps) => {
   const dayNumber = format(date, 'd');
+
+  const isCampaignSelected = (campaign: Campaign) => {
+    return selectedCampaigns.some(c => c.id === campaign.id);
+  };
 
   return (
     <div
@@ -50,7 +58,7 @@ export const CalendarDayCell = ({
         >
           {dayNumber}
         </span>
-        {isCurrentMonth && (
+        {isCurrentMonth && !selectionMode && (
           <Button
             variant="ghost"
             size="sm"
@@ -63,22 +71,37 @@ export const CalendarDayCell = ({
       </div>
       
       <div className="space-y-1">
-        {campaigns.slice(0, 2).map((campaign) => (
-          <div
-            key={campaign.id}
-            className="text-xs p-1 bg-green-100 border border-green-200 rounded cursor-pointer hover:bg-green-200 transition-colors"
-            onClick={() => onCampaignClick?.(campaign)}
-          >
-            <div className="font-medium text-green-800 truncate">
-              {campaign.title}
-            </div>
-            {campaign.theme && (
-              <div className="text-green-600 truncate">
-                {campaign.theme}
+        {campaigns.slice(0, 2).map((campaign) => {
+          const isSelected = isCampaignSelected(campaign);
+          
+          return (
+            <div
+              key={campaign.id}
+              className={cn(
+                "text-xs p-1 border rounded cursor-pointer transition-colors relative",
+                selectionMode && isSelected 
+                  ? "bg-blue-200 border-blue-400" 
+                  : "bg-green-100 border-green-200 hover:bg-green-200"
+              )}
+              onClick={() => onCampaignClick?.(campaign)}
+            >
+              {selectionMode && isSelected && (
+                <div className="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center">
+                  <Check className="w-2 h-2" />
+                </div>
+              )}
+              
+              <div className="font-medium text-green-800 truncate">
+                {campaign.title}
               </div>
-            )}
-          </div>
-        ))}
+              {campaign.theme && (
+                <div className="text-green-600 truncate">
+                  {campaign.theme}
+                </div>
+              )}
+            </div>
+          );
+        })}
         
         {campaigns.length > 2 && (
           <div className="text-xs text-gray-500 text-center">
