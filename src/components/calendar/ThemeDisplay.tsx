@@ -4,14 +4,25 @@ import { Edit2, Palette, FileText, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { generateThemeDescription } from "./ThemeDescriptionGenerator";
 import { useAuth } from "@/contexts/AuthContext";
+import { GenerateContentPackButton } from "@/components/content/GenerateContentPackButton";
 
 interface ThemeDisplayProps {
+  campaignId?: string;
   currentTheme: string;
   currentDescription?: string;
+  weekNumber?: number;
   onEdit: () => void;
+  onContentGenerated?: () => void;
 }
 
-export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: ThemeDisplayProps) => {
+export const ThemeDisplay = ({ 
+  campaignId,
+  currentTheme, 
+  currentDescription, 
+  weekNumber,
+  onEdit, 
+  onContentGenerated 
+}: ThemeDisplayProps) => {
   const { user } = useAuth();
   const [isGeneratingHeadline, setIsGeneratingHeadline] = useState(false);
   const [generatedHeadline, setGeneratedHeadline] = useState<string>("");
@@ -92,7 +103,7 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
   const displayTheme = generatedHeadline || cleanTheme(currentTheme);
 
   return (
-    <div className="space-y-3 bg-white">
+    <div className="space-y-4 bg-white">
       <div className="group bg-white">
         <div className="flex items-center justify-between mb-1 bg-white">
           <div className="flex items-center gap-2 bg-white">
@@ -157,6 +168,23 @@ export const ThemeDisplay = ({ currentTheme, currentDescription, onEdit }: Theme
               No content description set. Click here to add one.
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Generate Content Pack Button */}
+      {campaignId && currentTheme && (
+        <div className="pt-3 border-t border-gray-200 bg-white">
+          <GenerateContentPackButton
+            campaignId={campaignId}
+            campaignTitle={displayTheme}
+            theme={currentTheme}
+            description={currentDescription}
+            weekNumber={weekNumber}
+            onGenerated={onContentGenerated}
+            size="sm"
+            variant="outline"
+            className="w-full"
+          />
         </div>
       )}
     </div>
