@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
@@ -22,6 +21,17 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
       console.log('✅ Token spent for content generation');
     }
 
+    console.log('About to call supabase.functions.invoke with:', {
+      functionName: 'generate-content',
+      body: {
+        postType: postType,
+        campaignTitle: campaignTitle,
+        userId: userId,
+        weekDescription: weekDescription,
+        enforceCompanyName: true
+      }
+    });
+
     const { data, error } = await supabase.functions.invoke('generate-content', {
       body: {
         postType: postType,
@@ -33,10 +43,18 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
       }
     });
 
+    console.log('Supabase function response:', { data, error });
+
     if (error) {
       console.error('❌ Error generating personalized, region-aware content:', error);
-      throw error;
+      throw new Error(`Content generation failed: ${error.message || 'Unknown error'}`);
     }
+
+    if (!data) {
+      throw new Error('No data returned from content generation function');
+    }
+
+    console.log('Raw response data:', data);
 
     if (data.generationAttempts && data.generationAttempts > 1) {
       console.log(`✅ Content generated after ${data.generationAttempts} attempts with validation`);
@@ -46,11 +64,19 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
       console.warn('⚠️ Content generated but validation concerns remain');
     }
 
-    console.log(`✅ Generated ${postType} content successfully:`, data.content?.substring(0, 100) + '...');
-    return data.content || data.generatedText || `Generated ${postType} content for ${campaignTitle}`;
+    const content = data.content || data.generatedText;
+    if (!content) {
+      throw new Error('No content in response data');
+    }
+
+    console.log(`✅ Generated ${postType} content successfully:`, content.substring(0, 100) + '...');
+    return content;
   } catch (error) {
     console.error('❌ Error in generatePersonalizedContent:', error);
-    throw error;
+    
+    // Provide a fallback error message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    throw new Error(`Failed to generate ${postType} content: ${errorMessage}`);
   }
 };
 
@@ -89,11 +115,16 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
 
     if (error) {
       console.error('❌ Error generating newsletter content:', error);
-      throw error;
+      throw new Error(`Newsletter generation failed: ${error.message || 'Unknown error'}`);
     }
 
-    console.log(`✅ Generated newsletter content successfully:`, data.content?.substring(0, 100) + '...');
-    return data.content || data.generatedText || `Generated newsletter content for ${campaignTitle}`;
+    const content = data?.content || data?.generatedText;
+    if (!content) {
+      throw new Error('No newsletter content returned');
+    }
+
+    console.log(`✅ Generated newsletter content successfully:`, content.substring(0, 100) + '...');
+    return content;
   } catch (error) {
     console.error('❌ Error in generateNewsletterContent:', error);
     throw error;
@@ -132,11 +163,16 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
 
     if (error) {
       console.error('❌ Error generating video script:', error);
-      throw error;
+      throw new Error(`Video script generation failed: ${error.message || 'Unknown error'}`);
     }
 
-    console.log(`✅ Generated video script successfully:`, data.script?.substring(0, 100) + '...');
-    return data.script || data.generatedText || `Generated video script for ${campaignTitle}`;
+    const script = data?.script || data?.generatedText;
+    if (!script) {
+      throw new Error('No video script returned');
+    }
+
+    console.log(`✅ Generated video script successfully:`, script.substring(0, 100) + '...');
+    return script;
   } catch (error) {
     console.error('❌ Error in generateVideoScript:', error);
     throw error;

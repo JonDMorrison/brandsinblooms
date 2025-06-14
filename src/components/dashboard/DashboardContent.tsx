@@ -34,30 +34,45 @@ export const DashboardContent = ({
     if (!user) return;
 
     try {
-      // Get current week campaign
-      const { data: currentCampaign } = await supabase
+      console.log('Fetching campaign data for user:', user.id, 'week:', currentWeekNumber);
+
+      // Get current week campaign - handle multiple campaigns by selecting the most recent one
+      const { data: campaigns, error: campaignError } = await supabase
         .from('campaigns')
         .select('*')
         .eq('week_number', currentWeekNumber)
         .eq('user_id', user.id)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
+      if (campaignError) {
+        console.error('Error fetching campaigns:', campaignError);
+        throw campaignError;
+      }
+
+      // Select the most recent campaign if multiple exist
+      const currentCampaign = campaigns && campaigns.length > 0 ? campaigns[0] : null;
+      
+      console.log('Found campaigns:', campaigns?.length || 0, 'selected:', currentCampaign?.title);
       setActiveCampaign(currentCampaign);
 
       // Get task counts - need to join with campaigns to filter by user
       if (currentCampaign) {
-        const { data: tasks } = await supabase
+        const { data: tasks, error: tasksError } = await supabase
           .from('content_tasks')
           .select('*')
           .eq('campaign_id', currentCampaign.id);
 
-        if (tasks) {
+        if (tasksError) {
+          console.error('Error fetching tasks:', tasksError);
+        } else if (tasks) {
+          console.log('Found tasks for campaign:', tasks.length);
           setTasksCount(tasks.length);
           setCompletedTasksCount(tasks.filter(t => t.status === 'completed' || t.status === 'posted').length);
           setPendingTasksCount(tasks.filter(t => t.status === 'pending' || t.status === 'generated').length);
         }
       } else {
         // No active campaign, reset counts
+        console.log('No active campaign found, resetting counts');
         setTasksCount(0);
         setCompletedTasksCount(0);
         setPendingTasksCount(0);
@@ -74,6 +89,7 @@ export const DashboardContent = ({
   }, [user, currentWeekNumber]);
 
   const handleTaskUpdate = () => {
+    console.log('Task update triggered, refetching campaign data');
     fetchCampaignData();
   };
 

@@ -1,103 +1,112 @@
-
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
+  const currentWeekNumber = getCurrentWeekNumber();
 
   useEffect(() => {
-    const updateWeek24Campaign = async () => {
+    const updateWeeklyContent = async () => {
       if (!user) return;
 
-      console.log('🌱 Checking and updating Week 24 campaign with seasonal garden content...');
-
       try {
-        // First, check if Week 24 campaign exists and needs updating
-        const { data: existingCampaign, error: fetchError } = await supabase
+        console.log('WeeklyContentUpdater: Checking for week', currentWeekNumber, 'user:', user.id);
+
+        // Check if there are any campaigns for the current week for this user
+        const { data: existingCampaigns, error: checkError } = await supabase
           .from('campaigns')
           .select('*')
-          .eq('week_number', 24)
+          .eq('week_number', currentWeekNumber)
           .eq('user_id', user.id)
-          .maybeSingle();
+          .order('created_at', { ascending: false });
 
-        if (fetchError) {
-          console.error('Error fetching Week 24 campaign:', fetchError);
+        if (checkError) {
+          console.error('WeeklyContentUpdater: Error checking existing campaigns:', checkError);
           return;
         }
 
-        if (existingCampaign) {
-          // Check if it's still generic content that needs updating
-          const isGenericContent = 
-            existingCampaign.title === 'Week 24 Marketing Campaign' ||
-            existingCampaign.theme === 'Weekly Marketing' ||
-            (existingCampaign.description && existingCampaign.description.includes('Auto-generated weekly marketing campaign'));
+        console.log('WeeklyContentUpdater: Found existing campaigns:', existingCampaigns?.length || 0);
 
-          if (isGenericContent) {
-            console.log('✅ Found generic Week 24 campaign, updating with seasonal garden content...');
-
-            // Update with rich summer garden center theme
-            const summerTheme = {
-              title: "Summer Heat Solutions & Plant Care",
-              theme: "Summer Garden Mastery", 
-              description: "Master summer gardening challenges with heat-tolerant plants, efficient watering systems, and expert strategies for thriving gardens in hot weather. Focus on plant care, water conservation, and maintaining beautiful, productive gardens through peak summer conditions.",
-              prompt: "Create practical summer gardening content focused on heat tolerance, water conservation, summer plant care, and maintaining healthy gardens in hot weather for garden center customers.",
-              source: "seasonal_garden_themes"
-            };
-
-            const { error: updateError } = await supabase
-              .from('campaigns')
-              .update({
-                title: summerTheme.title,
-                theme: summerTheme.theme,
-                description: summerTheme.description,
-                prompt: summerTheme.prompt,
-                source: summerTheme.source
-              })
-              .eq('id', existingCampaign.id);
-
-            if (updateError) {
-              console.error('Error updating Week 24 campaign:', updateError);
-              return;
-            }
-
-            console.log('🌿 Successfully updated Week 24 with summer garden center theme!');
-            
-            // Also update any existing content tasks to reflect the new seasonal focus
-            const { data: existingTasks } = await supabase
+        // If there are multiple campaigns for the same week, clean up duplicates (keep the most recent)
+        if (existingCampaigns && existingCampaigns.length > 1) {
+          console.log('WeeklyContentUpdater: Cleaning up duplicate campaigns');
+          const campaignsToDelete = existingCampaigns.slice(1); // Keep the first (most recent), delete the rest
+          
+          for (const campaign of campaignsToDelete) {
+            // Delete associated tasks first
+            await supabase
               .from('content_tasks')
-              .select('id, notes')
-              .eq('campaign_id', existingCampaign.id);
-
-            if (existingTasks && existingTasks.length > 0) {
-              // Update task notes to reflect the new seasonal theme
-              for (const task of existingTasks) {
-                await supabase
-                  .from('content_tasks')
-                  .update({ 
-                    notes: `Generated from theme: ${summerTheme.theme} - ${summerTheme.description}` 
-                  })
-                  .eq('id', task.id);
-              }
-              console.log(`🌱 Updated ${existingTasks.length} content tasks with seasonal context`);
-            }
-
-            toast.success('🌿 Week 24 updated with summer garden center content!');
-          } else {
-            console.log('Week 24 campaign already has seasonal content');
+              .delete()
+              .eq('campaign_id', campaign.id);
+            
+            // Then delete the campaign
+            await supabase
+              .from('campaigns')
+              .delete()
+              .eq('id', campaign.id);
           }
-        } else {
-          console.log('No Week 24 campaign found for this user');
+          
+          console.log('WeeklyContentUpdater: Cleaned up', campaignsToDelete.length, 'duplicate campaigns');
         }
+
+        // If no campaigns exist for current week, create one
+        if (!existingCampaigns || existingCampaigns.length === 0) {
+          console.log('WeeklyContentUpdater: No campaign found for week', currentWeekNumber, ', creating one');
+          
+          // Generate a theme for the current week
+          const { data: themeData, error: themeError } = await supabase.functions.invoke('generate-weekly-themes', {
+            body: { 
+              userId: user.id, 
+              weekNumber: currentWeekNumber 
+            }
+          });
+
+          if (themeError) {
+            console.error('WeeklyContentUpdater: Error generating theme:', themeError);
+            return;
+          }
+
+          const theme = themeData?.themes?.[0];
+          if (!theme) {
+            console.error('WeeklyContentUpdater: No theme generated');
+            return;
+          }
+
+          // Create the campaign
+          const { data: newCampaign, error: campaignError } = await supabase
+            .from('campaigns')
+            .insert({
+              week_number: currentWeekNumber,
+              title: theme.title,
+              description: theme.description,
+              theme: theme.title,
+              prompt: theme.description,
+              start_date: new Date().toISOString().split('T')[0],
+              user_id: user.id,
+              source: 'auto_generated'
+            })
+            .select()
+            .single();
+
+          if (campaignError) {
+            console.error('WeeklyContentUpdater: Error creating campaign:', campaignError);
+            return;
+          }
+
+          console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title);
+        } else {
+          console.log('WeeklyContentUpdater: Campaign already exists for week', currentWeekNumber);
+        }
+
       } catch (error) {
-        console.error('Error updating Week 24 campaign:', error);
+        console.error('WeeklyContentUpdater: Unexpected error:', error);
       }
     };
 
-    // Run the update when component mounts
-    updateWeek24Campaign();
-  }, [user]);
+    updateWeeklyContent();
+  }, [user, currentWeekNumber]);
 
-  return null; // This is a utility component that doesn't render anything
+  return null; // This component doesn't render anything
 };
