@@ -8,12 +8,23 @@ import { CurrentCampaignSection } from "./CurrentCampaignSection";
 import { QuickStatsSection } from "./QuickStatsSection";
 import { ContentPreviewGrid } from "./ContentPreviewGrid";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
-import type { Campaign } from "@/types";
 
 interface DashboardContentProps {
   onboardingData: any;
   onBusinessNameChange: (name: string) => void;
   onCampaignCreated: () => void;
+}
+
+interface Campaign {
+  id: string;
+  title: string;
+  description?: string;
+  theme?: string;
+  source?: string;
+  week_number: number;
+  start_date: string;
+  created_at: string;
+  user_id: string;
 }
 
 export const DashboardContent = ({
