@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -140,10 +139,6 @@ export const CalendarGrid = ({
                 <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-sm font-medium">
                   Week {currentWeekNumber}
                 </Badge>
-                <div className="text-sm text-gray-600 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4" />
-                  {totalCampaigns} total campaigns, {activeCampaigns} upcoming
-                </div>
               </div>
             </div>
           </div>
