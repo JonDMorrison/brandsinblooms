@@ -1,5 +1,6 @@
 
 import { CalendarView } from "@/components/CalendarView";
+import { BackfillCampaigns } from "@/components/calendar/BackfillCampaigns";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
@@ -16,6 +17,7 @@ const CalendarPage = () => {
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showBackfill, setShowBackfill] = useState(false);
   
   // Add state for quick action modals
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
@@ -59,6 +61,14 @@ const CalendarPage = () => {
 
       setCampaigns(campaignsData || []);
       setTasks(tasksData || []);
+      
+      // Check if user needs backfill (less than 50 campaigns suggests incomplete set)
+      const campaignCount = campaignsData?.length || 0;
+      if (campaignCount > 0 && campaignCount < 50) {
+        setShowBackfill(true);
+      } else {
+        setShowBackfill(false);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       setError(error instanceof Error ? error.message : 'Failed to load calendar data');
@@ -82,6 +92,11 @@ const CalendarPage = () => {
     setShowNewCampaignModal(false);
     fetchData();
     toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
+  };
+
+  const handleBackfillComplete = () => {
+    setShowBackfill(false);
+    fetchData();
   };
 
   if (loading) {
@@ -191,7 +206,15 @@ const CalendarPage = () => {
         </div>
         
         {/* Calendar Content */}
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="max-w-7xl mx-auto p-6 space-y-6">
+          {/* Backfill Component */}
+          {showBackfill && (
+            <BackfillCampaigns 
+              currentCampaignCount={campaigns.length}
+              onBackfillComplete={handleBackfillComplete}
+            />
+          )}
+          
           <CalendarView 
             campaigns={campaigns} 
             tasks={tasks}
