@@ -1,9 +1,10 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronUp, FileText, AlertCircle } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, AlertCircle, Eye } from "lucide-react";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { Badge } from "@/components/ui/badge";
+import { ContentPackReviewModal } from "./ContentPackReviewModal";
 
 interface CampaignContentSectionProps {
   campaignId: string;
@@ -22,11 +23,16 @@ export const CampaignContentSection = ({
 }: CampaignContentSectionProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const canGenerateContent = hasTheme && hasDescription;
 
   const handleViewContent = () => {
     setShowContentViewer(true);
+  };
+
+  const handleReviewGeneratedContent = () => {
+    setShowReviewModal(true);
   };
 
   const handleContentUpdate = () => {
@@ -88,7 +94,7 @@ export const CampaignContentSection = ({
             onClick={handleViewContent}
             className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700"
           >
-            <FileText className="w-3 h-3 mr-1" />
+            <Eye className="w-3 h-3 mr-1" />
             Review All
           </Button>
         </div>
@@ -96,12 +102,22 @@ export const CampaignContentSection = ({
 
       {isExpanded && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <p className="text-sm text-gray-600 mb-3">
-            Generated content for this campaign will appear here after generation. 
-            Use the "Generate Content Pack" button above to create content.
-          </p>
-          <div className="text-xs text-gray-500">
-            Content types: Social media posts, email content, newsletter content, and more.
+          <div className="space-y-3">
+            <p className="text-sm text-gray-600">
+              Generated content for this campaign will appear here after using the "Generate Content Pack" button above.
+            </p>
+            <div className="text-xs text-gray-500">
+              Content types: Social media posts, email content, newsletter content, video scripts, and more.
+            </div>
+            <Button
+              size="sm"
+              onClick={handleReviewGeneratedContent}
+              variant="outline"
+              className="w-full"
+            >
+              <FileText className="w-3 h-3 mr-2" />
+              Review Generated Content Pack
+            </Button>
           </div>
         </div>
       )}
@@ -112,6 +128,14 @@ export const CampaignContentSection = ({
         isOpen={showContentViewer}
         onClose={() => setShowContentViewer(false)}
         onTaskUpdate={handleContentUpdate}
+      />
+
+      <ContentPackReviewModal
+        campaignId={campaignId}
+        campaignTitle={campaignTitle}
+        isOpen={showReviewModal}
+        onClose={() => setShowReviewModal(false)}
+        onContentApproved={handleContentUpdate}
       />
     </div>
   );

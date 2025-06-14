@@ -62,7 +62,7 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
   };
 
   const handleContentGenerated = () => {
-    toast.success('Content generated! Review it in the Generated Content section below.');
+    toast.success('Content pack generated! Use the review section below to approve your content.');
     setContentUpdateKey(prev => prev + 1);
   };
 
@@ -179,6 +179,7 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
                   currentDescription={campaign.description}
                   weekNumber={campaign.week_number}
                   onEdit={() => setIsEditing(true)}
+                  onContentGenerated={handleContentGenerated}
                 />
               )}
             </div>
