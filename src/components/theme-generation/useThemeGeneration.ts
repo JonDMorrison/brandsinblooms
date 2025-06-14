@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { getFallbackThemes } from "@/utils/fallbackThemes";
+import { useNetworkStatus } from "@/hooks/useNetworkStatus";
+import { handleError } from "@/utils/errorHandling";
 
 interface WeeklyTheme {
   week: number;
@@ -14,6 +16,7 @@ interface WeeklyTheme {
 
 export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) => void) => {
   const { user } = useAuth();
+  const { isOnline } = useNetworkStatus();
   const [loading, setLoading] = useState(false);
   const [generatedThemes, setGeneratedThemes] = useState<WeeklyTheme[]>([]);
   const [networkError, setNetworkError] = useState(false);
@@ -37,6 +40,14 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
     try {
       console.log(`Generating ${generateAll52Weeks ? '52-week' : 'weekly'} themes for user:`, user.id);
       
+      // If offline or previous network error, use fallback immediately
+      if (!isOnline) {
+        console.log('Offline detected, using fallback themes');
+        toast.info('You\'re offline. Using built-in seasonal themes.');
+        generateFallbackThemes();
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
           userId: user.id,
@@ -48,9 +59,11 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
       if (error) {
         console.error('Error generating themes:', error);
         
-        if (error.message?.includes('Failed to send a request') || error.message?.includes('Failed to fetch')) {
+        const appError = handleError(error, 'theme generation');
+        
+        if (appError.isNetworkError) {
           setNetworkError(true);
-          toast.error('Network connection issue. You can use starter themes while we resolve this.');
+          toast.warning('Network connection issue. Using starter themes while we resolve this.');
           if (generateAll52Weeks) {
             generateFallbackThemes();
           }
@@ -76,9 +89,11 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
     } catch (error: any) {
       console.error('Error generating weekly themes:', error);
       
-      if (error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
+      const appError = handleError(error, 'theme generation');
+      
+      if (appError.isNetworkError) {
         setNetworkError(true);
-        toast.error('Connection issue detected. Using starter themes instead.');
+        toast.warning('Connection issue detected. Using starter themes instead.');
         if (generateAll52Weeks) {
           generateFallbackThemes();
         }
