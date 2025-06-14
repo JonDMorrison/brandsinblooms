@@ -8,12 +8,24 @@ import { CurrentCampaignSection } from "./CurrentCampaignSection";
 import { QuickStatsSection } from "./QuickStatsSection";
 import { ContentPreviewGrid } from "./ContentPreviewGrid";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
-import type { Campaign } from "@/types";
 
 interface DashboardContentProps {
   onboardingData: any;
   onBusinessNameChange: (name: string) => void;
   onCampaignCreated: () => void;
+}
+
+// Use a simple interface to avoid type recursion issues
+interface CampaignData {
+  id: string;
+  title: string;
+  description: string | null;
+  theme: string | null;
+  source: string | null;
+  week_number: number;
+  start_date: string;
+  created_at: string;
+  user_id: string | null;
 }
 
 export const DashboardContent = ({
@@ -22,7 +34,7 @@ export const DashboardContent = ({
   onCampaignCreated
 }: DashboardContentProps) => {
   const { user } = useAuth();
-  const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
+  const [activeCampaign, setActiveCampaign] = useState<CampaignData | undefined>();
   const [tasksCount, setTasksCount] = useState(0);
   const [completedTasksCount, setCompletedTasksCount] = useState(0);
   const [pendingTasksCount, setPendingTasksCount] = useState(0);
@@ -111,7 +123,7 @@ export const DashboardContent = ({
       {/* Current Campaign Section */}
       <div data-campaign-section>
         <CurrentCampaignSection
-          activeCampaign={activeCampaign}
+          activeCampaign={activeCampaign as any}
           currentWeekNumber={currentWeekNumber}
           completedTasksCount={completedTasksCount}
           totalTasksCount={tasksCount}
@@ -125,7 +137,7 @@ export const DashboardContent = ({
       {/* Content Preview Grid */}
       {activeCampaign && (
         <ContentPreviewGrid 
-          campaign={activeCampaign}
+          campaign={activeCampaign as any}
           onTaskUpdate={handleTaskUpdate}
         />
       )}
