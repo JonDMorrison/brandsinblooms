@@ -4,9 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Clock, Sparkles, FileText, Copy, Check } from "lucide-react";
+import { CheckCircle, Clock, Sparkles, FileText, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ApproveButton } from "@/components/ui/approve-button";
 
 interface ContentTask {
   id: string;
@@ -35,7 +36,6 @@ export const ContentPackReviewModal = ({
 }: ContentPackReviewModalProps) => {
   const [tasks, setTasks] = useState<ContentTask[]>([]);
   const [loading, setLoading] = useState(true);
-  const [approving, setApproving] = useState<Set<string>>(new Set());
   const [approved, setApproved] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -56,6 +56,9 @@ export const ContentPackReviewModal = ({
 
       if (error) throw error;
       setTasks(data || []);
+      
+      // Reset approved state when fetching new data
+      setApproved(new Set());
     } catch (error) {
       console.error('Error fetching generated content:', error);
       toast.error('Failed to load generated content');
@@ -64,8 +67,8 @@ export const ContentPackReviewModal = ({
     }
   };
 
-  const handleApproveTask = async (taskId: string) => {
-    setApproving(prev => new Set(prev).add(taskId));
+  const handleApproveTask = async (taskId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
     
     try {
       const { error } = await supabase
@@ -84,12 +87,7 @@ export const ContentPackReviewModal = ({
     } catch (error) {
       console.error('Error approving task:', error);
       toast.error('Failed to approve content');
-    } finally {
-      setApproving(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(taskId);
-        return newSet;
-      });
+      throw error; // Re-throw to let ApproveButton handle loading state
     }
   };
 
@@ -121,6 +119,11 @@ export const ContentPackReviewModal = ({
     toast.success('Content copied to clipboard!');
   };
 
+  const handleCloseModal = () => {
+    // Explicitly handle modal closure - only close when user clicks close button
+    onClose();
+  };
+
   const getPostTypeIcon = (type: string) => {
     switch (type) {
       case 'facebook': return '📘';
@@ -135,7 +138,7 @@ export const ContentPackReviewModal = ({
 
   if (loading) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={handleCloseModal}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -154,7 +157,7 @@ export const ContentPackReviewModal = ({
 
   if (tasks.length === 0) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
+      <Dialog open={isOpen} onOpenChange={handleCloseModal}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -166,7 +169,7 @@ export const ContentPackReviewModal = ({
             <p className="text-gray-600 mb-4">
               No generated content found for this campaign. Use the "Generate Content Pack" button to create content first.
             </p>
-            <Button onClick={onClose}>Close</Button>
+            <Button onClick={handleCloseModal}>Close</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -176,7 +179,7 @@ export const ContentPackReviewModal = ({
   const unapprovedCount = tasks.filter(task => !approved.has(task.id)).length;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleCloseModal}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
@@ -206,7 +209,6 @@ export const ContentPackReviewModal = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {tasks.map((task) => {
               const isApproved = approved.has(task.id);
-              const isApproving = approving.has(task.id);
               
               return (
                 <Card key={task.id} className="border-2">
@@ -255,26 +257,12 @@ export const ContentPackReviewModal = ({
                         Copy
                       </Button>
                       
-                      {!isApproved && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleApproveTask(task.id)}
-                          disabled={isApproving}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          {isApproving ? (
-                            <>
-                              <div className="animate-spin rounded-full h-3 w-3 border-b border-white mr-1"></div>
-                              Approving...
-                            </>
-                          ) : (
-                            <>
-                              <Check className="w-3 h-3 mr-1" />
-                              Approve
-                            </>
-                          )}
-                        </Button>
-                      )}
+                      <ApproveButton
+                        isApproved={isApproved}
+                        onApprove={(event) => handleApproveTask(task.id, event)}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                      />
                     </div>
                   </CardContent>
                 </Card>
@@ -286,7 +274,7 @@ export const ContentPackReviewModal = ({
             <p className="text-sm text-gray-600 mb-3">
               Once approved, content will appear on your calendar with scheduled dates.
             </p>
-            <Button onClick={onClose} variant="outline">
+            <Button onClick={handleCloseModal} variant="outline">
               Close Review
             </Button>
           </div>

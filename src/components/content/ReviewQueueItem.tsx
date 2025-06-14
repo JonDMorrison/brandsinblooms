@@ -73,6 +73,8 @@ export const ReviewQueueItem = ({
   };
 
   const handleApproveWrapper = async (event: React.MouseEvent) => {
+    event.stopPropagation();
+    
     try {
       // Update status to 'posted' so it appears in the Ready to Post section
       const { error } = await supabase
@@ -83,7 +85,7 @@ export const ReviewQueueItem = ({
       if (error) {
         console.error('Error approving task:', error);
         toast.error('Failed to approve content');
-        return;
+        throw error;
       }
 
       toast.success('Content approved and ready to post!');
@@ -91,6 +93,7 @@ export const ReviewQueueItem = ({
     } catch (error) {
       console.error('Error approving task:', error);
       toast.error('Failed to approve content');
+      throw error;
     }
   };
 
