@@ -30,6 +30,61 @@ export const DashboardContent = ({
 
   const currentWeekNumber = getCurrentWeekNumber();
 
+  // Smart campaign selection that prioritizes campaigns with content
+  const selectBestCampaign = async (campaigns: Campaign[]) => {
+    if (campaigns.length === 0) return null;
+    if (campaigns.length === 1) return campaigns[0];
+
+    console.log('DashboardContent: Multiple campaigns found, selecting best one:', campaigns.length);
+
+    // For each campaign, check if it has content
+    const campaignsWithContentCount = await Promise.all(
+      campaigns.map(async (campaign) => {
+        const { data: tasks } = await supabase
+          .from('content_tasks')
+          .select('id, ai_output')
+          .eq('campaign_id', campaign.id);
+
+        const tasksWithContent = tasks?.filter(task => task.ai_output && task.ai_output.trim() !== '') || [];
+        
+        return {
+          campaign,
+          taskCount: tasks?.length || 0,
+          contentCount: tasksWithContent.length,
+          hasContent: tasksWithContent.length > 0
+        };
+      })
+    );
+
+    // Sort by: 1) has content, 2) content count, 3) task count, 4) most recent
+    campaignsWithContentCount.sort((a, b) => {
+      if (a.hasContent !== b.hasContent) return b.hasContent ? 1 : -1;
+      if (a.contentCount !== b.contentCount) return b.contentCount - a.contentCount;
+      if (a.taskCount !== b.taskCount) return b.taskCount - a.taskCount;
+      return new Date(b.campaign.created_at || '').getTime() - new Date(a.campaign.created_at || '').getTime();
+    });
+
+    const selectedCampaign = campaignsWithContentCount[0].campaign;
+    console.log('DashboardContent: Selected campaign with content:', selectedCampaign.title, 'Content count:', campaignsWithContentCount[0].contentCount);
+
+    // Clean up other campaigns in background (don't await)
+    const campaignsToCleanup = campaignsWithContentCount.slice(1).filter(c => !c.hasContent);
+    if (campaignsToCleanup.length > 0) {
+      console.log('DashboardContent: Cleaning up', campaignsToCleanup.length, 'empty duplicate campaigns');
+      campaignsToCleanup.forEach(async ({ campaign }) => {
+        try {
+          await supabase.from('content_tasks').delete().eq('campaign_id', campaign.id);
+          await supabase.from('campaigns').delete().eq('id', campaign.id);
+          console.log('DashboardContent: Cleaned up empty campaign:', campaign.title);
+        } catch (error) {
+          console.error('DashboardContent: Error cleaning up campaign:', error);
+        }
+      });
+    }
+
+    return selectedCampaign;
+  };
+
   const fetchCampaignData = async () => {
     if (!user) return;
 
@@ -52,51 +107,33 @@ export const DashboardContent = ({
       console.log('DashboardContent: Found campaigns for week', currentWeekNumber, ':', campaigns?.length || 0);
       
       if (campaigns && campaigns.length > 0) {
-        // Select the most recent campaign
-        const selectedCampaign = campaigns[0];
-        console.log('DashboardContent: Selected campaign:', selectedCampaign.title, 'ID:', selectedCampaign.id);
-        setActiveCampaign(selectedCampaign);
+        // Use smart campaign selection
+        const selectedCampaign = await selectBestCampaign(campaigns);
+        
+        if (selectedCampaign) {
+          console.log('DashboardContent: Selected campaign:', selectedCampaign.title, 'ID:', selectedCampaign.id);
+          setActiveCampaign(selectedCampaign);
 
-        // If there are duplicates, clean them up in background
-        if (campaigns.length > 1) {
-          console.log('DashboardContent: Found', campaigns.length, 'campaigns for week', currentWeekNumber, '- cleaning up duplicates');
-          const campaignsToDelete = campaigns.slice(1);
-          
-          // Delete duplicate campaigns and their tasks in background
-          campaignsToDelete.forEach(async (campaign) => {
-            try {
-              // Delete associated tasks first
-              await supabase
-                .from('content_tasks')
-                .delete()
-                .eq('campaign_id', campaign.id);
-              
-              // Then delete the campaign
-              await supabase
-                .from('campaigns')
-                .delete()
-                .eq('id', campaign.id);
-              
-              console.log('DashboardContent: Cleaned up duplicate campaign:', campaign.title);
-            } catch (error) {
-              console.error('DashboardContent: Error cleaning up duplicate campaign:', error);
-            }
-          });
-        }
+          // Get task counts for the selected campaign
+          const { data: tasks, error: tasksError } = await supabase
+            .from('content_tasks')
+            .select('*')
+            .eq('campaign_id', selectedCampaign.id);
 
-        // Get task counts for the selected campaign
-        const { data: tasks, error: tasksError } = await supabase
-          .from('content_tasks')
-          .select('*')
-          .eq('campaign_id', selectedCampaign.id);
-
-        if (tasksError) {
-          console.error('DashboardContent: Error fetching tasks:', tasksError);
-        } else if (tasks) {
-          console.log('DashboardContent: Found tasks for campaign:', tasks.length);
-          setTasksCount(tasks.length);
-          setCompletedTasksCount(tasks.filter(t => t.status === 'completed' || t.status === 'posted').length);
-          setPendingTasksCount(tasks.filter(t => t.status === 'pending' || t.status === 'generated').length);
+          if (tasksError) {
+            console.error('DashboardContent: Error fetching tasks:', tasksError);
+          } else if (tasks) {
+            console.log('DashboardContent: Found tasks for campaign:', tasks.length);
+            setTasksCount(tasks.length);
+            setCompletedTasksCount(tasks.filter(t => t.status === 'completed' || t.status === 'posted').length);
+            setPendingTasksCount(tasks.filter(t => t.status === 'pending' || t.status === 'generated').length);
+          }
+        } else {
+          console.log('DashboardContent: No valid campaign selected');
+          setActiveCampaign(undefined);
+          setTasksCount(0);
+          setCompletedTasksCount(0);
+          setPendingTasksCount(0);
         }
       } else {
         console.log('DashboardContent: No campaigns found for week', currentWeekNumber);

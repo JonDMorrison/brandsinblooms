@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,46 +29,108 @@ export const WeeklyContentUpdater = () => {
 
         console.log('WeeklyContentUpdater: Found existing campaigns:', existingCampaigns?.length || 0);
 
-        // If there are multiple campaigns for the same week, clean up duplicates aggressively
+        // Enhanced cleanup logic for duplicates
         if (existingCampaigns && existingCampaigns.length > 1) {
-          console.log('WeeklyContentUpdater: Cleaning up duplicate campaigns for week', currentWeekNumber);
-          const campaignsToDelete = existingCampaigns.slice(1); // Keep the first (most recent), delete the rest
+          console.log('WeeklyContentUpdater: Found multiple campaigns, analyzing for cleanup...');
           
-          for (const campaign of campaignsToDelete) {
-            try {
-              console.log('WeeklyContentUpdater: Deleting duplicate campaign:', campaign.title, campaign.id);
-              
-              // Delete associated tasks first
-              const { error: tasksDeleteError } = await supabase
+          // Check content for each campaign
+          const campaignsWithContent = await Promise.all(
+            existingCampaigns.map(async (campaign) => {
+              const { data: tasks } = await supabase
                 .from('content_tasks')
-                .delete()
+                .select('id, ai_output')
                 .eq('campaign_id', campaign.id);
-              
-              if (tasksDeleteError) {
-                console.error('WeeklyContentUpdater: Error deleting tasks for campaign', campaign.id, ':', tasksDeleteError);
+
+              const hasContent = tasks?.some(task => task.ai_output && task.ai_output.trim() !== '') || false;
+              const taskCount = tasks?.length || 0;
+
+              return {
+                campaign,
+                hasContent,
+                taskCount
+              };
+            })
+          );
+
+          // Find campaigns to delete (empty ones when there are campaigns with content)
+          const campaignsWithActualContent = campaignsWithContent.filter(c => c.hasContent);
+          const emptyCampaigns = campaignsWithContent.filter(c => !c.hasContent);
+
+          // If we have campaigns with content, delete the empty ones
+          if (campaignsWithActualContent.length > 0 && emptyCampaigns.length > 0) {
+            console.log('WeeklyContentUpdater: Deleting', emptyCampaigns.length, 'empty campaigns');
+            
+            for (const { campaign } of emptyCampaigns) {
+              try {
+                console.log('WeeklyContentUpdater: Deleting empty campaign:', campaign.title, campaign.id);
+                
+                // Delete associated tasks first
+                await supabase
+                  .from('content_tasks')
+                  .delete()
+                  .eq('campaign_id', campaign.id);
+                
+                // Then delete the campaign
+                await supabase
+                  .from('campaigns')
+                  .delete()
+                  .eq('id', campaign.id);
+                
+                console.log('WeeklyContentUpdater: Successfully deleted empty campaign:', campaign.title);
+              } catch (error) {
+                console.error('WeeklyContentUpdater: Error deleting empty campaign', campaign.id, ':', error);
               }
-              
-              // Then delete the campaign
-              const { error: campaignDeleteError } = await supabase
-                .from('campaigns')
-                .delete()
-                .eq('id', campaign.id);
-              
-              if (campaignDeleteError) {
-                console.error('WeeklyContentUpdater: Error deleting campaign', campaign.id, ':', campaignDeleteError);
-              } else {
-                console.log('WeeklyContentUpdater: Successfully deleted duplicate campaign:', campaign.title);
-              }
-            } catch (error) {
-              console.error('WeeklyContentUpdater: Error in cleanup for campaign', campaign.id, ':', error);
             }
           }
-          
-          console.log('WeeklyContentUpdater: Finished cleaning up', campaignsToDelete.length, 'duplicate campaigns');
+          // If all campaigns are empty, keep the most recent one and delete the rest
+          else if (campaignsWithActualContent.length === 0 && emptyCampaigns.length > 1) {
+            const campaignsToDelete = emptyCampaigns.slice(1); // Keep first (most recent), delete rest
+            
+            console.log('WeeklyContentUpdater: All campaigns are empty, keeping most recent, deleting', campaignsToDelete.length);
+            
+            for (const { campaign } of campaignsToDelete) {
+              try {
+                await supabase.from('content_tasks').delete().eq('campaign_id', campaign.id);
+                await supabase.from('campaigns').delete().eq('id', campaign.id);
+                console.log('WeeklyContentUpdater: Deleted duplicate empty campaign:', campaign.title);
+              } catch (error) {
+                console.error('WeeklyContentUpdater: Error deleting duplicate campaign:', error);
+              }
+            }
+          }
+          // If we have multiple campaigns with content, keep the one with most content
+          else if (campaignsWithActualContent.length > 1) {
+            console.log('WeeklyContentUpdater: Multiple campaigns with content, keeping the best one');
+            
+            // Sort by content amount, then by creation date
+            campaignsWithActualContent.sort((a, b) => {
+              if (a.taskCount !== b.taskCount) return b.taskCount - a.taskCount;
+              return new Date(b.campaign.created_at || '').getTime() - new Date(a.campaign.created_at || '').getTime();
+            });
+
+            const campaignsToDelete = campaignsWithActualContent.slice(1);
+            
+            for (const { campaign } of campaignsToDelete) {
+              try {
+                await supabase.from('content_tasks').delete().eq('campaign_id', campaign.id);
+                await supabase.from('campaigns').delete().eq('id', campaign.id);
+                console.log('WeeklyContentUpdater: Deleted redundant campaign with content:', campaign.title);
+              } catch (error) {
+                console.error('WeeklyContentUpdater: Error deleting redundant campaign:', error);
+              }
+            }
+          }
         }
 
+        // Re-check after cleanup
+        const { data: finalCampaigns } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('week_number', currentWeekNumber)
+          .eq('user_id', user.id);
+
         // If no campaigns exist for current week, create one
-        if (!existingCampaigns || existingCampaigns.length === 0) {
+        if (!finalCampaigns || finalCampaigns.length === 0) {
           console.log('WeeklyContentUpdater: No campaign found for week', currentWeekNumber, ', creating one');
           
           // Generate a theme for the current week
@@ -114,7 +175,7 @@ export const WeeklyContentUpdater = () => {
 
           console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title);
         } else {
-          console.log('WeeklyContentUpdater: Campaign already exists for week', currentWeekNumber, '- campaign:', existingCampaigns[0].title);
+          console.log('WeeklyContentUpdater: Campaign exists for week', currentWeekNumber, '- campaign:', finalCampaigns[0].title);
         }
 
       } catch (error) {
