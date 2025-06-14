@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ContentTaskItem } from "./task-item/ContentTaskItem";
+import { ContentTaskItem } from "./ContentTaskItem";
 import { FileText, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
