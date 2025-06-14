@@ -1,18 +1,19 @@
 
 import { useState, useEffect } from "react";
-import { DashboardGrid } from "./DashboardGrid";
-import { DashboardSkeleton } from "./DashboardSkeleton";
-import { DashboardError } from "./DashboardError";
-import { useDashboardData } from "./useDashboardData";
-import { ContentSidebar } from "@/components/ContentSidebar";
-import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { cleanupDuplicateProfiles, ensureFirstTimeFlags } from "@/utils/profileCleanup";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
+import { CurrentCampaignSection } from "./CurrentCampaignSection";
+import { QuickStatsSection } from "./QuickStatsSection";
+import { ContentPreviewGrid } from "./ContentPreviewGrid";
+import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
+import type { Campaign } from "@/types";
 
 interface DashboardContentProps {
   onboardingData: any;
-  onBusinessNameChange?: (newName: string) => void;
-  onCampaignCreated?: () => void;
+  onBusinessNameChange: (name: string) => void;
+  onCampaignCreated: () => void;
 }
 
 export const DashboardContent = ({
@@ -21,122 +22,113 @@ export const DashboardContent = ({
   onCampaignCreated
 }: DashboardContentProps) => {
   const { user } = useAuth();
-  const [selectedTask, setSelectedTask] = useState<any>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [hasRunCleanup, setHasRunCleanup] = useState(false);
+  const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
+  const [tasksCount, setTasksCount] = useState(0);
+  const [completedTasksCount, setCompletedTasksCount] = useState(0);
+  const [pendingTasksCount, setPendingTasksCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const {
-    activeCampaign,
-    userCreatedCampaigns,
-    tasks,
-    currentWeekNumber,
-    completedTasksCount,
-    totalTasksCount,
-    pendingTasksCount,
-    loading,
-    error,
-    refetch
-  } = useDashboardData();
+  const currentWeekNumber = getCurrentWeekNumber();
 
-  // Run cleanup once when component mounts
-  useEffect(() => {
-    const runCleanup = async () => {
-      if (!user || hasRunCleanup) return;
-      
-      console.log('Running dashboard cleanup for first impression...');
-      
-      // Clean up any duplicate profiles
-      await cleanupDuplicateProfiles(user.id);
-      
-      // Ensure first time flags are set correctly if user has content
-      await ensureFirstTimeFlags(user.id);
-      
-      setHasRunCleanup(true);
-      
-      // Refetch data after cleanup
-      setTimeout(() => {
-        refetch();
-      }, 1000);
-    };
-    
-    runCleanup();
-  }, [user, hasRunCleanup, refetch]);
+  const fetchCampaignData = async () => {
+    if (!user) return;
 
-  const handleTaskClick = (task: any) => {
-    console.log('DashboardContent: Task clicked:', task);
-    setSelectedTask(task);
-    setIsSidebarOpen(true);
-  };
+    try {
+      // Get current week campaign
+      const { data: currentCampaign } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('week_number', currentWeekNumber)
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-  const handleSidebarClose = () => {
-    console.log('DashboardContent: Closing sidebar');
-    setIsSidebarOpen(false);
-    setSelectedTask(null);
-  };
+      setActiveCampaign(currentCampaign);
 
-  const handleTaskUpdate = () => {
-    refetch();
-  };
+      // Get task counts
+      const { data: tasks } = await supabase
+        .from('content_tasks')
+        .select('*')
+        .eq('user_id', user.id);
 
-  const handleCampaignCreatedInternal = () => {
-    refetch();
-    onCampaignCreated?.();
-  };
-
-  const handleCreateCampaign = () => {
-    // This could trigger a modal or navigate to campaign creation
-    console.log('Create campaign clicked');
-  };
-
-  const handleFirstTimeGetStarted = () => {
-    // Scroll to the content section or open the first task
-    if (tasks.length > 0) {
-      const firstTask = tasks.find(task => task.status === 'pending' || task.status === 'draft');
-      if (firstTask) {
-        handleTaskClick(firstTask);
+      if (tasks) {
+        setTasksCount(tasks.length);
+        setCompletedTasksCount(tasks.filter(t => t.status === 'completed' || t.status === 'posted').length);
+        setPendingTasksCount(tasks.filter(t => t.status === 'pending' || t.status === 'generated').length);
       }
+    } catch (error) {
+      console.error('Error fetching campaign data:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading && !hasRunCleanup) {
-    return <DashboardSkeleton />;
-  }
+  useEffect(() => {
+    fetchCampaignData();
+  }, [user, currentWeekNumber]);
 
-  if (error) {
-    return <DashboardError onRetry={refetch} />;
+  const handleTaskUpdate = () => {
+    fetchCampaignData();
+  };
+
+  const handleGetStarted = () => {
+    // Scroll to current campaign section or trigger content viewer
+    const campaignSection = document.querySelector('[data-campaign-section]');
+    if (campaignSection) {
+      campaignSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your garden center content...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1 p-6">
-        {/* First Time User Welcome - Shows amazing first impression */}
-        <FirstTimeUserWelcome 
-          onGetStarted={handleFirstTimeGetStarted}
-          tasksCount={totalTasksCount}
-        />
-        
-        <DashboardGrid
+    <div className="space-y-8">
+      {/* Weekly Content Updater - runs automatically to fix Week 24 */}
+      <WeeklyContentUpdater />
+      
+      {/* First Time User Welcome */}
+      <FirstTimeUserWelcome 
+        onGetStarted={handleGetStarted}
+        tasksCount={tasksCount}
+      />
+
+      {/* Quick Stats */}
+      <QuickStatsSection 
+        totalTasks={tasksCount}
+        completedTasks={completedTasksCount}
+        pendingTasks={pendingTasksCount}
+        activeCampaigns={activeCampaign ? 1 : 0}
+      />
+
+      {/* Current Campaign Section */}
+      <div data-campaign-section>
+        <CurrentCampaignSection
           activeCampaign={activeCampaign}
-          userCreatedCampaigns={userCreatedCampaigns}
-          tasks={tasks}
           currentWeekNumber={currentWeekNumber}
           completedTasksCount={completedTasksCount}
-          totalTasksCount={totalTasksCount}
+          totalTasksCount={tasksCount}
           pendingTasksCount={pendingTasksCount}
           onTaskUpdate={handleTaskUpdate}
-          onCampaignCreated={handleCampaignCreatedInternal}
-          onCampaignUpdate={refetch}
-          onCreateCampaign={handleCreateCampaign}
-          onTaskClick={handleTaskClick}
+          onCreateCampaign={onCampaignCreated}
+          onCampaignCreated={fetchCampaignData}
         />
       </div>
 
-      <ContentSidebar
-        isOpen={isSidebarOpen}
-        onClose={handleSidebarClose}
-        task={selectedTask}
-        onTaskUpdate={handleTaskUpdate}
-      />
+      {/* Content Preview Grid */}
+      {activeCampaign && (
+        <ContentPreviewGrid 
+          campaign={activeCampaign}
+          onTaskUpdate={handleTaskUpdate}
+        />
+      )}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { AutoCampaignCreator } from "./current-campaign/AutoCampaignCreator";
 import { NoCampaignState } from "./current-campaign/NoCampaignState";
 import { QuickActionsSection } from "./current-campaign/QuickActionsSection";
+import { SeasonalThemeDisplay } from "./current-campaign/SeasonalThemeDisplay";
 import { ContentPreviewSection } from "./ContentPreviewSection";
 import { supabase } from "@/integrations/supabase/client";
 import type { Campaign } from "@/types";
@@ -85,6 +86,11 @@ export const CurrentCampaignSection = ({
       
       {activeCampaign ? (
         <>
+          {/* Enhanced Seasonal Theme Display */}
+          <div className="mb-6">
+            <SeasonalThemeDisplay campaign={activeCampaign} />
+          </div>
+
           <CampaignCard 
             campaign={activeCampaign} 
             onTaskUpdate={onTaskUpdate}
