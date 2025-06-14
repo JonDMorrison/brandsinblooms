@@ -50,7 +50,6 @@ export const CampaignItem = ({ campaign, onThemeUpdate }: CampaignItemProps) => 
           campaignId={campaign.id.toString()}
           currentTheme={campaign.theme || ""}
           currentDescription={campaign.description || ""}
-          weekNumber={campaign.week_number}
           onThemeUpdate={(newTheme, newDescription) => onThemeUpdate(campaign.id.toString(), newTheme, newDescription)}
         />
       </div>
