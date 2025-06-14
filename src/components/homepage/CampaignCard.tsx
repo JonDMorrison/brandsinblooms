@@ -125,6 +125,7 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
               currentTheme={campaign.theme}
               currentDescription={campaign.description || undefined}
               onThemeUpdate={handleThemeUpdate}
+              hideLabel={true}
             />
           </div>
         )}
