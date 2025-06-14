@@ -163,22 +163,6 @@ const CalendarPage = () => {
                 <p className="text-lg text-gray-600 font-medium">
                   Plan, schedule, and track your marketing campaigns
                 </p>
-                
-                {/* Quick stats */}
-                <div className="flex items-center gap-6 mt-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    
-                    <span className="font-medium">{campaigns.length}</span> total campaigns
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    
-                    <span className="font-medium">{upcomingCampaigns}</span> upcoming
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    
-                    <span className="font-medium">{completedTasks}</span> tasks completed
-                  </div>
-                </div>
               </div>
               
               <div className="flex items-center gap-3">
