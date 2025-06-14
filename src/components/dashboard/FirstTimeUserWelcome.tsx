@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -97,9 +96,9 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
           </div>
           <div>
             <CardTitle className="text-2xl font-bold text-green-800 flex items-center gap-2">
-              🎉 Welcome to BloomSuite, {companyName}!
+              🌱 Welcome to BloomSuite, {companyName}!
             </CardTitle>
-            <p className="text-green-700 mt-1">Your AI marketing assistant has created amazing garden center content...</p>
+            <p className="text-green-700 mt-1">Your seasonal garden center content is ready to engage customers...</p>
           </div>
         </div>
       </CardHeader>
@@ -108,12 +107,12 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
         <div className="bg-white rounded-lg p-4 border border-green-200">
           <div className="flex items-center gap-3 mb-3">
             <CheckCircle className="w-6 h-6 text-green-600" />
-            <h3 className="font-semibold text-gray-800">Your Garden Center Content is Ready!</h3>
+            <h3 className="font-semibold text-gray-800">Your Seasonal Garden Center Content is Ready!</h3>
           </div>
           
           <p className="text-gray-600 mb-4">
-            We've analyzed your garden center business and automatically created {tasksCount} pieces of professional 
-            marketing content tailored specifically for garden centers and the current growing season.
+            We've created {tasksCount} pieces of professional garden center marketing content featuring 
+            seasonal plant care advice, gardening tips, and expert horticultural guidance tailored for your customers.
           </p>
           
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
@@ -127,8 +126,8 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
           
           <div className="bg-green-50 rounded-lg p-3 border border-green-200 mt-3">
             <p className="text-sm text-green-800 font-medium">
-              ✨ Each piece includes seasonal gardening tips, plant care advice, and promotional content 
-              perfectly suited for your garden center audience!
+              🌿 Each piece includes seasonal gardening advice, plant care expertise, and content designed 
+              to position your garden center as the trusted local gardening resource!
             </p>
           </div>
         </div>

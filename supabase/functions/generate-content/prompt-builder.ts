@@ -1,118 +1,117 @@
 
-import { CONTENT_TYPE_RULES, FALLBACK_MESSAGES } from './constants.ts';
-import { CompanyProfile } from './types.ts';
-
 export function buildContentPrompt(
-  contentType: string, 
+  postType: string, 
   campaignTitle: string, 
-  companyProfile: CompanyProfile | null, 
+  companyProfile: any, 
   weekDescription?: string,
-  enforceCompanyName?: boolean
+  enforceCompanyName: boolean = true
 ): string {
-  const rules = CONTENT_TYPE_RULES[contentType];
-  if (!rules) {
-    throw new Error(`Unknown content type: ${contentType}`);
-  }
+  const companyName = companyProfile?.company_name || 'Your Garden Center';
+  const location = companyProfile?.location_info || 'your local area';
+  const specializations = companyProfile?.specializations || 'full-service garden center offerings';
   
-  let prompt = `Create ${contentType} content specifically about "${campaignTitle}"`;
-  if (weekDescription) {
-    prompt += ` with focus on: ${weekDescription}`;
-  }
-  
-  prompt += `\n\nCONTENT TYPE REQUIREMENTS:
-- Maximum ${rules.max_words} words
-- Tone: ${rules.tone}
-- Format: ${rules.format}
-- Call-to-action style: ${rules.cta_style}
-- Specific requirements: ${rules.specific_requirements.join(', ')}`;
-  
-  if (companyProfile) {
-    const brandVoice = companyProfile.brand_voice || 'Friendly but expert';
-    const toneOfWriting = companyProfile.tone_of_writing || 'Confident, clear, not salesy';
-    const companyName = companyProfile.company_name || '';
-    
-    prompt += `\n\nCOMPANY PROFILE:
-Company Name: ${companyName}
-Brand Voice: ${brandVoice}
-Tone of Writing: ${toneOfWriting}
-Target Audience: ${companyProfile.target_audience || ''}
-Specializations: ${companyProfile.specializations || ''}
-Location Info: ${companyProfile.location_info || ''}`;
-    
-    // CRITICAL COMPANY NAME ENFORCEMENT
-    if (companyName && companyName.trim() !== '') {
-      prompt += `\n\n🚨 CRITICAL RULE - COMPANY NAME ENFORCEMENT (FAILURE = REGENERATION):
-- ALWAYS use the exact company name "${companyName}" when referring to the business
-- NEVER use "[Company Name]", "[Business Name]", "Your Business", or generic placeholder names
-- NEVER use any placeholder text in square brackets like [business name] or [location]
-- When mentioning the business, ALWAYS use "${companyName}" specifically
-- Make the content personal and authentic to ${companyName}
-- This rule CANNOT be violated under any circumstances`;
-    } else {
-      prompt += `\n\n🚨 CRITICAL RULE - NO PLACEHOLDER TEXT (FAILURE = REGENERATION):
-- NEVER use "[Company Name]", "[Business Name]", "Your Business", or generic placeholder names
-- NEVER use any placeholder text in square brackets like [business name] or [location]
-- Use "we", "us", "our team", or "our experts" instead of placeholder company names
-- Make the content personal and authentic without generic placeholders
-- This rule CANNOT be violated under any circumstances`;
-    }
-    
-    if (companyProfile.location_info) {
-      const locationInfo = companyProfile.location_info;
-      prompt += `\n\n🚨 CRITICAL RULE - LOCATION ENFORCEMENT (FAILURE = REGENERATION):
-- ALWAYS use the actual location "${locationInfo}" when referring to the region
-- NEVER use "[Region]", "[Location]", or "[Business Location]"
-- NEVER use any placeholder text in square brackets
-- Reference the specific city, region, or area name directly
-- Make location references authentic and specific to ${locationInfo}
-- This rule CANNOT be violated under any circumstances`;
-    } else {
-      prompt += `\n\n🚨 CRITICAL RULE - NO LOCATION PLACEHOLDERS (FAILURE = REGENERATION):
-- NEVER use "[Region]", "[Location]", or "[Business Location]"
-- NEVER use any placeholder text in square brackets
-- Use "your area", "your region", or "locally" instead of placeholder locations
-- Make location references authentic without generic placeholders
-- This rule CANNOT be violated under any circumstances`;
-    }
-  } else {
-    prompt += `\n\n${FALLBACK_MESSAGES.missing_company_profile}`;
-    prompt += `\n${FALLBACK_MESSAGES.missing_location}`;
-    
-    prompt += `\n\n🚨 CRITICAL RULE - NO PLACEHOLDER TEXT (FAILURE = REGENERATION):
-- NEVER use "[Company Name]", "[Business Name]", "Your Business", or generic placeholder names
-- NEVER use "[Region]", "[Location]", or "[Business Location]"
-- NEVER use any placeholder text in square brackets
-- Use "we", "us", "our team", or "our experts" instead of placeholder company names
-- Use "your area", "your region", or "locally" instead of placeholder locations
-- This rule CANNOT be violated under any circumstances`;
-  }
-  
-  prompt += `\n\n🎯 WRITING STYLE REQUIREMENTS (CRITICAL - FAILURE = REGENERATION):
-1. PLAIN LANGUAGE ONLY: Write in natural, conversational language like speaking to a friend
-2. SHORT PARAGRAPHS: Maximum 2-3 sentences per paragraph for mobile readability
-3. NO TECHNICAL FORMATTING: Absolutely no markdown, code blocks, bullet points, or numbered lists
-4. NO SQUARE BRACKETS: Never use [anything] - all content must be complete and specific
-5. CONVERSATIONAL TONE: Sound like a knowledgeable business expert talking to familiar customers
-6. NATURAL FLOW: Write in flowing paragraphs, not lists or formatted blocks
+  // Garden center context for all content
+  const gardenCenterContext = `
+GARDEN CENTER BUSINESS CONTEXT:
+- Business: ${companyName} - a professional garden center serving ${location}
+- Specializations: ${specializations}
+- Focus: Plants, gardening supplies, landscaping, seasonal horticulture
+- Audience: Home gardeners, landscapers, plant enthusiasts
+- Expertise: Plant care, seasonal gardening, local growing conditions
+`;
 
-🚨 ABSOLUTE PROHIBITIONS (VIOLATION = IMMEDIATE REGENERATION):
-- NO "Welcome to" phrases - ABSOLUTELY FORBIDDEN
-- NO week numbers or week references (week 1, week 23, this week, etc.) - ABSOLUTELY FORBIDDEN
-- NO bullet points (•), numbered lists (1., 2., 3.), or dashes (-)
-- NO emojis anywhere in content
-- NO square bracket placeholders like [Company Name], [Region], [Location]
-- NO markdown formatting like **bold**, *italic*, or \`code\`
-- NO code blocks with \`\`\` or technical formatting
-- Write ONLY in natural, flowing paragraphs
+  const basePrompt = `${gardenCenterContext}
 
-CONTENT MUST BE:
-- Written in plain English like natural speech
-- Broken into short, mobile-friendly paragraphs
-- Completely free of any placeholder text
-- Specific to the "${campaignTitle}" theme
-- Authentic and personal without generic references
-- NEVER mention weeks, week numbers, or use "Welcome to" phrases
-- Focus on business value and customer benefits rather than assuming specific industry`;
-  
-  return prompt;
+CAMPAIGN: ${campaignTitle}
+${weekDescription ? `DESCRIPTION: ${weekDescription}` : ''}
+
+Create professional ${postType} content for this garden center campaign. Content must be:
+- Specifically relevant to garden centers and plant retail
+- Include seasonal gardening advice and plant care tips
+- Mention ${companyName} naturally (${enforceCompanyName ? 'REQUIRED' : 'preferred'})
+- Focus on gardening expertise and seasonal plant needs
+- Professional yet approachable tone for gardening community`;
+
+  switch (postType.toLowerCase()) {
+    case 'instagram':
+      return `${basePrompt}
+
+INSTAGRAM POST REQUIREMENTS:
+- 150-200 words maximum
+- Include 5-8 relevant gardening hashtags (#gardening #plants #seasonal)
+- Visual storytelling about plants, gardens, or seasonal activities
+- Engaging caption that educates about plant care or seasonal gardening
+- Call-to-action encouraging garden center visit or gardening activity
+- Focus on visual aspects: plant displays, seasonal color, garden transformations
+
+Format: Caption text followed by hashtags on separate lines.`;
+
+    case 'facebook':
+      return `${basePrompt}
+
+FACEBOOK POST REQUIREMENTS:
+- 200-300 words
+- Educational gardening content with practical tips
+- Community engagement focus - ask questions about gardening experiences
+- Include seasonal plant care advice or garden center highlights
+- Professional but conversational tone
+- Encourage comments and community discussion about gardening
+- Include call-to-action for visiting the garden center or trying gardening techniques
+
+Format: Engaging post text only.`;
+
+    case 'email':
+      return `${basePrompt}
+
+EMAIL CONTENT REQUIREMENTS:
+- Subject line that mentions seasonal gardening opportunity
+- 300-400 words
+- Valuable gardening advice or seasonal plant information
+- Personal, helpful tone from garden center experts
+- Include specific plant care tips or seasonal gardening tasks
+- Call-to-action to visit garden center for plants/supplies
+- Format as complete email with subject line
+
+Format:
+Subject: [compelling subject line]
+
+[Email body content]`;
+
+    case 'newsletter':
+      return `${basePrompt}
+
+NEWSLETTER SECTION REQUIREMENTS:
+- 400-500 words
+- Educational focus on seasonal gardening and plant care
+- Multiple topics: featured plants, seasonal tips, garden center news
+- Include specific plant varieties and care instructions
+- Professional gardening expertise throughout
+- Sections: seasonal highlights, plant spotlight, gardening tips
+- Call-to-action for garden center visit and plant purchases
+
+Format: Newsletter-style content with clear sections and gardening focus.`;
+
+    case 'video':
+      return `${basePrompt}
+
+VIDEO SCRIPT REQUIREMENTS:
+- 2-3 minute script for garden center video
+- Educational content about plants, seasonal gardening, or plant care
+- Include visual cues for plant demonstrations or garden tours
+- Professional but engaging presentation style
+- Specific plant care instructions or seasonal gardening advice
+- Strong opening hook about gardening opportunity
+- Clear call-to-action to visit garden center
+
+Format:
+[VISUAL: Description of what viewers see]
+NARRATION: "What the presenter says about gardening/plants"
+
+Include multiple visual and narration segments.`;
+
+    default:
+      return `${basePrompt}
+
+Create engaging ${postType} content that showcases garden center expertise and seasonal plant knowledge. Focus on educating customers about plants, gardening techniques, and seasonal opportunities.`;
+  }
 }
