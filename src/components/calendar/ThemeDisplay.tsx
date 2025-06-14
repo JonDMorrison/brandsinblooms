@@ -23,7 +23,6 @@ export const ThemeDisplay = ({
 }: ThemeDisplayProps) => {
   const hasTheme = currentTheme && currentTheme.trim() !== "";
   const hasDescription = currentDescription && currentDescription.trim() !== "";
-  const canGenerateContent = hasTheme && hasDescription;
 
   return (
     <div className="space-y-4">
@@ -58,32 +57,6 @@ export const ThemeDisplay = ({
               Edit
             </Button>
           </div>
-
-          {/* Generate Content Pack Section */}
-          {canGenerateContent && (
-            <div className="border-t border-gray-200 pt-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h5 className="font-medium text-green-900 mb-2">Ready to Generate Content</h5>
-                    <p className="text-sm text-green-700 mb-3">
-                      Your theme and description are set. Generate 5 pieces of professional content for this campaign.
-                    </p>
-                  </div>
-                  <GenerateContentPackButton
-                    campaignId={campaignId}
-                    campaignTitle={currentTheme}
-                    theme={currentTheme}
-                    description={currentDescription}
-                    weekNumber={weekNumber}
-                    onGenerated={onContentGenerated}
-                    size="sm"
-                    className="ml-4"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       ) : (
         <div className="text-center py-6">
