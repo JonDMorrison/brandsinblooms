@@ -49,39 +49,39 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
     const currentWeek = getCurrentWeekNumber();
 
-    // Automatically generate 52-week themes starting from current week
+    // 🚀 NEW: Automatically generate ALL 52-week themes for the entire year
     try {
-      console.log('🎯 Auto-generating 52-week garden center themes starting from current week...');
+      console.log('🎯 Auto-generating complete 52-week garden center theme collection...');
       
       const { data: themesData, error: themesError } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
           userId: userId,
-          startYear: new Date().getFullYear(),
-          startFromCurrentWeek: true
+          generateAll52Weeks: true
         }
       });
 
       if (themesError) {
-        console.error('Error auto-generating themes:', themesError);
+        console.error('Error auto-generating 52-week themes:', themesError);
         // Don't throw here - profile creation was successful, themes are optional
       } else if (themesData?.themes && Array.isArray(themesData.themes)) {
         
-        // Save themes starting from current week
+        // Save all 52 themes as campaigns
         const campaigns = themesData.themes.map((theme: any, index: number) => {
           const startDate = new Date();
           startDate.setDate(startDate.getDate() + (index * 7));
           
-          // Calculate actual week number (wrapping around year if necessary)
-          const actualWeekNumber = ((currentWeek - 1 + index) % 52) + 1;
+          // Use the week number from the theme data
+          const weekNumber = theme.week;
           
           return {
-            week_number: actualWeekNumber,
+            week_number: weekNumber,
             title: theme.title,
             theme: theme.title,
             description: theme.description,
             start_date: startDate.toISOString().split('T')[0],
             prompt: theme.content_ideas.join(' • '),
-            user_id: userId
+            user_id: userId,
+            source: 'auto_generated_52_weeks'
           };
         });
 
@@ -91,15 +91,16 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
           .select();
 
         if (campaignError) {
-          console.error('Error saving auto-generated campaigns:', campaignError);
+          console.error('Error saving auto-generated 52-week campaigns:', campaignError);
         } else {
-          console.log(`✅ Successfully auto-generated ${themesData.themes.length} weekly garden center themes starting from week ${currentWeek}`);
+          console.log(`✅ Successfully auto-generated complete 52-week garden center theme collection (${themesData.themes.length} themes)`);
           
-          // 🚀 NEW: Automatically generate content for the FIRST week to create amazing first impression
+          // 🚀 Generate content for the FIRST week (current week) to create amazing first impression
           if (createdCampaigns && createdCampaigns.length > 0) {
-            const firstWeekCampaign = createdCampaigns[0]; // This is the current week's campaign
+            // Find the campaign for the current week
+            const currentWeekCampaign = createdCampaigns.find(c => c.week_number === currentWeek) || createdCampaigns[0];
             
-            console.log('🎯 Auto-generating FIRST WEEK content for immediate wow factor:', firstWeekCampaign.title);
+            console.log('🎯 Auto-generating FIRST WEEK content for immediate wow factor:', currentWeekCampaign.title);
             
             try {
               // Create a dummy callback function for onTaskUpdate since we're in onboarding
@@ -109,7 +110,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
               
               // Generate all 5 content pieces for the first week
               await generateRequiredTasks(
-                firstWeekCampaign.id, 
+                currentWeekCampaign.id, 
                 createdCampaigns, 
                 userId, 
                 dummyTaskUpdate
@@ -138,7 +139,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         }
       }
     } catch (themeError) {
-      console.error('Error in theme auto-generation:', themeError);
+      console.error('Error in 52-week theme auto-generation:', themeError);
       // Continue - profile creation was successful
     }
     

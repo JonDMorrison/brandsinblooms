@@ -25,7 +25,7 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
     onThemesGenerated?.(fallbackThemes);
   };
 
-  const generateWeeklyThemes = async () => {
+  const generateWeeklyThemes = async (generateAll52Weeks: boolean = true) => {
     if (!user) {
       toast.error('Please log in to generate themes');
       return;
@@ -35,11 +35,12 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
     setNetworkError(false);
     
     try {
-      console.log('Generating 52-week themes for user:', user.id);
+      console.log(`Generating ${generateAll52Weeks ? '52-week' : 'weekly'} themes for user:`, user.id);
       
       const { data, error } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
           userId: user.id,
+          generateAll52Weeks: generateAll52Weeks,
           startYear: new Date().getFullYear()
         }
       });
@@ -50,7 +51,9 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
         if (error.message?.includes('Failed to send a request') || error.message?.includes('Failed to fetch')) {
           setNetworkError(true);
           toast.error('Network connection issue. You can use starter themes while we resolve this.');
-          generateFallbackThemes();
+          if (generateAll52Weeks) {
+            generateFallbackThemes();
+          }
           return;
         }
         
@@ -60,7 +63,13 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
       if (data?.themes && Array.isArray(data.themes)) {
         setGeneratedThemes(data.themes);
         onThemesGenerated?.(data.themes);
-        toast.success(`Generated ${data.themes.length} unique weekly themes!`);
+        
+        const themeCount = data.themes.length;
+        const message = generateAll52Weeks 
+          ? `Generated complete 52-week garden center theme collection!`
+          : `Generated ${themeCount} unique weekly themes!`;
+        
+        toast.success(message);
       } else {
         throw new Error('Invalid response format from theme generator');
       }
@@ -70,7 +79,9 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
       if (error.message?.includes('Failed to fetch') || error.message?.includes('network')) {
         setNetworkError(true);
         toast.error('Connection issue detected. Using starter themes instead.');
-        generateFallbackThemes();
+        if (generateAll52Weeks) {
+          generateFallbackThemes();
+        }
       } else {
         toast.error(error.message || 'Failed to generate weekly themes');
       }
@@ -94,7 +105,9 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
           theme: theme.title,
           description: theme.description,
           start_date: startDate.toISOString().split('T')[0],
-          prompt: theme.content_ideas.join(' • ')
+          prompt: theme.content_ideas.join(' • '),
+          user_id: user.id,
+          source: 'theme_generator'
         };
       });
 
