@@ -67,7 +67,7 @@ export const CalendarTaskItem = ({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    if (selectionMode && !isPastDate) {
+    if (selectionMode) {
       onDragStart(task);
     } else {
       e.preventDefault();
@@ -75,7 +75,12 @@ export const CalendarTaskItem = ({
   };
 
   const statusBadge = getStatusBadge(task.status);
-  const isDraggable = selectionMode && !isPastDate;
+  const isDraggable = selectionMode;
+
+  // Update title to reflect that past content can be rescheduled
+  const tooltipText = isPastDate 
+    ? `Click to view/edit • ${isDraggable ? 'Drag to reschedule to future dates' : ''}`
+    : `Click to view/edit • ${isDraggable ? 'Drag to reschedule' : ''}`;
 
   return (
     <div
@@ -91,9 +96,9 @@ export const CalendarTaskItem = ({
         isDraggable && "hover:cursor-move",
         isSelected && "ring-2 ring-blue-500 bg-blue-50 border-blue-300",
         isBeingDragged && "opacity-50 scale-95",
-        isPastDate && "opacity-60"
+        isPastDate && "opacity-75" // Reduced opacity for past content but still interactive
       )}
-      title={`Click to view/edit • ${isDraggable ? 'Drag to reschedule' : ''}`}
+      title={tooltipText}
     >
       {/* Selection indicator */}
       {isSelected && (
@@ -107,7 +112,8 @@ export const CalendarTaskItem = ({
           {isDraggable && (
             <GripVertical className={cn(
               "w-3 h-3 text-gray-400 transition-opacity",
-              "opacity-0 group-hover/task:opacity-100"
+              "opacity-0 group-hover/task:opacity-100",
+              isPastDate && "text-orange-500" // Different color for past content grip
             )} />
           )}
         </div>
@@ -118,6 +124,9 @@ export const CalendarTaskItem = ({
             <span className="font-semibold text-green-800 capitalize">
               {task.post_type}
             </span>
+            {isPastDate && (
+              <span className="text-xs text-orange-600 font-medium">Past</span>
+            )}
           </div>
           
           <Badge className={`text-xs px-1 py-0.5 ${statusBadge.className}`}>

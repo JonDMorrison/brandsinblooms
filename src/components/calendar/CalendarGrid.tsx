@@ -227,7 +227,7 @@ export const CalendarGrid = ({
 
         {taskInteractionMode === 'drag' && (
           <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
-            <strong>Drag Mode:</strong> Drag tasks to reschedule them to different dates
+            <strong>Drag Mode:</strong> Drag tasks to reschedule them to different dates • Past content can be moved to future dates
           </div>
         )}
       </CardHeader>

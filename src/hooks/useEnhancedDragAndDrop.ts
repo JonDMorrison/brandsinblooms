@@ -42,7 +42,7 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
 
     const newDateString = format(targetDate, 'yyyy-MM-dd');
     
-    // Prevent scheduling in the past
+    // Only prevent dropping in the past, allow moving FROM past TO future
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (targetDate < today) {
@@ -59,6 +59,13 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
       return;
     }
 
+    // Check if we're moving past content to future
+    const pastTasks = draggedTasks.filter(task => {
+      const taskDate = new Date(task.scheduled_date);
+      taskDate.setHours(0, 0, 0, 0);
+      return taskDate < today;
+    });
+
     try {
       // Update all tasks in a batch
       const { error } = await supabase
@@ -69,9 +76,15 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
       if (error) throw error;
 
       if (draggedTasks.length === 1) {
-        toast.success(`Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`);
+        const successMessage = pastTasks.length > 0 
+          ? `Past content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
+          : `Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
+        toast.success(successMessage);
       } else {
-        toast.success(`${draggedTasks.length} items rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`);
+        const successMessage = pastTasks.length > 0
+          ? `${draggedTasks.length} items (including past content) rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
+          : `${draggedTasks.length} items rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
+        toast.success(successMessage);
       }
       
       onTaskUpdate();

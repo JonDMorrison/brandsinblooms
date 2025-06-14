@@ -84,6 +84,7 @@ export const CalendarDayCell = ({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    // Only allow dropping on future dates or today
     if (onDrop && !isPastDate) {
       onDrop(date);
     }
@@ -107,6 +108,7 @@ export const CalendarDayCell = ({
     }
   };
 
+  // Allow dropping only on future dates, but allow dragging from any date
   const isValidDropTarget = isDragging && !isPastDate && isCurrentMonth;
   const isTaskBeingDragged = (task: Task) => draggedTasks.some(t => t.id === task.id);
 
