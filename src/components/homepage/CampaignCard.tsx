@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { Sparkles, Eye } from "lucide-react";
+import { Sparkles, Eye, Leaf, Droplets, Sun, Snowflake, Crown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -24,6 +24,36 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
   const [hasContent, setHasContent] = useState(false);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [isCheckingContent, setIsCheckingContent] = useState(true);
+
+  const getSeasonalIcon = () => {
+    const month = new Date().getMonth() + 1;
+    
+    if (month >= 3 && month <= 5) {
+      return { icon: Leaf, color: "text-green-600", season: "Spring" };
+    } else if (month >= 6 && month <= 8) {
+      return { icon: Sun, color: "text-yellow-600", season: "Summer" };
+    } else if (month >= 9 && month <= 11) {
+      return { icon: Droplets, color: "text-orange-600", season: "Fall" };
+    } else {
+      return { icon: Snowflake, color: "text-blue-600", season: "Winter" };
+    }
+  };
+
+  const getSourceIcon = () => {
+    switch (campaign.source) {
+      case 'master_templates':
+        return { icon: Crown, label: "Curated Theme", color: "text-purple-600" };
+      case 'seasonal_garden_themes':
+        return { icon: Leaf, label: "Seasonal Focus", color: "text-green-600" };
+      default:
+        return { icon: Leaf, label: "Garden Theme", color: "text-gray-600" };
+    }
+  };
+
+  const seasonalInfo = getSeasonalIcon();
+  const sourceInfo = getSourceIcon();
+  const SeasonIcon = seasonalInfo.icon;
+  const SourceIcon = sourceInfo.icon;
 
   useEffect(() => {
     const checkForContent = async () => {
@@ -66,18 +96,33 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
   };
 
   return (
-    <Card className="bg-white border-gray-200">
-      <CardHeader className="bg-white">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-foreground">{campaign.title}</CardTitle>
-          <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
-            Week {campaign.week_number}
-          </Badge>
+    <Card className="border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-primary/10 border-gray-200">
+      <CardHeader className="bg-white/80 backdrop-blur-sm">
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex items-center gap-3">
+            <SeasonIcon className={`w-5 h-5 ${seasonalInfo.color}`} />
+            <CardTitle className="text-foreground text-xl">{seasonalInfo.season} Garden Focus</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              <SourceIcon className={`w-3 h-3 mr-1 ${sourceInfo.color}`} />
+              {sourceInfo.label}
+            </Badge>
+            <Badge variant="secondary" className="bg-gray-100 text-gray-700 border-gray-200">
+              Week {campaign.week_number}
+            </Badge>
+          </div>
+        </div>
+        <div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">{campaign.title}</h3>
+          {campaign.theme && campaign.theme !== campaign.title && (
+            <p className="text-lg font-semibold text-primary mb-3">{campaign.theme}</p>
+          )}
         </div>
       </CardHeader>
-      <CardContent className="bg-white">
+      <CardContent className="bg-white/80 backdrop-blur-sm">
         {campaign.theme && (
-          <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
+          <div className="mb-6 p-4 bg-white rounded-lg border border-primary/20">
             <EditableTheme
               campaignId={campaign.id}
               currentTheme={campaign.theme}
@@ -88,7 +133,11 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
         )}
         
         {!campaign.theme && campaign.description && (
-          <p className="text-muted-foreground mb-4">{campaign.description}</p>
+          <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-primary/20 mb-4">
+            <p className="text-sm leading-relaxed text-gray-700">
+              {campaign.description}
+            </p>
+          </div>
         )}
         
         {seasonalContent && (
@@ -128,6 +177,10 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
               : "Creates social media posts, video scripts, newsletter, and email content"
             }
           </p>
+        </div>
+
+        <div className="text-xs text-gray-600 bg-white/60 p-2 rounded border border-gray-200 mt-4">
+          🌱 Professional garden center content designed for {seasonalInfo.season.toLowerCase()} season
         </div>
       </CardContent>
 
