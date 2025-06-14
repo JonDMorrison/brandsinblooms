@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
@@ -6,6 +7,7 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
   try {
     // Spend token before generation
     if (userId) {
+      console.log(`💰 Spending 1 token for ${postType} generation`);
       const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
         p_user_id: userId,
         p_tokens: 1,
@@ -21,15 +23,11 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
       console.log('✅ Token spent for content generation');
     }
 
-    console.log('About to call supabase.functions.invoke with:', {
-      functionName: 'generate-content',
-      body: {
-        postType: postType,
-        campaignTitle: campaignTitle,
-        userId: userId,
-        weekDescription: weekDescription,
-        enforceCompanyName: true
-      }
+    console.log('📡 About to call generate-content function with:', {
+      postType: postType,
+      campaignTitle: campaignTitle,
+      userId: userId,
+      weekDescription: weekDescription
     });
 
     const { data, error } = await supabase.functions.invoke('generate-content', {
@@ -43,10 +41,10 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
       }
     });
 
-    console.log('Supabase function response:', { data, error });
+    console.log(`📨 Response from generate-content function:`, { data, error });
 
     if (error) {
-      console.error('❌ Error generating personalized, region-aware content:', error);
+      console.error(`❌ Error from generate-content function:`, error);
       throw new Error(`Content generation failed: ${error.message || 'Unknown error'}`);
     }
 
@@ -54,7 +52,7 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
       throw new Error('No data returned from content generation function');
     }
 
-    console.log('Raw response data:', data);
+    console.log('📋 Raw response data:', data);
 
     if (data.generationAttempts && data.generationAttempts > 1) {
       console.log(`✅ Content generated after ${data.generationAttempts} attempts with validation`);
@@ -69,10 +67,10 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
       throw new Error('No content in response data');
     }
 
-    console.log(`✅ Generated ${postType} content successfully:`, content.substring(0, 100) + '...');
+    console.log(`✅ Generated ${postType} content successfully (${content.length} chars):`, content.substring(0, 100) + '...');
     return content;
   } catch (error) {
-    console.error('❌ Error in generatePersonalizedContent:', error);
+    console.error(`❌ Error in generatePersonalizedContent for ${postType}:`, error);
     
     // Provide a fallback error message
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -81,11 +79,12 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
 };
 
 export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number, userId?: string, weekDescription?: string) => {
-  console.log(`🎯 Generating region-aware newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
+  console.log(`🎯 Generating newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
   
   try {
     // Spend token before generation
     if (userId) {
+      console.log('💰 Spending 2 tokens for newsletter generation');
       const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
         p_user_id: userId,
         p_tokens: 2, // Newsletter costs 2 tokens as it's more complex
@@ -102,6 +101,8 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
       console.log('✅ Tokens spent for newsletter generation');
     }
 
+    console.log('📡 About to call generate-newsletter function');
+
     const { data, error } = await supabase.functions.invoke('generate-newsletter', {
       body: {
         campaignId: campaignId,
@@ -113,6 +114,8 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
       }
     });
 
+    console.log('📨 Response from generate-newsletter function:', { data, error });
+
     if (error) {
       console.error('❌ Error generating newsletter content:', error);
       throw new Error(`Newsletter generation failed: ${error.message || 'Unknown error'}`);
@@ -123,7 +126,7 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
       throw new Error('No newsletter content returned');
     }
 
-    console.log(`✅ Generated newsletter content successfully:`, content.substring(0, 100) + '...');
+    console.log(`✅ Generated newsletter content successfully (${content.length} chars):`, content.substring(0, 100) + '...');
     return content;
   } catch (error) {
     console.error('❌ Error in generateNewsletterContent:', error);
@@ -132,11 +135,12 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
 };
 
 export const generateVideoScript = async (campaignTitle: string, userId?: string, weekDescription?: string) => {
-  console.log(`🎯 Generating region-aware video script for: ${campaignTitle} with description: ${weekDescription}`);
+  console.log(`🎯 Generating video script for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
     // Spend token before generation
     if (userId) {
+      console.log('💰 Spending 2 tokens for video script generation');
       const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
         p_user_id: userId,
         p_tokens: 2, // Video script costs 2 tokens as it's more complex
@@ -152,6 +156,8 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
       console.log('✅ Tokens spent for video script generation');
     }
 
+    console.log('📡 About to call generate-video-script function');
+
     const { data, error } = await supabase.functions.invoke('generate-video-script', {
       body: {
         campaignTitle: campaignTitle,
@@ -160,6 +166,8 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
         enforceCompanyName: true
       }
     });
+
+    console.log('📨 Response from generate-video-script function:', { data, error });
 
     if (error) {
       console.error('❌ Error generating video script:', error);
@@ -171,7 +179,7 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
       throw new Error('No video script returned');
     }
 
-    console.log(`✅ Generated video script successfully:`, script.substring(0, 100) + '...');
+    console.log(`✅ Generated video script successfully (${script.length} chars):`, script.substring(0, 100) + '...');
     return script;
   } catch (error) {
     console.error('❌ Error in generateVideoScript:', error);
