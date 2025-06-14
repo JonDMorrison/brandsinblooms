@@ -115,9 +115,6 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
         </div>
         <div>
           <h3 className="text-xl font-bold text-gray-900 mb-2">{campaign.title}</h3>
-          {campaign.theme && campaign.theme !== campaign.title && (
-            <p className="text-lg font-semibold text-primary mb-3">{campaign.theme}</p>
-          )}
         </div>
       </CardHeader>
       <CardContent className="bg-white/80 backdrop-blur-sm">
