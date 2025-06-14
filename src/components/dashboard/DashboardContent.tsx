@@ -8,24 +8,12 @@ import { CurrentCampaignSection } from "./CurrentCampaignSection";
 import { QuickStatsSection } from "./QuickStatsSection";
 import { ContentPreviewGrid } from "./ContentPreviewGrid";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
+import type { Campaign } from "@/types";
 
 interface DashboardContentProps {
   onboardingData: any;
   onBusinessNameChange: (name: string) => void;
   onCampaignCreated: () => void;
-}
-
-// Use a simple interface to avoid type recursion issues
-interface CampaignData {
-  id: string;
-  title: string;
-  description: string | null;
-  theme: string | null;
-  source: string | null;
-  week_number: number;
-  start_date: string;
-  created_at: string;
-  user_id: string | null;
 }
 
 export const DashboardContent = ({
@@ -34,7 +22,7 @@ export const DashboardContent = ({
   onCampaignCreated
 }: DashboardContentProps) => {
   const { user } = useAuth();
-  const [activeCampaign, setActiveCampaign] = useState<CampaignData | undefined>();
+  const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
   const [tasksCount, setTasksCount] = useState(0);
   const [completedTasksCount, setCompletedTasksCount] = useState(0);
   const [pendingTasksCount, setPendingTasksCount] = useState(0);
@@ -56,16 +44,23 @@ export const DashboardContent = ({
 
       setActiveCampaign(currentCampaign);
 
-      // Get task counts
-      const { data: tasks } = await supabase
-        .from('content_tasks')
-        .select('*')
-        .eq('user_id', user.id);
+      // Get task counts - need to join with campaigns to filter by user
+      if (currentCampaign) {
+        const { data: tasks } = await supabase
+          .from('content_tasks')
+          .select('*')
+          .eq('campaign_id', currentCampaign.id);
 
-      if (tasks) {
-        setTasksCount(tasks.length);
-        setCompletedTasksCount(tasks.filter(t => t.status === 'completed' || t.status === 'posted').length);
-        setPendingTasksCount(tasks.filter(t => t.status === 'pending' || t.status === 'generated').length);
+        if (tasks) {
+          setTasksCount(tasks.length);
+          setCompletedTasksCount(tasks.filter(t => t.status === 'completed' || t.status === 'posted').length);
+          setPendingTasksCount(tasks.filter(t => t.status === 'pending' || t.status === 'generated').length);
+        }
+      } else {
+        // No active campaign, reset counts
+        setTasksCount(0);
+        setCompletedTasksCount(0);
+        setPendingTasksCount(0);
       }
     } catch (error) {
       console.error('Error fetching campaign data:', error);
@@ -123,7 +118,7 @@ export const DashboardContent = ({
       {/* Current Campaign Section */}
       <div data-campaign-section>
         <CurrentCampaignSection
-          activeCampaign={activeCampaign as any}
+          activeCampaign={activeCampaign}
           currentWeekNumber={currentWeekNumber}
           completedTasksCount={completedTasksCount}
           totalTasksCount={tasksCount}
@@ -137,7 +132,7 @@ export const DashboardContent = ({
       {/* Content Preview Grid */}
       {activeCampaign && (
         <ContentPreviewGrid 
-          campaign={activeCampaign as any}
+          campaign={activeCampaign}
           onTaskUpdate={handleTaskUpdate}
         />
       )}

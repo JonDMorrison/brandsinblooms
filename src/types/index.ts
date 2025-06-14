@@ -9,6 +9,7 @@ export interface Campaign {
   updated_at?: string;
   prompt?: string | null;
   source?: string | null;
+  user_id?: string | null;
 }
 
 export interface ContentTask {
