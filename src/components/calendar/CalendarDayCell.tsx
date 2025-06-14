@@ -90,7 +90,7 @@ export const CalendarDayCell = ({
   };
 
   const handleTaskClick = (task: Task, ctrlKey: boolean = false) => {
-    if (taskSelectionMode || ctrlKey) {
+    if (taskSelectionMode && ctrlKey) {
       onTaskSelection?.(task, ctrlKey);
     } else {
       onTaskClick?.(task);
@@ -98,7 +98,7 @@ export const CalendarDayCell = ({
   };
 
   const handleTaskDragStart = (task: Task) => {
-    if (onDragStart) {
+    if (onDragStart && taskSelectionMode) {
       // If task is selected, drag all selected tasks, otherwise just this task
       const tasksToMove = isTaskSelected?.(task) && selectedTasks.length > 1 
         ? selectedTasks 

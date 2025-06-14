@@ -46,33 +46,54 @@ export const CalendarTaskItem = ({
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'posted':
+      case 'completed':
+      case 'approved':
+        return { text: 'Approved', className: 'bg-green-100 text-green-700 border-green-300' };
+      case 'scheduled':
+        return { text: 'Scheduled', className: 'bg-blue-100 text-blue-700 border-blue-300' };
+      case 'published':
+        return { text: 'Published', className: 'bg-purple-100 text-purple-700 border-purple-300' };
+      default:
+        return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-300' };
+    }
+  };
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onTaskClick(task, e.ctrlKey || e.metaKey);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    if (!selectionMode && !isPastDate) {
+    if (selectionMode && !isPastDate) {
       onDragStart(task);
+    } else {
+      e.preventDefault();
     }
   };
 
+  const statusBadge = getStatusBadge(task.status);
+  const isDraggable = selectionMode && !isPastDate;
+
   return (
     <div
-      draggable={!selectionMode && !isPastDate}
+      draggable={isDraggable}
       onDragStart={handleDragStart}
       onDragEnd={onDragEnd}
       onClick={handleClick}
       className={cn(
-        "relative text-xs p-2 rounded-lg transition-all duration-200 group/task cursor-pointer",
+        "relative text-xs p-2 rounded-lg transition-all duration-200 group/task",
         "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200",
         "hover:from-green-100 hover:to-emerald-100 hover:shadow-md transform hover:scale-[1.02]",
-        !selectionMode && !isPastDate && "hover:cursor-move",
+        "cursor-pointer",
+        isDraggable && "hover:cursor-move",
         isSelected && "ring-2 ring-blue-500 bg-blue-50 border-blue-300",
         isBeingDragged && "opacity-50 scale-95",
-        isPastDate && "cursor-not-allowed opacity-60",
-        selectionMode && "cursor-pointer"
+        isPastDate && "opacity-60"
       )}
+      title={`Click to view/edit • ${isDraggable ? 'Drag to reschedule' : ''}`}
     >
       {/* Selection indicator */}
       {isSelected && (
@@ -83,7 +104,7 @@ export const CalendarTaskItem = ({
 
       <div className="flex items-start gap-2">
         <div className="flex items-center gap-1">
-          {!selectionMode && !isPastDate && (
+          {isDraggable && (
             <GripVertical className={cn(
               "w-3 h-3 text-gray-400 transition-opacity",
               "opacity-0 group-hover/task:opacity-100"
@@ -99,8 +120,8 @@ export const CalendarTaskItem = ({
             </span>
           </div>
           
-          <Badge className="bg-green-100 text-green-700 border-green-300 text-xs px-1 py-0.5">
-            Approved
+          <Badge className={`text-xs px-1 py-0.5 ${statusBadge.className}`}>
+            {statusBadge.text}
           </Badge>
           
           {task.campaigns && (

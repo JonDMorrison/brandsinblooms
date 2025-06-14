@@ -1,8 +1,9 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, Plus, CalendarIcon, TrendingUp } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, CalendarIcon, TrendingUp, MousePointer, Move } from "lucide-react";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek } from "date-fns";
 import { CalendarDayCell } from "./CalendarDayCell";
 import { getCurrentWeekNumber, getDateForWeek, dateToWeekNumber } from "@/utils/dateUtils";
@@ -65,6 +66,7 @@ export const CalendarGrid = ({
   taskSelectionMode = false
 }: CalendarGridProps) => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [taskInteractionMode, setTaskInteractionMode] = useState<'click' | 'drag'>('click');
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -90,10 +92,13 @@ export const CalendarGrid = ({
     }
   });
 
-  // Create a map of approved tasks by date
+  // Create a map of tasks by date - include all approved/completed tasks
   const tasksByDate = new Map<string, Task[]>();
   
-  tasks.filter(task => task.status === 'posted' && task.scheduled_date).forEach(task => {
+  tasks.filter(task => 
+    task.scheduled_date && 
+    ['posted', 'completed', 'approved', 'scheduled', 'published'].includes(task.status)
+  ).forEach(task => {
     const dateKey = task.scheduled_date;
     if (!tasksByDate.has(dateKey)) {
       tasksByDate.set(dateKey, []);
@@ -144,6 +149,28 @@ export const CalendarGrid = ({
           </div>
           
           <div className="flex items-center gap-3">
+            {/* Task Interaction Mode Toggle */}
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg p-1">
+              <Button
+                variant={taskInteractionMode === 'click' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setTaskInteractionMode('click')}
+                className="flex items-center gap-1 text-xs"
+              >
+                <MousePointer className="w-3 h-3" />
+                Click
+              </Button>
+              <Button
+                variant={taskInteractionMode === 'drag' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setTaskInteractionMode('drag')}
+                className="flex items-center gap-1 text-xs"
+              >
+                <Move className="w-3 h-3" />
+                Drag
+              </Button>
+            </div>
+            
             <Button
               variant="outline"
               size="sm"
@@ -196,6 +223,18 @@ export const CalendarGrid = ({
             </div>
           </div>
         )}
+
+        {taskInteractionMode === 'click' && (
+          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+            <strong>Click Mode:</strong> Click on tasks to view/edit content
+          </div>
+        )}
+
+        {taskInteractionMode === 'drag' && (
+          <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
+            <strong>Drag Mode:</strong> Drag tasks to reschedule them to different dates
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="p-0">
@@ -246,7 +285,7 @@ export const CalendarGrid = ({
                   onDragEnd={onDragEnd}
                   onDrop={onDrop}
                   isTaskSelected={isTaskSelected}
-                  taskSelectionMode={taskSelectionMode}
+                  taskSelectionMode={taskInteractionMode === 'drag'}
                 />
               </div>
             );
