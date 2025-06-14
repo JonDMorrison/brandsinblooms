@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CalendarPlus, PlusCircle, Calendar, TrendingUp, Users, Clock } from "lucide-react";
+import { CalendarPlus, PlusCircle, Calendar } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { toast } from "sonner";
@@ -167,15 +167,15 @@ const CalendarPage = () => {
                 {/* Quick stats */}
                 <div className="flex items-center gap-6 mt-4">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    
                     <span className="font-medium">{campaigns.length}</span> total campaigns
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Clock className="w-4 h-4 text-blue-600" />
+                    
                     <span className="font-medium">{upcomingCampaigns}</span> upcoming
                   </div>
                   <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4 text-purple-600" />
+                    
                     <span className="font-medium">{completedTasks}</span> tasks completed
                   </div>
                 </div>
