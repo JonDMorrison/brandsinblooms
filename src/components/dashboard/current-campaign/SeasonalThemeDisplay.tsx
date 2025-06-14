@@ -45,7 +45,7 @@ export const SeasonalThemeDisplay = ({ campaign }: SeasonalThemeDisplayProps) =>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
             <SeasonIcon className={`w-5 h-5 ${seasonalInfo.color}`} />
-            {seasonalInfo.season} Garden Focus
+            {seasonalInfo.season} Theme
           </CardTitle>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
