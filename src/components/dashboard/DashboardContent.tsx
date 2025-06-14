@@ -1,11 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
 import { CurrentCampaignSection } from "./CurrentCampaignSection";
-import { QuickStatsSection } from "./QuickStatsSection";
 import { ContentPreviewGrid } from "./ContentPreviewGrid";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
 import type { Campaign } from "@/types";
@@ -191,14 +189,6 @@ export const DashboardContent = ({
       <FirstTimeUserWelcome 
         onGetStarted={handleGetStarted}
         tasksCount={tasksCount}
-      />
-
-      {/* Quick Stats */}
-      <QuickStatsSection 
-        totalTasks={tasksCount}
-        completedTasks={completedTasksCount}
-        pendingTasks={pendingTasksCount}
-        activeCampaigns={activeCampaign ? 1 : 0}
       />
 
       {/* Current Campaign Section */}
