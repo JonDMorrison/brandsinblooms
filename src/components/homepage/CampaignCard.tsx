@@ -101,7 +101,9 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
         <div className="flex justify-between items-start mb-2">
           <div className="flex items-center gap-3">
             <SeasonIcon className={`w-5 h-5 ${seasonalInfo.color}`} />
-            <CardTitle className="text-foreground text-xl">{seasonalInfo.season} Theme</CardTitle>
+            <CardTitle className="text-foreground text-xl">
+              {seasonalInfo.season} Theme: {campaign.title}
+            </CardTitle>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
@@ -112,9 +114,6 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
               Week {campaign.week_number}
             </Badge>
           </div>
-        </div>
-        <div>
-          <h3 className="text-xl font-bold text-gray-900 mb-2">{campaign.title}</h3>
         </div>
       </CardHeader>
       <CardContent className="bg-white/80 backdrop-blur-sm">
