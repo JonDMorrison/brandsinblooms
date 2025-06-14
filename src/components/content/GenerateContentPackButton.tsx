@@ -107,9 +107,6 @@ export const GenerateContentPackButton = ({
       </Button>
       
       <div className="flex items-center gap-2 text-xs text-gray-600">
-        <Badge variant="outline" className="text-xs">
-          {tokensRequired} tokens
-        </Badge>
         <span>• 5 pieces of content</span>
       </div>
     </div>
