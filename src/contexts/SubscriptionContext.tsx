@@ -79,6 +79,51 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
+  const updateSubscriptionPlan = async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
+    if (!user || !subscription) return;
+
+    try {
+      const startDate = new Date();
+      let endDate = new Date();
+      
+      if (plan === 'free_trial') {
+        endDate.setDate(startDate.getDate() + 14);
+      } else if (plan === 'sprout' || plan === 'bloom') {
+        if (billingInterval === 'annual') {
+          endDate.setFullYear(startDate.getFullYear() + 1);
+        } else {
+          endDate.setMonth(startDate.getMonth() + 1);
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .update({
+          plan,
+          billing_interval: billingInterval,
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0]
+        })
+        .eq('id', subscription.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating subscription:', error);
+        toast.error('Failed to update subscription');
+        return;
+      }
+
+      setSubscription(data);
+      if (plan !== 'expired') {
+        toast.success(`Successfully upgraded to ${plan} plan!`);
+      }
+    } catch (error) {
+      console.error('Error in updateSubscriptionPlan:', error);
+      toast.error('An unexpected error occurred');
+    }
+  };
+
   const fetchSubscription = async () => {
     if (!user) {
       setLoading(false);
@@ -128,51 +173,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
-  const updateSubscriptionPlan = async (plan: SubscriptionPlan, billingInterval: BillingInterval) => {
-    if (!user || !subscription) return;
-
-    try {
-      const startDate = new Date();
-      let endDate = new Date();
-      
-      if (plan === 'free_trial') {
-        endDate.setDate(startDate.getDate() + 14);
-      } else if (plan === 'sprout' || plan === 'bloom') {
-        if (billingInterval === 'annual') {
-          endDate.setFullYear(startDate.getFullYear() + 1);
-        } else {
-          endDate.setMonth(startDate.getMonth() + 1);
-        }
-      }
-
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .update({
-          plan,
-          billing_interval: billingInterval,
-          start_date: startDate.toISOString().split('T')[0],
-          end_date: endDate.toISOString().split('T')[0]
-        })
-        .eq('id', subscription.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating subscription:', error);
-        toast.error('Failed to update subscription');
-        return;
-      }
-
-      setSubscription(data);
-      if (plan !== 'expired') {
-        toast.success(`Successfully upgraded to ${plan} plan!`);
-      }
-    } catch (error) {
-      console.error('Error in updateSubscriptionPlan:', error);
-      toast.error('An unexpected error occurred');
-    }
-  };
-
   const checkStripeSubscription = async () => {
     if (!user) return;
 
@@ -185,6 +185,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
 
       console.log('Stripe subscription check result:', data);
+      
+      // If Stripe returns subscription data, refresh our local state
+      if (data && (data.subscribed || data.plan)) {
+        await fetchSubscription();
+      }
     } catch (error) {
       console.error('Error in checkStripeSubscription:', error);
     }
@@ -198,6 +203,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     setLoading(true);
     await fetchSubscription();
     await checkStripeSubscription();
+    
+    // Show success message after refresh
+    toast.success('Subscription status updated');
   };
 
   const checkAccess = (requiredPlan: SubscriptionPlan): boolean => {
@@ -234,16 +242,30 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   }, [user]);
 
-  // Check for trial expiration and redirect
+  // Enhanced trial expiration handling
   useEffect(() => {
     if (subscription && subscription.plan === 'expired') {
       const currentPath = window.location.pathname;
-      if (currentPath !== '/pricing' && currentPath !== '/auth') {
+      if (currentPath !== '/pricing' && currentPath !== '/auth' && !currentPath.startsWith('/subscription')) {
         navigate('/pricing');
-        toast.error('Your free trial has ended. Choose a plan to continue.');
+        toast.error('Your free trial has ended. Choose a plan to continue accessing premium features.');
       }
     }
   }, [subscription, navigate]);
+
+  // Auto-refresh subscription status periodically when user is active
+  useEffect(() => {
+    if (!user || !subscription) return;
+
+    const interval = setInterval(() => {
+      // Only auto-refresh if user is on a trial or paid plan
+      if (subscription.plan === 'free_trial' || subscription.plan === 'sprout' || subscription.plan === 'bloom') {
+        checkStripeSubscription();
+      }
+    }, 60000); // Check every minute
+
+    return () => clearInterval(interval);
+  }, [user, subscription]);
 
   const value = {
     subscription,

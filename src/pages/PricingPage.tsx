@@ -16,6 +16,7 @@ const PricingPage = () => {
   const { updateSubscription, subscription } = useSubscription();
   const [isAnnual, setIsAnnual] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const { user } = useAuth();
 
   const handleStartTrial = () => {
@@ -29,6 +30,8 @@ const PricingPage = () => {
     }
 
     setLoading(true);
+    setLoadingPlan(plan);
+    
     try {
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
@@ -42,14 +45,15 @@ const PricingPage = () => {
       }
 
       if (data?.url) {
-        // Open Stripe checkout in a new tab
-        window.open(data.url, '_blank');
+        // Same-window redirect instead of new tab
+        window.location.href = data.url;
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
       toast.error('Failed to start checkout. Please try again.');
     } finally {
       setLoading(false);
+      setLoadingPlan(null);
     }
   };
 
@@ -152,6 +156,14 @@ const PricingPage = () => {
               <p className="text-red-700 font-medium">Your free trial has ended. Choose a plan to continue.</p>
             </div>
           )}
+
+          {subscription?.plan === 'free_trial' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 max-w-md mx-auto">
+              <p className="text-blue-700 font-medium">
+                You're currently on a free trial. Upgrade to continue access after your trial ends.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 
@@ -208,7 +220,14 @@ const PricingPage = () => {
                   disabled={loading}
                   className="w-full bg-garden-green hover:bg-garden-green-dark text-white py-3 rounded-xl"
                 >
-                  {loading ? 'Processing...' : subscription ? 'Choose Sprout' : 'Start Free Trial'}
+                  {loadingPlan === 'sprout' ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Processing...
+                    </div>
+                  ) : (
+                    subscription ? 'Choose Sprout' : 'Start Free Trial'
+                  )}
                 </Button>
               </CardContent>
             </Card>
@@ -251,7 +270,14 @@ const PricingPage = () => {
                   disabled={loading}
                   className="w-full bg-garden-green hover:bg-garden-green-dark text-white py-3 rounded-xl"
                 >
-                  {loading ? 'Processing...' : subscription ? 'Choose Bloom' : 'Start Free Trial'}
+                  {loadingPlan === 'bloom' ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Processing...
+                    </div>
+                  ) : (
+                    subscription ? 'Choose Bloom' : 'Start Free Trial'
+                  )}
                 </Button>
               </CardContent>
             </Card>

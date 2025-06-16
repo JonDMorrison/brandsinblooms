@@ -58,10 +58,10 @@ serve(async (req) => {
       logStep("Existing customer found", { customerId });
     }
 
-    // Define price mapping - you'll need to replace these with your actual Stripe Price IDs
+    // TODO: Replace these with your actual Stripe Price IDs from your dashboard
     const priceMapping = {
       'sprout_monthly': 'price_1234567890_sprout_monthly', // Replace with actual Price ID
-      'sprout_annual': 'price_1234567890_sprout_annual',   // Replace with actual Price ID
+      'sprout_annual': 'price_1234567890_sprout_annual',   // Replace with actual Price ID  
       'bloom_monthly': 'price_1234567890_bloom_monthly',   // Replace with actual Price ID
       'bloom_annual': 'price_1234567890_bloom_annual',     // Replace with actual Price ID
     };
@@ -85,7 +85,7 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/?checkout=success`,
+      success_url: `${origin}/subscription/success?session_id={CHECKOUT_SESSION_ID}&plan=${plan}&billing=${billingInterval}`,
       cancel_url: `${origin}/pricing?checkout=cancelled`,
       metadata: {
         user_id: user.id,

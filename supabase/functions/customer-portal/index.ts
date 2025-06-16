@@ -44,9 +44,11 @@ serve(async (req) => {
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+    
     if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user");
+      throw new Error("No Stripe customer found for this user. Please contact support.");
     }
+    
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
@@ -55,6 +57,7 @@ serve(async (req) => {
       customer: customerId,
       return_url: `${origin}/subscription`,
     });
+    
     logStep("Customer portal session created", { sessionId: portalSession.id, url: portalSession.url });
 
     return new Response(JSON.stringify({ url: portalSession.url }), {

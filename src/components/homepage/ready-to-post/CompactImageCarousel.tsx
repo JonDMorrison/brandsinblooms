@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +5,8 @@ import { Download, Copy, MoreHorizontal, Image as ImageIcon } from 'lucide-react
 import { toast } from 'sonner';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { Crown } from 'lucide-react';
 
 interface CompactImageCarouselProps {
   task: any;
@@ -15,8 +16,12 @@ interface CompactImageCarouselProps {
 
 export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: CompactImageCarouselProps) => {
   const { images, loading, fetchNewImages, usingPlaceholders } = useImageSuggestions(task?.id, task?.post_type);
+  const { checkAccess } = useSubscription();
   const isMobile = useIsMobile();
   const [hasAutoFetched, setHasAutoFetched] = useState(false);
+
+  // Check if user has access to image features
+  const hasImageAccess = checkAccess('sprout');
 
   // Get initial query from campaign theme or post type
   const getInitialQuery = () => {
@@ -31,14 +36,14 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
     return task?.post_type || 'garden';
   };
 
-  // Auto-fetch images when component mounts
+  // Auto-fetch images when component mounts (only for premium users)
   useEffect(() => {
-    if (task?.id && images.length === 0 && !loading && !hasAutoFetched) {
+    if (hasImageAccess && task?.id && images.length === 0 && !loading && !hasAutoFetched) {
       const initialQuery = getInitialQuery();
       fetchNewImages(initialQuery, task.id, task.post_type);
       setHasAutoFetched(true);
     }
-  }, [task?.id, images.length, loading, hasAutoFetched, task?.post_type]);
+  }, [task?.id, images.length, loading, hasAutoFetched, task?.post_type, hasImageAccess]);
 
   const handleDownload = (imageUrl: string, photographer: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -65,6 +70,19 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
     navigator.clipboard.writeText(credit);
     toast.success('Credit copied to clipboard');
   };
+
+  // Show upgrade prompt for free trial users
+  if (!hasImageAccess) {
+    return (
+      <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <Crown className="w-4 h-4 text-blue-600 flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-blue-700 font-medium">Premium Feature</p>
+          <p className="text-xs text-blue-600">Upgrade to access image suggestions</p>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -1,8 +1,11 @@
 
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
-import { Card, CardContent } from "@/components/ui/card";
-import { CreditCard, Star, Shield, Link } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { CreditCard, Star, Shield, Link, Crown, Settings } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { useNavigate } from "react-router-dom";
 import { SocialConnectionManager } from "@/components/analytics/SocialConnectionManager";
 import { AnalyticsSetupWizard } from "@/components/analytics/AnalyticsSetupWizard";
 import { TokenUsageDashboard } from "@/components/tokens/TokenUsageDashboard";
@@ -11,17 +14,13 @@ import { formatDistanceToNow } from "date-fns";
 import { SubscriptionHeader } from "@/components/subscription/SubscriptionHeader";
 import { TokenBalanceCard } from "@/components/subscription/TokenBalanceCard";
 import { CurrentPlanCard } from "@/components/subscription/CurrentPlanCard";
+import { CustomerPortalButton } from "@/components/subscription/CustomerPortalButton";
 
 const SubscriptionPage = () => {
   const [loading, setLoading] = useState(true);
+  const { subscription, refreshSubscription } = useSubscription();
   const { tokenBalance, getOverageAmount, getOverageCost } = useTokens();
-
-  const [stats, setStats] = useState({
-    currentPlan: 'Growth',
-    billingCycle: 'Monthly',
-    nextBilling: 'Dec 15, 2024',
-    usagePercent: 67
-  });
+  const navigate = useNavigate();
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1000);
@@ -29,19 +28,22 @@ const SubscriptionPage = () => {
   }, []);
 
   const handleUpgradePlan = () => {
-    // Implementation for plan upgrade
+    navigate('/pricing');
   };
 
   const handleBillingHistory = () => {
-    // Implementation for billing history
+    // Will be handled by customer portal
+    document.querySelector('[data-portal-button]')?.click();
   };
 
   const handleManagePayment = () => {
-    // Implementation for payment management
+    // Will be handled by customer portal  
+    document.querySelector('[data-portal-button]')?.click();
   };
 
   const handleCancelSubscription = () => {
-    // Implementation for subscription cancellation
+    // Will be handled by customer portal
+    document.querySelector('[data-portal-button]')?.click();
   };
 
   const getTokenUsageStats = () => {
@@ -58,12 +60,20 @@ const SubscriptionPage = () => {
 
   const tokenStats = getTokenUsageStats();
 
+  const currentPlan = subscription?.plan === 'free_trial' ? 'Free Trial' : 
+                    subscription?.plan === 'sprout' ? 'Sprout' :
+                    subscription?.plan === 'bloom' ? 'Bloom' : 'No Plan';
+
+  const billingCycle = subscription?.billing_interval === 'annual' ? 'Annual' : 'Monthly';
+  const nextBilling = subscription?.end_date ? 
+    new Date(subscription.end_date).toLocaleDateString() : 'N/A';
+
   return (
     <ProtectedPageWrapper>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
         <SubscriptionHeader
-          currentPlan={stats.currentPlan}
-          billingCycle={stats.billingCycle}
+          currentPlan={currentPlan}
+          billingCycle={billingCycle}
           tokenUsagePercent={tokenStats.usagePercent}
           resetTime={tokenStats.resetTime}
           onBillingHistory={handleBillingHistory}
@@ -73,6 +83,65 @@ const SubscriptionPage = () => {
         
         <div className="max-w-7xl mx-auto p-6">
           <div className="grid gap-6">
+            {/* Subscription Management Card */}
+            <Card className="shadow-lg border-0 bg-white">
+              <CardHeader className="pb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
+                <CardTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                  <Crown className="w-6 h-6 text-green-600" />
+                  Subscription Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">Current Plan</h3>
+                      <p className="text-lg text-green-600 font-medium">{currentPlan}</p>
+                      <p className="text-sm text-gray-600">
+                        {subscription?.plan === 'free_trial' 
+                          ? `Trial ends ${nextBilling}`
+                          : `Next billing: ${nextBilling}`
+                        }
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">Billing</h3>
+                      <p className="text-gray-700">{billingCycle}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <Button 
+                      onClick={handleUpgradePlan}
+                      className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                    >
+                      <Star className="w-4 h-4 mr-2" />
+                      {subscription?.plan === 'free_trial' ? 'Upgrade Now' : 'Change Plan'}
+                    </Button>
+                    
+                    {(subscription?.plan === 'sprout' || subscription?.plan === 'bloom') && (
+                      <div data-portal-button>
+                        <CustomerPortalButton 
+                          variant="outline"
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+                    
+                    <Button 
+                      onClick={() => refreshSubscription()}
+                      variant="ghost"
+                      className="w-full"
+                    >
+                      <Settings className="w-4 h-4 mr-2" />
+                      Refresh Status
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Token Balance Summary Card */}
             {tokenBalance && (
               <TokenBalanceCard
@@ -92,15 +161,6 @@ const SubscriptionPage = () => {
               
               <TokenUsageDashboard />
             </div>
-
-            {/* Current Plan Card */}
-            <CurrentPlanCard
-              currentPlan={stats.currentPlan}
-              nextBilling={stats.nextBilling}
-              billingCycle={stats.billingCycle}
-              onUpgradePlan={handleUpgradePlan}
-              onCancelSubscription={handleCancelSubscription}
-            />
 
             {/* Social Media Connections Section */}
             <div className="space-y-6">

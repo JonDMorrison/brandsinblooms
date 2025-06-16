@@ -2,7 +2,7 @@
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Crown } from "lucide-react";
+import { Clock, Crown, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const TrialBanner = () => {
@@ -17,23 +17,20 @@ export const TrialBanner = () => {
     navigate('/pricing');
   };
 
-  const handleViewPricing = () => {
-    navigate('/pricing');
-  };
-
+  // Show urgent banner for last 3 days
   if (trialDaysLeft <= 3) {
     return (
-      <div className="bg-warning-500 text-warning-foreground px-4 py-2 text-center">
-        <div className="flex items-center justify-center gap-2 text-sm">
-          <Clock className="h-4 w-4" />
+      <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-3 text-center shadow-lg">
+        <div className="flex items-center justify-center gap-3 text-sm font-medium">
+          <Clock className="h-4 w-4 animate-pulse" />
           <span>
-            Your free trial ends in {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''}
+            ⚠️ Trial expires in {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''}! Don't lose your campaigns.
           </span>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleUpgrade}
-            className="ml-4 text-warning-foreground border-warning-foreground hover:bg-warning-foreground hover:text-warning-500"
+            className="ml-4 text-white border-white hover:bg-white hover:text-red-600 font-semibold"
           >
             <Crown className="h-3 w-3 mr-1" />
             Upgrade Now
@@ -43,20 +40,34 @@ export const TrialBanner = () => {
     );
   }
 
+  // Show throughout trial period but less urgent
   return (
-    <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
-      <div className="max-w-7xl mx-auto flex items-center justify-center gap-4">
-        <div className="flex items-center gap-4 text-sm text-blue-700">
-          <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+    <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 border-b shadow-sm">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-4 text-sm">
+          <Badge variant="outline" className="bg-white/20 text-white border-white/30 font-medium">
+            <Zap className="h-3 w-3 mr-1" />
             Free Trial: {trialDaysLeft} days left
           </Badge>
-          <span>Start your journey today - </span>
+          <span className="hidden sm:inline">Experience premium features - </span>
           <button 
-            onClick={handleViewPricing}
-            className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer bg-transparent border-none p-0"
+            onClick={handleUpgrade}
+            className="text-white hover:text-blue-100 underline hover:no-underline font-medium cursor-pointer bg-transparent border-none p-0"
           >
-            view our simple pricing
+            upgrade to keep them forever
           </button>
+        </div>
+        
+        <div className="hidden md:block">
+          <Button 
+            onClick={handleUpgrade}
+            variant="outline"
+            size="sm"
+            className="text-white border-white hover:bg-white hover:text-blue-600"
+          >
+            <Crown className="h-3 w-3 mr-1" />
+            View Plans
+          </Button>
         </div>
       </div>
     </div>
