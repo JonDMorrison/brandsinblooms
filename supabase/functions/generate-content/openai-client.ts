@@ -1,7 +1,7 @@
 
 import { validateContent } from './validation.ts';
 
-export async function generateContentWithValidation(prompt: string, openAIApiKey: string, maxAttempts: number = 5) {
+export async function generateContentWithValidation(prompt: string, openAIApiKey: string, contentType?: string, maxAttempts: number = 3) {
   let attempts = 0;
   let lastIssues: string[] = [];
   
@@ -14,16 +14,14 @@ export async function generateContentWithValidation(prompt: string, openAIApiKey
       enhancedPrompt += `\n\n🚨 REGENERATION ATTEMPT ${attempts} - PREVIOUS FAILURES: ${lastIssues.join(', ')}
       
 CRITICAL: The previous attempt was REJECTED for violating content rules. You MUST:
-- Write in PLAIN ENGLISH only - no formatting, no code, no placeholders
+- Write in PLAIN ENGLISH only
 - Use SHORT PARAGRAPHS (2-3 sentences max)
 - NEVER use square brackets like [Company Name] or [Location]
 - Write like a human speaking naturally to another human
-- NO technical formatting whatsoever
+${contentType === 'instagram' ? '- Natural social media style is OK for Instagram' : '- NO formatting whatsoever'}
       
 IMMEDIATE REJECTION if content contains:
 - Any text in square brackets [like this]
-- Bullet points, numbered lists, or markdown
-- Code formatting or technical language
 - Generic placeholders instead of specific names`;
     }
     
@@ -44,14 +42,14 @@ CRITICAL RULES (VIOLATION = CONTENT REJECTION):
 1. Write in natural, flowing paragraphs only
 2. Use specific company names, never placeholders like [Company Name]
 3. Keep paragraphs short (2-3 sentences) for mobile reading
-4. No formatting: no bold, italic, bullets, numbers, or code blocks
-5. Sound conversational and authentic, not corporate or technical
+4. Sound conversational and authentic, not corporate or technical
+${contentType === 'instagram' ? '5. For Instagram: Natural social media style is acceptable' : '5. No formatting: no bold, italic, bullets, numbers, or code blocks'}
 
 You must write content that sounds like it came from a real person at a real garden center talking to real customers.` 
           },
           { role: 'user', content: enhancedPrompt }
         ],
-        temperature: 0.3, // Lower temperature for more consistent output
+        temperature: 0.3,
         max_tokens: 800,
       }),
     });
@@ -63,8 +61,8 @@ You must write content that sounds like it came from a real person at a real gar
     const data = await response.json();
     const generatedContent = data.choices[0].message.content;
     
-    // Validate content
-    const validation = validateContent(generatedContent);
+    // Validate content with content-type specific rules
+    const validation = validateContent(generatedContent, contentType);
     
     if (validation.isValid) {
       console.log(`Content generated successfully on attempt ${attempts}`);

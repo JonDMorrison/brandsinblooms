@@ -1,28 +1,11 @@
-
 import { supabase } from "@/integrations/supabase/client";
+
+// REMOVED TOKEN SPENDING - Edge functions now handle this to prevent double charging
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
   console.log(`🎯 Generating validated ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
-    // Spend token before generation
-    if (userId) {
-      console.log(`💰 Spending 1 token for ${postType} generation`);
-      const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
-        p_user_id: userId,
-        p_tokens: 1,
-        p_action_type: 'generation',
-        p_content_type: postType
-      });
-
-      if (tokenError) {
-        console.error('❌ Error spending token:', tokenError);
-        throw new Error('Failed to process token for content generation');
-      }
-
-      console.log('✅ Token spent for content generation');
-    }
-
     console.log('📡 About to call generate-content function with:', {
       postType: postType,
       campaignTitle: campaignTitle,
@@ -82,25 +65,6 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
   console.log(`🎯 Generating newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
   
   try {
-    // Spend token before generation
-    if (userId) {
-      console.log('💰 Spending 2 tokens for newsletter generation');
-      const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
-        p_user_id: userId,
-        p_tokens: 2, // Newsletter costs 2 tokens as it's more complex
-        p_action_type: 'generation',
-        p_content_type: 'newsletter',
-        p_campaign_id: campaignId
-      });
-
-      if (tokenError) {
-        console.error('❌ Error spending token:', tokenError);
-        throw new Error('Failed to process token for newsletter generation');
-      }
-
-      console.log('✅ Tokens spent for newsletter generation');
-    }
-
     console.log('📡 About to call generate-newsletter function');
 
     const { data, error } = await supabase.functions.invoke('generate-newsletter', {
@@ -138,24 +102,6 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
   console.log(`🎯 Generating video script for: ${campaignTitle} with description: ${weekDescription}`);
   
   try {
-    // Spend token before generation
-    if (userId) {
-      console.log('💰 Spending 2 tokens for video script generation');
-      const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
-        p_user_id: userId,
-        p_tokens: 2, // Video script costs 2 tokens as it's more complex
-        p_action_type: 'generation',
-        p_content_type: 'video'
-      });
-
-      if (tokenError) {
-        console.error('❌ Error spending token:', tokenError);
-        throw new Error('Failed to process token for video script generation');
-      }
-
-      console.log('✅ Tokens spent for video script generation');
-    }
-
     console.log('📡 About to call generate-video-script function');
 
     const { data, error } = await supabase.functions.invoke('generate-video-script', {

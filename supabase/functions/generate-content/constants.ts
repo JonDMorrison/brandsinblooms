@@ -35,6 +35,18 @@ export const CONTENT_TYPE_RULES: Record<string, ContentTypeRules> = {
       'Professional but approachable'
     ]
   },
+  newsletter: {
+    max_words: 400,
+    tone: 'informative and engaging',
+    format: 'structured sections, scannable layout',
+    cta_style: 'educational with clear next steps',
+    specific_requirements: [
+      'Include seasonal gardening tips',
+      'Reference company expertise and services',
+      'Provide actionable advice for current season',
+      'Include relevant product recommendations'
+    ]
+  },
   video: {
     max_words: 180,
     tone: 'natural speaking rhythm',
@@ -54,6 +66,7 @@ export const FALLBACK_MESSAGES = {
   missing_company_profile: "Write as a knowledgeable garden center expert providing valuable, authentic advice."
 };
 
+// Simplified validation patterns - removed overly restrictive rules for Instagram
 export const FORBIDDEN_PATTERNS = [
   /green\s*thumb/gi,
   /welcome\s*to/gi,
@@ -62,8 +75,6 @@ export const FORBIDDEN_PATTERNS = [
   /week\s*number/gi,
   /\bweek\s*(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty)\b/gi,
   /[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu,
-  /^\s*[-•]\s/gm,
-  /^\s*\d+\.\s/gm,
   /\[company\s*name\]/gi,
   /\[garden\s*center\s*name\]/gi,
   /your\s*garden\s*center/gi,
@@ -72,12 +83,15 @@ export const FORBIDDEN_PATTERNS = [
   /\[garden\s*center\s*location\]/gi,
   /\[.*?\]/gi, // Any text in square brackets
   /```/gi, // Code blocks
-  /`[^`]*`/gi, // Inline code
-  /\*\*[^*]*\*\*/gi, // Bold markdown
-  /\*[^*]*\*/gi, // Italic markdown
-  /_[^_]*_/gi, // Underscore formatting
-  /#{1,6}\s/gi, // Markdown headers
-  /^\s*>\s/gm, // Blockquotes
+];
+
+// Relaxed validation for Instagram - allow some natural social media formatting
+export const INSTAGRAM_FORBIDDEN_PATTERNS = [
+  /green\s*thumb/gi,
+  /welcome\s*to/gi,
+  /week\s*\d+/gi,
+  /\[.*?\]/gi, // Square bracket placeholders only
+  /```/gi, // Code blocks only
 ];
 
 export const corsHeaders = {

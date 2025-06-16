@@ -45,8 +45,9 @@ serve(async (req) => {
     
     console.log(`Generating validated ${postType} content for: ${campaignTitle}${companyProfile?.company_name ? ` (${companyProfile.company_name})` : ''}`);
 
-    // Generate content with validation
-    const result = await generateContentWithValidation(prompt, openAIApiKey);
+    // Generate content with validation - use fewer attempts for faster generation
+    const maxAttempts = postType === 'instagram' ? 2 : 3; // Instagram gets relaxed validation
+    const result = await generateContentWithValidation(prompt, openAIApiKey, postType, maxAttempts);
 
     console.log(`Generated content successfully after ${result.attempts} attempts`);
 
