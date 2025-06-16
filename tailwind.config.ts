@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +60,7 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				
-				// Garden Color Scheme - Restored
+				// Garden Color Scheme - Using garden green instead of yellow
 				'garden-green': {
 					DEFAULT: '#4CAF50',
 					50: '#E8F5E8',
@@ -83,7 +82,7 @@ export default {
 				'garden-sage': '#F0F4F0',
 				
 				primary: {
-					DEFAULT: '#4CAF50',
+					DEFAULT: '#4CAF50', // Garden green instead of yellow
 					50: '#E8F5E8',
 					100: '#C8E6C9',
 					200: '#A5D6A7',
@@ -141,11 +140,11 @@ export default {
 					foreground: '#757575'
 				},
 				accent: {
-					DEFAULT: '#E3F2FD',
-					50: '#E3F2FD',
-					100: '#BBDEFB',
-					500: '#2196F3',
-					foreground: '#1976D2'
+					DEFAULT: '#4CAF50', // Garden green instead of blue
+					50: '#E8F5E8',
+					100: '#C8E6C9',
+					500: '#4CAF50',
+					foreground: '#FFFFFF' // White text on green
 				},
 				popover: {
 					DEFAULT: '#FFFFFF',

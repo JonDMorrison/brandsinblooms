@@ -11,8 +11,8 @@
     --popover: 255 255 255; /* #FFFFFF */
     --popover-foreground: 32 33 36; /* #202124 */
 
-    /* Garden Brand Colors - Restored */
-    --primary: 76 175 80; /* #4CAF50 - Garden green */
+    /* Garden Brand Colors - Fixed to use garden green */
+    --primary: 76 175 80; /* #4CAF50 - Garden green (was yellow) */
     --primary-foreground: 255 255 255; /* #FFFFFF */
 
     --secondary: 245 245 245; /* #F5F5F5 - Secondary surface */
@@ -32,13 +32,13 @@
     --muted: 240 244 240; /* #F0F4F0 - Garden sage */
     --muted-foreground: 117 117 117; /* #757575 */
 
-    --accent: 227 242 253; /* #E3F2FD */
-    --accent-foreground: 25 118 210; /* #1976D2 */
+    --accent: 76 175 80; /* #4CAF50 - Garden green (was blue) */
+    --accent-foreground: 255 255 255; /* White text on green */
 
-    /* Interactive Elements */
+    /* Interactive Elements - Fixed to use garden green */
     --border: 224 224 224; /* #E0E0E0 */
     --input: 255 255 255; /* #FFFFFF */
-    --ring: 76 175 80; /* #4CAF50 - Focus ring */
+    --ring: 76 175 80; /* #4CAF50 - Garden green focus ring (was yellow) */
 
     --radius: 0.75rem; /* 12px default radius */
 
@@ -81,12 +81,12 @@
     --muted: 66 66 66;
     --muted-foreground: 189 189 189; /* #BDBDBD */
     
-    --accent: 25 118 210; /* #1976D2 */
-    --accent-foreground: 255 255 255;
+    --accent: 129 199 132; /* Garden green for dark mode */
+    --accent-foreground: 0 0 0;
     
     --border: 66 66 66;
     --input: 66 66 66;
-    --ring: 129 199 132;
+    --ring: 129 199 132; /* Garden green ring for dark mode */
     
     --text-primary: 255 255 255;
     --text-secondary: 189 189 189;
@@ -166,7 +166,7 @@
     @apply bg-garden-sage;
   }
 
-  /* Fix dialog and form styling */
+  /* Fix dialog and form styling - Remove yellow, use garden green */
   .dialog-content {
     @apply border-garden-green-light;
   }
@@ -185,5 +185,26 @@
   
   .button-primary {
     @apply bg-garden-green text-white hover:bg-garden-green-dark;
+  }
+
+  /* Global overrides to remove any remaining yellow */
+  .focus\:ring-yellow-500:focus {
+    --tw-ring-color: rgb(76 175 80) !important;
+  }
+  
+  .focus\:border-yellow-500:focus {
+    border-color: rgb(76 175 80) !important;
+  }
+  
+  .bg-yellow-500 {
+    background-color: rgb(76 175 80) !important;
+  }
+  
+  .border-yellow-500 {
+    border-color: rgb(76 175 80) !important;
+  }
+
+  .text-yellow-600 {
+    color: rgb(46 125 50) !important;
   }
 }

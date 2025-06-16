@@ -178,25 +178,81 @@
       @apply py-2 px-2 !important;
     }
 
-    /* Fix mobile dialog and form elements - Remove yellow colors */
+    /* COMPLETE YELLOW REMOVAL - Mobile specific overrides with garden green */
     .dialog-content,
     .select-trigger,
-    .input-field {
-      @apply border-garden-green-light !important;
+    .input-field,
+    button,
+    .button,
+    [role="button"],
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: rgb(129 199 132) !important; /* garden-green-light */
     }
     
     .select-trigger:focus,
-    .input-field:focus {
-      @apply border-garden-green ring-garden-green !important;
+    .input-field:focus,
+    input:focus,
+    select:focus,
+    textarea:focus,
+    button:focus,
+    .button:focus,
+    [role="button"]:focus {
+      border-color: rgb(76 175 80) !important; /* garden-green */
+      --tw-ring-color: rgb(76 175 80) !important; /* garden-green */
+      box-shadow: 0 0 0 2px rgb(76 175 80 / 0.2) !important;
     }
     
-    /* Mobile button fixes - Remove yellow backgrounds */
-    .button-cancel {
-      @apply bg-white border-gray-300 text-gray-700 hover:bg-gray-50 !important;
+    /* Mobile button fixes - Complete yellow removal */
+    .button-cancel,
+    button[data-variant="outline"],
+    .bg-yellow-50,
+    .bg-yellow-100 {
+      background-color: white !important;
+      border-color: rgb(209 213 219) !important; /* gray-300 */
+      color: rgb(55 65 81) !important; /* gray-700 */
     }
     
-    .button-primary {
-      @apply bg-garden-green text-white hover:bg-garden-green-dark !important;
+    .button-cancel:hover,
+    button[data-variant="outline"]:hover {
+      background-color: rgb(249 250 251) !important; /* gray-50 */
+    }
+    
+    .button-primary,
+    button[data-variant="default"],
+    .bg-yellow-500,
+    .bg-yellow-600 {
+      background-color: rgb(76 175 80) !important; /* garden-green */
+      color: white !important;
+      border-color: rgb(76 175 80) !important;
+    }
+    
+    .button-primary:hover,
+    button[data-variant="default"]:hover {
+      background-color: rgb(46 125 50) !important; /* garden-green-dark */
+    }
+
+    /* Remove any remaining yellow/amber classes on mobile */
+    .text-yellow-600,
+    .text-yellow-500,
+    .text-amber-600,
+    .text-amber-500 {
+      color: rgb(46 125 50) !important; /* garden-green-dark */
+    }
+
+    .border-yellow-500,
+    .border-yellow-400,
+    .border-amber-500,
+    .border-amber-400 {
+      border-color: rgb(76 175 80) !important; /* garden-green */
+    }
+
+    .ring-yellow-500,
+    .ring-amber-500,
+    .focus\:ring-yellow-500:focus,
+    .focus\:ring-amber-500:focus {
+      --tw-ring-color: rgb(76 175 80) !important; /* garden-green */
     }
   }
 

@@ -5,15 +5,15 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const appleButtonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-all duration-150 ease-apple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-all duration-150 ease-apple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-garden-green focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
+        primary: "bg-garden-green text-white hover:bg-garden-green-dark shadow-sm",
         secondary: "bg-transparent border border-gray-300 text-text-primary hover:bg-gray-50",
-        tertiary: "bg-transparent text-primary hover:bg-primary/10",
+        tertiary: "bg-transparent text-garden-green hover:bg-garden-green/10",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm",
-        success: "bg-success text-success-foreground hover:bg-success/90 shadow-sm",
+        success: "bg-garden-green text-white hover:bg-garden-green-dark shadow-sm",
       },
       size: {
         sm: "h-9 px-4 text-sm",
