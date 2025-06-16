@@ -14,6 +14,7 @@ interface TrialReminderRequest {
   user_id: string;
   email: string;
   days_remaining: number;
+  email_type?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -30,8 +31,8 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { user_id, email, days_remaining }: TrialReminderRequest = await req.json();
-    console.log(`[TRIAL-REMINDER] Sending email to ${email} for user ${user_id} with ${days_remaining} days remaining`);
+    const { user_id, email, days_remaining, email_type = 'trial_expiring' }: TrialReminderRequest = await req.json();
+    console.log(`[TRIAL-REMINDER] Sending ${email_type} email to ${email} for user ${user_id} with ${days_remaining} days remaining`);
 
     // Get user's company profile for personalization
     const { data: profile, error: profileError } = await supabase
@@ -46,11 +47,66 @@ const handler = async (req: Request): Promise<Response> => {
 
     const companyName = profile?.company_name || 'there';
 
-    const emailResponse = await resend.emails.send({
-      from: "BloomSuite <support@bloomsuite.com>",
-      to: [email],
-      subject: "Your trial ends in 3 days - Don't go back to manual posting!",
-      html: `
+    // Generate email content based on email type
+    let subject: string;
+    let htmlContent: string;
+
+    if (email_type === 'trial_expired') {
+      subject = "Your trial has ended - Your content creation just got harder";
+      htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #dc2626; margin-bottom: 20px;">Hi ${companyName}! 😔</h1>
+          
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+            Your free trial has ended, and we hate to see you go back to the old way of doing things...
+          </p>
+          
+          <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin: 20px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #7f1d1d;">You're back to:</h3>
+            <ul style="margin: 0; padding-left: 20px; color: #7f1d1d;">
+              <li>Staring at a blank page wondering what to post</li>
+              <li>Spending hours typing out content manually</li>
+              <li>Forgetting to post consistently</li>
+              <li>Missing out on seasonal opportunities</li>
+              <li>No more automated campaigns or content generation</li>
+            </ul>
+          </div>
+          
+          <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+            <strong>But it doesn't have to be this way!</strong> You experienced how smooth content creation can be with BloomSuite. Your campaigns were ready, your content was generated, and your social media strategy was on autopilot.
+          </p>
+          
+          <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0; color: #0c4a6e; font-weight: 500;">
+              🚨 <strong>Don't let your momentum die!</strong> Reactivate now and get back to effortless content creation.
+            </p>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://udldmkqwnxhdeztyqcau.supabase.co/pricing" 
+               style="background-color: #dc2626; color: white; padding: 16px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; font-size: 18px;">
+              Reactivate BloomSuite Now
+            </a>
+          </div>
+          
+          <p style="font-size: 14px; color: #6b7280; margin-top: 30px; text-align: center;">
+            <strong>Limited time:</strong> We'll help you pick up right where you left off!
+          </p>
+          
+          <p style="font-size: 14px; color: #6b7280;">
+            Questions? Just reply to this email - we're here to help!
+          </p>
+          
+          <p style="font-size: 14px; color: #6b7280;">
+            Best regards,<br>
+            The BloomSuite Team 🌸
+          </p>
+        </div>
+      `;
+    } else {
+      // Original trial expiring email
+      subject = "Your trial ends in 3 days - Don't go back to manual posting!";
+      htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #2563eb; margin-bottom: 20px;">Hi ${companyName}! 👋</h1>
           
@@ -92,7 +148,14 @@ const handler = async (req: Request): Promise<Response> => {
             The BloomSuite Team 🌸
           </p>
         </div>
-      `,
+      `;
+    }
+
+    const emailResponse = await resend.emails.send({
+      from: "BloomSuite <support@bloomsuite.com>",
+      to: [email],
+      subject: subject,
+      html: htmlContent,
     });
 
     console.log("[TRIAL-REMINDER] Email sent successfully:", emailResponse);
@@ -103,7 +166,7 @@ const handler = async (req: Request): Promise<Response> => {
       .insert({
         user_id,
         days_remaining,
-        email_type: 'trial_expiring'
+        email_type
       });
 
     if (trackingError) {
@@ -112,7 +175,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(JSON.stringify({ 
       success: true, 
-      email_id: emailResponse.data?.id 
+      email_id: emailResponse.data?.id,
+      email_type 
     }), {
       status: 200,
       headers: {
