@@ -1,73 +1,137 @@
 
 @layer base {
   :root {
-    --background: 247 250 245; /* #F7FAF5 */
-    --foreground: 0 0 0; /* #000000 - Changed to black */
+    /* Surface Colors */
+    --background: 248 249 250; /* #F8F9FA - Primary surface */
+    --foreground: 32 33 36; /* #202124 - Primary text */
 
-    --card: 255 255 255;
-    --card-foreground: 0 0 0; /* #000000 - Changed to black */
+    --card: 255 255 255; /* #FFFFFF - Card background */
+    --card-foreground: 32 33 36; /* #202124 - Card text */
 
-    --popover: 255 255 255;
-    --popover-foreground: 0 0 0; /* #000000 - Changed to black */
+    --popover: 255 255 255; /* #FFFFFF */
+    --popover-foreground: 32 33 36; /* #202124 */
 
-    --primary: 76 175 80; /* #4CAF50 */
-    --primary-foreground: 255 255 255;
+    /* Brand Colors */
+    --primary: 76 175 80; /* #4CAF50 - Primary green */
+    --primary-foreground: 255 255 255; /* #FFFFFF */
 
-    --secondary: 232 245 232; /* #E8F5E8 */
-    --secondary-foreground: 0 0 0; /* #000000 - Changed to black */
+    --secondary: 245 245 245; /* #F5F5F5 - Secondary surface */
+    --secondary-foreground: 32 33 36; /* #202124 */
 
-    --muted: 240 247 244; /* #F0F7F4 */
-    --muted-foreground: 107 114 128;
+    /* Semantic Colors */
+    --success: 76 175 80; /* #4CAF50 */
+    --success-foreground: 255 255 255;
 
-    --accent: 232 245 232; /* #E8F5E8 */
-    --accent-foreground: 0 0 0; /* #000000 - Changed to black */
+    --warning: 255 152 0; /* #FF9800 */
+    --warning-foreground: 255 255 255;
 
-    --destructive: 229 62 62; /* #E53E3E */
+    --destructive: 244 67 54; /* #F44336 */
     --destructive-foreground: 255 255 255;
 
-    --border: 200 230 201; /* #C8E6C9 */
-    --input: 200 230 201;
-    --ring: 156 163 175; /* Changed to grey-400 */
+    /* Neutral Colors */
+    --muted: 245 245 245; /* #F5F5F5 */
+    --muted-foreground: 117 117 117; /* #757575 */
 
-    --radius: 0.75rem;
+    --accent: 227 242 253; /* #E3F2FD */
+    --accent-foreground: 25 118 210; /* #1976D2 */
 
-    --sidebar-background: 240 247 244; /* #F0F7F4 */
-    --sidebar-foreground: 0 0 0; /* #000000 - Changed to black */
-    --sidebar-primary: 76 175 80;
-    --sidebar-primary-foreground: 255 255 255;
-    --sidebar-accent: 232 245 232;
-    --sidebar-accent-foreground: 0 0 0; /* #000000 - Changed to black */
-    --sidebar-border: 200 230 201;
-    --sidebar-ring: 156 163 175; /* Changed to grey-400 */
+    /* Interactive Elements */
+    --border: 224 224 224; /* #E0E0E0 */
+    --input: 255 255 255; /* #FFFFFF */
+    --ring: 76 175 80; /* #4CAF50 - Focus ring */
+
+    --radius: 0.75rem; /* 12px default radius */
+
+    /* Text Colors */
+    --text-primary: 32 33 36; /* #202124 */
+    --text-secondary: 95 99 104; /* #5F6368 */
+    --text-tertiary: 154 160 166; /* #9AA0A6 */
+    --text-inverse: 255 255 255; /* #FFFFFF */
+
+    /* Surface Colors */
+    --surface-primary: 255 255 255; /* #FFFFFF */
+    --surface-secondary: 248 249 250; /* #F8F9FA */
+    --surface-tertiary: 241 243 244; /* #F1F3F4 */
   }
 
   .dark {
-    --background: 30 41 59;
-    --foreground: 248 250 252;
-    --card: 30 41 59;
-    --card-foreground: 248 250 252;
-    --popover: 30 41 59;
-    --popover-foreground: 248 250 252;
-    --primary: 76 175 80;
-    --primary-foreground: 255 255 255;
-    --secondary: 51 65 85;
-    --secondary-foreground: 248 250 252;
-    --muted: 51 65 85;
-    --muted-foreground: 148 163 184;
-    --accent: 51 65 85;
-    --accent-foreground: 248 250 252;
-    --destructive: 229 62 62;
-    --destructive-foreground: 248 250 252;
-    --border: 51 65 85;
-    --input: 51 65 85;
-    --ring: 156 163 175; /* Changed to grey-400 */
-    --sidebar-background: 30 41 59;
-    --sidebar-foreground: 248 250 252;
-    --sidebar-primary: 76 175 80;
-    --sidebar-primary-foreground: 255 255 255;
-    --sidebar-accent: 51 65 85;
-    --sidebar-accent-foreground: 248 250 252;
-    --sidebar-border: 51 65 85;
-    --sidebar-ring: 156 163 175; /* Changed to grey-400 */
+    /* Dark mode color adjustments */
+    --background: 18 18 18; /* #121212 */
+    --foreground: 255 255 255; /* #FFFFFF */
+    
+    --card: 33 33 33; /* #212121 */
+    --card-foreground: 255 255 255;
+    
+    --popover: 33 33 33;
+    --popover-foreground: 255 255 255;
+    
+    --primary: 129 199 132; /* Lighter green for dark mode */
+    --primary-foreground: 0 0 0;
+    
+    --secondary: 66 66 66; /* #424242 */
+    --secondary-foreground: 255 255 255;
+    
+    --muted: 66 66 66;
+    --muted-foreground: 189 189 189; /* #BDBDBD */
+    
+    --accent: 25 118 210; /* #1976D2 */
+    --accent-foreground: 255 255 255;
+    
+    --border: 66 66 66;
+    --input: 66 66 66;
+    --ring: 129 199 132;
+    
+    --text-primary: 255 255 255;
+    --text-secondary: 189 189 189;
+    --text-tertiary: 158 158 158;
+    --text-inverse: 0 0 0;
+    
+    --surface-primary: 33 33 33;
+    --surface-secondary: 18 18 18;
+    --surface-tertiary: 66 66 66;
+  }
+}
+
+/* Apple-inspired component styles */
+@layer components {
+  .apple-card {
+    @apply bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300 ease-apple;
+  }
+  
+  .apple-card:hover {
+    @apply shadow-md border-gray-300 scale-[1.01];
+  }
+  
+  .apple-button {
+    @apply px-6 py-3 rounded-lg font-medium transition-all duration-150 ease-apple;
+    min-height: 44px; /* Apple's minimum touch target */
+  }
+  
+  .apple-button-primary {
+    @apply apple-button bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98];
+  }
+  
+  .apple-button-secondary {
+    @apply apple-button bg-transparent border border-gray-300 text-text-primary hover:bg-gray-50 active:scale-[0.98];
+  }
+  
+  .apple-button-tertiary {
+    @apply apple-button bg-transparent text-primary hover:bg-primary/10 active:scale-[0.98];
+  }
+  
+  .apple-focus {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+  }
+  
+  .apple-surface-1 {
+    @apply bg-surface-primary;
+  }
+  
+  .apple-surface-2 {
+    @apply bg-surface-secondary;
+  }
+  
+  .apple-surface-3 {
+    @apply bg-surface-tertiary;
   }
 }

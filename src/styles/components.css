@@ -1,37 +1,71 @@
 
 @layer components {
+  /* Card variants with Apple-inspired elevation */
+  .apple-card-default {
+    @apply bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300 ease-apple;
+  }
+  
+  .apple-card-elevated {
+    @apply bg-white rounded-lg border border-gray-200 shadow-lg transition-all duration-300 ease-apple;
+  }
+  
+  .apple-card-interactive {
+    @apply bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300 ease-apple cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99];
+  }
+
+  /* Button system with consistent hierarchy */
+  .apple-button-base {
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-all duration-150 ease-apple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98];
+    min-height: 44px; /* Apple's minimum touch target */
+  }
+
+  /* Seasonal and campaign cards with improved hierarchy */
   .seasonal-emoji {
-    @apply inline-flex items-center justify-center w-8 h-8 bg-white rounded-full text-lg border border-gray-200;
+    @apply inline-flex items-center justify-center w-10 h-10 bg-white rounded-full text-xl border border-gray-200 shadow-sm;
   }
   
   .campaign-card-active {
-    @apply bg-green-50 border-green-200;
+    @apply bg-green-50 border-green-200 shadow-sm;
   }
   
   .campaign-card-review {
-    @apply bg-blue-50 border-blue-200;
+    @apply bg-blue-50 border-blue-200 shadow-sm;
   }
   
   .campaign-card-attention {
-    @apply bg-white border-gray-200;
+    @apply bg-white border-gray-200 shadow-sm;
   }
 
-  /* Mobile-specific component overrides */
+  /* Improved spacing and typography for mobile */
   @media (max-width: 768px) {
     .seasonal-emoji {
-      @apply bg-white border-gray-200;
+      @apply w-8 h-8 text-lg;
     }
     
-    .campaign-card-active {
-      @apply bg-white border-green-200;
-    }
-    
-    .campaign-card-review {
-      @apply bg-white border-blue-200;
-    }
-    
+    .campaign-card-active,
+    .campaign-card-review,
     .campaign-card-attention {
-      @apply bg-white border-gray-200;
+      @apply bg-white border-opacity-80;
     }
+
+    /* Enhanced touch targets for mobile */
+    .apple-button-base {
+      min-height: 48px;
+      @apply px-6 py-3;
+    }
+  }
+
+  /* Loading states with Apple-inspired animations */
+  .apple-loading {
+    @apply animate-pulse;
+  }
+
+  .apple-skeleton {
+    @apply bg-gray-200 rounded animate-pulse;
+  }
+
+  /* Enhanced focus indicators */
+  .apple-focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white;
   }
 }

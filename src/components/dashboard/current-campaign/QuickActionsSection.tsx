@@ -1,5 +1,6 @@
 
-import { Card, CardContent } from "@/components/ui/card";
+import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
+import { HeadlineMedium } from "@/components/ui/typography";
 import { Sparkles } from "lucide-react";
 import { QuickActionItem } from "./QuickActionItem";
 import { useQuickActions } from "./useQuickActions";
@@ -22,18 +23,19 @@ export const QuickActionsSection = ({
   });
 
   return (
-    <div className="mt-6">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+    <div className="space-y-4">
+      <HeadlineMedium className="text-text-primary flex items-center gap-2">
         <Sparkles className="w-5 h-5 text-primary" />
         Quick Actions
-      </h3>
-      <Card className="shadow-lg border-gray-200 rounded-xl bg-white">
-        <CardContent className="p-4 space-y-3">
+      </HeadlineMedium>
+      
+      <AppleCard variant="elevated" className="overflow-hidden">
+        <AppleCardContent className="p-4 space-y-3">
           {actionItems.map((item) => (
             <QuickActionItem key={item.id} item={item} />
           ))}
-        </CardContent>
-      </Card>
+        </AppleCardContent>
+      </AppleCard>
     </div>
   );
 };
