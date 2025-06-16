@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, Settings, User, Crown, Home } from "lucide-react";
+import { LogOut, Settings, User, Crown, Home, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const UserMenu = () => {
@@ -34,9 +34,16 @@ export const UserMenu = () => {
     navigate("/subscription");
   };
 
+  const handleAdminClick = () => {
+    navigate("/admin");
+  };
+
   if (!user) return null;
 
   const userInitials = user.email?.slice(0, 2).toUpperCase() || "U";
+  
+  // Check if user is a master admin
+  const isMasterAdmin = user.email === "jon@brandsinblooms.com" || user.email === "jeff@brandsinblooms.com";
 
   return (
     <DropdownMenu>
@@ -56,7 +63,7 @@ export const UserMenu = () => {
               {user.email}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
-              Garden Center Admin
+              {isMasterAdmin ? "Master Admin" : "Garden Center Admin"}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -77,6 +84,15 @@ export const UserMenu = () => {
           <Settings className="mr-2 h-4 w-4" />
           <span>Settings</span>
         </DropdownMenuItem>
+        {isMasterAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleAdminClick}>
+              <Shield className="mr-2 h-4 w-4" />
+              <span>Master Admin</span>
+            </DropdownMenuItem>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleSignOut}>
           <LogOut className="mr-2 h-4 w-4" />
