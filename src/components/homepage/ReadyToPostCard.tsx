@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -177,7 +178,6 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           isOpen={showContentViewer}
           onClose={handleContentViewerClose}
           onTaskUpdate={onTaskUpdate}
-          initialTask={selectedTask}
         />
       )}
     </>
