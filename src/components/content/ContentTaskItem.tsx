@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect } from "react";
 import { ContentSidebar } from "@/components/ContentSidebar";
 import { TaskHeader } from "./task-item/TaskHeader";
 import { TaskActions } from "./task-item/TaskActions";
 import { TaskContent } from "./task-item/TaskContent";
 import { TaskMetadata } from "./task-item/TaskMetadata";
+import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ContentTaskItemProps {
@@ -60,6 +62,11 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
     setTimeout(() => setRetryingGeneration(false), 3000);
   };
 
+  const handleShowAllImages = () => {
+    // Open the content sidebar with full image gallery
+    setShowContentSidebar(true);
+  };
+
   return (
     <>
       <div className="border rounded-lg p-4 space-y-3 relative group">
@@ -77,6 +84,17 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
           onRetryGeneration={handleRetryGeneration}
           retryingGeneration={retryingGeneration}
         />
+
+        {/* Image Suggestions */}
+        {task.ai_output && (
+          <div className="mt-4">
+            <CompactImageCarousel 
+              task={task}
+              campaignTheme={task.campaigns?.theme}
+              onShowAll={handleShowAllImages}
+            />
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <TaskMetadata scheduledDate={task.scheduled_date} />
