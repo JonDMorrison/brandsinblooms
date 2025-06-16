@@ -1,4 +1,3 @@
-
 import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,17 +32,26 @@ const SubscriptionPage = () => {
 
   const handleBillingHistory = () => {
     // Will be handled by customer portal
-    document.querySelector('[data-portal-button]')?.click();
+    const portalButton = document.querySelector('[data-portal-button] button') as HTMLButtonElement;
+    if (portalButton) {
+      portalButton.click();
+    }
   };
 
   const handleManagePayment = () => {
     // Will be handled by customer portal  
-    document.querySelector('[data-portal-button]')?.click();
+    const portalButton = document.querySelector('[data-portal-button] button') as HTMLButtonElement;
+    if (portalButton) {
+      portalButton.click();
+    }
   };
 
   const handleCancelSubscription = () => {
     // Will be handled by customer portal
-    document.querySelector('[data-portal-button]')?.click();
+    const portalButton = document.querySelector('[data-portal-button] button') as HTMLButtonElement;
+    if (portalButton) {
+      portalButton.click();
+    }
   };
 
   const getTokenUsageStats = () => {

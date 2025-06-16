@@ -1,17 +1,18 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './contexts/AuthContext';
 import { NetworkErrorBoundary } from './components/NetworkErrorBoundary';
-import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from 'sonner';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { LandingPage } from './components/LandingPage';
 import PricingPage from './pages/PricingPage';
-import Dashboard from './pages/Dashboard';
-import AuthPage from './pages/AuthPage';
+import Index from './pages/Index';
+import Auth from './pages/Auth';
 import SubscriptionPage from './pages/SubscriptionPage';
-import SubscriptionSuccessPage from "@/pages/SubscriptionSuccessPage";
+import SubscriptionSuccessPage from "./pages/SubscriptionSuccessPage";
 
 const queryClient = new QueryClient();
 
@@ -27,8 +28,8 @@ function App() {
                   <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/pricing" element={<PricingPage />} />
-                    <Route path="/app" element={<Dashboard />} />
-                    <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/app" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
                     <Route path="/subscription" element={<SubscriptionPage />} />
                     <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
                   </Routes>
