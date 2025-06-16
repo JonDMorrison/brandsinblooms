@@ -48,7 +48,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const fetchPendingTasks = useCallback(async () => {
     try {
       setError(null);
-      console.log('ReviewQueue: Fetching pending tasks with status "review"');
+      console.log('ReviewQueue: Fetching pending tasks with status "review" for current user');
       
       // Check if we're offline
       if (!navigator.onLine) {
@@ -63,12 +63,24 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         return;
       }
       
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('ReviewQueue: No authenticated user found');
+        setError('User not authenticated');
+        setLoading(false);
+        return;
+      }
+
+      // Now with RLS, we can fetch content_tasks directly and it will be filtered by user automatically
+      // But we'll still join with campaigns to get campaign info
       const { data, error: fetchError } = await supabase
         .from('content_tasks')
         .select(`
           *,
           campaigns (
-            title
+            title,
+            user_id
           )
         `)
         .eq('status', 'review')
@@ -92,7 +104,8 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         }
       } else {
         const tasks = data || [];
-        console.log('ReviewQueue: Loaded pending tasks:', tasks.length);
+        console.log('ReviewQueue: Loaded pending tasks for current user:', tasks.length);
+        console.log('ReviewQueue: First task campaign user_id check:', tasks[0]?.campaigns?.user_id, 'vs current user:', user.id);
         setPendingTasks(tasks);
         setCachedData(tasks);
       }
@@ -126,6 +139,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
       console.log('ReviewQueue: Approving task:', taskId);
       
       // Change status to 'completed' for approved content
+      // RLS will ensure we can only update our own tasks
       const { error } = await supabase
         .from('content_tasks')
         .update({ status: 'completed' })
@@ -181,6 +195,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             if (payload.new.status === 'review' && payload.new.ai_output) {
+              // RLS will ensure we only get updates for our own content
               setPendingTasks(prev => {
                 const filtered = prev.filter(task => task.id !== payload.new.id);
                 return [payload.new, ...filtered];

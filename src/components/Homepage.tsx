@@ -41,15 +41,18 @@ export const Homepage = () => {
 
     setLoading(true);
     try {
+      // Fetch only current user's campaigns
       const { data, error } = await supabase
         .from('campaigns')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching campaigns:', error);
         toast.error('Failed to load campaigns');
       } else {
+        console.log('Homepage: Fetched campaigns for current user:', data?.length);
         setCampaigns(data || []);
       }
     } catch (error) {
@@ -64,14 +67,23 @@ export const Homepage = () => {
     if (!user) return;
 
     try {
+      // With RLS enabled, this will automatically filter to user's tasks
+      // But we'll also join with campaigns to be explicit about user ownership
       const { data, error } = await supabase
         .from('content_tasks')
-        .select('*')
+        .select(`
+          *,
+          campaigns (
+            title,
+            user_id
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching tasks:', error);
       } else {
+        console.log('Homepage: Fetched tasks for current user:', data?.length);
         setTasks(data || []);
       }
     } catch (error) {

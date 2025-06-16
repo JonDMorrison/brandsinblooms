@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
   }, []);
 
   // Filter for only posted content from the last 2 weeks
+  // RLS will ensure we only see our own content
   const readyTasks = realtimeTasks.filter(task => {
     if (task.status !== 'posted') return false;
     
@@ -103,18 +105,34 @@ export const ReadyToPostCard = ({ tasks, onTaskClick, onTaskUpdate }: ReadyToPos
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('User not authenticated');
+        return;
+      }
+
       // Calculate 2 weeks ago
       const twoWeeksAgo = new Date();
       twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
 
+      // Fetch user's posted content with RLS protection
       const { data: freshTasks, error } = await supabase
         .from('content_tasks')
-        .select('*')
+        .select(`
+          *,
+          campaigns (
+            title,
+            user_id
+          )
+        `)
         .eq('status', 'posted')
         .gte('updated_at', twoWeeksAgo.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      
+      console.log('ReadyToPost: Refreshed tasks for current user:', freshTasks?.length);
       
       setRealtimeTasks(prev => {
         const nonPosted = prev.filter(task => task.status !== 'posted');

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -38,11 +37,28 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      console.log('ContentReviewDialog: Fetching tasks for review...');
+      console.log('ContentReviewDialog: Fetching tasks for review for current user...');
       
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error('ContentReviewDialog: No authenticated user found');
+        toast.error('User not authenticated');
+        setLoading(false);
+        return;
+      }
+
+      // With RLS enabled, this will automatically filter to user's tasks
+      // But we'll also join with campaigns to be explicit about user ownership
       const { data, error } = await supabase
         .from('content_tasks')
-        .select('*')
+        .select(`
+          *,
+          campaigns (
+            title,
+            user_id
+          )
+        `)
         .in('status', ['draft', 'review', 'scheduled']) // Include scheduled tasks
         .order('created_at', { ascending: false });
 
@@ -50,19 +66,11 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
         console.error('ContentReviewDialog: Error fetching tasks:', error);
         toast.error('Failed to load tasks');
       } else {
-        console.log('ContentReviewDialog: Fetched tasks:', data);
+        console.log('ContentReviewDialog: Fetched tasks for current user:', data?.length);
         setTasks(data || []);
         
         if (data && data.length === 0) {
-          console.log('ContentReviewDialog: No tasks found for review. Checking all tasks...');
-          
-          // Debug: Check what tasks exist
-          const { data: allTasks } = await supabase
-            .from('content_tasks')
-            .select('*')
-            .order('created_at', { ascending: false });
-          
-          console.log('ContentReviewDialog: All tasks in database:', allTasks);
+          console.log('ContentReviewDialog: No tasks found for review for current user.');
         }
       }
     } catch (error) {
@@ -77,6 +85,7 @@ export const ContentReviewDialog = ({ open, onOpenChange }: ContentReviewDialogP
     try {
       console.log('ContentReviewDialog: Updating task status to:', newStatus);
       
+      // RLS will ensure we can only update our own tasks
       const { error } = await supabase
         .from('content_tasks')
         .update({ status: newStatus })
