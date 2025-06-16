@@ -1,6 +1,8 @@
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
+import { AppleCardContent } from "@/components/ui/apple-card";
+import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
+import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { PlusCircle, Calendar, BarChart3, CalendarPlus, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { AddEventDialog } from "./AddEventDialog";
@@ -31,10 +33,6 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
     window.location.href = '/calendar';
   };
 
-  const handleViewAnalytics = () => {
-    window.location.href = '/analytics';
-  };
-
   const actionItems = [
     {
       id: 'new-campaign',
@@ -43,8 +41,6 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       description: 'Build themed marketing campaigns',
       benefit: 'Get 5+ content pieces instantly',
       color: 'text-green-600',
-      bgColor: 'bg-white hover:bg-gray-50',
-      borderColor: 'border-gray-200 hover:border-gray-300',
       onClick: () => setShowNewCampaignModal(true),
       ariaLabel: 'Create a new marketing campaign'
     },
@@ -54,9 +50,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       title: 'Promote Event',
       description: 'Get help marketing your events',
       benefit: 'Custom promotional content',
-      color: 'text-gray-600',
-      bgColor: 'bg-white hover:bg-gray-50',
-      borderColor: 'border-gray-200 hover:border-gray-300',
+      color: 'text-blue-600',
       onClick: () => setShowAddEventDialog(true),
       ariaLabel: 'Add a new event to promote'
     },
@@ -66,9 +60,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
       title: 'Content Calendar',
       description: 'See your planned content schedule',
       benefit: "Preview what's coming this year",
-      color: 'text-blue-600',
-      bgColor: 'bg-white hover:bg-gray-50',
-      borderColor: 'border-gray-200 hover:border-gray-300',
+      color: 'text-purple-600',
       onClick: handleViewCalendar,
       ariaLabel: 'View content calendar'
     }
@@ -76,20 +68,26 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
 
   return (
     <>
-      <Card className="shadow-lg border-gray-200 rounded-xl bg-white">
-        <CardContent className="p-6 bg-white">
-          <div className="flex items-center gap-2 mb-6">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <h3 className="text-xl font-bold text-black">Quick Actions</h3>
+      <EnhancedAppleCard 
+        variant="elevated" 
+        surface="primary" 
+        className="shadow-lg border-gray-200 rounded-xl"
+        hoverEffect="subtle"
+        animated={true}
+      >
+        <AppleCardContent className="responsive-padding">
+          <div className="flex items-center gap-2 mb-6 apple-slide-up">
+            <Sparkles className="w-5 h-5 text-primary apple-icon-bounce" />
+            <HeadlineMedium className="text-text-primary apple-text-glow">Quick Actions</HeadlineMedium>
           </div>
           
           <div className="flex flex-col items-start space-y-4">
-            {actionItems.map((item) => {
+            {actionItems.map((item, index) => {
               const IconComponent = item.icon;
               return (
                 <div
                   key={item.id}
-                  className={`w-full border border-gray-200 rounded-lg px-4 py-3 cursor-pointer transition-all duration-200 ease-in-out hover:shadow-md hover:border-gray-300 ${item.bgColor}`}
+                  className={`w-full border border-gray-200 rounded-lg p-4 cursor-pointer apple-hover-subtle apple-stagger-${Math.min(index + 1, 4)}`}
                   onClick={item.onClick}
                   role="button"
                   tabIndex={0}
@@ -102,30 +100,30 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                   }}
                 >
                   <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <IconComponent className={`w-6 h-6 ${item.color}`} />
+                    <div className="flex-shrink-0 p-2 bg-gray-50 rounded-lg apple-hover-subtle">
+                      <IconComponent className={`w-5 h-5 ${item.color} apple-icon-bounce`} />
                     </div>
                     
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-semibold text-black mb-1">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <HeadlineMedium className="text-text-primary apple-text-glow">
                         {item.title}
-                      </h4>
+                      </HeadlineMedium>
                       
-                      <p className="text-sm text-gray-600 leading-relaxed mb-1 text-wrap overflow-hidden">
+                      <BodyMedium className="text-text-secondary apple-color-transition">
                         {item.description}
-                      </p>
+                      </BodyMedium>
                       
-                      <p className="text-sm text-gray-500 leading-relaxed text-wrap overflow-hidden">
+                      <CaptionMedium className="text-text-tertiary apple-color-transition">
                         {item.benefit}
-                      </p>
+                      </CaptionMedium>
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-        </CardContent>
-      </Card>
+        </AppleCardContent>
+      </EnhancedAppleCard>
 
       <AddEventDialog 
         open={showAddEventDialog}

@@ -1,69 +1,137 @@
 
-/* GLOBAL OVERRIDES FOR ALL SCREEN SIZES - REMOVE YELLOW ENTIRELY */
-/* Replace yellow borders with neutral colors */
-.border-yellow-50,
-.border-yellow-100,
-.border-yellow-200,
-.border-yellow-300,
-.border-yellow-400,
-.border-yellow-500,
-.border-yellow-600,
-.border-yellow-700,
-.border-yellow-800,
-.border-yellow-900,
-.border-amber-50,
-.border-amber-100,
-.border-amber-200,
-.border-amber-300,
-.border-amber-400,
-.border-amber-500,
-.border-amber-600,
-.border-amber-700,
-.border-amber-800,
-.border-amber-900,
-.border-orange-50,
-.border-orange-100,
-.border-orange-200,
-.border-orange-300,
-.border-orange-400,
-.border-orange-500,
-.border-orange-600,
-.border-orange-700,
-.border-orange-800,
-.border-orange-900 {
-  border-color: #e5e7eb; /* gray-200 */
-}
+@layer utilities {
+  /* Global Apple design consistency */
+  .apple-focus {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-all duration-150;
+  }
 
-/* Replace yellow backgrounds with white */
-.bg-yellow-50,
-.bg-yellow-100,
-.bg-yellow-200,
-.bg-yellow-300,
-.bg-yellow-400,
-.bg-yellow-500,
-.bg-yellow-600,
-.bg-yellow-700,
-.bg-yellow-800,
-.bg-yellow-900,
-.bg-amber-50,
-.bg-amber-100,
-.bg-amber-200,
-.bg-amber-300,
-.bg-amber-400,
-.bg-amber-500,
-.bg-amber-600,
-.bg-amber-700,
-.bg-amber-800,
-.bg-amber-900,
-.bg-orange-50,
-.bg-orange-100,
-.bg-orange-200,
-.bg-orange-300,
-.bg-orange-400,
-.bg-orange-500,
-.bg-orange-600,
-.bg-orange-700,
-.bg-orange-800,
-.bg-orange-900 {
-  background-color: #ffffff;
+  /* Consistent border radius throughout the app */
+  .apple-rounded {
+    border-radius: 12px;
+  }
+
+  .apple-rounded-sm {
+    border-radius: 8px;
+  }
+
+  .apple-rounded-lg {
+    border-radius: 16px;
+  }
+
+  /* Consistent shadows */
+  .apple-shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .apple-shadow {
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  }
+
+  .apple-shadow-md {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .apple-shadow-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Consistent backdrop blur effects */
+  .apple-backdrop {
+    backdrop-filter: blur(20px);
+    background-color: rgba(255, 255, 255, 0.8);
+  }
+
+  .apple-backdrop-dark {
+    backdrop-filter: blur(20px);
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  /* Enhanced scrollbars */
+  .apple-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  }
+
+  .apple-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .apple-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .apple-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
+
+  .apple-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+  }
+
+  /* Consistent selection styling */
+  ::selection {
+    background-color: rgba(59, 130, 246, 0.3);
+    color: inherit;
+  }
+
+  /* Enhanced focus indicators for accessibility */
+  .apple-focus-visible {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+
+  /* Consistent text selection */
+  .apple-select-none {
+    @apply select-none;
+  }
+
+  .apple-select-text {
+    @apply select-text;
+  }
+
+  /* Loading state patterns */
+  .apple-loading-shimmer {
+    background: linear-gradient(90deg, 
+      rgba(243, 244, 246, 0) 0%, 
+      rgba(243, 244, 246, 0.6) 50%, 
+      rgba(243, 244, 246, 0) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  /* Enhanced interactive states */
+  .apple-interactive {
+    @apply cursor-pointer apple-hover apple-focus transition-all duration-200;
+  }
+
+  .apple-interactive-subtle {
+    @apply cursor-pointer apple-hover-subtle apple-focus transition-all duration-150;
+  }
+
+  /* Consistent spacing patterns */
+  .apple-section-spacing {
+    @apply space-y-8;
+  }
+
+  .apple-content-spacing {
+    @apply space-y-6;
+  }
+
+  .apple-item-spacing {
+    @apply space-y-4;
+  }
+
+  .apple-compact-spacing {
+    @apply space-y-3;
+  }
 }

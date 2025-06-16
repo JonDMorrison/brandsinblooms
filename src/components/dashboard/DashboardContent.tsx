@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,9 +8,11 @@ import { ContentPreviewGrid } from "./ContentPreviewGrid";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
 import { ReviewQueueCard } from "@/components/content/ReviewQueueCard";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
-import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
+import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
+import { AppleCardContent } from "@/components/ui/apple-card";
 import { BodyMedium } from "@/components/ui/typography";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { EnhancedDashboardGrid } from "./EnhancedDashboardGrid";
 import type { Campaign } from "@/types";
 
 interface DashboardContentProps {
@@ -27,6 +28,7 @@ export const DashboardContent = ({
 }: DashboardContentProps) => {
   const { user } = useAuth();
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
+  const [userCreatedCampaigns, setUserCreatedCampaigns] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [tasksCount, setTasksCount] = useState(0);
   const [completedTasksCount, setCompletedTasksCount] = useState(0);
@@ -164,6 +166,18 @@ export const DashboardContent = ({
       } else {
         setTasks(allTasks || []);
       }
+
+      // Fetch user created campaigns
+      const { data: userCampaigns, error: userCampaignsError } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('user_id', user.id)
+        .neq('week_number', currentWeekNumber)
+        .order('created_at', { ascending: false });
+
+      if (!userCampaignsError) {
+        setUserCreatedCampaigns(userCampaigns || []);
+      }
     } catch (error) {
       console.error('DashboardContent: Error in fetchCampaignData:', error);
       // Set empty state on error
@@ -193,16 +207,31 @@ export const DashboardContent = ({
     }
   };
 
+  const handleCampaignDelete = async (campaignId: string) => {
+    try {
+      await supabase.from('content_tasks').delete().eq('campaign_id', campaignId);
+      await supabase.from('campaigns').delete().eq('id', campaignId);
+      fetchCampaignData();
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+    }
+  };
+
   if (loading) {
     return (
-      <AppleCard variant="default" surface="primary" className="mx-auto max-w-md">
+      <EnhancedAppleCard 
+        variant="default" 
+        surface="primary" 
+        className="mx-auto max-w-md"
+        animated={true}
+      >
         <AppleCardContent className="flex flex-col items-center justify-center py-12">
           <LoadingSpinner size="lg" />
           <BodyMedium className="text-text-secondary mt-4">
             Loading your content...
           </BodyMedium>
         </AppleCardContent>
-      </AppleCard>
+      </EnhancedAppleCard>
     );
   }
 
@@ -217,36 +246,21 @@ export const DashboardContent = ({
         tasksCount={tasksCount}
       />
 
-      {/* Review Queue - Only show if there are tasks to review */}
-      <ReviewQueueCard onTaskUpdate={handleTaskUpdate} />
-
-      {/* Current Campaign Section */}
-      <div data-campaign-section>
-        <CurrentCampaignSection
-          activeCampaign={activeCampaign}
-          currentWeekNumber={currentWeekNumber}
-          completedTasksCount={completedTasksCount}
-          totalTasksCount={tasksCount}
-          pendingTasksCount={pendingTasksCount}
-          onTaskUpdate={handleTaskUpdate}
-          onCreateCampaign={onCampaignCreated}
-          onCampaignCreated={fetchCampaignData}
-        />
-      </div>
-
-      {/* Ready to Post section - moved to be right after Current Campaign */}
-      <ReadyToPostCard 
+      {/* Enhanced Dashboard Grid - Replaces individual sections */}
+      <EnhancedDashboardGrid
+        activeCampaign={activeCampaign}
+        userCreatedCampaigns={userCreatedCampaigns}
         tasks={tasks}
+        currentWeekNumber={currentWeekNumber}
+        completedTasksCount={completedTasksCount}
+        totalTasksCount={tasksCount}
+        pendingTasksCount={pendingTasksCount}
         onTaskUpdate={handleTaskUpdate}
+        onCampaignCreated={fetchCampaignData}
+        onCampaignUpdate={fetchCampaignData}
+        onCampaignDelete={handleCampaignDelete}
+        onCreateCampaign={onCampaignCreated}
       />
-
-      {/* Content Preview Grid */}
-      {activeCampaign && (
-        <ContentPreviewGrid 
-          campaign={activeCampaign}
-          onTaskUpdate={handleTaskUpdate}
-        />
-      )}
     </div>
   );
 };

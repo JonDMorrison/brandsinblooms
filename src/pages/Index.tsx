@@ -7,7 +7,8 @@ import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { UserMenu } from "@/components/UserMenu";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
-import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
+import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
+import { AppleCardContent } from "@/components/ui/apple-card";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
@@ -90,24 +91,30 @@ const Index = () => {
 
   return (
     <ProtectedPageWrapper>
-      <div className="min-h-screen bg-surface-secondary">
+      <div className="min-h-screen bg-surface-secondary apple-fade-in">
         {/* Fixed UserMenu in top right corner */}
         <div className="fixed top-6 right-6 z-50">
           <UserMenu />
         </div>
 
         {/* Enhanced Header with Apple Design */}
-        <AppleCard variant="default" surface="primary" className="border-0 border-b border-gray-200 rounded-none shadow-sm">
-          <AppleCardContent className="max-w-7xl mx-auto px-6 py-8">
+        <EnhancedAppleCard 
+          variant="default" 
+          surface="primary" 
+          className="border-0 border-b border-gray-200 rounded-none shadow-sm"
+          hoverEffect="none"
+          animated={true}
+        >
+          <AppleCardContent className="max-w-7xl mx-auto responsive-padding">
             <WelcomeSection 
               onboardingData={onboardingData}
               onBusinessNameChange={handleBusinessNameChange}
             />
           </AppleCardContent>
-        </AppleCard>
+        </EnhancedAppleCard>
         
         {/* Dashboard Content - This is the main content area */}
-        <div className="max-w-7xl mx-auto p-6">
+        <div className="max-w-7xl mx-auto responsive-padding apple-slide-up">
           <DashboardContent
             onboardingData={onboardingData}
             onBusinessNameChange={handleBusinessNameChange}

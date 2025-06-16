@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { getSeasonalGreeting, getWelcomeMessage } from './SeasonalContent';
 import { EditableBusinessName } from '@/components/EditableBusinessName';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { DisplayMedium, BodyLarge } from '@/components/ui/typography';
 
 interface WelcomeSectionProps {
   onboardingData: any;
@@ -16,7 +16,6 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
   const [businessName, setBusinessName] = useState("Your Garden Center");
   const seasonal = getSeasonalGreeting();
 
-  // Fetch business name from company profile (authoritative source)
   useEffect(() => {
     const fetchBusinessName = async () => {
       if (!user) return;
@@ -92,23 +91,23 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 apple-fade-in">
       {/* Main Welcome */}
       <div className="text-center">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <span className="seasonal-emoji text-3xl">{welcomeMessage.emoji || seasonal.emoji}</span>
-          <h1 className="text-4xl font-bold text-black">
+        <div className="flex items-center justify-center gap-3 mb-4 apple-slide-up">
+          <span className="seasonal-emoji text-3xl apple-hover-subtle">{welcomeMessage.emoji || seasonal.emoji}</span>
+          <DisplayMedium className="text-text-primary apple-text-glow">
             {welcomeMessage.text}
-          </h1>
+          </DisplayMedium>
         </div>
-        <p className="text-lg text-gray-700 mb-6">
+        <BodyLarge className="text-text-secondary mb-6 max-w-4xl mx-auto leading-relaxed apple-slide-up apple-stagger-1">
           Your AI-powered gardening assistant is ready to help you create engaging content that grows{' '}
           <EditableBusinessName 
             businessName={businessName}
             onBusinessNameChange={handleBusinessNameChange}
           />{' '}
           and cultivates customer relationships.
-        </p>
+        </BodyLarge>
       </div>
     </div>
   );

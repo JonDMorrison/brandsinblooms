@@ -1,226 +1,137 @@
 
-/* COMPREHENSIVE MOBILE OVERRIDES - REMOVE ALL YELLOW/AMBER/ORANGE */
-@media (max-width: 768px) {
-  /* Force all potential yellow/amber/orange elements to white */
-  *[class*="yellow"],
-  *[class*="amber"],
-  *[class*="orange"],
-  *[style*="yellow"],
-  *[style*="amber"],
-  *[style*="orange"],
-  .bg-yellow-50,
-  .bg-yellow-100,
-  .bg-yellow-200,
-  .bg-yellow-300,
-  .bg-yellow-400,
-  .bg-yellow-500,
-  .bg-yellow-600,
-  .bg-yellow-700,
-  .bg-yellow-800,
-  .bg-yellow-900,
-  .bg-orange-50,
-  .bg-orange-100,
-  .bg-orange-200,
-  .bg-orange-300,
-  .bg-orange-400,
-  .bg-orange-500,
-  .bg-orange-600,
-  .bg-orange-700,
-  .bg-orange-800,
-  .bg-orange-900,
-  .bg-amber-50,
-  .bg-amber-100,
-  .bg-amber-200,
-  .bg-amber-300,
-  .bg-amber-400,
-  .bg-amber-500,
-  .bg-amber-600,
-  .bg-amber-700,
-  .bg-amber-800,
-  .bg-amber-900 {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
+@layer utilities {
+  /* Mobile-first performance optimizations */
+  @media (max-width: 768px) {
+    /* Reduce motion for better mobile performance */
+    .apple-hover {
+      @apply hover:scale-100 active:scale-[0.98] transition-transform duration-100;
+    }
+    
+    .apple-hover-subtle {
+      @apply hover:scale-100 active:scale-[0.99] transition-transform duration-100;
+    }
+
+    /* Optimize touch targets */
+    .apple-button-base {
+      min-height: 48px;
+      @apply px-6 py-3 text-base;
+    }
+
+    /* Enhanced touch feedback */
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+      @apply active:bg-gray-100 transition-colors duration-100;
+    }
+
+    .touch-target-lg {
+      min-height: 48px;
+      min-width: 48px;
+      @apply active:bg-gray-100 transition-colors duration-100;
+    }
+
+    /* Mobile card interactions */
+    .apple-card-interactive {
+      @apply hover:scale-100 active:scale-[0.99] transition-transform duration-100;
+    }
+
+    /* Reduce animation intensity on mobile */
+    .seasonal-emoji {
+      @apply hover:scale-100 active:scale-110 transition-transform duration-150;
+    }
+
+    /* Mobile-optimized spacing */
+    .responsive-padding {
+      @apply p-4;
+    }
+
+    .responsive-margin {
+      @apply m-4;
+    }
+
+    .responsive-gap {
+      @apply gap-4;
+    }
+
+    /* Typography adjustments for mobile */
+    .responsive-text-sm {
+      @apply text-sm;
+    }
+
+    .responsive-text-base {
+      @apply text-base;
+    }
+
+    .responsive-text-lg {
+      @apply text-lg;
+    }
+
+    .responsive-text-xl {
+      @apply text-xl;
+    }
   }
 
-  /* Force all yellow/amber/orange borders to gray */
-  .border-yellow-50,
-  .border-yellow-100,
-  .border-yellow-200,
-  .border-yellow-300,
-  .border-yellow-400,
-  .border-yellow-500,
-  .border-yellow-600,
-  .border-yellow-700,
-  .border-yellow-800,
-  .border-yellow-900,
-  .border-orange-50,
-  .border-orange-100,
-  .border-orange-200,
-  .border-orange-300,
-  .border-orange-400,
-  .border-orange-500,
-  .border-orange-600,
-  .border-orange-700,
-  .border-orange-800,
-  .border-orange-900,
-  .border-amber-50,
-  .border-amber-100,
-  .border-amber-200,
-  .border-amber-300,
-  .border-amber-400,
-  .border-amber-500,
-  .border-amber-600,
-  .border-amber-700,
-  .border-amber-800,
-  .border-amber-900 {
-    border-color: #e5e7eb !important; /* gray-200 */
+  /* Tablet-specific optimizations */
+  @media (min-width: 768px) and (max-width: 1024px) {
+    .responsive-padding {
+      @apply p-6;
+    }
+
+    .responsive-margin {
+      @apply m-6;
+    }
+
+    .responsive-gap {
+      @apply gap-6;
+    }
   }
 
-  /* Override any gradients that might contain yellow */
-  .bg-gradient-to-r,
-  .bg-gradient-to-l,
-  .bg-gradient-to-t,
-  .bg-gradient-to-b,
-  .bg-gradient-to-br,
-  .bg-gradient-to-bl,
-  .bg-gradient-to-tr,
-  .bg-gradient-to-tl {
-    background: #ffffff !important;
-    background-image: none !important;
+  /* Desktop optimizations */
+  @media (min-width: 1024px) {
+    .responsive-padding {
+      @apply p-8;
+    }
+
+    .responsive-margin {
+      @apply m-8;
+    }
+
+    .responsive-gap {
+      @apply gap-8;
+    }
   }
 
-  /* Ensure cards and content areas are white on mobile */
-  .card,
-  [role="dialog"],
-  .modal-content,
-  .banner,
-  .content-card,
-  [class*="Card"],
-  [class*="Banner"] {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
+  /* Reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    .apple-fade-in,
+    .apple-scale-in,
+    .apple-slide-up,
+    .apple-hover,
+    .apple-hover-subtle,
+    .apple-button-press,
+    .apple-card-interactive,
+    .seasonal-emoji,
+    .apple-stagger-1,
+    .apple-stagger-2,
+    .apple-stagger-3,
+    .apple-stagger-4 {
+      @apply transition-none;
+      animation: none !important;
+    }
+    
+    .apple-skeleton {
+      @apply animate-none bg-gray-200;
+    }
   }
 
-  /* Force button backgrounds to be clean */
-  button {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    border: 1px solid #cccccc !important;
-  }
-  
-  /* Preserve primary/green theme buttons */
-  button.bg-garden-green,
-  button[class*="bg-green"],
-  button[class*="bg-primary"],
-  button.bg-blue-600,
-  button.bg-green-600 {
-    background-color: #4CAF50 !important;
-    color: #ffffff !important;
-    border: 1px solid #4CAF50 !important;
-  }
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .apple-hover-subtle {
+      @apply hover:bg-gray-200 hover:border-gray-400;
+    }
 
-  /* Override any remaining yellow elements with specificity */
-  div[class*="yellow"],
-  div[class*="amber"],
-  div[class*="orange"],
-  section[class*="yellow"],
-  section[class*="amber"],
-  section[class*="orange"],
-  article[class*="yellow"],
-  article[class*="amber"],
-  article[class*="orange"] {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-    border-color: #e5e7eb !important;
-  }
-
-  /* Specific overrides for common yellow border patterns */
-  .border-warning,
-  .border-amber-200,
-  .border-amber-300,
-  .border-yellow-200,
-  .border-yellow-300,
-  .border-orange-200,
-  .border-orange-300 {
-    border-color: #e5e7eb !important;
-  }
-
-  /* Override text colors that might be yellow */
-  .text-yellow-50,
-  .text-yellow-100,
-  .text-yellow-200,
-  .text-yellow-300,
-  .text-yellow-400,
-  .text-yellow-500,
-  .text-yellow-600,
-  .text-yellow-700,
-  .text-yellow-800,
-  .text-yellow-900,
-  .text-amber-50,
-  .text-amber-100,
-  .text-amber-200,
-  .text-amber-300,
-  .text-amber-400,
-  .text-amber-500,
-  .text-amber-600,
-  .text-amber-700,
-  .text-amber-800,
-  .text-amber-900,
-  .text-orange-50,
-  .text-orange-100,
-  .text-orange-200,
-  .text-orange-300,
-  .text-orange-400,
-  .text-orange-500,
-  .text-orange-600,
-  .text-orange-700,
-  .text-orange-800,
-  .text-orange-900 {
-    color: #000000 !important;
-  }
-
-  /* SPECIFIC OVERRIDE FOR CONTENT REVIEW DIALOG */
-  [role="dialog"] .bg-gray-50,
-  [role="dialog"] .border-garden-green-light,
-  [data-state="open"] .bg-gray-50,
-  .prose {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-  }
-
-  /* Override any inline styles that might add yellow */
-  *[style*="background-color: yellow"],
-  *[style*="background: yellow"],
-  *[style*="backgroundColor: yellow"] {
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-  }
-
-  /* Ensure proper z-index stacking for dialogs */
-  [role="dialog"] {
-    z-index: 60 !important;
-  }
-
-  /* Remove any overlays or backdrop issues */
-  [role="dialog"] .prose,
-  [role="dialog"] .bg-white,
-  [role="dialog"] .DialogContent {
-    position: relative !important;
-    z-index: 61 !important;
-    background-color: #ffffff !important;
-    background: #ffffff !important;
-  }
-
-  /* Force dialog overlays to be properly transparent */
-  [data-radix-dialog-overlay] {
-    background-color: rgba(0, 0, 0, 0.5) !important;
-    z-index: 50 !important;
-  }
-
-  /* Ensure dialog content is above overlay */
-  [data-radix-dialog-content] {
-    z-index: 60 !important;
-    background-color: #ffffff !important;
-    background: #ffffff !important;
+    .apple-focus-ring {
+      @apply focus:ring-4 focus:ring-blue-600;
+    }
   }
 }
