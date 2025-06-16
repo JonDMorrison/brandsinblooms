@@ -45,18 +45,15 @@ export const TrialBanner = () => {
 
   return (
     <div className="bg-blue-50 border-b border-blue-200 px-4 py-2">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+      <div className="max-w-7xl mx-auto flex items-center justify-center gap-4">
+        <div className="flex items-center gap-4 text-sm text-blue-700">
           <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
             Free Trial: {trialDaysLeft} days left
           </Badge>
-        </div>
-        
-        <div className="flex items-center text-sm text-blue-700">
           <span>Start your journey today - </span>
           <button 
             onClick={handleViewPricing}
-            className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer bg-transparent border-none p-0 ml-1"
+            className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer bg-transparent border-none p-0"
           >
             view our simple pricing
           </button>
