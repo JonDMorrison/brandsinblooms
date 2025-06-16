@@ -177,6 +177,27 @@
     .mobile-welcome-section {
       @apply py-2 px-2 !important;
     }
+
+    /* Fix mobile dialog and form elements - Remove yellow colors */
+    .dialog-content,
+    .select-trigger,
+    .input-field {
+      @apply border-garden-green-light !important;
+    }
+    
+    .select-trigger:focus,
+    .input-field:focus {
+      @apply border-garden-green ring-garden-green !important;
+    }
+    
+    /* Mobile button fixes - Remove yellow backgrounds */
+    .button-cancel {
+      @apply bg-white border-gray-300 text-gray-700 hover:bg-gray-50 !important;
+    }
+    
+    .button-primary {
+      @apply bg-garden-green text-white hover:bg-garden-green-dark !important;
+    }
   }
 
   /* Tablet-specific optimizations */
@@ -224,7 +245,6 @@
     .apple-stagger-3,
     .apple-stagger-4 {
       @apply transition-none;
-      animation: none !important;
     }
     
     .apple-skeleton {

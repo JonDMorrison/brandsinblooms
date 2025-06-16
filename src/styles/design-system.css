@@ -165,4 +165,25 @@
   .garden-bg-secondary {
     @apply bg-garden-sage;
   }
+
+  /* Fix dialog and form styling */
+  .dialog-content {
+    @apply border-garden-green-light;
+  }
+  
+  .select-trigger-focus {
+    @apply focus:border-garden-green focus:ring-garden-green;
+  }
+  
+  .input-focus {
+    @apply focus:border-garden-green focus:ring-garden-green;
+  }
+  
+  .button-cancel {
+    @apply bg-transparent border border-gray-300 text-gray-700 hover:bg-gray-50;
+  }
+  
+  .button-primary {
+    @apply bg-garden-green text-white hover:bg-garden-green-dark;
+  }
 }
