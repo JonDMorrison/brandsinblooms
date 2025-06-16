@@ -13,12 +13,13 @@ export const getPostTypeIcon = (postType: string) => {
 };
 
 export const getPostTypeColor = (postType: string) => {
+  // Use consistent primary green theme with varying opacity levels for distinction
   switch (postType) {
-    case 'instagram': return 'bg-pink-100 text-pink-800 border-pink-200';
-    case 'facebook': return 'bg-blue-100 text-blue-800 border-blue-200';
-    case 'email': return 'bg-green-100 text-green-800 border-green-200';
-    case 'newsletter': return 'bg-purple-100 text-purple-800 border-purple-200';
-    case 'video': return 'bg-red-100 text-red-800 border-red-200';
-    default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    case 'instagram': return 'bg-primary/10 text-primary border-primary/20';
+    case 'facebook': return 'bg-primary/15 text-primary border-primary/25';
+    case 'email': return 'bg-primary/20 text-primary border-primary/30';
+    case 'newsletter': return 'bg-primary/12 text-primary border-primary/22';
+    case 'video': return 'bg-primary/18 text-primary border-primary/28';
+    default: return 'bg-primary/8 text-primary border-primary/18';
   }
 };

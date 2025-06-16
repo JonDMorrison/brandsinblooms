@@ -89,7 +89,7 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
             <Badge 
               variant="secondary" 
               className={`
-                capitalize w-fit text-xs
+                capitalize w-fit text-xs bg-primary/10 text-primary border-primary/20
                 ${isMobile ? 'px-2 py-1' : ''}
               `}
             >
@@ -97,7 +97,7 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
             </Badge>
             <Badge 
               className={`
-                bg-green-100 text-green-800 border-green-200 w-fit text-xs
+                bg-success/10 text-success border-success/20 w-fit text-xs
                 ${isMobile ? 'px-2 py-1' : ''}
               `}
             >
@@ -160,7 +160,7 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
                 variant="tertiary"
                 onClick={handleCopyContent}
                 className={`
-                  apple-button-base touch-target
+                  apple-button-base touch-target text-primary hover:bg-primary/10
                   ${isMobile ? 'flex-1 min-w-[80px]' : ''}
                 `}
                 iconAnimation="bounce"
