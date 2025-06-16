@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -214,12 +215,6 @@ export const DashboardContent = ({
       {/* Review Queue - Only show if there are tasks to review */}
       <ReviewQueueCard onTaskUpdate={handleTaskUpdate} />
 
-      {/* Ready to Post section */}
-      <ReadyToPostCard 
-        tasks={tasks}
-        onTaskUpdate={handleTaskUpdate}
-      />
-
       {/* Current Campaign Section */}
       <div data-campaign-section>
         <CurrentCampaignSection
@@ -233,6 +228,12 @@ export const DashboardContent = ({
           onCampaignCreated={fetchCampaignData}
         />
       </div>
+
+      {/* Ready to Post section - moved to be right after Current Campaign */}
+      <ReadyToPostCard 
+        tasks={tasks}
+        onTaskUpdate={handleTaskUpdate}
+      />
 
       {/* Content Preview Grid */}
       {activeCampaign && (
