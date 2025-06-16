@@ -38,10 +38,10 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         console.error('Error fetching pending tasks:', fetchError);
         setError('Failed to load pending content');
       } else {
-        // Filter to only show tasks for current user's campaigns
-        const userTasks = data?.filter(task => 
+        // Filter to only show tasks for current user's campaigns and cast to ContentTask type
+        const userTasks = (data?.filter(task => 
           task.campaigns?.user_id === user.id
-        ) || [];
+        ) || []) as ContentTask[];
         setPendingTasks(userTasks);
       }
     } catch (error) {
