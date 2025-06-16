@@ -139,15 +139,6 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
                 <Copy className="w-3 h-3" />
               </Button>
             </div>
-
-            {/* Photographer credit */}
-            <Badge 
-              variant="secondary" 
-              className="absolute bottom-1 left-1 text-xs px-1 py-0 h-4 cursor-pointer opacity-80"
-              onClick={(e) => handleCopyCredit(image.photographer, e)}
-            >
-              📷 {image.photographer.length > 8 ? image.photographer.substring(0, 8) + '...' : image.photographer}
-            </Badge>
           </div>
         ))}
       </div>
