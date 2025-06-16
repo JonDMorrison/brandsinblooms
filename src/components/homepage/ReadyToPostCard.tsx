@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -24,6 +23,8 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
+  const [showAllContent, setShowAllContent] = useState(false);
+  const [currentCampaign, setCurrentCampaign] = useState<any>(null);
 
   useEffect(() => {
     const fetchReadyTasks = async () => {
@@ -49,6 +50,10 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           console.error('Error fetching ready tasks:', error);
         } else {
           setTasks(data || []);
+          // Store the first campaign for "View All" functionality
+          if (data && data.length > 0) {
+            setCurrentCampaign(data[0].campaigns);
+          }
         }
       } catch (error) {
         console.error('Error in fetchReadyTasks:', error);
@@ -61,6 +66,10 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         .filter(task => ['review', 'approved'].includes(task.status) && task.ai_output)
         .slice(0, 6);
       setTasks(readyTasks);
+      // Get campaign info from the first task
+      if (readyTasks.length > 0) {
+        setCurrentCampaign(readyTasks[0].campaigns);
+      }
     } else {
       fetchReadyTasks();
     }
@@ -75,9 +84,20 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     }
   };
 
+  const handleViewAllContent = () => {
+    if (currentCampaign && tasks.length > 0) {
+      // Use the campaign from the first task to show all content
+      const firstTask = tasks[0];
+      setSelectedTask(firstTask);
+      setShowAllContent(true);
+      setShowContentViewer(true);
+    }
+  };
+
   const handleContentViewerClose = () => {
     setShowContentViewer(false);
     setSelectedTask(null);
+    setShowAllContent(false);
     if (onTaskUpdate) {
       onTaskUpdate();
     }
@@ -146,6 +166,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
                 size="sm"
                 iconAnimation="bounce"
                 className="apple-stagger-1"
+                onClick={handleViewAllContent}
               >
                 <Eye className="w-4 h-4 mr-2" />
                 View All
@@ -183,6 +204,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
                 className={`${isMobile ? 'w-full apple-button-mobile' : 'w-full'}`}
                 iconAnimation="bounce"
                 pulseOnHover={!isMobile}
+                onClick={handleViewAllContent}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 View All Ready Content
@@ -195,7 +217,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       {selectedTask && (
         <ContentViewer
           campaignId={selectedTask.campaign_id}
-          campaignTitle={selectedTask.campaigns?.title || 'Campaign'}
+          campaignTitle={selectedTask.campaigns?.title || currentCampaign?.title || 'Campaign'}
           isOpen={showContentViewer}
           onClose={handleContentViewerClose}
           onTaskUpdate={onTaskUpdate}
