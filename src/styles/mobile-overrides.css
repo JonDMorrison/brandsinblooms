@@ -2,6 +2,19 @@
 @layer utilities {
   /* Mobile-first performance optimizations */
   @media (max-width: 768px) {
+    /* Remove all yellow/warning colors on mobile */
+    .text-yellow-600,
+    .text-yellow-500,
+    .text-warning,
+    .bg-yellow-50,
+    .bg-yellow-100,
+    .bg-warning,
+    .border-yellow-200,
+    .border-yellow-300,
+    .border-warning {
+      @apply text-primary bg-primary/10 border-primary/20 !important;
+    }
+
     /* Reduce motion for better mobile performance */
     .apple-hover {
       @apply hover:scale-100 active:scale-[0.98] transition-transform duration-100;
@@ -132,6 +145,13 @@
 
     .apple-focus-ring {
       @apply focus:ring-4 focus:ring-blue-600;
+    }
+  }
+
+  /* Remove yellow from seasonal icons on mobile */
+  @media (max-width: 768px) {
+    .text-yellow-600 {
+      @apply text-primary !important;
     }
   }
 }

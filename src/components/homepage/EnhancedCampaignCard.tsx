@@ -36,7 +36,7 @@ export const EnhancedCampaignCard = ({
     if (month >= 3 && month <= 5) {
       return { icon: Leaf, color: "text-green-600", season: "Spring" };
     } else if (month >= 6 && month <= 8) {
-      return { icon: Sun, color: "text-yellow-600", season: "Summer" };
+      return { icon: Sun, color: "text-primary", season: "Summer" };
     } else if (month >= 9 && month <= 11) {
       return { icon: Droplets, color: "text-orange-600", season: "Fall" };
     } else {
