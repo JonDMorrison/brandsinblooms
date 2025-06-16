@@ -47,7 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
     const companyName = profile?.company_name || 'there';
 
     const emailResponse = await resend.emails.send({
-      from: "Bloom Boost <support@bloomboost.co>",
+      from: "BloomSuite <support@bloomsuite.com>",
       to: [email],
       subject: "Your trial ends in 3 days - Don't go back to manual posting!",
       html: `
@@ -67,7 +67,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            With Bloom Boost, you've experienced how easy content creation can be. Your campaigns are ready, your content is generated, and your social media strategy is on autopilot.
+            With BloomSuite, you've experienced how easy content creation can be. Your campaigns are ready, your content is generated, and your social media strategy is on autopilot.
           </p>
           
           <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; margin: 20px 0;">
@@ -77,7 +77,7 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://your-app-url.com/pricing" 
+            <a href="https://udldmkqwnxhdeztyqcau.supabase.co/pricing" 
                style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
               Choose Your Plan & Continue Growing
             </a>
@@ -89,7 +89,7 @@ const handler = async (req: Request): Promise<Response> => {
           
           <p style="font-size: 14px; color: #6b7280;">
             Best regards,<br>
-            The Bloom Boost Team 🌸
+            The BloomSuite Team 🌸
           </p>
         </div>
       `,
