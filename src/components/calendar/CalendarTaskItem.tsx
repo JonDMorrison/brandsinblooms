@@ -68,6 +68,29 @@ export const CalendarTaskItem = ({
 
   const handleDragStart = (e: React.DragEvent) => {
     if (selectionMode) {
+      // Create a custom drag image to improve the drag experience
+      const dragElement = e.currentTarget.cloneNode(true) as HTMLElement;
+      dragElement.style.transform = 'rotate(3deg)';
+      dragElement.style.opacity = '0.9';
+      dragElement.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
+      dragElement.style.background = 'white';
+      dragElement.style.border = '2px solid #3B82F6';
+      dragElement.style.borderRadius = '8px';
+      
+      // Position off-screen temporarily
+      dragElement.style.position = 'absolute';
+      dragElement.style.top = '-1000px';
+      dragElement.style.left = '-1000px';
+      document.body.appendChild(dragElement);
+      
+      // Set custom drag image
+      e.dataTransfer.setDragImage(dragElement, 50, 25);
+      
+      // Clean up after drag starts
+      setTimeout(() => {
+        document.body.removeChild(dragElement);
+      }, 0);
+      
       onDragStart(task);
     } else {
       e.preventDefault();
@@ -77,7 +100,6 @@ export const CalendarTaskItem = ({
   const statusBadge = getStatusBadge(task.status);
   const isDraggable = selectionMode;
 
-  // Update title to reflect that past content can be rescheduled
   const tooltipText = isPastDate 
     ? `Click to view/edit • ${isDraggable ? 'Drag to reschedule to future dates' : ''}`
     : `Click to view/edit • ${isDraggable ? 'Drag to reschedule' : ''}`;
@@ -91,12 +113,14 @@ export const CalendarTaskItem = ({
       className={cn(
         "relative text-xs p-2 rounded-lg transition-all duration-200 group/task",
         "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200",
-        "hover:from-green-100 hover:to-emerald-100 hover:shadow-md transform hover:scale-[1.02]",
+        // Improved hover states - no conflicting transforms
+        !isBeingDragged && "hover:from-green-100 hover:to-emerald-100 hover:shadow-md hover:-translate-y-0.5",
         "cursor-pointer",
-        isDraggable && "hover:cursor-move",
+        isDraggable && !isBeingDragged && "hover:cursor-move",
         isSelected && "ring-2 ring-blue-500 bg-blue-50 border-blue-300",
-        isBeingDragged && "opacity-50 scale-95",
-        isPastDate && "opacity-75" // Reduced opacity for past content but still interactive
+        // Smooth drag state - no scale conflicts, just opacity and lift
+        isBeingDragged && "opacity-60 shadow-lg translate-y-1 pointer-events-none",
+        isPastDate && "opacity-75"
       )}
       title={tooltipText}
     >
@@ -111,9 +135,11 @@ export const CalendarTaskItem = ({
         <div className="flex items-center gap-1">
           {isDraggable && (
             <GripVertical className={cn(
-              "w-3 h-3 text-gray-400 transition-opacity",
-              "opacity-0 group-hover/task:opacity-100",
-              isPastDate && "text-orange-500" // Different color for past content grip
+              "w-3 h-3 text-gray-400 transition-all duration-200",
+              // Better grip visibility
+              !isBeingDragged && "opacity-0 group-hover/task:opacity-100 group-hover/task:text-blue-500",
+              isBeingDragged && "opacity-100 text-blue-600",
+              isPastDate && !isBeingDragged && "group-hover/task:text-orange-500"
             )} />
           )}
         </div>
@@ -141,8 +167,10 @@ export const CalendarTaskItem = ({
         </div>
       </div>
 
-      {/* Hover overlay for better interactivity */}
-      <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/task:opacity-100 transition-opacity duration-200 rounded-lg pointer-events-none" />
+      {/* Subtle hover overlay - only when not being dragged */}
+      {!isBeingDragged && (
+        <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/task:opacity-100 transition-opacity duration-200 rounded-lg pointer-events-none" />
+      )}
     </div>
   );
 };

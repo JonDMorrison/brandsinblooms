@@ -25,6 +25,27 @@
     animation: slide-up 0.3s ease-apple;
   }
 
+  /* Drag and drop specific animations */
+  .drag-lift {
+    @apply transition-all duration-150 ease-out;
+    transform: translateY(-2px);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  }
+
+  .drag-ghost {
+    @apply transition-all duration-200 ease-out;
+    opacity: 0.6;
+    transform: translateY(1px);
+    pointer-events: none;
+  }
+
+  .drop-zone-active {
+    @apply transition-all duration-200 ease-out;
+    background: rgba(34, 197, 94, 0.05);
+    border: 2px solid rgb(34, 197, 94);
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1);
+  }
+
   /* Staggered animations for lists */
   .apple-stagger-1 {
     animation-delay: 0.1s;
@@ -107,6 +128,16 @@
   }
 }
 
+/* Global drag state */
+body.dragging {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+body.dragging * {
+  cursor: grabbing !important;
+}
+
 /* Mobile-specific animations */
 @media (max-width: 768px) {
   .apple-hover {
@@ -115,5 +146,11 @@
   
   .apple-hover-subtle {
     @apply hover:scale-100 active:scale-[0.99];
+  }
+
+  /* Disable hover effects on mobile to prevent conflicts */
+  .drag-lift {
+    transform: none;
+    filter: none;
   }
 }

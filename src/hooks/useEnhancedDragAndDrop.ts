@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -20,7 +20,7 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
   const [draggedTasks, setDraggedTasks] = useState<Task[]>([]);
   const [dragPreview, setDragPreview] = useState<string>('');
 
-  const handleDragStart = (tasks: Task[]) => {
+  const handleDragStart = useCallback((tasks: Task[]) => {
     setIsDragging(true);
     setDraggedTasks(tasks);
     
@@ -29,15 +29,23 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
     } else {
       setDragPreview(`${tasks.length} content items`);
     }
-  };
 
-  const handleDragEnd = () => {
+    // Add visual feedback to the document
+    document.body.style.cursor = 'grabbing';
+    document.body.classList.add('dragging');
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
     setIsDragging(false);
     setDraggedTasks([]);
     setDragPreview('');
-  };
+    
+    // Clean up visual feedback
+    document.body.style.cursor = '';
+    document.body.classList.remove('dragging');
+  }, []);
 
-  const handleDrop = async (targetDate: Date) => {
+  const handleDrop = useCallback(async (targetDate: Date) => {
     if (draggedTasks.length === 0) return;
 
     const newDateString = format(targetDate, 'yyyy-MM-dd');
@@ -67,34 +75,38 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
     });
 
     try {
-      // Update all tasks in a batch
-      const { error } = await supabase
-        .from('content_tasks')
-        .update({ scheduled_date: newDateString })
-        .in('id', draggedTasks.map(task => task.id));
-
-      if (error) throw error;
-
-      if (draggedTasks.length === 1) {
-        const successMessage = pastTasks.length > 0 
-          ? `Past content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
-          : `Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
-        toast.success(successMessage);
-      } else {
-        const successMessage = pastTasks.length > 0
-          ? `${draggedTasks.length} items (including past content) rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
-          : `${draggedTasks.length} items rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
-        toast.success(successMessage);
-      }
+      // Show immediate feedback
+      toast.promise(
+        supabase
+          .from('content_tasks')
+          .update({ scheduled_date: newDateString })
+          .in('id', draggedTasks.map(task => task.id)),
+        {
+          loading: `Rescheduling ${draggedTasks.length} item${draggedTasks.length !== 1 ? 's' : ''}...`,
+          success: () => {
+            if (draggedTasks.length === 1) {
+              const successMessage = pastTasks.length > 0 
+                ? `Past content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
+                : `Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
+              return successMessage;
+            } else {
+              const successMessage = pastTasks.length > 0
+                ? `${draggedTasks.length} items (including past content) rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
+                : `${draggedTasks.length} items rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
+              return successMessage;
+            }
+          },
+          error: 'Failed to reschedule content'
+        }
+      );
       
       onTaskUpdate();
     } catch (error) {
       console.error('Error updating task dates:', error);
-      toast.error('Failed to reschedule content');
     } finally {
       handleDragEnd();
     }
-  };
+  }, [draggedTasks, handleDragEnd, onTaskUpdate]);
 
   return {
     isDragging,

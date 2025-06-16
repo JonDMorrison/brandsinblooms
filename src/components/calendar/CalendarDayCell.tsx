@@ -80,11 +80,16 @@ export const CalendarDayCell = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    // Add visual feedback for valid drop zones
+    if (!isPastDate && isCurrentMonth) {
+      e.dataTransfer.dropEffect = 'move';
+    } else {
+      e.dataTransfer.dropEffect = 'none';
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    // Only allow dropping on future dates or today
     if (onDrop && !isPastDate) {
       onDrop(date);
     }
@@ -100,7 +105,6 @@ export const CalendarDayCell = ({
 
   const handleTaskDragStart = (task: Task) => {
     if (onDragStart && taskSelectionMode) {
-      // If task is selected, drag all selected tasks, otherwise just this task
       const tasksToMove = isTaskSelected?.(task) && selectedTasks.length > 1 
         ? selectedTasks 
         : [task];
@@ -108,20 +112,20 @@ export const CalendarDayCell = ({
     }
   };
 
-  // Allow dropping only on future dates, but allow dragging from any date
   const isValidDropTarget = isDragging && !isPastDate && isCurrentMonth;
   const isTaskBeingDragged = (task: Task) => draggedTasks.some(t => t.id === task.id);
 
   return (
     <div
       className={cn(
-        "group min-h-[140px] p-3 border transition-all duration-200 relative overflow-hidden",
+        "group min-h-[140px] p-3 border transition-all duration-300 relative overflow-hidden",
         !isCurrentMonth && "text-gray-400 bg-gray-50/50",
         isCurrentMonth && "bg-white hover:bg-blue-50/30 border-gray-200",
         isToday && "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 shadow-md",
         isWeekend && isCurrentMonth && "bg-gray-50/80",
         selectionMode && "cursor-pointer",
-        isValidDropTarget && "bg-green-50 border-green-300 border-2 border-dashed animate-pulse",
+        // Improved drop zone styling - no pulse animation
+        isValidDropTarget && "bg-green-50 border-green-300 border-2 ring-2 ring-green-400 ring-opacity-30 shadow-sm",
         isPastDate && "opacity-60"
       )}
       onDragOver={handleDragOver}
@@ -148,12 +152,12 @@ export const CalendarDayCell = ({
         </div>
       </div>
       
-      {/* Drop zone indicator */}
+      {/* Enhanced drop zone indicator */}
       {isValidDropTarget && (
-        <div className="absolute inset-2 border-2 border-green-400 border-dashed rounded-lg bg-green-50/50 flex items-center justify-center text-green-700 text-xs font-medium animate-bounce">
+        <div className="absolute inset-2 border-2 border-green-400 border-dashed rounded-lg bg-green-50/60 flex items-center justify-center text-green-700 text-xs font-medium">
           <div className="text-center">
             <div className="font-semibold">Drop here</div>
-            {dragPreview && <div className="text-xs mt-1">{dragPreview}</div>}
+            {dragPreview && <div className="text-xs mt-1 opacity-75">{dragPreview}</div>}
           </div>
         </div>
       )}
@@ -171,7 +175,7 @@ export const CalendarDayCell = ({
                 "relative text-xs p-2 rounded-lg cursor-pointer transition-all duration-200 group/campaign",
                 selectionMode && isSelected 
                   ? "bg-blue-200 border-2 border-blue-400 shadow-sm transform scale-[0.98]" 
-                  : "bg-gradient-to-r from-emerald-100 to-green-100 border border-emerald-200 hover:from-emerald-200 hover:to-green-200 hover:shadow-sm hover:scale-[1.02]",
+                  : "bg-gradient-to-r from-emerald-100 to-green-100 border border-emerald-200 hover:from-emerald-200 hover:to-green-200 hover:shadow-sm hover:-translate-y-0.5",
                 !selectionMode && "hover:shadow-md"
               )}
               onClick={() => onCampaignClick?.(campaign)}
