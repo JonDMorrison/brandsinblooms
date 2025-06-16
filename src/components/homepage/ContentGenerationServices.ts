@@ -229,7 +229,7 @@ export const generateContentForCampaign = async (
   }
 };
 
-// Helper function to extract keywords for image search
+// Helper function to extract keywords for image search with enhanced platform specificity
 const extractImageKeywords = (theme: string, description: string, contentType: string): string => {
   // Combine theme and description for better keyword extraction
   const combinedText = `${theme} ${description || ''}`.toLowerCase();
@@ -240,15 +240,15 @@ const extractImageKeywords = (theme: string, description: string, contentType: s
     .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|campaign|content|post)\b/g, '')
     .trim();
   
-  // Add content type specific keywords
+  // Enhanced platform-specific keywords with style modifiers
   const typeKeywords = {
-    instagram: 'lifestyle garden',
-    facebook: 'community garden',
-    email: 'tips garden',
-    newsletter: 'seasonal garden',
-    video: 'tutorial garden'
+    instagram: 'lifestyle aesthetic beautiful vibrant colorful trendy square portrait garden',
+    facebook: 'community educational informative people landscape wide garden',
+    email: 'simple clean product focused before after landscape garden tips',
+    newsletter: 'professional seasonal informative clean organized landscape header garden',
+    video: 'action process tutorial hands-on behind scenes landscape cinematic garden'
   };
   
   const finalQuery = cleanText || theme || 'garden';
-  return `${finalQuery} ${typeKeywords[contentType] || 'garden'}`.trim();
+  return `${finalQuery} ${typeKeywords[contentType] || typeKeywords.instagram}`.trim();
 };

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,7 @@ interface CompactImageCarouselProps {
 }
 
 export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: CompactImageCarouselProps) => {
-  const { images, loading, fetchNewImages, usingPlaceholders } = useImageSuggestions(task?.id);
+  const { images, loading, fetchNewImages, usingPlaceholders } = useImageSuggestions(task?.id, task?.post_type);
   const isMobile = useIsMobile();
   const [hasAutoFetched, setHasAutoFetched] = useState(false);
 
@@ -34,10 +35,10 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
   useEffect(() => {
     if (task?.id && images.length === 0 && !loading && !hasAutoFetched) {
       const initialQuery = getInitialQuery();
-      fetchNewImages(initialQuery, task.id);
+      fetchNewImages(initialQuery, task.id, task.post_type);
       setHasAutoFetched(true);
     }
-  }, [task?.id, images.length, loading, hasAutoFetched]);
+  }, [task?.id, images.length, loading, hasAutoFetched, task?.post_type]);
 
   const handleDownload = (imageUrl: string, photographer: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -69,7 +70,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
     return (
       <div className="flex items-center gap-2 p-2 bg-stone-50 rounded-lg">
         <div className="animate-spin w-4 h-4 border-2 border-stone-300 border-t-blue-500 rounded-full"></div>
-        <span className="text-xs text-stone-600">Finding images...</span>
+        <span className="text-xs text-stone-600">Finding {task?.post_type} images...</span>
       </div>
     );
   }
@@ -78,7 +79,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
     return (
       <div className="flex items-center gap-2 p-2 bg-stone-50 rounded-lg">
         <ImageIcon className="w-4 h-4 text-stone-400" />
-        <span className="text-xs text-stone-500">No images found</span>
+        <span className="text-xs text-stone-500">No {task?.post_type} images found</span>
       </div>
     );
   }
@@ -88,12 +89,30 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
   const displayImages = images.slice(0, displayCount);
   const hasMore = images.length > displayCount;
 
+  const getPlatformBadgeText = (postType: string) => {
+    const badges = {
+      instagram: '📱 Instagram Style',
+      facebook: '👥 Facebook Style', 
+      newsletter: '📧 Newsletter Style',
+      email: '✉️ Email Style',
+      video: '🎥 Video Style'
+    };
+    return badges[postType] || '📷 Images';
+  };
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ImageIcon className="w-4 h-4 text-stone-600" />
-          <span className="text-xs font-medium text-stone-700">Images</span>
+          <span className="text-xs font-medium text-stone-700">
+            {getPlatformBadgeText(task?.post_type)}
+          </span>
+          {usingPlaceholders && (
+            <Badge variant="outline" className="text-xs">
+              Sample
+            </Badge>
+          )}
         </div>
         {hasMore && onShowAll && (
           <Button 
