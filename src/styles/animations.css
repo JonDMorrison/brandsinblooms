@@ -1,0 +1,119 @@
+
+@layer utilities {
+  /* Apple-inspired micro-interactions */
+  .apple-hover {
+    @apply transition-all duration-200 ease-apple hover:scale-[1.02] hover:shadow-md active:scale-[0.98];
+  }
+
+  .apple-hover-subtle {
+    @apply transition-all duration-150 ease-apple hover:scale-[1.01] hover:shadow-sm active:scale-[0.99];
+  }
+
+  .apple-button-press {
+    @apply transition-all duration-100 ease-apple active:scale-[0.96] active:brightness-95;
+  }
+
+  .apple-fade-in {
+    @apply animate-fade-in;
+  }
+
+  .apple-scale-in {
+    @apply animate-scale-in;
+  }
+
+  .apple-slide-up {
+    animation: slide-up 0.3s ease-apple;
+  }
+
+  /* Staggered animations for lists */
+  .apple-stagger-1 {
+    animation-delay: 0.1s;
+  }
+
+  .apple-stagger-2 {
+    animation-delay: 0.2s;
+  }
+
+  .apple-stagger-3 {
+    animation-delay: 0.3s;
+  }
+
+  .apple-stagger-4 {
+    animation-delay: 0.4s;
+  }
+
+  /* Focus states */
+  .apple-focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white;
+  }
+
+  /* Loading states */
+  .apple-skeleton {
+    @apply bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite];
+  }
+
+  /* Interactive states for cards */
+  .apple-card-interactive {
+    @apply apple-hover cursor-pointer;
+  }
+
+  /* Smooth color transitions */
+  .apple-color-transition {
+    @apply transition-colors duration-200 ease-apple;
+  }
+
+  /* Icon animations */
+  .apple-icon-bounce {
+    @apply hover:animate-[bounce_0.6s_ease-in-out];
+  }
+
+  .apple-icon-rotate {
+    @apply hover:animate-[spin_0.8s_ease-in-out];
+  }
+
+  /* Text animations */
+  .apple-text-glow {
+    @apply transition-all duration-200 hover:text-primary hover:drop-shadow-sm;
+  }
+}
+
+/* Custom keyframes */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes gentle-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Mobile-specific animations */
+@media (max-width: 768px) {
+  .apple-hover {
+    @apply hover:scale-100 active:scale-[0.98];
+  }
+  
+  .apple-hover-subtle {
+    @apply hover:scale-100 active:scale-[0.99];
+  }
+}

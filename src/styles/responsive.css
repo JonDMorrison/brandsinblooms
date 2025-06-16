@@ -1,0 +1,96 @@
+
+@layer utilities {
+  /* Enhanced responsive utilities */
+  .responsive-grid-auto {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  .responsive-grid-auto-sm {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  .responsive-grid-auto-lg {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  }
+
+  /* Mobile-first spacing */
+  .responsive-padding {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+
+  .responsive-margin {
+    @apply m-4 sm:m-6 lg:m-8;
+  }
+
+  .responsive-gap {
+    @apply gap-4 sm:gap-6 lg:gap-8;
+  }
+
+  /* Typography scaling */
+  .responsive-text-sm {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  .responsive-text-base {
+    @apply text-base sm:text-lg lg:text-xl;
+  }
+
+  .responsive-text-lg {
+    @apply text-lg sm:text-xl lg:text-2xl;
+  }
+
+  .responsive-text-xl {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+
+  /* Container queries for fine-grained control */
+  @container (min-width: 400px) {
+    .container-sm\:text-base {
+      font-size: 1rem;
+    }
+    
+    .container-sm\:p-6 {
+      padding: 1.5rem;
+    }
+  }
+
+  @container (min-width: 600px) {
+    .container-md\:text-lg {
+      font-size: 1.125rem;
+    }
+    
+    .container-md\:p-8 {
+      padding: 2rem;
+    }
+  }
+
+  /* Mobile touch targets */
+  @media (max-width: 768px) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    .touch-target-lg {
+      min-height: 48px;
+      min-width: 48px;
+    }
+  }
+
+  /* Safe area for mobile devices */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
