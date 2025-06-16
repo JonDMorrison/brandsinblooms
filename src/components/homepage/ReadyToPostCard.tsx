@@ -9,7 +9,8 @@ import { CheckCircle, Eye, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
-import { ReadyToPostItem } from "./ready-to-post/ReadyToPostItem";
+import { EnhancedReadyToPostItem } from "./ready-to-post/EnhancedReadyToPostItem";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -19,6 +20,7 @@ interface ReadyToPostCardProps {
 
 export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }: ReadyToPostCardProps) => {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
@@ -90,14 +92,17 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         hoverEffect="none"
         animated={true}
       >
-        <AppleCardContent className="text-center py-12">
-          <div className="flex items-center justify-center w-16 h-16 bg-success/10 rounded-full mx-auto mb-4 apple-hover-subtle">
-            <CheckCircle className="w-8 h-8 text-success apple-icon-bounce" />
+        <AppleCardContent className={`text-center ${isMobile ? 'py-8 responsive-padding' : 'py-12'}`}>
+          <div className={`
+            flex items-center justify-center rounded-full mx-auto mb-4 apple-hover-subtle
+            ${isMobile ? 'w-12 h-12 bg-success/10' : 'w-16 h-16 bg-success/10'}
+          `}>
+            <CheckCircle className={`text-success apple-icon-bounce ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
           </div>
-          <HeadlineMedium className="text-text-primary mb-2 apple-text-glow">
+          <HeadlineMedium className={`text-text-primary mb-2 apple-text-glow ${isMobile ? 'responsive-text-lg' : ''}`}>
             No Content Ready Yet
           </HeadlineMedium>
-          <BodyMedium className="text-text-secondary max-w-md mx-auto apple-color-transition">
+          <BodyMedium className={`text-text-secondary max-w-md mx-auto apple-color-transition ${isMobile ? 'responsive-text-sm' : ''}`}>
             Generate content from your campaigns to see it here when it's ready to post
           </BodyMedium>
         </AppleCardContent>
@@ -112,56 +117,63 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         surface="primary"
         hoverEffect="subtle"
         animated={true}
+        className={isMobile ? 'responsive-margin' : ''}
       >
-        <AppleCardHeader className="pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3 apple-slide-up">
-              <div className="flex items-center justify-center w-10 h-10 bg-success/10 rounded-xl apple-hover-subtle">
-                <CheckCircle className="w-5 h-5 text-success apple-icon-bounce" />
+        <AppleCardHeader className={`${isMobile ? 'pb-3 responsive-padding' : 'pb-4'}`}>
+          <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-3' : ''}`}>
+            <div className={`flex items-center gap-3 apple-slide-up ${isMobile ? 'w-full justify-center text-center' : ''}`}>
+              <div className={`
+                flex items-center justify-center rounded-xl apple-hover-subtle
+                ${isMobile ? 'w-8 h-8 bg-success/10' : 'w-10 h-10 bg-success/10'}
+              `}>
+                <CheckCircle className={`text-success apple-icon-bounce ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
               </div>
-              <div>
-                <HeadlineMedium className="text-text-primary apple-text-glow">
+              <div className={isMobile ? 'text-center' : ''}>
+                <HeadlineMedium className={`text-text-primary apple-text-glow ${isMobile ? 'responsive-text-lg' : ''}`}>
                   Ready to Post
                 </HeadlineMedium>
-                <CaptionMedium className="text-text-secondary apple-color-transition">
+                <CaptionMedium className={`text-text-secondary apple-color-transition ${isMobile ? 'responsive-text-sm' : ''}`}>
                   {tasks.length} piece{tasks.length !== 1 ? 's' : ''} ready for publishing
                 </CaptionMedium>
               </div>
             </div>
-            <EnhancedAppleButton 
-              variant="tertiary" 
-              size="sm"
-              iconAnimation="bounce"
-              className="apple-stagger-1"
-            >
-              <Eye className="w-4 h-4 mr-2" />
-              View All
-            </EnhancedAppleButton>
+            {!isMobile && (
+              <EnhancedAppleButton 
+                variant="tertiary" 
+                size="sm"
+                iconAnimation="bounce"
+                className="apple-stagger-1"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View All
+              </EnhancedAppleButton>
+            )}
           </div>
         </AppleCardHeader>
 
-        <AppleCardContent className="space-y-4">
+        <AppleCardContent className={`space-y-4 ${isMobile ? 'responsive-padding' : ''}`}>
           <ResponsiveGrid 
-            cols={{ mobile: 1, tablet: 2, desktop: 2 }}
+            cols={{ mobile: 1, tablet: 1, desktop: 2 }}
             gap={{ mobile: 3, tablet: 4, desktop: 4 }}
             animated={true}
           >
             {tasks.map((task) => (
-              <ReadyToPostItem
+              <EnhancedReadyToPostItem
                 key={task.id}
                 task={task}
                 onClick={handleTaskClick}
+                onTaskUpdate={onTaskUpdate}
               />
             ))}
           </ResponsiveGrid>
 
           {tasks.length >= 6 && (
-            <div className="text-center pt-4 border-t border-border apple-slide-up">
+            <div className={`text-center pt-4 border-t border-border apple-slide-up ${isMobile ? 'responsive-padding' : ''}`}>
               <EnhancedAppleButton 
                 variant="secondary" 
-                className="w-full"
+                className={`${isMobile ? 'w-full apple-button-base' : 'w-full'}`}
                 iconAnimation="bounce"
-                pulseOnHover={true}
+                pulseOnHover={!isMobile}
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 View All Ready Content

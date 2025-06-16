@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink, Trash2, Edit } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -9,6 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";
 import { ApproveButton } from "@/components/ui/approve-button";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { CaptionMedium, BodySmall } from "@/components/ui/typography";
 
 interface EnhancedReadyToPostItemProps {
   task: any;
@@ -19,6 +21,7 @@ interface EnhancedReadyToPostItemProps {
 
 export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }: EnhancedReadyToPostItemProps) => {
   const [deletingTask, setDeletingTask] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleCopyContent = (event: React.MouseEvent) => {
     event.stopPropagation();
@@ -30,7 +33,7 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onEdit) onEdit(task, true);
-    else onClick(task); // Fallback to regular click if onEdit not provided
+    else onClick(task);
   };
 
   const handleDelete = async (event: React.MouseEvent) => {
@@ -67,44 +70,81 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
 
   return (
     <div
-      className={`border rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md bg-gradient-to-r ${getPostTypeColor(task.post_type)} relative group`}
+      className={`
+        border rounded-lg p-4 cursor-pointer transition-all duration-200 
+        ${getPostTypeColor(task.post_type)} 
+        apple-hover-subtle apple-card-interactive
+        responsive-padding touch-target
+        ${isMobile ? 'min-h-[120px]' : 'hover:shadow-md'}
+      `}
       onClick={() => onClick(task)}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          {getPostTypeIcon(task.post_type)}
-          <Badge variant="secondary" className="capitalize">
-            {task.post_type}
-          </Badge>
-          <Badge className="bg-green-100 text-green-800 border-green-200">
-            ✅ Ready
-          </Badge>
+      {/* Header Section */}
+      <div className="flex items-start justify-between mb-3 gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex-shrink-0">
+            {getPostTypeIcon(task.post_type)}
+          </div>
+          <div className="flex flex-col gap-1 min-w-0 flex-1">
+            <Badge 
+              variant="secondary" 
+              className={`
+                capitalize w-fit text-xs
+                ${isMobile ? 'px-2 py-1' : ''}
+              `}
+            >
+              {task.post_type}
+            </Badge>
+            <Badge 
+              className={`
+                bg-green-100 text-green-800 border-green-200 w-fit text-xs
+                ${isMobile ? 'px-2 py-1' : ''}
+              `}
+            >
+              ✅ Ready
+            </Badge>
+          </div>
         </div>
       </div>
 
-      <div className="text-sm text-gray-700 line-clamp-3 mb-3 leading-relaxed">
-        {stripHtmlAndFormat(task.ai_output)}
+      {/* Content Preview */}
+      <div className={`mb-4 ${isMobile ? 'responsive-text-sm' : 'text-sm'}`}>
+        <BodySmall className="text-text-secondary leading-relaxed line-clamp-2">
+          {stripHtmlAndFormat(task.ai_output)}
+        </BodySmall>
       </div>
 
+      {/* Scheduled Date */}
       {task.scheduled_date && (
-        <p className="text-xs text-gray-500 mb-3">
-          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-        </p>
+        <div className="mb-4">
+          <CaptionMedium className="text-text-tertiary">
+            Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+          </CaptionMedium>
+        </div>
       )}
 
-      <div className="flex gap-2 flex-wrap">
+      {/* Action Buttons */}
+      <div className={`
+        flex gap-2 flex-wrap
+        ${isMobile ? 'justify-center' : 'justify-start'}
+      `}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
+              <EnhancedAppleButton
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={handleEdit}
-                className="border-blue-300 text-blue-600 hover:bg-blue-50"
+                className={`
+                  border-primary/30 text-primary hover:bg-primary/10
+                  apple-button-base touch-target
+                  ${isMobile ? 'flex-1 min-w-[80px]' : ''}
+                `}
+                iconAnimation="bounce"
               >
                 <Edit className="w-3 h-3 mr-1" />
-                Edit
-              </Button>
+                {isMobile ? '' : 'Edit'}
+              </EnhancedAppleButton>
             </TooltipTrigger>
             <TooltipContent>
               <p>Edit content</p>
@@ -115,15 +155,19 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
+              <EnhancedAppleButton
                 size="sm"
-                variant="outline"
+                variant="tertiary"
                 onClick={handleCopyContent}
-                className="border-gray-300 text-gray-600 hover:bg-gray-100"
+                className={`
+                  apple-button-base touch-target
+                  ${isMobile ? 'flex-1 min-w-[80px]' : ''}
+                `}
+                iconAnimation="bounce"
               >
                 <Copy className="w-3 h-3 mr-1" />
-                Copy
-              </Button>
+                {isMobile ? '' : 'Copy'}
+              </EnhancedAppleButton>
             </TooltipTrigger>
             <TooltipContent>
               <p>Copy content to clipboard</p>
@@ -133,39 +177,53 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
 
         <ApproveButton
           isApproved={isApproved}
-          onApprove={() => {}} // No action needed since it's already approved
+          onApprove={() => {}}
           disabled={true}
+          size="sm"
+          className={`
+            apple-button-base touch-target
+            ${isMobile ? 'flex-1 min-w-[80px]' : ''}
+          `}
         />
 
-        <Button
+        <EnhancedAppleButton
           size="sm"
-          variant="outline"
+          variant="secondary"
           onClick={(e) => {
             e.stopPropagation();
             toast.info('Publishing integration coming soon');
           }}
-          className="border-blue-300 text-blue-600 hover:bg-blue-50"
+          className={`
+            border-primary/30 text-primary hover:bg-primary/10
+            apple-button-base touch-target
+            ${isMobile ? 'flex-1 min-w-[80px]' : ''}
+          `}
+          iconAnimation="bounce"
         >
           <ExternalLink className="w-3 h-3 mr-1" />
-          Publish
-        </Button>
+          {isMobile ? '' : 'Publish'}
+        </EnhancedAppleButton>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleDelete}
-              disabled={deletingTask}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Delete this content</p>
-          </TooltipContent>
-        </Tooltip>
+        {!isMobile && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <EnhancedAppleButton
+                size="sm"
+                variant="tertiary"
+                onClick={handleDelete}
+                disabled={deletingTask}
+                loading={deletingTask}
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 touch-target"
+                iconAnimation="bounce"
+              >
+                <Trash2 className="w-3 h-3" />
+              </EnhancedAppleButton>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete this content</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

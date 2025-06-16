@@ -1,4 +1,5 @@
 
+
 @layer utilities {
   /* Mobile-first performance optimizations */
   @media (max-width: 768px) {
@@ -82,6 +83,43 @@
     .responsive-text-xl {
       @apply text-xl;
     }
+
+    /* ReadyToPost specific mobile optimizations */
+    .ready-to-post-item {
+      @apply flex-col gap-3 p-4;
+    }
+
+    .ready-to-post-actions {
+      @apply flex-wrap justify-center gap-2;
+    }
+
+    .ready-to-post-button {
+      @apply flex-1 min-w-[70px] max-w-[120px];
+    }
+
+    /* Mobile badge sizing */
+    .mobile-badge {
+      @apply text-xs px-2 py-1;
+    }
+
+    /* Mobile content preview */
+    .mobile-content-preview {
+      @apply text-sm leading-relaxed line-clamp-2;
+    }
+
+    /* Mobile header optimizations */
+    .mobile-header-stacked {
+      @apply flex-col gap-3 text-center;
+    }
+
+    .mobile-icon-container {
+      @apply w-8 h-8;
+    }
+
+    /* Touch feedback for mobile cards */
+    .mobile-card-touch {
+      @apply active:bg-gray-50 transition-colors duration-100;
+    }
   }
 
   /* Tablet-specific optimizations */
@@ -155,3 +193,4 @@
     }
   }
 }
+
