@@ -22,20 +22,18 @@ export const ApproveButton = ({
   children
 }: ApproveButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
-  const [hasBeenApproved, setHasBeenApproved] = useState(isApproved);
 
   const handleClick = async (event: React.MouseEvent) => {
     // Prevent event from bubbling up and potentially closing modals
     event.stopPropagation();
     event.preventDefault();
     
-    if (isApproved || hasBeenApproved || disabled || isLoading) return;
+    if (isApproved || disabled || isLoading) return;
     
     setIsLoading(true);
     
     try {
       await onApprove(event);
-      setHasBeenApproved(true);
     } catch (error) {
       console.error('Error approving:', error);
     } finally {
@@ -43,30 +41,26 @@ export const ApproveButton = ({
     }
   };
 
-  const approved = isApproved || hasBeenApproved;
-
   return (
     <Button
       size={size}
       onClick={handleClick}
-      disabled={disabled || isLoading || approved}
+      disabled={disabled || isLoading || isApproved}
       className={cn(
-        "transition-all duration-300 transform",
-        approved
-          ? "bg-green-600 hover:bg-green-700 text-white"
-          : "bg-green-50 hover:bg-green-100 text-gray-900 border border-green-200",
-        "active:scale-95",
-        isLoading && "scale-95",
+        "transition-colors duration-300",
+        isApproved
+          ? "bg-green-700 hover:bg-green-800 text-white border-green-700"
+          : "bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 hover:border-green-300",
         className
       )}
-      type="button" // Explicitly set type to prevent form submission
+      type="button"
     >
       {isLoading ? (
         <>
           <Loader2 className="w-3 h-3 mr-1 animate-spin" />
           Approving...
         </>
-      ) : approved ? (
+      ) : isApproved ? (
         <>
           <CheckCircle className="w-3 h-3 mr-1" />
           {children || "Approved"}

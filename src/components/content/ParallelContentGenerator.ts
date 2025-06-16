@@ -157,20 +157,23 @@ export const generateContentInParallel = async (
   // Wait for all generations to complete in parallel
   const results = await Promise.allSettled(generationPromises);
   
-  // Process results
+  // Process results with proper type checking
   const successfulResults = results
-    .filter(result => result.status === 'fulfilled' && result.value.success)
+    .filter((result): result is PromiseFulfilledResult<any> => 
+      result.status === 'fulfilled' && result.value.success
+    )
     .map(result => result.value);
     
   const failedResults = results
-    .filter(result => result.status === 'rejected' || (result.status === 'fulfilled' && !result.value.success))
     .map(result => {
-      if (result.status === 'fulfilled') {
+      if (result.status === 'fulfilled' && !result.value.success) {
         return result.value.postType;
-      } else {
+      } else if (result.status === 'rejected') {
         return 'unknown';
       }
-    });
+      return null;
+    })
+    .filter(Boolean);
 
   const totalTime = Date.now() - startTime;
   const generatedCount = successfulResults.length;
