@@ -634,6 +634,33 @@ export type Database = {
           },
         ]
       }
+      trial_expiration_emails: {
+        Row: {
+          created_at: string
+          days_remaining: number
+          email_sent_at: string
+          email_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          days_remaining: number
+          email_sent_at?: string
+          email_type?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          days_remaining?: number
+          email_sent_at?: string
+          email_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           created_at: string
@@ -663,6 +690,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_trial_expiration_emails: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
         Returns: number
