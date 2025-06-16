@@ -26,7 +26,7 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch company profile for personalization
+    // Fetch company profile for personalization with enhanced business name handling
     let companyProfile = null;
     if (userId) {
       const { data: profileData, error: profileError } = await supabase
@@ -37,6 +37,26 @@ serve(async (req) => {
 
       if (!profileError && profileData) {
         companyProfile = profileData;
+        
+        // Ensure company_name is prioritized and consistent
+        if (!companyProfile.company_name && companyProfile.company_overview) {
+          // Try to extract business name from company overview if not explicitly set
+          const overviewText = companyProfile.company_overview;
+          const nameMatch = overviewText.match(/^([^,\.!?]+?)(?:\s+(?:has been|is|provides|offers|specializes|located))/i);
+          if (nameMatch) {
+            companyProfile.company_name = nameMatch[1].trim();
+            
+            // Update the database with extracted name for future consistency
+            await supabase
+              .from('company_profiles')
+              .update({ company_name: companyProfile.company_name })
+              .eq('user_id', userId);
+          }
+        }
+        
+        console.log(`Content generation for: ${companyProfile.company_name || 'Unknown Business'} (User: ${userId})`);
+      } else {
+        console.warn(`No company profile found for user: ${userId}`);
       }
     }
 

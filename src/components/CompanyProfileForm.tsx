@@ -164,6 +164,21 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
         return;
       }
 
+      // If company name was updated, sync with localStorage for consistency
+      if (formData.company_name) {
+        const onboardingKey = `garden-center-onboarding-${user.id}`;
+        const existingData = localStorage.getItem(onboardingKey);
+        if (existingData) {
+          try {
+            const parsedData = JSON.parse(existingData);
+            parsedData.aboutBusiness = `${formData.company_name} has been serving the community with quality gardening products and expert advice.`;
+            localStorage.setItem(onboardingKey, JSON.stringify(parsedData));
+          } catch (error) {
+            console.error('Error updating localStorage:', error);
+          }
+        }
+      }
+
       toast.success('Company profile saved successfully');
       onProfileUpdate(result.data);
     } catch (error) {
