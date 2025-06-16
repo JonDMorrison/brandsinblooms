@@ -11,7 +11,7 @@
     --popover: 255 255 255; /* #FFFFFF */
     --popover-foreground: 32 33 36; /* #202124 */
 
-    /* Brand Colors */
+    /* Brand Colors - Restored proper scheme */
     --primary: 76 175 80; /* #4CAF50 - Primary green */
     --primary-foreground: 255 255 255; /* #FFFFFF */
 
@@ -22,7 +22,7 @@
     --success: 76 175 80; /* #4CAF50 */
     --success-foreground: 255 255 255;
 
-    --warning: 255 152 0; /* #FF9800 */
+    --warning: 255 152 0; /* #FF9800 - Restored proper orange */
     --warning-foreground: 255 255 255;
 
     --destructive: 244 67 54; /* #F44336 */
