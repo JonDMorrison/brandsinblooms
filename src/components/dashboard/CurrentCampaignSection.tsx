@@ -7,6 +7,8 @@ import { AutoCampaignCreator } from "./current-campaign/AutoCampaignCreator";
 import { NoCampaignState } from "./current-campaign/NoCampaignState";
 import { QuickActionsSection } from "./current-campaign/QuickActionsSection";
 import { ContentPreviewSection } from "./ContentPreviewSection";
+import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
+import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
 import { supabase } from "@/integrations/supabase/client";
 import type { Campaign } from "@/types";
 
@@ -78,27 +80,34 @@ export const CurrentCampaignSection = ({
   };
 
   return (
-    <div>
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">
-        Current Campaign (Week {currentWeekNumber})
-      </h2>
+    <div className="space-y-6">
+      {/* Section Header */}
+      <AppleCard variant="default" surface="secondary">
+        <AppleCardHeader className="pb-4">
+          <HeadlineLarge className="text-text-primary">
+            Current Campaign
+          </HeadlineLarge>
+          <BodyMedium className="text-text-secondary">
+            Week {currentWeekNumber} • {totalTasksCount > 0 ? `${completedTasksCount} of ${totalTasksCount} tasks completed` : 'No tasks yet'}
+          </BodyMedium>
+        </AppleCardHeader>
+      </AppleCard>
       
+      {/* Campaign Content */}
       {activeCampaign ? (
-        <>
+        <div className="space-y-6">
           <CampaignCard 
             campaign={activeCampaign} 
             onTaskUpdate={onTaskUpdate}
             onCampaignUpdate={onTaskUpdate}
           />
           
-          {/* AI Content Preview - This is what users see first! */}
-          <div className="mt-6">
-            <ContentPreviewSection
-              campaign={activeCampaign}
-              onTaskUpdate={onTaskUpdate}
-            />
-          </div>
-        </>
+          {/* AI Content Preview */}
+          <ContentPreviewSection
+            campaign={activeCampaign}
+            onTaskUpdate={onTaskUpdate}
+          />
+        </div>
       ) : (
         <NoCampaignState
           currentWeekNumber={currentWeekNumber}
@@ -107,12 +116,14 @@ export const CurrentCampaignSection = ({
         />
       )}
 
+      {/* Quick Actions */}
       <QuickActionsSection
         onNewCampaignClick={() => setShowNewCampaignDialog(true)}
         onAddEventClick={() => setShowAddEventDialog(true)}
         onViewCalendar={() => {}}
       />
 
+      {/* Dialogs */}
       <NewCampaignDialog 
         open={showNewCampaignDialog} 
         onOpenChange={setShowNewCampaignDialog} 

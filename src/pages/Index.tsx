@@ -7,6 +7,7 @@ import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { UserMenu } from "@/components/UserMenu";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
+import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
@@ -89,21 +90,21 @@ const Index = () => {
 
   return (
     <ProtectedPageWrapper>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="min-h-screen bg-surface-secondary">
         {/* Fixed UserMenu in top right corner */}
-        <div className="fixed top-4 right-4 z-50">
+        <div className="fixed top-6 right-6 z-50">
           <UserMenu />
         </div>
 
-        {/* Enhanced Header with Seasonal Welcome */}
-        <div className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Enhanced Header with Apple Design */}
+        <AppleCard variant="default" surface="primary" className="border-0 border-b border-gray-200 rounded-none shadow-sm">
+          <AppleCardContent className="max-w-7xl mx-auto px-6 py-8">
             <WelcomeSection 
               onboardingData={onboardingData}
               onBusinessNameChange={handleBusinessNameChange}
             />
-          </div>
-        </div>
+          </AppleCardContent>
+        </AppleCard>
         
         {/* Dashboard Content - This is the main content area */}
         <div className="max-w-7xl mx-auto p-6">

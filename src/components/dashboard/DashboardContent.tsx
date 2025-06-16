@@ -9,6 +9,9 @@ import { ContentPreviewGrid } from "./ContentPreviewGrid";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
 import { ReviewQueueCard } from "@/components/content/ReviewQueueCard";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
+import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
+import { BodyMedium } from "@/components/ui/typography";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import type { Campaign } from "@/types";
 
 interface DashboardContentProps {
@@ -192,12 +195,14 @@ export const DashboardContent = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your content...</p>
-        </div>
-      </div>
+      <AppleCard variant="default" surface="primary" className="mx-auto max-w-md">
+        <AppleCardContent className="flex flex-col items-center justify-center py-12">
+          <LoadingSpinner size="lg" />
+          <BodyMedium className="text-text-secondary mt-4">
+            Loading your content...
+          </BodyMedium>
+        </AppleCardContent>
+      </AppleCard>
     );
   }
 
