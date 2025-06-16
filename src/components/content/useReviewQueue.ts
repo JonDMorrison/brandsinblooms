@@ -48,7 +48,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const fetchPendingTasks = useCallback(async () => {
     try {
       setError(null);
-      console.log('ReviewQueue: Fetching pending tasks');
+      console.log('ReviewQueue: Fetching pending tasks with status "review"');
       
       // Check if we're offline
       if (!navigator.onLine) {
@@ -71,7 +71,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
             title
           )
         `)
-        .eq('status', 'draft')
+        .eq('status', 'review')
         .not('ai_output', 'is', null)
         .order('created_at', { ascending: false });
 
@@ -164,7 +164,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     fetchPendingTasks();
   };
 
-  // Set up real-time subscription for new draft content
+  // Set up real-time subscription for new review content
   useEffect(() => {
     const channel = supabase
       .channel('review-queue-updates')
@@ -174,13 +174,13 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
           event: '*',
           schema: 'public',
           table: 'content_tasks',
-          filter: 'status=eq.draft'
+          filter: 'status=eq.review'
         },
         (payload) => {
           console.log('Real-time update for review queue:', payload);
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            if (payload.new.status === 'draft' && payload.new.ai_output) {
+            if (payload.new.status === 'review' && payload.new.ai_output) {
               setPendingTasks(prev => {
                 const filtered = prev.filter(task => task.id !== payload.new.id);
                 return [payload.new, ...filtered];
