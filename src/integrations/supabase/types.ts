@@ -223,9 +223,11 @@ export type Database = {
           file_path: string
           id: string
           name: string
+          photographer: string | null
           size_bytes: number
           tags: string[] | null
           type: string
+          unsplash_id: string | null
           updated_at: string
           user_id: string
         }
@@ -236,9 +238,11 @@ export type Database = {
           file_path: string
           id?: string
           name: string
+          photographer?: string | null
           size_bytes: number
           tags?: string[] | null
           type: string
+          unsplash_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -249,9 +253,11 @@ export type Database = {
           file_path?: string
           id?: string
           name?: string
+          photographer?: string | null
           size_bytes?: number
           tags?: string[] | null
           type?: string
+          unsplash_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -358,6 +364,50 @@ export type Database = {
           variables?: string[] | null
         }
         Relationships: []
+      }
+      image_suggestions: {
+        Row: {
+          alt: string | null
+          content_task_id: string | null
+          created_at: string
+          download_url: string
+          id: string
+          photographer: string
+          query: string
+          thumb_url: string
+          unsplash_id: string
+        }
+        Insert: {
+          alt?: string | null
+          content_task_id?: string | null
+          created_at?: string
+          download_url: string
+          id?: string
+          photographer: string
+          query: string
+          thumb_url: string
+          unsplash_id: string
+        }
+        Update: {
+          alt?: string | null
+          content_task_id?: string | null
+          created_at?: string
+          download_url?: string
+          id?: string
+          photographer?: string
+          query?: string
+          thumb_url?: string
+          unsplash_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_suggestions_content_task_id_fkey"
+            columns: ["content_task_id"]
+            isOneToOne: false
+            referencedRelation: "content_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       master_campaign_templates: {
         Row: {

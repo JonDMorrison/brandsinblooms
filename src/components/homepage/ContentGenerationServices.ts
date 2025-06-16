@@ -191,6 +191,24 @@ export const generateContentForCampaign = async (
         } else {
           results.push(task);
           console.log(`✅ Created ${type} content task`);
+          
+          // Auto-generate images for the task
+          try {
+            console.log(`🖼️ Auto-generating images for ${type} content`);
+            const imageQuery = extractImageKeywords(theme, description, type);
+            
+            await supabase.functions.invoke('fetch-unsplash-images', {
+              body: { 
+                query: imageQuery,
+                contentTaskId: task.id 
+              }
+            });
+            
+            console.log(`✅ Generated images for ${type} content`);
+          } catch (imageError) {
+            console.error(`❌ Error generating images for ${type}:`, imageError);
+            // Don't fail the content generation if images fail
+          }
         }
       } catch (error) {
         console.error(`❌ Error generating ${type} content:`, error);
@@ -209,4 +227,28 @@ export const generateContentForCampaign = async (
       message: error.message || 'Failed to generate content'
     };
   }
+};
+
+// Helper function to extract keywords for image search
+const extractImageKeywords = (theme: string, description: string, contentType: string): string => {
+  // Combine theme and description for better keyword extraction
+  const combinedText = `${theme} ${description || ''}`.toLowerCase();
+  
+  // Remove common words and extract meaningful keywords
+  const cleanText = combinedText
+    .replace(/week \d+/g, '')
+    .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|campaign|content|post)\b/g, '')
+    .trim();
+  
+  // Add content type specific keywords
+  const typeKeywords = {
+    instagram: 'lifestyle garden',
+    facebook: 'community garden',
+    email: 'tips garden',
+    newsletter: 'seasonal garden',
+    video: 'tutorial garden'
+  };
+  
+  const finalQuery = cleanText || theme || 'garden';
+  return `${finalQuery} ${typeKeywords[contentType] || 'garden'}`.trim();
 };

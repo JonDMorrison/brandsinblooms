@@ -9,6 +9,7 @@ import { ContentMetadata } from "./content-sidebar/ContentMetadata";
 import { QuickCopyActions } from "./content-sidebar/QuickCopyActions";
 import { ContentApproval } from "./content-sidebar/ContentApproval";
 import { ContentHeader } from "./content-sidebar/ContentHeader";
+import { ImageSuggestionPanel } from "./content-sidebar/ImageSuggestionPanel";
 import { Edit, Save, X } from "lucide-react";
 
 interface ContentSidebarProps {
@@ -90,7 +91,7 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>
@@ -153,6 +154,12 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
                 onContentChange={setEditedContent}
                 task={task}
                 isEditing={isEditing}
+              />
+              
+              {/* Add image suggestions below content */}
+              <ImageSuggestionPanel 
+                task={task} 
+                campaignTheme={task.campaigns?.title || task.campaigns?.theme}
               />
             </div>
 
