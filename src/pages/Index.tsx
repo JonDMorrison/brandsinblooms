@@ -5,8 +5,6 @@ import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { UserMenu } from "@/components/UserMenu";
-import { Card, CardContent } from "@/components/ui/card";
-import { Home, TrendingUp, Users, Clock, BarChart3 } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { toast } from "sonner";
@@ -66,7 +64,7 @@ const Index = () => {
   const handleBusinessNameChange = (newName: string) => {
     const updatedData = {
       ...onboardingData,
-      aboutBusiness: `${newName} has been serving the community with quality gardening products and expert advice.`
+      aboutBusiness: `${newName} has been serving the community with quality products and expert advice.`
     };
     setOnboardingData(updatedData);
   };
@@ -107,7 +105,7 @@ const Index = () => {
           </div>
         </div>
         
-        {/* Dashboard Content */}
+        {/* Dashboard Content - This is the main content area */}
         <div className="max-w-7xl mx-auto p-6">
           <DashboardContent
             onboardingData={onboardingData}

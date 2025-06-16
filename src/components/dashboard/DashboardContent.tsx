@@ -6,6 +6,8 @@ import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
 import { CurrentCampaignSection } from "./CurrentCampaignSection";
 import { ContentPreviewGrid } from "./ContentPreviewGrid";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
+import { ReviewQueueCard } from "@/components/content/ReviewQueueCard";
+import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import type { Campaign } from "@/types";
 
 interface DashboardContentProps {
@@ -21,6 +23,7 @@ export const DashboardContent = ({
 }: DashboardContentProps) => {
   const { user } = useAuth();
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
+  const [tasks, setTasks] = useState([]);
   const [tasksCount, setTasksCount] = useState(0);
   const [completedTasksCount, setCompletedTasksCount] = useState(0);
   const [pendingTasksCount, setPendingTasksCount] = useState(0);
@@ -28,7 +31,6 @@ export const DashboardContent = ({
 
   const currentWeekNumber = getCurrentWeekNumber();
 
-  // Smart campaign selection that prioritizes campaigns with content
   const selectBestCampaign = async (campaigns: Campaign[]) => {
     if (campaigns.length === 0) return null;
     if (campaigns.length === 1) return campaigns[0];
@@ -140,6 +142,24 @@ export const DashboardContent = ({
         setCompletedTasksCount(0);
         setPendingTasksCount(0);
       }
+
+      // Fetch all tasks for ready to post and review queue
+      const { data: allTasks, error: allTasksError } = await supabase
+        .from('content_tasks')
+        .select(`
+          *,
+          campaigns (
+            title,
+            user_id
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (allTasksError) {
+        console.error('DashboardContent: Error fetching all tasks:', allTasksError);
+      } else {
+        setTasks(allTasks || []);
+      }
     } catch (error) {
       console.error('DashboardContent: Error in fetchCampaignData:', error);
       // Set empty state on error
@@ -174,7 +194,7 @@ export const DashboardContent = ({
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your garden center content...</p>
+          <p className="text-gray-600">Loading your content...</p>
         </div>
       </div>
     );
@@ -189,6 +209,15 @@ export const DashboardContent = ({
       <FirstTimeUserWelcome 
         onGetStarted={handleGetStarted}
         tasksCount={tasksCount}
+      />
+
+      {/* Review Queue - Only show if there are tasks to review */}
+      <ReviewQueueCard onTaskUpdate={handleTaskUpdate} />
+
+      {/* Ready to Post section */}
+      <ReadyToPostCard 
+        tasks={tasks}
+        onTaskUpdate={handleTaskUpdate}
       />
 
       {/* Current Campaign Section */}
