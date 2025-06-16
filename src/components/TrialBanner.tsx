@@ -2,7 +2,7 @@
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Crown, Eye } from "lucide-react";
+import { Clock, Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export const TrialBanner = () => {
@@ -52,20 +52,15 @@ export const TrialBanner = () => {
           </Badge>
         </div>
         
-        <div className="hidden sm:flex items-center text-sm text-blue-700">
-          <span>Start your journey today - see our simple pricing</span>
+        <div className="flex items-center text-sm text-blue-700">
+          <span>Start your journey today - </span>
+          <button 
+            onClick={handleViewPricing}
+            className="text-blue-600 hover:text-blue-800 hover:underline font-medium cursor-pointer bg-transparent border-none p-0 ml-1"
+          >
+            view our simple pricing
+          </button>
         </div>
-        
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleViewPricing}
-          className="text-blue-700 border-blue-300 hover:bg-blue-100 flex-shrink-0"
-        >
-          <Eye className="h-3 w-3 mr-1" />
-          <span className="hidden sm:inline">View Pricing</span>
-          <span className="sm:hidden">Pricing</span>
-        </Button>
       </div>
     </div>
   );
