@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Download, Copy, MoreHorizontal, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
@@ -95,11 +94,6 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
         <div className="flex items-center gap-2">
           <ImageIcon className="w-4 h-4 text-stone-600" />
           <span className="text-xs font-medium text-stone-700">Images</span>
-          {usingPlaceholders && (
-            <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-300">
-              Demo
-            </Badge>
-          )}
         </div>
         {hasMore && onShowAll && (
           <Button 
