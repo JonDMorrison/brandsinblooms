@@ -2,7 +2,7 @@
 @layer base {
   :root {
     /* Surface Colors */
-    --background: 248 249 250; /* #F8F9FA - Primary surface */
+    --background: 248 250 248; /* #F8FAF8 - Garden background */
     --foreground: 32 33 36; /* #202124 - Primary text */
 
     --card: 255 255 255; /* #FFFFFF - Card background */
@@ -11,25 +11,25 @@
     --popover: 255 255 255; /* #FFFFFF */
     --popover-foreground: 32 33 36; /* #202124 */
 
-    /* Brand Colors - Restored proper scheme */
-    --primary: 76 175 80; /* #4CAF50 - Primary green */
+    /* Garden Brand Colors - Restored */
+    --primary: 76 175 80; /* #4CAF50 - Garden green */
     --primary-foreground: 255 255 255; /* #FFFFFF */
 
     --secondary: 245 245 245; /* #F5F5F5 - Secondary surface */
     --secondary-foreground: 32 33 36; /* #202124 */
 
     /* Semantic Colors */
-    --success: 76 175 80; /* #4CAF50 */
+    --success: 76 175 80; /* #4CAF50 - Garden green */
     --success-foreground: 255 255 255;
 
-    --warning: 255 152 0; /* #FF9800 - Restored proper orange */
+    --warning: 255 152 0; /* #FF9800 - Orange for warnings */
     --warning-foreground: 255 255 255;
 
     --destructive: 244 67 54; /* #F44336 */
     --destructive-foreground: 255 255 255;
 
     /* Neutral Colors */
-    --muted: 245 245 245; /* #F5F5F5 */
+    --muted: 240 244 240; /* #F0F4F0 - Garden sage */
     --muted-foreground: 117 117 117; /* #757575 */
 
     --accent: 227 242 253; /* #E3F2FD */
@@ -50,8 +50,15 @@
 
     /* Surface Colors */
     --surface-primary: 255 255 255; /* #FFFFFF */
-    --surface-secondary: 248 249 250; /* #F8F9FA */
-    --surface-tertiary: 241 243 244; /* #F1F3F4 */
+    --surface-secondary: 248 250 248; /* #F8FAF8 - Garden background */
+    --surface-tertiary: 240 244 240; /* #F0F4F0 - Garden sage */
+
+    /* Garden-specific color variables */
+    --garden-green: 76 175 80; /* #4CAF50 */
+    --garden-green-dark: 46 125 50; /* #2E7D32 */
+    --garden-green-light: 129 199 132; /* #81C784 */
+    --garden-background: 248 250 248; /* #F8FAF8 */
+    --garden-sage: 240 244 240; /* #F0F4F0 */
   }
 
   .dark {
@@ -89,10 +96,17 @@
     --surface-primary: 33 33 33;
     --surface-secondary: 18 18 18;
     --surface-tertiary: 66 66 66;
+
+    /* Dark mode garden colors */
+    --garden-green: 129 199 132; /* Lighter green for dark mode */
+    --garden-green-dark: 129 199 132;
+    --garden-green-light: 165 214 167;
+    --garden-background: 18 18 18;
+    --garden-sage: 66 66 66;
   }
 }
 
-/* Apple-inspired component styles */
+/* Apple-inspired component styles with garden colors */
 @layer components {
   .apple-card {
     @apply bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300 ease-apple;
@@ -108,19 +122,19 @@
   }
   
   .apple-button-primary {
-    @apply apple-button bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98];
+    @apply apple-button bg-garden-green text-white hover:bg-garden-green-dark active:scale-[0.98];
   }
   
   .apple-button-secondary {
-    @apply apple-button bg-transparent border border-gray-300 text-text-primary hover:bg-gray-50 active:scale-[0.98];
+    @apply apple-button bg-transparent border border-gray-300 text-text-primary hover:bg-garden-sage active:scale-[0.98];
   }
   
   .apple-button-tertiary {
-    @apply apple-button bg-transparent text-primary hover:bg-primary/10 active:scale-[0.98];
+    @apply apple-button bg-transparent text-garden-green hover:bg-garden-green/10 active:scale-[0.98];
   }
   
   .apple-focus {
-    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2;
+    @apply focus:outline-none focus:ring-2 focus:ring-garden-green focus:ring-offset-2;
   }
   
   .apple-surface-1 {
@@ -133,5 +147,22 @@
   
   .apple-surface-3 {
     @apply bg-surface-tertiary;
+  }
+
+  /* Garden-specific utility classes */
+  .garden-text-primary {
+    @apply text-garden-green-dark;
+  }
+  
+  .garden-text-secondary {
+    @apply text-garden-green;
+  }
+  
+  .garden-bg-primary {
+    @apply bg-garden-background;
+  }
+  
+  .garden-bg-secondary {
+    @apply bg-garden-sage;
   }
 }
