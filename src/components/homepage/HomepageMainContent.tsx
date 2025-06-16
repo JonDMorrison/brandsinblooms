@@ -4,6 +4,7 @@ import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
 import { CampaignCard } from "./CampaignCard";
 import { WhatsComingNextCard } from "./WhatsComingNextCard";
 import { getSeasonalContent } from "./SeasonalContent";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Calendar, Plus } from "lucide-react";
 
 interface Campaign {
@@ -38,7 +39,7 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
           </div>
           <div className="flex items-center gap-2 text-text-tertiary">
             <Calendar className="w-4 h-4" />
-            <BodyMedium>Week {new Date().getWeek()}</BodyMedium>
+            <BodyMedium>Week {getCurrentWeekNumber()}</BodyMedium>
           </div>
         </div>
 

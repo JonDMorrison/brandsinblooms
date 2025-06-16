@@ -83,3 +83,22 @@ export const LabelSmall = ({ children, className, as: Component = 'span' }: Typo
     {children}
   </Component>
 );
+
+// Caption Typography - For small text and metadata
+export const CaptionLarge = ({ children, className, as: Component = 'span' }: TypographyProps) => (
+  <Component className={cn('text-sm font-normal text-text-secondary leading-normal', className)}>
+    {children}
+  </Component>
+);
+
+export const CaptionMedium = ({ children, className, as: Component = 'span' }: TypographyProps) => (
+  <Component className={cn('text-xs font-normal text-text-secondary leading-normal', className)}>
+    {children}
+  </Component>
+);
+
+export const CaptionSmall = ({ children, className, as: Component = 'span' }: TypographyProps) => (
+  <Component className={cn('text-xs font-normal text-text-tertiary leading-tight', className)}>
+    {children}
+  </Component>
+);
