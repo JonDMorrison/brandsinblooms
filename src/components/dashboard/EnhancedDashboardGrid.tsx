@@ -32,7 +32,7 @@ export const EnhancedDashboardGrid = ({
   onTaskClick
 }: EnhancedDashboardGridProps) => {
   return (
-    <div className="space-y-8 apple-fade-in">
+    <div className="space-y-6 mobile-section-gap apple-fade-in">
       {/* Current Campaign Section */}
       <div className="apple-slide-up">
         <CurrentCampaignSection 

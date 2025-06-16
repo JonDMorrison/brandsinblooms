@@ -95,7 +95,7 @@ const Index = () => {
     <ProtectedPageWrapper>
       <div className="min-h-screen bg-surface-secondary apple-fade-in">
         {/* Fixed UserMenu in top right corner */}
-        <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-3 right-3' : ''}`}>
+        <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
           <UserMenu />
         </div>
 
@@ -109,7 +109,7 @@ const Index = () => {
         >
           <AppleCardContent className={`
             max-w-7xl mx-auto 
-            ${isMobile ? 'mobile-safe-area mobile-header-padding' : 'responsive-padding'}
+            ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
           `}>
             <WelcomeSection 
               onboardingData={onboardingData}
@@ -121,7 +121,7 @@ const Index = () => {
         {/* Dashboard Content - This is the main content area */}
         <div className={`
           max-w-7xl mx-auto apple-slide-up
-          ${isMobile ? 'mobile-safe-area dashboard-container' : 'responsive-padding'}
+          ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
         `}>
           <DashboardContent
             onboardingData={onboardingData}

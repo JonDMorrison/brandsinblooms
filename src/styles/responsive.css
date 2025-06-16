@@ -1,6 +1,6 @@
 
 @layer utilities {
-  /* Enhanced responsive utilities - Mobile-first approach */
+  /* Enhanced responsive utilities - Mobile-first approach with tighter spacing */
   .responsive-grid-auto {
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   }
@@ -13,17 +13,17 @@
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   }
 
-  /* Mobile-first spacing - Optimized for smaller screens */
+  /* Mobile-first spacing - Optimized for smaller screens with tighter spacing */
   .responsive-padding {
-    @apply p-3 sm:p-4 lg:p-6;
+    @apply p-2 sm:p-4 lg:p-6;
   }
 
   .responsive-margin {
-    @apply m-2 sm:m-4 lg:m-6;
+    @apply m-1 sm:m-4 lg:m-6;
   }
 
   .responsive-gap {
-    @apply gap-3 sm:gap-4 lg:gap-6;
+    @apply gap-2 sm:gap-4 lg:gap-6;
   }
 
   /* Typography scaling - Mobile-optimized */
@@ -76,14 +76,14 @@
       min-width: 48px;
     }
 
-    /* Mobile container constraints */
+    /* Mobile container constraints - Tighter */
     .mobile-container {
-      @apply max-w-full mx-2 px-0;
+      @apply max-w-full mx-1 px-0;
     }
 
-    /* Mobile card spacing */
+    /* Mobile card spacing - Minimal */
     .mobile-card-spacing {
-      @apply p-3 m-2;
+      @apply p-2 m-1;
     }
   }
 
@@ -104,18 +104,31 @@
     padding-right: env(safe-area-inset-right);
   }
 
-  /* Mobile-specific utilities */
+  /* Mobile-specific utilities - Optimized */
   @media (max-width: 768px) {
     .mobile-full-width {
       @apply w-full max-w-full;
     }
 
     .mobile-constrained {
-      @apply max-w-[calc(100vw-16px)] mx-2;
+      @apply max-w-[calc(100vw-8px)] mx-1;
     }
 
     .mobile-no-padding {
       @apply p-0 m-0;
+    }
+
+    /* Progressive spacing system for mobile */
+    .mobile-space-tight {
+      @apply space-y-2;
+    }
+
+    .mobile-space-normal {
+      @apply space-y-3;
+    }
+
+    .mobile-space-loose {
+      @apply space-y-4;
     }
   }
 }

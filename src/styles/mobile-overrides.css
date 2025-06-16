@@ -1,3 +1,4 @@
+
 @layer utilities {
   /* Mobile-first performance optimizations */
   @media (max-width: 768px) {
@@ -113,60 +114,78 @@
       @apply text-primary !important;
     }
 
-    /* MOBILE CONTAINER AND PADDING FIXES */
+    /* MOBILE CONTAINER AND PADDING FIXES - OPTIMIZED */
     
     /* Global mobile container constraints */
     .max-w-7xl {
       @apply max-w-full !important;
     }
     
-    /* Mobile-optimized padding system */
+    /* Highly optimized mobile spacing system */
     .responsive-padding {
-      @apply p-3 !important;
+      @apply p-2 !important;
     }
 
     .responsive-margin {
-      @apply m-2 !important;
+      @apply m-1 !important;
     }
 
     .responsive-gap {
-      @apply gap-3 !important;
+      @apply gap-2 !important;
     }
 
-    /* Mobile card padding overrides */
+    /* Mobile spacing overrides - Much tighter */
+    .space-y-8 > * + * {
+      @apply mt-4 !important;
+    }
+
+    .space-y-6 > * + * {
+      @apply mt-3 !important;
+    }
+
+    .space-y-4 > * + * {
+      @apply mt-2 !important;
+    }
+
+    /* Mobile card padding overrides - Minimal padding */
     .apple-card-mobile-optimized,
     .enhanced-apple-card {
-      @apply p-3 !important;
+      @apply p-2 !important;
     }
 
-    /* Remove excessive padding from dashboard elements */
+    /* Tight mobile container constraints */
     .dashboard-container {
-      @apply px-3 py-2 !important;
+      @apply px-2 py-1 !important;
     }
 
-    /* Mobile container width constraints */
+    /* Mobile container width constraints - Tighter */
     .mobile-container-constraint {
-      @apply mx-2 max-w-[calc(100vw-16px)] !important;
+      @apply mx-1 max-w-[calc(100vw-8px)] !important;
     }
 
-    /* Override default card content padding on mobile */
+    /* Override default card content padding on mobile - Minimal */
     .apple-card-content-mobile {
-      @apply p-3 pt-0 !important;
+      @apply p-2 pt-0 !important;
     }
 
-    /* Mobile header optimizations */
+    /* Mobile header optimizations - Tighter */
     .mobile-header-padding {
-      @apply px-3 py-2 !important;
+      @apply px-2 py-1 !important;
     }
 
-    /* Safe area for mobile devices with proper constraints */
+    /* Safe area for mobile devices with tight constraints */
     .mobile-safe-area {
-      @apply px-3 mx-0 max-w-full overflow-hidden !important;
+      @apply px-2 mx-0 max-w-full overflow-hidden !important;
     }
 
-    /* Button sizing optimizations for mobile */
+    /* Button sizing optimizations for mobile - Tighter */
     .apple-button-mobile {
-      @apply px-3 py-2 text-sm !important;
+      @apply px-2 py-1 text-sm !important;
+    }
+
+    /* Mobile card spacing - Minimal */
+    .mobile-card-spacing {
+      @apply p-2 m-1 !important;
     }
 
     /* Reduce motion for better mobile performance */
@@ -218,42 +237,57 @@
       @apply text-xl;
     }
 
-    /* ReadyToPost specific mobile optimizations */
+    /* ReadyToPost specific mobile optimizations - Tighter */
     .ready-to-post-item {
-      @apply flex-col gap-3 p-3;
+      @apply flex-col gap-2 p-2;
     }
 
     .ready-to-post-actions {
-      @apply flex-wrap justify-center gap-2;
+      @apply flex-wrap justify-center gap-1;
     }
 
     .ready-to-post-button {
-      @apply flex-1 min-w-[70px] max-w-[120px];
+      @apply flex-1 min-w-[60px] max-w-[100px];
     }
 
-    /* Mobile badge sizing */
+    /* Mobile badge sizing - Smaller */
     .mobile-badge {
-      @apply text-xs px-2 py-1;
+      @apply text-xs px-1 py-0.5;
     }
 
-    /* Mobile content preview */
+    /* Mobile content preview - More compact */
     .mobile-content-preview {
       @apply text-sm leading-relaxed line-clamp-2;
     }
 
-    /* Mobile header optimizations */
+    /* Mobile header optimizations - Compact */
     .mobile-header-stacked {
-      @apply flex-col gap-2 text-center;
+      @apply flex-col gap-1 text-center;
     }
 
-    /* Mobile icon container sizing */
+    /* Mobile icon container sizing - Smaller */
     .mobile-icon-container {
-      @apply w-6 h-6;
+      @apply w-5 h-5;
     }
 
     /* Touch feedback for mobile cards */
     .mobile-card-touch {
       @apply active:bg-gray-50 transition-colors duration-100;
+    }
+
+    /* Mobile dashboard specific optimizations */
+    .mobile-dashboard-spacing {
+      @apply space-y-3 !important;
+    }
+
+    /* Mobile section spacing - Very tight */
+    .mobile-section-gap {
+      @apply gap-2 !important;
+    }
+
+    /* Mobile welcome section - Compact */
+    .mobile-welcome-section {
+      @apply py-2 px-2 !important;
     }
   }
 

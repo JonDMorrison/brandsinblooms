@@ -183,7 +183,7 @@ export const DashboardContent = ({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 mobile-dashboard-spacing">
       {/* Weekly Content Updater - runs automatically to maintain campaigns */}
       <WeeklyContentUpdater />
       
