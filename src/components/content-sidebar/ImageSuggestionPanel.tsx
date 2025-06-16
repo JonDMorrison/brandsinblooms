@@ -13,7 +13,7 @@ interface ImageSuggestionPanelProps {
 }
 
 export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPanelProps) => {
-  const { images, loading, query, fetchNewImages, shuffleImages } = useImageSuggestions(task?.id);
+  const { images, loading, query, fetchNewImages, shuffleImages, usingPlaceholders } = useImageSuggestions(task?.id);
   const [searchInput, setSearchInput] = useState('');
 
   // Extract keywords from campaign theme or post type
@@ -88,6 +88,7 @@ export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPan
             query={query}
             contentTaskId={task?.id}
             onShuffle={shuffleImages}
+            usingPlaceholders={usingPlaceholders}
           />
         )}
 

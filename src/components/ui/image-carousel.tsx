@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Copy, Heart, Shuffle } from 'lucide-react';
+import { Download, Copy, Heart, Shuffle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +23,7 @@ interface ImageCarouselProps {
   contentTaskId?: string;
   onShuffle?: () => void;
   className?: string;
+  usingPlaceholders?: boolean;
 }
 
 export const ImageCarousel = ({ 
@@ -30,13 +31,19 @@ export const ImageCarousel = ({
   query, 
   contentTaskId, 
   onShuffle,
-  className = "" 
+  className = "",
+  usingPlaceholders = false
 }: ImageCarouselProps) => {
   const { user } = useAuth();
   const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const [favoriteImages, setFavoriteImages] = useState<Set<string>>(new Set());
 
   const handleDownload = (imageUrl: string, photographer: string) => {
+    if (usingPlaceholders) {
+      toast.info('Add your Unsplash API key to download real images');
+      return;
+    }
+    
     const link = document.createElement('a');
     link.href = imageUrl;
     link.download = `${query}-${photographer}.jpg`;
@@ -48,7 +55,9 @@ export const ImageCarousel = ({
   };
 
   const handleCopyCredit = (photographer: string) => {
-    const credit = `Photo by ${photographer} on Unsplash`;
+    const credit = usingPlaceholders 
+      ? `Sample image credit: ${photographer}`
+      : `Photo by ${photographer} on Unsplash`;
     navigator.clipboard.writeText(credit);
     toast.success('Credit copied to clipboard');
   };
@@ -56,6 +65,11 @@ export const ImageCarousel = ({
   const handleFavorite = async (image: ImageSuggestion) => {
     if (!user) {
       toast.error('Please log in to save favorites');
+      return;
+    }
+
+    if (usingPlaceholders) {
+      toast.info('Add your Unsplash API key to save real images to your library');
       return;
     }
 
@@ -102,15 +116,27 @@ export const ImageCarousel = ({
     <div className={`space-y-4 ${className}`}>
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-semibold">Free Images for This Post</h3>
-          <p className="text-sm text-gray-600">From Unsplash • Search: "{query}"</p>
+          <h3 className="font-semibold">
+            {usingPlaceholders ? 'Sample Images Preview' : 'Free Images for This Post'}
+          </h3>
+          <p className="text-sm text-gray-600">
+            {usingPlaceholders ? 'Add your Unsplash API key for real images' : `From Unsplash • Search: "${query}"`}
+          </p>
         </div>
-        {onShuffle && (
-          <Button variant="outline" size="sm" onClick={onShuffle}>
-            <Shuffle className="w-4 h-4 mr-2" />
-            Shuffle
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {usingPlaceholders && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+              <Info className="w-3 h-3 mr-1" />
+              Demo
+            </Badge>
+          )}
+          {onShuffle && (
+            <Button variant="outline" size="sm" onClick={onShuffle}>
+              <Shuffle className="w-4 h-4 mr-2" />
+              Shuffle
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -171,6 +197,14 @@ export const ImageCarousel = ({
           </div>
         ))}
       </div>
+
+      {usingPlaceholders && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-sm text-blue-800">
+            💡 These are sample images to show how the feature works. Add your Unsplash API key to get real, high-quality images for your content.
+          </p>
+        </div>
+      )}
     </div>
   );
 };

@@ -13,10 +13,60 @@ interface ImageSuggestion {
   query: string;
 }
 
+// Placeholder images to show before API key is configured
+const getPlaceholderImages = (query: string): ImageSuggestion[] => [
+  {
+    id: 'placeholder-1',
+    thumb_url: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop',
+    download_url: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=1920&h=1080&fit=crop',
+    alt: `${query} - garden workspace`,
+    photographer: 'Sample Photographer',
+    unsplash_id: 'placeholder-1',
+    query: query
+  },
+  {
+    id: 'placeholder-2',
+    thumb_url: 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=400&h=300&fit=crop',
+    download_url: 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=1920&h=1080&fit=crop',
+    alt: `${query} - gardening tools`,
+    photographer: 'Sample Photographer',
+    unsplash_id: 'placeholder-2',
+    query: query
+  },
+  {
+    id: 'placeholder-3',
+    thumb_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop',
+    download_url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1920&h=1080&fit=crop',
+    alt: `${query} - garden planning`,
+    photographer: 'Sample Photographer',
+    unsplash_id: 'placeholder-3',
+    query: query
+  },
+  {
+    id: 'placeholder-4',
+    thumb_url: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=300&fit=crop',
+    download_url: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=1920&h=1080&fit=crop',
+    alt: `${query} - garden design`,
+    photographer: 'Sample Photographer',
+    unsplash_id: 'placeholder-4',
+    query: query
+  },
+  {
+    id: 'placeholder-5',
+    thumb_url: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=400&h=300&fit=crop',
+    download_url: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=1920&h=1080&fit=crop',
+    alt: `${query} - digital gardening`,
+    photographer: 'Sample Photographer',
+    unsplash_id: 'placeholder-5',
+    query: query
+  }
+];
+
 export const useImageSuggestions = (contentTaskId?: string) => {
   const [images, setImages] = useState<ImageSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [usingPlaceholders, setUsingPlaceholders] = useState(false);
 
   const fetchStoredImages = async (taskId: string) => {
     try {
@@ -31,6 +81,7 @@ export const useImageSuggestions = (contentTaskId?: string) => {
       if (data && data.length > 0) {
         setImages(data);
         setQuery(data[0].query);
+        setUsingPlaceholders(false);
         return true;
       }
       return false;
@@ -52,10 +103,22 @@ export const useImageSuggestions = (contentTaskId?: string) => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // If API key not configured, show placeholder images
+        if (error.message?.includes('Unsplash API key not configured')) {
+          const placeholders = getPlaceholderImages(searchQuery);
+          setImages(placeholders);
+          setQuery(searchQuery);
+          setUsingPlaceholders(true);
+          toast.info('Using sample images - add your Unsplash API key for real images');
+          return;
+        }
+        throw error;
+      }
 
       setImages(data.images || []);
       setQuery(searchQuery);
+      setUsingPlaceholders(false);
       
       if (data.images && data.images.length > 0) {
         toast.success(`Found ${data.images.length} images for "${searchQuery}"`);
@@ -64,8 +127,13 @@ export const useImageSuggestions = (contentTaskId?: string) => {
       }
     } catch (error) {
       console.error('Error fetching images:', error);
-      toast.error('Failed to fetch images');
-      setImages([]);
+      
+      // Fallback to placeholder images on any error
+      const placeholders = getPlaceholderImages(searchQuery);
+      setImages(placeholders);
+      setQuery(searchQuery);
+      setUsingPlaceholders(true);
+      toast.info('Using sample images - add your Unsplash API key for real images');
     } finally {
       setLoading(false);
     }
@@ -73,17 +141,33 @@ export const useImageSuggestions = (contentTaskId?: string) => {
 
   const shuffleImages = async () => {
     if (query) {
-      // Try variations of the current query for shuffle
-      const variations = [
-        `${query} garden`,
-        `${query} plants`,
-        `${query} horticulture`,
-        `${query} nature`,
-        query // fallback to original
-      ];
-      
-      const randomVariation = variations[Math.floor(Math.random() * variations.length)];
-      await fetchNewImages(randomVariation, contentTaskId);
+      if (usingPlaceholders) {
+        // Shuffle placeholder images with different variations
+        const variations = [
+          `${query} garden`,
+          `${query} plants`,
+          `${query} horticulture`,
+          `${query} nature`,
+          query
+        ];
+        const randomVariation = variations[Math.floor(Math.random() * variations.length)];
+        const shuffledPlaceholders = getPlaceholderImages(randomVariation);
+        setImages(shuffledPlaceholders);
+        setQuery(randomVariation);
+        toast.info('Shuffled sample images');
+      } else {
+        // Try variations of the current query for shuffle
+        const variations = [
+          `${query} garden`,
+          `${query} plants`,
+          `${query} horticulture`,
+          `${query} nature`,
+          query // fallback to original
+        ];
+        
+        const randomVariation = variations[Math.floor(Math.random() * variations.length)];
+        await fetchNewImages(randomVariation, contentTaskId);
+      }
     }
   };
 
@@ -99,6 +183,7 @@ export const useImageSuggestions = (contentTaskId?: string) => {
     query,
     fetchNewImages,
     shuffleImages,
-    fetchStoredImages
+    fetchStoredImages,
+    usingPlaceholders
   };
 };
