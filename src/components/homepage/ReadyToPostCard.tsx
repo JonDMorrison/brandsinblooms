@@ -92,7 +92,10 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         hoverEffect="none"
         animated={true}
       >
-        <AppleCardContent className={`text-center ${isMobile ? 'py-8 responsive-padding' : 'py-12'}`}>
+        <AppleCardContent className={`
+          text-center 
+          ${isMobile ? 'py-6 mobile-card-spacing' : 'py-12'}
+        `}>
           <div className={`
             flex items-center justify-center rounded-full mx-auto mb-4 apple-hover-subtle
             ${isMobile ? 'w-12 h-12 bg-success/10' : 'w-16 h-16 bg-success/10'}
@@ -117,14 +120,14 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         surface="primary"
         hoverEffect="subtle"
         animated={true}
-        className={isMobile ? 'responsive-margin' : ''}
+        className={isMobile ? 'mobile-constrained apple-card-mobile-optimized' : ''}
       >
-        <AppleCardHeader className={`${isMobile ? 'pb-3 responsive-padding' : 'pb-4'}`}>
-          <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-3' : ''}`}>
+        <AppleCardHeader className={`${isMobile ? 'pb-3 mobile-header-padding' : 'pb-4'}`}>
+          <div className={`flex items-center justify-between ${isMobile ? 'mobile-header-stacked' : ''}`}>
             <div className={`flex items-center gap-3 apple-slide-up ${isMobile ? 'w-full justify-center text-center' : ''}`}>
               <div className={`
                 flex items-center justify-center rounded-xl apple-hover-subtle
-                ${isMobile ? 'w-8 h-8 bg-success/10' : 'w-10 h-10 bg-success/10'}
+                ${isMobile ? 'mobile-icon-container bg-success/10' : 'w-10 h-10 bg-success/10'}
               `}>
                 <CheckCircle className={`text-success apple-icon-bounce ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
               </div>
@@ -151,7 +154,10 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           </div>
         </AppleCardHeader>
 
-        <AppleCardContent className={`space-y-4 ${isMobile ? 'responsive-padding' : ''}`}>
+        <AppleCardContent className={`
+          space-y-4 
+          ${isMobile ? 'apple-card-content-mobile' : ''}
+        `}>
           <ResponsiveGrid 
             cols={{ mobile: 1, tablet: 1, desktop: 2 }}
             gap={{ mobile: 3, tablet: 4, desktop: 4 }}
@@ -168,10 +174,13 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           </ResponsiveGrid>
 
           {tasks.length >= 6 && (
-            <div className={`text-center pt-4 border-t border-border apple-slide-up ${isMobile ? 'responsive-padding' : ''}`}>
+            <div className={`
+              text-center pt-4 border-t border-border apple-slide-up 
+              ${isMobile ? 'mobile-card-spacing' : ''}
+            `}>
               <EnhancedAppleButton 
                 variant="secondary" 
-                className={`${isMobile ? 'w-full apple-button-base' : 'w-full'}`}
+                className={`${isMobile ? 'w-full apple-button-mobile' : 'w-full'}`}
                 iconAnimation="bounce"
                 pulseOnHover={!isMobile}
               >

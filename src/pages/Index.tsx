@@ -11,8 +11,10 @@ import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
+  const isMobile = useIsMobile();
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
@@ -93,7 +95,7 @@ const Index = () => {
     <ProtectedPageWrapper>
       <div className="min-h-screen bg-surface-secondary apple-fade-in">
         {/* Fixed UserMenu in top right corner */}
-        <div className="fixed top-6 right-6 z-50">
+        <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-3 right-3' : ''}`}>
           <UserMenu />
         </div>
 
@@ -105,7 +107,10 @@ const Index = () => {
           hoverEffect="none"
           animated={true}
         >
-          <AppleCardContent className="max-w-7xl mx-auto responsive-padding">
+          <AppleCardContent className={`
+            max-w-7xl mx-auto 
+            ${isMobile ? 'mobile-safe-area mobile-header-padding' : 'responsive-padding'}
+          `}>
             <WelcomeSection 
               onboardingData={onboardingData}
               onBusinessNameChange={handleBusinessNameChange}
@@ -114,7 +119,10 @@ const Index = () => {
         </EnhancedAppleCard>
         
         {/* Dashboard Content - This is the main content area */}
-        <div className="max-w-7xl mx-auto responsive-padding apple-slide-up">
+        <div className={`
+          max-w-7xl mx-auto apple-slide-up
+          ${isMobile ? 'mobile-safe-area dashboard-container' : 'responsive-padding'}
+        `}>
           <DashboardContent
             onboardingData={onboardingData}
             onBusinessNameChange={handleBusinessNameChange}

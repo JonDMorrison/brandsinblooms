@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -21,6 +22,8 @@ export const DashboardLayout = ({
   onBusinessNameChange,
   onCampaignCreated
 }: DashboardLayoutProps) => {
+  const isMobile = useIsMobile();
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-surface-secondary">
@@ -31,9 +34,21 @@ export const DashboardLayout = ({
           onBusinessNameChange={onBusinessNameChange}
         />
         <main className="flex-1 overflow-auto">
-          <div className="max-w-7xl mx-auto p-6">
-            <AppleCard variant="default" surface="primary" className="min-h-screen border-0 shadow-none">
-              <AppleCardContent className="p-6">
+          <div className={`
+            max-w-7xl mx-auto 
+            ${isMobile ? 'mobile-safe-area dashboard-container' : 'p-6'}
+          `}>
+            <AppleCard 
+              variant="default" 
+              surface="primary" 
+              className={`
+                min-h-screen border-0 shadow-none
+                ${isMobile ? 'apple-card-mobile-optimized' : ''}
+              `}
+            >
+              <AppleCardContent className={`
+                ${isMobile ? 'apple-card-content-mobile' : 'p-6'}
+              `}>
                 {children}
               </AppleCardContent>
             </AppleCard>

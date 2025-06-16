@@ -1,4 +1,3 @@
-
 @layer utilities {
   /* Mobile-first performance optimizations */
   @media (max-width: 768px) {
@@ -114,6 +113,62 @@
       @apply text-primary !important;
     }
 
+    /* MOBILE CONTAINER AND PADDING FIXES */
+    
+    /* Global mobile container constraints */
+    .max-w-7xl {
+      @apply max-w-full !important;
+    }
+    
+    /* Mobile-optimized padding system */
+    .responsive-padding {
+      @apply p-3 !important;
+    }
+
+    .responsive-margin {
+      @apply m-2 !important;
+    }
+
+    .responsive-gap {
+      @apply gap-3 !important;
+    }
+
+    /* Mobile card padding overrides */
+    .apple-card-mobile-optimized,
+    .enhanced-apple-card {
+      @apply p-3 !important;
+    }
+
+    /* Remove excessive padding from dashboard elements */
+    .dashboard-container {
+      @apply px-3 py-2 !important;
+    }
+
+    /* Mobile container width constraints */
+    .mobile-container-constraint {
+      @apply mx-2 max-w-[calc(100vw-16px)] !important;
+    }
+
+    /* Override default card content padding on mobile */
+    .apple-card-content-mobile {
+      @apply p-3 pt-0 !important;
+    }
+
+    /* Mobile header optimizations */
+    .mobile-header-padding {
+      @apply px-3 py-2 !important;
+    }
+
+    /* Safe area for mobile devices with proper constraints */
+    .mobile-safe-area {
+      @apply px-3 mx-0 max-w-full overflow-hidden !important;
+    }
+
+    /* Button sizing optimizations for mobile */
+    .apple-button-mobile {
+      @apply px-3 py-2 text-sm !important;
+    }
+
     /* Reduce motion for better mobile performance */
     .apple-hover {
       @apply hover:scale-100 active:scale-[0.98] transition-transform duration-100;
@@ -123,13 +178,7 @@
       @apply hover:scale-100 active:scale-[0.99] transition-transform duration-100;
     }
 
-    /* Optimize touch targets */
-    .apple-button-base {
-      min-height: 48px;
-      @apply px-6 py-3 text-base;
-    }
-
-    /* Enhanced touch feedback */
+    /* Enhanced touch targets */
     .touch-target {
       min-height: 44px;
       min-width: 44px;
@@ -152,19 +201,6 @@
       @apply hover:scale-100 active:scale-110 transition-transform duration-150;
     }
 
-    /* Mobile-optimized spacing */
-    .responsive-padding {
-      @apply p-4;
-    }
-
-    .responsive-margin {
-      @apply m-4;
-    }
-
-    .responsive-gap {
-      @apply gap-4;
-    }
-
     /* Typography adjustments for mobile */
     .responsive-text-sm {
       @apply text-sm;
@@ -184,7 +220,7 @@
 
     /* ReadyToPost specific mobile optimizations */
     .ready-to-post-item {
-      @apply flex-col gap-3 p-4;
+      @apply flex-col gap-3 p-3;
     }
 
     .ready-to-post-actions {
@@ -207,11 +243,12 @@
 
     /* Mobile header optimizations */
     .mobile-header-stacked {
-      @apply flex-col gap-3 text-center;
+      @apply flex-col gap-2 text-center;
     }
 
+    /* Mobile icon container sizing */
     .mobile-icon-container {
-      @apply w-8 h-8;
+      @apply w-6 h-6;
     }
 
     /* Touch feedback for mobile cards */
@@ -223,6 +260,21 @@
   /* Tablet-specific optimizations */
   @media (min-width: 768px) and (max-width: 1024px) {
     .responsive-padding {
+      @apply p-4;
+    }
+
+    .responsive-margin {
+      @apply m-4;
+    }
+
+    .responsive-gap {
+      @apply gap-4;
+    }
+  }
+
+  /* Desktop optimizations */
+  @media (min-width: 1024px) {
+    .responsive-padding {
       @apply p-6;
     }
 
@@ -232,21 +284,6 @@
 
     .responsive-gap {
       @apply gap-6;
-    }
-  }
-
-  /* Desktop optimizations */
-  @media (min-width: 1024px) {
-    .responsive-padding {
-      @apply p-8;
-    }
-
-    .responsive-margin {
-      @apply m-8;
-    }
-
-    .responsive-gap {
-      @apply gap-8;
     }
   }
 
