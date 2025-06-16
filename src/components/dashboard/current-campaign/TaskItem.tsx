@@ -5,6 +5,8 @@ import { AppleCardContent } from "@/components/ui/apple-card";
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Eye, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { useTaskImages } from "@/hooks/useTaskImages";
+import { TaskImagePreview } from "./TaskImagePreview";
 
 interface TaskItemProps {
   task: any;
@@ -13,6 +15,8 @@ interface TaskItemProps {
 }
 
 export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
+  const { images, imageCount, loading } = useTaskImages(task?.id);
+
   const getStatusIcon = () => {
     switch (task.status) {
       case 'completed':
@@ -56,12 +60,21 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
             <div className="flex items-center gap-2 mb-1">
               {getStatusIcon()}
               <BodyMedium className="font-medium text-text-primary">
-                {task.content_type || 'Content'}
+                {task.post_type || 'Content'}
               </BodyMedium>
             </div>
             <CaptionMedium className={getStatusColor()}>
               {task.status?.charAt(0).toUpperCase() + task.status?.slice(1) || 'Draft'}
             </CaptionMedium>
+            
+            {/* Image preview */}
+            <div className="mt-2">
+              <TaskImagePreview 
+                images={images} 
+                imageCount={imageCount} 
+                loading={loading}
+              />
+            </div>
           </div>
           <EnhancedAppleButton 
             variant="tertiary" 
