@@ -49,8 +49,8 @@ export const ApproveButton = ({
       className={cn(
         "transition-colors duration-300",
         isApproved
-          ? "bg-green-700 hover:bg-green-800 text-white border-green-700"
-          : "bg-green-50 hover:bg-green-100 text-green-700 border border-green-200 hover:border-green-300",
+          ? "bg-success hover:bg-success/90 text-success-foreground border-success"
+          : "bg-success/10 hover:bg-success/20 text-success border border-success/20 hover:border-success/30",
         className
       )}
       type="button"
