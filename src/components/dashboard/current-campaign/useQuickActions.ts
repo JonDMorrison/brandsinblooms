@@ -35,7 +35,7 @@ export const useQuickActions = ({
     {
       id: 'add-event',
       icon: CalendarPlus,
-      title: 'Promote Your Event',
+      title: 'Promote An Upcoming Event',
       description: 'Get help marketing your events',
       benefit: 'Custom promotional content',
       color: 'text-gray-600',

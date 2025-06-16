@@ -37,7 +37,7 @@ export const QuickActionItem = ({ item }: QuickActionItemProps) => {
         
         <div className="flex-1 min-w-0">
           <h4 className="text-lg font-semibold text-black mb-1">
-            Create Your Own Custom Campaign
+            {item.title}
           </h4>
           
           <p className="text-sm text-gray-600 leading-relaxed mb-1 text-wrap overflow-hidden">
