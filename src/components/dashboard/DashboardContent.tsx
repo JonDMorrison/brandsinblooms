@@ -1,13 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
-import { CurrentCampaignSection } from "./CurrentCampaignSection";
-import { ContentPreviewGrid } from "./ContentPreviewGrid";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
-import { ReviewQueueCard } from "@/components/content/ReviewQueueCard";
-import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { BodyMedium } from "@/components/ui/typography";
@@ -28,7 +25,6 @@ export const DashboardContent = ({
 }: DashboardContentProps) => {
   const { user } = useAuth();
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
-  const [userCreatedCampaigns, setUserCreatedCampaigns] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -142,18 +138,6 @@ export const DashboardContent = ({
       } else {
         setTasks(allTasks || []);
       }
-
-      // Fetch user created campaigns
-      const { data: userCampaigns, error: userCampaignsError } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('user_id', user.id)
-        .neq('week_number', currentWeekNumber)
-        .order('created_at', { ascending: false });
-
-      if (!userCampaignsError) {
-        setUserCreatedCampaigns(userCampaigns || []);
-      }
     } catch (error) {
       console.error('DashboardContent: Error in fetchCampaignData:', error);
       // Set empty state on error
@@ -177,16 +161,6 @@ export const DashboardContent = ({
     const campaignSection = document.querySelector('[data-campaign-section]');
     if (campaignSection) {
       campaignSection.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleCampaignDelete = async (campaignId: string) => {
-    try {
-      await supabase.from('content_tasks').delete().eq('campaign_id', campaignId);
-      await supabase.from('campaigns').delete().eq('id', campaignId);
-      fetchCampaignData();
-    } catch (error) {
-      console.error('Error deleting campaign:', error);
     }
   };
 
@@ -219,15 +193,14 @@ export const DashboardContent = ({
         tasksCount={tasks.length}
       />
 
-      {/* Enhanced Dashboard Grid - Replaces individual sections */}
+      {/* Enhanced Dashboard Grid - Main dashboard sections */}
       <EnhancedDashboardGrid
         activeCampaign={activeCampaign}
-        userCreatedCampaigns={userCreatedCampaigns}
+        userCreatedCampaigns={[]}
         tasks={tasks}
         onTaskUpdate={handleTaskUpdate}
         onCampaignCreated={fetchCampaignData}
         onCampaignUpdate={fetchCampaignData}
-        onCampaignDelete={handleCampaignDelete}
         onCreateCampaign={onCampaignCreated}
       />
     </div>

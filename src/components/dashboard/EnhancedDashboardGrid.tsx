@@ -4,7 +4,8 @@ import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
 import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
-import { CustomCampaignsSection } from "@/components/dashboard/CustomCampaignsSection";
+import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
+import { ReviewQueueCard } from "@/components/content/ReviewQueueCard";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 
 interface EnhancedDashboardGridProps {
@@ -43,23 +44,27 @@ export const EnhancedDashboardGrid = ({
         />
       </div>
 
-      {/* Ready To Post Section */}
+      {/* Quick Actions Section */}
       <div className="apple-slide-up apple-stagger-1">
+        <QuickActionsGrid 
+          onCampaignCreated={onCampaignCreated}
+        />
+      </div>
+
+      {/* Content Review Section */}
+      <div className="apple-slide-up apple-stagger-2">
+        <ReviewQueueCard 
+          onTaskUpdate={onTaskUpdate}
+          onTaskClick={onTaskClick}
+        />
+      </div>
+
+      {/* Ready To Post Section */}
+      <div className="apple-slide-up apple-stagger-3">
         <ReadyToPostCard 
           tasks={tasks}
           onTaskClick={onTaskClick}
           onTaskUpdate={onTaskUpdate}
-        />
-      </div>
-
-      {/* Custom Campaigns Section */}
-      <div className="apple-slide-up apple-stagger-2">
-        <CustomCampaignsSection 
-          userCreatedCampaigns={userCreatedCampaigns}
-          onTaskUpdate={onTaskUpdate}
-          onCampaignUpdate={onCampaignUpdate}
-          onCampaignDelete={onCampaignDelete}
-          onCreateCampaign={onCreateCampaign}
         />
       </div>
     </div>
