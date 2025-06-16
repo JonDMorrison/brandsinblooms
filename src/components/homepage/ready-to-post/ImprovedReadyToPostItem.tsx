@@ -11,6 +11,7 @@ import { stripHtmlAndFormat } from "./contentUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { CaptionMedium, BodySmall } from "@/components/ui/typography";
 import { ContentPreview } from "./ContentPreview";
+import { CompactImageCarousel } from "./CompactImageCarousel";
 
 interface ImprovedReadyToPostItemProps {
   task: any;
@@ -75,12 +76,16 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
     return "bg-blue-50 text-blue-700 border-blue-200";
   };
 
+  const handleShowAllImages = () => {
+    onClick(task); // Open the full content viewer which has the full image carousel
+  };
+
   return (
     <div
       className={`
         border border-stone-200 rounded-lg p-4 cursor-pointer transition-all duration-200 
         bg-white hover:bg-stone-50 hover:border-stone-300 hover:shadow-sm
-        ${isMobile ? 'min-h-[140px]' : ''}
+        ${isMobile ? 'min-h-[200px]' : ''}
       `}
       onClick={handleViewFull}
     >
@@ -115,6 +120,15 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
           />
         </div>
       )}
+
+      {/* Image Suggestions */}
+      <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+        <CompactImageCarousel 
+          task={task}
+          campaignTheme={task.campaigns?.theme}
+          onShowAll={handleShowAllImages}
+        />
+      </div>
 
       {/* Scheduled Date */}
       {task.scheduled_date && (
