@@ -5,15 +5,19 @@ import { UserMetricsSection } from "./UserMetricsSection";
 import { ContentActivitySection } from "./ContentActivitySection";
 import { BillingOverviewSection } from "./BillingOverviewSection";
 import { UserManagementSection } from "./UserManagementSection";
+import { EnhancedUserTable } from "./EnhancedUserTable";
 import { useAdminData } from "@/hooks/useAdminData";
+import { useAdminUsers } from "@/hooks/useAdminUsers";
 
 export const AdminDashboard = () => {
-  const { metrics, users, loading } = useAdminData();
+  const { metrics, users: basicUsers, loading: metricsLoading } = useAdminData();
+  const { users: detailedUsers, loading: usersLoading } = useAdminUsers();
 
-  console.log("Users data:", users);
+  console.log("Basic users data:", basicUsers);
+  console.log("Detailed users data:", detailedUsers);
   console.log("Metrics data:", metrics);
 
-  if (loading) {
+  if (metricsLoading && usersLoading) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-center py-20">
@@ -45,8 +49,29 @@ export const AdminDashboard = () => {
         <BillingOverviewSection metrics={metrics} />
       </div>
 
-      {/* Section 4: User Management */}
-      <UserManagementSection users={users} />
+      {/* Enhanced User Management Tabs */}
+      <Tabs defaultValue="detailed" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="detailed">Detailed User View</TabsTrigger>
+          <TabsTrigger value="overview">User Overview</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="detailed">
+          {usersLoading ? (
+            <Card>
+              <CardContent className="flex items-center justify-center py-20">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </CardContent>
+            </Card>
+          ) : (
+            <EnhancedUserTable users={detailedUsers} />
+          )}
+        </TabsContent>
+        
+        <TabsContent value="overview">
+          <UserManagementSection users={basicUsers} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

@@ -31,7 +31,7 @@ export const UserManagementSection = ({ users }: UserManagementSectionProps) => 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-garden-green-dark">User Overview</h2>
+        <h2 className="text-xl font-semibold text-garden-green-dark">Basic User Overview</h2>
         <Button className="bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-2">
           Invite User
         </Button>
@@ -40,7 +40,7 @@ export const UserManagementSection = ({ users }: UserManagementSectionProps) => 
       <Card className="rounded-xl">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">User Management ({users.length})</CardTitle>
+            <CardTitle className="text-lg">Quick User Stats ({users.length})</CardTitle>
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
