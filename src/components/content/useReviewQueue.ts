@@ -1,79 +1,27 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-
-const CACHE_KEY = 'review_queue_cache';
-
-const getCachedData = () => {
-  try {
-    const cached = localStorage.getItem(CACHE_KEY);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      // Use cache if less than 30 minutes old
-      if (Date.now() - timestamp < 1800000) {
-        return data;
-      }
-    }
-  } catch (error) {
-    console.error('Error reading review queue cache:', error);
-  }
-  return null;
-};
-
-const setCachedData = (data: any) => {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify({
-      data,
-      timestamp: Date.now()
-    }));
-  } catch (error) {
-    console.error('Error setting review queue cache:', error);
-  }
-};
-
-const isNetworkError = (error: any) => {
-  return !navigator.onLine || 
-         error?.message?.includes('Failed to fetch') ||
-         error?.message?.includes('Network Error') ||
-         error?.message?.includes('ERR_INTERNET_DISCONNECTED');
-};
+import { ContentTask } from "@/types/content";
 
 export const useReviewQueue = (onTaskUpdate?: () => void) => {
-  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+  const { user } = useAuth();
+  const [pendingTasks, setPendingTasks] = useState<ContentTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [approvingTasks, setApprovingTasks] = useState<Set<string>>(new Set());
+  const [approvingTasks, setApprovingTasks] = useState(new Set<string>());
+  const channelRef = useRef<any>(null);
 
-  const fetchPendingTasks = useCallback(async () => {
+  const fetchPendingTasks = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
       setError(null);
-      console.log('ReviewQueue: Fetching pending tasks with status "review" for current user');
       
-      // Check if we're offline
-      if (!navigator.onLine) {
-        const cachedData = getCachedData();
-        if (cachedData) {
-          setPendingTasks(cachedData);
-          toast.info('Loaded cached review queue - you are offline');
-        } else {
-          setError('No internet connection and no cached data available');
-        }
-        setLoading(false);
-        return;
-      }
-      
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.error('ReviewQueue: No authenticated user found');
-        setError('User not authenticated');
-        setLoading(false);
-        return;
-      }
-
-      // Now with RLS, we can fetch content_tasks directly and it will be filtered by user automatically
-      // But we'll still join with campaigns to get campaign info
       const { data, error: fetchError } = await supabase
         .from('content_tasks')
         .select(`
@@ -83,87 +31,46 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
             user_id
           )
         `)
-        .eq('status', 'review')
-        .not('ai_output', 'is', null)
+        .in('status', ['pending', 'generated'])
         .order('created_at', { ascending: false });
 
       if (fetchError) {
-        console.error('ReviewQueue: Error fetching pending tasks:', fetchError);
-        
-        // Check if it's a network error
-        if (isNetworkError(fetchError)) {
-          const cachedData = getCachedData();
-          if (cachedData) {
-            setPendingTasks(cachedData);
-            toast.warning('Using cached review queue due to connection issues');
-          } else {
-            setError('Network error and no cached data available');
-          }
-        } else {
-          throw new Error(`Failed to load pending tasks: ${fetchError.message}`);
-        }
+        console.error('Error fetching pending tasks:', fetchError);
+        setError('Failed to load pending content');
       } else {
-        const tasks = data || [];
-        console.log('ReviewQueue: Loaded pending tasks for current user:', tasks.length);
-        console.log('ReviewQueue: First task campaign user_id check:', tasks[0]?.campaigns?.user_id, 'vs current user:', user.id);
-        setPendingTasks(tasks);
-        setCachedData(tasks);
+        // Filter to only show tasks for current user's campaigns
+        const userTasks = data?.filter(task => 
+          task.campaigns?.user_id === user.id
+        ) || [];
+        setPendingTasks(userTasks);
       }
-    } catch (error: any) {
-      console.error('ReviewQueue: Error in fetchPendingTasks:', error);
-      
-      // Try to load cached data as fallback
-      const cachedData = getCachedData();
-      if (cachedData) {
-        setPendingTasks(cachedData);
-        toast.warning('Using cached review queue due to connection issues');
-      } else {
-        setError(error.message || 'Failed to load pending tasks');
-      }
+    } catch (error) {
+      console.error('Error fetching pending tasks:', error);
+      setError('Failed to load pending content');
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   const handleApprove = async (taskId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     
-    if (!navigator.onLine) {
-      toast.error('Cannot approve content while offline');
-      return;
-    }
-    
     setApprovingTasks(prev => new Set(prev).add(taskId));
     
     try {
-      console.log('ReviewQueue: Approving task:', taskId);
-      
-      // Change status to 'completed' for approved content
-      // RLS will ensure we can only update our own tasks
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'completed' })
+        .update({ status: 'posted' })
         .eq('id', taskId);
 
-      if (error) {
-        console.error('ReviewQueue: Error approving task:', error);
-        throw new Error(`Failed to approve content: ${error.message}`);
-      }
+      if (error) throw error;
 
-      // Remove from pending tasks immediately for better UX
-      setPendingTasks(prev => prev.filter(task => task.id !== taskId));
-      
-      toast.success('Content approved and moved to Ready to Post!', {
-        description: 'You can now publish this content from the Ready to Post section.',
-        duration: 4000,
-      });
-      
-      if (onTaskUpdate) onTaskUpdate();
-    } catch (error: any) {
-      console.error('ReviewQueue: Error in handleApprove:', error);
-      toast.error(error.message || 'Failed to approve content');
-      // Refresh to restore state on error
+      toast.success('Content approved and ready to post!');
       await fetchPendingTasks();
+      if (onTaskUpdate) onTaskUpdate();
+    } catch (error) {
+      console.error('Error approving task:', error);
+      toast.error('Failed to approve content');
     } finally {
       setApprovingTasks(prev => {
         const newSet = new Set(prev);
@@ -178,42 +85,46 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     fetchPendingTasks();
   };
 
-  // Set up real-time subscription for new review content
   useEffect(() => {
+    fetchPendingTasks();
+  }, [user]);
+
+  // Set up real-time subscription only once
+  useEffect(() => {
+    if (!user) return;
+
+    // Clean up existing channel if it exists
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
+    // Create new channel
     const channel = supabase
-      .channel('review-queue-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'content_tasks',
-          filter: 'status=eq.review'
-        },
-        (payload) => {
-          console.log('Real-time update for review queue:', payload);
-          
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            if (payload.new.status === 'review' && payload.new.ai_output) {
-              // RLS will ensure we only get updates for our own content
-              setPendingTasks(prev => {
-                const filtered = prev.filter(task => task.id !== payload.new.id);
-                return [payload.new, ...filtered];
-              });
-            }
-          } else if (payload.eventType === 'DELETE') {
-            setPendingTasks(prev => prev.filter(task => task.id !== payload.old.id));
-          }
+      .channel('content_tasks_changes')
+      .on('postgres_changes', 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'content_tasks' 
+        }, 
+        () => {
+          console.log('Content tasks changed, refetching...');
+          fetchPendingTasks();
         }
       )
       .subscribe();
 
-    fetchPendingTasks();
+    channelRef.current = channel;
 
+    // Cleanup function
     return () => {
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [fetchPendingTasks]);
+  }, [user]);
 
   return {
     pendingTasks,
@@ -221,7 +132,6 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     error,
     approvingTasks,
     handleApprove,
-    handleRetry,
-    fetchPendingTasks
+    handleRetry
   };
 };
