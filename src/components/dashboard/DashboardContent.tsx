@@ -30,9 +30,6 @@ export const DashboardContent = ({
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
   const [userCreatedCampaigns, setUserCreatedCampaigns] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [tasksCount, setTasksCount] = useState(0);
-  const [completedTasksCount, setCompletedTasksCount] = useState(0);
-  const [pendingTasksCount, setPendingTasksCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const currentWeekNumber = getCurrentWeekNumber();
@@ -119,34 +116,13 @@ export const DashboardContent = ({
         if (selectedCampaign) {
           console.log('DashboardContent: Selected campaign:', selectedCampaign.title, 'ID:', selectedCampaign.id);
           setActiveCampaign(selectedCampaign);
-
-          // Get task counts for the selected campaign
-          const { data: tasks, error: tasksError } = await supabase
-            .from('content_tasks')
-            .select('*')
-            .eq('campaign_id', selectedCampaign.id);
-
-          if (tasksError) {
-            console.error('DashboardContent: Error fetching tasks:', tasksError);
-          } else if (tasks) {
-            console.log('DashboardContent: Found tasks for campaign:', tasks.length);
-            setTasksCount(tasks.length);
-            setCompletedTasksCount(tasks.filter(t => t.status === 'completed' || t.status === 'posted').length);
-            setPendingTasksCount(tasks.filter(t => t.status === 'pending' || t.status === 'generated').length);
-          }
         } else {
           console.log('DashboardContent: No valid campaign selected');
           setActiveCampaign(undefined);
-          setTasksCount(0);
-          setCompletedTasksCount(0);
-          setPendingTasksCount(0);
         }
       } else {
         console.log('DashboardContent: No campaigns found for week', currentWeekNumber);
         setActiveCampaign(undefined);
-        setTasksCount(0);
-        setCompletedTasksCount(0);
-        setPendingTasksCount(0);
       }
 
       // Fetch all tasks for ready to post and review queue
@@ -182,9 +158,6 @@ export const DashboardContent = ({
       console.error('DashboardContent: Error in fetchCampaignData:', error);
       // Set empty state on error
       setActiveCampaign(undefined);
-      setTasksCount(0);
-      setCompletedTasksCount(0);
-      setPendingTasksCount(0);
     } finally {
       setLoading(false);
     }
@@ -243,7 +216,7 @@ export const DashboardContent = ({
       {/* First Time User Welcome */}
       <FirstTimeUserWelcome 
         onGetStarted={handleGetStarted}
-        tasksCount={tasksCount}
+        tasksCount={tasks.length}
       />
 
       {/* Enhanced Dashboard Grid - Replaces individual sections */}
@@ -251,10 +224,6 @@ export const DashboardContent = ({
         activeCampaign={activeCampaign}
         userCreatedCampaigns={userCreatedCampaigns}
         tasks={tasks}
-        currentWeekNumber={currentWeekNumber}
-        completedTasksCount={completedTasksCount}
-        totalTasksCount={tasksCount}
-        pendingTasksCount={pendingTasksCount}
         onTaskUpdate={handleTaskUpdate}
         onCampaignCreated={fetchCampaignData}
         onCampaignUpdate={fetchCampaignData}

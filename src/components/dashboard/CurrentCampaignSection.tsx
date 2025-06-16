@@ -1,23 +1,17 @@
-
 import { useState, useEffect } from "react";
-import { CampaignCard } from "@/components/homepage/CampaignCard";
-import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
-import { AddEventDialog } from "@/components/homepage/AddEventDialog";
-import { AutoCampaignCreator } from "./current-campaign/AutoCampaignCreator";
-import { NoCampaignState } from "./current-campaign/NoCampaignState";
-import { QuickActionsSection } from "./current-campaign/QuickActionsSection";
-import { ContentPreviewSection } from "./ContentPreviewSection";
-import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
+import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
+import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
+import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { PlusCircle, CheckCircle, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import type { Campaign } from "@/types";
+import { useAuth } from "@/contexts/AuthContext";
+import { TaskItem } from "./current-campaign/TaskItem";
+import { ContentViewer } from "@/components/content/ContentViewer";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 interface CurrentCampaignSectionProps {
-  activeCampaign: Campaign | undefined;
-  currentWeekNumber: number;
-  completedTasksCount: number;
-  totalTasksCount: number;
-  pendingTasksCount: number;
+  activeCampaign: any;
   onTaskUpdate: () => void;
   onCreateCampaign: () => void;
   onCampaignCreated: () => void;
@@ -26,115 +20,184 @@ interface CurrentCampaignSectionProps {
 
 export const CurrentCampaignSection = ({
   activeCampaign,
-  currentWeekNumber,
-  completedTasksCount,
-  totalTasksCount,
-  pendingTasksCount,
   onTaskUpdate,
   onCreateCampaign,
   onCampaignCreated,
   onTaskClick
 }: CurrentCampaignSectionProps) => {
-  const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
-  const [showAddEventDialog, setShowAddEventDialog] = useState(false);
-  const [hasContent, setHasContent] = useState(false);
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [showContentViewer, setShowContentViewer] = useState(false);
 
-  const { isAutoCreating } = AutoCampaignCreator({
-    activeCampaign,
-    currentWeekNumber,
-    onCampaignCreated,
-    onTaskUpdate
-  });
-
-  // Check if campaign has content
   useEffect(() => {
-    const checkForContent = async () => {
-      if (!activeCampaign?.id) return;
-      
+    const fetchTasks = async () => {
+      if (!activeCampaign) {
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+
       try {
         const { data, error } = await supabase
           .from('content_tasks')
-          .select('id, ai_output')
-          .eq('campaign_id', activeCampaign.id);
+          .select('*')
+          .eq('campaign_id', activeCampaign.id)
+          .order('created_at', { ascending: false });
 
-        if (!error && data) {
-          const contentExists = data.some(task => task.ai_output && task.ai_output.trim() !== '');
-          setHasContent(contentExists);
+        if (error) {
+          console.error('Error fetching tasks:', error);
+        } else {
+          setTasks(data || []);
         }
       } catch (error) {
-        console.error('Error checking for content:', error);
+        console.error('Error in fetchTasks:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    checkForContent();
-  }, [activeCampaign?.id, totalTasksCount]);
+    fetchTasks();
+  }, [activeCampaign]);
 
-  const handleNewCampaignCreate = (newCampaign: any) => {
-    setShowNewCampaignDialog(false);
-    onCampaignCreated();
+  const handleTaskClick = (task: any) => {
+    if (onTaskClick) {
+      onTaskClick(task);
+    } else {
+      setSelectedTask(task);
+      setShowContentViewer(true);
+    }
   };
 
-  const handleEventCreated = () => {
-    setShowAddEventDialog(false);
-    onCampaignCreated();
+  const handleContentViewerClose = () => {
+    setShowContentViewer(false);
+    setSelectedTask(null);
+    if (onTaskUpdate) {
+      onTaskUpdate();
+    }
   };
+
+  if (!activeCampaign) {
+    return (
+      <EnhancedAppleCard 
+        variant="default" 
+        surface="secondary" 
+        className="border-dashed border-2"
+        hoverEffect="none"
+        animated={true}
+        data-campaign-section="true"
+      >
+        <AppleCardContent className="text-center py-12">
+          <div className="flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mx-auto mb-4 apple-hover-subtle">
+            <PlusCircle className="w-8 h-8 text-primary apple-icon-bounce" />
+          </div>
+          <HeadlineMedium className="text-text-primary mb-2 apple-text-glow">
+            No Active Campaign
+          </HeadlineMedium>
+          <BodyMedium className="text-text-secondary max-w-md mx-auto apple-color-transition">
+            Start a new campaign to generate content for this week
+          </BodyMedium>
+          <EnhancedAppleButton 
+            variant="primary" 
+            className="mt-6"
+            iconAnimation="bounce"
+            onClick={onCreateCampaign}
+          >
+            <PlusCircle className="w-4 h-4 mr-2" />
+            Create Campaign
+          </EnhancedAppleButton>
+        </AppleCardContent>
+      </EnhancedAppleCard>
+    );
+  }
+
+  if (loading) {
+    return (
+      <EnhancedAppleCard 
+        variant="default" 
+        surface="primary" 
+        className="mx-auto max-w-md"
+        animated={true}
+        data-campaign-section="true"
+      >
+        <AppleCardContent className="flex flex-col items-center justify-center py-12">
+          <LoadingSpinner size="lg" />
+          <BodyMedium className="text-text-secondary mt-4">
+            Loading campaign content...
+          </BodyMedium>
+        </AppleCardContent>
+      </EnhancedAppleCard>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Section Header */}
-      <AppleCard variant="default" surface="secondary">
+    <>
+      <EnhancedAppleCard 
+        variant="elevated" 
+        surface="primary"
+        hoverEffect="subtle"
+        animated={true}
+        data-campaign-section="true"
+      >
         <AppleCardHeader className="pb-4">
-          <HeadlineLarge className="text-text-primary">
-            Current Campaign
-          </HeadlineLarge>
-          <BodyMedium className="text-text-secondary">
-            Week {currentWeekNumber} • {totalTasksCount > 0 ? `${completedTasksCount} of ${totalTasksCount} tasks completed` : 'No tasks yet'}
-          </BodyMedium>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3 apple-slide-up">
+              <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-xl apple-hover-subtle">
+                <Sparkles className="w-5 h-5 text-primary apple-icon-bounce" />
+              </div>
+              <div>
+                <HeadlineMedium className="text-text-primary apple-text-glow">
+                  Current Campaign
+                </HeadlineMedium>
+                <CaptionMedium className="text-text-secondary apple-color-transition">
+                  {activeCampaign.title}
+                </CaptionMedium>
+              </div>
+            </div>
+            <EnhancedAppleButton 
+              variant="tertiary" 
+              size="sm"
+              iconAnimation="bounce"
+              className="apple-stagger-1"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Mark as Complete
+            </EnhancedAppleButton>
+          </div>
         </AppleCardHeader>
-      </AppleCard>
-      
-      {/* Campaign Content */}
-      {activeCampaign ? (
-        <div className="space-y-6">
-          <CampaignCard 
-            campaign={activeCampaign} 
-            onTaskUpdate={onTaskUpdate}
-            onCampaignUpdate={onTaskUpdate}
-          />
-          
-          {/* AI Content Preview */}
-          <ContentPreviewSection
-            campaign={activeCampaign}
-            onTaskUpdate={onTaskUpdate}
-          />
-        </div>
-      ) : (
-        <NoCampaignState
-          currentWeekNumber={currentWeekNumber}
-          isAutoCreating={isAutoCreating}
-          onCreateCampaign={() => setShowNewCampaignDialog(true)}
+
+        <AppleCardContent className="space-y-4">
+          {tasks.length === 0 ? (
+            <div className="text-center py-8 apple-slide-up">
+              <BodyMedium className="text-text-secondary">
+                No content has been generated for this campaign yet.
+              </BodyMedium>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {tasks.map((task) => (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onClick={() => handleTaskClick(task)}
+                  onTaskUpdate={onTaskUpdate}
+                />
+              ))}
+            </div>
+          )}
+        </AppleCardContent>
+      </EnhancedAppleCard>
+
+      {selectedTask && (
+        <ContentViewer
+          campaignId={selectedTask.campaign_id}
+          campaignTitle={activeCampaign?.title || 'Campaign'}
+          isOpen={showContentViewer}
+          onClose={handleContentViewerClose}
+          onTaskUpdate={onTaskUpdate}
         />
       )}
-
-      {/* Quick Actions */}
-      <QuickActionsSection
-        onNewCampaignClick={() => setShowNewCampaignDialog(true)}
-        onAddEventClick={() => setShowAddEventDialog(true)}
-        onViewCalendar={() => {}}
-      />
-
-      {/* Dialogs */}
-      <NewCampaignDialog 
-        open={showNewCampaignDialog} 
-        onOpenChange={setShowNewCampaignDialog} 
-        onCreate={handleNewCampaignCreate} 
-      />
-
-      <AddEventDialog 
-        open={showAddEventDialog}
-        onOpenChange={setShowAddEventDialog}
-        onEventCreated={handleEventCreated}
-      />
-    </div>
+    </>
   );
 };
