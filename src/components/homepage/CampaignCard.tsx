@@ -1,8 +1,9 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
+import { AppleButton } from "@/components/ui/apple-button";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Sparkles, Eye, Leaf, Droplets, Sun, Snowflake, Crown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -96,18 +97,26 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
   };
 
   return (
-    <Card className="border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-primary/10 border-gray-200">
-      <CardHeader className="bg-white/80 backdrop-blur-sm">
+    <AppleCard variant="elevated" surface="primary" className="border-l-4 border-l-primary">
+      <AppleCardHeader className="pb-4">
         <div className="flex items-center gap-3 mb-2">
-          <SeasonIcon className={`w-5 h-5 ${seasonalInfo.color}`} />
-          <CardTitle className="text-foreground text-xl">
-            {seasonalInfo.season} Theme: {campaign.title}
-          </CardTitle>
+          <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-xl">
+            <SeasonIcon className={`w-5 h-5 ${seasonalInfo.color}`} />
+          </div>
+          <div className="flex-1">
+            <HeadlineMedium className="text-text-primary">
+              {seasonalInfo.season} Theme: {campaign.title}
+            </HeadlineMedium>
+            <CaptionMedium className="text-text-secondary mt-1">
+              Professional content for your garden center
+            </CaptionMedium>
+          </div>
         </div>
-      </CardHeader>
-      <CardContent className="bg-white/80 backdrop-blur-sm">
+      </AppleCardHeader>
+      
+      <AppleCardContent className="space-y-6">
         {campaign.theme && (
-          <div className="mb-6 p-4 bg-white rounded-lg border border-primary/20">
+          <div className="p-4 bg-surface-secondary rounded-lg border border-border">
             <EditableTheme
               campaignId={campaign.id}
               currentTheme={campaign.theme}
@@ -119,56 +128,65 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
         )}
         
         {!campaign.theme && campaign.description && (
-          <div className="bg-white/80 backdrop-blur-sm p-4 rounded-lg border border-primary/20 mb-4">
-            <p className="text-sm leading-relaxed text-gray-700">
+          <div className="p-4 bg-surface-secondary rounded-lg border border-border">
+            <BodyMedium className="text-text-secondary leading-relaxed">
               {campaign.description}
-            </p>
+            </BodyMedium>
           </div>
         )}
         
         {seasonalContent && (
-          <div className="mb-4">
-            <h4 className="font-semibold text-foreground mb-2">Seasonal Focus:</h4>
-            <p className="text-muted-foreground">{seasonalContent.theme}</p>
+          <div className="space-y-2">
+            <CaptionMedium className="font-medium text-text-primary">Seasonal Focus:</CaptionMedium>
+            <BodyMedium className="text-text-secondary">{seasonalContent.theme}</BodyMedium>
           </div>
         )}
         
-        <div className="mt-6">
+        <div className="space-y-3">
           {isCheckingContent ? (
             <div className="flex items-center justify-center py-4">
-              <LoadingSpinner size="sm" text="Checking content status..." />
+              <LoadingSpinner size="sm" />
+              <CaptionMedium className="text-text-secondary ml-3">
+                Checking content status...
+              </CaptionMedium>
             </div>
           ) : (
-            <Button 
-              onClick={handleViewOrGenerateContent}
-              className="max-w-xs"
-              aria-label={hasContent ? "View generated content" : "Generate new content"}
-            >
-              {hasContent ? (
-                <>
-                  <Eye className="w-4 h-4 mr-2" />
-                  View This Week's Content
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Content For This Campaign
-                </>
-              )}
-            </Button>
+            <>
+              <AppleButton 
+                variant={hasContent ? "secondary" : "primary"}
+                onClick={handleViewOrGenerateContent}
+                className="w-full"
+                aria-label={hasContent ? "View generated content" : "Generate new content"}
+              >
+                {hasContent ? (
+                  <>
+                    <Eye className="w-4 h-4 mr-2" />
+                    View This Week's Content
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Content For This Campaign
+                  </>
+                )}
+              </AppleButton>
+              
+              <CaptionMedium className="text-text-tertiary text-center">
+                {hasContent 
+                  ? "Review your generated content and publish when ready"
+                  : "Creates social media posts, video scripts, newsletter, and email content"
+                }
+              </CaptionMedium>
+            </>
           )}
-          <p className="text-xs text-muted-foreground mt-2">
-            {hasContent 
-              ? "Review your generated content in the tasks section"
-              : "Creates social media posts, video scripts, newsletter, and email content"
-            }
-          </p>
         </div>
 
-        <div className="text-xs text-gray-600 bg-white/60 p-2 rounded border border-gray-200 mt-4">
-          🌱 Professional garden center content designed for {seasonalInfo.season.toLowerCase()} season
+        <div className="text-center p-3 bg-primary/5 rounded-lg border border-primary/20">
+          <CaptionMedium className="text-primary">
+            🌱 Professional garden center content designed for {seasonalInfo.season.toLowerCase()} season
+          </CaptionMedium>
         </div>
-      </CardContent>
+      </AppleCardContent>
 
       <ContentViewer
         campaignId={campaign.id}
@@ -177,6 +195,6 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
         onClose={() => setShowContentViewer(false)}
         onTaskUpdate={onTaskUpdate}
       />
-    </Card>
+    </AppleCard>
   );
 };

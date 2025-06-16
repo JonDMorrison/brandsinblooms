@@ -1,5 +1,6 @@
 
 import { ReactNode } from "react";
+import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
 import { AppSidebar } from "@/components/AppSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -22,7 +23,7 @@ export const DashboardLayout = ({
 }: DashboardLayoutProps) => {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-garden-background">
+      <div className="flex min-h-screen w-full bg-surface-secondary">
         <AppSidebar
           currentView={currentView}
           onViewChange={onViewChange}
@@ -30,7 +31,13 @@ export const DashboardLayout = ({
           onBusinessNameChange={onBusinessNameChange}
         />
         <main className="flex-1 overflow-auto">
-          {children}
+          <div className="max-w-7xl mx-auto p-6">
+            <AppleCard variant="default" surface="primary" className="min-h-screen border-0 shadow-none">
+              <AppleCardContent className="p-6">
+                {children}
+              </AppleCardContent>
+            </AppleCard>
+          </div>
         </main>
       </div>
     </SidebarProvider>

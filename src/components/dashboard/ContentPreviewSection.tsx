@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
+import { AppleButton } from "@/components/ui/apple-button";
 import { Badge } from "@/components/ui/badge";
+import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Eye, Sparkles, Leaf, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ContentViewer } from "@/components/content/ContentViewer";
@@ -50,79 +51,79 @@ export const ContentPreviewSection = ({ campaign, onTaskUpdate }: ContentPreview
 
   if (loading) {
     return (
-      <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
-            <span className="ml-2 text-green-700">Loading your garden center content...</span>
-          </div>
-        </CardContent>
-      </Card>
+      <AppleCard variant="default" surface="primary">
+        <AppleCardContent className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          <BodyMedium className="text-text-secondary ml-3">
+            Loading your content...
+          </BodyMedium>
+        </AppleCardContent>
+      </AppleCard>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Garden Center Content Ready Section */}
+      {/* Content Ready Section */}
       {readyTasks.length > 0 && (
-        <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-lg">
-          <CardHeader>
+        <AppleCard variant="elevated" surface="primary" className="border-l-4 border-l-primary">
+          <AppleCardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-full">
-                  <Leaf className="w-5 h-5 text-green-600" />
+                <div className="flex items-center justify-center w-10 h-10 bg-primary/10 rounded-xl">
+                  <Leaf className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-green-800 flex items-center gap-2">
-                    🌱 Garden Center Content Ready!
-                    <Badge className="bg-green-100 text-green-800 border-green-300">
-                      {readyTasks.length} pieces
+                  <HeadlineMedium className="text-text-primary flex items-center gap-2">
+                    Content Ready for Review
+                    <Badge className="bg-primary/10 text-primary border-primary/20">
+                      {readyTasks.length}
                     </Badge>
-                  </CardTitle>
-                  <p className="text-sm text-green-700 mt-1">
+                  </HeadlineMedium>
+                  <CaptionMedium className="text-text-secondary mt-1">
                     Professional marketing content tailored for your garden center
-                  </p>
+                  </CaptionMedium>
                 </div>
               </div>
-              <Button 
+              <AppleButton 
+                variant="primary"
                 onClick={() => setShowContentViewer(true)}
-                className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <Eye className="w-4 h-4 mr-2" />
                 Review Content
-              </Button>
+              </AppleButton>
             </div>
-          </CardHeader>
+          </AppleCardHeader>
           
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          <AppleCardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               {readyTasks.map((task) => (
-                <div key={task.id} className="bg-white rounded-lg p-3 border border-green-200 shadow-sm">
+                <div key={task.id} className="bg-surface-secondary rounded-lg p-3 border border-border">
                   <div className="flex items-center gap-2 mb-1">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-medium capitalize text-gray-800">
+                    <CheckCircle className="w-4 h-4 text-primary" />
+                    <CaptionMedium className="font-medium capitalize text-text-primary">
                       {task.post_type}
-                    </span>
+                    </CaptionMedium>
                   </div>
-                  <p className="text-xs text-gray-600">Ready for review</p>
+                  <CaptionMedium className="text-text-tertiary">Ready for review</CaptionMedium>
                 </div>
               ))}
             </div>
             
-            <div className="bg-white rounded-lg p-4 border border-green-200">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-800">What's included:</span>
+            <div className="bg-surface-secondary rounded-lg p-4 border border-border">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <CaptionMedium className="font-medium text-text-primary">What's included:</CaptionMedium>
               </div>
-              <ul className="text-sm text-gray-700 space-y-1">
-                <li>• Seasonal gardening tips and plant care advice</li>
-                <li>• Product promotions tailored for garden centers</li>
-                <li>• Engaging content for your gardening community</li>
-                <li>• Professional copy ready to post across all platforms</li>
-              </ul>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <CaptionMedium className="text-text-secondary">• Seasonal gardening tips and plant care advice</CaptionMedium>
+                <CaptionMedium className="text-text-secondary">• Product promotions tailored for garden centers</CaptionMedium>
+                <CaptionMedium className="text-text-secondary">• Engaging content for your gardening community</CaptionMedium>
+                <CaptionMedium className="text-text-secondary">• Professional copy ready to post across all platforms</CaptionMedium>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </AppleCardContent>
+        </AppleCard>
       )}
 
       {/* Review Queue for Ready Content */}
@@ -137,20 +138,20 @@ export const ContentPreviewSection = ({ campaign, onTaskUpdate }: ContentPreview
 
       {/* Completed Content Summary */}
       {completedTasks.length > 0 && (
-        <Card className="border-gray-200">
-          <CardHeader>
-            <CardTitle className="text-gray-800 flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
+        <AppleCard variant="default" surface="secondary">
+          <AppleCardHeader className="pb-3">
+            <HeadlineMedium className="text-text-primary flex items-center gap-2">
+              <CheckCircle className="w-5 h-5 text-success" />
               Posted Content
               <Badge variant="secondary">{completedTasks.length}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600">
+            </HeadlineMedium>
+          </AppleCardHeader>
+          <AppleCardContent>
+            <BodyMedium className="text-text-secondary">
               You've successfully posted {completedTasks.length} pieces of content from this campaign.
-            </p>
-          </CardContent>
-        </Card>
+            </BodyMedium>
+          </AppleCardContent>
+        </AppleCard>
       )}
 
       {/* Content Viewer Modal */}
