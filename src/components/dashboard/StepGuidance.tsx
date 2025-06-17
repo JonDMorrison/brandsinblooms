@@ -33,42 +33,18 @@ export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onReviewC
   }
 
   if (isComplete) {
-    return (
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-        {/* Visual Indicator */}
-        <div className="flex items-center justify-center mb-6">
-          <div className="flex items-center justify-center w-16 h-16 bg-green-500 rounded-full shadow-lg">
-            <CheckCircle className="w-8 h-8 text-white" />
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="text-center space-y-3 mb-6">
-          <BodyMedium className="text-green-900 font-bold text-lg">
-            🎉 All content reviewed and ready!
-          </BodyMedium>
-          <CaptionMedium className="text-green-700 max-w-md mx-auto">
-            Your content is now ready to publish. Move to the next step to share it with your audience.
-          </CaptionMedium>
-        </div>
-
-        {/* Action */}
-        <div className="flex justify-center">
-          {onReviewContent && (
-            <EnhancedAppleButton 
-              variant="primary" 
-              size="default"
-              onClick={onReviewContent}
-              className="bg-green-600 text-white hover:bg-green-700 shadow-lg px-8 py-3"
-              pulseOnHover={true}
-            >
-              Review Your Personalized Content
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </EnhancedAppleButton>
-          )}
-        </div>
-      </div>
-    );
+    return onReviewContent ? (
+      <EnhancedAppleButton 
+        variant="primary" 
+        size="default"
+        onClick={onReviewContent}
+        className="bg-green-600 text-white hover:bg-green-700 shadow-lg px-8 py-3"
+        pulseOnHover={true}
+      >
+        Review Your Personalized Content
+        <ArrowRight className="w-4 h-4 ml-2" />
+      </EnhancedAppleButton>
+    ) : null;
   }
 
   return (
