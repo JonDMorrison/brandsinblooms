@@ -103,7 +103,7 @@ export const AppSidebar = ({
                 {/* Logo and App Name */}
                 <div className="flex items-center gap-3">
                   <Leaf className="w-6 h-6 text-primary" />
-                  <h2 className="text-xl font-bold text-garden-green-dark">BloomSuite</h2>
+                  <h2 className="text-xl font-bold text-black">BloomSuite</h2>
                 </div>
                 
                 {/* Business Name */}
@@ -127,7 +127,7 @@ export const AppSidebar = ({
           {/* Navigation Section */}
           <SidebarGroup>
             {!isCollapsed && (
-              <SidebarGroupLabel className="text-garden-green-dark font-semibold">
+              <SidebarGroupLabel className="text-black font-semibold">
                 Navigation
               </SidebarGroupLabel>
             )}
@@ -142,8 +142,8 @@ export const AppSidebar = ({
                       <SidebarMenuButton 
                         asChild
                         className={isActive 
-                          ? "bg-green-100 text-green-800 font-semibold" 
-                          : "hover:bg-green-100 text-garden-green-dark"
+                          ? "bg-green-100 text-black font-semibold" 
+                          : "hover:bg-green-100 text-black"
                         }
                       >
                         <button
@@ -167,7 +167,7 @@ export const AppSidebar = ({
           {/* Settings Section */}
           <SidebarGroup>
             {!isCollapsed && (
-              <SidebarGroupLabel className="text-garden-green-dark font-semibold">
+              <SidebarGroupLabel className="text-black font-semibold">
                 Settings
               </SidebarGroupLabel>
             )}
@@ -181,8 +181,8 @@ export const AppSidebar = ({
                         isCollapsed ? 'justify-center' : ''
                       } ${
                         location.pathname === "/team" 
-                          ? "bg-green-100 text-green-800 font-semibold" 
-                          : "hover:bg-green-100 text-garden-green-dark"
+                          ? "bg-green-100 text-black font-semibold" 
+                          : "hover:bg-green-100 text-black"
                       }`}
                       title={isCollapsed ? "Team" : undefined}
                     >
@@ -200,8 +200,8 @@ export const AppSidebar = ({
                         isCollapsed ? 'justify-center' : ''
                       } ${
                         location.pathname === "/subscription" 
-                          ? "bg-green-100 text-green-800 font-semibold" 
-                          : "hover:bg-green-100 text-garden-green-dark"
+                          ? "bg-green-100 text-black font-semibold" 
+                          : "hover:bg-green-100 text-black"
                       }`}
                       title={isCollapsed ? "Account Settings" : undefined}
                     >
