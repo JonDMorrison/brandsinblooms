@@ -6,7 +6,7 @@ export const BenefitsSection = () => {
   return (
     <section className="py-12 px-6">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl font-semibold text-center mb-16 text-garden-green-dark">
+        <h2 className="text-2xl font-semibold text-center mb-16 text-black">
           Everything You Need to Grow Without Hiring a Marketing Team
         </h2>
         
@@ -15,7 +15,7 @@ export const BenefitsSection = () => {
             <CardContent className="pt-4">
               <div className="flex items-center gap-3 mb-4">
                 <Calendar className="h-6 w-6 text-garden-green" />
-                <h3 className="text-xl font-semibold text-garden-green-dark">
+                <h3 className="text-xl font-semibold text-black">
                   Weekly Content Engine
                 </h3>
               </div>
@@ -29,7 +29,7 @@ export const BenefitsSection = () => {
             <CardContent className="pt-4">
               <div className="flex items-center gap-3 mb-4">
                 <Brain className="h-6 w-6 text-garden-green" />
-                <h3 className="text-xl font-semibold text-garden-green-dark">
+                <h3 className="text-xl font-semibold text-black">
                   Brand Voice Matching
                 </h3>
               </div>
@@ -43,7 +43,7 @@ export const BenefitsSection = () => {
             <CardContent className="pt-4">
               <div className="flex items-center gap-3 mb-4">
                 <Edit className="h-6 w-6 text-garden-green" />
-                <h3 className="text-xl font-semibold text-garden-green-dark">
+                <h3 className="text-xl font-semibold text-black">
                   Fully Customizable
                 </h3>
               </div>
@@ -57,7 +57,7 @@ export const BenefitsSection = () => {
             <CardContent className="pt-4">
               <div className="flex items-center gap-3 mb-4">
                 <Megaphone className="h-6 w-6 text-garden-green" />
-                <h3 className="text-xl font-semibold text-garden-green-dark">
+                <h3 className="text-xl font-semibold text-black">
                   All-in-One Distribution
                 </h3>
               </div>
@@ -71,7 +71,7 @@ export const BenefitsSection = () => {
             <CardContent className="pt-4">
               <div className="flex items-center gap-3 mb-4">
                 <Zap className="h-6 w-6 text-garden-green" />
-                <h3 className="text-xl font-semibold text-garden-green-dark">
+                <h3 className="text-xl font-semibold text-black">
                   Ridiculously Fast Setup
                 </h3>
               </div>
@@ -85,7 +85,7 @@ export const BenefitsSection = () => {
             <CardContent className="pt-4">
               <div className="flex items-center gap-3 mb-4">
                 <FileCheck className="h-6 w-6 text-garden-green" />
-                <h3 className="text-xl font-semibold text-garden-green-dark">
+                <h3 className="text-xl font-semibold text-black">
                   Built for Garden Centers
                 </h3>
               </div>
