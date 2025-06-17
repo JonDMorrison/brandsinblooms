@@ -3,7 +3,9 @@ import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { BodyMedium, CaptionMedium } from "@/components/ui/typography";
-import { Eye, CheckCircle, Clock, AlertCircle, Image } from "lucide-react";
+import { Eye, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { TaskImagePreview } from "./TaskImagePreview";
+import { useTaskImages } from "@/hooks/useTaskImages";
 
 interface TaskItemProps {
   task: any;
@@ -13,6 +15,8 @@ interface TaskItemProps {
 
 export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
   console.log('TaskItem: Rendering task:', task.id, task.post_type, task.status);
+  
+  const { images, imageCount, loading: imagesLoading } = useTaskImages(task?.id);
 
   const getStatusIcon = () => {
     switch (task.status) {
@@ -75,10 +79,13 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
               </div>
             )}
 
-            {/* Simple image indicator */}
-            <div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
-              <Image className="w-3 h-3" />
-              <span>Images available</span>
+            {/* Image preview - available for all users */}
+            <div className="mt-2">
+              <TaskImagePreview 
+                images={images} 
+                imageCount={imageCount} 
+                loading={imagesLoading} 
+              />
             </div>
           </div>
           <EnhancedAppleButton 
