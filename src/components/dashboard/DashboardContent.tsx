@@ -121,11 +121,23 @@ export const DashboardContent = ({
       console.log('DashboardContent: Found campaigns for week', currentWeekNumber, ':', campaigns?.length || 0);
       
       if (campaigns && campaigns.length > 0) {
+        console.log('DashboardContent: Campaign details:', campaigns.map(c => ({
+          id: c.id,
+          title: c.title,
+          user_id: c.user_id,
+          week_number: c.week_number
+        })));
+        
         // Use smart campaign selection
         const selectedCampaign = await selectBestCampaign(campaigns);
         
         if (selectedCampaign) {
-          console.log('DashboardContent: Selected campaign:', selectedCampaign.title, 'ID:', selectedCampaign.id);
+          console.log('DashboardContent: Selected campaign:', {
+            id: selectedCampaign.id,
+            title: selectedCampaign.title,
+            user_id: selectedCampaign.user_id,
+            hasUserId: !!selectedCampaign.user_id
+          });
           setActiveCampaign(selectedCampaign);
         } else {
           console.log('DashboardContent: No valid campaign selected');

@@ -19,6 +19,18 @@ export const CampaignContent = ({
   onTaskClick, 
   onTaskUpdate 
 }: CampaignContentProps) => {
+  console.log('CampaignContent: Rendering with campaign:', activeCampaign?.title, 'tasks:', tasks.length);
+  
+  // Add debugging for tasks
+  if (tasks.length > 0) {
+    console.log('CampaignContent: Tasks details:', tasks.map(task => ({
+      id: task.id,
+      post_type: task.post_type,
+      status: task.status,
+      hasContent: !!task.ai_output
+    })));
+  }
+
   return (
     <EnhancedAppleCard 
       variant="elevated" 
@@ -38,7 +50,7 @@ export const CampaignContent = ({
                 Current Campaign
               </HeadlineMedium>
               <CaptionMedium className="text-text-secondary apple-color-transition">
-                {activeCampaign.title}
+                {activeCampaign?.title || 'Loading...'}
               </CaptionMedium>
             </div>
           </div>
@@ -60,9 +72,16 @@ export const CampaignContent = ({
             <BodyMedium className="text-text-secondary">
               No content has been generated for this campaign yet.
             </BodyMedium>
+            <BodyMedium className="text-text-tertiary text-sm mt-2">
+              Campaign: {activeCampaign?.title || 'Unknown'} 
+              {activeCampaign?.id && ` (ID: ${activeCampaign.id.slice(0, 8)}...)`}
+            </BodyMedium>
           </div>
         ) : (
           <div className="space-y-3">
+            <BodyMedium className="text-text-secondary text-sm">
+              Found {tasks.length} content pieces for this campaign
+            </BodyMedium>
             {tasks.map((task) => (
               <TaskItem
                 key={task.id}
