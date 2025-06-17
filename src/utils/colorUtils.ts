@@ -36,18 +36,31 @@ export const COLOR_MAPPINGS = {
 type ColorShade = '50' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
 
 /**
+ * Check if a string is a valid color shade
+ */
+const isValidColorShade = (shade: string): shade is ColorShade => {
+  return ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900'].includes(shade);
+};
+
+/**
  * Convert yellow/amber color to appropriate alternative
  */
 export const mapYellowColor = (color: string): string => {
   // Handle Tailwind class names
   if (color.startsWith('yellow-')) {
-    const shade = color.replace('yellow-', '') as ColorShade;
-    return COLOR_MAPPINGS.yellow[shade] || '#4CAF50';
+    const shadeString = color.replace('yellow-', '');
+    if (isValidColorShade(shadeString)) {
+      return COLOR_MAPPINGS.yellow[shadeString] || '#4CAF50';
+    }
+    return '#4CAF50'; // Default garden green
   }
   
   if (color.startsWith('amber-')) {
-    const shade = color.replace('amber-', '') as ColorShade;
-    return COLOR_MAPPINGS.amber[shade] || '#FF9800';
+    const shadeString = color.replace('amber-', '');
+    if (isValidColorShade(shadeString)) {
+      return COLOR_MAPPINGS.amber[shadeString] || '#FF9800';
+    }
+    return '#FF9800'; // Default orange
   }
   
   // Handle hex values
