@@ -103,11 +103,13 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
             </div>
           </div>
           <EnhancedAppleButton 
-            variant="tertiary" 
-            size="sm"
+            variant="secondary" 
+            size="md"
             iconAnimation="bounce"
+            className="ml-4"
           >
-            <Eye className="w-4 h-4" />
+            <Eye className="w-4 h-4 mr-2" />
+            Review Your Personalized Content
           </EnhancedAppleButton>
         </div>
       </AppleCardContent>
