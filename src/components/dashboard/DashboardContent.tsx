@@ -31,7 +31,9 @@ export const DashboardContent = ({
 
   const currentWeekNumber = getCurrentWeekNumber();
 
-  console.log('DashboardContent: Rendering with user:', user?.id);
+  // Debug logging to see what's rendering
+  console.log('🔍 DashboardContent: Rendering with user:', user?.id);
+  console.log('🎨 DashboardContent: Component loaded, should show garden green theme');
 
   const fetchCampaignData = async () => {
     if (!user) {
@@ -171,18 +173,18 @@ export const DashboardContent = ({
   };
 
   useEffect(() => {
-    console.log('DashboardContent: useEffect triggered, user:', user?.id);
+    console.log('🔍 DashboardContent: useEffect triggered, user:', user?.id);
     if (user) {
       fetchCampaignData();
     } else {
-      console.log('DashboardContent: No user authenticated, skipping data fetch');
+      console.log('🔍 DashboardContent: No user authenticated, skipping data fetch');
       setLoading(false);
     }
   }, [user, currentWeekNumber]);
 
   // Debug logging for final state
   useEffect(() => {
-    console.log('DashboardContent: Final state update:', {
+    console.log('🔍 DashboardContent: Final state update:', {
       activeCampaign: activeCampaign ? {
         id: activeCampaign.id,
         title: activeCampaign.title,
@@ -212,7 +214,7 @@ export const DashboardContent = ({
       <EnhancedAppleCard 
         variant="default" 
         surface="primary" 
-        className="mx-auto max-w-md"
+        className="mx-auto max-w-md bg-white"
         animated={true}
       >
         <AppleCardContent className="flex flex-col items-center justify-center py-12">
@@ -229,7 +231,7 @@ export const DashboardContent = ({
       <EnhancedAppleCard 
         variant="default" 
         surface="primary" 
-        className="mx-auto max-w-md"
+        className="mx-auto max-w-md bg-white"
         animated={true}
       >
         <AppleCardContent className="flex flex-col items-center justify-center py-12">
@@ -242,10 +244,10 @@ export const DashboardContent = ({
     );
   }
 
-  console.log('DashboardContent: Final render state - activeCampaign:', activeCampaign?.title, 'tasks:', tasks.length);
+  console.log('🎨 DashboardContent: Final render - activeCampaign:', activeCampaign?.title, 'tasks:', tasks.length);
 
   return (
-    <div className="space-y-8 mobile-dashboard-spacing">
+    <div className="space-y-8 mobile-dashboard-spacing bg-garden-background">
       {/* Weekly Content Updater - runs automatically to maintain campaigns */}
       <WeeklyContentUpdater />
       
