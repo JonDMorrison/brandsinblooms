@@ -33,19 +33,21 @@ export const COLOR_MAPPINGS = {
   }
 };
 
+type ColorShade = '50' | '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900';
+
 /**
  * Convert yellow/amber color to appropriate alternative
  */
 export const mapYellowColor = (color: string): string => {
   // Handle Tailwind class names
   if (color.startsWith('yellow-')) {
-    const shade = color.replace('yellow-', '');
-    return COLOR_MAPPINGS.yellow[shade as keyof typeof COLOR_MAPPINGS.yellow] || '#4CAF50';
+    const shade = color.replace('yellow-', '') as ColorShade;
+    return COLOR_MAPPINGS.yellow[shade] || '#4CAF50';
   }
   
   if (color.startsWith('amber-')) {
-    const shade = color.replace('amber-', '');
-    return COLOR_MAPPINGS.amber[shade as keyof typeof COLOR_MAPPINGS.amber] || '#FF9800';
+    const shade = color.replace('amber-', '') as ColorShade;
+    return COLOR_MAPPINGS.amber[shade] || '#FF9800';
   }
   
   // Handle hex values
