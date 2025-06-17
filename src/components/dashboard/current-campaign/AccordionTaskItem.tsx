@@ -106,7 +106,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
   return (
     <Accordion type="single" collapsible className="w-full">
-      <AccordionItem value={task.id} className="border rounded-lg">
+      <AccordionItem value={task.id} className="border-gray-200 rounded-lg">
         <AccordionTrigger className="px-4 py-3 hover:no-underline">
           <div className="flex items-center justify-between w-full mr-4">
             {/* Left cluster */}
@@ -163,7 +163,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
             {/* Action bar */}
             <TooltipProvider>
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
                 {hasContent && (
                   <Button
                     size="sm"
