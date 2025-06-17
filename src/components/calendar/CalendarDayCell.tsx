@@ -3,7 +3,8 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Check, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CalendarTaskItem } from "./CalendarTaskItem";
+import { EnhancedCalendarTaskItem } from "./EnhancedCalendarTaskItem";
+import { EnhancedDropZone } from "./EnhancedDropZone";
 
 interface Campaign {
   id: number;
@@ -32,17 +33,12 @@ interface CalendarDayCellProps {
   isCurrentMonth: boolean;
   isToday: boolean;
   onCampaignClick?: (campaign: Campaign) => void;
-  onTaskClick?: (task: Task) => void;
+  onTaskClick?: (task: Task, ctrlKey: boolean) => void;
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
   selectedTasks?: Task[];
   weekNumber?: number;
-  isDragging?: boolean;
-  draggedTasks?: Task[];
-  dragPreview?: string;
   onTaskSelection?: (task: Task, ctrlKey: boolean) => void;
-  onDragStart?: (tasks: Task[]) => void;
-  onDragEnd?: () => void;
   onDrop?: (date: Date) => void;
   isTaskSelected?: (task: Task) => boolean;
   taskSelectionMode?: boolean;
@@ -59,16 +55,9 @@ export const CalendarDayCell = ({
   selectionMode = false,
   selectedCampaigns = [],
   selectedTasks = [],
-  weekNumber,
-  isDragging = false,
-  draggedTasks = [],
-  dragPreview = '',
   onTaskSelection,
-  onDragStart,
-  onDragEnd,
   onDrop,
   isTaskSelected,
-  taskSelectionMode = false
 }: CalendarDayCellProps) => {
   const dayNumber = format(date, 'd');
   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
@@ -78,45 +67,30 @@ export const CalendarDayCell = ({
     return selectedCampaigns.some(c => c.id === campaign.id);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    // Add visual feedback for valid drop zones
-    if (!isPastDate && isCurrentMonth) {
-      e.dataTransfer.dropEffect = 'move';
-    } else {
-      e.dataTransfer.dropEffect = 'none';
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (onDrop && !isPastDate) {
-      onDrop(date);
-    }
-  };
-
   const handleTaskClick = (task: Task, ctrlKey: boolean = false) => {
-    if (taskSelectionMode && ctrlKey) {
-      onTaskSelection?.(task, ctrlKey);
-    } else {
-      onTaskClick?.(task);
+    if (ctrlKey && onTaskSelection) {
+      onTaskSelection(task, ctrlKey);
+    } else if (onTaskClick) {
+      onTaskClick(task, ctrlKey);
     }
   };
 
-  const handleTaskDragStart = (task: Task) => {
-    if (onDragStart && taskSelectionMode) {
-      const tasksToMove = isTaskSelected?.(task) && selectedTasks.length > 1 
-        ? selectedTasks 
-        : [task];
-      onDragStart(tasksToMove);
+  const handleTaskSelectionToggle = (task: Task) => {
+    if (onTaskSelection) {
+      onTaskSelection(task, true);
     }
   };
 
-  const isValidDropTarget = isDragging && !isPastDate && isCurrentMonth;
-  const isTaskBeingDragged = (task: Task) => draggedTasks.some(t => t.id === task.id);
+  const handleDrop = (targetDate: Date) => {
+    if (onDrop) {
+      onDrop(targetDate);
+    }
+  };
 
   return (
-    <div
+    <EnhancedDropZone
+      date={date}
+      onDrop={handleDrop}
       className={cn(
         "group min-h-[140px] p-3 border transition-all duration-300 relative overflow-hidden",
         !isCurrentMonth && "text-gray-400 bg-gray-50/50",
@@ -124,12 +98,8 @@ export const CalendarDayCell = ({
         isToday && "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 shadow-md",
         isWeekend && isCurrentMonth && "bg-gray-50/80",
         selectionMode && "cursor-pointer",
-        // Improved drop zone styling - no pulse animation
-        isValidDropTarget && "bg-green-50 border-green-300 border-2 ring-2 ring-green-400 ring-opacity-30 shadow-sm",
         isPastDate && "opacity-60"
       )}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
     >
       {/* Day number */}
       <div className="flex items-center justify-between mb-3">
@@ -152,20 +122,10 @@ export const CalendarDayCell = ({
         </div>
       </div>
       
-      {/* Enhanced drop zone indicator */}
-      {isValidDropTarget && (
-        <div className="absolute inset-2 border-2 border-green-400 border-dashed rounded-lg bg-green-50/60 flex items-center justify-center text-green-700 text-xs font-medium">
-          <div className="text-center">
-            <div className="font-semibold">Drop here</div>
-            {dragPreview && <div className="text-xs mt-1 opacity-75">{dragPreview}</div>}
-          </div>
-        </div>
-      )}
-      
       {/* Content container */}
       <div className="space-y-2">
         {/* Campaigns */}
-        {campaigns.slice(0, 2).map((campaign, index) => {
+        {campaigns.slice(0, 2).map((campaign) => {
           const isSelected = isCampaignSelected(campaign);
           
           return (
@@ -209,18 +169,17 @@ export const CalendarDayCell = ({
           );
         })}
 
-        {/* Content Tasks */}
-        {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task, index) => (
-          <CalendarTaskItem
+        {/* Enhanced Content Tasks */}
+        {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task) => (
+          <EnhancedCalendarTaskItem
             key={task.id}
             task={task}
             isSelected={isTaskSelected?.(task) || false}
-            isBeingDragged={isTaskBeingDragged(task)}
             isPastDate={isPastDate}
-            selectionMode={taskSelectionMode}
             onTaskClick={handleTaskClick}
-            onDragStart={handleTaskDragStart}
-            onDragEnd={onDragEnd || (() => {})}
+            onSelectionToggle={handleTaskSelectionToggle}
+            isTaskSelected={isTaskSelected || (() => false)}
+            selectedTasks={selectedTasks || []}
           />
         ))}
         
@@ -231,6 +190,6 @@ export const CalendarDayCell = ({
           </div>
         )}
       </div>
-    </div>
+    </EnhancedDropZone>
   );
 };
