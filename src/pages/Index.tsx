@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,9 +106,9 @@ const Index = () => {
   // Show loading state while auth is loading
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="min-h-screen bg-garden-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <div className="w-8 h-8 border-2 border-garden-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-text-secondary">Loading...</p>
         </div>
       </div>
@@ -122,53 +121,55 @@ const Index = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Fixed UserMenu in top right corner */}
-      <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
-        <UserMenu />
-      </div>
+    <div className="min-h-screen bg-garden-background">
+      <div className="space-y-6">
+        {/* Fixed UserMenu in top right corner */}
+        <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
+          <UserMenu />
+        </div>
 
-      {/* Enhanced Header with Apple Design */}
-      <EnhancedAppleCard 
-        variant="default" 
-        surface="primary" 
-        className="border-0 border-b border-gray-200 rounded-none shadow-sm"
-        hoverEffect="none"
-        animated={true}
-      >
-        <AppleCardContent className={`
-          ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
+        {/* Enhanced Header with Apple Design */}
+        <EnhancedAppleCard 
+          variant="default" 
+          surface="primary" 
+          className="border-0 border-b border-gray-200 rounded-none shadow-sm bg-white"
+          hoverEffect="none"
+          animated={true}
+        >
+          <AppleCardContent className={`
+            ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
+          `}>
+            <WelcomeSection 
+              onboardingData={onboardingData}
+              onBusinessNameChange={handleBusinessNameChange}
+            />
+          </AppleCardContent>
+        </EnhancedAppleCard>
+        
+        {/* Dashboard Content - This is the main content area */}
+        <div className={`
+          ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
         `}>
-          <WelcomeSection 
+          <DashboardContent
             onboardingData={onboardingData}
             onBusinessNameChange={handleBusinessNameChange}
+            onCampaignCreated={handleCampaignCreated}
           />
-        </AppleCardContent>
-      </EnhancedAppleCard>
-      
-      {/* Dashboard Content - This is the main content area */}
-      <div className={`
-        ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
-      `}>
-        <DashboardContent
-          onboardingData={onboardingData}
-          onBusinessNameChange={handleBusinessNameChange}
-          onCampaignCreated={handleCampaignCreated}
+        </div>
+
+        {/* Quick Action Modals */}
+        <AddEventDialog 
+          open={showAddEventDialog}
+          onOpenChange={setShowAddEventDialog}
+          onEventCreated={handleEventCreated}
+        />
+
+        <NewCampaignModal 
+          open={showNewCampaignModal}
+          onOpenChange={setShowNewCampaignModal}
+          onCampaignCreated={handleCampaignCreatedInternal}
         />
       </div>
-
-      {/* Quick Action Modals */}
-      <AddEventDialog 
-        open={showAddEventDialog}
-        onOpenChange={setShowAddEventDialog}
-        onEventCreated={handleEventCreated}
-      />
-
-      <NewCampaignModal 
-        open={showNewCampaignModal}
-        onOpenChange={setShowNewCampaignModal}
-        onCampaignCreated={handleCampaignCreatedInternal}
-      />
     </div>
   );
 };

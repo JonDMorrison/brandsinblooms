@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -196,7 +195,7 @@ export const Homepage = () => {
         <div className="max-w-5xl mx-auto p-6">
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
-              <p className="text-primary font-medium text-lg">Please log in to access your campaigns</p>
+              <p className="text-garden-green font-medium text-lg">Please log in to access your campaigns</p>
             </div>
           </div>
         </div>
@@ -215,8 +214,8 @@ export const Homepage = () => {
           
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
-              <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-              <p className="text-primary font-medium text-lg">Loading your campaigns and content...</p>
+              <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-garden-green" />
+              <p className="text-garden-green font-medium text-lg">Loading your campaigns and content...</p>
               <p className="text-gray-500 text-sm mt-2">Setting up your marketing workspace</p>
             </div>
           </div>
