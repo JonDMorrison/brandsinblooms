@@ -16,10 +16,12 @@ export const getPostTypeIcon = (postType: string) => {
 export const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed': return 'bg-green-100 text-green-800';
-    case 'scheduled': return 'bg-blue-100 text-blue-800';
-    case 'draft': return 'bg-yellow-100 text-yellow-800';
+    case 'scheduled': return 'bg-blue-100 text-blue-800'; // Changed from yellow to blue
+    case 'draft': return 'bg-gray-100 text-gray-800'; // Changed from yellow to gray
     case 'generating': return 'bg-purple-100 text-purple-800';
     case 'published': return 'bg-gray-100 text-gray-800';
+    case 'review': return 'bg-orange-100 text-orange-800'; // Use orange for warnings
+    case 'pending': return 'bg-blue-100 text-blue-800';
     default: return 'bg-gray-100 text-gray-800';
   }
 };

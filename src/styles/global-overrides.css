@@ -20,105 +20,280 @@ body > div:last-child:not(#root):not([id]):not([class]) {
   display: none !important;
 }
 
-/* COMPREHENSIVE YELLOW ELIMINATION - GLOBAL OVERRIDES */
+/* COMPREHENSIVE YELLOW/AMBER ELIMINATION - GLOBAL OVERRIDES */
 
-/* Override any yellow/amber classes globally */
+/* NUCLEAR OPTION: Override ALL yellow/amber Tailwind classes globally */
 .bg-yellow-50,
 .bg-yellow-100,
 .bg-yellow-200,
 .bg-yellow-300,
 .bg-yellow-400,
+.bg-yellow-500,
+.bg-yellow-600,
+.bg-yellow-700,
+.bg-yellow-800,
+.bg-yellow-900 {
+  background-color: rgb(232 245 232) !important; /* Garden green light */
+}
+
 .bg-amber-50,
 .bg-amber-100,
 .bg-amber-200,
 .bg-amber-300,
-.bg-amber-400 {
-  background-color: rgb(219 234 254) !important; /* blue-100 */
-}
-
-.bg-yellow-500,
-.bg-yellow-600,
-.bg-yellow-700,
+.bg-amber-400,
 .bg-amber-500,
 .bg-amber-600,
-.bg-amber-700 {
-  background-color: rgb(59 130 246) !important; /* blue-500 */
+.bg-amber-700,
+.bg-amber-800,
+.bg-amber-900 {
+  background-color: rgb(255 243 224) !important; /* Orange light for warnings */
 }
 
-.text-yellow-600,
+.text-yellow-50,
+.text-yellow-100,
+.text-yellow-200,
+.text-yellow-300,
+.text-yellow-400,
 .text-yellow-500,
-.text-amber-600,
-.text-amber-500 {
-  color: rgb(59 130 246) !important; /* blue-500 */
-}
-
+.text-yellow-600,
 .text-yellow-700,
-.text-amber-700 {
-  color: rgb(29 78 216) !important; /* blue-700 */
-}
-
 .text-yellow-800,
-.text-amber-800 {
-  color: rgb(30 64 175) !important; /* blue-800 */
+.text-yellow-900 {
+  color: rgb(46 125 50) !important; /* Garden green dark */
 }
 
+.text-amber-50,
+.text-amber-100,
+.text-amber-200,
+.text-amber-300,
+.text-amber-400,
+.text-amber-500,
+.text-amber-600,
+.text-amber-700,
+.text-amber-800,
+.text-amber-900 {
+  color: rgb(245 124 0) !important; /* Orange dark */
+}
+
+.border-yellow-50,
+.border-yellow-100,
 .border-yellow-200,
 .border-yellow-300,
-.border-amber-200,
-.border-amber-300 {
-  border-color: rgb(147 197 253) !important; /* blue-300 */
-}
-
-.border-yellow-500,
 .border-yellow-400,
+.border-yellow-500,
+.border-yellow-600,
+.border-yellow-700,
+.border-yellow-800,
+.border-yellow-900 {
+  border-color: rgb(76 175 80) !important; /* Garden green */
+}
+
+.border-amber-50,
+.border-amber-100,
+.border-amber-200,
+.border-amber-300,
+.border-amber-400,
 .border-amber-500,
-.border-amber-400 {
-  border-color: rgb(59 130 246) !important; /* blue-500 */
+.border-amber-600,
+.border-amber-700,
+.border-amber-800,
+.border-amber-900 {
+  border-color: rgb(255 152 0) !important; /* Orange */
 }
 
+.ring-yellow-50,
+.ring-yellow-100,
+.ring-yellow-200,
+.ring-yellow-300,
+.ring-yellow-400,
 .ring-yellow-500,
-.ring-amber-500,
+.ring-yellow-600,
+.ring-yellow-700,
+.ring-yellow-800,
+.ring-yellow-900,
+.focus\:ring-yellow-50:focus,
+.focus\:ring-yellow-100:focus,
+.focus\:ring-yellow-200:focus,
+.focus\:ring-yellow-300:focus,
+.focus\:ring-yellow-400:focus,
 .focus\:ring-yellow-500:focus,
-.focus\:ring-amber-500:focus {
-  --tw-ring-color: rgb(59 130 246) !important; /* blue-500 */
+.focus\:ring-yellow-600:focus,
+.focus\:ring-yellow-700:focus,
+.focus\:ring-yellow-800:focus,
+.focus\:ring-yellow-900:focus {
+  --tw-ring-color: rgb(76 175 80) !important; /* Garden green */
 }
 
-/* Force any inline yellow styles to use blue instead */
+.ring-amber-50,
+.ring-amber-100,
+.ring-amber-200,
+.ring-amber-300,
+.ring-amber-400,
+.ring-amber-500,
+.ring-amber-600,
+.ring-amber-700,
+.ring-amber-800,
+.ring-amber-900,
+.focus\:ring-amber-50:focus,
+.focus\:ring-amber-100:focus,
+.focus\:ring-amber-200:focus,
+.focus\:ring-amber-300:focus,
+.focus\:ring-amber-400:focus,
+.focus\:ring-amber-500:focus,
+.focus\:ring-amber-600:focus,
+.focus\:ring-amber-700:focus,
+.focus\:ring-amber-800:focus,
+.focus\:ring-amber-900:focus {
+  --tw-ring-color: rgb(255 152 0) !important; /* Orange */
+}
+
+/* Override ANY inline yellow/amber styles with garden green or orange */
 [style*="background-color: #FBBC05"],
 [style*="background-color: #FDD835"],
 [style*="background-color: #FFEB3B"],
+[style*="background-color: #FFC107"],
+[style*="background-color: #FFD600"],
+[style*="background-color: #F59E0B"],
+[style*="background-color: #D97706"],
 [style*="background: #FBBC05"],
 [style*="background: #FDD835"],
-[style*="background: #FFEB3B"] {
-  background-color: rgb(59 130 246) !important; /* blue-500 */
+[style*="background: #FFEB3B"],
+[style*="background: #FFC107"],
+[style*="background: #FFD600"],
+[style*="background: #F59E0B"],
+[style*="background: #D97706"] {
+  background-color: rgb(76 175 80) !important; /* Garden green */
 }
 
 [style*="color: #FBBC05"],
 [style*="color: #FDD835"],
-[style*="color: #FFEB3B"] {
-  color: rgb(59 130 246) !important; /* blue-500 */
+[style*="color: #FFEB3B"],
+[style*="color: #FFC107"],
+[style*="color: #FFD600"],
+[style*="color: #F59E0B"],
+[style*="color: #D97706"] {
+  color: rgb(46 125 50) !important; /* Garden green dark */
 }
 
 [style*="border-color: #FBBC05"],
 [style*="border-color: #FDD835"],
-[style*="border-color: #FFEB3B"] {
-  border-color: rgb(59 130 246) !important; /* blue-500 */
+[style*="border-color: #FFEB3B"],
+[style*="border-color: #FFC107"],
+[style*="border-color: #FFD600"],
+[style*="border-color: #F59E0B"],
+[style*="border-color: #D97706"] {
+  border-color: rgb(76 175 80) !important; /* Garden green */
 }
 
-/* Specifically target badge components */
+/* Target badge and status components specifically */
 .badge[class*="yellow"],
 .badge[class*="amber"],
 [data-badge*="yellow"],
-[data-badge*="amber"] {
-  background-color: rgb(219 234 254) !important; /* blue-100 */
-  color: rgb(30 64 175) !important; /* blue-800 */
-  border-color: rgb(147 197 253) !important; /* blue-300 */
+[data-badge*="amber"],
+.status-badge[class*="yellow"],
+.status-badge[class*="amber"] {
+  background-color: rgb(232 245 232) !important; /* Garden green light */
+  color: rgb(46 125 50) !important; /* Garden green dark */
+  border-color: rgb(76 175 80) !important; /* Garden green */
 }
 
-/* Target status indicators */
+/* Target status indicators specifically */
 [data-status="scheduled"],
-.status-scheduled {
-  background-color: rgb(219 234 254) !important; /* blue-100 */
-  color: rgb(30 64 175) !important; /* blue-800 */
-  border-color: rgb(147 197 253) !important; /* blue-300 */
+.status-scheduled,
+[data-status="warning"],
+.status-warning,
+[data-status="pending"],
+.status-pending {
+  background-color: rgb(219 234 254) !important; /* Blue light */
+  color: rgb(30 64 175) !important; /* Blue dark */
+  border-color: rgb(147 197 253) !important; /* Blue medium */
+}
+
+/* Override any chart colors that might use yellow */
+.recharts-surface [fill="#FBBC05"],
+.recharts-surface [fill="#FDD835"],
+.recharts-surface [fill="#FFEB3B"],
+.recharts-surface [fill="#FFC107"],
+.recharts-surface [fill="#FFD600"] {
+  fill: #4CAF50 !important; /* Garden green */
+}
+
+.recharts-surface [stroke="#FBBC05"],
+.recharts-surface [stroke="#FDD835"],
+.recharts-surface [stroke="#FFEB3B"],
+.recharts-surface [stroke="#FFC107"],
+.recharts-surface [stroke="#FFD600"] {
+  stroke: #4CAF50 !important; /* Garden green */
+}
+
+/* Override any CSS custom properties that might contain yellow */
+:root {
+  --yellow-50: 232, 245, 232 !important; /* Garden green light */
+  --yellow-100: 200, 230, 201 !important;
+  --yellow-200: 165, 214, 167 !important;
+  --yellow-300: 129, 199, 132 !important;
+  --yellow-400: 102, 187, 106 !important;
+  --yellow-500: 76, 175, 80 !important; /* Garden green */
+  --yellow-600: 67, 160, 71 !important;
+  --yellow-700: 56, 142, 60 !important;
+  --yellow-800: 46, 125, 50 !important;
+  --yellow-900: 27, 94, 32 !important;
+  
+  --amber-50: 255, 243, 224 !important; /* Orange light */
+  --amber-100: 255, 224, 178 !important;
+  --amber-200: 255, 204, 128 !important;
+  --amber-300: 255, 183, 77 !important;
+  --amber-400: 255, 167, 38 !important;
+  --amber-500: 255, 152, 0 !important; /* Orange */
+  --amber-600: 251, 140, 0 !important;
+  --amber-700: 245, 124, 0 !important;
+  --amber-800: 239, 108, 0 !important;
+  --amber-900: 230, 81, 0 !important;
+}
+
+/* Forcibly override any remaining yellow in SVGs */
+svg [fill="#FBBC05"],
+svg [fill="#FDD835"],
+svg [fill="#FFEB3B"],
+svg [fill="#FFC107"],
+svg [fill="#FFD600"] {
+  fill: #4CAF50 !important; /* Garden green */
+}
+
+svg [stroke="#FBBC05"],
+svg [stroke="#FDD835"],
+svg [stroke="#FFEB3B"],
+svg [stroke="#FFC107"],
+svg [stroke="#FFD600"] {
+  stroke: #4CAF50 !important; /* Garden green */
+}
+
+/* Apply to any element that might have yellow classes */
+* {
+  /* This is a nuclear option - if any element somehow gets yellow, override it */
+}
+
+*[class*="yellow"],
+*[class*="amber"] {
+  /* Force override any class containing yellow or amber */
+  background-color: rgb(232 245 232) !important;
+  color: rgb(46 125 50) !important;
+  border-color: rgb(76 175 80) !important;
+}
+
+/* Final fallback for any missed yellow elements */
+body .purge-yellow *,
+body * {
+  /* Last resort overrides */
+}
+
+body .purge-yellow *[style*="yellow"],
+body .purge-yellow *[style*="amber"],
+body .purge-yellow *[style*="#FFC107"],
+body .purge-yellow *[style*="#FBBC05"],
+body .purge-yellow *[style*="#FDD835"],
+body .purge-yellow *[style*="#FFEB3B"] {
+  background-color: rgb(76 175 80) !important;
+  color: rgb(255, 255, 255) !important;
+  border-color: rgb(76 175 80) !important;
 }

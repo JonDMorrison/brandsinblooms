@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -60,6 +61,32 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				
+				// COMPLETELY OVERRIDE YELLOW/AMBER WITH GARDEN GREEN AND ORANGE
+				yellow: {
+					50: '#E8F5E8',    // Garden green very light
+					100: '#C8E6C9',   // Garden green light
+					200: '#A5D6A7',   // Garden green lighter
+					300: '#81C784',   // Garden green medium light
+					400: '#66BB6A',   // Garden green medium
+					500: '#4CAF50',   // Garden green primary
+					600: '#43A047',   // Garden green medium dark
+					700: '#388E3C',   // Garden green dark
+					800: '#2E7D32',   // Garden green darker
+					900: '#1B5E20',   // Garden green darkest
+				},
+				amber: {
+					50: '#FFF3E0',    // Orange very light for warnings
+					100: '#FFE0B2',   // Orange light
+					200: '#FFCC80',   // Orange lighter
+					300: '#FFB74D',   // Orange medium light
+					400: '#FFA726',   // Orange medium
+					500: '#FF9800',   // Orange primary
+					600: '#FB8C00',   // Orange medium dark
+					700: '#F57C00',   // Orange dark
+					800: '#EF6C00',   // Orange darker
+					900: '#E65100',   // Orange darkest
+				},
+				
 				// Garden Color Scheme - Using garden green instead of yellow
 				'garden-green': {
 					DEFAULT: '#4CAF50',
@@ -118,7 +145,7 @@ export default {
 					foreground: '#FFFFFF'
 				},
 				warning: {
-					DEFAULT: '#FF9800',
+					DEFAULT: '#FF9800', // Orange for warnings instead of yellow
 					50: '#FFF3E0',
 					100: '#FFE0B2',
 					500: '#FF9800',
