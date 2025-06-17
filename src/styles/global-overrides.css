@@ -19,3 +19,106 @@ body > div:last-child:not(#root):not([id]):not([class]) {
 .purge-yellow *[style*="position: fixed"] {
   display: none !important;
 }
+
+/* COMPREHENSIVE YELLOW ELIMINATION - GLOBAL OVERRIDES */
+
+/* Override any yellow/amber classes globally */
+.bg-yellow-50,
+.bg-yellow-100,
+.bg-yellow-200,
+.bg-yellow-300,
+.bg-yellow-400,
+.bg-amber-50,
+.bg-amber-100,
+.bg-amber-200,
+.bg-amber-300,
+.bg-amber-400 {
+  background-color: rgb(219 234 254) !important; /* blue-100 */
+}
+
+.bg-yellow-500,
+.bg-yellow-600,
+.bg-yellow-700,
+.bg-amber-500,
+.bg-amber-600,
+.bg-amber-700 {
+  background-color: rgb(59 130 246) !important; /* blue-500 */
+}
+
+.text-yellow-600,
+.text-yellow-500,
+.text-amber-600,
+.text-amber-500 {
+  color: rgb(59 130 246) !important; /* blue-500 */
+}
+
+.text-yellow-700,
+.text-amber-700 {
+  color: rgb(29 78 216) !important; /* blue-700 */
+}
+
+.text-yellow-800,
+.text-amber-800 {
+  color: rgb(30 64 175) !important; /* blue-800 */
+}
+
+.border-yellow-200,
+.border-yellow-300,
+.border-amber-200,
+.border-amber-300 {
+  border-color: rgb(147 197 253) !important; /* blue-300 */
+}
+
+.border-yellow-500,
+.border-yellow-400,
+.border-amber-500,
+.border-amber-400 {
+  border-color: rgb(59 130 246) !important; /* blue-500 */
+}
+
+.ring-yellow-500,
+.ring-amber-500,
+.focus\:ring-yellow-500:focus,
+.focus\:ring-amber-500:focus {
+  --tw-ring-color: rgb(59 130 246) !important; /* blue-500 */
+}
+
+/* Force any inline yellow styles to use blue instead */
+[style*="background-color: #FBBC05"],
+[style*="background-color: #FDD835"],
+[style*="background-color: #FFEB3B"],
+[style*="background: #FBBC05"],
+[style*="background: #FDD835"],
+[style*="background: #FFEB3B"] {
+  background-color: rgb(59 130 246) !important; /* blue-500 */
+}
+
+[style*="color: #FBBC05"],
+[style*="color: #FDD835"],
+[style*="color: #FFEB3B"] {
+  color: rgb(59 130 246) !important; /* blue-500 */
+}
+
+[style*="border-color: #FBBC05"],
+[style*="border-color: #FDD835"],
+[style*="border-color: #FFEB3B"] {
+  border-color: rgb(59 130 246) !important; /* blue-500 */
+}
+
+/* Specifically target badge components */
+.badge[class*="yellow"],
+.badge[class*="amber"],
+[data-badge*="yellow"],
+[data-badge*="amber"] {
+  background-color: rgb(219 234 254) !important; /* blue-100 */
+  color: rgb(30 64 175) !important; /* blue-800 */
+  border-color: rgb(147 197 253) !important; /* blue-300 */
+}
+
+/* Target status indicators */
+[data-status="scheduled"],
+.status-scheduled {
+  background-color: rgb(219 234 254) !important; /* blue-100 */
+  color: rgb(30 64 175) !important; /* blue-800 */
+  border-color: rgb(147 197 253) !important; /* blue-300 */
+}

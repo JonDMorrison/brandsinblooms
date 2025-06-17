@@ -91,7 +91,7 @@ export const getPlatformConfig = (postType: string) => {
 };
 
 /**
- * Returns status badge configuration
+ * Returns status badge configuration - NO YELLOW COLORS
  */
 export const getStatusConfig = (status: string) => {
   const configs = {
@@ -108,9 +108,9 @@ export const getStatusConfig = (status: string) => {
       label: 'Review'
     },
     scheduled: {
-      color: '#FBBF24',
-      bgColor: 'bg-yellow-100',
-      textColor: 'text-yellow-800',
+      color: '#3B82F6', // Changed from yellow to blue
+      bgColor: 'bg-blue-100',
+      textColor: 'text-blue-800',
       label: 'Scheduled'
     },
     posted: {
