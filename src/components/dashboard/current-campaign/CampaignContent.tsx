@@ -1,9 +1,7 @@
-
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardHeader, AppleCardContent } from "@/components/ui/apple-card";
-import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { HeadlineMedium, CaptionMedium, BodyMedium } from "@/components/ui/typography";
-import { CheckCircle, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 
 interface CampaignContentProps {
@@ -57,15 +55,6 @@ export const CampaignContent = ({
               </CaptionMedium>
             </div>
           </div>
-          <EnhancedAppleButton 
-            variant="tertiary" 
-            size="sm"
-            iconAnimation="bounce"
-            className="apple-stagger-1"
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            Mark as Complete
-          </EnhancedAppleButton>
         </div>
       </AppleCardHeader>
 
