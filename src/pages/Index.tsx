@@ -12,9 +12,10 @@ import { AppleCardContent } from "@/components/ui/apple-card";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Navigate } from "react-router-dom";
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const isMobile = useIsMobile();
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
@@ -103,10 +104,21 @@ const Index = () => {
     toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
   };
 
-  // Show auth page if not logged in
+  // Show loading state while auth is loading
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-text-secondary">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect to auth if not logged in
   if (!user) {
-    window.location.href = '/auth';
-    return null;
+    return <Navigate to="/auth" replace />;
   }
 
   return (

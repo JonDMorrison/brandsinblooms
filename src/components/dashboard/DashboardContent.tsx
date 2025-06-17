@@ -30,6 +30,8 @@ export const DashboardContent = ({
 
   const currentWeekNumber = getCurrentWeekNumber();
 
+  console.log('DashboardContent: Rendering with user:', user?.id);
+
   const selectBestCampaign = async (campaigns: Campaign[]) => {
     if (campaigns.length === 0) return null;
     if (campaigns.length === 1) return campaigns[0];
@@ -189,6 +191,7 @@ export const DashboardContent = ({
   };
 
   useEffect(() => {
+    console.log('DashboardContent: useEffect triggered, user:', user?.id);
     if (user) {
       fetchCampaignData();
     } else {
