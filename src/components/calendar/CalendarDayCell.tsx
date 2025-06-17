@@ -1,4 +1,3 @@
-
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Check, Calendar } from "lucide-react";
@@ -146,20 +145,17 @@ export const CalendarDayCell = ({
                 </div>
               )}
               
-              <div className="flex items-start gap-2">
-                <Calendar className="w-3 h-3 text-emerald-600 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-emerald-800 truncate leading-tight">
-                    {campaign.title}
+              <div className="w-full">
+                <div className="font-semibold text-emerald-800 truncate leading-tight">
+                  {campaign.title}
+                </div>
+                {campaign.theme && campaign.theme !== campaign.title && (
+                  <div className="text-emerald-700 truncate mt-0.5 leading-tight">
+                    {campaign.theme}
                   </div>
-                  {campaign.theme && campaign.theme !== campaign.title && (
-                    <div className="text-emerald-700 truncate mt-0.5 leading-tight">
-                      {campaign.theme}
-                    </div>
-                  )}
-                  <div className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-                    <span>Week {campaign.week_number}</span>
-                  </div>
+                )}
+                <div className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                  <span>Week {campaign.week_number}</span>
                 </div>
               </div>
               
