@@ -178,99 +178,93 @@
       @apply py-2 px-2 !important;
     }
 
-    /* COMPLETE YELLOW REMOVAL - Mobile specific overrides with garden green */
-    .dialog-content,
-    .select-trigger,
-    .input-field,
-    button,
-    .button,
-    [role="button"],
-    input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: rgb(129 199 132) !important; /* garden-green-light */
-    }
+    /* CRITICAL: Complete removal of yellow/amber colors on mobile with garden green replacement */
     
-    .select-trigger:focus,
-    .input-field:focus,
-    input:focus,
-    select:focus,
-    textarea:focus,
-    button:focus,
-    .button:focus,
-    [role="button"]:focus {
-      border-color: rgb(76 175 80) !important; /* garden-green */
-      --tw-ring-color: rgb(76 175 80) !important; /* garden-green */
-      box-shadow: 0 0 0 2px rgb(76 175 80 / 0.2) !important;
-    }
-    
-    /* Mobile button fixes - Complete yellow removal */
-    .button-cancel,
+    /* Force outline buttons to use garden green border and text */
+    button[variant="outline"],
     button[data-variant="outline"],
+    .border-garden-green\/30,
+    .hover\:bg-garden-sage,
+    .hover\:border-garden-green {
+      border-color: rgb(76 175 80) !important; /* garden-green */
+      color: rgb(76 175 80) !important; /* garden-green */
+      background-color: transparent !important;
+    }
+    
+    button[variant="outline"]:hover,
+    button[data-variant="outline"]:hover,
+    .border-garden-green\/30:hover,
+    .hover\:bg-garden-sage:hover,
+    .hover\:border-garden-green:hover {
+      background-color: rgb(76 175 80) !important; /* garden-green */
+      color: white !important;
+      border-color: rgb(76 175 80) !important; /* garden-green */
+    }
+    
+    /* Override any yellow/amber classes that might appear */
     .bg-yellow-50,
     .bg-yellow-100,
     .bg-amber-50,
-    .bg-amber-100 {
+    .bg-amber-100,
+    .border-yellow-200,
+    .border-yellow-300,
+    .border-amber-200,
+    .border-amber-300 {
       background-color: white !important;
       border-color: rgb(209 213 219) !important; /* gray-300 */
-      color: rgb(55 65 81) !important; /* gray-700 */
     }
     
-    .button-cancel:hover,
-    button[data-variant="outline"]:hover {
-      background-color: rgb(249 250 251) !important; /* gray-50 */
-    }
-    
-    .button-primary,
-    button[data-variant="default"],
     .bg-yellow-500,
     .bg-yellow-600,
     .bg-amber-500,
     .bg-amber-600 {
       background-color: rgb(76 175 80) !important; /* garden-green */
-      color: white !important;
       border-color: rgb(76 175 80) !important;
     }
     
-    .button-primary:hover,
-    button[data-variant="default"]:hover {
-      background-color: rgb(46 125 50) !important; /* garden-green-dark */
-    }
-
-    /* Remove any remaining yellow/amber classes on mobile */
     .text-yellow-600,
     .text-yellow-500,
     .text-amber-600,
     .text-amber-500 {
-      color: rgb(46 125 50) !important; /* garden-green-dark */
+      color: rgb(76 175 80) !important; /* garden-green */
     }
-
+    
     .text-yellow-700,
     .text-amber-700 {
-      color: rgb(55 65 81) !important; /* gray-700 */
+      color: rgb(46 125 50) !important; /* garden-green-dark */
     }
-
+    
     .text-yellow-800,
     .text-amber-800 {
       color: rgb(31 41 55) !important; /* gray-800 */
     }
-
+    
     .border-yellow-500,
     .border-yellow-400,
     .border-amber-500,
-    .border-amber-400,
-    .border-yellow-200,
-    .border-amber-200,
-    .border-yellow-300,
-    .border-amber-300 {
-      border-color: rgb(209 213 219) !important; /* gray-300 */
+    .border-amber-400 {
+      border-color: rgb(76 175 80) !important; /* garden-green */
     }
-
+    
     .ring-yellow-500,
     .ring-amber-500,
     .focus\:ring-yellow-500:focus,
     .focus\:ring-amber-500:focus {
       --tw-ring-color: rgb(76 175 80) !important; /* garden-green */
+    }
+
+    /* CRITICAL: Specific fixes for Auth page Google button */
+    .w-full.h-12.border-garden-green\/30,
+    button.w-full.h-12[class*="border-garden-green"] {
+      border-color: rgb(76 175 80 / 0.3) !important; /* garden-green with opacity */
+      color: rgb(31 41 55) !important; /* gray-800 for text */
+      background-color: transparent !important;
+    }
+    
+    .w-full.h-12.border-garden-green\/30:hover,
+    button.w-full.h-12[class*="border-garden-green"]:hover {
+      background-color: rgb(240 244 240) !important; /* garden-sage */
+      border-color: rgb(76 175 80) !important; /* garden-green */
     }
 
     /* Mobile warning/info states - Use appropriate colors */
