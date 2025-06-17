@@ -1,12 +1,9 @@
 
-import { useState } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { BodyMedium, CaptionMedium } from "@/components/ui/typography";
-import { Eye, CheckCircle, Clock, AlertCircle } from "lucide-react";
-import { useTaskImages } from "@/hooks/useTaskImages";
-import { TaskImagePreview } from "./TaskImagePreview";
+import { Eye, CheckCircle, Clock, AlertCircle, Image } from "lucide-react";
 
 interface TaskItemProps {
   task: any;
@@ -15,19 +12,19 @@ interface TaskItemProps {
 }
 
 export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
-  const { images, imageCount, loading } = useTaskImages(task?.id);
+  console.log('TaskItem: Rendering task:', task.id, task.post_type, task.status);
 
   const getStatusIcon = () => {
     switch (task.status) {
       case 'completed':
       case 'approved':
-        return <CheckCircle className="w-4 h-4 text-success" />;
+        return <CheckCircle className="w-4 h-4 text-green-600" />;
       case 'review':
-        return <Eye className="w-4 h-4 text-warning" />;
+        return <Eye className="w-4 h-4 text-yellow-600" />;
       case 'pending':
-        return <Clock className="w-4 h-4 text-text-secondary" />;
+        return <Clock className="w-4 h-4 text-gray-500" />;
       default:
-        return <AlertCircle className="w-4 h-4 text-text-tertiary" />;
+        return <AlertCircle className="w-4 h-4 text-gray-400" />;
     }
   };
 
@@ -35,15 +32,17 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
     switch (task.status) {
       case 'completed':
       case 'approved':
-        return 'text-success';
+        return 'text-green-600';
       case 'review':
-        return 'text-warning';
+        return 'text-yellow-600';
       case 'pending':
-        return 'text-text-secondary';
+        return 'text-gray-500';
       default:
-        return 'text-text-tertiary';
+        return 'text-gray-400';
     }
   };
+
+  const hasContent = task.ai_output && task.ai_output.trim() !== '';
 
   return (
     <EnhancedAppleCard 
@@ -67,13 +66,19 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
               {task.status?.charAt(0).toUpperCase() + task.status?.slice(1) || 'Draft'}
             </CaptionMedium>
             
-            {/* Image preview */}
-            <div className="mt-2">
-              <TaskImagePreview 
-                images={images} 
-                imageCount={imageCount} 
-                loading={loading}
-              />
+            {/* Content preview */}
+            {hasContent && (
+              <div className="mt-2">
+                <CaptionMedium className="text-text-tertiary">
+                  {task.ai_output.substring(0, 100)}...
+                </CaptionMedium>
+              </div>
+            )}
+
+            {/* Simple image indicator */}
+            <div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
+              <Image className="w-3 h-3" />
+              <span>Images available</span>
             </div>
           </div>
           <EnhancedAppleButton 

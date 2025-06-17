@@ -19,7 +19,9 @@ export const CampaignContent = ({
   onTaskClick, 
   onTaskUpdate 
 }: CampaignContentProps) => {
-  console.log('CampaignContent: Rendering with campaign:', activeCampaign?.title, 'tasks:', tasks.length);
+  console.log('CampaignContent: Rendering with campaign:', activeCampaign?.title);
+  console.log('CampaignContent: Tasks count:', tasks.length);
+  console.log('CampaignContent: Tasks array:', tasks);
   
   // Add debugging for tasks
   if (tasks.length > 0) {
@@ -27,7 +29,8 @@ export const CampaignContent = ({
       id: task.id,
       post_type: task.post_type,
       status: task.status,
-      hasContent: !!task.ai_output
+      hasContent: !!task.ai_output,
+      aiOutputLength: task.ai_output?.length || 0
     })));
   }
 
@@ -67,7 +70,15 @@ export const CampaignContent = ({
       </AppleCardHeader>
 
       <AppleCardContent className="space-y-4">
-        {tasks.length === 0 ? (
+        {!activeCampaign && (
+          <div className="text-center py-8 apple-slide-up">
+            <BodyMedium className="text-text-secondary">
+              No active campaign found.
+            </BodyMedium>
+          </div>
+        )}
+
+        {activeCampaign && tasks.length === 0 && (
           <div className="text-center py-8 apple-slide-up">
             <BodyMedium className="text-text-secondary">
               No content has been generated for this campaign yet.
@@ -77,19 +88,27 @@ export const CampaignContent = ({
               {activeCampaign?.id && ` (ID: ${activeCampaign.id.slice(0, 8)}...)`}
             </BodyMedium>
           </div>
-        ) : (
+        )}
+
+        {activeCampaign && tasks.length > 0 && (
           <div className="space-y-3">
             <BodyMedium className="text-text-secondary text-sm">
               Found {tasks.length} content pieces for this campaign
             </BodyMedium>
-            {tasks.map((task) => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onClick={() => onTaskClick(task)}
-                onTaskUpdate={onTaskUpdate}
-              />
-            ))}
+            {tasks.map((task, index) => {
+              console.log('CampaignContent: Rendering task', index + 1, ':', task.id, task.post_type);
+              return (
+                <TaskItem
+                  key={task.id}
+                  task={task}
+                  onClick={() => {
+                    console.log('CampaignContent: Task clicked:', task.id);
+                    onTaskClick(task);
+                  }}
+                  onTaskUpdate={onTaskUpdate}
+                />
+              );
+            })}
           </div>
         )}
       </AppleCardContent>
