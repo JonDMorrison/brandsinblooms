@@ -5,7 +5,6 @@ import { HeadlineMedium, BodyMedium } from "@/components/ui/typography";
 import { Sparkles } from "lucide-react";
 import { TaskItem } from "./TaskItem";
 import { SuccessIndicator } from "@/components/dashboard/SuccessIndicator";
-import { StepGuidance } from "@/components/dashboard/StepGuidance";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -34,50 +33,6 @@ export const CampaignContent = ({
   const hasContent = tasksWithContent.length > 0;
   const isComplete = tasks.length > 0 && approvedTasks.length === tasks.length;
   const isActive = hasContent && !isComplete;
-
-  const handleQuickApprove = async () => {
-    if (!user) return;
-    
-    try {
-      const tasksToApprove = tasks.filter(task => 
-        task.ai_output && 
-        task.ai_output.trim() !== '' && 
-        !['approved', 'posted'].includes(task.status)
-      );
-      
-      if (tasksToApprove.length === 0) {
-        toast.success("All content is already approved!");
-        return;
-      }
-
-      const { error } = await supabase
-        .from('content_tasks')
-        .update({ status: 'approved' })
-        .in('id', tasksToApprove.map(task => task.id));
-
-      if (error) {
-        console.error('Error approving tasks:', error);
-        toast.error('Failed to approve content');
-      } else {
-        toast.success(`✅ Approved ${tasksToApprove.length} content pieces!`);
-        onTaskUpdate();
-      }
-    } catch (error) {
-      console.error('Error in quick approve:', error);
-      toast.error('Failed to approve content');
-    }
-  };
-
-  const handleReviewContent = () => {
-    // Open the first available task for review
-    const firstTaskWithContent = tasksWithContent[0];
-    if (firstTaskWithContent) {
-      onTaskClick(firstTaskWithContent);
-    } else if (tasks.length > 0) {
-      // If no content yet, open the first task
-      onTaskClick(tasks[0]);
-    }
-  };
 
   return (
     <EnhancedAppleCard 
@@ -119,14 +74,6 @@ export const CampaignContent = ({
       </AppleCardHeader>
 
       <AppleCardContent className="space-y-4">
-        {/* Step Guidance */}
-        <StepGuidance
-          isComplete={isComplete}
-          hasContent={hasContent}
-          onQuickApprove={hasContent && !isComplete ? handleQuickApprove : undefined}
-          onReviewContent={hasContent ? handleReviewContent : undefined}
-        />
-
         {/* Content Display */}
         {!activeCampaign && (
           <div className="text-center py-8 apple-slide-up">
