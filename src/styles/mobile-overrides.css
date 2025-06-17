@@ -178,14 +178,51 @@
       @apply py-2 px-2 !important;
     }
 
-    /* CRITICAL: Complete removal of yellow/amber colors on mobile with garden green replacement */
+    /* CRITICAL: COMPLETE YELLOW/AMBER REMOVAL ON MOBILE - COMPREHENSIVE OVERRIDES */
     
+    /* Global background overrides - Remove any yellow/amber backgrounds */
+    *,
+    *::before,
+    *::after,
+    body,
+    html,
+    div,
+    section,
+    main,
+    article,
+    header,
+    footer,
+    nav,
+    aside {
+      background-color: transparent !important;
+    }
+
+    /* Ensure main containers use correct backgrounds */
+    .min-h-screen,
+    body {
+      background: linear-gradient(135deg, rgb(240 244 240), rgb(240 244 240), rgb(240 244 240)) !important; /* garden-sage gradient */
+    }
+
+    /* Override any gradient backgrounds that might contain yellow */
+    .bg-gradient-to-br,
+    .bg-gradient-to-r,
+    .bg-gradient-to-l,
+    .bg-gradient-to-t,
+    .bg-gradient-to-b,
+    .bg-gradient-to-tr,
+    .bg-gradient-to-tl,
+    .bg-gradient-to-bl {
+      background: linear-gradient(135deg, rgb(240 244 240), rgb(240 244 240)) !important; /* garden-sage */
+    }
+
     /* Force outline buttons to use garden green border and text */
     button[variant="outline"],
     button[data-variant="outline"],
     .border-garden-green\/30,
     .hover\:bg-garden-sage,
-    .hover\:border-garden-green {
+    .hover\:border-garden-green,
+    button[class*="outline"],
+    .outline {
       border-color: rgb(76 175 80) !important; /* garden-green */
       color: rgb(76 175 80) !important; /* garden-green */
       background-color: transparent !important;
@@ -195,7 +232,9 @@
     button[data-variant="outline"]:hover,
     .border-garden-green\/30:hover,
     .hover\:bg-garden-sage:hover,
-    .hover\:border-garden-green:hover {
+    .hover\:border-garden-green:hover,
+    button[class*="outline"]:hover,
+    .outline:hover {
       background-color: rgb(76 175 80) !important; /* garden-green */
       color: white !important;
       border-color: rgb(76 175 80) !important; /* garden-green */
@@ -204,8 +243,14 @@
     /* Override any yellow/amber classes that might appear */
     .bg-yellow-50,
     .bg-yellow-100,
+    .bg-yellow-200,
+    .bg-yellow-300,
+    .bg-yellow-400,
     .bg-amber-50,
     .bg-amber-100,
+    .bg-amber-200,
+    .bg-amber-300,
+    .bg-amber-400,
     .border-yellow-200,
     .border-yellow-300,
     .border-amber-200,
@@ -216,8 +261,10 @@
     
     .bg-yellow-500,
     .bg-yellow-600,
+    .bg-yellow-700,
     .bg-amber-500,
-    .bg-amber-600 {
+    .bg-amber-600,
+    .bg-amber-700 {
       background-color: rgb(76 175 80) !important; /* garden-green */
       border-color: rgb(76 175 80) !important;
     }
@@ -253,18 +300,67 @@
       --tw-ring-color: rgb(76 175 80) !important; /* garden-green */
     }
 
-    /* CRITICAL: Specific fixes for Auth page Google button */
+    /* CRITICAL: Google Sign-In button specific fixes */
     .w-full.h-12.border-garden-green\/30,
-    button.w-full.h-12[class*="border-garden-green"] {
+    button.w-full.h-12[class*="border-garden-green"],
+    button[class*="google"],
+    .google-button {
       border-color: rgb(76 175 80 / 0.3) !important; /* garden-green with opacity */
       color: rgb(31 41 55) !important; /* gray-800 for text */
-      background-color: transparent !important;
+      background-color: white !important;
     }
     
     .w-full.h-12.border-garden-green\/30:hover,
-    button.w-full.h-12[class*="border-garden-green"]:hover {
+    button.w-full.h-12[class*="border-garden-green"]:hover,
+    button[class*="google"]:hover,
+    .google-button:hover {
       background-color: rgb(240 244 240) !important; /* garden-sage */
       border-color: rgb(76 175 80) !important; /* garden-green */
+    }
+
+    /* Override Google SVG yellow color specifically */
+    svg path[fill="#FBBC05"],
+    svg path[fill="#FBBC04"],
+    svg path[fill="#FDD835"],
+    svg path[fill="#FFEB3B"] {
+      fill: rgb(240 244 240) !important; /* garden-sage instead of yellow */
+    }
+
+    /* Comprehensive card background fixes */
+    .card,
+    .Card,
+    [class*="card"],
+    .bg-white,
+    .bg-white\/95 {
+      background-color: white !important;
+      backdrop-filter: blur(8px) !important;
+    }
+
+    /* Auth page specific background fixes */
+    .auth-background,
+    .min-h-screen.bg-gradient-to-br {
+      background: linear-gradient(135deg, rgb(240 244 240), rgb(240 244 240), rgb(240 244 240)) !important;
+    }
+
+    /* Tab styling fixes */
+    .tabs-list,
+    [role="tablist"] {
+      background-color: rgb(240 244 240) !important; /* garden-sage */
+    }
+
+    /* Input field fixes */
+    input,
+    textarea,
+    select {
+      background-color: white !important;
+      border-color: rgb(76 175 80 / 0.3) !important; /* garden-green with opacity */
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: rgb(76 175 80) !important; /* garden-green */
+      box-shadow: 0 0 0 2px rgb(76 175 80 / 0.2) !important;
     }
 
     /* Mobile warning/info states - Use appropriate colors */
@@ -290,6 +386,22 @@
       background-color: rgb(249 250 251) !important; /* gray-50 */
       color: rgb(31 41 55) !important; /* gray-800 */
       border-color: rgb(209 213 219) !important; /* gray-300 */
+    }
+
+    /* Emergency override for any missed yellow elements */
+    [style*="background-color: #FBBC05"],
+    [style*="background-color: #FDD835"],
+    [style*="background-color: #FFEB3B"],
+    [style*="background: #FBBC05"],
+    [style*="background: #FDD835"],
+    [style*="background: #FFEB3B"] {
+      background-color: rgb(240 244 240) !important; /* garden-sage */
+    }
+
+    [style*="color: #FBBC05"],
+    [style*="color: #FDD835"],
+    [style*="color: #FFEB3B"] {
+      color: rgb(76 175 80) !important; /* garden-green */
     }
   }
 
