@@ -17,6 +17,26 @@ const iconMap = {
   FileText
 };
 
+// Helper function to properly format post type names
+const formatPostTypeName = (postType: string) => {
+  switch (postType.toLowerCase()) {
+    case 'instagram':
+      return 'Instagram';
+    case 'facebook':
+      return 'Facebook';
+    case 'linkedin':
+      return 'LinkedIn';
+    case 'email':
+      return 'Email';
+    case 'newsletter':
+      return 'Newsletter';
+    case 'video':
+      return 'Video';
+    default:
+      return postType.charAt(0).toUpperCase() + postType.slice(1);
+  }
+};
+
 export const PlatformChip = ({ postType, className }: PlatformChipProps) => {
   const configs = {
     newsletter: {
@@ -75,7 +95,7 @@ export const PlatformChip = ({ postType, className }: PlatformChipProps) => {
       className
     )}>
       <IconComponent className="w-3 h-3" />
-      <span className="capitalize">{postType}</span>
+      <span>{formatPostTypeName(postType)}</span>
     </div>
   );
 };
