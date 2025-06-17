@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -105,7 +104,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
   const isApproved = task.status === 'posted';
 
   return (
-    <Accordion type="multiple" collapsible className="w-full">
+    <Accordion type="multiple" className="w-full">
       <AccordionItem value={task.id} className="border-gray-200 rounded-lg">
         <AccordionTrigger className="px-4 py-3 hover:no-underline">
           <div className="flex items-center justify-between w-full mr-4">
