@@ -38,6 +38,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         
         // SECURITY FIX: Explicitly filter by user ownership through campaigns
         // The RLS policies will enforce this at the database level, but we're being explicit
+        // Updated to include 'posted' status for approved content
         const { data, error } = await supabase
           .from('content_tasks')
           .select(`
@@ -48,7 +49,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
             )
           `)
           .eq('campaigns.user_id', user.id)  // CRITICAL: Filter by current user
-          .in('status', ['review', 'approved'])
+          .in('status', ['review', 'approved', 'posted'])  // Include posted status for approved content
           .not('ai_output', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
@@ -94,7 +95,8 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           if (!belongsToUser) {
             console.warn('ReadyToPostCard: Filtering out task that does not belong to current user:', task.id);
           }
-          return belongsToUser && ['review', 'approved'].includes(task.status) && task.ai_output;
+          // Updated to include 'posted' status for approved content
+          return belongsToUser && ['review', 'approved', 'posted'].includes(task.status) && task.ai_output;
         })
         .slice(0, 6);
       
