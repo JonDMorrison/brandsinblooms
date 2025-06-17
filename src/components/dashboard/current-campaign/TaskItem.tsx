@@ -1,7 +1,6 @@
 
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
-import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Eye, Clock, AlertCircle, AlertTriangle } from "lucide-react";
 import { TaskImagePreview } from "./TaskImagePreview";
@@ -102,15 +101,6 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
               />
             </div>
           </div>
-          <EnhancedAppleButton 
-            variant="secondary" 
-            size="default"
-            iconAnimation="bounce"
-            className="ml-4"
-          >
-            <Eye className="w-4 h-4 mr-2" />
-            Review Your Personalized Content
-          </EnhancedAppleButton>
         </div>
       </AppleCardContent>
     </EnhancedAppleCard>

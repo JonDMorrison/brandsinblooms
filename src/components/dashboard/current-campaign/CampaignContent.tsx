@@ -68,11 +68,14 @@ export const CampaignContent = ({
     }
   };
 
-  const handleViewNext = () => {
-    // Scroll to the next section
-    const nextSection = document.querySelector('[data-ready-to-post-section]');
-    if (nextSection) {
-      nextSection.scrollIntoView({ behavior: 'smooth' });
+  const handleReviewContent = () => {
+    // Open the first available task for review
+    const firstTaskWithContent = tasksWithContent[0];
+    if (firstTaskWithContent) {
+      onTaskClick(firstTaskWithContent);
+    } else if (tasks.length > 0) {
+      // If no content yet, open the first task
+      onTaskClick(tasks[0]);
     }
   };
 
@@ -121,7 +124,7 @@ export const CampaignContent = ({
           isComplete={isComplete}
           hasContent={hasContent}
           onQuickApprove={hasContent && !isComplete ? handleQuickApprove : undefined}
-          onViewNext={isComplete ? handleViewNext : undefined}
+          onReviewContent={hasContent ? handleReviewContent : undefined}
         />
 
         {/* Content Display */}

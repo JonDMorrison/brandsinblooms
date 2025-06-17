@@ -8,10 +8,10 @@ interface StepGuidanceProps {
   isComplete: boolean;
   hasContent: boolean;
   onQuickApprove?: () => void;
-  onViewNext?: () => void;
+  onReviewContent?: () => void;
 }
 
-export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onViewNext }: StepGuidanceProps) => {
+export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onReviewContent }: StepGuidanceProps) => {
   if (!hasContent) {
     return (
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -40,14 +40,14 @@ export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onViewNex
               Your content is now ready to publish. Move to the next step to share it with your audience.
             </CaptionMedium>
           </div>
-          {onViewNext && (
+          {onReviewContent && (
             <EnhancedAppleButton 
               variant="secondary" 
               size="sm"
-              onClick={onViewNext}
+              onClick={onReviewContent}
               className="bg-green-100 text-green-800 border-green-200 hover:bg-green-200"
             >
-              Next Step
+              Review Your Personalized Content
               <ArrowRight className="w-4 h-4 ml-1" />
             </EnhancedAppleButton>
           )}
@@ -79,16 +79,28 @@ export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onViewNex
             Click any content piece below to review and customize it for your garden center.
           </CaptionMedium>
         </div>
-        {onQuickApprove && (
-          <EnhancedAppleButton 
-            variant="secondary" 
-            size="sm"
-            onClick={onQuickApprove}
-            className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200"
-          >
-            Approve All
-          </EnhancedAppleButton>
-        )}
+        <div className="flex gap-2">
+          {onReviewContent && (
+            <EnhancedAppleButton 
+              variant="secondary" 
+              size="sm"
+              onClick={onReviewContent}
+              className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200"
+            >
+              Review Your Personalized Content
+            </EnhancedAppleButton>
+          )}
+          {onQuickApprove && (
+            <EnhancedAppleButton 
+              variant="secondary" 
+              size="sm"
+              onClick={onQuickApprove}
+              className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200"
+            >
+              Approve All
+            </EnhancedAppleButton>
+          )}
+        </div>
       </div>
     </div>
   );
