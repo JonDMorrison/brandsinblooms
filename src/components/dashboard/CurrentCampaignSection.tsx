@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -33,35 +34,74 @@ export const CurrentCampaignSection = ({
 
   useEffect(() => {
     const fetchTasks = async () => {
-      if (!activeCampaign) {
+      if (!activeCampaign || !user) {
+        console.log('CurrentCampaignSection: Skipping fetch - activeCampaign:', !!activeCampaign, 'user:', !!user);
         setTasks([]);
         setLoading(false);
         return;
       }
 
+      console.log('CurrentCampaignSection: Fetching tasks for campaign:', activeCampaign.id, 'user:', user.id);
+      setLoading(true);
+
       try {
+        // SECURITY FIX: First verify the campaign belongs to the current user
+        if (activeCampaign.user_id !== user.id) {
+          console.error('CurrentCampaignSection: Campaign does not belong to current user');
+          setTasks([]);
+          setLoading(false);
+          return;
+        }
+
+        // SECURITY FIX: Use inner join to ensure we only get tasks for user's campaigns
         const { data, error } = await supabase
           .from('content_tasks')
-          .select('*')
+          .select(`
+            *,
+            campaigns!inner (
+              title,
+              user_id
+            )
+          `)
           .eq('campaign_id', activeCampaign.id)
+          .eq('campaigns.user_id', user.id)  // CRITICAL: Verify campaign ownership
           .order('created_at', { ascending: false });
 
         if (error) {
-          console.error('Error fetching tasks:', error);
+          console.error('CurrentCampaignSection: Error fetching tasks:', error);
+          setTasks([]);
         } else {
-          setTasks(data || []);
+          console.log('CurrentCampaignSection: Successfully fetched', data?.length || 0, 'tasks for user', user.id);
+          
+          // Additional security verification
+          const userTasks = data?.filter(task => 
+            task.campaigns && task.campaigns.user_id === user.id
+          ) || [];
+          
+          if (userTasks.length !== data?.length) {
+            console.warn('CurrentCampaignSection: Security alert - some tasks did not belong to current user');
+          }
+          
+          setTasks(userTasks);
         }
       } catch (error) {
-        console.error('Error in fetchTasks:', error);
+        console.error('CurrentCampaignSection: Error in fetchTasks:', error);
+        setTasks([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchTasks();
-  }, [activeCampaign]);
+  }, [activeCampaign, user]);
 
   const handleTaskClick = (task: any) => {
+    // SECURITY CHECK: Verify task belongs to current user before opening
+    if (!user || !task.campaigns || task.campaigns.user_id !== user.id) {
+      console.error('CurrentCampaignSection: Attempted to access task not owned by current user');
+      return;
+    }
+    
     if (onTaskClick) {
       onTaskClick(task);
     } else {
@@ -77,6 +117,32 @@ export const CurrentCampaignSection = ({
       onTaskUpdate();
     }
   };
+
+  // Early return if no authenticated user
+  if (!user) {
+    return (
+      <EnhancedAppleCard 
+        variant="default" 
+        surface="secondary" 
+        className="border-dashed border-2"
+        hoverEffect="none"
+        animated={true}
+        data-campaign-section="true"
+      >
+        <AppleCardContent className="text-center py-12">
+          <div className="flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mx-auto mb-4 apple-hover-subtle">
+            <PlusCircle className="w-8 h-8 text-primary apple-icon-bounce" />
+          </div>
+          <HeadlineMedium className="text-text-primary mb-2 apple-text-glow">
+            Please Log In
+          </HeadlineMedium>
+          <BodyMedium className="text-text-secondary max-w-md mx-auto apple-color-transition">
+            Log in to access your campaigns and content
+          </BodyMedium>
+        </AppleCardContent>
+      </EnhancedAppleCard>
+    );
+  }
 
   if (!activeCampaign) {
     return (
