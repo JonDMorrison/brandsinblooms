@@ -75,12 +75,13 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
     });
 
     try {
-      // Show immediate feedback with proper promise handling
+      // Create the promise for the update operation
       const updatePromise = supabase
         .from('content_tasks')
         .update({ scheduled_date: newDateString })
         .in('id', draggedTasks.map(task => task.id));
 
+      // Show immediate feedback with proper promise handling
       await toast.promise(updatePromise, {
         loading: `Rescheduling ${draggedTasks.length} item${draggedTasks.length !== 1 ? 's' : ''}...`,
         success: () => {
