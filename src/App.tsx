@@ -15,6 +15,9 @@ import Auth from './pages/Auth';
 import SubscriptionPage from './pages/SubscriptionPage';
 import SubscriptionSuccessPage from "./pages/SubscriptionSuccessPage";
 import CalendarPage from './pages/CalendarPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import ProfilePage from './pages/ProfilePage';
+import TeamPage from './pages/TeamPage';
 
 const queryClient = new QueryClient();
 
@@ -30,15 +33,40 @@ function App() {
                   <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/pricing" element={<PricingPage />} />
-                    <Route path="/app" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
+                    <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
+                    
+                    {/* All dashboard routes now use SidebarLayout */}
+                    <Route path="/app" element={
+                      <SidebarLayout>
+                        <Index />
+                      </SidebarLayout>
+                    } />
                     <Route path="/calendar" element={
                       <SidebarLayout>
                         <CalendarPage />
                       </SidebarLayout>
                     } />
-                    <Route path="/subscription" element={<SubscriptionPage />} />
-                    <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
+                    <Route path="/analytics" element={
+                      <SidebarLayout>
+                        <AnalyticsPage />
+                      </SidebarLayout>
+                    } />
+                    <Route path="/profile" element={
+                      <SidebarLayout>
+                        <ProfilePage />
+                      </SidebarLayout>
+                    } />
+                    <Route path="/team" element={
+                      <SidebarLayout>
+                        <TeamPage />
+                      </SidebarLayout>
+                    } />
+                    <Route path="/subscription" element={
+                      <SidebarLayout>
+                        <SubscriptionPage />
+                      </SidebarLayout>
+                    } />
                   </Routes>
                   <Toaster />
                 </div>

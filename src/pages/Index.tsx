@@ -107,7 +107,7 @@ const Index = () => {
   // Show loading state while auth is loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-surface-secondary flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-text-secondary">Loading...</p>
@@ -122,7 +122,7 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-surface-secondary apple-fade-in">
+    <div className="space-y-6">
       {/* Fixed UserMenu in top right corner */}
       <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
         <UserMenu />
@@ -137,7 +137,6 @@ const Index = () => {
         animated={true}
       >
         <AppleCardContent className={`
-          max-w-7xl mx-auto 
           ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
         `}>
           <WelcomeSection 
@@ -149,7 +148,6 @@ const Index = () => {
       
       {/* Dashboard Content - This is the main content area */}
       <div className={`
-        max-w-7xl mx-auto apple-slide-up
         ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
       `}>
         <DashboardContent
