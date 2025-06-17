@@ -24,15 +24,18 @@ export const ReviewQueueCard = ({ onTaskUpdate, onTaskClick }: ReviewQueueCardPr
     <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
       <CardHeader>
         <CardTitle className="text-lg text-green-800 flex items-center gap-2">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-800 text-sm font-medium">
+            2
+          </div>
           <Leaf className="w-5 h-5" />
-          Content Ready for Review!
+          Step 2: Content Ready for Review!
           <Badge className="bg-green-100 text-green-800 border-green-300">
             {tasksArray.length} pieces
           </Badge>
         </CardTitle>
         <CardDescription className="text-green-700 flex items-center gap-2">
           <Clock className="w-4 h-4" />
-          Professional marketing content ready for your review
+          Professional marketing content ready for your review and approval
         </CardDescription>
       </CardHeader>
       <CardContent>

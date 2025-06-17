@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -155,6 +154,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         className="border-dashed border-2 border-stone-200"
         hoverEffect="none"
         animated={true}
+        data-ready-to-post-section="true"
       >
         <AppleCardContent className={`
           text-center 
@@ -185,6 +185,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         hoverEffect="subtle"
         animated={true}
         className={`border-l-4 border-l-blue-400 ${isMobile ? 'mobile-constrained' : ''}`}
+        data-ready-to-post-section="true"
       >
         <AppleCardHeader className={`${isMobile ? 'pb-3' : 'pb-4'}`}>
           <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-3 text-center' : ''}`}>
@@ -197,7 +198,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
               </div>
               <div className={isMobile ? 'text-center' : ''}>
                 <HeadlineMedium className={`text-stone-800 ${isMobile ? 'text-lg' : ''}`}>
-                  Ready to Use
+                  Step 3: Publish Your Content
                 </HeadlineMedium>
                 <CaptionMedium className={`text-stone-600 ${isMobile ? 'text-sm' : ''}`}>
                   {tasks.length} piece{tasks.length !== 1 ? 's' : ''} ready for your marketing
