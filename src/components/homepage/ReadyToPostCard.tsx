@@ -29,41 +29,77 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
 
   useEffect(() => {
     const fetchReadyTasks = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log('ReadyToPostCard: No authenticated user, skipping fetch');
+        return;
+      }
 
       try {
+        console.log('ReadyToPostCard: Fetching tasks for user:', user.id);
+        
+        // SECURITY FIX: Explicitly filter by user ownership through campaigns
+        // The RLS policies will enforce this at the database level, but we're being explicit
         const { data, error } = await supabase
           .from('content_tasks')
           .select(`
             *,
-            campaigns (
+            campaigns!inner (
               title,
               user_id
             )
           `)
-          .eq('campaigns.user_id', user.id)
+          .eq('campaigns.user_id', user.id)  // CRITICAL: Filter by current user
           .in('status', ['review', 'approved'])
           .not('ai_output', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
 
         if (error) {
-          console.error('Error fetching ready tasks:', error);
+          console.error('ReadyToPostCard: Error fetching ready tasks:', error);
+          setTasks([]);
         } else {
-          setTasks(data || []);
-          if (data && data.length > 0) {
-            setCurrentCampaign(data[0].campaigns);
+          console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'tasks for user', user.id);
+          
+          // Additional security check: Verify all tasks belong to user's campaigns
+          const userTasks = data?.filter(task => 
+            task.campaigns && task.campaigns.user_id === user.id
+          ) || [];
+          
+          if (userTasks.length !== data?.length) {
+            console.warn('ReadyToPostCard: Security alert - some tasks did not belong to current user');
+          }
+          
+          setTasks(userTasks);
+          if (userTasks.length > 0) {
+            setCurrentCampaign(userTasks[0].campaigns);
           }
         }
       } catch (error) {
-        console.error('Error in fetchReadyTasks:', error);
+        console.error('ReadyToPostCard: Exception in fetchReadyTasks:', error);
+        setTasks([]);
       }
     };
 
     if (propTasks && propTasks.length > 0) {
+      // SECURITY FIX: When using prop tasks, still filter by user ownership
+      if (!user) {
+        console.warn('ReadyToPostCard: Received prop tasks but no authenticated user');
+        setTasks([]);
+        return;
+      }
+      
       const readyTasks = propTasks
-        .filter(task => ['review', 'approved'].includes(task.status) && task.ai_output)
+        .filter(task => {
+          // Verify task belongs to current user's campaign
+          const belongsToUser = task.campaigns?.user_id === user.id;
+          if (!belongsToUser) {
+            console.warn('ReadyToPostCard: Filtering out task that does not belong to current user:', task.id);
+          }
+          return belongsToUser && ['review', 'approved'].includes(task.status) && task.ai_output;
+        })
         .slice(0, 6);
+      
+      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'user-owned tasks');
       setTasks(readyTasks);
       if (readyTasks.length > 0) {
         setCurrentCampaign(readyTasks[0].campaigns);
@@ -74,6 +110,12 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
   }, [user, propTasks]);
 
   const handleTaskClick = (task: any) => {
+    // SECURITY CHECK: Verify task belongs to current user before opening
+    if (!user || !task.campaigns || task.campaigns.user_id !== user.id) {
+      console.error('ReadyToPostCard: Attempted to access task not owned by current user');
+      return;
+    }
+    
     if (onTaskClick) {
       onTaskClick(task);
     } else {
@@ -83,6 +125,11 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
   };
 
   const handleViewAllContent = () => {
+    if (!user || !currentCampaign || currentCampaign.user_id !== user.id) {
+      console.error('ReadyToPostCard: Attempted to view content for campaign not owned by current user');
+      return;
+    }
+    
     if (currentCampaign && tasks.length > 0) {
       const firstTask = tasks[0];
       setSelectedTask(firstTask);

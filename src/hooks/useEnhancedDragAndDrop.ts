@@ -75,30 +75,29 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
     });
 
     try {
-      // Show immediate feedback
-      toast.promise(
-        supabase
-          .from('content_tasks')
-          .update({ scheduled_date: newDateString })
-          .in('id', draggedTasks.map(task => task.id)),
-        {
-          loading: `Rescheduling ${draggedTasks.length} item${draggedTasks.length !== 1 ? 's' : ''}...`,
-          success: () => {
-            if (draggedTasks.length === 1) {
-              const successMessage = pastTasks.length > 0 
-                ? `Past content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
-                : `Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
-              return successMessage;
-            } else {
-              const successMessage = pastTasks.length > 0
-                ? `${draggedTasks.length} items (including past content) rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
-                : `${draggedTasks.length} items rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
-              return successMessage;
-            }
-          },
-          error: 'Failed to reschedule content'
-        }
-      );
+      // Show immediate feedback with proper promise handling
+      const updatePromise = supabase
+        .from('content_tasks')
+        .update({ scheduled_date: newDateString })
+        .in('id', draggedTasks.map(task => task.id));
+
+      await toast.promise(updatePromise, {
+        loading: `Rescheduling ${draggedTasks.length} item${draggedTasks.length !== 1 ? 's' : ''}...`,
+        success: () => {
+          if (draggedTasks.length === 1) {
+            const successMessage = pastTasks.length > 0 
+              ? `Past content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
+              : `Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
+            return successMessage;
+          } else {
+            const successMessage = pastTasks.length > 0
+              ? `${draggedTasks.length} items (including past content) rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
+              : `${draggedTasks.length} items rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
+            return successMessage;
+          }
+        },
+        error: 'Failed to reschedule content'
+      });
       
       onTaskUpdate();
     } catch (error) {
