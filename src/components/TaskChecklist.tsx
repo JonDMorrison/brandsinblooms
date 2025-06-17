@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,7 +130,7 @@ export const TaskChecklist = ({ campaignTitle, weekNumber }: TaskChecklistProps)
       case "Visual": return "bg-blue-100 text-blue-800";
       case "Distribution": return "bg-purple-100 text-purple-800";
       case "Web": return "bg-orange-100 text-orange-800";
-      case "Store": return "bg-yellow-100 text-yellow-800";
+      case "Store": return "bg-orange-100 text-orange-800";
       case "Planning": return "bg-pink-100 text-pink-800";
       case "Follow-up": return "bg-indigo-100 text-indigo-800";
       default: return "bg-gray-100 text-gray-800";

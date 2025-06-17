@@ -45,7 +45,7 @@ export const ContentPipelineCard = ({ tasks, onNavigateToKanban, onTaskClick }: 
               <div key={status} className="space-y-2">
                 <h4 className="font-semibold text-gray-700 capitalize flex items-center gap-2 text-sm">
                   {status === 'generating' && <div className="w-3 h-3 rounded-full bg-blue-500"></div>}
-                  {status === 'review' && <div className="w-3 h-3 rounded-full bg-yellow-500"></div>}
+                  {status === 'review' && <div className="w-3 h-3 rounded-full bg-orange-500"></div>}
                   {status === 'scheduled' && <div className="w-3 h-3 rounded-full bg-green-500"></div>}
                   {status} ({statusTasks.length})
                 </h4>

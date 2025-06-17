@@ -37,9 +37,9 @@ export const UserMetricsSection = ({ metrics }: UserMetricsSectionProps) => {
           value={metrics.freeTrialUsers}
           description="Users on free trial"
           icon={UserCheck}
-          color={metrics.freeTrialUsers > 0 ? "text-yellow-600" : "text-gray-400"}
-          borderColor={metrics.freeTrialUsers > 0 ? "border-yellow-200" : "border-gray-200"}
-          bgColor={metrics.freeTrialUsers > 0 ? "bg-yellow-50" : "bg-gray-50"}
+          color={metrics.freeTrialUsers > 0 ? "text-orange-600" : "text-gray-400"}
+          borderColor={metrics.freeTrialUsers > 0 ? "border-orange-200" : "border-gray-200"}
+          bgColor={metrics.freeTrialUsers > 0 ? "bg-orange-50" : "bg-gray-50"}
           clickable={true}
           href="/admin/users?filter=free_trial"
         />

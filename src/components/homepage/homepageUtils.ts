@@ -1,3 +1,4 @@
+
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 export const getCurrentWeekCampaign = (campaigns: any[]) => {
@@ -55,8 +56,8 @@ export const getNextStepGuidance = (campaigns: any[], tasks: any[], currentCampa
       title: "Next Step: Finish your draft campaign",
       description: "Complete your campaign setup to start creating content",
       action: "Continue Draft",
-      bgColor: "bg-yellow-50",
-      borderColor: "border-yellow-200"
+      bgColor: "bg-orange-50",
+      borderColor: "border-orange-200"
     };
   }
 
@@ -141,7 +142,7 @@ export const getStatusColor = (status: string) => {
   switch (status) {
     case 'planned': return 'bg-gray-100 text-gray-800';
     case 'generating': return 'bg-blue-100 text-blue-800';
-    case 'review': return 'bg-yellow-100 text-yellow-800';
+    case 'review': return 'bg-orange-100 text-orange-800';
     case 'scheduled': return 'bg-green-100 text-green-800';
     case 'posted': return 'bg-emerald-100 text-emerald-800';
     case 'skipped': return 'bg-red-100 text-red-800';

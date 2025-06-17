@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,7 @@ export const SeasonalContentPreview = ({
     if (month >= 3 && month <= 5) {
       return { season: 'Spring', emoji: '🌸', color: 'bg-green-100 text-green-800' };
     } else if (month >= 6 && month <= 8) {
-      return { season: 'Summer', emoji: '☀️', color: 'bg-yellow-100 text-yellow-800' };
+      return { season: 'Summer', emoji: '☀️', color: 'bg-orange-100 text-orange-800' };
     } else if (month >= 9 && month <= 11) {
       return { season: 'Fall', emoji: '🍂', color: 'bg-orange-100 text-orange-800' };
     } else {
