@@ -20,6 +20,37 @@ body > div:last-child:not(#root):not([id]):not([class]) {
   display: none !important;
 }
 
+/* EMERGENCY BACKGROUND FIXES - ELIMINATE ALL YELLOW */
+body, html, #root {
+  background-color: #FFFFFF !important;
+}
+
+/* Force white backgrounds on all main containers */
+.min-h-screen {
+  background-color: #FFFFFF !important;
+}
+
+/* Force backgrounds on all cards and containers */
+[class*="bg-gradient"],
+[class*="gradient"] {
+  background: #FFFFFF !important;
+  background-image: none !important;
+}
+
+/* Override any gradient that might contain yellow */
+[style*="gradient"] {
+  background: #FFFFFF !important;
+  background-image: none !important;
+}
+
+/* Force white on any container that might show yellow */
+.space-y-6,
+.dashboard-content,
+[data-campaign-section],
+.apple-card-content {
+  background-color: #FFFFFF !important;
+}
+
 /* COMPREHENSIVE YELLOW/AMBER ELIMINATION - GLOBAL OVERRIDES */
 
 /* NUCLEAR OPTION: Override ALL yellow/amber Tailwind classes globally */
@@ -33,7 +64,7 @@ body > div:last-child:not(#root):not([id]):not([class]) {
 .bg-yellow-700,
 .bg-yellow-800,
 .bg-yellow-900 {
-  background-color: rgb(232 245 232) !important; /* Garden green light */
+  background-color: #FFFFFF !important; /* Force white instead of garden green */
 }
 
 .bg-amber-50,
@@ -46,7 +77,7 @@ body > div:last-child:not(#root):not([id]):not([class]) {
 .bg-amber-700,
 .bg-amber-800,
 .bg-amber-900 {
-  background-color: rgb(255 243 224) !important; /* Orange light for warnings */
+  background-color: #FFFFFF !important; /* Force white instead of orange */
 }
 
 .text-yellow-50,
@@ -147,7 +178,7 @@ body > div:last-child:not(#root):not([id]):not([class]) {
   --tw-ring-color: rgb(255 152 0) !important; /* Orange */
 }
 
-/* Override ANY inline yellow/amber styles with garden green or orange */
+/* Override ANY inline yellow/amber styles with white backgrounds */
 [style*="background-color: #FBBC05"],
 [style*="background-color: #FDD835"],
 [style*="background-color: #FFEB3B"],
@@ -162,7 +193,7 @@ body > div:last-child:not(#root):not([id]):not([class]) {
 [style*="background: #FFD600"],
 [style*="background: #F59E0B"],
 [style*="background: #D97706"] {
-  background-color: rgb(76 175 80) !important; /* Garden green */
+  background-color: #FFFFFF !important; /* Force white */
 }
 
 [style*="color: #FBBC05"],
@@ -192,7 +223,7 @@ body > div:last-child:not(#root):not([id]):not([class]) {
 [data-badge*="amber"],
 .status-badge[class*="yellow"],
 .status-badge[class*="amber"] {
-  background-color: rgb(232 245 232) !important; /* Garden green light */
+  background-color: #FFFFFF !important; /* Force white */
   color: rgb(46 125 50) !important; /* Garden green dark */
   border-color: rgb(76 175 80) !important; /* Garden green */
 }
@@ -228,27 +259,27 @@ body > div:last-child:not(#root):not([id]):not([class]) {
 
 /* Override any CSS custom properties that might contain yellow */
 :root {
-  --yellow-50: 232, 245, 232 !important; /* Garden green light */
-  --yellow-100: 200, 230, 201 !important;
-  --yellow-200: 165, 214, 167 !important;
-  --yellow-300: 129, 199, 132 !important;
-  --yellow-400: 102, 187, 106 !important;
-  --yellow-500: 76, 175, 80 !important; /* Garden green */
-  --yellow-600: 67, 160, 71 !important;
-  --yellow-700: 56, 142, 60 !important;
-  --yellow-800: 46, 125, 50 !important;
-  --yellow-900: 27, 94, 32 !important;
+  --yellow-50: 255, 255, 255 !important; /* Force white */
+  --yellow-100: 255, 255, 255 !important;
+  --yellow-200: 255, 255, 255 !important;
+  --yellow-300: 255, 255, 255 !important;
+  --yellow-400: 255, 255, 255 !important;
+  --yellow-500: 255, 255, 255 !important;
+  --yellow-600: 255, 255, 255 !important;
+  --yellow-700: 255, 255, 255 !important;
+  --yellow-800: 255, 255, 255 !important;
+  --yellow-900: 255, 255, 255 !important;
   
-  --amber-50: 255, 243, 224 !important; /* Orange light */
-  --amber-100: 255, 224, 178 !important;
-  --amber-200: 255, 204, 128 !important;
-  --amber-300: 255, 183, 77 !important;
-  --amber-400: 255, 167, 38 !important;
-  --amber-500: 255, 152, 0 !important; /* Orange */
-  --amber-600: 251, 140, 0 !important;
-  --amber-700: 245, 124, 0 !important;
-  --amber-800: 239, 108, 0 !important;
-  --amber-900: 230, 81, 0 !important;
+  --amber-50: 255, 255, 255 !important; /* Force white */
+  --amber-100: 255, 255, 255 !important;
+  --amber-200: 255, 255, 255 !important;
+  --amber-300: 255, 255, 255 !important;
+  --amber-400: 255, 255, 255 !important;
+  --amber-500: 255, 255, 255 !important;
+  --amber-600: 255, 255, 255 !important;
+  --amber-700: 255, 255, 255 !important;
+  --amber-800: 255, 255, 255 !important;
+  --amber-900: 255, 255, 255 !important;
 }
 
 /* Forcibly override any remaining yellow in SVGs */
@@ -269,31 +300,41 @@ svg [stroke="#FFD600"] {
 }
 
 /* Apply to any element that might have yellow classes */
-* {
-  /* This is a nuclear option - if any element somehow gets yellow, override it */
-}
-
 *[class*="yellow"],
 *[class*="amber"] {
   /* Force override any class containing yellow or amber */
-  background-color: rgb(232 245 232) !important;
+  background-color: #FFFFFF !important;
   color: rgb(46 125 50) !important;
   border-color: rgb(76 175 80) !important;
 }
 
 /* Final fallback for any missed yellow elements */
-body .purge-yellow *,
-body * {
-  /* Last resort overrides */
-}
-
 body .purge-yellow *[style*="yellow"],
 body .purge-yellow *[style*="amber"],
 body .purge-yellow *[style*="#FFC107"],
 body .purge-yellow *[style*="#FBBC05"],
 body .purge-yellow *[style*="#FDD835"],
 body .purge-yellow *[style*="#FFEB3B"] {
-  background-color: rgb(76 175 80) !important;
-  color: rgb(255, 255, 255) !important;
+  background-color: #FFFFFF !important;
+  color: rgb(46 125 50) !important;
   border-color: rgb(76 175 80) !important;
+}
+
+/* ULTIMATE NUCLEAR OPTION - Override browser default selection colors */
+::selection {
+  background-color: rgb(219 234 254) !important; /* Blue selection instead of yellow */
+  color: rgb(30 64 175) !important;
+}
+
+::-moz-selection {
+  background-color: rgb(219 234 254) !important; /* Blue selection for Firefox */
+  color: rgb(30 64 175) !important;
+}
+
+/* Override any potential highlight colors */
+::-webkit-search-decoration,
+::-webkit-search-cancel-button,
+::-webkit-search-results-button,
+::-webkit-search-results-decoration {
+  background-color: #FFFFFF !important;
 }

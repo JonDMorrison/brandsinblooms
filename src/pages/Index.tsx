@@ -107,7 +107,7 @@ const Index = () => {
   // Show loading state while auth is loading
   if (loading) {
     return (
-      <div className="min-h-screen bg-garden-background flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-garden-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-text-secondary">Loading...</p>
@@ -122,14 +122,14 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-garden-background">
-      <div className="space-y-6">
+    <div className="min-h-screen bg-white">
+      <div className="space-y-6 bg-white">
         {/* Fixed UserMenu in top right corner */}
         <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
           <UserMenu />
         </div>
 
-        {/* Enhanced Header with Apple Design */}
+        {/* Enhanced Header with Apple Design - Force white background */}
         <EnhancedAppleCard 
           variant="default" 
           surface="primary" 
@@ -138,6 +138,7 @@ const Index = () => {
           animated={true}
         >
           <AppleCardContent className={`
+            bg-white
             ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
           `}>
             <WelcomeSection 
@@ -147,8 +148,9 @@ const Index = () => {
           </AppleCardContent>
         </EnhancedAppleCard>
         
-        {/* Dashboard Content - This is the main content area */}
+        {/* Dashboard Content - Force white background on main content area */}
         <div className={`
+          bg-white
           ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
         `}>
           <DashboardContent

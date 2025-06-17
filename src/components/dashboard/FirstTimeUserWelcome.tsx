@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,8 +89,8 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
   if (!isFirstTime) return null;
 
   return (
-    <Card className="mb-6 bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 shadow-lg">
-      <CardHeader className="pb-4">
+    <Card className="mb-6 bg-white border-green-200 shadow-lg">
+      <CardHeader className="pb-4 bg-white">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-full">
             <Sparkles className="w-6 h-6 text-green-600" />
@@ -103,7 +104,7 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
         </div>
       </CardHeader>
       
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 bg-white">
         <div className="bg-white rounded-lg p-4 border border-green-200">
           <div className="flex items-center gap-3 mb-3">
             <CheckCircle className="w-6 h-6 text-green-600" />
@@ -144,7 +145,7 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
           <Button 
             onClick={handleDismiss}
             variant="outline"
-            className="border-green-300 text-green-700 hover:bg-green-50"
+            className="border-green-300 text-green-700 hover:bg-green-50 bg-white"
           >
             I'll Check Later
           </Button>
