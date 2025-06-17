@@ -264,6 +264,69 @@
   [class*="amber"] * {
     color: #1F2937 !important; /* dark gray for readability */
   }
+
+  /* ─── COMPREHENSIVE SVG YELLOW REMOVAL ─── */
+  /* Target all SVG elements with yellow fills */
+  svg path[fill="#FBBC05"],
+  svg path[fill="#fbbc05"],
+  svg path[fill="FBBC05"],
+  svg path[fill="fbbc05"],
+  svg path[fill="#FFC107"],
+  svg path[fill="#ffc107"],
+  svg path[fill="FFC107"],
+  svg path[fill="ffc107"],
+  svg path[fill="#FFD600"],
+  svg path[fill="#ffd600"],
+  svg path[fill="FFD600"],
+  svg path[fill="ffd600"],
+  svg path[fill="#FFEB3B"],
+  svg path[fill="#ffeb3b"],
+  svg path[fill="FFEB3B"],
+  svg path[fill="ffeb3b"],
+  svg path[fill="#FFF176"],
+  svg path[fill="#fff176"],
+  svg path[fill="FFF176"],
+  svg path[fill="fff176"] {
+    fill: #FFFFFF !important;
+  }
+
+  /* Target SVG elements with yellow strokes */
+  svg path[stroke="#FBBC05"],
+  svg path[stroke="#fbbc05"],
+  svg path[stroke="FBBC05"],
+  svg path[stroke="fbbc05"],
+  svg path[stroke="#FFC107"],
+  svg path[stroke="#ffc107"],
+  svg path[stroke="FFC107"],
+  svg path[stroke="ffc107"],
+  svg path[stroke="#FFD600"],
+  svg path[stroke="#ffd600"],
+  svg path[stroke="FFD600"],
+  svg path[stroke="ffd600"] {
+    stroke: #FFFFFF !important;
+  }
+
+  /* Target any remaining yellow in SVG elements */
+  svg *[fill*="yellow"],
+  svg *[stroke*="yellow"],
+  svg *[fill*="amber"],
+  svg *[stroke*="amber"] {
+    fill: #FFFFFF !important;
+    stroke: #FFFFFF !important;
+  }
+
+  /* Additional catch-all for any yellow CSS properties */
+  *[style*="fill:#FBBC05"],
+  *[style*="fill: #FBBC05"],
+  *[style*="fill:#fbbc05"],
+  *[style*="fill: #fbbc05"],
+  *[style*="background-color:#FBBC05"],
+  *[style*="background: #FBBC05"],
+  *[style*="color:#FBBC05"] {
+    background-color: #FFFFFF !important;
+    color: #1F2937 !important;
+    fill: #FFFFFF !important;
+  }
 }
 
 /* Runtime helper class injection */
