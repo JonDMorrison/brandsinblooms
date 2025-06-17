@@ -1,6 +1,5 @@
 
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
 
 interface HeroSectionProps {
   onGetStarted: () => void;
@@ -20,10 +19,9 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         
         <Button 
           onClick={onGetStarted}
-          className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-4 flex items-center gap-2 mx-auto"
+          className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-4 mx-auto"
         >
           Get Started In Less Than A Minute
-          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
         </Button>
         
         <p className="text-sm text-gray-600">
