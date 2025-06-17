@@ -1,20 +1,39 @@
 
 import { ReactNode, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 
-interface ProtectedPageWrapperProps {
+interface SidebarLayoutProps {
   children: ReactNode;
 }
 
-export const ProtectedPageWrapper = ({ children }: ProtectedPageWrapperProps) => {
+export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const { user } = useAuth();
+  const location = useLocation();
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
     annualEvents: "",
     websiteUrl: ""
   });
+
+  // Determine current view based on pathname
+  const getCurrentView = (): "home" | "calendar" | "team" | "profile" => {
+    const path = location.pathname;
+    if (path === "/calendar") return "calendar";
+    if (path === "/team") return "team";
+    if (path === "/profile") return "profile";
+    return "home";
+  };
+
+  const [currentView, setCurrentView] = useState<"home" | "calendar" | "team" | "profile">(getCurrentView());
+
+  // Update current view when location changes
+  useEffect(() => {
+    setCurrentView(getCurrentView());
+  }, [location.pathname]);
 
   // Load onboarding data
   useEffect(() => {
@@ -62,9 +81,35 @@ export const ProtectedPageWrapper = ({ children }: ProtectedPageWrapperProps) =>
     loadOnboardingData();
   }, [user]);
 
+  const handleViewChange = (view: "home" | "calendar" | "team" | "profile") => {
+    setCurrentView(view);
+  };
+
+  const handleBusinessNameChange = (newName: string) => {
+    const updatedData = {
+      ...onboardingData,
+      aboutBusiness: `${newName} has been serving the community with quality gardening products and expert advice.`
+    };
+    setOnboardingData(updatedData);
+    
+    if (user) {
+      localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(updatedData));
+    }
+  };
+
+  const handleCampaignCreated = () => {
+    console.log('Campaign created, refreshing dashboard data');
+  };
+
   return (
-    <>
+    <DashboardLayout
+      currentView={currentView}
+      onViewChange={handleViewChange}
+      onboardingData={onboardingData}
+      onBusinessNameChange={handleBusinessNameChange}
+      onCampaignCreated={handleCampaignCreated}
+    >
       {children}
-    </>
+    </DashboardLayout>
   );
 };

@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,6 +8,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from 'sonner';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { LandingPage } from './components/LandingPage';
+import { SidebarLayout } from './components/SidebarLayout';
 import PricingPage from './pages/PricingPage';
 import Index from './pages/Index';
 import Auth from './pages/Auth';
@@ -32,7 +32,11 @@ function App() {
                     <Route path="/pricing" element={<PricingPage />} />
                     <Route path="/app" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
-                    <Route path="/calendar" element={<CalendarPage />} />
+                    <Route path="/calendar" element={
+                      <SidebarLayout>
+                        <CalendarPage />
+                      </SidebarLayout>
+                    } />
                     <Route path="/subscription" element={<SubscriptionPage />} />
                     <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
                   </Routes>
@@ -48,4 +52,3 @@ function App() {
 }
 
 export default App;
-
