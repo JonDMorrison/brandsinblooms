@@ -104,7 +104,7 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
           </div>
           <EnhancedAppleButton 
             variant="secondary" 
-            size="md"
+            size="default"
             iconAnimation="bounce"
             className="ml-4"
           >
