@@ -135,94 +135,138 @@
     @apply space-y-3;
   }
 
-  /* COMPLETE YELLOW REMOVAL - Replace all yellow with appropriate colors */
+  /* ─── GLOBAL COLOR TOKENS ─── */
+  :root {
+    --accent-warning: #FFFFFF;       /* global white */
+    --accent-warning-light: #FFFFFF;
+    --accent-warning-dark: #FFFFFF;
+    --focus-warning: #FFFFFF;
+    --border-warning: #FFFFFF;
+  }
+
+  /* COMPLETE YELLOW REMOVAL - Replace all yellow with WHITE */
   .bg-yellow-50,
   .bg-amber-50 {
-    background-color: rgb(249 250 251) !important; /* gray-50 */
+    background-color: #FFFFFF !important; /* white */
   }
 
   .bg-yellow-100,
   .bg-amber-100 {
-    background-color: rgb(243 244 246) !important; /* gray-100 */
+    background-color: #FFFFFF !important; /* white */
   }
 
   .bg-yellow-200,
   .bg-amber-200 {
-    background-color: rgb(229 231 235) !important; /* gray-200 */
+    background-color: #FFFFFF !important; /* white */
   }
 
   .bg-yellow-500,
   .bg-amber-500 {
-    background-color: rgb(76 175 80) !important; /* garden-green */
+    background-color: #FFFFFF !important; /* white */
   }
 
   .bg-yellow-600,
   .bg-amber-600 {
-    background-color: rgb(46 125 50) !important; /* garden-green-dark */
+    background-color: #FFFFFF !important; /* white */
   }
 
   .text-yellow-600,
   .text-yellow-500,
   .text-amber-600,
   .text-amber-500 {
-    color: rgb(46 125 50) !important; /* garden-green-dark */
+    color: #FFFFFF !important; /* white */
   }
 
   .text-yellow-700,
   .text-amber-700 {
-    color: rgb(55 65 81) !important; /* gray-700 */
+    color: #FFFFFF !important; /* white */
   }
 
   .text-yellow-800,
   .text-amber-800 {
-    color: rgb(31 41 55) !important; /* gray-800 */
+    color: #FFFFFF !important; /* white */
   }
 
   .border-yellow-200,
   .border-amber-200 {
-    border-color: rgb(229 231 235) !important; /* gray-200 */
+    border-color: #FFFFFF !important; /* white */
   }
 
   .border-yellow-300,
   .border-amber-300 {
-    border-color: rgb(209 213 219) !important; /* gray-300 */
+    border-color: #FFFFFF !important; /* white */
   }
 
   .border-yellow-500,
   .border-amber-500 {
-    border-color: rgb(76 175 80) !important; /* garden-green */
+    border-color: #FFFFFF !important; /* white */
   }
 
   .ring-yellow-500,
   .ring-amber-500,
   .focus\:ring-yellow-500:focus,
   .focus\:ring-amber-500:focus {
-    --tw-ring-color: rgb(76 175 80) !important; /* garden-green */
+    --tw-ring-color: #22C55E !important; /* keep brand green focus ring */
   }
 
   .focus\:border-yellow-500:focus,
   .focus\:border-amber-500:focus {
-    border-color: rgb(76 175 80) !important; /* garden-green */
+    border-color: #22C55E !important; /* keep brand green focus ring */
   }
 
   /* Fix any remaining yellow hover states */
   .hover\:bg-yellow-100:hover,
   .hover\:bg-amber-100:hover {
-    background-color: rgb(243 244 246) !important; /* gray-100 */
+    background-color: #FFFFFF !important; /* white */
   }
 
   .hover\:bg-yellow-200:hover,
   .hover\:bg-amber-200:hover {
-    background-color: rgb(229 231 235) !important; /* gray-200 */
+    background-color: #FFFFFF !important; /* white */
   }
 
   .hover\:border-yellow-300:hover,
   .hover\:border-amber-300:hover {
-    border-color: rgb(209 213 219) !important; /* gray-300 */
+    border-color: #FFFFFF !important; /* white */
   }
 
   .hover\:border-yellow-400:hover,
   .hover\:border-amber-400:hover {
-    border-color: rgb(156 163 175) !important; /* gray-400 */
+    border-color: #FFFFFF !important; /* white */
   }
+
+  /* ─── HARD OVERRIDE for legacy inline yellow — sets to white ─── */
+  .purge-yellow * {
+    background-color: #FFFFFF !important;
+    border-color: #FFFFFF !important;
+  }
+
+  /* Enhanced focus states with brand green */
+  input:focus, 
+  select:focus, 
+  textarea:focus {
+    outline-color: #22C55E !important; /* keep brand green focus ring */
+  }
+
+  /* Global yellow purge - catch any remaining yellow elements */
+  [style*="yellow"],
+  [style*="amber"],
+  [class*="yellow"],
+  [class*="amber"] {
+    background-color: #FFFFFF !important;
+    border-color: #FFFFFF !important;
+  }
+
+  /* Ensure text remains readable when background becomes white */
+  [style*="yellow"] *,
+  [style*="amber"] *,
+  [class*="yellow"] *,
+  [class*="amber"] * {
+    color: #1F2937 !important; /* dark gray for readability */
+  }
+}
+
+/* Runtime helper class injection */
+body {
+  @apply purge-yellow;
 }
