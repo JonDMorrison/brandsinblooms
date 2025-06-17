@@ -1,7 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Sparkles, Leaf } from "lucide-react";
+import { CheckCircle2, Sparkles, Leaf, AlertTriangle } from "lucide-react";
 import { ReviewQueueItem } from "./ReviewQueueItem";
 import { ReviewQueueLoading } from "./ReviewQueueLoading";
 import { ReviewQueueError } from "./ReviewQueueError";
@@ -37,6 +37,14 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
   }, {} as Record<string, ContentTask[]>);
 
   const handleBulkApprove = async (themeTasks: ContentTask[]) => {
+    // Add confirmation dialog for bulk approval
+    const confirmed = window.confirm(
+      `Are you sure you want to approve all ${themeTasks.length} pieces of content for this theme? ` +
+      'This will move them to the "Ready to Post" section.'
+    );
+    
+    if (!confirmed) return;
+    
     setBulkApproving(true);
     
     try {
@@ -67,6 +75,17 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
 
   return (
     <div className="space-y-4">
+      {/* Safety notice */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="flex items-start gap-2">
+          <AlertTriangle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+          <div className="text-sm text-blue-800">
+            <p className="font-medium">Review Required</p>
+            <p>All content below requires your approval before it appears in "Ready to Post".</p>
+          </div>
+        </div>
+      </div>
+
       {hasGeneratedContent && Object.entries(tasksByTheme)
         .filter(([theme]) => theme !== 'Business Content')
         .map(([theme, tasks]: [string, ContentTask[]]) => (
@@ -86,7 +105,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                Approve All
+                Approve All ({tasks.length})
               </Button>
             </div>
             <p className="text-sm text-green-700 mb-3 font-medium">Theme: {theme}</p>
@@ -123,7 +142,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                Approve All
+                Approve All ({businessTasks.length})
               </Button>
             )}
           </div>

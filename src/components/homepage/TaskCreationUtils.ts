@@ -15,11 +15,12 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
   try {
     const newVideoScript = await generateVideoScript(campaignTitle, userId, campaignDescription);
     
+    // FIXED: Set to 'review' instead of 'completed' to require approval
     const { error } = await supabase
       .from('content_tasks')
       .update({ 
         ai_output: newVideoScript,
-        status: 'review' // Changed from 'completed' to 'review'
+        status: 'review'
       })
       .eq('campaign_id', campaignId)
       .eq('post_type', 'video');
@@ -27,7 +28,7 @@ export const updateVideoTasksWithNewScript = async (campaignId: string, campaign
     if (error) {
       console.error('Error updating video script:', error);
     } else {
-      console.log('Video script updated with OpenAI-generated content');
+      console.log('Video script updated and requires approval');
     }
   } catch (error) {
     console.error('Error updating video script:', error);
@@ -76,19 +77,21 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
         throw new Error(`Failed to generate ${postType} content. Please ensure OpenAI API key is configured.`);
       }
       
+      // FIXED: Set status to 'review' instead of 'completed' to require approval
       tasksToCreate.push({
         campaign_id: campaignId,
         post_type: postType,
-        status: 'review', // Changed from 'completed' to 'review'
+        status: 'review',
         scheduled_date: scheduledDate.toISOString().split('T')[0],
         ai_output: aiOutput,
         hashtags: getHashtagsForType(postType),
-        image_idea: getImageIdeaForType(postType)
+        image_idea: getImageIdeaForType(postType),
+        user_id: userId
       });
     }
 
     if (tasksToCreate.length > 0) {
-      console.log('Creating missing tasks:', tasksToCreate.map(t => t.post_type));
+      console.log('Creating missing tasks for review:', tasksToCreate.map(t => t.post_type));
 
       const { error } = await supabase
         .from('content_tasks')
@@ -98,7 +101,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
         console.error('Error creating missing tasks:', error);
         throw error;
       } else {
-        console.log('Missing tasks created successfully');
+        console.log('Missing tasks created and require approval');
       }
     }
   } catch (error) {

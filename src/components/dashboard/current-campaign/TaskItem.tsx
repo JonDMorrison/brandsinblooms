@@ -3,7 +3,7 @@ import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { BodyMedium, CaptionMedium } from "@/components/ui/typography";
-import { Eye, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Eye, Clock, AlertCircle, AlertTriangle } from "lucide-react";
 import { TaskImagePreview } from "./TaskImagePreview";
 import { useTaskImages } from "@/hooks/useTaskImages";
 
@@ -20,12 +20,12 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
 
   const getStatusIcon = () => {
     switch (task.status) {
-      case 'completed':
-      case 'approved':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case 'posted':
+        return <Eye className="w-4 h-4 text-blue-600" />;
       case 'review':
-        return <Eye className="w-4 h-4 text-yellow-600" />;
+        return <AlertTriangle className="w-4 h-4 text-orange-600" />;
       case 'pending':
+      case 'generated':
         return <Clock className="w-4 h-4 text-gray-500" />;
       default:
         return <AlertCircle className="w-4 h-4 text-gray-400" />;
@@ -34,15 +34,29 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
 
   const getStatusColor = () => {
     switch (task.status) {
-      case 'completed':
-      case 'approved':
-        return 'text-green-600';
+      case 'posted':
+        return 'text-blue-600';
       case 'review':
-        return 'text-yellow-600';
+        return 'text-orange-600';
       case 'pending':
+      case 'generated':
         return 'text-gray-500';
       default:
         return 'text-gray-400';
+    }
+  };
+
+  const getStatusLabel = () => {
+    switch (task.status) {
+      case 'posted':
+        return 'Ready to Post';
+      case 'review':
+        return 'Needs Approval';
+      case 'pending':
+      case 'generated':
+        return 'Draft';
+      default:
+        return task.status?.charAt(0).toUpperCase() + task.status?.slice(1) || 'Draft';
     }
   };
 
@@ -67,7 +81,7 @@ export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
               </BodyMedium>
             </div>
             <CaptionMedium className={getStatusColor()}>
-              {task.status?.charAt(0).toUpperCase() + task.status?.slice(1) || 'Draft'}
+              {getStatusLabel()}
             </CaptionMedium>
             
             {/* Content preview */}

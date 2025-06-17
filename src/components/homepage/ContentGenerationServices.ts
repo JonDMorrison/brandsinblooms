@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 // REMOVED TOKEN SPENDING - Edge functions now handle this to prevent double charging
@@ -172,16 +173,17 @@ export const generateContentForCampaign = async (
           content = await generatePersonalizedContent(type, theme, userId, description);
         }
 
-        // Create content task
+        // Create content task - FIXED: Set status to 'review' instead of 'generated' or 'posted'
         const { data: task, error: taskError } = await supabase
           .from('content_tasks')
           .insert({
             campaign_id: campaignId,
             post_type: type,
             ai_output: content,
-            status: 'generated',
+            status: 'review', // FIXED: Always set to 'review' so content requires explicit approval
             scheduled_date: new Date().toISOString().split('T')[0],
-            user_id: userId
+            user_id: userId,
+            notes: `Generated from theme: ${theme}`
           })
           .select()
           .single();
@@ -190,7 +192,7 @@ export const generateContentForCampaign = async (
           console.error(`❌ Error creating ${type} task:`, taskError);
         } else {
           results.push(task);
-          console.log(`✅ Created ${type} content task`);
+          console.log(`✅ Created ${type} content task with status 'review' - requires approval`);
           
           // Auto-generate images for the task
           try {
@@ -217,7 +219,7 @@ export const generateContentForCampaign = async (
 
     return {
       success: true,
-      message: `Generated ${results.length} content pieces successfully`,
+      message: `Generated ${results.length} content pieces for review and approval`,
       tasks: results
     };
   } catch (error) {

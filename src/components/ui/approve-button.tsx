@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Loader2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ApproveButtonProps {
@@ -11,6 +11,7 @@ interface ApproveButtonProps {
   size?: "sm" | "default" | "lg";
   className?: string;
   children?: React.ReactNode;
+  requiresConfirmation?: boolean;
 }
 
 export const ApproveButton = ({ 
@@ -19,7 +20,8 @@ export const ApproveButton = ({
   disabled = false, 
   size = "sm",
   className,
-  children
+  children,
+  requiresConfirmation = false
 }: ApproveButtonProps) => {
   const [isLoading, setIsLoading] = useState(false);
 
@@ -29,6 +31,16 @@ export const ApproveButton = ({
     event.preventDefault();
     
     if (isApproved || disabled || isLoading) return;
+    
+    // Add confirmation dialog for explicit approval
+    if (requiresConfirmation || !isApproved) {
+      const confirmed = window.confirm(
+        'Are you sure you want to approve this content? ' +
+        'It will be moved to the "Ready to Post" section.'
+      );
+      
+      if (!confirmed) return;
+    }
     
     setIsLoading(true);
     
@@ -50,7 +62,7 @@ export const ApproveButton = ({
         "transition-colors duration-300",
         isApproved
           ? "bg-success hover:bg-success/90 text-success-foreground border-success"
-          : "bg-success/10 hover:bg-success/20 text-success border border-success/20 hover:border-success/30",
+          : "bg-orange-100 hover:bg-orange-200 text-orange-800 border border-orange-300 hover:border-orange-400",
         className
       )}
       type="button"
@@ -66,7 +78,10 @@ export const ApproveButton = ({
           {children || "Approved"}
         </>
       ) : (
-        children || "Approve"
+        <>
+          <AlertTriangle className="w-3 h-3 mr-1" />
+          {children || "Approve"}
+        </>
       )}
     </Button>
   );
