@@ -57,17 +57,17 @@ export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onViewNex
   }
 
   return (
-    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <BodyMedium className="text-amber-800 font-medium">
+            <BodyMedium className="text-blue-800 font-medium">
               📝 Review your generated content
             </BodyMedium>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <HelpCircle className="w-4 h-4 text-amber-600" />
+                  <HelpCircle className="w-4 h-4 text-blue-600" />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Click on any content piece to review, edit, and approve it for publishing</p>
@@ -75,7 +75,7 @@ export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onViewNex
               </Tooltip>
             </TooltipProvider>
           </div>
-          <CaptionMedium className="text-amber-700">
+          <CaptionMedium className="text-blue-700">
             Click any content piece below to review and customize it for your garden center.
           </CaptionMedium>
         </div>
@@ -84,7 +84,7 @@ export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onViewNex
             variant="secondary" 
             size="sm"
             onClick={onQuickApprove}
-            className="bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-200"
+            className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200"
           >
             Approve All
           </EnhancedAppleButton>

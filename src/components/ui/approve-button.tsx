@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Loader2, AlertTriangle } from "lucide-react";
+import { CheckCircle, Loader2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ApproveButtonProps {
@@ -62,7 +62,7 @@ export const ApproveButton = ({
         "transition-colors duration-300",
         isApproved
           ? "bg-success hover:bg-success/90 text-success-foreground border-success"
-          : "bg-orange-100 hover:bg-orange-200 text-orange-800 border border-orange-300 hover:border-orange-400",
+          : "bg-blue-100 hover:bg-blue-200 text-blue-800 border border-blue-300 hover:border-blue-400",
         className
       )}
       type="button"
@@ -79,7 +79,7 @@ export const ApproveButton = ({
         </>
       ) : (
         <>
-          <AlertTriangle className="w-3 h-3 mr-1" />
+          <Clock className="w-3 h-3 mr-1" />
           {children || "Approve"}
         </>
       )}

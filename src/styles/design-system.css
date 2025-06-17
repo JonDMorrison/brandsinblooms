@@ -207,4 +207,21 @@
   .text-yellow-600 {
     color: rgb(46 125 50) !important;
   }
+
+  /* Status-specific color replacements */
+  .status-warning {
+    @apply bg-orange-100 text-orange-800 border-orange-200;
+  }
+
+  .status-info {
+    @apply bg-blue-100 text-blue-800 border-blue-200;
+  }
+
+  .status-review {
+    @apply bg-blue-100 text-blue-800 border-blue-200;
+  }
+
+  .status-draft {
+    @apply bg-gray-100 text-gray-800 border-gray-200;
+  }
 }

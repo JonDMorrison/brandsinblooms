@@ -55,11 +55,11 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
   // Show approval button for content that's ready for review
   if (task?.status === 'review' && task?.ai_output) {
     return (
-      <Card className="border-orange-200 bg-orange-50">
+      <Card className="border-blue-200 bg-blue-50">
         <CardContent className="p-4">
           <div className="text-center">
-            <h3 className="font-semibold text-orange-800 mb-2">Ready for Approval</h3>
-            <p className="text-sm text-orange-700 mb-4">
+            <h3 className="font-semibold text-blue-800 mb-2">Ready for Approval</h3>
+            <p className="text-sm text-blue-700 mb-4">
               Review the content below and approve it to make it ready for posting.
             </p>
             <Button 
