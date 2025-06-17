@@ -19,14 +19,22 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 import TeamPage from './pages/TeamPage';
 
-const queryClient = new QueryClient();
+// Create QueryClient instance outside of component to avoid recreation
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <NetworkErrorBoundary>
-          <ErrorBoundary>
+    <ErrorBoundary>
+      <NetworkErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <BrowserRouter>
             <AuthProvider>
               <SubscriptionProvider>
                 <div className="App">
@@ -72,10 +80,10 @@ function App() {
                 </div>
               </SubscriptionProvider>
             </AuthProvider>
-          </ErrorBoundary>
-        </NetworkErrorBoundary>
-      </BrowserRouter>
-    </QueryClientProvider>
+          </BrowserRouter>
+        </QueryClientProvider>
+      </NetworkErrorBoundary>
+    </ErrorBoundary>
   );
 }
 
