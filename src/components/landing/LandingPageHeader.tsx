@@ -25,7 +25,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
           <Button 
             onClick={handleReturnToDashboard}
             variant="outline"
-            className="border-garden-green text-garden-green hover:bg-garden-green hover:text-white"
+            className="!border-garden-green !text-garden-green hover:!bg-garden-green hover:!text-white focus:!ring-garden-green focus:!border-garden-green"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Return to Dashboard
@@ -42,7 +42,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
           <Button 
             onClick={onLogin}
             variant="outline"
-            className="border-garden-green text-garden-green hover:bg-garden-green hover:text-white"
+            className="!border-garden-green !text-garden-green hover:!bg-garden-green hover:!text-white focus:!ring-garden-green focus:!border-garden-green transition-all duration-200"
           >
             <LogIn className="w-4 h-4 mr-2" />
             Login

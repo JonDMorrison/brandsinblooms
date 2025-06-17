@@ -36,7 +36,7 @@
     --accent-foreground: 255 255 255; /* White text on green */
 
     /* Interactive Elements - Fixed to use garden green */
-    --border: 224 224 224; /* #E0E0E0 */
+    --border: 76 175 80; /* #4CAF50 - Garden green for outline buttons */
     --input: 255 255 255; /* #FFFFFF */
     --ring: 76 175 80; /* #4CAF50 - Garden green focus ring (was yellow) */
 
@@ -84,7 +84,7 @@
     --accent: 129 199 132; /* Garden green for dark mode */
     --accent-foreground: 0 0 0;
     
-    --border: 66 66 66;
+    --border: 129 199 132; /* Garden green for dark mode outline buttons */
     --input: 66 66 66;
     --ring: 129 199 132; /* Garden green ring for dark mode */
     
@@ -126,7 +126,7 @@
   }
   
   .apple-button-secondary {
-    @apply apple-button bg-transparent border border-gray-300 text-text-primary hover:bg-garden-sage active:scale-[0.98];
+    @apply apple-button bg-transparent border border-garden-green text-garden-green hover:bg-garden-green hover:text-white active:scale-[0.98];
   }
   
   .apple-button-tertiary {
@@ -164,6 +164,30 @@
   
   .garden-bg-secondary {
     @apply bg-garden-sage;
+  }
+
+  /* CRITICAL: Specific button overrides for landing page and all outline buttons */
+  button[data-variant="outline"],
+  .btn-outline,
+  button.border-garden-green {
+    border-color: rgb(76 175 80) !important;
+    color: rgb(76 175 80) !important;
+    background-color: transparent !important;
+  }
+  
+  button[data-variant="outline"]:hover,
+  .btn-outline:hover,
+  button.border-garden-green:hover {
+    background-color: rgb(76 175 80) !important;
+    color: white !important;
+    border-color: rgb(76 175 80) !important;
+  }
+  
+  button[data-variant="outline"]:focus,
+  .btn-outline:focus,
+  button.border-garden-green:focus {
+    border-color: rgb(76 175 80) !important;
+    box-shadow: 0 0 0 2px rgb(76 175 80 / 0.2) !important;
   }
 
   /* Fix dialog and form styling - Remove yellow, use garden green */

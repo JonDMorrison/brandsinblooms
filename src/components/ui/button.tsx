@@ -14,7 +14,7 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
         outline:
-          "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+          "border border-garden-green bg-background text-garden-green hover:bg-garden-green hover:text-white",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
@@ -74,6 +74,27 @@ const styles = `
 
 .animate-scale-in {
   animation: scale-in 0.3s ease-out;
+}
+
+/* CRITICAL: Force garden green for all outline buttons globally */
+button[data-variant="outline"],
+.outline {
+  border-color: rgb(76 175 80) !important;
+  color: rgb(76 175 80) !important;
+  background-color: transparent !important;
+}
+
+button[data-variant="outline"]:hover,
+.outline:hover {
+  background-color: rgb(76 175 80) !important;
+  color: white !important;
+  border-color: rgb(76 175 80) !important;
+}
+
+button[data-variant="outline"]:focus,
+.outline:focus {
+  border-color: rgb(76 175 80) !important;
+  box-shadow: 0 0 0 2px rgb(76 175 80 / 0.2) !important;
 }
 `;
 
