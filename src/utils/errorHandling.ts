@@ -15,15 +15,22 @@ export const isNetworkError = (error: any): boolean => {
 };
 
 export const handleError = (error: any, context: string): AppError => {
+  // Better error logging for debugging
+  console.error(`[${context}] Raw error object:`, error);
+  console.error(`[${context}] Error type:`, typeof error);
+  console.error(`[${context}] Error constructor:`, error?.constructor?.name);
+  
   const appError: AppError = {
-    message: error?.message || 'An unexpected error occurred',
+    message: error?.message || error?.toString() || 'An unexpected error occurred',
+    code: error?.code || error?.status || 'UNKNOWN',
     isNetworkError: isNetworkError(error)
   };
 
   if (appError.isNetworkError) {
     toast.warning(`Connection issue in ${context}. Using cached data when available.`);
   } else {
-    toast.error(`Error in ${context}: ${appError.message}`);
+    // Only show user-friendly error toast, detailed logs are in console
+    toast.error(`Error in ${context}. Check console for details.`);
   }
 
   return appError;
@@ -31,4 +38,15 @@ export const handleError = (error: any, context: string): AppError => {
 
 export const logError = (error: any, context: string) => {
   console.error(`[${context}] Error:`, error);
+  
+  // Additional detailed logging
+  if (error && typeof error === 'object') {
+    console.error(`[${context}] Error details:`, {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      stack: error.stack
+    });
+  }
 };

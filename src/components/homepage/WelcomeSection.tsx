@@ -21,6 +21,8 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
       if (!user) return;
 
       try {
+        console.log('WelcomeSection: Fetching business name for user:', user.id);
+        
         const { data: profile, error } = await supabase
           .from('company_profiles')
           .select('company_name')
@@ -28,24 +30,37 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
           .maybeSingle();
 
         if (error) {
-          console.error('Error fetching company profile:', error);
-          return;
+          console.error('WelcomeSection: Error fetching company profile:', error);
+          console.error('WelcomeSection: Error details:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+          });
+          
+          // Continue with fallback logic instead of returning
+        } else if (profile?.company_name) {
+          console.log('WelcomeSection: Found company name in profile:', profile.company_name);
+          setBusinessName(profile.company_name);
+          return; // Exit early if we found the name
+        } else {
+          console.log('WelcomeSection: No company name in profile, trying onboarding data fallback');
         }
 
-        if (profile?.company_name) {
-          setBusinessName(profile.company_name);
-        } else {
-          // Fallback to extracting from onboarding data if no company profile exists
-          if (onboardingData?.aboutBusiness) {
-            const aboutText = onboardingData.aboutBusiness;
-            const firstSentence = aboutText.split('.')[0];
+        // Fallback to extracting from onboarding data if no company profile exists or error occurred
+        if (onboardingData?.aboutBusiness) {
+          console.log('WelcomeSection: Extracting business name from onboarding data');
+          const aboutText = onboardingData.aboutBusiness;
+          const firstSentence = aboutText.split('.')[0];
+          
+          const nameMatch = firstSentence.match(/^([^,]+?)(?:\s+(?:has been|is|provides|offers|specializes))/);
+          if (nameMatch) {
+            const extractedName = nameMatch[1].trim();
+            console.log('WelcomeSection: Extracted business name:', extractedName);
+            setBusinessName(extractedName);
             
-            const nameMatch = firstSentence.match(/^([^,]+?)(?:\s+(?:has been|is|provides|offers|specializes))/);
-            if (nameMatch) {
-              const extractedName = nameMatch[1].trim();
-              setBusinessName(extractedName);
-              
-              // Save to company profile for future consistency
+            // Try to save to company profile for future consistency
+            try {
               await supabase
                 .from('company_profiles')
                 .upsert({
@@ -54,11 +69,18 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
                 }, {
                   onConflict: 'user_id'
                 });
-            } else if (firstSentence.length < 50) {
-              const extractedName = firstSentence.trim();
-              setBusinessName(extractedName);
-              
-              // Save to company profile
+              console.log('WelcomeSection: Successfully saved extracted name to profile');
+            } catch (saveError) {
+              console.warn('WelcomeSection: Could not save extracted name to profile:', saveError);
+              // Continue anyway - the name is still set locally
+            }
+          } else if (firstSentence.length < 50) {
+            const extractedName = firstSentence.trim();
+            console.log('WelcomeSection: Using first sentence as business name:', extractedName);
+            setBusinessName(extractedName);
+            
+            // Try to save to company profile
+            try {
               await supabase
                 .from('company_profiles')
                 .upsert({
@@ -67,11 +89,14 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
                 }, {
                   onConflict: 'user_id'
                 });
+            } catch (saveError) {
+              console.warn('WelcomeSection: Could not save extracted name to profile:', saveError);
             }
           }
         }
       } catch (error) {
-        console.error('Error in fetchBusinessName:', error);
+        console.error('WelcomeSection: Unexpected error in fetchBusinessName:', error);
+        // Keep default business name if everything fails
       }
     };
 
