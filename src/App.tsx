@@ -12,6 +12,7 @@ import { SidebarLayout } from './components/SidebarLayout';
 import PricingPage from './pages/PricingPage';
 import Index from './pages/Index';
 import Auth from './pages/Auth';
+import OnboardingPage from './pages/OnboardingPage';
 import SubscriptionPage from './pages/SubscriptionPage';
 import SubscriptionSuccessPage from "./pages/SubscriptionSuccessPage";
 import CalendarPage from './pages/CalendarPage';
@@ -42,6 +43,7 @@ function App() {
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/pricing" element={<PricingPage />} />
                     <Route path="/auth" element={<Auth />} />
+                    <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
                     
                     {/* All dashboard routes now use SidebarLayout */}

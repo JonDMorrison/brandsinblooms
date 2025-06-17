@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Eye, EyeOff, Sprout, CheckCircle, Unlock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -18,6 +20,14 @@ const Auth = () => {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+
+  // Redirect authenticated users
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/app', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   const checkOnboardingAndRedirect = async (userId: string) => {
     try {
@@ -30,15 +40,15 @@ const Auth = () => {
 
       if (profile) {
         // User has completed onboarding, go to app
-        window.location.href = "/app";
+        navigate('/app', { replace: true });
       } else {
         // New user, needs onboarding
-        window.location.href = "/onboarding";
+        navigate('/onboarding', { replace: true });
       }
     } catch (error) {
       console.error('Error checking onboarding status:', error);
       // Default to onboarding for safety
-      window.location.href = "/onboarding";
+      navigate('/onboarding', { replace: true });
     }
   };
 
@@ -96,7 +106,7 @@ const Auth = () => {
       if (data.user) {
         if (data.user.email_confirmed_at) {
           // Email already confirmed, redirect to onboarding
-          window.location.href = "/onboarding";
+          navigate('/onboarding', { replace: true });
         } else {
           setMessage("Please check your email for a confirmation link");
         }
@@ -127,16 +137,22 @@ const Auth = () => {
     }
   };
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        await checkOnboardingAndRedirect(session.user.id);
-      }
-    }
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-garden-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-garden-green" />
+          <p className="text-text-secondary">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
-    checkAuth()
-  }, [])
+  // Don't render if user is authenticated (will redirect)
+  if (user) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-garden-background via-garden-sage to-garden-sage flex items-center justify-center p-6">
