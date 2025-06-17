@@ -36,13 +36,21 @@ export const DashboardContent = ({
 
     console.log('DashboardContent: Multiple campaigns found, selecting best one:', campaigns.length);
 
-    // For each campaign, check if it has content
+    // For each campaign, check if it has content (with user filtering)
     const campaignsWithContentCount = await Promise.all(
       campaigns.map(async (campaign) => {
+        // SECURITY FIX: Add user verification to task counting
         const { data: tasks } = await supabase
           .from('content_tasks')
-          .select('id, ai_output')
-          .eq('campaign_id', campaign.id);
+          .select(`
+            id, 
+            ai_output,
+            campaigns!inner (
+              user_id
+            )
+          `)
+          .eq('campaign_id', campaign.id)
+          .eq('campaigns.user_id', user?.id);
 
         const tasksWithContent = tasks?.filter(task => task.ai_output && task.ai_output.trim() !== '') || [];
         
@@ -66,15 +74,18 @@ export const DashboardContent = ({
     const selectedCampaign = campaignsWithContentCount[0].campaign;
     console.log('DashboardContent: Selected campaign with content:', selectedCampaign.title, 'Content count:', campaignsWithContentCount[0].contentCount);
 
-    // Clean up other campaigns in background (don't await)
+    // Clean up other campaigns in background (don't await) - with user verification
     const campaignsToCleanup = campaignsWithContentCount.slice(1).filter(c => !c.hasContent);
     if (campaignsToCleanup.length > 0) {
       console.log('DashboardContent: Cleaning up', campaignsToCleanup.length, 'empty duplicate campaigns');
       campaignsToCleanup.forEach(async ({ campaign }) => {
         try {
-          await supabase.from('content_tasks').delete().eq('campaign_id', campaign.id);
-          await supabase.from('campaigns').delete().eq('id', campaign.id);
-          console.log('DashboardContent: Cleaned up empty campaign:', campaign.title);
+          // SECURITY FIX: Only delete campaigns that belong to the current user
+          if (campaign.user_id === user?.id) {
+            await supabase.from('content_tasks').delete().eq('campaign_id', campaign.id);
+            await supabase.from('campaigns').delete().eq('id', campaign.id).eq('user_id', user.id);
+            console.log('DashboardContent: Cleaned up empty campaign:', campaign.title);
+          }
         } catch (error) {
           console.error('DashboardContent: Error cleaning up campaign:', error);
         }
@@ -85,17 +96,21 @@ export const DashboardContent = ({
   };
 
   const fetchCampaignData = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('DashboardContent: No authenticated user, skipping fetch');
+      setLoading(false);
+      return;
+    }
 
     try {
       console.log('DashboardContent: Fetching campaign data for user:', user.id, 'week:', currentWeekNumber);
 
-      // Get all campaigns for current week and user, ordered by creation date
+      // SECURITY FIX: Get all campaigns for current week and user, ordered by creation date
       const { data: campaigns, error: campaignError } = await supabase
         .from('campaigns')
         .select('*')
         .eq('week_number', currentWeekNumber)
-        .eq('user_id', user.id)
+        .eq('user_id', user.id)  // CRITICAL: Only fetch current user's campaigns
         .order('created_at', { ascending: false });
 
       if (campaignError) {
@@ -121,34 +136,53 @@ export const DashboardContent = ({
         setActiveCampaign(undefined);
       }
 
-      // Fetch all tasks for ready to post and review queue
+      // SECURITY FIX: Fetch all tasks for ready to post and review queue with user filtering
       const { data: allTasks, error: allTasksError } = await supabase
         .from('content_tasks')
         .select(`
           *,
-          campaigns (
+          campaigns!inner (
             title,
             user_id
           )
         `)
+        .eq('campaigns.user_id', user.id)  // CRITICAL: Filter by current user
         .order('created_at', { ascending: false });
 
       if (allTasksError) {
         console.error('DashboardContent: Error fetching all tasks:', allTasksError);
+        setTasks([]);
       } else {
-        setTasks(allTasks || []);
+        console.log('DashboardContent: Successfully fetched', allTasks?.length || 0, 'tasks for user', user.id);
+        
+        // Additional security verification
+        const userTasks = allTasks?.filter(task => 
+          task.campaigns && task.campaigns.user_id === user.id
+        ) || [];
+        
+        if (userTasks.length !== allTasks?.length) {
+          console.warn('DashboardContent: Security alert - some tasks did not belong to current user');
+        }
+        
+        setTasks(userTasks);
       }
     } catch (error) {
       console.error('DashboardContent: Error in fetchCampaignData:', error);
       // Set empty state on error
       setActiveCampaign(undefined);
+      setTasks([]);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCampaignData();
+    if (user) {
+      fetchCampaignData();
+    } else {
+      console.log('DashboardContent: No user authenticated, skipping data fetch');
+      setLoading(false);
+    }
   }, [user, currentWeekNumber]);
 
   const handleTaskUpdate = () => {
@@ -163,6 +197,24 @@ export const DashboardContent = ({
       campaignSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // Early return if no authenticated user
+  if (!user) {
+    return (
+      <EnhancedAppleCard 
+        variant="default" 
+        surface="primary" 
+        className="mx-auto max-w-md"
+        animated={true}
+      >
+        <AppleCardContent className="flex flex-col items-center justify-center py-12">
+          <BodyMedium className="text-text-secondary">
+            Please log in to access your dashboard
+          </BodyMedium>
+        </AppleCardContent>
+      </EnhancedAppleCard>
+    );
+  }
 
   if (loading) {
     return (
