@@ -142,7 +142,7 @@ export const AppSidebar = ({
                       <SidebarMenuButton 
                         asChild
                         className={isActive 
-                          ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
+                          ? "bg-green-100 text-green-800 font-semibold" 
                           : "hover:bg-green-100 text-garden-green-dark"
                         }
                       >
@@ -181,7 +181,7 @@ export const AppSidebar = ({
                         isCollapsed ? 'justify-center' : ''
                       } ${
                         location.pathname === "/team" 
-                          ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
+                          ? "bg-green-100 text-green-800 font-semibold" 
                           : "hover:bg-green-100 text-garden-green-dark"
                       }`}
                       title={isCollapsed ? "Team" : undefined}
@@ -200,7 +200,7 @@ export const AppSidebar = ({
                         isCollapsed ? 'justify-center' : ''
                       } ${
                         location.pathname === "/subscription" 
-                          ? "bg-primary-100 text-primary-700 font-semibold border border-primary-200" 
+                          ? "bg-green-100 text-green-800 font-semibold" 
                           : "hover:bg-green-100 text-garden-green-dark"
                       }`}
                       title={isCollapsed ? "Account Settings" : undefined}
