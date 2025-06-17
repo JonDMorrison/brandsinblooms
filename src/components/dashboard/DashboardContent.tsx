@@ -10,6 +10,7 @@ import { AppleCardContent } from "@/components/ui/apple-card";
 import { BodyMedium } from "@/components/ui/typography";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { EnhancedDashboardGrid } from "./EnhancedDashboardGrid";
+import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 import type { Campaign } from "@/types";
 
 interface DashboardContentProps {
@@ -27,6 +28,7 @@ export const DashboardContent = ({
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [generatingContent, setGeneratingContent] = useState(false);
 
   const currentWeekNumber = getCurrentWeekNumber();
 
@@ -81,12 +83,10 @@ export const DashboardContent = ({
         if (userTasks.length > 0) {
           console.log('DashboardContent: Found tasks, extracting campaign...');
           
-          // Get the campaign from the first task (they should all belong to the same campaign for current week)
           const firstTask = userTasks[0];
           console.log('DashboardContent: First task campaign data:', firstTask.campaigns);
           
           if (firstTask.campaigns) {
-            // Convert the campaign data to match our Campaign type
             const campaign: Campaign = {
               id: firstTask.campaigns.id,
               title: firstTask.campaigns.title,
@@ -103,7 +103,7 @@ export const DashboardContent = ({
             console.log('DashboardContent: Setting activeCampaign to:', campaign);
             setActiveCampaign(campaign);
             setLoading(false);
-            return; // Exit early since we found our campaign
+            return;
           }
         }
 
@@ -123,9 +123,12 @@ export const DashboardContent = ({
           console.log('DashboardContent: Fallback found campaigns for week', currentWeekNumber, ':', campaigns?.length || 0);
           
           if (campaigns && campaigns.length > 0) {
-            const selectedCampaign = campaigns[0]; // Take the most recent
+            const selectedCampaign = campaigns[0];
             console.log('DashboardContent: Selected fallback campaign:', selectedCampaign.title);
             setActiveCampaign(selectedCampaign);
+            
+            // AUTO-GENERATE CONTENT if campaign exists but has no tasks
+            await autoGenerateContentForCampaign(selectedCampaign, []);
           } else {
             console.log('DashboardContent: No campaigns found for week', currentWeekNumber);
             setActiveCampaign(undefined);
@@ -139,6 +142,32 @@ export const DashboardContent = ({
       setTasks([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const autoGenerateContentForCampaign = async (campaign: Campaign, existingTasks: any[]) => {
+    if (generatingContent || existingTasks.length > 0) {
+      console.log('DashboardContent: Skipping auto-generation - already generating or tasks exist');
+      return;
+    }
+
+    console.log('DashboardContent: Auto-generating content for campaign:', campaign.title);
+    setGeneratingContent(true);
+
+    try {
+      await generateRequiredTasks(
+        campaign.id,
+        [campaign], // Pass campaigns array
+        user.id,
+        () => {
+          console.log('DashboardContent: Content generation completed, refetching data');
+          fetchCampaignData();
+        }
+      );
+    } catch (error) {
+      console.error('DashboardContent: Error auto-generating content:', error);
+    } finally {
+      setGeneratingContent(false);
     }
   };
 
@@ -161,9 +190,10 @@ export const DashboardContent = ({
         week_number: activeCampaign.week_number
       } : null,
       tasksCount: tasks.length,
-      loading
+      loading,
+      generatingContent
     });
-  }, [activeCampaign, tasks, loading]);
+  }, [activeCampaign, tasks, loading, generatingContent]);
 
   const handleTaskUpdate = () => {
     console.log('DashboardContent: Task update triggered, refetching campaign data');
@@ -171,7 +201,6 @@ export const DashboardContent = ({
   };
 
   const handleGetStarted = () => {
-    // Scroll to current campaign section or trigger content viewer
     const campaignSection = document.querySelector('[data-campaign-section]');
     if (campaignSection) {
       campaignSection.scrollIntoView({ behavior: 'smooth' });
@@ -196,7 +225,7 @@ export const DashboardContent = ({
     );
   }
 
-  if (loading) {
+  if (loading || generatingContent) {
     return (
       <EnhancedAppleCard 
         variant="default" 
@@ -207,7 +236,7 @@ export const DashboardContent = ({
         <AppleCardContent className="flex flex-col items-center justify-center py-12">
           <LoadingSpinner size="lg" />
           <BodyMedium className="text-text-secondary mt-4">
-            Loading your content...
+            {generatingContent ? 'Generating your content...' : 'Loading your content...'}
           </BodyMedium>
         </AppleCardContent>
       </EnhancedAppleCard>
