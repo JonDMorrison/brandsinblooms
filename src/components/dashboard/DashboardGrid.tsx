@@ -1,9 +1,5 @@
 
-import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
-import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
-import { CustomCampaignsSection } from "@/components/dashboard/CustomCampaignsSection";
-import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
+import { UnifiedDashboardGrid } from "./UnifiedDashboardGrid";
 
 interface DashboardGridProps {
   activeCampaign: any;
@@ -17,43 +13,8 @@ interface DashboardGridProps {
   onTaskClick?: (task: any) => void;
 }
 
-export const DashboardGrid = ({
-  activeCampaign,
-  userCreatedCampaigns,
-  tasks,
-  onTaskUpdate,
-  onCampaignCreated,
-  onCampaignUpdate,
-  onCampaignDelete,
-  onCreateCampaign,
-  onTaskClick
-}: DashboardGridProps) => {
-  return (
-    <div className="space-y-8">
-      {/* Current Campaign Section */}
-      <CurrentCampaignSection 
-        activeCampaign={activeCampaign}
-        onTaskUpdate={onTaskUpdate}
-        onCreateCampaign={onCreateCampaign}
-        onCampaignCreated={onCampaignCreated}
-        onTaskClick={onTaskClick}
-      />
-
-      {/* Ready To Post Section */}
-      <ReadyToPostCard 
-        tasks={tasks}
-        onTaskClick={onTaskClick}
-        onTaskUpdate={onTaskUpdate}
-      />
-
-      {/* Custom Campaigns Section */}
-      <CustomCampaignsSection 
-        userCreatedCampaigns={userCreatedCampaigns}
-        onTaskUpdate={onTaskUpdate}
-        onCampaignUpdate={onCampaignUpdate}
-        onCampaignDelete={onCampaignDelete}
-        onCreateCampaign={onCreateCampaign}
-      />
-    </div>
-  );
+// This component now acts as a wrapper to ensure backward compatibility
+// while using the unified dashboard implementation
+export const DashboardGrid = (props: DashboardGridProps) => {
+  return <UnifiedDashboardGrid {...props} />;
 };

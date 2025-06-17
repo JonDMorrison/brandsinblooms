@@ -4,11 +4,12 @@ import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
 import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
+import { CustomCampaignsSection } from "@/components/dashboard/CustomCampaignsSection";
 import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
 import { ReviewQueueCard } from "@/components/content/ReviewQueueCard";
 import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 
-interface EnhancedDashboardGridProps {
+interface UnifiedDashboardGridProps {
   activeCampaign: any;
   userCreatedCampaigns: any[];
   tasks: any[];
@@ -20,7 +21,7 @@ interface EnhancedDashboardGridProps {
   onTaskClick?: (task: any) => void;
 }
 
-export const EnhancedDashboardGrid = ({
+export const UnifiedDashboardGrid = ({
   activeCampaign,
   userCreatedCampaigns,
   tasks,
@@ -30,11 +31,11 @@ export const EnhancedDashboardGrid = ({
   onCampaignDelete,
   onCreateCampaign,
   onTaskClick
-}: EnhancedDashboardGridProps) => {
+}: UnifiedDashboardGridProps) => {
   return (
     <div className="space-y-6 mobile-section-gap apple-fade-in">
-      {/* Current Campaign Section */}
-      <div className="apple-slide-up">
+      {/* Current Campaign Section - Step 1 */}
+      <div className="apple-slide-up" data-campaign-section="true">
         <CurrentCampaignSection 
           activeCampaign={activeCampaign}
           onTaskUpdate={onTaskUpdate}
@@ -44,14 +45,14 @@ export const EnhancedDashboardGrid = ({
         />
       </div>
 
-      {/* Quick Actions Section */}
+      {/* Quick Actions Section - Step 2 */}
       <div className="apple-slide-up apple-stagger-1">
         <QuickActionsGrid 
           onCampaignCreated={onCampaignCreated}
         />
       </div>
 
-      {/* Content Review Section */}
+      {/* Content Review Section - Step 3 */}
       <div className="apple-slide-up apple-stagger-2">
         <ReviewQueueCard 
           onTaskUpdate={onTaskUpdate}
@@ -59,7 +60,7 @@ export const EnhancedDashboardGrid = ({
         />
       </div>
 
-      {/* Ready To Post Section */}
+      {/* Ready To Post Section - Step 4 */}
       <div className="apple-slide-up apple-stagger-3">
         <ReadyToPostCard 
           tasks={tasks}
@@ -67,6 +68,19 @@ export const EnhancedDashboardGrid = ({
           onTaskUpdate={onTaskUpdate}
         />
       </div>
+
+      {/* Custom Campaigns Section - Additional campaigns */}
+      {userCreatedCampaigns && userCreatedCampaigns.length > 0 && (
+        <div className="apple-slide-up apple-stagger-4">
+          <CustomCampaignsSection 
+            userCreatedCampaigns={userCreatedCampaigns}
+            onTaskUpdate={onTaskUpdate}
+            onCampaignUpdate={onCampaignUpdate}
+            onCampaignDelete={onCampaignDelete}
+            onCreateCampaign={onCreateCampaign}
+          />
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +8,7 @@ import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { BodyMedium } from "@/components/ui/typography";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { EnhancedDashboardGrid } from "./EnhancedDashboardGrid";
+import { UnifiedDashboardGrid } from "./UnifiedDashboardGrid";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 import type { Campaign } from "@/types";
 
@@ -256,8 +255,8 @@ export const DashboardContent = ({
         tasksCount={tasks.length}
       />
 
-      {/* Enhanced Dashboard Grid - Main dashboard sections */}
-      <EnhancedDashboardGrid
+      {/* Unified Dashboard Grid - Main dashboard sections */}
+      <UnifiedDashboardGrid
         activeCampaign={activeCampaign}
         userCreatedCampaigns={[]}
         tasks={tasks}
