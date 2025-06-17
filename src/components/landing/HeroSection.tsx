@@ -10,7 +10,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
   return (
     <section className="py-24 px-6 text-center">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-5xl md:text-6xl font-bold text-garden-green-dark mb-6 leading-tight">
+        <h1 className="text-5xl md:text-6xl font-bold text-black mb-6 leading-tight">
           Effortless Marketing for Garden Centers
         </h1>
         
