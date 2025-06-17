@@ -1,4 +1,3 @@
-
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { ArrowRight, HelpCircle, CheckCircle, Sparkles } from "lucide-react";
@@ -42,7 +41,6 @@ export const StepGuidance = ({ isComplete, hasContent, onQuickApprove, onReviewC
         pulseOnHover={true}
       >
         Review Your Personalized Content
-        <ArrowRight className="w-4 h-4 ml-2" />
       </EnhancedAppleButton>
     ) : null;
   }
