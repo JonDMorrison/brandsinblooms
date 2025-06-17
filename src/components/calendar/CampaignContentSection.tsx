@@ -49,13 +49,13 @@ export const CampaignContentSection = ({
             <FileText className="w-4 h-4" />
             Generated Content
           </h4>
-          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+          <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
             <AlertCircle className="w-3 h-3 mr-1" />
             Setup Required
           </Badge>
         </div>
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-          <p className="text-sm text-amber-700">
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+          <p className="text-sm text-orange-700">
             Complete the theme and content focus above to enable content generation and review.
           </p>
         </div>

@@ -72,7 +72,7 @@ export const TeamMemberCard = ({ member, isOwner = false, onMemberUpdate }: Team
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Crown className="w-4 h-4 text-yellow-500" />
+          <Crown className="w-4 h-4 text-orange-500" />
           <Badge variant="secondary">Owner</Badge>
         </div>
       </div>

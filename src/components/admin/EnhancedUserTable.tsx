@@ -151,7 +151,7 @@ export const EnhancedUserTable = ({ users }: EnhancedUserTableProps) => {
                   
                   <TableCell>
                     <div className="flex items-center gap-1">
-                      <Coins className="w-4 h-4 text-yellow-600" />
+                      <Coins className="w-4 h-4 text-orange-600" />
                       <span className={user.tokens_balance && user.tokens_balance < 0 ? 'text-red-600' : ''}>
                         {user.tokens_balance || 0}
                       </span>

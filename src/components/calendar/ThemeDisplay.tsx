@@ -31,7 +31,7 @@ export const ThemeDisplay = ({
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-3">
-                <Lightbulb className="w-5 h-5 text-yellow-600" />
+                <Lightbulb className="w-5 h-5 text-orange-600" />
                 <h4 className="font-semibold text-gray-900">Theme</h4>
               </div>
               <p className="text-gray-800 font-medium mb-3">{currentTheme}</p>
@@ -60,8 +60,8 @@ export const ThemeDisplay = ({
         </div>
       ) : (
         <div className="text-center py-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-amber-800 text-sm">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <p className="text-orange-800 text-sm">
               <strong>No theme set.</strong> Click "Edit Theme" to add a theme and description for this campaign.
             </p>
           </div>
