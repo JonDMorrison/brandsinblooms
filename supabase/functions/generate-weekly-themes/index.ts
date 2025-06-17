@@ -13,95 +13,133 @@ const corsHeaders = {
 };
 
 const getSeasonalGardenTheme = (weekNumber: number) => {
-  const seasonIndex = Math.floor((weekNumber - 1) / 13); // 4 seasons, ~13 weeks each
-  const weekInSeason = ((weekNumber - 1) % 13) + 1;
+  // Determine season based on actual gardening seasons
+  let season, weekInSeason;
   
-  const seasons = [
-    {
+  if (weekNumber >= 9 && weekNumber <= 21) {
+    // Spring: Weeks 9-21 (March-May)
+    season = "Spring";
+    weekInSeason = weekNumber - 8;
+  } else if (weekNumber >= 22 && weekNumber <= 34) {
+    // Summer: Weeks 22-34 (June-August)
+    season = "Summer";
+    weekInSeason = weekNumber - 21;
+  } else if (weekNumber >= 35 && weekNumber <= 47) {
+    // Fall: Weeks 35-47 (September-November)
+    season = "Fall";
+    weekInSeason = weekNumber - 34;
+  } else {
+    // Winter: Weeks 48-52, 1-8 (December-February)
+    season = "Winter";
+    weekInSeason = weekNumber >= 48 ? weekNumber - 47 : weekNumber + 6;
+  }
+  
+  const seasons = {
+    "Spring": {
       name: "Spring",
       themes: [
         {
-          title: "Spring Garden Awakening",
+          title: "Early Spring Garden Awakening",
           description: "Celebrate spring's return with soil preparation, early plantings, and garden renewal. Help customers transition from winter dormancy to active growing season with expert plant care advice.",
           content_ideas: ["Spring soil testing and preparation techniques", "Early season vegetable and herb planting guide", "Spring cleanup and garden renewal projects", "Container garden design for spring displays"]
         },
         {
-          title: "Early Season Planting Excellence",
-          description: "Master the critical early planting decisions and soil preparation that create the foundation for a spectacular growing season.",
+          title: "Mid-Spring Planting Excellence",
+          description: "Master the critical spring planting decisions and soil preparation that create the foundation for a spectacular growing season.",
           content_ideas: ["Timing guide for spring vegetable planting", "Soil amendment and preparation strategies", "Seed starting techniques and equipment", "Frost protection and season extension methods"]
         },
         {
-          title: "Spring Flower Power",
+          title: "Late Spring Flower Power",
           description: "Showcase the beauty and variety of spring blooms with expert guidance on selection, planting, and care for seasonal color.",
           content_ideas: ["Spring bulb and annual selection guide", "Color combination design tips", "Spring flower care and maintenance", "Early season pest prevention"]
+        },
+        {
+          title: "Spring Garden Establishment",
+          description: "Focus on establishing strong foundations for summer success with proper planting techniques and early season care strategies.",
+          content_ideas: ["Transplanting seedlings and young plants", "Mulching strategies for spring plantings", "Early irrigation setup", "Companion planting for pest control"]
         }
       ]
     },
-    {
+    "Summer": {
       name: "Summer",
       themes: [
         {
-          title: "Summer Heat Solutions & Plant Care",
-          description: "Master summer gardening with heat-tolerant plants, efficient watering systems, and strategies for thriving gardens in hot weather.",
-          content_ideas: ["Heat-tolerant plant selections and varieties", "Water-wise gardening and irrigation techniques", "Summer pest and disease management", "Shade gardening solutions for hot climates"]
+          title: "Early Summer Garden Launch",
+          description: "Launch your summer garden with heat-loving plants, efficient watering systems, and strategies for establishing thriving gardens as temperatures rise.",
+          content_ideas: ["Heat-tolerant plant selections and varieties", "Summer planting timing and techniques", "Irrigation system setup and optimization", "Early summer pest prevention strategies"]
         },
         {
-          title: "Peak Season Harvest & Abundance",
-          description: "Celebrate summer's bounty with harvest tips, preservation techniques, and maximizing garden productivity during peak growing season.",
-          content_ideas: ["Summer harvest timing and techniques", "Food preservation and storage methods", "Succession planting for continuous harvests", "Summer flower arrangements and displays"]
+          title: "Mid-Summer Growing Success",
+          description: "Master mid-summer gardening with water-wise techniques, continuous harvests, and maintaining garden productivity during peak heat.",
+          content_ideas: ["Water-wise gardening and conservation techniques", "Succession planting for continuous harvests", "Summer pruning and plant maintenance", "Heat stress management for plants"]
         },
         {
-          title: "Summer Garden Maintenance Mastery",
-          description: "Keep gardens thriving through the heat with expert maintenance, watering strategies, and summer plant care techniques.",
-          content_ideas: ["Efficient watering schedules and techniques", "Summer pruning and deadheading", "Mulching for moisture retention", "Summer fertilization strategies"]
+          title: "Late Summer Harvest & Maintenance",
+          description: "Celebrate summer's bounty with harvest tips, preservation techniques, and strategies for maintaining gardens through late summer heat.",
+          content_ideas: ["Summer harvest timing and techniques", "Food preservation and storage methods", "Late summer plant care and protection", "Preparing for fall transitions"]
+        },
+        {
+          title: "Peak Summer Garden Care",
+          description: "Keep gardens thriving through peak heat with expert maintenance, efficient watering, and strategies for summer garden success.",
+          content_ideas: ["Efficient watering schedules and techniques", "Summer mulching for moisture retention", "Managing garden pests in hot weather", "Summer flower arrangements and displays"]
         }
       ]
     },
-    {
+    "Fall": {
       name: "Fall",
       themes: [
         {
-          title: "Autumn Garden Harvest Festival",
-          description: "Embrace fall's spectacular transformation with harvest celebrations, autumn color displays, and preparation for winter dormancy.",
-          content_ideas: ["Fall harvest festivals and preservation", "Autumn color tree and shrub selections", "Fall planting opportunities and timing", "Winter garden protection strategies"]
+          title: "Early Fall Harvest Festival",
+          description: "Embrace fall's transformation with harvest celebrations, autumn preparations, and the beginning of winter planning.",
+          content_ideas: ["Early fall harvest and preservation", "Autumn color tree and shrub selections", "Fall garden cleanup beginning", "Late summer to fall transition planning"]
         },
         {
-          title: "Fall Planting & Winter Preparation",
+          title: "Mid-Fall Planting & Preparation",
           description: "Guide customers through important fall tasks including planting, cleanup, and winter protection for garden success.",
           content_ideas: ["Fall bulb planting for spring color", "Tree and shrub fall planting guide", "Garden cleanup and winter prep tasks", "Mulching and plant protection techniques"]
         },
         {
-          title: "Autumn Color & Seasonal Transitions",
-          description: "Celebrate fall's beauty while preparing gardens for winter with strategic planning and seasonal maintenance.",
-          content_ideas: ["Fall foliage plant selections", "Seasonal garden cleanup strategies", "Winter protection methods", "Fall composting and soil improvement"]
+          title: "Late Fall Winter Preparation",
+          description: "Prepare gardens for winter with strategic planning, final harvests, and comprehensive winterization strategies.",
+          content_ideas: ["Final harvest and garden cleanup", "Winter protection methods", "Tool maintenance and storage", "Planning next year's garden improvements"]
+        },
+        {
+          title: "Fall Seasonal Transitions",
+          description: "Celebrate fall's beauty while preparing gardens for winter with seasonal maintenance and strategic planning.",
+          content_ideas: ["Fall foliage plant selections", "Seasonal garden cleanup strategies", "Fall composting and soil improvement", "Winter interest plant installations"]
         }
       ]
     },
-    {
+    "Winter": {
       name: "Winter",
       themes: [
         {
-          title: "Winter Garden Planning & Indoor Growing",
-          description: "Transform winter into productive planning time with indoor gardening, tool maintenance, and exciting preparation for next season.",
+          title: "Early Winter Planning & Indoor Growing",
+          description: "Transform early winter into productive planning time with indoor gardening, tool maintenance, and exciting preparation for next season.",
           content_ideas: ["Indoor herb and microgreen growing", "Houseplant care and winter plant health", "Garden planning and design for next year", "Tool maintenance and greenhouse management"]
         },
         {
-          title: "Holiday Plants & Winter Beauty",
+          title: "Mid-Winter Holiday Plants & Beauty",
           description: "Celebrate winter's unique charm with holiday arrangements, winter interest plants, and festive gardening projects.",
           content_ideas: ["Holiday plant care and arrangements", "Winter interest plants and landscape design", "Seasonal decorations with natural materials", "Bird feeding and winter wildlife support"]
         },
         {
-          title: "Winter Garden Dreams & Planning",
-          description: "Use winter's quiet time for garden planning, seed ordering, and dreaming of next year's growing season.",
-          content_ideas: ["Seed catalog planning and ordering", "Garden design and layout planning", "Winter garden photography and journaling", "Greenhouse and indoor growing projects"]
+          title: "Late Winter Garden Dreams & Planning",
+          description: "Use late winter's quiet time for garden planning, seed ordering, and dreaming of next year's growing season.",
+          content_ideas: ["Seed catalog planning and ordering", "Garden design and layout planning", "Winter garden photography and journaling", "Early seed starting preparation"]
+        },
+        {
+          title: "Winter Reflection & Preparation",
+          description: "Reflect on the past growing season while preparing for spring with strategic planning and early preparation activities.",
+          content_ideas: ["Greenhouse and indoor growing projects", "Pruning workshops and techniques", "Garden journal review and planning", "Equipment maintenance and upgrades"]
         }
       ]
     }
-  ];
+  };
   
-  const season = seasons[seasonIndex];
-  const themeIndex = (weekInSeason - 1) % season.themes.length;
-  const theme = season.themes[themeIndex];
+  const seasonData = seasons[season];
+  const themeIndex = Math.min(Math.floor((weekInSeason - 1) / Math.ceil(13 / seasonData.themes.length)), seasonData.themes.length - 1);
+  const theme = seasonData.themes[themeIndex];
   
   return {
     week: weekNumber,
