@@ -14,7 +14,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         </h1>
         
         <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
-          In less than a minute, get personalized weekly content for social media, newsletters, blogs, video scripts, and email marketing — all tailored to your voice.
+          In less than a minute, get personalized weekly content for social media, newsletters, blogs, video scripts, and email marketing — all tailored to your brand's unique voice.
         </p>
         
         <Button 
