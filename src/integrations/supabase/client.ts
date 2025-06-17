@@ -6,13 +6,123 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://udldmkqwnxhdeztyqcau.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM";
 
+// Auth state cleanup utility
+export const cleanupAuthState = () => {
+  console.log('🧹 Cleaning up auth state...');
+  
+  // Remove standard auth tokens
+  localStorage.removeItem('supabase.auth.token');
+  
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      console.log(`Removing localStorage key: ${key}`);
+      localStorage.removeItem(key);
+    }
+  });
+  
+  // Remove from sessionStorage if in use
+  if (typeof sessionStorage !== 'undefined') {
+    Object.keys(sessionStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+        console.log(`Removing sessionStorage key: ${key}`);
+        sessionStorage.removeItem(key);
+      }
+    });
+  }
+  
+  console.log('✅ Auth state cleanup complete');
+};
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
+  },
   global: {
     headers: {
       'x-application-name': 'bloom-boost-marketing-hub',
     },
   },
 });
+
+// Enhanced auth helpers
+export const signOutCompletely = async () => {
+  try {
+    console.log('🚪 Starting complete sign out...');
+    
+    // Clean up auth state first
+    cleanupAuthState();
+    
+    // Attempt global sign out
+    const { error } = await supabase.auth.signOut({ scope: 'global' });
+    if (error) {
+      console.error('Sign out error (continuing anyway):', error);
+    }
+    
+    // Force page reload for clean state
+    window.location.href = '/auth';
+  } catch (error) {
+    console.error('Complete sign out error:', error);
+    // Force cleanup and redirect anyway
+    cleanupAuthState();
+    window.location.href = '/auth';
+  }
+};
+
+export const signInWithCleanup = async (email: string, password: string) => {
+  console.log('🔑 Starting sign in with cleanup...');
+  
+  // Clean up existing state
+  cleanupAuthState();
+  
+  // Attempt global sign out first
+  try {
+    await supabase.auth.signOut({ scope: 'global' });
+  } catch (err) {
+    console.log('Pre-signin cleanup (expected):', err);
+  }
+  
+  // Sign in with email/password
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+  
+  return { data, error };
+};
+
+export const signUpWithCleanup = async (email: string, password: string, fullName: string) => {
+  console.log('📝 Starting sign up with cleanup...');
+  
+  // Clean up existing state
+  cleanupAuthState();
+  
+  // Attempt global sign out first
+  try {
+    await supabase.auth.signOut({ scope: 'global' });
+  } catch (err) {
+    console.log('Pre-signup cleanup (expected):', err);
+  }
+  
+  const redirectUrl = `${window.location.origin}/onboarding`;
+  
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: redirectUrl,
+      data: {
+        full_name: fullName
+      }
+    }
+  });
+  
+  return { data, error };
+};

@@ -16,9 +16,13 @@ export const useOnboardingStatus = (): OnboardingStatus => {
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       if (!user) {
+        console.log('🔍 useOnboardingStatus: No user, setting not completed');
+        setIsCompleted(false);
         setIsLoading(false);
         return;
       }
+
+      console.log('🔍 useOnboardingStatus: Checking for user:', user.id);
 
       try {
         // Check if user has a company profile (indicates completed onboarding)
@@ -26,20 +30,24 @@ export const useOnboardingStatus = (): OnboardingStatus => {
           .from('company_profiles')
           .select('id')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors
 
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Error checking company profile:', profileError);
+        if (profileError) {
+          console.error('❌ useOnboardingStatus: Error checking company profile:', profileError);
           setIsCompleted(false);
         } else if (profile) {
+          console.log('✅ useOnboardingStatus: Company profile found, onboarding completed');
           setIsCompleted(true);
         } else {
+          console.log('⏳ useOnboardingStatus: No company profile found, checking localStorage...');
           // Also check localStorage as backup
           const localOnboarding = localStorage.getItem(`garden-center-onboarding-${user.id}`);
-          setIsCompleted(!!localOnboarding);
+          const hasLocalData = !!localOnboarding;
+          console.log('📱 useOnboardingStatus: Local onboarding data exists:', hasLocalData);
+          setIsCompleted(hasLocalData);
         }
       } catch (error) {
-        console.error('Error checking onboarding status:', error);
+        console.error('❌ useOnboardingStatus: Error in checkOnboardingStatus:', error);
         setIsCompleted(false);
       } finally {
         setIsLoading(false);
@@ -49,5 +57,6 @@ export const useOnboardingStatus = (): OnboardingStatus => {
     checkOnboardingStatus();
   }, [user]);
 
+  console.log('🎯 useOnboardingStatus: Final state - isCompleted:', isCompleted, 'isLoading:', isLoading);
   return { isCompleted, isLoading };
 };

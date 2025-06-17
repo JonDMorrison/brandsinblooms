@@ -1,6 +1,4 @@
-
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Eye, EyeOff, Sprout, CheckCircle, Unlock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase, signInWithCleanup, signUpWithCleanup } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -25,28 +25,38 @@ const Auth = () => {
   // Redirect authenticated users
   useEffect(() => {
     if (!authLoading && user) {
+      console.log('🔄 Auth: User already authenticated, redirecting to app');
       navigate('/app', { replace: true });
     }
   }, [user, authLoading, navigate]);
 
   const checkOnboardingAndRedirect = async (userId: string) => {
     try {
+      console.log('🔍 Auth: Checking onboarding status for user:', userId);
+      
       // Check if user has completed onboarding
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from('company_profiles')
         .select('id')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // Use maybeSingle to avoid errors when no profile exists
+
+      if (error) {
+        console.error('❌ Auth: Error checking profile:', error);
+        // Default to onboarding for safety
+        navigate('/onboarding', { replace: true });
+        return;
+      }
 
       if (profile) {
-        // User has completed onboarding, go to app
+        console.log('✅ Auth: User has completed onboarding, going to app');
         navigate('/app', { replace: true });
       } else {
-        // New user, needs onboarding
+        console.log('⏳ Auth: New user, needs onboarding');
         navigate('/onboarding', { replace: true });
       }
     } catch (error) {
-      console.error('Error checking onboarding status:', error);
+      console.error('❌ Auth: Error in checkOnboardingAndRedirect:', error);
       // Default to onboarding for safety
       navigate('/onboarding', { replace: true });
     }
@@ -58,18 +68,30 @@ const Auth = () => {
     setError("");
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      console.log('🔑 Auth: Attempting sign in for:', email);
+      
+      const { data, error } = await signInWithCleanup(email, password);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Auth: Sign in error:', error);
+        setError(error.message);
+        toast.error(`Sign in failed: ${error.message}`);
+        return;
+      }
 
       if (data.user) {
-        await checkOnboardingAndRedirect(data.user.id);
+        console.log('✅ Auth: Sign in successful for user:', data.user.id);
+        toast.success('Welcome back!');
+        
+        // Small delay to ensure auth state is updated
+        setTimeout(() => {
+          checkOnboardingAndRedirect(data.user.id);
+        }, 100);
       }
     } catch (error: any) {
-      setError(error.message);
+      console.error('❌ Auth: Unexpected sign in error:', error);
+      setError('An unexpected error occurred. Please try again.');
+      toast.error('Sign in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -88,31 +110,34 @@ const Auth = () => {
     }
 
     try {
-      const redirectUrl = `${window.location.origin}/onboarding`;
+      console.log('📝 Auth: Attempting sign up for:', email);
       
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            full_name: fullName
-          }
-        }
-      });
+      const { data, error } = await signUpWithCleanup(email, password, fullName);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Auth: Sign up error:', error);
+        setError(error.message);
+        toast.error(`Sign up failed: ${error.message}`);
+        return;
+      }
 
       if (data.user) {
+        console.log('✅ Auth: Sign up successful for user:', data.user.id);
+        
         if (data.user.email_confirmed_at) {
-          // Email already confirmed, redirect to onboarding
+          console.log('📧 Auth: Email already confirmed, redirecting to onboarding');
+          toast.success('Account created! Setting up your profile...');
           navigate('/onboarding', { replace: true });
         } else {
-          setMessage("Please check your email for a confirmation link");
+          console.log('📧 Auth: Email confirmation required');
+          setMessage("Please check your email for a confirmation link, then return to sign in.");
+          toast.success("Please check your email for a confirmation link.");
         }
       }
     } catch (error: any) {
-      setError(error.message);
+      console.error('❌ Auth: Unexpected sign up error:', error);
+      setError('An unexpected error occurred. Please try again.');
+      toast.error('Sign up failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -123,6 +148,8 @@ const Auth = () => {
     setError("");
 
     try {
+      console.log('🔍 Auth: Attempting Google auth');
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -130,9 +157,15 @@ const Auth = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Auth: Google auth error:', error);
+        setError(error.message);
+        toast.error(`Google sign in failed: ${error.message}`);
+      }
     } catch (error: any) {
-      setError(error.message);
+      console.error('❌ Auth: Unexpected Google auth error:', error);
+      setError('Google sign in failed. Please try again.');
+      toast.error('Google sign in failed. Please try again.');
       setLoading(false);
     }
   };
@@ -205,6 +238,7 @@ const Auth = () => {
 
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
+                  
                   <div className="space-y-2">
                     <Label htmlFor="signin-email" className="text-gray-700 font-medium">Email</Label>
                     <Input
@@ -265,6 +299,7 @@ const Auth = () => {
                     )}
                   </Button>
 
+                  
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t border-garden-green/20" />
@@ -294,6 +329,7 @@ const Auth = () => {
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  
                   <div className="space-y-2">
                     <Label htmlFor="signup-name" className="text-gray-700 font-medium">Full Name</Label>
                     <Input
@@ -357,12 +393,13 @@ const Auth = () => {
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="w-4 h-4 mr-2" />
+                        <CheckCircle className="w-4 w-4 mr-2" />
                         Create Account
                       </>
                     )}
                   </Button>
 
+                  
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t border-garden-green/20" />

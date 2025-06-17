@@ -10,24 +10,34 @@ const OnboardingPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log('🔍 OnboardingPage: Auth state check - user:', user?.id, 'loading:', loading);
+    
     // If not loading and no user, redirect to auth
     if (!loading && !user) {
+      console.log('🔄 OnboardingPage: No authenticated user, redirecting to auth');
       navigate('/auth', { replace: true });
     }
   }, [user, loading, navigate]);
 
   const handleOnboardingComplete = (data: any) => {
-    console.log('Onboarding completed:', data);
+    console.log('✅ OnboardingPage: Onboarding completed for user:', user?.id, 'data:', data);
+    
     if (user) {
       // Store the onboarding data in localStorage for the main app to pick up
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
+      console.log('📱 OnboardingPage: Data stored in localStorage, navigating to app');
+      
       // Navigate to the main app
       navigate('/app', { replace: true });
+    } else {
+      console.error('❌ OnboardingPage: No user found during onboarding completion');
+      navigate('/auth', { replace: true });
     }
   };
 
   // Show loading while auth is being determined
   if (loading) {
+    console.log('⏳ OnboardingPage: Showing loading state');
     return (
       <div className="min-h-screen bg-garden-background flex items-center justify-center">
         <div className="text-center">
@@ -40,9 +50,12 @@ const OnboardingPage = () => {
 
   // If no user after loading, don't render (will redirect)
   if (!user) {
+    console.log('🚫 OnboardingPage: No user authenticated, returning null');
     return null;
   }
 
+  console.log('🎯 OnboardingPage: Rendering onboarding flow for user:', user.id);
+  
   return (
     <div className="min-h-screen bg-garden-background">
       <WebsiteOnboardingFlow onComplete={handleOnboardingComplete} />
