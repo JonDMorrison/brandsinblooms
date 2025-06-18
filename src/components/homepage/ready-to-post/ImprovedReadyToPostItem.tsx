@@ -89,7 +89,7 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
       `}
       onClick={handleViewFull}
     >
-      {/* Header Section */}
+      {/* Header Section - Simplified without campaign title */}
       <div className="flex items-start justify-between mb-3 gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="flex-shrink-0 text-stone-600">
