@@ -9,6 +9,7 @@ interface Holiday {
   category: string;
   holiday_date: string;
   description: string;
+  garden_relevance: string;
   is_active: boolean;
 }
 
@@ -31,19 +32,32 @@ export const useSeasonalHolidays = () => {
 
       console.log('Fetching holidays for upcoming opportunities');
 
-      const { data, error: fetchError } = await supabase
+      // Get current date and 90 days from now for a good range
+      const today = new Date();
+      const futureDate = new Date();
+      futureDate.setDate(today.getDate() + 90);
+
+      const todayStr = today.toISOString().split('T')[0];
+      const futureDateStr = futureDate.toISOString().split('T')[0];
+
+      console.log('Date range:', todayStr, 'to', futureDateStr);
+
+      const { data, error: fetchError } = await supabaseClient
         .from('holidays')
         .select('*')
         .eq('is_active', true)
+        .gte('holiday_date', todayStr)
+        .lte('holiday_date', futureDateStr)
         .order('holiday_date', { ascending: true })
-        .limit(20);
+        .limit(10);
 
       if (fetchError) {
         console.error('Error fetching holidays:', fetchError);
         setError(fetchError.message);
         setHolidays([]);
       } else {
-        console.log('Fetched holidays:', data);
+        console.log('Fetched holidays:', data?.length || 0, 'holidays found');
+        console.log('Holiday data:', data);
         setHolidays(data || []);
       }
     } catch (error) {
@@ -54,10 +68,6 @@ export const useSeasonalHolidays = () => {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    fetchUpcomingHolidays();
-  }, [user]);
 
   const generateHolidayContent = async (holidayId: string) => {
     try {
@@ -79,6 +89,10 @@ export const useSeasonalHolidays = () => {
       throw error;
     }
   };
+
+  useEffect(() => {
+    fetchUpcomingHolidays();
+  }, [user]);
 
   return {
     holidays,

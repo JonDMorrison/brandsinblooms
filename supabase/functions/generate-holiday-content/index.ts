@@ -29,7 +29,7 @@ serve(async (req) => {
       throw new Error('Holiday ID is required')
     }
 
-    // Get the holiday details with new schema
+    // Get the holiday details with correct schema
     const { data: holiday, error: holidayError } = await supabaseClient
       .from('holidays')
       .select('*')
@@ -39,6 +39,8 @@ serve(async (req) => {
     if (holidayError || !holiday) {
       throw new Error('Holiday not found')
     }
+
+    console.log('Found holiday:', holiday)
 
     // Get user's company profile for personalization
     const { data: { user } } = await supabaseClient.auth.getUser()
@@ -52,6 +54,8 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single()
 
+    console.log('User profile:', profile?.company_name || 'No profile found')
+
     // Generate content using OpenAI
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -64,11 +68,11 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a marketing content generator for garden centers and nurseries. Generate professional, engaging content for ${holiday.name} that relates to gardening and plants. Keep content concise, actionable, and avoid emojis. Focus on seasonal relevance and practical gardening advice.`
+            content: `You are a marketing content generator for garden centers and nurseries. Generate professional, engaging content for ${holiday.holiday_name} that relates to gardening and plants. Keep content concise, actionable, and avoid emojis. Focus on seasonal relevance and practical gardening advice.`
           },
           {
             role: 'user',
-            content: `Generate 5 pieces of content for ${holiday.name} (${holiday.when}) for a garden center:
+            content: `Generate 5 pieces of content for ${holiday.holiday_name} (${holiday.holiday_date}) for a garden center:
 
 1. Facebook Post (2-3 sentences, engaging and shareable)
 2. Instagram Post (2-3 sentences, visual-focused)
@@ -78,7 +82,8 @@ serve(async (req) => {
 
 Holiday context: ${holiday.description}
 Category: ${holiday.category}
-Timing: ${holiday.when}
+Date: ${holiday.holiday_date}
+Garden relevance: ${holiday.garden_relevance}
 ${profile?.company_name ? `Business: ${profile.company_name}` : ''}
 ${profile?.brand_voice ? `Brand voice: ${profile.brand_voice}` : ''}
 
@@ -91,11 +96,15 @@ Format the response as JSON with keys: facebook, instagram, video, newsletter, b
     })
 
     if (!openAIResponse.ok) {
+      const errorText = await openAIResponse.text()
+      console.error('OpenAI API error:', errorText)
       throw new Error('Failed to generate content with OpenAI')
     }
 
     const openAIData = await openAIResponse.json()
     const generatedContent = JSON.parse(openAIData.choices[0].message.content)
+
+    console.log('Generated content:', Object.keys(generatedContent))
 
     // Create content tasks for each type
     const contentTypes = [
@@ -112,10 +121,12 @@ Format the response as JSON with keys: facebook, instagram, video, newsletter, b
       post_type: type,
       ai_output: content,
       status: 'review',
-      scheduled_date: getScheduledDate(holiday.when, holiday.category),
-      hashtags: getHolidayHashtags(holiday.name, type),
-      image_idea: getHolidayImageIdea(holiday.name, type)
+      scheduled_date: getScheduledDate(holiday.holiday_date, holiday.category),
+      hashtags: getHolidayHashtags(holiday.holiday_name, type),
+      image_idea: getHolidayImageIdea(holiday.holiday_name, type)
     }))
+
+    console.log('Creating tasks:', tasksToCreate.length)
 
     const { data: createdTasks, error: tasksError } = await supabaseClient
       .from('content_tasks')
@@ -123,15 +134,18 @@ Format the response as JSON with keys: facebook, instagram, video, newsletter, b
       .select()
 
     if (tasksError) {
+      console.error('Tasks creation error:', tasksError)
       throw new Error(`Failed to create content tasks: ${tasksError.message}`)
     }
+
+    console.log('Created tasks successfully:', createdTasks?.length || 0)
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         holiday: holiday,
         tasks: createdTasks,
-        message: `Generated ${createdTasks.length} pieces of content for ${holiday.name}`
+        message: `Generated ${createdTasks.length} pieces of content for ${holiday.holiday_name}`
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -149,30 +163,31 @@ Format the response as JSON with keys: facebook, instagram, video, newsletter, b
   }
 })
 
-function getScheduledDate(when: string, category: string): string {
+function getScheduledDate(holidayDate: string, category: string): string {
   const today = new Date()
+  const targetDate = new Date(holidayDate)
   
-  // For specific dates, use those
-  if (when.includes('-')) {
-    return when
+  // For specific dates, schedule a week before for preparation
+  if (category === 'Day') {
+    const scheduleDate = new Date(targetDate)
+    scheduleDate.setDate(targetDate.getDate() - 7)
+    return scheduleDate.toISOString().split('T')[0]
   }
   
   // For months, schedule for the beginning of that month
   if (category === 'Month') {
-    const months = ['January', 'February', 'March', 'April', 'May', 'June',
-                   'July', 'August', 'September', 'October', 'November', 'December']
-    const monthIndex = months.findIndex(m => when.includes(m))
-    if (monthIndex !== -1) {
-      const year = today.getFullYear()
-      const targetMonth = monthIndex
-      return new Date(year, targetMonth, 1).toISOString().split('T')[0]
-    }
+    const scheduleDate = new Date(targetDate)
+    scheduleDate.setDate(1)
+    return scheduleDate.toISOString().split('T')[0]
   }
   
-  // Default to next week
-  const nextWeek = new Date(today)
-  nextWeek.setDate(today.getDate() + 7)
-  return nextWeek.toISOString().split('T')[0]
+  // For weeks, schedule at the start of the week
+  if (category === 'Week') {
+    return targetDate.toISOString().split('T')[0]
+  }
+  
+  // Default to the holiday date itself
+  return holidayDate
 }
 
 function getHolidayHashtags(holidayName: string, contentType: string): string {
@@ -183,7 +198,10 @@ function getHolidayHashtags(holidayName: string, contentType: string): string {
     'World Bee Day': ['#WorldBeeDay', '#Pollinators', '#SaveTheBees', '#BeeGarden'],
     'National Garden Month': ['#GardenMonth', '#PlantSeason', '#GreenThumb'],
     'National Rose Month': ['#RoseMonth', '#Roses', '#FlowerGarden'],
-    'National Indoor Plant Month': ['#IndoorPlants', '#Houseplants', '#PlantParent']
+    'National Indoor Plant Month': ['#IndoorPlants', '#Houseplants', '#PlantParent'],
+    'Mother\'s Day': ['#MothersDay', '#FlowersForMom', '#GardenGifts'],
+    'Father\'s Day': ['#FathersDay', '#GardenDad', '#PlantGifts'],
+    'Valentine\'s Day': ['#ValentinesDay', '#LovePlants', '#RomanticGarden']
   }
   
   let specific = ['#SeasonalGardening']
@@ -204,7 +222,10 @@ function getHolidayImageIdea(holidayName: string, contentType: string): string {
     'World Bee Day': 'Bee-friendly flowers in bloom with pollinator garden display',
     'National Garden Month': 'Vibrant garden beds with diverse plants and flowers in peak condition',
     'National Rose Month': 'Beautiful rose garden display with various colored roses',
-    'National Indoor Plant Month': 'Collection of healthy houseplants in decorative containers'
+    'National Indoor Plant Month': 'Collection of healthy houseplants in decorative containers',
+    'Mother\'s Day': 'Beautiful flowering hanging baskets and colorful spring planters',
+    'Father\'s Day': 'Garden tools with vegetable plants and herbs arranged attractively',
+    'Valentine\'s Day': 'Romantic red and pink flowering plants with heart-shaped planters'
   }
   
   for (const [key, idea] of Object.entries(imageIdeas)) {
@@ -213,5 +234,5 @@ function getHolidayImageIdea(holidayName: string, contentType: string): string {
     }
   }
   
-  return 'Seasonal garden display appropriate for the holiday theme'
+  return 'Seasonal garden display appropriate for the holiday theme with relevant plants and decorations'
 }

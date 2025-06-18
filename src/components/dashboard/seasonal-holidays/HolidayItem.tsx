@@ -14,6 +14,7 @@ interface Holiday {
   category: string;
   holiday_date: string;
   description: string;
+  garden_relevance: string;
 }
 
 interface HolidayItemProps {
@@ -51,7 +52,17 @@ export const HolidayItem = ({
       'National Garden Month': '🌱',
       'National Flower Month': '🌸',
       'National Indoor Plant Month': '🪴',
-      'National Bird-Feeding Month': '🐦'
+      'National Bird-Feeding Month': '🐦',
+      'Mother\'s Day': '💐',
+      'Father\'s Day': '🌿',
+      'Valentine\'s Day': '🌹',
+      'Christmas': '🎄',
+      'Halloween': '🎃',
+      'Thanksgiving': '🍂',
+      'Spring': '🌸',
+      'Summer': '☀️',
+      'Fall': '🍁',
+      'Winter': '❄️'
     };
     
     // Check for partial matches
@@ -62,6 +73,15 @@ export const HolidayItem = ({
     }
     
     return '🌿';
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: 'numeric'
+    });
   };
 
   const handleGenerateClick = async () => {
@@ -92,7 +112,7 @@ export const HolidayItem = ({
               <div className="flex items-center gap-2 mb-1">
                 <Badge className={cn('text-xs', getCategoryColor(holiday.category))}>
                   <Calendar className="w-3 h-3 mr-1" />
-                  {holiday.holiday_date}
+                  {formatDate(holiday.holiday_date)}
                 </Badge>
               </div>
               <HeadlineMedium className="apple-headline-medium text-gray-800">
@@ -111,7 +131,7 @@ export const HolidayItem = ({
             🌱 Garden Center Opportunity
           </CaptionMedium>
           <CaptionMedium className="apple-caption-enhanced text-green-700">
-            Perfect timing for seasonal promotions and themed content campaigns
+            {holiday.garden_relevance}
           </CaptionMedium>
         </div>
 
