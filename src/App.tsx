@@ -19,6 +19,7 @@ import CalendarPage from './pages/CalendarPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 import TeamPage from './pages/TeamPage';
+import AdminPage from './pages/AdminPage';
 
 // Create QueryClient instance outside of component to avoid recreation
 const queryClient = new QueryClient({
@@ -45,6 +46,7 @@ function App() {
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/onboarding" element={<OnboardingPage />} />
                     <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
+                    <Route path="/admin" element={<AdminPage />} />
                     
                     {/* All dashboard routes now use SidebarLayout */}
                     <Route path="/app" element={

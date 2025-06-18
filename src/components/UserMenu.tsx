@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +11,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LogOut, Settings, User, Crown, Home, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { isSuperAdmin } from "@/utils/adminUtils";
 
 export const UserMenu = () => {
   const { user, signOut } = useAuth();
@@ -42,8 +42,8 @@ export const UserMenu = () => {
 
   const userInitials = user.email?.slice(0, 2).toUpperCase() || "U";
   
-  // Check if user is a master admin
-  const isMasterAdmin = user.email === "jon@brandsinblooms.com" || user.email === "jeff@brandsinblooms.com";
+  // Check if user is a super admin using centralized utility
+  const isMasterAdmin = isSuperAdmin(user.email);
 
   return (
     <DropdownMenu>

@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 import { Navigate } from "react-router-dom";
@@ -6,6 +5,7 @@ import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Button } from "@/components/ui/button";
 import { Shield, Users, Settings, BarChart3, Database, TrendingUp, Clock, Server } from "lucide-react";
 import { useState, useEffect } from "react";
+import { isSuperAdmin } from "@/utils/adminUtils";
 
 const AdminPage = () => {
   const { user } = useAuth();
@@ -25,8 +25,8 @@ const AdminPage = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Only allow access to jon@getclear.ca
-  if (!user || user.email !== "jon@getclear.ca") {
+  // Only allow access to super admins
+  if (!user || !isSuperAdmin(user.email)) {
     return <Navigate to="/app" replace />;
   }
 
