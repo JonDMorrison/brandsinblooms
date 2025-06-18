@@ -83,24 +83,6 @@ export const UnifiedDashboardGrid = ({
   return (
     <>
       <div className="space-y-8">
-        {/* Ready to Post Section - Only show for authenticated users with ready content */}
-        {user && readyTasks.length > 0 && (
-          <div className="space-y-6">
-            <div>
-              <HeadlineLarge className="text-text-primary">
-                Ready to Post
-              </HeadlineLarge>
-              <BodyMedium className="text-text-secondary mt-1">
-                Your content is ready to share with your audience
-              </BodyMedium>
-            </div>
-            <ReadyToPostCard 
-              tasks={readyTasks}
-              onTaskUpdate={onTaskUpdate}
-            />
-          </div>
-        )}
-
         {/* Current Campaign Section */}
         <CurrentCampaignSection 
           activeCampaign={activeCampaign}
@@ -145,6 +127,24 @@ export const UnifiedDashboardGrid = ({
           onAddEventClick={handleAddEventClick}
           onViewCalendar={handleViewCalendar}
         />
+
+        {/* Ready to Post Section - Only show for authenticated users with ready content */}
+        {user && readyTasks.length > 0 && (
+          <div className="space-y-6">
+            <div>
+              <HeadlineLarge className="text-text-primary">
+                Ready to Post
+              </HeadlineLarge>
+              <BodyMedium className="text-text-secondary mt-1">
+                Your content is ready to share with your audience
+              </BodyMedium>
+            </div>
+            <ReadyToPostCard 
+              tasks={readyTasks}
+              onTaskUpdate={onTaskUpdate}
+            />
+          </div>
+        )}
       </div>
 
       {/* Quick Action Modals */}
