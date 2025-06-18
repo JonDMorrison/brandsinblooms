@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { PremiumButton } from "@/components/ui/premium-button";
 import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
@@ -32,26 +33,22 @@ export const HolidayItem = ({
       case 'Month':
         return {
           bg: 'bg-gradient-to-r from-blue-500 to-purple-500',
-          text: 'text-white',
-          icon: '📅'
+          text: 'text-white'
         };
       case 'Week':
         return {
           bg: 'bg-gradient-to-r from-green-500 to-teal-500',
-          text: 'text-white',
-          icon: '📊'
+          text: 'text-white'
         };
       case 'Day':
         return {
           bg: 'bg-gradient-to-r from-orange-500 to-red-500',
-          text: 'text-white',
-          icon: '⭐'
+          text: 'text-white'
         };
       default:
         return {
           bg: 'bg-gradient-to-r from-gray-500 to-gray-600',
-          text: 'text-white',
-          icon: '📌'
+          text: 'text-white'
         };
     }
   };
@@ -64,101 +61,24 @@ export const HolidayItem = ({
     if (month >= 2 && month <= 4 || lowerName.includes('spring') || lowerName.includes('earth') || lowerName.includes('arbor')) {
       return {
         gradient: 'from-green-400 via-emerald-400 to-teal-400',
-        accent: 'from-green-100 to-emerald-100',
-        emoji: '🌸'
+        accent: 'from-green-100 to-emerald-100'
       };
     } else if (month >= 5 && month <= 7 || lowerName.includes('summer') || lowerName.includes('rose') || lowerName.includes('garden')) {
       return {
         gradient: 'from-yellow-400 via-orange-400 to-red-400',
-        accent: 'from-yellow-100 to-orange-100',
-        emoji: '☀️'
+        accent: 'from-yellow-100 to-orange-100'
       };
     } else if (month >= 8 && month <= 10 || lowerName.includes('fall') || lowerName.includes('harvest')) {
       return {
         gradient: 'from-orange-400 via-red-400 to-yellow-400',
-        accent: 'from-orange-100 to-red-100',
-        emoji: '🍂'
+        accent: 'from-orange-100 to-red-100'
       };
     } else {
       return {
         gradient: 'from-blue-400 via-indigo-400 to-purple-400',
-        accent: 'from-blue-100 to-indigo-100',
-        emoji: '❄️'
+        accent: 'from-blue-100 to-indigo-100'
       };
     }
-  };
-
-  const getHolidayEmoji = (holidayName: string, date: string) => {
-    const lowerName = holidayName.toLowerCase();
-    const month = new Date(date).getMonth() + 1; // 1-based month
-    
-    // Comprehensive emoji mapping with partial matching
-    const emojiMap: { [key: string]: string } = {
-      // Nature & Environment
-      'earth': '🌍', 'arbor': '🌳', 'tree': '🌲', 'forest': '🌲',
-      'bee': '🐝', 'butterfly': '🦋', 'bird': '🐦', 'wildlife': '🦌',
-      'ocean': '🌊', 'water': '💧', 'river': '🏞️', 'wetland': '🦢',
-      'recycling': '♻️', 'environment': '🌱', 'conservation': '🌿',
-      
-      // Flowers & Plants
-      'rose': '🌹', 'flower': '🌸', 'bloom': '🌺', 'blossom': '🌼',
-      'tulip': '🌷', 'sunflower': '🌻', 'lily': '🌺', 'daisy': '🌼',
-      'garden': '🌱', 'plant': '🪴', 'herb': '🌿', 'seed': '🌱',
-      'indoor plant': '🪴', 'houseplant': '🪴', 'succulent': '🌵',
-      
-      // Seasons & Weather
-      'spring': '🌸', 'summer': '☀️', 'fall': '🍂', 'autumn': '🍁',
-      'winter': '❄️', 'rain': '🌧️', 'snow': '⛄', 'sun': '☀️',
-      
-      // Holidays & Celebrations
-      'valentine': '💝', 'love': '💕', 'heart': '❤️',
-      'mother': '💐', 'mom': '👩', 'father': '🌿', 'dad': '👨',
-      'christmas': '🎄', 'holiday': '🎁', 'thanksgiving': '🦃',
-      'halloween': '🎃', 'pumpkin': '🎃', 'easter': '🐰',
-      'new year': '🎊', 'celebration': '🎉', 'party': '🎈',
-      
-      // Food & Nutrition
-      'nutrition': '🥗', 'healthy': '🍎', 'fruit': '🍓', 'vegetable': '🥕',
-      'harvest': '🌾', 'farming': '🚜', 'agriculture': '🌾',
-      'cooking': '👩‍🍳', 'recipe': '📖', 'food': '🍽️',
-      
-      // Education & Awareness
-      'awareness': '💡', 'education': '📚', 'learning': '🎓',
-      'science': '🔬', 'research': '🧪', 'discovery': '🔍',
-      'health': '🏥', 'fitness': '💪', 'wellness': '🧘',
-      
-      // Activities & Hobbies
-      'photography': '📷', 'art': '🎨', 'craft': '✂️', 'diy': '🔨',
-      'reading': '📖', 'book': '📚', 'writing': '✍️',
-      'music': '🎵', 'dance': '💃', 'sport': '⚽',
-      
-      // Months (as backup)
-      'january': '❄️', 'february': '💝', 'march': '🌸', 'april': '🌷',
-      'may': '🌺', 'june': '☀️', 'july': '🌻', 'august': '🌽',
-      'september': '🍂', 'october': '🎃', 'november': '🦃', 'december': '🎄'
-    };
-    
-    // Check for partial matches in holiday name
-    for (const [keyword, emoji] of Object.entries(emojiMap)) {
-      if (lowerName.includes(keyword)) {
-        return emoji;
-      }
-    }
-    
-    // Seasonal fallbacks based on month
-    if (month >= 3 && month <= 5) return '🌸'; // Spring
-    if (month >= 6 && month <= 8) return '☀️'; // Summer  
-    if (month >= 9 && month <= 11) return '🍂'; // Fall
-    if (month === 12 || month <= 2) return '❄️'; // Winter
-    
-    // Category-based fallbacks
-    const categoryInfo = getCategoryColor(holiday.category);
-    if (categoryInfo.icon === '📅') return '📅'; // Month
-    if (categoryInfo.icon === '📊') return '📊'; // Week
-    if (categoryInfo.icon === '⭐') return '⭐'; // Day
-    
-    // Final fallback - but make it more interesting than just target
-    return '🎯';
   };
 
   const formatDate = (dateString: string) => {
@@ -194,7 +114,6 @@ export const HolidayItem = ({
 
   const categoryInfo = getCategoryColor(holiday.category);
   const seasonalTheme = getSeasonalTheme(holiday.holiday_name, holiday.holiday_date);
-  const holidayEmoji = getHolidayEmoji(holiday.holiday_name, holiday.holiday_date);
   const dateInfo = formatDate(holiday.holiday_date);
   const daysUntil = getDaysUntil(holiday.holiday_date);
 
@@ -228,7 +147,6 @@ export const HolidayItem = ({
             {/* Holiday Info */}
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">{holidayEmoji}</span>
                 <HeadlineMedium className="text-gray-900 font-semibold line-clamp-1">
                   {holiday.holiday_name}
                 </HeadlineMedium>
@@ -240,7 +158,6 @@ export const HolidayItem = ({
                   categoryInfo.bg,
                   categoryInfo.text
                 )}>
-                  <span className="mr-1">{categoryInfo.icon}</span>
                   {holiday.category}
                 </Badge>
                 
@@ -268,7 +185,7 @@ export const HolidayItem = ({
             </div>
             <div className="flex-1">
               <CaptionMedium className="font-semibold text-gray-800 mb-1">
-                🎯 Marketing Opportunity
+                Marketing Opportunity
               </CaptionMedium>
               <CaptionMedium className="text-gray-700 leading-relaxed">
                 {holiday.garden_relevance}
