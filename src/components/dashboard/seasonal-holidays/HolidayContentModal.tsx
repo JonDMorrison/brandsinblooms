@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { PremiumButton } from "@/components/ui/premium-button";
 import { Button } from "@/components/ui/button";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Sparkles, Copy, Edit3, Check, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -146,9 +146,9 @@ export const HolidayContentModal = ({
               <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
                 <Sparkles className="w-8 h-8 text-green-600" />
               </div>
-              <HeadlineMedium className="text-gray-800 mb-2">
+              <HeadlineLarge className="text-gray-800 mb-2">
                 Generate Marketing Content
-              </HeadlineMedium>
+              </HeadlineLarge>
               <BodyMedium className="text-gray-600 mb-6 max-w-md mx-auto">
                 Create social media posts, newsletters, and marketing content specifically for {holiday.holiday_name}
               </BodyMedium>
@@ -173,9 +173,9 @@ export const HolidayContentModal = ({
             </div>
           ) : (
             <div className="space-y-4">
-              <HeadlineMedium className="text-gray-800">
+              <HeadlineLarge className="text-gray-800">
                 Generated Content
-              </HeadlineMedium>
+              </HeadlineLarge>
               
               {/* Sample content display - would be dynamic based on generated content */}
               <div className="space-y-4">

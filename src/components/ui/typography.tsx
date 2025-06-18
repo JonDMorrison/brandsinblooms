@@ -34,12 +34,6 @@ export const HeadlineLarge = ({ children, className, as: Component = 'h2' }: Typ
   </Component>
 );
 
-export const HeadlineMedium = ({ children, className, as: Component = 'h3' }: TypographyProps) => (
-  <Component className={cn('text-xl font-semibold text-text-primary leading-normal', className)}>
-    {children}
-  </Component>
-);
-
 export const HeadlineSmall = ({ children, className, as: Component = 'h4' }: TypographyProps) => (
   <Component className={cn('text-lg font-medium text-text-primary leading-normal', className)}>
     {children}

@@ -2,7 +2,7 @@
 import * as React from "react";
 import { useState } from "react";
 import { PremiumButton } from "@/components/ui/premium-button";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Sparkles, TrendingUp, Target } from "lucide-react";
 import { HolidayContentModal } from "./HolidayContentModal";
@@ -144,9 +144,9 @@ export const HolidayItem = ({
               
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <HeadlineMedium className="text-gray-900 font-semibold line-clamp-1">
+                  <HeadlineLarge className="text-gray-900 font-semibold line-clamp-1">
                     {holiday.holiday_name}
-                  </HeadlineMedium>
+                  </HeadlineLarge>
                 </div>
                 
                 <div className="flex items-center gap-3">

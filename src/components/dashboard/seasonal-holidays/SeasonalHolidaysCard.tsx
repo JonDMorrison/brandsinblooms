@@ -2,7 +2,7 @@
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { HolidayItem } from "./HolidayItem";
 import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
@@ -87,9 +87,9 @@ export const SeasonalHolidaysCard = ({
           <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
             <Calendar className="w-8 h-8 text-red-500" />
           </div>
-          <HeadlineMedium className="text-red-800 mb-2">
+          <HeadlineLarge className="text-red-800 mb-2">
             Unable to Load Holiday Opportunities
-          </HeadlineMedium>
+          </HeadlineLarge>
           <BodyMedium className="text-red-600 max-w-md mx-auto">
             {error}
           </BodyMedium>
@@ -105,9 +105,9 @@ export const SeasonalHolidaysCard = ({
           <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
             <Leaf className="w-10 h-10 text-green-600" />
           </div>
-          <HeadlineMedium className="text-gray-800 mb-3">
+          <HeadlineLarge className="text-gray-800 mb-3">
             No Upcoming Holiday Opportunities
-          </HeadlineMedium>
+          </HeadlineLarge>
           <BodyMedium className="text-gray-600 max-w-sm mx-auto mb-4">
             No seasonal holidays or observances in the next 90 days. Check back soon for new marketing opportunities!
           </BodyMedium>
@@ -129,9 +129,9 @@ export const SeasonalHolidaysCard = ({
           <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-xl flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <HeadlineMedium className="text-gray-900 font-semibold">
+          <HeadlineLarge className="text-gray-900 font-semibold">
             🎯 Seasonal Marketing Opportunities
-          </HeadlineMedium>
+          </HeadlineLarge>
         </div>
         
         <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-200">
