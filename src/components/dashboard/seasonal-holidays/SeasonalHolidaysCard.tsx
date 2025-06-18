@@ -125,18 +125,13 @@ export const SeasonalHolidaysCard = ({
     <div className={cn('space-y-6', className)}>
       {/* Modern Header Section */}
       <div className="flex items-center justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <HeadlineMedium className="text-gray-900 font-semibold">
-              🎯 Seasonal Marketing Opportunities
-            </HeadlineMedium>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-xl flex items-center justify-center">
+            <Sparkles className="w-5 h-5 text-white" />
           </div>
-          <CaptionMedium className="text-gray-600 ml-13">
-            Turn upcoming holidays into engaging content that drives sales
-          </CaptionMedium>
+          <HeadlineMedium className="text-gray-900 font-semibold">
+            🎯 Seasonal Marketing Opportunities
+          </HeadlineMedium>
         </div>
         
         <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-200">
