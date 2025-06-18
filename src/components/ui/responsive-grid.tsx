@@ -10,21 +10,19 @@ interface ResponsiveGridProps extends React.HTMLAttributes<HTMLDivElement> {
     desktop?: number;
   };
   gap?: {
-    mobile?: string;
-    tablet?: string;
-    desktop?: string;
+    mobile?: number;
+    tablet?: number;
+    desktop?: number;
   };
   animated?: boolean;
-  useGridSystem?: boolean; // New prop for 12-column grid system
 }
 
 const ResponsiveGrid = React.forwardRef<HTMLDivElement, ResponsiveGridProps>(
   ({ 
     className, 
     cols = { mobile: 1, tablet: 2, desktop: 3 },
-    gap = { mobile: "gap-4", tablet: "gap-6", desktop: "gap-6" },
+    gap = { mobile: 4, tablet: 6, desktop: 8 },
     animated = true,
-    useGridSystem = false,
     children,
     ...props 
   }, ref) => {
@@ -36,42 +34,24 @@ const ResponsiveGrid = React.forwardRef<HTMLDivElement, ResponsiveGridProps>(
       3: 'grid-cols-3',
       4: 'grid-cols-4',
       5: 'grid-cols-5',
-      6: 'grid-cols-6',
-      12: 'grid-cols-12'
+      6: 'grid-cols-6'
     };
 
-    // Use 12-column grid system when enabled
-    if (useGridSystem) {
-      return (
-        <div
-          ref={ref}
-          className={cn(
-            'grid grid-cols-12 gap-6', // Standard 24px gap for grid system
-            animated && 'apple-fade-in',
-            className
-          )}
-          {...props}
-        >
-          {React.Children.map(children, (child, index) => (
-            <div 
-              className={animated ? `apple-stagger-${Math.min(index + 1, 4)}` : ''}
-              style={animated && index > 3 ? { animationDelay: `${(index + 1) * 0.1}s` } : {}}
-            >
-              {child}
-            </div>
-          ))}
-        </div>
-      );
-    }
+    const gridGaps = {
+      2: 'gap-2',
+      4: 'gap-4',
+      6: 'gap-6',
+      8: 'gap-8',
+      12: 'gap-12'
+    };
 
-    // Legacy responsive grid behavior
     const mobileClass = gridCols[cols.mobile || 1];
     const tabletClass = cols.tablet ? `md:${gridCols[cols.tablet]}` : '';
     const desktopClass = cols.desktop ? `lg:${gridCols[cols.desktop]}` : '';
 
-    const mobileGap = gap.mobile || 'gap-4';
-    const tabletGap = gap.tablet ? `md:${gap.tablet}` : '';
-    const desktopGap = gap.desktop ? `lg:${gap.desktop}` : '';
+    const mobileGap = gridGaps[gap.mobile || 4];
+    const tabletGap = gap.tablet ? `md:${gridGaps[gap.tablet]}` : '';
+    const desktopGap = gap.desktop ? `lg:${gridGaps[gap.desktop]}` : '';
 
     return (
       <div

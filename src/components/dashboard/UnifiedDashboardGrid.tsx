@@ -33,49 +33,43 @@ export const UnifiedDashboardGrid = ({
   onTaskClick
 }: UnifiedDashboardGridProps) => {
   return (
-    <div className="space-y-6 apple-fade-in">
-      {/* Hero Section - 8fr/4fr Grid Layout */}
-      <div className="grid grid-cols-12 gap-6">
-        {/* Main Campaign Content - 8 columns */}
-        <div className="col-span-12 lg:col-span-8 apple-slide-up">
-          <CurrentCampaignSection 
-            activeCampaign={activeCampaign}
-            onTaskUpdate={onTaskUpdate}
-            onCreateCampaign={onCreateCampaign}
-            onCampaignCreated={onCampaignCreated}
-            onTaskClick={onTaskClick}
-          />
-        </div>
-
-        {/* Quick Actions Sidebar - 4 columns */}
-        <div className="col-span-12 lg:col-span-4 apple-slide-up apple-stagger-1">
-          <QuickActionsGrid 
-            onCampaignCreated={onCampaignCreated}
-          />
-        </div>
+    <div className="space-y-6 mobile-section-gap apple-fade-in">
+      {/* Current Campaign Section - Step 1 */}
+      <div className="apple-slide-up" data-campaign-section="true">
+        <CurrentCampaignSection 
+          activeCampaign={activeCampaign}
+          onTaskUpdate={onTaskUpdate}
+          onCreateCampaign={onCreateCampaign}
+          onCampaignCreated={onCampaignCreated}
+          onTaskClick={onTaskClick}
+        />
       </div>
 
-      {/* Content Management Section - Full Width Grid */}
-      <div className="grid grid-cols-12 gap-6">
-        {/* Content Review - 8 columns */}
-        <div className="col-span-12 lg:col-span-8 apple-slide-up apple-stagger-2">
-          <ReviewQueueCard 
-            onTaskUpdate={onTaskUpdate}
-            onTaskClick={onTaskClick}
-          />
-        </div>
-
-        {/* Ready To Post - 4 columns */}
-        <div className="col-span-12 lg:col-span-4 apple-slide-up apple-stagger-3">
-          <ReadyToPostCard 
-            tasks={tasks}
-            onTaskClick={onTaskClick}
-            onTaskUpdate={onTaskUpdate}
-          />
-        </div>
+      {/* Quick Actions Section - Step 2 */}
+      <div className="apple-slide-up apple-stagger-1">
+        <QuickActionsGrid 
+          onCampaignCreated={onCampaignCreated}
+        />
       </div>
 
-      {/* Custom Campaigns Section - Full Width when present */}
+      {/* Content Review Section - Step 3 */}
+      <div className="apple-slide-up apple-stagger-2">
+        <ReviewQueueCard 
+          onTaskUpdate={onTaskUpdate}
+          onTaskClick={onTaskClick}
+        />
+      </div>
+
+      {/* Ready To Post Section - Step 4 */}
+      <div className="apple-slide-up apple-stagger-3">
+        <ReadyToPostCard 
+          tasks={tasks}
+          onTaskClick={onTaskClick}
+          onTaskUpdate={onTaskUpdate}
+        />
+      </div>
+
+      {/* Custom Campaigns Section - Additional campaigns */}
       {userCreatedCampaigns && userCreatedCampaigns.length > 0 && (
         <div className="apple-slide-up apple-stagger-4">
           <CustomCampaignsSection 

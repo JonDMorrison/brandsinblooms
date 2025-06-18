@@ -25,9 +25,9 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
   const seasonalContent = getSeasonalContent();
 
   return (
-    <div className="grid grid-cols-12 gap-6">
-      {/* Main Campaign Section - 8 columns */}
-      <div className="col-span-12 lg:col-span-8 space-y-6">
+    <div className="lg:col-span-2 space-y-8">
+      {/* Main Campaign Section */}
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
             <HeadlineLarge className="text-text-primary">
@@ -66,8 +66,8 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
         )}
       </div>
 
-      {/* What's Coming Next Section - 4 columns */}
-      <div className="col-span-12 lg:col-span-4 space-y-6">
+      {/* What's Coming Next Section */}
+      <div className="space-y-6">
         <div>
           <HeadlineLarge className="text-text-primary">
             What's Coming Next
