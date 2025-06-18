@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { CheckCircle, Eye, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -169,9 +170,9 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           `}>
             <FileText className={`text-gray-400 transition-colors duration-300 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
           </div>
-          <HeadlineMedium className={`apple-headline-medium text-gray-600 mb-3 ${isMobile ? 'text-lg' : ''}`}>
+          <HeadlineLarge className={`apple-headline-medium text-gray-600 mb-3 ${isMobile ? 'text-lg' : ''}`}>
             Content Garden Growing
-          </HeadlineMedium>
+          </HeadlineLarge>
           <BodyMedium className={`apple-body-enhanced text-gray-500 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
             Your marketing content will bloom here once generated. Create campaigns to start growing your content garden!
           </BodyMedium>
@@ -203,9 +204,9 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
                 <CheckCircle className={`text-green-600 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
               </div>
               <div className={isMobile ? 'text-center' : ''}>
-                <HeadlineMedium className={`apple-headline-medium text-gray-800 ${isMobile ? 'text-lg' : ''}`}>
+                <HeadlineLarge className={`apple-headline-medium text-gray-800 ${isMobile ? 'text-lg' : ''}`}>
                   🌟 Ready To Bloom
-                </HeadlineMedium>
+                </HeadlineLarge>
                 <CaptionMedium className={`apple-caption-enhanced text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
                   {tasks.length} professional piece{tasks.length !== 1 ? 's' : ''} ready for your marketing garden
                 </CaptionMedium>

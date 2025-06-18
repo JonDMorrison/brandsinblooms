@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
 import { AppleButton } from "@/components/ui/apple-button";
 import { Badge } from "@/components/ui/badge";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Eye, Sparkles, Leaf, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { ContentViewer } from "@/components/content/ContentViewer";
@@ -74,12 +74,12 @@ export const ContentPreviewSection = ({ campaign, onTaskUpdate }: ContentPreview
                   <Leaf className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <HeadlineMedium className="text-text-primary flex items-center gap-2">
+                  <HeadlineLarge className="text-text-primary flex items-center gap-2">
                     Content Ready for Review
                     <Badge className="bg-primary/10 text-primary border-primary/20">
                       {readyTasks.length}
                     </Badge>
-                  </HeadlineMedium>
+                  </HeadlineLarge>
                   <CaptionMedium className="text-text-secondary mt-1">
                     Professional marketing content tailored for your garden center
                   </CaptionMedium>
@@ -140,11 +140,11 @@ export const ContentPreviewSection = ({ campaign, onTaskUpdate }: ContentPreview
       {completedTasks.length > 0 && (
         <AppleCard variant="default" surface="secondary">
           <AppleCardHeader className="pb-3">
-            <HeadlineMedium className="text-text-primary flex items-center gap-2">
+            <HeadlineLarge className="text-text-primary flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-success" />
               Posted Content
               <Badge variant="secondary">{completedTasks.length}</Badge>
-            </HeadlineMedium>
+            </HeadlineLarge>
           </AppleCardHeader>
           <AppleCardContent>
             <BodyMedium className="text-text-secondary">
