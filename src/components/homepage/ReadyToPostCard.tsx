@@ -226,7 +226,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         <AppleCardContent className="space-y-4">
           <ResponsiveGrid 
             cols={{ mobile: 1, tablet: 1, desktop: 2 }}
-            gap={{ mobile: 3, tablet: 4, desktop: 4 }}
+            gap={{ mobile: "gap-3", tablet: "gap-4", desktop: "gap-4" }}
             animated={true}
           >
             {tasks.map((task) => (
