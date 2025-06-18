@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,33 +31,64 @@ export const useSeasonalHolidays = () => {
 
       console.log('Fetching holidays for upcoming opportunities');
 
-      // Get current date and 90 days from now for a good range
       const today = new Date();
-      const futureDate = new Date();
-      futureDate.setDate(today.getDate() + 90);
-
+      
+      // First check for holidays in the next 60 days (2 months)
+      const twoMonthsDate = new Date();
+      twoMonthsDate.setDate(today.getDate() + 60);
+      
       const todayStr = today.toISOString().split('T')[0];
-      const futureDateStr = futureDate.toISOString().split('T')[0];
+      const twoMonthsStr = twoMonthsDate.toISOString().split('T')[0];
 
-      console.log('Date range:', todayStr, 'to', futureDateStr);
+      console.log('Checking 2-month range:', todayStr, 'to', twoMonthsStr);
 
-      const { data, error: fetchError } = await supabase
+      const { data: twoMonthData, error: twoMonthError } = await supabase
         .from('holidays')
         .select('*')
         .eq('is_active', true)
         .gte('holiday_date', todayStr)
-        .lte('holiday_date', futureDateStr)
-        .order('holiday_date', { ascending: true })
-        .limit(10);
+        .lte('holiday_date', twoMonthsStr)
+        .order('holiday_date', { ascending: true });
 
-      if (fetchError) {
-        console.error('Error fetching holidays:', fetchError);
-        setError(fetchError.message);
+      if (twoMonthError) {
+        console.error('Error fetching 2-month holidays:', twoMonthError);
+        setError(twoMonthError.message);
+        setHolidays([]);
+        return;
+      }
+
+      console.log('2-month holidays found:', twoMonthData?.length || 0);
+
+      // If there are exactly 8 opportunities in 2 months, show all 8
+      if (twoMonthData && twoMonthData.length === 8) {
+        console.log('Showing all 8 holidays from 2-month period');
+        setHolidays(twoMonthData);
+        return;
+      }
+
+      // Otherwise, fetch up to 6 holidays from 90-day range
+      const threeMonthsDate = new Date();
+      threeMonthsDate.setDate(today.getDate() + 90);
+      const threeMonthsStr = threeMonthsDate.toISOString().split('T')[0];
+
+      console.log('Fetching 6 holidays from 3-month range:', todayStr, 'to', threeMonthsStr);
+
+      const { data: threeMonthData, error: threeMonthError } = await supabase
+        .from('holidays')
+        .select('*')
+        .eq('is_active', true)
+        .gte('holiday_date', todayStr)
+        .lte('holiday_date', threeMonthsStr)
+        .order('holiday_date', { ascending: true })
+        .limit(6);
+
+      if (threeMonthError) {
+        console.error('Error fetching 3-month holidays:', threeMonthError);
+        setError(threeMonthError.message);
         setHolidays([]);
       } else {
-        console.log('Fetched holidays:', data?.length || 0, 'holidays found');
-        console.log('Holiday data:', data);
-        setHolidays(data || []);
+        console.log('Showing', threeMonthData?.length || 0, 'holidays from 3-month period');
+        setHolidays(threeMonthData || []);
       }
     } catch (error) {
       console.error('Exception fetching holidays:', error);
