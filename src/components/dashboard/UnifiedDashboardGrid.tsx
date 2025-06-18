@@ -1,8 +1,7 @@
+
 import * as React from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useUser } from "@/hooks/useUser";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
-import { SmartThemeSelector } from "@/components/dashboard/SmartThemeSelector";
 import { SampleCampaignCard } from "@/components/dashboard/SampleCampaignCard";
 import { QuickActionsSection } from "@/components/dashboard/QuickActionsSection";
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
@@ -14,33 +13,18 @@ interface UnifiedDashboardGridProps {
 
 export const UnifiedDashboardGrid = ({ onTaskUpdate }: UnifiedDashboardGridProps) => {
   const { user } = useAuth();
-  const { isNewUser, loading } = useUser();
-
-  if (loading) {
-    return <div className="text-center py-12">Loading dashboard...</div>;
-  }
 
   return (
     <div className="space-y-8">
       {/* Current Campaign Section */}
-      <CurrentCampaignSection onTaskUpdate={onTaskUpdate} />
+      <CurrentCampaignSection 
+        activeCampaign={null}
+        onTaskUpdate={onTaskUpdate}
+        onCreateCampaign={() => {}}
+        onCampaignCreated={() => {}}
+      />
 
-      {/* Weekly Themes Section - Only show for authenticated users */}
-      {user && (
-        <div className="space-y-6">
-          <div>
-            <HeadlineLarge className="text-text-primary">
-              Weekly Theme Planning
-            </HeadlineLarge>
-            <BodyMedium className="text-text-secondary mt-1">
-              Generate and manage seasonal content themes
-            </BodyMedium>
-          </div>
-          <SmartThemeSelector />
-        </div>
-      )}
-
-      {/* Seasonal Holidays Section - New addition */}
+      {/* Seasonal Holidays Section - Only show for authenticated users */}
       {user && (
         <div className="space-y-6">
           <div>
@@ -56,7 +40,7 @@ export const UnifiedDashboardGrid = ({ onTaskUpdate }: UnifiedDashboardGridProps
       )}
 
       {/* Sample Campaign Section - Only show for new users */}
-      {(!user || isNewUser) && (
+      {!user && (
         <div className="space-y-6">
           <div>
             <HeadlineLarge className="text-text-primary">
@@ -66,12 +50,12 @@ export const UnifiedDashboardGrid = ({ onTaskUpdate }: UnifiedDashboardGridProps
               See what your marketing content could look like
             </BodyMedium>
           </div>
-          <SampleCampaignCard />
+          <SampleCampaignCard onCreateRealCampaign={() => {}} />
         </div>
       )}
 
       {/* Quick Actions */}
-      <QuickActionsSection />
+      <QuickActionsSection onCampaignCreated={() => {}} />
     </div>
   );
 };

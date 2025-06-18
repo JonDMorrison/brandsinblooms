@@ -2,32 +2,43 @@
 export interface Campaign {
   id: string;
   title: string;
-  description?: string;
-  theme?: string;
-  prompt?: string;
-  source?: string;
   week_number: number;
   start_date: string;
   created_at: string;
   user_id: string;
+  theme?: string;
+  description?: string;
+  prompt?: string;
+  source?: string;
 }
 
 export interface ContentTask {
   id: string;
-  post_type?: string;
-  status: 'planned' | 'generating' | 'pending' | 'posted' | 'completed' | 'draft' | 'review';
-  ai_output?: string;
-  notes?: string;
-  scheduled_date?: string;
+  campaign_id: string | null;
+  holiday_id?: string | null;
+  post_type: string | null;
+  status: 'planned' | 'review' | 'approved' | 'posted' | 'rejected';
+  ai_output: string | null;
+  hashtags: string | null;
+  image_idea: string | null;
+  scheduled_date: string | null;
+  assigned_user_id: string | null;
+  user_id: string | null;
+  notes: string | null;
   created_at: string;
-  campaign_id?: string;
-  assigned_user_id?: string;
-  image_idea?: string;
-  hashtags?: string;
   campaigns?: Campaign;
+  holidays?: {
+    holiday_name: string;
+    holiday_date: string;
+  };
 }
 
-export interface ReviewQueueProps {
-  onTaskUpdate?: () => void;
-  onTaskClick?: (task: ContentTask) => void;
+export interface Holiday {
+  id: string;
+  holiday_name: string;
+  holiday_date: string;
+  description: string;
+  category: string;
+  garden_relevance: string;
+  is_active: boolean;
 }

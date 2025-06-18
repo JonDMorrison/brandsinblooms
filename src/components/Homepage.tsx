@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -5,7 +6,7 @@ import { ensureCampaignHasTasks } from "./homepage/CampaignAutoManager";
 import { generateRequiredTasks } from "./homepage/RequiredTasksGenerator";
 import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
 import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
-import { ReviewQueueCard } from "@/content/ReviewQueueCard";
+import { ReviewQueueCard } from "./content/ReviewQueueCard";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
