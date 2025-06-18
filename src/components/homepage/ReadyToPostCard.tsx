@@ -247,20 +247,6 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
               </div>
             ))}
           </ResponsiveGrid>
-
-          {tasks.length >= 6 && (
-            <div className="text-center pt-6 border-t border-gray-100 mt-6">
-              <PremiumButton 
-                variant="secondary" 
-                leadingIcon="sparkles"
-                className={`border-gray-200 text-gray-700 hover:bg-gray-50 apple-button-premium ${isMobile ? 'w-full' : 'w-full'}`}
-                premium={true}
-                onClick={handleViewAllContent}
-              >
-                Explore Your Content Garden
-              </PremiumButton>
-            </div>
-          )}
         </AppleCardContent>
       </EnhancedAppleCard>
 
