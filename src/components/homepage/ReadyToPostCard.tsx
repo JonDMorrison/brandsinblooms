@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -200,7 +201,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
               </div>
               <div className={isMobile ? 'text-center' : ''}>
                 <HeadlineMedium className={`text-stone-800 ${isMobile ? 'text-lg' : ''}`}>
-                  Step 3: Publish Your Content
+                  Ready To Publish
                 </HeadlineMedium>
                 <CaptionMedium className={`text-stone-600 ${isMobile ? 'text-sm' : ''}`}>
                   {tasks.length} piece{tasks.length !== 1 ? 's' : ''} ready for your marketing
