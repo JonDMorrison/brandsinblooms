@@ -30,7 +30,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
   const statusConfig = getStatusConfig(task.status);
   const hasContent = task.ai_output && task.ai_output.trim() !== '';
   const cleanContent = hasContent ? stripMarkdown(task.ai_output) : '';
-  const previewText = cleanContent ? truncateText(cleanContent, 110, '…') : 'No content generated yet';
+  const previewText = hasContent ? truncateText(cleanContent, 110, '…') : 'Content will be generated soon...';
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
