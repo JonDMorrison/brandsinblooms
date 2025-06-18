@@ -1,7 +1,5 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { LandingPageIcon, ConnectedIcons } from "./LandingPageIcon";
-import { Globe, Eye, Rocket } from "lucide-react";
 
 export const HowItWorksSection = () => {
   return (
@@ -16,47 +14,9 @@ export const HowItWorksSection = () => {
           </p>
         </div>
         
-        {/* Enhanced connected visual flow for desktop */}
-        <div className="hidden md:block mb-16">
-          <ConnectedIcons className="max-w-5xl mx-auto">
-            <LandingPageIcon 
-              icon={Globe} 
-              variant="section" 
-              theme="spring" 
-              animated={true}
-              containerClassName="apple-fade-in-stagger shadow-lg"
-            />
-            <LandingPageIcon 
-              icon={Eye} 
-              variant="section" 
-              theme="summer" 
-              animated={true}
-              containerClassName="apple-fade-in-stagger shadow-lg"
-              style={{animationDelay: '0.2s'}}
-            />
-            <LandingPageIcon 
-              icon={Rocket} 
-              variant="section" 
-              theme="autumn" 
-              animated={true}
-              containerClassName="apple-fade-in-stagger shadow-lg"
-              style={{animationDelay: '0.4s'}}
-            />
-          </ConnectedIcons>
-        </div>
-        
         <div className="grid md:grid-cols-3 gap-10">
           <Card className="apple-fade-in-stagger card-interactive text-center p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-garden-green/20 apple-warm-neutral shadow-sm hover:shadow-2xl group">
             <CardContent className="pt-8 apple-card-spacing">
-              <div className="flex justify-center mb-8 md:hidden">
-                <LandingPageIcon 
-                  icon={Globe} 
-                  variant="section" 
-                  theme="spring" 
-                  animated={true}
-                  containerClassName="shadow-lg"
-                />
-              </div>
               <div className="w-12 h-12 bg-garden-green text-white rounded-full flex items-center justify-center font-bold text-xl mb-6 mx-auto">
                 1
               </div>
@@ -71,15 +31,6 @@ export const HowItWorksSection = () => {
 
           <Card className="apple-fade-in-stagger card-interactive text-center p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-garden-green/20 apple-warm-neutral shadow-sm hover:shadow-2xl group" style={{animationDelay: '0.1s'}}>
             <CardContent className="pt-8 apple-card-spacing">
-              <div className="flex justify-center mb-8 md:hidden">
-                <LandingPageIcon 
-                  icon={Eye} 
-                  variant="section" 
-                  theme="summer" 
-                  animated={true}
-                  containerClassName="shadow-lg"
-                />
-              </div>
               <div className="w-12 h-12 bg-garden-green text-white rounded-full flex items-center justify-center font-bold text-xl mb-6 mx-auto">
                 2
               </div>
@@ -94,15 +45,6 @@ export const HowItWorksSection = () => {
 
           <Card className="apple-fade-in-stagger card-interactive text-center p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-garden-green/20 apple-warm-neutral shadow-sm hover:shadow-2xl group" style={{animationDelay: '0.2s'}}>
             <CardContent className="pt-8 apple-card-spacing">
-              <div className="flex justify-center mb-8 md:hidden">
-                <LandingPageIcon 
-                  icon={Rocket} 
-                  variant="section" 
-                  theme="autumn" 
-                  animated={true}
-                  containerClassName="shadow-lg"
-                />
-              </div>
               <div className="w-12 h-12 bg-garden-green text-white rounded-full flex items-center justify-center font-bold text-xl mb-6 mx-auto">
                 3
               </div>
