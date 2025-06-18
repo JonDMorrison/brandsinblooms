@@ -7,7 +7,7 @@ import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { HolidayItem } from "./HolidayItem";
 import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Calendar, Clock, Sparkles } from "lucide-react";
+import { Calendar, Clock, Sparkles, Leaf } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -60,132 +60,127 @@ export const SeasonalHolidaysCard = ({
 
   if (loading) {
     return (
-      <EnhancedAppleCard 
-        variant="default" 
-        surface="secondary" 
-        className={cn('animate-pulse', className)}
-        hoverEffect="none"
-      >
-        <AppleCardHeader className="apple-card-spacing">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />
-            <div>
-              <div className="w-48 h-6 bg-gray-200 rounded animate-pulse mb-2" />
-              <div className="w-32 h-4 bg-gray-200 rounded animate-pulse" />
-            </div>
+      <div className={cn('space-y-6', className)}>
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-8 w-80 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="h-4 w-64 bg-gray-200 rounded animate-pulse" />
           </div>
-        </AppleCardHeader>
-        <AppleCardContent className="apple-card-spacing">
-          <div className="space-y-4">
-            {[1, 2].map(i => (
-              <div key={i} className="h-32 bg-gray-200 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        </AppleCardContent>
-      </EnhancedAppleCard>
+          <div className="h-6 w-24 bg-gray-200 rounded animate-pulse" />
+        </div>
+        
+        {/* Cards Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-64 bg-gray-100 rounded-xl animate-pulse border border-gray-200" />
+          ))}
+        </div>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <EnhancedAppleCard 
-        variant="default" 
-        surface="secondary" 
-        className={cn('border-red-200', className)}
-        hoverEffect="none"
-      >
-        <AppleCardContent className="apple-card-spacing text-center py-8">
-          <div className="text-red-500 mb-2">⚠️</div>
-          <HeadlineMedium className="text-red-700 mb-2">
-            Failed to Load Holidays
+      <div className={cn('space-y-6', className)}>
+        <div className="text-center py-12 px-6 bg-red-50 rounded-xl border border-red-200">
+          <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+            <Calendar className="w-8 h-8 text-red-500" />
+          </div>
+          <HeadlineMedium className="text-red-800 mb-2">
+            Unable to Load Holiday Opportunities
           </HeadlineMedium>
-          <BodyMedium className="text-red-600">
+          <BodyMedium className="text-red-600 max-w-md mx-auto">
             {error}
           </BodyMedium>
-        </AppleCardContent>
-      </EnhancedAppleCard>
+        </div>
+      </div>
     );
   }
 
   if (holidays.length === 0) {
     return (
-      <EnhancedAppleCard 
-        variant="default" 
-        surface="secondary" 
-        className={cn('apple-empty-state', className)}
-        hoverEffect="none"
-      >
-        <AppleCardContent className={`text-center ${isMobile ? 'py-6' : 'py-8'}`}>
-          <div className={`apple-icon-container mx-auto mb-4 ${isMobile ? 'w-12 h-12' : 'w-16 h-16'}`}>
-            <Calendar className={`text-gray-400 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+      <div className={cn('space-y-6', className)}>
+        <div className="text-center py-16 px-6 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border border-green-200">
+          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
+            <Leaf className="w-10 h-10 text-green-600" />
           </div>
-          <HeadlineMedium className={`text-gray-600 mb-2 ${isMobile ? 'text-lg' : ''}`}>
-            No Upcoming Holidays
+          <HeadlineMedium className="text-gray-800 mb-3">
+            No Upcoming Holiday Opportunities
           </HeadlineMedium>
-          <BodyMedium className={`text-gray-500 max-w-sm mx-auto ${isMobile ? 'text-sm' : ''}`}>
-            No seasonal holidays or observances in the next 30 days. Check back soon for new opportunities!
+          <BodyMedium className="text-gray-600 max-w-sm mx-auto mb-4">
+            No seasonal holidays or observances in the next 90 days. Check back soon for new marketing opportunities!
           </BodyMedium>
-          <div className="mt-4">
-            <span className="text-2xl garden-breathing">🌸</span>
+          <div className="flex justify-center space-x-2 text-2xl">
+            <span className="animate-bounce">🌸</span>
+            <span className="animate-bounce" style={{ animationDelay: '0.1s' }}>🌿</span>
+            <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>🌱</span>
           </div>
-        </AppleCardContent>
-      </EnhancedAppleCard>
+        </div>
+      </div>
     );
   }
 
   return (
-    <EnhancedAppleCard 
-      variant="elevated" 
-      surface="primary"
-      hoverEffect="subtle"
-      animated={true}
-      className={cn('border-l-4 border-l-green-400 shadow-lg', className)}
-    >
-      <AppleCardHeader className={`apple-card-spacing ${isMobile ? 'pb-3' : 'pb-4'}`}>
-        <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-4 text-center' : ''}`}>
-          <div className={`flex items-center gap-4 ${isMobile ? 'w-full justify-center' : ''}`}>
-            <div className={`apple-icon-container apple-spring-bounce ${isMobile ? 'w-10 h-10' : 'w-12 h-12'}`}>
-              <Sparkles className={`text-green-600 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
+    <div className={cn('space-y-6', className)}>
+      {/* Modern Header Section */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-xl flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <div className={isMobile ? 'text-center' : ''}>
-              <HeadlineMedium className={`apple-headline-medium text-gray-800 ${isMobile ? 'text-lg' : ''}`}>
-                🎉 Seasonal Holidays & Observances
-              </HeadlineMedium>
-              <CaptionMedium className={`apple-caption-enhanced text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
-                {holidays.length} upcoming holiday{holidays.length !== 1 ? 's' : ''} in the next 30 days
-              </CaptionMedium>
-            </div>
+            <HeadlineMedium className="text-gray-900 font-semibold">
+              🎯 Seasonal Marketing Opportunities
+            </HeadlineMedium>
           </div>
-          {!isMobile && (
-            <div className="flex items-center gap-2 text-gray-500">
-              <Clock className="w-4 h-4" />
-              <CaptionMedium>Next 30 days</CaptionMedium>
-            </div>
-          )}
+          <CaptionMedium className="text-gray-600 ml-13">
+            Turn upcoming holidays into engaging content that drives sales
+          </CaptionMedium>
         </div>
-      </AppleCardHeader>
+        
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-200">
+          <Clock className="w-4 h-4 text-blue-600" />
+          <CaptionMedium className="text-blue-700 font-medium">
+            {holidays.length} opportunities
+          </CaptionMedium>
+        </div>
+      </div>
 
-      <AppleCardContent className="apple-card-spacing">
-        <ResponsiveGrid 
-          cols={{ mobile: 1, tablet: 1, desktop: 2 }}
-          gap={{ mobile: "gap-4", tablet: "gap-5", desktop: "gap-6" }}
-          animated={true}
-          staggerDelay={150}
-        >
-          {holidays.map((holiday, index) => (
-            <div 
-              key={holiday.id}
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <HolidayItem
-                holiday={holiday}
-                onGenerateContent={handleGenerateContent}
-                isGenerating={generatingHolidays.has(holiday.id)}
-              />
-            </div>
-          ))}
-        </ResponsiveGrid>
-      </AppleCardContent>
-    </EnhancedAppleCard>
+      {/* Holiday Cards Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {holidays.map((holiday, index) => (
+          <div 
+            key={holiday.id}
+            className="transform transition-all duration-300 hover:scale-[1.02]"
+            style={{ 
+              animationDelay: `${index * 100}ms`,
+              animation: 'fadeInUp 0.6s ease-out forwards'
+            }}
+          >
+            <HolidayItem
+              holiday={holiday}
+              onGenerateContent={handleGenerateContent}
+              isGenerating={generatingHolidays.has(holiday.id)}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom CTA Section */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <BodyMedium className="text-gray-800 font-medium mb-1">
+              💡 Pro Tip: Generate content early
+            </BodyMedium>
+            <CaptionMedium className="text-gray-600">
+              Create your holiday content 2-3 weeks in advance for best results
+            </CaptionMedium>
+          </div>
+          <div className="text-2xl">🚀</div>
+        </div>
+      </div>
+    </div>
   );
 };

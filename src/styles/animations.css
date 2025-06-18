@@ -1,110 +1,90 @@
-
-@layer utilities {
-  /* Apple-inspired micro-interactions */
-  .apple-hover {
-    @apply transition-all duration-200 ease-apple hover:scale-[1.02] hover:shadow-md active:scale-[0.98];
+/* Base Animations */
+@keyframes slideInFromLeft {
+  0% {
+    transform: translateX(-100%);
   }
-
-  .apple-hover-subtle {
-    @apply transition-all duration-150 ease-apple hover:scale-[1.01] hover:shadow-sm active:scale-[0.99];
-  }
-
-  .apple-button-press {
-    @apply transition-all duration-100 ease-apple active:scale-[0.96] active:brightness-95;
-  }
-
-  .apple-fade-in {
-    @apply animate-fade-in;
-  }
-
-  .apple-scale-in {
-    @apply animate-scale-in;
-  }
-
-  .apple-slide-up {
-    animation: slide-up 0.3s ease-apple;
-  }
-
-  /* Drag and drop specific animations */
-  .drag-lift {
-    @apply transition-all duration-150 ease-out;
-    transform: translateY(-2px);
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-  }
-
-  .drag-ghost {
-    @apply transition-all duration-200 ease-out;
-    opacity: 0.6;
-    transform: translateY(1px);
-    pointer-events: none;
-  }
-
-  .drop-zone-active {
-    @apply transition-all duration-200 ease-out;
-    background: rgba(34, 197, 94, 0.05);
-    border: 2px solid rgb(34, 197, 94);
-    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1);
-  }
-
-  /* Staggered animations for lists */
-  .apple-stagger-1 {
-    animation-delay: 0.1s;
-  }
-
-  .apple-stagger-2 {
-    animation-delay: 0.2s;
-  }
-
-  .apple-stagger-3 {
-    animation-delay: 0.3s;
-  }
-
-  .apple-stagger-4 {
-    animation-delay: 0.4s;
-  }
-
-  /* Focus states */
-  .apple-focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-all duration-150;
-  }
-
-  /* Loading states */
-  .apple-skeleton {
-    @apply bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite];
-  }
-
-  /* Interactive states for cards */
-  .apple-card-interactive {
-    @apply apple-hover cursor-pointer;
-  }
-
-  /* Smooth color transitions */
-  .apple-color-transition {
-    @apply transition-colors duration-200 ease-apple;
-  }
-
-  /* Icon animations */
-  .apple-icon-bounce {
-    @apply hover:animate-[bounce_0.6s_ease-in-out];
-  }
-
-  .apple-icon-rotate {
-    @apply hover:animate-[spin_0.8s_ease-in-out];
-  }
-
-  /* Text animations */
-  .apple-text-glow {
-    @apply transition-all duration-200 hover:text-primary hover:drop-shadow-sm;
+  100% {
+    transform: translateX(0);
   }
 }
 
-/* Custom keyframes */
-@keyframes slide-up {
+@keyframes slideOutToLeft {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes scaleUp {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleDown {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+@keyframes rotate {
   from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes breathing {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* New seasonal marketing animations */
+@keyframes fadeInUp {
+  0% {
     opacity: 0;
     transform: translateY(20px);
   }
-  to {
+  100% {
     opacity: 1;
     transform: translateY(0);
   }
@@ -112,14 +92,14 @@
 
 @keyframes shimmer {
   0% {
-    background-position: -200% 0;
+    background-position: -200px 0;
   }
   100% {
-    background-position: 200% 0;
+    background-position: calc(200px + 100%) 0;
   }
 }
 
-@keyframes gentle-pulse {
+@keyframes pulse-subtle {
   0%, 100% {
     opacity: 1;
   }
@@ -128,63 +108,49 @@
   }
 }
 
-@keyframes ripple {
-  0% {
-    transform: scale(0);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(4);
-    opacity: 0;
-  }
+/* Utility classes for new animations */
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
 }
 
-/* Global drag state */
-body.dragging {
-  cursor: grabbing !important;
-  user-select: none;
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  background-size: 200px 100%;
 }
 
-body.dragging * {
-  cursor: grabbing !important;
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
 }
 
-/* Mobile-specific animations */
-@media (max-width: 768px) {
-  .apple-hover {
-    @apply hover:scale-100 active:scale-[0.98];
-  }
-  
-  .apple-hover-subtle {
-    @apply hover:scale-100 active:scale-[0.99];
-  }
-
-  /* Disable hover effects on mobile to prevent conflicts */
-  .drag-lift {
-    transform: none;
-    filter: none;
-  }
-
-  /* Reduce motion for better mobile performance */
-  .apple-skeleton {
-    animation-duration: 2s;
-  }
+/* Enhanced hover effects */
+.hover-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Reduced motion preferences */
-@media (prefers-reduced-motion: reduce) {
-  .apple-slide-up,
-  .apple-fade-in,
-  .apple-scale-in,
-  .apple-hover,
-  .apple-hover-subtle,
-  .apple-button-press {
-    animation: none !important;
-    transition: none !important;
-  }
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
 
-  .apple-skeleton {
-    @apply bg-gray-200;
-    animation: none;
-  }
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
