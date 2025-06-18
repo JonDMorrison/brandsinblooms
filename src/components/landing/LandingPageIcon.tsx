@@ -10,6 +10,7 @@ interface LandingPageIconProps {
   className?: string;
   containerClassName?: string;
   animated?: boolean;
+  style?: React.CSSProperties;
 }
 
 const variantStyles = {
@@ -41,7 +42,8 @@ export const LandingPageIcon = ({
   theme = 'neutral', 
   className, 
   containerClassName,
-  animated = true 
+  animated = true,
+  style
 }: LandingPageIconProps) => {
   const styles = variantStyles[variant];
   
@@ -55,6 +57,7 @@ export const LandingPageIcon = ({
         animated && "hover:scale-110 hover:shadow-xl hover:-translate-y-1",
         containerClassName
       )}
+      style={style}
     >
       <Icon 
         className={cn(
