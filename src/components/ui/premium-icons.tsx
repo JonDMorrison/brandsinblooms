@@ -55,28 +55,21 @@ export const PremiumIcon = ({
   const variantClasses = {
     default: 'text-gray-600',
     gradient: 'text-garden-green',
-    seasonal: getSteasonalColor(icon)
+    seasonal: getSeasonalColor(icon)
   };
 
   return (
-    <div className={cn(
-      'apple-icon-container',
-      sizeClasses[size],
-      'p-2',
-      className
-    )}>
-      <IconComponent 
-        className={cn(
-          'apple-garden-icon',
-          sizeClasses[size],
-          variantClasses[variant]
-        )}
-      />
-    </div>
+    <IconComponent 
+      className={cn(
+        sizeClasses[size],
+        variantClasses[variant],
+        className
+      )}
+    />
   );
 };
 
-function getSteasonalColor(icon: string): string {
+function getSeasonalColor(icon: string): string {
   const month = new Date().getMonth() + 1;
   
   if (icon === 'sun' || (month >= 6 && month <= 8)) {
