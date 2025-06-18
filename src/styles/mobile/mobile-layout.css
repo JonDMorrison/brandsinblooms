@@ -1,0 +1,167 @@
+
+@layer utilities {
+  /* Mobile-first layout and spacing optimizations */
+  @media (max-width: 768px) {
+    /* MOBILE CONTAINER AND PADDING FIXES - OPTIMIZED */
+    
+    /* Global mobile container constraints */
+    .max-w-7xl {
+      @apply max-w-full !important;
+    }
+    
+    /* Highly optimized mobile spacing system */
+    .responsive-padding {
+      @apply p-3 !important;
+    }
+
+    .responsive-margin {
+      @apply m-2 !important;
+    }
+
+    .responsive-gap {
+      @apply gap-3 !important;
+    }
+
+    /* Mobile spacing overrides - Better balance */
+    .space-y-8 > * + * {
+      @apply mt-4 !important;
+    }
+
+    .space-y-6 > * + * {
+      @apply mt-3 !important;
+    }
+
+    .space-y-4 > * + * {
+      @apply mt-2 !important;
+    }
+
+    /* Mobile card padding overrides - Better spacing */
+    .apple-card-mobile-optimized,
+    .enhanced-apple-card {
+      @apply p-4 !important;
+    }
+
+    /* Better mobile container constraints */
+    .dashboard-container {
+      @apply px-3 py-2 !important;
+    }
+
+    /* Mobile container width constraints - Better margins */
+    .mobile-container-constraint {
+      @apply mx-2 max-w-[calc(100vw-16px)] !important;
+    }
+
+    /* Override default card content padding on mobile - Better spacing */
+    .apple-card-content-mobile {
+      @apply p-4 pt-2 !important;
+    }
+
+    /* Mobile header optimizations - Better spacing */
+    .mobile-header-padding {
+      @apply px-3 py-2 !important;
+    }
+
+    /* Safe area for mobile devices with better constraints */
+    .mobile-safe-area {
+      @apply px-3 mx-1 max-w-full overflow-hidden !important;
+    }
+
+    /* Section padding reduction for mobile */
+    .py-32 {
+      padding-top: 2.5rem !important; /* 40px */
+      padding-bottom: 2.5rem !important;
+    }
+    
+    .py-24 {
+      padding-top: 2rem !important; /* 32px */
+      padding-bottom: 2rem !important;
+    }
+    
+    .py-20 {
+      padding-top: 1.75rem !important; /* 28px */
+      padding-bottom: 1.75rem !important;
+    }
+
+    /* Card and container padding */
+    .p-10 {
+      padding: 1.25rem !important; /* 20px */
+    }
+    
+    .p-8 {
+      padding: 1rem !important; /* 16px */
+    }
+    
+    .p-6 {
+      padding: 0.875rem !important; /* 14px */
+    }
+
+    /* Grid and flex adjustments */
+    .gap-10 {
+      gap: 1.25rem !important; /* 20px */
+    }
+    
+    .gap-12 {
+      gap: 1.5rem !important; /* 24px */
+    }
+
+    /* Mobile margin adjustments */
+    .mb-20 {
+      margin-bottom: 1.5rem !important; /* 24px */
+    }
+    
+    .mb-16 {
+      margin-bottom: 1.25rem !important; /* 20px */
+    }
+    
+    .mb-14 {
+      margin-bottom: 1rem !important; /* 16px */
+    }
+    
+    .mb-12 {
+      margin-bottom: 0.875rem !important; /* 14px */
+    }
+
+    /* Mobile container constraints */
+    .max-w-5xl,
+    .max-w-4xl,
+    .max-w-3xl {
+      max-width: calc(100vw - 24px) !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+      padding-left: 12px !important;
+      padding-right: 12px !important;
+    }
+
+    /* Mobile grid improvements */
+    .grid {
+      gap: 1.25rem !important;
+    }
+    
+    .md\:grid-cols-3 {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .md\:grid-cols-2 {
+      grid-template-columns: 1fr !important;
+    }
+
+    /* Mobile flex improvements */
+    .flex {
+      flex-wrap: wrap !important;
+      justify-content: center !important;
+      align-items: center !important;
+    }
+
+    .justify-center.gap-12 {
+      gap: 1.5rem !important;
+      flex-direction: column !important;
+    }
+  }
+
+  /* Tablet and desktop optimizations */
+  @media (min-width: 769px) {
+    .mobile-container-constraint {
+      @apply mx-auto !important;
+    }
+  }
+}

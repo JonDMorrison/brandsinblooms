@@ -1,0 +1,209 @@
+
+@layer utilities {
+  /* Mobile-first button optimizations */
+  @media (max-width: 768px) {
+    /* COMPREHENSIVE MOBILE BUTTON FIXES */
+    
+    /* Base button styling - Complete mobile optimization */
+    button,
+    .button,
+    [role="button"],
+    .apple-button-premium,
+    .apple-spring-bounce,
+    .apple-ripple-effect {
+      /* Responsive sizing based on button type */
+      min-height: 48px !important;
+      min-width: auto !important;
+      padding: 12px 16px !important;
+      
+      /* CRITICAL: Ensure text is visible and readable */
+      font-weight: 600 !important;
+      font-size: 14px !important;
+      line-height: 1.3 !important;
+      
+      /* Ensure buttons are interactive */
+      pointer-events: auto !important;
+      cursor: pointer !important;
+      
+      /* Proper z-index for clickability */
+      position: relative !important;
+      z-index: 50 !important;
+      
+      /* Touch-friendly interactions */
+      touch-action: manipulation !important;
+      -webkit-tap-highlight-color: transparent !important;
+      
+      /* Prevent text selection on buttons */
+      user-select: none !important;
+      -webkit-user-select: none !important;
+      
+      /* Ensure proper display */
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      
+      /* Mobile-friendly transitions */
+      transition: all 150ms ease !important;
+      
+      /* CRITICAL: Responsive width constraints */
+      max-width: calc(100vw - 32px) !important;
+      width: auto !important;
+      word-wrap: break-word !important;
+      text-align: center !important;
+      white-space: normal !important;
+      overflow-wrap: break-word !important;
+      hyphens: auto !important;
+    }
+
+    /* Green button specific fixes - Ensure proper contrast */
+    .bg-garden-green,
+    .apple-button-premium,
+    button[class*="garden-green"] {
+      background-color: rgb(76 175 80) !important; /* garden-green */
+      color: white !important;
+      border-color: rgb(76 175 80) !important;
+    }
+
+    .bg-garden-green:hover,
+    .apple-button-premium:hover,
+    button[class*="garden-green"]:hover {
+      background-color: rgb(46 125 50) !important; /* garden-green-dark */
+      color: white !important;
+    }
+
+    /* Mobile button hover/active states */
+    button:active,
+    .button:active,
+    [role="button"]:active,
+    .apple-button-premium:active,
+    .apple-spring-bounce:active {
+      transform: scale(0.95) !important;
+      opacity: 0.9 !important;
+    }
+
+    /* HERO CTA BUTTONS - Special treatment for landing page */
+    section button,
+    .hero-section button,
+    button[class*="px-16"],
+    button[class*="px-8"] {
+      /* Responsive sizing for CTA buttons */
+      min-height: 56px !important;
+      padding: 14px 20px !important;
+      font-size: 15px !important;
+      font-weight: 600 !important;
+      
+      /* CRITICAL: Ensure they fit on screen with proper spacing */
+      max-width: calc(100vw - 32px) !important;
+      width: auto !important;
+      margin: 0 auto !important;
+      
+      /* Ensure they're above background elements */
+      z-index: 100 !important;
+      position: relative !important;
+      
+      /* Better text handling for long text */
+      white-space: normal !important;
+      text-align: center !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+      hyphens: auto !important;
+      line-height: 1.2 !important;
+    }
+
+    /* FINAL CTA SECTION - ULTRA HIGH SPECIFICITY FIXES */
+    .final-cta-section {
+      background: linear-gradient(135deg, rgb(76 175 80), rgb(46 125 50)) !important;
+      color: white !important;
+      position: relative !important;
+    }
+    
+    .final-cta-section h2,
+    .final-cta-section p,
+    .final-cta-section span {
+      color: white !important;
+      opacity: 1 !important;
+    }
+    
+    /* CRITICAL: Button container with isolation */
+    .final-cta-button-container {
+      position: relative !important;
+      z-index: 9999 !important;
+      isolation: isolate !important;
+      transform: translateZ(0) !important;
+      will-change: transform !important;
+    }
+    
+    /* CRITICAL: Maximum specificity button fixes */
+    .final-cta-section .final-cta-button,
+    .final-cta-section button.final-cta-button,
+    section.final-cta-section .final-cta-button,
+    section.final-cta-section button.final-cta-button,
+    .final-cta-section .final-cta-button-container button,
+    .final-cta-section div.final-cta-button-container button {
+      background-color: white !important;
+      color: rgb(76 175 80) !important;
+      border: 2px solid white !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      display: inline-flex !important;
+      position: relative !important;
+      z-index: 9999 !important;
+      isolation: isolate !important;
+      transform: translateZ(0) !important;
+      will-change: transform !important;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+      outline: 2px solid rgba(255, 255, 255, 0.8) !important;
+      outline-offset: 2px !important;
+    }
+
+    /* CRITICAL: Hover states with maximum specificity */
+    .final-cta-section .final-cta-button:hover,
+    .final-cta-section button.final-cta-button:hover,
+    section.final-cta-section .final-cta-button:hover,
+    section.final-cta-section button.final-cta-button:hover,
+    .final-cta-section .final-cta-button-container button:hover,
+    .final-cta-section div.final-cta-button-container button:hover {
+      background-color: rgb(248 250 252) !important;
+      color: rgb(46 125 50) !important;
+      border-color: rgb(248 250 252) !important;
+      opacity: 1 !important;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* CRITICAL: Icon visibility with maximum specificity */
+    .final-cta-section .final-cta-button .w-4,
+    .final-cta-section .final-cta-button .h-4,
+    .final-cta-section .final-cta-button svg,
+    .final-cta-section button.final-cta-button .w-4,
+    .final-cta-section button.final-cta-button .h-4,
+    .final-cta-section button.final-cta-button svg,
+    .final-cta-section .final-cta-button-container button .w-4,
+    .final-cta-section .final-cta-button-container button .h-4,
+    .final-cta-section .final-cta-button-container button svg {
+      color: rgb(76 175 80) !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    /* CRITICAL: Override ANY conflicting styles */
+    .final-cta-section button:not(.final-cta-button) {
+      background-color: white !important;
+      color: rgb(76 175 80) !important;
+      border: 2px solid white !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      display: inline-flex !important;
+      z-index: 9999 !important;
+    }
+
+    /* Google Sign-In button specific fixes */
+    .w-full.h-12.border-garden-green\/30,
+    button.w-full.h-12[class*="border-garden-green"],
+    button[class*="google"],
+    .google-button {
+      border-color: rgb(76 175 80 / 0.3) !important;
+      color: rgb(31 41 55) !important;
+      background-color: white !important;
+    }
+  }
+}

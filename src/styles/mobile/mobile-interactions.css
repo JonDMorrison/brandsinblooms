@@ -1,0 +1,82 @@
+
+@layer utilities {
+  /* Mobile-first interaction and accessibility optimizations */
+  @media (max-width: 768px) {
+    /* Fix background elements that might be blocking touches */
+    .absolute:not(button):not([role="button"]),
+    .bg-gradient-to-br:not(button):not(.final-cta-section),
+    .bg-gradient-to-r:not(button):not(.final-cta-section) {
+      pointer-events: none !important;
+    }
+
+    /* Re-enable pointer events for interactive elements */
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    [role="button"],
+    [tabindex],
+    .clickable,
+    .interactive {
+      pointer-events: auto !important;
+    }
+
+    /* Touch targets and interactive elements */
+    .touch-target {
+      min-height: 48px !important;
+      min-width: 48px !important;
+    }
+
+    .touch-target-lg {
+      min-height: 56px !important;
+      min-width: 56px !important;
+    }
+
+    /* Mobile card interactions */
+    .apple-card-interactive,
+    .card-interactive {
+      @apply hover:scale-100 active:scale-[0.99] transition-transform duration-100;
+    }
+
+    /* Mobile animation optimizations */
+    .apple-hover,
+    .apple-hover-subtle {
+      @apply hover:scale-100 active:scale-[0.98] transition-transform duration-100;
+    }
+  }
+
+  /* Reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-delay: -1ms !important;
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      background-attachment: initial !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: more) {
+    body {
+      background-color: black !important;
+      color: white !important;
+    }
+
+    a {
+      color: lightblue !important;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      border-color: gray !important;
+      background-color: black !important;
+      color: white !important;
+    }
+  }
+}
