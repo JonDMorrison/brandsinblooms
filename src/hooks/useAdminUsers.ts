@@ -25,60 +25,51 @@ export const useAdminUsers = () => {
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      // Get all users with their profiles and subscription data
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      console.log("Fetching users from company_profiles and subscriptions...");
       
-      if (authError) {
-        console.error('Error fetching auth users:', authError);
-        throw authError;
+      // Get company profiles with subscription data
+      const { data: profiles, error: profilesError } = await supabase
+        .from('company_profiles')
+        .select(`
+          *,
+          subscriptions (
+            plan,
+            start_date,
+            end_date,
+            billing_interval
+          )
+        `);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
       }
 
-      // Get company profiles and subscriptions for all users
-      const userIds = authUsers.users.map(user => user.id);
-      
-      const [profilesResult, subscriptionsResult] = await Promise.all([
-        supabase
-          .from('company_profiles')
-          .select('*')
-          .in('user_id', userIds),
-        supabase
-          .from('subscriptions')
-          .select('*')
-          .in('user_id', userIds)
-      ]);
+      console.log("Fetched profiles:", profiles);
 
-      if (profilesResult.error) {
-        console.error('Error fetching profiles:', profilesResult.error);
-      }
-
-      if (subscriptionsResult.error) {
-        console.error('Error fetching subscriptions:', subscriptionsResult.error);
-      }
-
-      // Combine the data
-      const combinedUsers: AdminUserData[] = authUsers.users.map(authUser => {
-        const profile = profilesResult.data?.find(p => p.user_id === authUser.id);
-        const subscription = subscriptionsResult.data?.find(s => s.user_id === authUser.id);
-        
+      // Transform the data to match AdminUserData interface
+      const transformedUsers: AdminUserData[] = profiles?.map(profile => {
+        const subscription = profile.subscriptions?.[0];
         const isActive = subscription && new Date(subscription.end_date) > new Date();
 
         return {
-          id: authUser.id,
-          email: authUser.email || 'No email',
-          created_at: authUser.created_at,
-          company_name: profile?.company_name || 'Not set',
-          company_overview: profile?.company_overview || '',
-          location_info: profile?.location_info || '',
+          id: profile.user_id,
+          email: 'Email not available', // We can't access auth.users from frontend
+          created_at: profile.created_at,
+          company_name: profile.company_name || 'Not set',
+          company_overview: profile.company_overview || '',
+          location_info: profile.location_info || '',
           plan: subscription?.plan || 'No Plan',
           status: isActive ? 'Active' : 'Inactive',
           trial_end_date: subscription?.end_date,
-          last_login: authUser.last_sign_in_at,
-          tokens_balance: profile?.tokens_balance || 0,
-          onboarding_completed: !!profile?.onboarding_completed_at
+          last_login: undefined, // Not available from profiles
+          tokens_balance: profile.tokens_balance || 0,
+          onboarding_completed: !!profile.onboarding_completed_at
         };
-      });
+      }) || [];
 
-      setUsers(combinedUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      setUsers(transformedUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      console.log("Transformed users:", transformedUsers);
 
     } catch (error) {
       console.error('Error fetching admin users:', error);
