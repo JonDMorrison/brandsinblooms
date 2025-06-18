@@ -42,7 +42,7 @@ export const useSeasonalHolidays = () => {
 
       console.log('Date range:', todayStr, 'to', futureDateStr);
 
-      const { data, error: fetchError } = await supabaseClient
+      const { data, error: fetchError } = await supabase
         .from('holidays')
         .select('*')
         .eq('is_active', true)

@@ -378,6 +378,78 @@ export type Database = {
         }
         Relationships: []
       }
+      holiday_generation_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          generation_type: string
+          holidays_deactivated: number
+          holidays_generated: number
+          id: string
+          success: boolean
+          triggered_by: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          generation_type?: string
+          holidays_deactivated?: number
+          holidays_generated?: number
+          id?: string
+          success?: boolean
+          triggered_by?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          generation_type?: string
+          holidays_deactivated?: number
+          holidays_generated?: number
+          id?: string
+          success?: boolean
+          triggered_by?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      holiday_templates: {
+        Row: {
+          calculation_rule: Json
+          category: string
+          created_at: string
+          description: string | null
+          garden_relevance_template: string | null
+          holiday_name: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          calculation_rule: Json
+          category?: string
+          created_at?: string
+          description?: string | null
+          garden_relevance_template?: string | null
+          holiday_name: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          calculation_rule?: Json
+          category?: string
+          created_at?: string
+          description?: string | null
+          garden_relevance_template?: string | null
+          holiday_name?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       holidays: {
         Row: {
           category: string | null
