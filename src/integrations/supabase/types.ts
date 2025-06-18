@@ -270,12 +270,14 @@ export type Database = {
           campaign_id: string | null
           created_at: string
           hashtags: string | null
+          holiday_id: string | null
           id: string
           image_idea: string | null
           notes: string | null
           post_type: string | null
           scheduled_date: string | null
           status: string
+          user_id: string | null
         }
         Insert: {
           ai_output?: string | null
@@ -283,12 +285,14 @@ export type Database = {
           campaign_id?: string | null
           created_at?: string
           hashtags?: string | null
+          holiday_id?: string | null
           id?: string
           image_idea?: string | null
           notes?: string | null
           post_type?: string | null
           scheduled_date?: string | null
           status?: string
+          user_id?: string | null
         }
         Update: {
           ai_output?: string | null
@@ -296,12 +300,14 @@ export type Database = {
           campaign_id?: string | null
           created_at?: string
           hashtags?: string | null
+          holiday_id?: string | null
           id?: string
           image_idea?: string | null
           notes?: string | null
           post_type?: string | null
           scheduled_date?: string | null
           status?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -316,6 +322,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_tasks_holiday_id_fkey"
+            columns: ["holiday_id"]
+            isOneToOne: false
+            referencedRelation: "holidays"
             referencedColumns: ["id"]
           },
         ]
@@ -362,6 +375,42 @@ export type Database = {
           usage_count?: number | null
           user_id?: string
           variables?: string[] | null
+        }
+        Relationships: []
+      }
+      holidays: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          garden_relevance: string | null
+          holiday_date: string
+          holiday_name: string
+          id: string
+          is_active: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          garden_relevance?: string | null
+          holiday_date: string
+          holiday_name: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          garden_relevance?: string | null
+          holiday_date?: string
+          holiday_name?: string
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string
         }
         Relationships: []
       }

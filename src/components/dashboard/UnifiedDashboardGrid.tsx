@@ -1,86 +1,77 @@
-
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { ResponsiveGrid } from "@/components/ui/responsive-grid";
+import * as React from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUser } from "@/hooks/useUser";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { SmartThemeSelector } from "@/components/dashboard/SmartThemeSelector";
+import { SampleCampaignCard } from "@/components/dashboard/SampleCampaignCard";
+import { QuickActionsSection } from "@/components/dashboard/QuickActionsSection";
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
-import { CustomCampaignsSection } from "@/components/dashboard/CustomCampaignsSection";
-import { QuickActionsGrid } from "@/components/homepage/QuickActionsGrid";
-import { ReviewQueueCard } from "@/components/content/ReviewQueueCard";
-import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
+import { SeasonalHolidaysCard } from "./seasonal-holidays/SeasonalHolidaysCard";
 
 interface UnifiedDashboardGridProps {
-  activeCampaign: any;
-  userCreatedCampaigns: any[];
-  tasks: any[];
   onTaskUpdate: () => void;
-  onCampaignCreated: () => void;
-  onCampaignUpdate: () => void;
-  onCampaignDelete?: (campaignId: string) => void;
-  onCreateCampaign: () => void;
-  onTaskClick?: (task: any) => void;
 }
 
-export const UnifiedDashboardGrid = ({
-  activeCampaign,
-  userCreatedCampaigns,
-  tasks,
-  onTaskUpdate,
-  onCampaignCreated,
-  onCampaignUpdate,
-  onCampaignDelete,
-  onCreateCampaign,
-  onTaskClick
-}: UnifiedDashboardGridProps) => {
+export const UnifiedDashboardGrid = ({ onTaskUpdate }: UnifiedDashboardGridProps) => {
+  const { user } = useAuth();
+  const { isNewUser, loading } = useUser();
+
+  if (loading) {
+    return <div className="text-center py-12">Loading dashboard...</div>;
+  }
+
   return (
-    <div className="space-y-6 mobile-section-gap apple-fade-in">
-      {/* Current Campaign Section - Step 1 */}
-      <div className="apple-slide-up" data-campaign-section="true">
-        <CurrentCampaignSection 
-          activeCampaign={activeCampaign}
-          onTaskUpdate={onTaskUpdate}
-          onCreateCampaign={onCreateCampaign}
-          onCampaignCreated={onCampaignCreated}
-          onTaskClick={onTaskClick}
-        />
-      </div>
+    <div className="space-y-8">
+      {/* Current Campaign Section */}
+      <CurrentCampaignSection onTaskUpdate={onTaskUpdate} />
 
-      {/* Quick Actions Section - Step 2 */}
-      <div className="apple-slide-up apple-stagger-1">
-        <QuickActionsGrid 
-          onCampaignCreated={onCampaignCreated}
-        />
-      </div>
-
-      {/* Content Review Section - Step 3 */}
-      <div className="apple-slide-up apple-stagger-2">
-        <ReviewQueueCard 
-          onTaskUpdate={onTaskUpdate}
-          onTaskClick={onTaskClick}
-        />
-      </div>
-
-      {/* Ready To Post Section - Step 4 */}
-      <div className="apple-slide-up apple-stagger-3">
-        <ReadyToPostCard 
-          tasks={tasks}
-          onTaskClick={onTaskClick}
-          onTaskUpdate={onTaskUpdate}
-        />
-      </div>
-
-      {/* Custom Campaigns Section - Additional campaigns */}
-      {userCreatedCampaigns && userCreatedCampaigns.length > 0 && (
-        <div className="apple-slide-up apple-stagger-4">
-          <CustomCampaignsSection 
-            userCreatedCampaigns={userCreatedCampaigns}
-            onTaskUpdate={onTaskUpdate}
-            onCampaignUpdate={onCampaignUpdate}
-            onCampaignDelete={onCampaignDelete}
-            onCreateCampaign={onCreateCampaign}
-          />
+      {/* Weekly Themes Section - Only show for authenticated users */}
+      {user && (
+        <div className="space-y-6">
+          <div>
+            <HeadlineLarge className="text-text-primary">
+              Weekly Theme Planning
+            </HeadlineLarge>
+            <BodyMedium className="text-text-secondary mt-1">
+              Generate and manage seasonal content themes
+            </BodyMedium>
+          </div>
+          <SmartThemeSelector />
         </div>
       )}
+
+      {/* Seasonal Holidays Section - New addition */}
+      {user && (
+        <div className="space-y-6">
+          <div>
+            <HeadlineLarge className="text-text-primary">
+              Seasonal Marketing Opportunities
+            </HeadlineLarge>
+            <BodyMedium className="text-text-secondary mt-1">
+              Create timely content for upcoming holidays and observances
+            </BodyMedium>
+          </div>
+          <SeasonalHolidaysCard onContentGenerated={onTaskUpdate} />
+        </div>
+      )}
+
+      {/* Sample Campaign Section - Only show for new users */}
+      {(!user || isNewUser) && (
+        <div className="space-y-6">
+          <div>
+            <HeadlineLarge className="text-text-primary">
+              Sample Campaign Preview
+            </HeadlineLarge>
+            <BodyMedium className="text-text-secondary mt-1">
+              See what your marketing content could look like
+            </BodyMedium>
+          </div>
+          <SampleCampaignCard />
+        </div>
+      )}
+
+      {/* Quick Actions */}
+      <QuickActionsSection />
     </div>
   );
 };

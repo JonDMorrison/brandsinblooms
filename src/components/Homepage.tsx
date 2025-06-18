@@ -5,7 +5,7 @@ import { ensureCampaignHasTasks } from "./homepage/CampaignAutoManager";
 import { generateRequiredTasks } from "./homepage/RequiredTasksGenerator";
 import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
 import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
-import { ReviewQueueCard } from "./content/ReviewQueueCard";
+import { ReviewQueueCard } from "@/content/ReviewQueueCard";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
@@ -83,7 +83,7 @@ export const Homepage = () => {
       console.log('Homepage: Fetching tasks for user:', user.id);
       
       // SECURITY FIX: Use inner join to ensure we only get tasks for user's campaigns
-      // The RLS policies will enforce this, but we're being explicit
+      // Updated to include holiday content tasks
       const { data, error } = await supabase
         .from('content_tasks')
         .select(`
@@ -91,6 +91,10 @@ export const Homepage = () => {
           campaigns!inner (
             title,
             user_id
+          ),
+          holidays (
+            holiday_name,
+            holiday_date
           )
         `)
         .eq('campaigns.user_id', user.id)  // CRITICAL: Filter by current user

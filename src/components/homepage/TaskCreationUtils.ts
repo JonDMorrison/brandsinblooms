@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { 
@@ -77,7 +76,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
         throw new Error(`Failed to generate ${postType} content. Please ensure OpenAI API key is configured.`);
       }
       
-      // FIXED: Set status to 'review' instead of 'completed' to require approval
+      // FIXED: Set status to 'review' instead of 'completed' and include user_id
       tasksToCreate.push({
         campaign_id: campaignId,
         post_type: postType,
@@ -86,7 +85,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
         ai_output: aiOutput,
         hashtags: getHashtagsForType(postType),
         image_idea: getImageIdeaForType(postType),
-        user_id: userId
+        user_id: userId  // IMPORTANT: Include user_id for RLS
       });
     }
 
