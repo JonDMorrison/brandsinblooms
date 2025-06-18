@@ -8,6 +8,43 @@ export const colors: Config["theme"]["extend"]["colors"] = {
   background: 'hsl(var(--background))',
   foreground: 'hsl(var(--foreground))',
   
+  // Enhanced Brand Colors - New token system
+  'brand-green': {
+    DEFAULT: 'rgb(var(--brand-green))',
+    50: '#E8F5E8',
+    100: '#C8E6C9',
+    200: '#A5D6A7',
+    300: '#81C784',
+    400: '#66BB6A',
+    500: '#22C55E', // Primary brand green
+    600: '#16A34A',
+    700: '#15803D',
+    800: '#166534',
+    900: '#14532D',
+  },
+  'brand-blue': {
+    DEFAULT: 'rgb(var(--brand-blue))',
+    50: '#EFF6FF',
+    100: '#DBEAFE',
+    200: '#BFDBFE',
+    300: '#93C5FD',
+    400: '#60A5FA',
+    500: '#2563EB', // Primary brand blue
+    600: '#1D4ED8',
+    700: '#1E40AF',
+    800: '#1E3A8A',
+    900: '#1E3A8A',
+  },
+  
+  // Status Chip Color System
+  'chip': {
+    draft: 'rgb(var(--chip-draft))',      // #9CA3AF
+    generated: 'rgb(var(--chip-generated))', // #3B82F6
+    approved: 'rgb(var(--chip-approved))',   // #22C55E
+    scheduled: 'rgb(var(--chip-scheduled))', // #FBBF24
+    posted: 'rgb(var(--chip-posted))',       // #10B981
+  },
+  
   // COMPLETELY OVERRIDE YELLOW/AMBER WITH GARDEN GREEN AND ORANGE
   yellow: {
     50: '#E8F5E8',    // Garden green very light
@@ -141,3 +178,4 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     inverse: '#FFFFFF',
   }
 };
+

@@ -1,6 +1,23 @@
 
 @layer base {
   :root {
+    /* Enhanced Brand Tokens */
+    --brand-green: 34 197 94; /* #22C55E */
+    --brand-blue: 37 99 235; /* #2563EB */
+    
+    /* Enhanced Gray Scale */
+    --gray-50: 249 250 251; /* #F9FAFB */
+    --gray-100: 243 244 246; /* #F3F4F6 */
+    --gray-200: 229 231 235; /* #E5E7EB */
+    --gray-700: 55 65 81; /* #374151 */
+    
+    /* Status Chip Colors */
+    --chip-draft: 156 163 175; /* #9CA3AF */
+    --chip-generated: 59 130 246; /* #3B82F6 */
+    --chip-approved: 34 197 94; /* #22C55E */
+    --chip-scheduled: 251 191 36; /* #FBBF24 */
+    --chip-posted: 16 185 129; /* #10B981 */
+
     /* Surface Colors */
     --background: 248 250 248; /* #F8FAF8 - Garden background */
     --foreground: 32 33 36; /* #202124 - Primary text */
@@ -107,6 +124,23 @@
     --surface-secondary: 18 18 18;
     --surface-tertiary: 66 66 66;
 
+    /* Dark mode brand tokens */
+    --brand-green: 129 199 132; /* Lighter green for dark mode */
+    --brand-blue: 96 165 250; /* Lighter blue for dark mode */
+    
+    /* Dark mode gray scale */
+    --gray-50: 66 66 66;
+    --gray-100: 82 82 82;
+    --gray-200: 115 115 115;
+    --gray-700: 229 231 235;
+    
+    /* Dark mode status chips */
+    --chip-draft: 156 163 175;
+    --chip-generated: 96 165 250;
+    --chip-approved: 129 199 132;
+    --chip-scheduled: 251 191 36;
+    --chip-posted: 52 211 153;
+
     /* Dark mode garden colors */
     --garden-green: 129 199 132; /* Lighter green for dark mode */
     --garden-green-dark: 129 199 132;
@@ -184,6 +218,57 @@
   
   .garden-bg-secondary {
     @apply bg-garden-sage;
+  }
+
+  /* Enhanced Brand Color Utilities */
+  .brand-green {
+    color: rgb(var(--brand-green));
+  }
+  
+  .bg-brand-green {
+    background-color: rgb(var(--brand-green));
+  }
+  
+  .border-brand-green {
+    border-color: rgb(var(--brand-green));
+  }
+  
+  .brand-blue {
+    color: rgb(var(--brand-blue));
+  }
+  
+  .bg-brand-blue {
+    background-color: rgb(var(--brand-blue));
+  }
+  
+  .border-brand-blue {
+    border-color: rgb(var(--brand-blue));
+  }
+
+  /* Status Chip Utilities */
+  .chip-draft {
+    background-color: rgb(var(--chip-draft));
+    color: white;
+  }
+  
+  .chip-generated {
+    background-color: rgb(var(--chip-generated));
+    color: white;
+  }
+  
+  .chip-approved {
+    background-color: rgb(var(--chip-approved));
+    color: white;
+  }
+  
+  .chip-scheduled {
+    background-color: rgb(var(--chip-scheduled));
+    color: white;
+  }
+  
+  .chip-posted {
+    background-color: rgb(var(--chip-posted));
+    color: white;
   }
 
   /* CRITICAL: Specific button overrides for landing page and all outline buttons */
@@ -348,3 +433,4 @@
     border-color: rgb(76 175 80) !important;
   }
 }
+
