@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,11 +13,65 @@ interface Holiday {
   is_active: boolean;
 }
 
+interface HolidayContentState {
+  [holidayId: string]: {
+    hasContent: boolean;
+    contentTasks: any[];
+    campaignId?: string;
+  };
+}
+
 export const useSeasonalHolidays = () => {
   const { user } = useAuth();
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [holidayContentState, setHolidayContentState] = useState<HolidayContentState>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchHolidayContentState = async (holidayIds: string[]) => {
+    if (!user || holidayIds.length === 0) return;
+
+    try {
+      console.log('Fetching content state for holidays:', holidayIds);
+      
+      const { data: contentTasks, error: contentError } = await supabase
+        .from('content_tasks')
+        .select(`
+          *,
+          campaigns!inner (
+            id,
+            title,
+            user_id
+          )
+        `)
+        .in('holiday_id', holidayIds)
+        .eq('campaigns.user_id', user.id);
+
+      if (contentError) {
+        console.error('Error fetching holiday content state:', contentError);
+        return;
+      }
+
+      const contentState: HolidayContentState = {};
+      
+      // Group tasks by holiday ID
+      holidayIds.forEach(holidayId => {
+        const holidayTasks = contentTasks?.filter(task => task.holiday_id === holidayId) || [];
+        const hasContent = holidayTasks.length > 0 && holidayTasks.some(task => task.ai_output);
+        
+        contentState[holidayId] = {
+          hasContent,
+          contentTasks: holidayTasks,
+          campaignId: holidayTasks[0]?.campaign_id
+        };
+      });
+
+      console.log('Holiday content state:', contentState);
+      setHolidayContentState(contentState);
+    } catch (error) {
+      console.error('Exception fetching holiday content state:', error);
+    }
+  };
 
   const fetchUpcomingHolidays = async () => {
     if (!user) {
@@ -61,36 +114,46 @@ export const useSeasonalHolidays = () => {
 
       console.log('2-month holidays found:', twoMonthData?.length || 0);
 
+      let finalHolidays = [];
+
       // If there are exactly 8 opportunities in 2 months, show all 8
       if (twoMonthData && twoMonthData.length === 8) {
         console.log('Showing all 8 holidays from 2-month period');
-        setHolidays(twoMonthData);
-        return;
+        finalHolidays = twoMonthData;
+      } else {
+        // Otherwise, fetch up to 6 holidays from 90-day range
+        const threeMonthsDate = new Date();
+        threeMonthsDate.setDate(today.getDate() + 90);
+        const threeMonthsStr = threeMonthsDate.toISOString().split('T')[0];
+
+        console.log('Fetching 6 holidays from 3-month range:', todayStr, 'to', threeMonthsStr);
+
+        const { data: threeMonthData, error: threeMonthError } = await supabase
+          .from('holidays')
+          .select('*')
+          .eq('is_active', true)
+          .gte('holiday_date', todayStr)
+          .lte('holiday_date', threeMonthsStr)
+          .order('holiday_date', { ascending: true })
+          .limit(6);
+
+        if (threeMonthError) {
+          console.error('Error fetching 3-month holidays:', threeMonthError);
+          setError(threeMonthError.message);
+          setHolidays([]);
+          return;
+        }
+
+        console.log('Showing', threeMonthData?.length || 0, 'holidays from 3-month period');
+        finalHolidays = threeMonthData || [];
       }
 
-      // Otherwise, fetch up to 6 holidays from 90-day range
-      const threeMonthsDate = new Date();
-      threeMonthsDate.setDate(today.getDate() + 90);
-      const threeMonthsStr = threeMonthsDate.toISOString().split('T')[0];
-
-      console.log('Fetching 6 holidays from 3-month range:', todayStr, 'to', threeMonthsStr);
-
-      const { data: threeMonthData, error: threeMonthError } = await supabase
-        .from('holidays')
-        .select('*')
-        .eq('is_active', true)
-        .gte('holiday_date', todayStr)
-        .lte('holiday_date', threeMonthsStr)
-        .order('holiday_date', { ascending: true })
-        .limit(6);
-
-      if (threeMonthError) {
-        console.error('Error fetching 3-month holidays:', threeMonthError);
-        setError(threeMonthError.message);
-        setHolidays([]);
-      } else {
-        console.log('Showing', threeMonthData?.length || 0, 'holidays from 3-month period');
-        setHolidays(threeMonthData || []);
+      setHolidays(finalHolidays);
+      
+      // Fetch content state for these holidays
+      if (finalHolidays.length > 0) {
+        const holidayIds = finalHolidays.map(h => h.id);
+        await fetchHolidayContentState(holidayIds);
       }
     } catch (error) {
       console.error('Exception fetching holidays:', error);
@@ -218,6 +281,16 @@ export const useSeasonalHolidays = () => {
 
       console.log('✅ Successfully created', createdTasks.length, 'content tasks');
       
+      // Update content state for this holiday
+      setHolidayContentState(prev => ({
+        ...prev,
+        [holidayId]: {
+          hasContent: true,
+          contentTasks: createdTasks,
+          campaignId: createdTasks[0]?.campaign_id
+        }
+      }));
+      
       toast.success(`Generated ${createdTasks.length} pieces of content for ${holiday.holiday_name}`, {
         description: 'Content is ready for review in your dashboard',
         duration: 5000,
@@ -242,16 +315,25 @@ export const useSeasonalHolidays = () => {
     }
   };
 
+  const refreshHolidayContent = async () => {
+    if (holidays.length > 0) {
+      const holidayIds = holidays.map(h => h.id);
+      await fetchHolidayContentState(holidayIds);
+    }
+  };
+
   useEffect(() => {
     fetchUpcomingHolidays();
   }, [user]);
 
   return {
     holidays,
+    holidayContentState,
     loading,
     error,
     generateHolidayContent,
-    refreshHolidays: fetchUpcomingHolidays
+    refreshHolidays: fetchUpcomingHolidays,
+    refreshHolidayContent
   };
 };
 

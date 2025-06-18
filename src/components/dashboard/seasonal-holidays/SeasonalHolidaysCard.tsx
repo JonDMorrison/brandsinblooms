@@ -1,10 +1,10 @@
-
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
 import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { HolidayItem } from "./HolidayItem";
+import { HolidayContentViewer } from "./HolidayContentViewer";
 import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Calendar, Clock, Sparkles, Leaf } from "lucide-react";
@@ -21,8 +21,17 @@ export const SeasonalHolidaysCard = ({
   className
 }: SeasonalHolidaysCardProps) => {
   const isMobile = useIsMobile();
-  const { holidays, loading, error, generateHolidayContent } = useSeasonalHolidays();
+  const { holidays, holidayContentState, loading, error, generateHolidayContent, refreshHolidayContent } = useSeasonalHolidays();
   const [generatingHolidays, setGeneratingHolidays] = React.useState<Set<string>>(new Set());
+  const [contentViewerState, setContentViewerState] = React.useState<{
+    isOpen: boolean;
+    holidayId: string | null;
+    holidayName: string;
+  }>({
+    isOpen: false,
+    holidayId: null,
+    holidayName: ''
+  });
 
   const handleGenerateContent = async (holidayId: string) => {
     const holiday = holidays.find(h => h.id === holidayId);
@@ -40,6 +49,9 @@ export const SeasonalHolidaysCard = ({
         duration: 5000,
       });
 
+      // Refresh content state to show the new content
+      await refreshHolidayContent();
+
       if (onContentGenerated) {
         onContentGenerated();
       }
@@ -56,6 +68,31 @@ export const SeasonalHolidaysCard = ({
         return newSet;
       });
     }
+  };
+
+  const handleViewContent = (holidayId: string, holidayName: string) => {
+    const contentState = holidayContentState[holidayId];
+    if (!contentState || !contentState.hasContent) {
+      toast.error('No content available for this holiday');
+      return;
+    }
+    
+    setContentViewerState({
+      isOpen: true,
+      holidayId,
+      holidayName
+    });
+  };
+
+  const handleContentViewerClose = () => {
+    setContentViewerState({
+      isOpen: false,
+      holidayId: null,
+      holidayName: ''
+    });
+    
+    // Refresh content state when viewer closes
+    refreshHolidayContent();
   };
 
   if (loading) {
@@ -122,57 +159,72 @@ export const SeasonalHolidaysCard = ({
   }
 
   return (
-    <div className={cn('space-y-6', className)}>
-      {/* Modern Header Section */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-xl flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-200">
-          <Clock className="w-4 h-4 text-blue-600" />
-          <CaptionMedium className="text-blue-700 font-medium">
-            {holidays.length} opportunities
-          </CaptionMedium>
-        </div>
-      </div>
-
-      {/* Holiday Cards Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {holidays.map((holiday, index) => (
-          <div 
-            key={holiday.id}
-            className="transform transition-all duration-300 hover:scale-[1.02]"
-            style={{ 
-              animationDelay: `${index * 100}ms`,
-              animation: 'fadeInUp 0.6s ease-out forwards'
-            }}
-          >
-            <HolidayItem
-              holiday={holiday}
-              onGenerateContent={handleGenerateContent}
-              isGenerating={generatingHolidays.has(holiday.id)}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Bottom CTA Section */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
+    <>
+      <div className={cn('space-y-6', className)}>
+        {/* Modern Header Section */}
         <div className="flex items-center justify-between">
-          <div>
-            <BodyMedium className="text-gray-800 font-medium mb-1">
-              💡 Pro Tip: Generate content early
-            </BodyMedium>
-            <CaptionMedium className="text-gray-600">
-              Create your holiday content 2-3 weeks in advance for best results
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-xl flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-200">
+            <Clock className="w-4 h-4 text-blue-600" />
+            <CaptionMedium className="text-blue-700 font-medium">
+              {holidays.length} opportunities
             </CaptionMedium>
           </div>
-          <div className="text-2xl">🚀</div>
+        </div>
+
+        {/* Holiday Cards Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {holidays.map((holiday, index) => (
+            <div 
+              key={holiday.id}
+              className="transform transition-all duration-300 hover:scale-[1.02]"
+              style={{ 
+                animationDelay: `${index * 100}ms`,
+                animation: 'fadeInUp 0.6s ease-out forwards'
+              }}
+            >
+              <HolidayItem
+                holiday={holiday}
+                onGenerateContent={handleGenerateContent}
+                onViewContent={handleViewContent}
+                isGenerating={generatingHolidays.has(holiday.id)}
+                hasContent={holidayContentState[holiday.id]?.hasContent || false}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom CTA Section */}
+        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <BodyMedium className="text-gray-800 font-medium mb-1">
+                💡 Pro Tip: Generate content early
+              </BodyMedium>
+              <CaptionMedium className="text-gray-600">
+                Create your holiday content 2-3 weeks in advance for best results
+              </CaptionMedium>
+            </div>
+            <div className="text-2xl">🚀</div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Holiday Content Viewer Modal */}
+      {contentViewerState.isOpen && contentViewerState.holidayId && (
+        <HolidayContentViewer
+          holidayId={contentViewerState.holidayId}
+          holidayName={contentViewerState.holidayName}
+          isOpen={contentViewerState.isOpen}
+          onClose={handleContentViewerClose}
+          onTaskUpdate={refreshHolidayContent}
+        />
+      )}
+    </>
   );
 };

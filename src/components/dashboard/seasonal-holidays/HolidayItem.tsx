@@ -4,7 +4,7 @@ import { useState } from "react";
 import { PremiumButton } from "@/components/ui/premium-button";
 import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Sparkles, TrendingUp, Target } from "lucide-react";
+import { Calendar, Sparkles, TrendingUp, Target, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Holiday {
@@ -19,14 +19,18 @@ interface Holiday {
 interface HolidayItemProps {
   holiday: Holiday;
   onGenerateContent: (holidayId: string) => Promise<void>;
+  onViewContent?: (holidayId: string, holidayName: string) => void;
   isGenerating?: boolean;
+  hasContent?: boolean;
   className?: string;
 }
 
 export const HolidayItem = ({
   holiday,
   onGenerateContent,
+  onViewContent,
   isGenerating = false,
+  hasContent = false,
   className
 }: HolidayItemProps) => {
   const getCategoryColor = (category: string) => {
@@ -105,11 +109,15 @@ export const HolidayItem = ({
     return `${Math.ceil(diffDays / 30)} months`;
   };
 
-  const handleGenerateClick = async () => {
-    try {
-      await onGenerateContent(holiday.id);
-    } catch (error) {
-      console.error('Failed to generate content:', error);
+  const handleButtonClick = async () => {
+    if (hasContent && onViewContent) {
+      onViewContent(holiday.id, holiday.holiday_name);
+    } else {
+      try {
+        await onGenerateContent(holiday.id);
+      } catch (error) {
+        console.error('Failed to generate content:', error);
+      }
     }
   };
 
@@ -147,6 +155,11 @@ export const HolidayItem = ({
                 <HeadlineLarge className="text-gray-900 font-semibold line-clamp-1">
                   {holiday.holiday_name}
                 </HeadlineLarge>
+                {hasContent && (
+                  <Badge className="text-xs bg-green-100 text-green-700 border-green-200">
+                    Content Ready
+                  </Badge>
+                )}
               </div>
               
               <div className="flex items-center gap-3">
@@ -191,18 +204,23 @@ export const HolidayItem = ({
 
         <div className="flex justify-center">
           <PremiumButton
-            variant="primary"
+            variant={hasContent ? "secondary" : "primary"}
             size="default"
-            leadingIcon="sparkles"
-            premium={true}
+            leadingIcon={hasContent ? "view" : "sparkles"}
+            premium={!hasContent}
             disabled={isGenerating}
-            onClick={handleGenerateClick}
+            onClick={handleButtonClick}
             className="w-full max-w-xs"
           >
             {isGenerating ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
                 Generating...
+              </>
+            ) : hasContent ? (
+              <>
+                <Eye className="w-4 h-4 mr-2" />
+                View Your Content
               </>
             ) : (
               'Generate Content'
