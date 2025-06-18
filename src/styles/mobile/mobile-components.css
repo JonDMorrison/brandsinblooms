@@ -73,31 +73,31 @@
       background: linear-gradient(135deg, rgb(240 244 240), white, rgb(240 244 240)) !important;
     }
 
-    /* CRITICAL: Final CTA section must maintain its garden green background on mobile */
+    /* CRITICAL: Final CTA section must maintain its garden green background with BLACK text on mobile */
     .final-cta-section {
       background: linear-gradient(135deg, #4CAF50, #2E7D32) !important;
-      color: white !important;
+      color: black !important;
     }
 
     .final-cta-section * {
-      color: white !important;
+      color: black !important;
     }
 
     .final-cta-section h2 {
-      color: white !important;
+      color: black !important;
       font-size: 1.75rem !important; /* 28px for mobile */
       line-height: 1.2 !important;
     }
 
     .final-cta-section p {
-      color: white !important;
-      opacity: 0.95 !important;
+      color: black !important;
+      opacity: 0.9 !important;
     }
 
     .final-cta-section .final-cta-button {
       background-color: white !important;
-      color: #4CAF50 !important;
-      border-color: white !important;
+      color: black !important;
+      border: 2px solid black !important;
       font-weight: 600 !important;
       padding: 14px 20px !important;
       font-size: 15px !important;
@@ -106,7 +106,13 @@
 
     .final-cta-section .final-cta-button:hover {
       background-color: #f5f5f5 !important;
-      color: #4CAF50 !important;
+      color: black !important;
+    }
+
+    /* Ensure icons in Final CTA are black */
+    .final-cta-section svg,
+    .final-cta-section .lucide {
+      color: black !important;
     }
 
     /* Card backgrounds */
@@ -175,25 +181,32 @@
     }
   }
 
-  /* Desktop styles to ensure Final CTA section looks good on all devices */
+  /* Desktop styles to ensure Final CTA section looks good on all devices with BLACK text */
   @media (min-width: 769px) {
     .final-cta-section {
       background: linear-gradient(135deg, #4CAF50, #2E7D32) !important;
+      color: black !important;
     }
 
     .final-cta-section * {
-      color: white !important;
+      color: black !important;
     }
 
     .final-cta-section .final-cta-button {
       background-color: white !important;
-      color: #4CAF50 !important;
-      border-color: white !important;
+      color: black !important;
+      border: 2px solid black !important;
     }
 
     .final-cta-section .final-cta-button:hover {
       background-color: #f5f5f5 !important;
-      color: #4CAF50 !important;
+      color: black !important;
+    }
+
+    /* Ensure icons in Final CTA are black on desktop too */
+    .final-cta-section svg,
+    .final-cta-section .lucide {
+      color: black !important;
     }
   }
 }

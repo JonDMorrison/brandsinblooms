@@ -41,14 +41,14 @@
       line-height: 1.5 !important;
     }
 
-    /* Final CTA section specific typography - CRITICAL: Force white color and proper sizing */
+    /* Final CTA section specific typography - CRITICAL: Force BLACK color and proper sizing */
     .final-cta-section h2,
     .final-cta-section .text-3xl,
     .final-cta-section .text-4xl,
     .final-cta-section .text-5xl {
       font-size: 1.75rem !important; /* 28px */
       line-height: 1.2 !important;
-      color: white !important;
+      color: black !important;
       font-weight: 700 !important;
     }
 
@@ -57,15 +57,15 @@
     .final-cta-section .text-xl {
       font-size: 1rem !important; /* 16px */
       line-height: 1.4 !important;
-      color: white !important;
-      opacity: 0.95 !important;
+      color: black !important;
+      opacity: 0.9 !important;
     }
 
     .final-cta-section .text-sm {
       font-size: 0.875rem !important; /* 14px */
       line-height: 1.4 !important;
-      color: white !important;
-      opacity: 0.9 !important;
+      color: black !important;
+      opacity: 0.8 !important;
     }
 
     /* Ensure proper text contrast for other sections */
@@ -79,25 +79,25 @@
     }
   }
 
-  /* Desktop typography for Final CTA section */
+  /* Desktop typography for Final CTA section - BLACK text */
   @media (min-width: 769px) {
     .final-cta-section h2,
     .final-cta-section .text-3xl,
     .final-cta-section .text-4xl,
     .final-cta-section .text-5xl {
-      color: white !important;
+      color: black !important;
     }
 
     .final-cta-section p,
     .final-cta-section .text-lg,
     .final-cta-section .text-xl {
-      color: white !important;
-      opacity: 0.95 !important;
+      color: black !important;
+      opacity: 0.9 !important;
     }
 
     .final-cta-section .text-sm {
-      color: white !important;
-      opacity: 0.9 !important;
+      color: black !important;
+      opacity: 0.8 !important;
     }
   }
 }
