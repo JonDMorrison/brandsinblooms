@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { PremiumButton } from "@/components/ui/premium-button";
 import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
@@ -89,30 +88,76 @@ export const HolidayItem = ({
     }
   };
 
-  const getHolidayEmoji = (holidayName: string) => {
+  const getHolidayEmoji = (holidayName: string, date: string) => {
+    const lowerName = holidayName.toLowerCase();
+    const month = new Date(date).getMonth() + 1; // 1-based month
+    
+    // Comprehensive emoji mapping with partial matching
     const emojiMap: { [key: string]: string } = {
-      'Earth Day': '🌍',
-      'Arbor Day': '🌳',
-      'World Bee Day': '🐝',
-      'National Rose Day': '🌹',
-      'National Garden Month': '🌱',
-      'National Flower Month': '🌸',
-      'National Indoor Plant Month': '🪴',
-      'National Bird-Feeding Month': '🐦',
-      'Mother\'s Day': '💐',
-      'Father\'s Day': '🌿',
-      'Valentine\'s Day': '💝',
-      'Christmas': '🎄',
-      'Halloween': '🎃',
-      'Thanksgiving': '🦃',
+      // Nature & Environment
+      'earth': '🌍', 'arbor': '🌳', 'tree': '🌲', 'forest': '🌲',
+      'bee': '🐝', 'butterfly': '🦋', 'bird': '🐦', 'wildlife': '🦌',
+      'ocean': '🌊', 'water': '💧', 'river': '🏞️', 'wetland': '🦢',
+      'recycling': '♻️', 'environment': '🌱', 'conservation': '🌿',
+      
+      // Flowers & Plants
+      'rose': '🌹', 'flower': '🌸', 'bloom': '🌺', 'blossom': '🌼',
+      'tulip': '🌷', 'sunflower': '🌻', 'lily': '🌺', 'daisy': '🌼',
+      'garden': '🌱', 'plant': '🪴', 'herb': '🌿', 'seed': '🌱',
+      'indoor plant': '🪴', 'houseplant': '🪴', 'succulent': '🌵',
+      
+      // Seasons & Weather
+      'spring': '🌸', 'summer': '☀️', 'fall': '🍂', 'autumn': '🍁',
+      'winter': '❄️', 'rain': '🌧️', 'snow': '⛄', 'sun': '☀️',
+      
+      // Holidays & Celebrations
+      'valentine': '💝', 'love': '💕', 'heart': '❤️',
+      'mother': '💐', 'mom': '👩', 'father': '🌿', 'dad': '👨',
+      'christmas': '🎄', 'holiday': '🎁', 'thanksgiving': '🦃',
+      'halloween': '🎃', 'pumpkin': '🎃', 'easter': '🐰',
+      'new year': '🎊', 'celebration': '🎉', 'party': '🎈',
+      
+      // Food & Nutrition
+      'nutrition': '🥗', 'healthy': '🍎', 'fruit': '🍓', 'vegetable': '🥕',
+      'harvest': '🌾', 'farming': '🚜', 'agriculture': '🌾',
+      'cooking': '👩‍🍳', 'recipe': '📖', 'food': '🍽️',
+      
+      // Education & Awareness
+      'awareness': '💡', 'education': '📚', 'learning': '🎓',
+      'science': '🔬', 'research': '🧪', 'discovery': '🔍',
+      'health': '🏥', 'fitness': '💪', 'wellness': '🧘',
+      
+      // Activities & Hobbies
+      'photography': '📷', 'art': '🎨', 'craft': '✂️', 'diy': '🔨',
+      'reading': '📖', 'book': '📚', 'writing': '✍️',
+      'music': '🎵', 'dance': '💃', 'sport': '⚽',
+      
+      // Months (as backup)
+      'january': '❄️', 'february': '💝', 'march': '🌸', 'april': '🌷',
+      'may': '🌺', 'june': '☀️', 'july': '🌻', 'august': '🌽',
+      'september': '🍂', 'october': '🎃', 'november': '🦃', 'december': '🎄'
     };
     
-    for (const [key, emoji] of Object.entries(emojiMap)) {
-      if (holidayName.includes(key.replace('National ', '').replace('World ', ''))) {
+    // Check for partial matches in holiday name
+    for (const [keyword, emoji] of Object.entries(emojiMap)) {
+      if (lowerName.includes(keyword)) {
         return emoji;
       }
     }
     
+    // Seasonal fallbacks based on month
+    if (month >= 3 && month <= 5) return '🌸'; // Spring
+    if (month >= 6 && month <= 8) return '☀️'; // Summer  
+    if (month >= 9 && month <= 11) return '🍂'; // Fall
+    if (month === 12 || month <= 2) return '❄️'; // Winter
+    
+    // Category-based fallbacks
+    const categoryInfo = getCategoryColor(holiday.category);
+    if (categoryInfo.icon === '📅') return '📅'; // Month
+    if (categoryInfo.icon === '📊') return '📊'; // Week
+    if (categoryInfo.icon === '⭐') return '⭐'; // Day
+    
+    // Final fallback - but make it more interesting than just target
     return '🎯';
   };
 
@@ -149,7 +194,7 @@ export const HolidayItem = ({
 
   const categoryInfo = getCategoryColor(holiday.category);
   const seasonalTheme = getSeasonalTheme(holiday.holiday_name, holiday.holiday_date);
-  const holidayEmoji = getHolidayEmoji(holiday.holiday_name);
+  const holidayEmoji = getHolidayEmoji(holiday.holiday_name, holiday.holiday_date);
   const dateInfo = formatDate(holiday.holiday_date);
   const daysUntil = getDaysUntil(holiday.holiday_date);
 
