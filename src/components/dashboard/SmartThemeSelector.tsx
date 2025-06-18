@@ -2,7 +2,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { HeadlineMedium, BodyMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
 import { Sparkles, Calendar } from "lucide-react";
 
 export const SmartThemeSelector = () => {
@@ -24,9 +24,9 @@ export const SmartThemeSelector = () => {
             <Sparkles className="w-5 h-5 text-purple-600" />
           </div>
           <div>
-            <HeadlineMedium className="text-gray-800">
+            <HeadlineLarge className="text-gray-800">
               Weekly Theme Generator
-            </HeadlineMedium>
+            </HeadlineLarge>
             <BodyMedium className="text-gray-600 text-sm">
               AI-powered seasonal content themes
             </BodyMedium>
