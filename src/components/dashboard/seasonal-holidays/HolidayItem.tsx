@@ -191,7 +191,7 @@ export const HolidayItem = ({
           <div className="flex justify-center">
             <PremiumButton
               variant="primary"
-              size="md"
+              size="default"
               leadingIcon="sparkles"
               premium={true}
               disabled={isGenerating}
