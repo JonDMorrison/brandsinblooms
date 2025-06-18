@@ -5,11 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface Holiday {
   id: string;
-  holiday_name: string;
-  holiday_date: string;
+  name: string;
+  category: 'Month' | 'Week' | 'Day';
+  when: string;
   description: string;
-  category: string;
-  garden_relevance: string;
   is_active: boolean;
 }
 
@@ -30,20 +29,14 @@ export const useSeasonalHolidays = () => {
       setLoading(true);
       setError(null);
 
-      // Get holidays in the next 30 days
-      const today = new Date().toISOString().split('T')[0];
-      const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        .toISOString().split('T')[0];
-
-      console.log('Fetching holidays between:', today, 'and', thirtyDaysFromNow);
+      console.log('Fetching holidays for upcoming opportunities');
 
       const { data, error: fetchError } = await supabase
         .from('holidays')
         .select('*')
         .eq('is_active', true)
-        .gte('holiday_date', today)
-        .lte('holiday_date', thirtyDaysFromNow)
-        .order('holiday_date', { ascending: true });
+        .order('when', { ascending: true })
+        .limit(20);
 
       if (fetchError) {
         console.error('Error fetching holidays:', fetchError);

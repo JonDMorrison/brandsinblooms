@@ -10,11 +10,10 @@ import { cn } from "@/lib/utils";
 
 interface Holiday {
   id: string;
-  holiday_name: string;
-  holiday_date: string;
+  name: string;
+  category: 'Month' | 'Week' | 'Day';
+  when: string;
   description: string;
-  category: string;
-  garden_relevance: string;
 }
 
 interface HolidayItemProps {
@@ -30,23 +29,13 @@ export const HolidayItem = ({
   isGenerating = false,
   className
 }: HolidayItemProps) => {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  };
-
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'environmental':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'family':
-        return 'bg-pink-100 text-pink-800 border-pink-200';
-      case 'patriotic':
+      case 'Month':
         return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'seasonal':
+      case 'Week':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'Day':
         return 'bg-orange-100 text-orange-800 border-orange-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -56,15 +45,23 @@ export const HolidayItem = ({
   const getSeasonalEmoji = (holidayName: string) => {
     const emojiMap: { [key: string]: string } = {
       'Earth Day': '🌍',
-      'Mother\'s Day': '🌸',
-      'Memorial Day Weekend': '🇺🇸',
-      'Summer Solstice': '☀️',
-      'Independence Day': '🎆',
-      'Labor Day Weekend': '🍂',
-      'Halloween': '🎃',
-      'Thanksgiving': '🦃'
+      'Arbor Day': '🌳',
+      'World Bee Day': '🐝',
+      'National Rose Day': '🌹',
+      'National Garden Month': '🌱',
+      'National Flower Month': '🌸',
+      'National Indoor Plant Month': '🪴',
+      'National Bird-Feeding Month': '🐦'
     };
-    return emojiMap[holidayName] || '🌱';
+    
+    // Check for partial matches
+    for (const [key, emoji] of Object.entries(emojiMap)) {
+      if (holidayName.includes(key.replace('National ', '').replace('World ', ''))) {
+        return emoji;
+      }
+    }
+    
+    return '🌿';
   };
 
   const handleGenerateClick = async () => {
@@ -90,16 +87,16 @@ export const HolidayItem = ({
       <AppleCardContent className="apple-card-spacing">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">{getSeasonalEmoji(holiday.holiday_name)}</div>
+            <div className="text-2xl">{getSeasonalEmoji(holiday.name)}</div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <Badge className={cn('text-xs', getCategoryColor(holiday.category))}>
                   <Calendar className="w-3 h-3 mr-1" />
-                  {formatDate(holiday.holiday_date)}
+                  {holiday.when}
                 </Badge>
               </div>
               <HeadlineMedium className="apple-headline-medium text-gray-800">
-                {holiday.holiday_name}
+                {holiday.name}
               </HeadlineMedium>
             </div>
           </div>
@@ -114,7 +111,7 @@ export const HolidayItem = ({
             🌱 Garden Center Opportunity
           </CaptionMedium>
           <CaptionMedium className="apple-caption-enhanced text-green-700">
-            {holiday.garden_relevance}
+            Perfect timing for seasonal promotions and themed content campaigns
           </CaptionMedium>
         </div>
 

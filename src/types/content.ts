@@ -42,3 +42,8 @@ export interface Holiday {
   garden_relevance: string;
   is_active: boolean;
 }
+
+export interface ReviewQueueProps {
+  onTaskUpdate?: () => void;
+  onTaskClick?: (task: ContentTask) => void;
+}
