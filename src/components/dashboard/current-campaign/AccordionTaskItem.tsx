@@ -108,12 +108,9 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
       <AccordionItem value={task.id} className="border-gray-200 rounded-lg">
         <AccordionTrigger className="px-4 py-3 hover:no-underline">
           <div className="flex items-center justify-between w-full mr-4">
-            {/* Left cluster */}
+            {/* Left cluster - Just platform chip */}
             <div className="flex items-center gap-3">
               <PlatformChip postType={task.post_type} />
-              <span className="font-medium text-left">
-                {task.campaigns?.title || 'Content'}
-              </span>
             </div>
 
             {/* Right cluster */}
