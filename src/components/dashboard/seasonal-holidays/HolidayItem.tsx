@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useState } from "react";
 import { PremiumButton } from "@/components/ui/premium-button";
@@ -218,10 +217,7 @@ export const HolidayItem = ({
                 Generating...
               </>
             ) : hasContent ? (
-              <>
-                <Eye className="w-4 h-4 mr-2" />
-                View Your Content
-              </>
+              'View Your Content'
             ) : (
               'Generate Content'
             )}
