@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { useState } from "react";
 import { PremiumButton } from "@/components/ui/premium-button";
@@ -196,12 +197,7 @@ export const HolidayItem = ({
               premium={true}
               disabled={isGenerating}
               onClick={handleGenerateClick}
-              className={cn(
-                'w-full max-w-xs px-6 py-3 font-medium text-sm rounded-xl shadow-md',
-                'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600',
-                'transform transition-all duration-200 hover:scale-105 hover:shadow-lg',
-                'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none'
-              )}
+              className="w-full max-w-xs"
             >
               {isGenerating ? (
                 <>
@@ -209,10 +205,7 @@ export const HolidayItem = ({
                   Generating...
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Content
-                </>
+                'Generate Content'
               )}
             </PremiumButton>
           </div>

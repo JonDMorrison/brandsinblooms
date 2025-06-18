@@ -17,12 +17,16 @@ export const PremiumButton = React.forwardRef<HTMLButtonElement, PremiumButtonPr
     leadingIcon,
     premium = false,
     celebration = false,
+    variant = "primary",
     ...props 
   }, ref) => {
     return (
       <EnhancedAppleButton
         ref={ref}
+        variant={variant}
         className={cn(
+          // Ensure primary variant has proper green background
+          variant === "primary" && "bg-garden-green-500 hover:bg-garden-green-600 text-white",
           premium && 'apple-button-premium apple-ripple-effect',
           celebration && 'celebration-burst',
           className

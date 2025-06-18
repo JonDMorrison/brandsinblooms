@@ -71,7 +71,7 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     900: '#E65100',   // Orange darkest
   },
   
-  // Garden Color Scheme - Using garden green instead of yellow
+  // ADD GARDEN GREEN COLOR SYSTEM
   'garden-green': {
     DEFAULT: '#4CAF50',
     50: '#E8F5E8',
@@ -178,4 +178,3 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     inverse: '#FFFFFF',
   }
 };
-
