@@ -1,16 +1,3 @@
-export interface Campaign {
-  id: string;
-  title: string;
-  description: string | null;
-  start_date: string;
-  theme: string | null;
-  week_number: number;
-  created_at?: string;
-  updated_at?: string;
-  prompt?: string | null;
-  source?: string | null;
-  user_id?: string | null;
-}
 
 export interface ContentTask {
   id: string;
@@ -63,3 +50,6 @@ export interface SeasonalContent {
     imageIdea: string;
   }[];
 }
+
+// Re-export Campaign from content types to maintain compatibility
+export type { Campaign } from './content';

@@ -10,7 +10,7 @@ import { BodyMedium } from "@/components/ui/typography";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { UnifiedDashboardGrid } from "./UnifiedDashboardGrid";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
-import type { Campaign } from "@/types";
+import type { Campaign } from "@/types/content";
 
 interface DashboardContentProps {
   onboardingData: any;

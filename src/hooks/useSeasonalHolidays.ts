@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 interface Holiday {
   id: string;
   holiday_name: string;
-  category: 'Month' | 'Week' | 'Day';
+  category: string;
   holiday_date: string;
   description: string;
   is_active: boolean;

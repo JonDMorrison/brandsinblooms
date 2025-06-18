@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 interface Holiday {
   id: string;
   holiday_name: string;
-  category: 'Month' | 'Week' | 'Day';
+  category: string;
   holiday_date: string;
   description: string;
 }
