@@ -66,14 +66,152 @@
       @apply px-2 mx-0 max-w-full overflow-hidden !important;
     }
 
-    /* Button sizing optimizations for mobile - Tighter */
-    .apple-button-mobile {
-      @apply px-2 py-1 text-sm !important;
+    /* CRITICAL: Mobile Button Fixes - Ensure buttons work properly */
+    button,
+    .button,
+    [role="button"],
+    .apple-button-premium,
+    .apple-spring-bounce,
+    .apple-ripple-effect {
+      /* Ensure minimum touch target size */
+      min-height: 48px !important;
+      min-width: 48px !important;
+      padding: 12px 24px !important;
+      
+      /* Ensure buttons are interactive */
+      pointer-events: auto !important;
+      cursor: pointer !important;
+      
+      /* Proper z-index for clickability */
+      position: relative !important;
+      z-index: 10 !important;
+      
+      /* Touch-friendly interactions */
+      touch-action: manipulation !important;
+      -webkit-tap-highlight-color: transparent !important;
+      
+      /* Prevent text selection on buttons */
+      user-select: none !important;
+      -webkit-user-select: none !important;
+      
+      /* Ensure proper display */
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      
+      /* Mobile-friendly transitions */
+      transition: all 150ms ease !important;
     }
 
-    /* Mobile card spacing - Minimal */
-    .mobile-card-spacing {
-      @apply p-2 m-1 !important;
+    /* Mobile button hover/active states */
+    button:active,
+    .button:active,
+    [role="button"]:active,
+    .apple-button-premium:active,
+    .apple-spring-bounce:active {
+      transform: scale(0.95) !important;
+      opacity: 0.9 !important;
+    }
+
+    /* Ensure CTA buttons in landing sections work */
+    .apple-button-premium,
+    .bg-garden-green,
+    .bg-white {
+      pointer-events: auto !important;
+      z-index: 20 !important;
+      position: relative !important;
+    }
+
+    /* Landing page button specific fixes */
+    section button,
+    .hero-section button,
+    .final-cta-section button {
+      /* Extra large touch targets for CTA buttons */
+      min-height: 56px !important;
+      padding: 16px 32px !important;
+      font-size: 18px !important;
+      
+      /* Ensure they're above background elements */
+      z-index: 50 !important;
+      position: relative !important;
+    }
+
+    /* Fix background elements that might be blocking touches */
+    .absolute,
+    .bg-gradient-to-br,
+    .bg-gradient-to-r {
+      pointer-events: none !important;
+    }
+
+    /* Ensure only interactive elements can receive pointer events */
+    *:not(button):not(a):not(input):not(select):not(textarea):not([role="button"]):not([tabindex]) {
+      pointer-events: none !important;
+    }
+
+    /* Re-enable pointer events for specific interactive elements */
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    [role="button"],
+    [tabindex],
+    .clickable,
+    .interactive {
+      pointer-events: auto !important;
+    }
+
+    /* Mobile badge sizing - Smaller */
+    .mobile-badge {
+      @apply text-xs px-1 py-0.5;
+    }
+
+    /* Mobile content preview - More compact */
+    .mobile-content-preview {
+      @apply text-sm leading-relaxed line-clamp-2;
+    }
+
+    /* Mobile header optimizations - Compact */
+    .mobile-header-stacked {
+      @apply flex-col gap-1 text-center;
+    }
+
+    /* Mobile icon container sizing - Smaller */
+    .mobile-icon-container {
+      @apply w-5 h-5;
+    }
+
+    /* Touch feedback for mobile cards */
+    .mobile-card-touch {
+      @apply active:bg-gray-50 transition-colors duration-100;
+    }
+
+    /* Mobile dashboard specific optimizations */
+    .mobile-dashboard-spacing {
+      @apply space-y-3 !important;
+    }
+
+    /* Mobile section spacing - Very tight */
+    .mobile-section-gap {
+      @apply gap-2 !important;
+    }
+
+    /* Mobile welcome section - Compact */
+    .mobile-welcome-section {
+      @apply py-2 px-2 !important;
+    }
+
+    /* ReadyToPost specific mobile optimizations - Tighter */
+    .ready-to-post-item {
+      @apply flex-col gap-2 p-2;
+    }
+
+    .ready-to-post-actions {
+      @apply flex-wrap justify-center gap-1;
+    }
+
+    .ready-to-post-button {
+      @apply flex-1 min-w-[60px] max-w-[100px];
     }
 
     /* Reduce motion for better mobile performance */
@@ -123,59 +261,6 @@
 
     .responsive-text-xl {
       @apply text-xl;
-    }
-
-    /* ReadyToPost specific mobile optimizations - Tighter */
-    .ready-to-post-item {
-      @apply flex-col gap-2 p-2;
-    }
-
-    .ready-to-post-actions {
-      @apply flex-wrap justify-center gap-1;
-    }
-
-    .ready-to-post-button {
-      @apply flex-1 min-w-[60px] max-w-[100px];
-    }
-
-    /* Mobile badge sizing - Smaller */
-    .mobile-badge {
-      @apply text-xs px-1 py-0.5;
-    }
-
-    /* Mobile content preview - More compact */
-    .mobile-content-preview {
-      @apply text-sm leading-relaxed line-clamp-2;
-    }
-
-    /* Mobile header optimizations - Compact */
-    .mobile-header-stacked {
-      @apply flex-col gap-1 text-center;
-    }
-
-    /* Mobile icon container sizing - Smaller */
-    .mobile-icon-container {
-      @apply w-5 h-5;
-    }
-
-    /* Touch feedback for mobile cards */
-    .mobile-card-touch {
-      @apply active:bg-gray-50 transition-colors duration-100;
-    }
-
-    /* Mobile dashboard specific optimizations */
-    .mobile-dashboard-spacing {
-      @apply space-y-3 !important;
-    }
-
-    /* Mobile section spacing - Very tight */
-    .mobile-section-gap {
-      @apply gap-2 !important;
-    }
-
-    /* Mobile welcome section - Compact */
-    .mobile-welcome-section {
-      @apply py-2 px-2 !important;
     }
 
     /* CRITICAL: COMPLETE YELLOW/AMBER REMOVAL ON MOBILE - COMPREHENSIVE OVERRIDES */
