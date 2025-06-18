@@ -20,16 +20,35 @@ GARDEN CENTER BUSINESS CONTEXT:
 - Expertise: Plant care, seasonal gardening, local growing conditions
 `;
 
+  // Enhanced plant care focus section
+  const plantCareFocus = `
+MANDATORY PLANT CARE EMPHASIS:
+- ALWAYS include specific plant care instructions and techniques
+- Address common plant health issues and their solutions
+- Provide actionable watering, fertilizing, and maintenance advice
+- Include seasonal plant care timing and scheduling
+- Cover pest and disease prevention/treatment when relevant
+- Mention soil health, nutrition, and growing conditions
+- Offer plant selection guidance for different situations
+- Include pruning, propagation, or maintenance tips when appropriate
+- Address both indoor and outdoor plant care as relevant
+- Provide troubleshooting advice for common plant problems
+`;
+
   const basePrompt = `${gardenCenterContext}
+
+${plantCareFocus}
 
 CAMPAIGN: ${campaignTitle}
 ${weekDescription ? `DESCRIPTION: ${weekDescription}` : ''}
 
 Create professional ${postType} content for this garden center campaign. Content must be:
 - Specifically relevant to garden centers and plant retail
-- Include seasonal gardening advice and plant care tips
+- Include comprehensive plant care advice and practical instructions
+- Focus heavily on plant health, care techniques, and problem-solving
 - Mention ${companyName} naturally (${enforceCompanyName ? 'REQUIRED' : 'preferred'})
-- Focus on gardening expertise and seasonal plant needs
+- Provide seasonal plant care guidance and expert recommendations
+- Address common plant care challenges with actionable solutions
 - Professional yet approachable tone for gardening community`;
 
   switch (postType.toLowerCase()) {
@@ -38,11 +57,13 @@ Create professional ${postType} content for this garden center campaign. Content
 
 INSTAGRAM POST REQUIREMENTS:
 - 150-200 words maximum
-- Include 5-8 relevant gardening hashtags (#gardening #plants #seasonal)
+- Include 5-8 relevant gardening hashtags (#gardening #plants #seasonal #plantcare)
 - Visual storytelling about plants, gardens, or seasonal activities
-- Engaging caption that educates about plant care or seasonal gardening
-- Call-to-action encouraging garden center visit or gardening activity
-- Focus on visual aspects: plant displays, seasonal color, garden transformations
+- MANDATORY: Include specific plant care tips or problem-solving advice
+- Focus on common plant issues and their solutions
+- Call-to-action encouraging garden center visit or plant care activity
+- Highlight plant health techniques, watering tips, or seasonal care
+- Address plant care challenges customers commonly face
 
 Format: Caption text followed by hashtags on separate lines.`;
 
@@ -51,12 +72,14 @@ Format: Caption text followed by hashtags on separate lines.`;
 
 FACEBOOK POST REQUIREMENTS:
 - 200-300 words
-- Educational gardening content with practical tips
-- Community engagement focus - ask questions about gardening experiences
-- Include seasonal plant care advice or garden center highlights
-- Professional but conversational tone
-- Encourage comments and community discussion about gardening
-- Include call-to-action for visiting the garden center or trying gardening techniques
+- Educational plant care content with detailed practical tips
+- Community engagement focus - ask questions about plant care experiences
+- MANDATORY: Include comprehensive plant care instructions or troubleshooting
+- Cover seasonal plant health, watering schedules, or fertilizing advice
+- Address common plant problems and provide step-by-step solutions
+- Professional but conversational tone about plant care expertise
+- Encourage comments and community discussion about plant care challenges
+- Include call-to-action for visiting garden center or trying plant care techniques
 
 Format: Engaging post text only.`;
 
@@ -64,54 +87,60 @@ Format: Engaging post text only.`;
       return `${basePrompt}
 
 EMAIL CONTENT REQUIREMENTS:
-- Subject line that mentions seasonal gardening opportunity
+- Subject line that mentions seasonal plant care opportunity or problem-solving
 - 300-400 words
-- Valuable gardening advice or seasonal plant information
-- Personal, helpful tone from garden center experts
-- Include specific plant care tips or seasonal gardening tasks
-- Call-to-action to visit garden center for plants/supplies
+- Valuable plant care advice with specific, actionable instructions
+- Personal, helpful tone from garden center plant care experts
+- MANDATORY: Include detailed plant care tips, timing, and techniques
+- Cover specific plant varieties, care schedules, or health solutions
+- Address seasonal plant care challenges and prevention strategies
+- Call-to-action to visit garden center for plants/supplies or expert consultation
 - Format as complete email with subject line
 
 Format:
-Subject: [compelling subject line]
+Subject: [compelling subject line about plant care]
 
-[Email body content]`;
+[Email body content with plant care focus]`;
 
     case 'newsletter':
       return `${basePrompt}
 
 NEWSLETTER SECTION REQUIREMENTS:
 - 400-500 words
-- Educational focus on seasonal gardening and plant care
-- Multiple topics: featured plants, seasonal tips, garden center news
-- Include specific plant varieties and care instructions
-- Professional gardening expertise throughout
-- Sections: seasonal highlights, plant spotlight, gardening tips
-- Call-to-action for garden center visit and plant purchases
+- Educational focus on comprehensive plant care and health management
+- Multiple topics: featured plants with care instructions, seasonal plant health tips, troubleshooting guide
+- MANDATORY: Include specific plant care schedules, techniques, and problem solutions
+- Cover plant varieties with detailed care requirements and common issues
+- Professional plant care expertise with step-by-step instructions
+- Sections: seasonal plant care highlights, plant health spotlight, detailed care techniques
+- Address watering, fertilizing, pruning, and pest management timing
+- Call-to-action for garden center visit and expert plant care consultation
 
-Format: Newsletter-style content with clear sections and gardening focus.`;
+Format: Newsletter-style content with clear sections focused on plant care education.`;
 
     case 'video':
       return `${basePrompt}
 
 VIDEO SCRIPT REQUIREMENTS:
-- 2-3 minute script for garden center video
-- Educational content about plants, seasonal gardening, or plant care
-- Include visual cues for plant demonstrations or garden tours
-- Professional but engaging presentation style
-- Specific plant care instructions or seasonal gardening advice
-- Strong opening hook about gardening opportunity
-- Clear call-to-action to visit garden center
+- 2-3 minute script for garden center plant care demonstration video
+- Educational content about specific plant care techniques, health solutions, or seasonal maintenance
+- Include visual cues for plant care demonstrations, problem identification, or technique tutorials
+- MANDATORY: Focus on hands-on plant care instruction and problem-solving
+- Professional but engaging presentation style for plant care education
+- Specific plant care instructions, timing, and step-by-step techniques
+- Address common plant health issues and demonstrate solutions
+- Strong opening hook about plant care opportunity or problem-solving
+- Clear call-to-action to visit garden center for supplies or expert consultation
 
 Format:
-[VISUAL: Description of what viewers see]
-NARRATION: "What the presenter says about gardening/plants"
+[VISUAL: Description of plant care demonstration or problem being shown]
+NARRATION: "Expert plant care instruction and explanation"
 
-Include multiple visual and narration segments.`;
+Include multiple visual and narration segments focused on plant care education.`;
 
     default:
       return `${basePrompt}
 
-Create engaging ${postType} content that showcases garden center expertise and seasonal plant knowledge. Focus on educating customers about plants, gardening techniques, and seasonal opportunities.`;
+Create engaging ${postType} content that showcases comprehensive plant care expertise and seasonal plant health knowledge. Focus heavily on educating customers about specific plant care techniques, health solutions, and seasonal maintenance requirements.`;
   }
 }

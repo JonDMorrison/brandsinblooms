@@ -24,6 +24,19 @@ export function buildContentPrompt(
     prompt += ` with focus on: ${weekDescription}`;
   }
   
+  // Enhanced plant care focus section
+  prompt += `\n\nMANDATORY PLANT CARE EMPHASIS:
+- ALWAYS include specific plant care instructions, techniques, or advice
+- Address common plant health issues and provide actionable solutions
+- Cover watering schedules, fertilizing timing, or maintenance techniques
+- Include seasonal plant care guidance and problem prevention
+- Provide plant selection advice for different growing conditions
+- Address both indoor and outdoor plant care as relevant to content type
+- Include troubleshooting tips for common plant problems
+- Cover soil health, nutrition, pest management, or disease prevention
+- Mention pruning, propagation, or plant maintenance when appropriate
+- Focus on practical, actionable plant care advice customers can implement`;
+  
   prompt += `\n\nCONTENT TYPE REQUIREMENTS:
 - Maximum ${rules.max_words} words
 - Tone: ${rules.tone}
@@ -67,9 +80,10 @@ Location Info: ${companyProfile.location_info || ''}`;
       prompt += `\n\nREGIONAL GARDEN CENTER FOCUS:
 - Create content highly specific to their geographic region and local growing conditions
 - Reference local climate, soil conditions, and seasonal gardening patterns
-- Include region-appropriate plant varieties and gardening techniques
+- Include region-appropriate plant varieties and care techniques
 - Consider local pests, diseases, and environmental factors
-- Address regional gardening challenges and local growing seasons`;
+- Address regional gardening challenges and local growing seasons
+- Provide plant care advice specific to local climate zones`;
     } else {
       prompt += `\n\n🚨 MANDATORY LOCATION USAGE RULE (CRITICAL - NEVER IGNORE):
 - ABSOLUTELY NEVER use generic placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
@@ -95,23 +109,24 @@ Location Info: ${companyProfile.location_info || ''}`;
   }
   
   prompt += `\n\nWRITING STYLE DIRECTIVES (CRITICAL):
-1. START WITH A POWERFUL HOOK: Begin with a compelling first sentence that sparks curiosity or urgency about "${campaignTitle}" - never use "Welcome to" or generic openings
-2. AGITATE BEFORE EDUCATING: Highlight a common gardening challenge related to the theme before providing solutions
+1. START WITH A POWERFUL PLANT CARE HOOK: Begin with a compelling first sentence about plant care, health, or seasonal maintenance related to "${campaignTitle}" - never use "Welcome to" or generic openings
+2. AGITATE PLANT CARE CHALLENGES: Highlight a common plant health issue or care challenge before providing solutions
 3. USE SHORT PARAGRAPHS: 2-3 sentences max for mobile readability
-4. MAKE IT VISUALLY SUGGESTIVE: Use descriptive words that create mental images of beautiful gardens
-5. SOUND CONVERSATIONAL: Like a knowledgeable gardening expert talking to familiar customers
-6. INCLUDE A CLEAR CTA: End with a specific call-to-action related to the gardening theme
-7. USE NATURAL TIMING: Reference seasons naturally for gardening relevance, avoid week numbers
+4. MAKE IT PLANT-VISUALLY SUGGESTIVE: Use descriptive words that create mental images of healthy, thriving plants
+5. SOUND LIKE A PLANT CARE EXPERT: Like a knowledgeable plant specialist talking to familiar customers
+6. INCLUDE ACTIONABLE PLANT CARE CTA: End with a specific call-to-action related to plant care, health, or garden center expertise
+7. USE NATURAL PLANT CARE TIMING: Reference seasons naturally for plant care relevance, avoid week numbers
 
-CRITICAL RESTRICTIONS:
+CRITICAL PLANT CARE RESTRICTIONS:
 - ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) 
 - ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
 - ABSOLUTELY NEVER use emojis anywhere in content
 - ABSOLUTELY NEVER use generic placeholders like "[Company Name]", "[Business Name]", "Your Garden Center", or generic garden center names
 - ABSOLUTELY NEVER use location placeholders like "[Region]", "[Location]", or "[Garden Center Location]"
 - Write ONLY in flowing paragraphs and natural sentences
-- Make content specific to the "${campaignTitle}" gardening theme
-- Focus on gardening expertise and plant knowledge rather than assuming specific garden center specialties`;
+- Make content specific to the "${campaignTitle}" theme with heavy plant care focus
+- Prioritize plant care expertise, health solutions, and practical maintenance advice
+- Include specific plant care techniques, timing, and problem-solving guidance`;
   
   return prompt;
 }
