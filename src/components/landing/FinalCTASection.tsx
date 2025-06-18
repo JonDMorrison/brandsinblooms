@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { LandingPageIcon } from "./LandingPageIcon";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 interface FinalCTASectionProps {
   onGetStarted: () => void;
@@ -8,8 +9,22 @@ interface FinalCTASectionProps {
 
 export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
   return (
-    <section className="py-12 px-6 bg-gradient-to-r from-garden-green to-garden-green-dark text-white">
-      <div className="max-w-4xl mx-auto text-center">
+    <section className="py-12 px-6 bg-gradient-to-r from-garden-green to-garden-green-dark text-white relative overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent" />
+      
+      <div className="max-w-4xl mx-auto text-center relative z-10">
+        {/* Central icon */}
+        <div className="flex justify-center mb-6">
+          <LandingPageIcon 
+            icon={Sparkles} 
+            variant="hero" 
+            theme="neutral"
+            containerClassName="bg-white/10 border-white/20 text-white shadow-white/20"
+            animated={true}
+          />
+        </div>
+        
         <h2 className="text-2xl font-semibold mb-6">
           Ready to Save Hours Every Week?
         </h2>
