@@ -57,7 +57,7 @@ export const HolidayCalendarManager = () => {
               <PremiumButton
                 variant="primary"
                 size="sm"
-                leadingIcon="refresh"
+                leadingIcon="calendar"
                 premium={false}
                 disabled={loading}
                 onClick={handleUpdateCalendar}
