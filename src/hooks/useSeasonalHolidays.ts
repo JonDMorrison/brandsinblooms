@@ -1,6 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface Holiday {
   id: string;
@@ -100,24 +102,91 @@ export const useSeasonalHolidays = () => {
   };
 
   const generateHolidayContent = async (holidayId: string) => {
-    try {
-      console.log('Generating content for holiday:', holidayId);
-      
-      const { data, error } = await supabase.functions.invoke('generate-holiday-content', {
-        body: { holiday_id: holidayId }
-      });
+    const maxRetries = 3;
+    let lastError: Error | null = null;
 
-      if (error) {
-        console.error('Error generating holiday content:', error);
-        throw new Error(error.message || 'Failed to generate content');
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🎯 Attempt ${attempt}/${maxRetries}: Generating content for holiday:`, holidayId);
+        
+        // Add connection test
+        if (attempt === 1) {
+          console.log('🔍 Testing Supabase connection...');
+          const { data: testData } = await supabase.from('holidays').select('id').limit(1);
+          console.log('✅ Supabase connection test successful:', testData ? 'Connected' : 'No data');
+        }
+
+        const { data, error } = await supabase.functions.invoke('generate-holiday-content', {
+          body: { holiday_id: holidayId },
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (error) {
+          console.error(`❌ Attempt ${attempt} failed with Supabase error:`, {
+            message: error.message,
+            context: error.context,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          });
+          
+          // Check if this is a connectivity issue
+          if (error.message?.includes('FunctionsFetchError') || 
+              error.message?.includes('Failed to fetch') ||
+              error.message?.includes('Network Error')) {
+            
+            lastError = new Error(`Connection failed (attempt ${attempt}/${maxRetries}): ${error.message}`);
+            
+            if (attempt < maxRetries) {
+              console.log(`⏳ Retrying in ${attempt * 2} seconds...`);
+              await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+              continue;
+            }
+          } else {
+            // Non-connectivity error, don't retry
+            throw new Error(error.message || 'Edge function error');
+          }
+        } else {
+          console.log('✅ Holiday content generated successfully:', data);
+          return data;
+        }
+      } catch (error) {
+        console.error(`❌ Attempt ${attempt} failed with exception:`, error);
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        if (attempt < maxRetries) {
+          console.log(`⏳ Retrying in ${attempt * 2} seconds...`);
+          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+        }
       }
-
-      console.log('Holiday content generated successfully:', data);
-      return data;
-    } catch (error) {
-      console.error('Exception generating holiday content:', error);
-      throw error;
     }
+
+    // All attempts failed
+    const finalError = lastError || new Error('Unknown error occurred');
+    console.error('💥 All retry attempts failed:', finalError);
+    
+    // Show helpful error message to user
+    if (finalError.message.includes('FunctionsFetchError') || 
+        finalError.message.includes('Failed to fetch')) {
+      toast.error('Connection issue detected', {
+        description: 'Please check your internet connection and try again. If the problem persists, the service may be temporarily unavailable.',
+        duration: 8000,
+      });
+    } else if (finalError.message.includes('OPENAI_API_KEY')) {
+      toast.error('Configuration issue', {
+        description: 'OpenAI API key is not properly configured. Please contact support.',
+        duration: 8000,
+      });
+    } else {
+      toast.error('Content generation failed', {
+        description: finalError.message,
+        duration: 8000,
+      });
+    }
+    
+    throw finalError;
   };
 
   useEffect(() => {
