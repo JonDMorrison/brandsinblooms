@@ -29,7 +29,8 @@ export default {
 			fontWeight,
 			spacing: {
 				...spacing,
-				'24': '6rem', // 96px - For 24px grid gaps
+				'6': '1.5rem', // 24px - Standard grid gap
+				'24': '6rem', // 96px - For larger sections
 			},
 			colors: {
 				...colors,
@@ -83,25 +84,31 @@ export default {
 			animation,
 			transitionTimingFunction,
 			transitionDuration,
-			// 12-column grid system
+			// Enhanced 12-column grid system with proper templates
 			gridTemplateColumns: {
 				'12': 'repeat(12, minmax(0, 1fr))',
-				'dashboard': '8fr 4fr', // Hero section layout
+				'dashboard': '8fr 4fr', // Hero section layout - 8/4 split
 				'content-actions': 'repeat(3, 1fr)', // Quick action tiles
+				'hero': '2fr 1fr', // Alternative hero layout
 			},
 			gap: {
-				'24': '1.5rem', // 24px for grid gaps
+				'6': '1.5rem', // 24px - Standard grid system gap
+				'24': '1.5rem', // Alias for consistency
 			},
-			// Enhanced breakpoints for the grid system
+			// Enhanced container max-widths for grid system
+			maxWidth: {
+				'7xl': '80rem', // 1280px - Main content container
+				'grid': '1200px', // Optimal width for 12-column grid
+			},
+			// Enhanced breakpoints optimized for 12-column grid
 			screens: {
-				'sm': '640px',
-				'md': '768px',
-				'lg': '1024px', // Key breakpoint for 12-column grid
-				'xl': '1280px',
-				'2xl': '1536px',
+				'sm': '640px',  // Mobile landscape
+				'md': '768px',  // Tablet
+				'lg': '1024px', // Desktop - Key breakpoint for 12-column grid
+				'xl': '1280px', // Large desktop
+				'2xl': '1536px', // Extra large
 			}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
 } satisfies Config;
-

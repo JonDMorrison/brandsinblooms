@@ -123,13 +123,14 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Main Grid Container with proper spacing */}
       <div className="space-y-6 bg-white">
         {/* Fixed UserMenu in top right corner */}
         <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
           <UserMenu />
         </div>
 
-        {/* Enhanced Header with Apple Design - Force white background */}
+        {/* Enhanced Header with Apple Design - Grid-aligned */}
         <EnhancedAppleCard 
           variant="default" 
           surface="primary" 
@@ -141,16 +142,18 @@ const Index = () => {
             bg-white
             ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
           `}>
-            <WelcomeSection 
-              onboardingData={onboardingData}
-              onBusinessNameChange={handleBusinessNameChange}
-            />
+            <div className="max-w-7xl mx-auto">
+              <WelcomeSection 
+                onboardingData={onboardingData}
+                onBusinessNameChange={handleBusinessNameChange}
+              />
+            </div>
           </AppleCardContent>
         </EnhancedAppleCard>
         
-        {/* Dashboard Content - Force white background on main content area */}
+        {/* Dashboard Content - Grid-aligned with max width */}
         <div className={`
-          bg-white
+          bg-white max-w-7xl mx-auto
           ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
         `}>
           <DashboardContent
