@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { 
@@ -13,11 +12,12 @@ import {
   Sparkles,
   CheckCircle2,
   Calendar,
-  BarChart3
+  BarChart3,
+  Eye
 } from "lucide-react";
 
 interface PremiumIconProps {
-  icon: 'newsletter' | 'instagram' | 'email' | 'facebook' | 'leaf' | 'sun' | 'droplets' | 'snowflake' | 'sparkles' | 'check' | 'calendar' | 'analytics';
+  icon: 'newsletter' | 'instagram' | 'email' | 'facebook' | 'leaf' | 'sun' | 'droplets' | 'snowflake' | 'sparkles' | 'check' | 'calendar' | 'analytics' | 'view';
   className?: string;
   size?: 'sm' | 'md' | 'lg';
   variant?: 'default' | 'gradient' | 'seasonal';
@@ -35,7 +35,8 @@ const iconMap = {
   sparkles: Sparkles,
   check: CheckCircle2,
   calendar: Calendar,
-  analytics: BarChart3
+  analytics: BarChart3,
+  view: Eye
 };
 
 const sizeClasses = {

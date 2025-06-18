@@ -5,7 +5,7 @@ import { EnhancedAppleButton, EnhancedAppleButtonProps } from "./enhanced-apple-
 import { PremiumIcon } from "./premium-icons";
 
 interface PremiumButtonProps extends EnhancedAppleButtonProps {
-  leadingIcon?: 'sparkles' | 'leaf' | 'check' | 'calendar' | 'analytics';
+  leadingIcon?: 'sparkles' | 'leaf' | 'check' | 'calendar' | 'analytics' | 'view';
   premium?: boolean;
   celebration?: boolean;
 }
