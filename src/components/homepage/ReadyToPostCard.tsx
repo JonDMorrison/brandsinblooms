@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { ImprovedReadyToPostItem } from "./ready-to-post/ImprovedReadyToPostItem";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { PremiumButton } from "@/components/ui/premium-button";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -153,27 +154,30 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       <EnhancedAppleCard 
         variant="default" 
         surface="secondary" 
-        className="border-dashed border-2 border-stone-200"
+        className="apple-empty-state apple-hover-premium"
         hoverEffect="none"
         animated={true}
         data-ready-to-post-section="true"
       >
         <AppleCardContent className={`
-          text-center 
+          text-center apple-section-spacing
           ${isMobile ? 'py-6' : 'py-12'}
         `}>
           <div className={`
-            flex items-center justify-center rounded-full mx-auto mb-4
-            ${isMobile ? 'w-12 h-12 bg-stone-100' : 'w-16 h-16 bg-stone-100'}
+            apple-icon-container mx-auto mb-4
+            ${isMobile ? 'w-12 h-12' : 'w-16 h-16'}
           `}>
-            <FileText className={`text-stone-500 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
+            <FileText className={`text-gray-400 transition-colors duration-300 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
           </div>
-          <HeadlineMedium className={`text-stone-700 mb-2 ${isMobile ? 'text-lg' : ''}`}>
-            No Content Ready Yet
+          <HeadlineMedium className={`apple-headline-medium text-gray-600 mb-3 ${isMobile ? 'text-lg' : ''}`}>
+            Content Garden Growing
           </HeadlineMedium>
-          <BodyMedium className={`text-stone-600 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
-            Generate content from your campaigns to see it here when it's ready to use
+          <BodyMedium className={`apple-body-enhanced text-gray-500 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
+            Your marketing content will bloom here once generated. Create campaigns to start growing your content garden!
           </BodyMedium>
+          <div className="mt-4">
+            <span className="text-2xl garden-breathing">🌱</span>
+          </div>
         </AppleCardContent>
       </EnhancedAppleCard>
     );
@@ -186,70 +190,75 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         surface="primary"
         hoverEffect="subtle"
         animated={true}
-        className={`border-l-4 border-l-blue-400 ${isMobile ? 'mobile-constrained' : ''}`}
+        className={`border-l-4 border-l-green-400 shadow-lg ${isMobile ? 'mobile-constrained' : ''}`}
         data-ready-to-post-section="true"
       >
-        <AppleCardHeader className={`${isMobile ? 'pb-3' : 'pb-4'}`}>
-          <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-3 text-center' : ''}`}>
-            <div className={`flex items-center gap-3 ${isMobile ? 'w-full justify-center text-center' : ''}`}>
+        <AppleCardHeader className={`apple-card-spacing ${isMobile ? 'pb-3' : 'pb-4'}`}>
+          <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-4 text-center' : ''}`}>
+            <div className={`flex items-center gap-4 ${isMobile ? 'w-full justify-center text-center' : ''}`}>
               <div className={`
-                flex items-center justify-center rounded-xl
-                ${isMobile ? 'w-8 h-8 bg-blue-50' : 'w-10 h-10 bg-blue-50'}
+                apple-icon-container apple-spring-bounce
+                ${isMobile ? 'w-10 h-10' : 'w-12 h-12'}
               `}>
-                <CheckCircle className={`text-blue-600 ${isMobile ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                <CheckCircle className={`text-green-600 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
               </div>
               <div className={isMobile ? 'text-center' : ''}>
-                <HeadlineMedium className={`text-stone-800 ${isMobile ? 'text-lg' : ''}`}>
-                  Ready To Publish
+                <HeadlineMedium className={`apple-headline-medium text-gray-800 ${isMobile ? 'text-lg' : ''}`}>
+                  🌟 Ready To Bloom
                 </HeadlineMedium>
-                <CaptionMedium className={`text-stone-600 ${isMobile ? 'text-sm' : ''}`}>
-                  {tasks.length} piece{tasks.length !== 1 ? 's' : ''} ready for your marketing
+                <CaptionMedium className={`apple-caption-enhanced text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
+                  {tasks.length} professional piece{tasks.length !== 1 ? 's' : ''} ready for your marketing garden
                 </CaptionMedium>
               </div>
             </div>
             {!isMobile && (
-              <EnhancedAppleButton 
+              <PremiumButton 
                 variant="tertiary" 
                 size="sm"
-                iconAnimation="bounce"
-                className="text-stone-600 hover:text-stone-800"
+                leadingIcon="analytics"
+                className="text-gray-600 hover:text-gray-800 apple-hover-premium"
                 onClick={handleViewAllContent}
               >
-                <Eye className="w-4 h-4 mr-2" />
-                View All
-              </EnhancedAppleButton>
+                View All Content
+              </PremiumButton>
             )}
           </div>
         </AppleCardHeader>
 
-        <AppleCardContent className="space-y-4">
+        <AppleCardContent className="apple-card-spacing">
           <ResponsiveGrid 
             cols={{ mobile: 1, tablet: 1, desktop: 2 }}
-            gap={{ mobile: "gap-3", tablet: "gap-4", desktop: "gap-4" }}
+            gap={{ mobile: "gap-4", tablet: "gap-5", desktop: "gap-6" }}
             animated={true}
+            staggerDelay={150}
           >
-            {tasks.map((task) => (
-              <ImprovedReadyToPostItem
+            {tasks.map((task, index) => (
+              <div 
                 key={task.id}
-                task={task}
-                onClick={handleTaskClick}
-                onTaskUpdate={onTaskUpdate}
-                onEdit={onTaskClick}
-              />
+                className="apple-hover-premium rounded-lg border border-gray-100 p-4 bg-white transition-all duration-300"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <ImprovedReadyToPostItem
+                  task={task}
+                  onClick={handleTaskClick}
+                  onTaskUpdate={onTaskUpdate}
+                  onEdit={onTaskClick}
+                />
+              </div>
             ))}
           </ResponsiveGrid>
 
           {tasks.length >= 6 && (
-            <div className="text-center pt-4 border-t border-stone-200">
-              <EnhancedAppleButton 
+            <div className="text-center pt-6 border-t border-gray-100 mt-6">
+              <PremiumButton 
                 variant="secondary" 
-                className={`border-stone-200 text-stone-700 hover:bg-stone-50 ${isMobile ? 'w-full' : 'w-full'}`}
-                iconAnimation="bounce"
+                leadingIcon="sparkles"
+                className={`border-gray-200 text-gray-700 hover:bg-gray-50 apple-button-premium ${isMobile ? 'w-full' : 'w-full'}`}
+                premium={true}
                 onClick={handleViewAllContent}
               >
-                <FileText className="w-4 h-4 mr-2" />
-                View All Ready Content
-              </EnhancedAppleButton>
+                Explore Your Content Garden
+              </PremiumButton>
             </div>
           )}
         </AppleCardContent>
