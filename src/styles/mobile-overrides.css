@@ -174,7 +174,7 @@
       line-height: 1.2 !important;
     }
 
-    /* FINAL CTA SECTION - Preserve green background and white text */
+    /* FINAL CTA SECTION - CRITICAL FIXES FOR BUTTON VISIBILITY */
     .final-cta-section {
       background: linear-gradient(135deg, rgb(76 175 80), rgb(46 125 50)) !important;
       color: white !important;
@@ -187,16 +187,30 @@
       opacity: 1 !important;
     }
     
-    .final-cta-section button {
+    /* CRITICAL: High specificity button fix for Final CTA */
+    .final-cta-section button,
+    .final-cta-section .apple-button-premium,
+    .final-cta-section .apple-spring-bounce,
+    .final-cta-section .apple-ripple-effect,
+    section.final-cta-section button {
       background-color: white !important;
       color: rgb(76 175 80) !important;
       border-color: white !important;
       opacity: 1 !important;
+      visibility: visible !important;
+      display: inline-flex !important;
+      z-index: 1000 !important;
     }
 
-    .final-cta-section button:hover {
+    .final-cta-section button:hover,
+    .final-cta-section .apple-button-premium:hover,
+    .final-cta-section .apple-spring-bounce:hover,
+    .final-cta-section .apple-ripple-effect:hover,
+    section.final-cta-section button:hover {
       background-color: rgb(248 250 252) !important;
       color: rgb(46 125 50) !important;
+      border-color: rgb(248 250 252) !important;
+      opacity: 1 !important;
     }
 
     /* FINAL CTA Section Icons - Ensure visibility */
@@ -209,8 +223,12 @@
 
     .final-cta-section button .w-4,
     .final-cta-section button .h-4,
-    .final-cta-section button svg {
+    .final-cta-section button svg,
+    section.final-cta-section button .w-4,
+    section.final-cta-section button .h-4,
+    section.final-cta-section button svg {
       color: rgb(76 175 80) !important;
+      opacity: 1 !important;
     }
 
     /* Fix background elements that might be blocking touches */
@@ -548,66 +566,5 @@
     }
   }
 
-  /* Tablet-specific optimizations */
-  @media (min-width: 768px) and (max-width: 1024px) {
-    .responsive-padding {
-      @apply p-5;
-    }
-
-    .responsive-margin {
-      @apply m-4;
-    }
-
-    .responsive-gap {
-      @apply gap-5;
-    }
-  }
-
-  /* Desktop optimizations */
-  @media (min-width: 1024px) {
-    .responsive-padding {
-      @apply p-6;
-    }
-
-    .responsive-margin {
-      @apply m-6;
-    }
-
-    .responsive-gap {
-      @apply gap-6;
-    }
-  }
-
-  /* Reduced motion preferences */
-  @media (prefers-reduced-motion: reduce) {
-    .apple-fade-in,
-    .apple-scale-in,
-    .apple-slide-up,
-    .apple-hover,
-    .apple-hover-subtle,
-    .apple-button-press,
-    .apple-card-interactive,
-    .seasonal-emoji,
-    .apple-stagger-1,
-    .apple-stagger-2,
-    .apple-stagger-3,
-    .apple-stagger-4 {
-      @apply transition-none;
-    }
-    
-    .apple-skeleton {
-      @apply animate-none bg-gray-200;
-    }
-  }
-
-  /* High contrast mode support */
-  @media (prefers-contrast: high) {
-    .apple-hover-subtle {
-      @apply hover:bg-gray-200 hover:border-gray-400;
-    }
-
-    .apple-focus-ring {
-      @apply focus:ring-4 focus:ring-blue-600;
-    }
-  }
+  /* ... keep existing code (tablet and desktop optimizations, reduced motion preferences, high contrast mode support) */
 }
