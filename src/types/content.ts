@@ -4,8 +4,8 @@ export interface Campaign {
   title: string;
   week_number: number;
   start_date: string;
-  created_at: string;
-  user_id: string;
+  created_at?: string;  // Make optional
+  user_id?: string;     // Make optional
   theme?: string;
   description?: string;
   prompt?: string;
