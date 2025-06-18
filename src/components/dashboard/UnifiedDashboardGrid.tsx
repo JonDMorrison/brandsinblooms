@@ -8,6 +8,7 @@ import { SampleCampaignCard } from "@/components/dashboard/SampleCampaignCard";
 import { QuickActionsSection } from "@/components/dashboard/current-campaign/QuickActionsSection";
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
 import { SeasonalHolidaysCard } from "./seasonal-holidays/SeasonalHolidaysCard";
+import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { useUser } from "@/hooks/useUser";
@@ -72,9 +73,34 @@ export const UnifiedDashboardGrid = ({
     return <div className="text-center py-12">Loading dashboard...</div>;
   }
 
+  // Filter ready tasks for the ReadyToPostCard
+  const readyTasks = tasks.filter(task => 
+    ['review', 'approved', 'posted'].includes(task.status) && 
+    task.ai_output &&
+    task.campaigns?.user_id === user?.id
+  );
+
   return (
     <>
       <div className="space-y-8">
+        {/* Ready to Post Section - Only show for authenticated users with ready content */}
+        {user && readyTasks.length > 0 && (
+          <div className="space-y-6">
+            <div>
+              <HeadlineLarge className="text-text-primary">
+                Ready to Post
+              </HeadlineLarge>
+              <BodyMedium className="text-text-secondary mt-1">
+                Your content is ready to share with your audience
+              </BodyMedium>
+            </div>
+            <ReadyToPostCard 
+              tasks={readyTasks}
+              onTaskUpdate={onTaskUpdate}
+            />
+          </div>
+        )}
+
         {/* Current Campaign Section */}
         <CurrentCampaignSection 
           activeCampaign={activeCampaign}
