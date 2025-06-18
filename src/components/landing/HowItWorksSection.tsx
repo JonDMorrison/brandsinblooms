@@ -5,60 +5,112 @@ import { Globe, Eye, Rocket } from "lucide-react";
 
 export const HowItWorksSection = () => {
   return (
-    <section className="py-12 px-6 bg-white/60">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl font-semibold text-center mb-16 text-garden-green-dark">
-          Transform Your Marketing in 3 Simple Steps
-        </h2>
+    <section className="py-24 px-6 bg-gradient-to-b from-garden-background/30 to-white">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-20 apple-section-spacing">
+          <h2 className="text-4xl font-bold mb-6 text-garden-green-dark apple-headline-large">
+            Transform Your Marketing in 3 Simple Steps
+          </h2>
+          <p className="text-xl text-gray-600 apple-body-enhanced max-w-3xl mx-auto">
+            From zero to marketing hero in under a minute. Our streamlined process gets you results immediately.
+          </p>
+        </div>
         
-        {/* Connected visual flow for desktop */}
-        <div className="hidden md:block mb-12">
-          <ConnectedIcons className="max-w-4xl mx-auto">
-            <LandingPageIcon icon={Globe} variant="section" theme="spring" />
-            <LandingPageIcon icon={Eye} variant="section" theme="summer" />
-            <LandingPageIcon icon={Rocket} variant="section" theme="autumn" />
+        {/* Enhanced connected visual flow for desktop */}
+        <div className="hidden md:block mb-16">
+          <ConnectedIcons className="max-w-5xl mx-auto">
+            <LandingPageIcon 
+              icon={Globe} 
+              variant="section" 
+              theme="spring" 
+              animated={true}
+              containerClassName="apple-fade-in-stagger shadow-lg"
+            />
+            <LandingPageIcon 
+              icon={Eye} 
+              variant="section" 
+              theme="summer" 
+              animated={true}
+              containerClassName="apple-fade-in-stagger shadow-lg"
+              style={{animationDelay: '0.2s'}}
+            />
+            <LandingPageIcon 
+              icon={Rocket} 
+              variant="section" 
+              theme="autumn" 
+              animated={true}
+              containerClassName="apple-fade-in-stagger shadow-lg"
+              style={{animationDelay: '0.4s'}}
+            />
           </ConnectedIcons>
         </div>
         
-        <div className="grid md:grid-cols-3 gap-12">
-          <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage border border-gray-200 group">
-            <CardContent className="pt-6">
-              <div className="flex justify-center mb-6 md:hidden">
-                <LandingPageIcon icon={Globe} variant="section" theme="spring" />
+        <div className="grid md:grid-cols-3 gap-10">
+          <Card className="apple-fade-in-stagger card-interactive text-center p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-garden-green/20 apple-warm-neutral shadow-sm hover:shadow-2xl group">
+            <CardContent className="pt-8 apple-card-spacing">
+              <div className="flex justify-center mb-8 md:hidden">
+                <LandingPageIcon 
+                  icon={Globe} 
+                  variant="section" 
+                  theme="spring" 
+                  animated={true}
+                  containerClassName="shadow-lg"
+                />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
-                Paste Your Website
+              <div className="w-12 h-12 bg-garden-green text-white rounded-full flex items-center justify-center font-bold text-xl mb-6 mx-auto">
+                1
+              </div>
+              <h3 className="text-2xl font-semibold mb-6 text-garden-green-dark apple-headline-medium">
+                Share Your Website
               </h3>
-              <p className="text-base text-gray-600">
-                We'll analyze your site to learn your brand voice and customer style.
+              <p className="text-lg text-gray-600 leading-relaxed apple-body-enhanced">
+                Simply paste your website URL and we'll instantly analyze your brand voice, style, and customer approach to create perfectly matched content.
               </p>
             </CardContent>
           </Card>
 
-          <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage border border-gray-200 group">
-            <CardContent className="pt-6">
-              <div className="flex justify-center mb-6 md:hidden">
-                <LandingPageIcon icon={Eye} variant="section" theme="summer" />
+          <Card className="apple-fade-in-stagger card-interactive text-center p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-garden-green/20 apple-warm-neutral shadow-sm hover:shadow-2xl group" style={{animationDelay: '0.1s'}}>
+            <CardContent className="pt-8 apple-card-spacing">
+              <div className="flex justify-center mb-8 md:hidden">
+                <LandingPageIcon 
+                  icon={Eye} 
+                  variant="section" 
+                  theme="summer" 
+                  animated={true}
+                  containerClassName="shadow-lg"
+                />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
-                Review Your Content
+              <div className="w-12 h-12 bg-garden-green text-white rounded-full flex items-center justify-center font-bold text-xl mb-6 mx-auto">
+                2
+              </div>
+              <h3 className="text-2xl font-semibold mb-6 text-garden-green-dark apple-headline-medium">
+                Review & Customize
               </h3>
-              <p className="text-base text-gray-600">
-                Instantly receive ready-to-go posts, emails, and more — all editable and fully tailored.
+              <p className="text-lg text-gray-600 leading-relaxed apple-body-enhanced">
+                Instantly receive ready-to-publish posts, emails, and content — all fully editable and tailored to your garden center's unique personality.
               </p>
             </CardContent>
           </Card>
 
-          <Card className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2 rounded-2xl bg-garden-sage border border-gray-200 group">
-            <CardContent className="pt-6">
-              <div className="flex justify-center mb-6 md:hidden">
-                <LandingPageIcon icon={Rocket} variant="section" theme="autumn" />
+          <Card className="apple-fade-in-stagger card-interactive text-center p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-garden-green/20 apple-warm-neutral shadow-sm hover:shadow-2xl group" style={{animationDelay: '0.2s'}}>
+            <CardContent className="pt-8 apple-card-spacing">
+              <div className="flex justify-center mb-8 md:hidden">
+                <LandingPageIcon 
+                  icon={Rocket} 
+                  variant="section" 
+                  theme="autumn" 
+                  animated={true}
+                  containerClassName="shadow-lg"
+                />
               </div>
-              <h3 className="text-xl font-semibold mb-4 text-garden-green-dark">
-                Publish & Grow
+              <div className="w-12 h-12 bg-garden-green text-white rounded-full flex items-center justify-center font-bold text-xl mb-6 mx-auto">
+                3
+              </div>
+              <h3 className="text-2xl font-semibold mb-6 text-garden-green-dark apple-headline-medium">
+                Publish & Thrive
               </h3>
-              <p className="text-base text-gray-600">
-                Share across platforms in one click and track what performs best.
+              <p className="text-lg text-gray-600 leading-relaxed apple-body-enhanced">
+                Share across all platforms with one click, track performance, and watch your garden center's marketing flourish effortlessly.
               </p>
             </CardContent>
           </Card>

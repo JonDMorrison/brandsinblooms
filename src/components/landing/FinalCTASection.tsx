@@ -9,41 +9,44 @@ interface FinalCTASectionProps {
 
 export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
   return (
-    <section className="py-12 px-6 bg-gradient-to-r from-garden-green to-garden-green-dark text-white relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/5 to-transparent" />
+    <section className="py-24 px-6 bg-gradient-to-br from-garden-green via-garden-green-dark to-garden-green text-white relative overflow-hidden">
+      {/* Enhanced background decorative elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-garden-green/80 via-transparent to-garden-green/80" />
       
-      <div className="max-w-4xl mx-auto text-center relative z-10">
-        {/* Central icon */}
-        <div className="flex justify-center mb-6">
+      <div className="max-w-5xl mx-auto text-center relative z-10 apple-section-spacing">
+        {/* Enhanced central icon */}
+        <div className="flex justify-center mb-10">
           <LandingPageIcon 
             icon={Sparkles} 
             variant="hero" 
             theme="neutral"
-            containerClassName="bg-white/10 border-white/20 text-white shadow-white/20"
+            containerClassName="bg-white/20 border-white/30 text-white shadow-2xl shadow-black/20 apple-fade-in-stagger garden-breathing"
             animated={true}
           />
         </div>
         
-        <h2 className="text-2xl font-semibold mb-6">
+        <h2 className="text-4xl md:text-5xl font-bold mb-8 apple-headline-large text-white">
           Ready to Save Hours Every Week?
         </h2>
         
-        <p className="text-xl mb-10 opacity-90">
-          Try it free and watch your marketing take care of itself.
+        <p className="text-2xl mb-12 opacity-90 apple-body-enhanced max-w-3xl mx-auto leading-relaxed">
+          Join garden centers who've transformed their marketing and are growing their business effortlessly. Try it free and watch your marketing take care of itself.
         </p>
         
-        <Button 
-          onClick={onGetStarted}
-          className="bg-white hover:bg-gray-100 text-garden-green px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-6"
-        >
-          Get Started In Less Than A Minute
-          <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-        </Button>
-        
-        <p className="text-sm opacity-75">
-          No credit card required. No tech skills needed.
-        </p>
+        <div className="apple-fade-in-stagger" style={{animationDelay: '0.2s'}}>
+          <Button 
+            onClick={onGetStarted}
+            className="bg-white hover:bg-gray-100 text-garden-green px-16 py-6 text-2xl rounded-2xl font-semibold shadow-2xl hover:shadow-3xl apple-spring-bounce apple-ripple-effect mb-8 transition-all duration-300"
+          >
+            Get Started In Less Than A Minute
+            <ArrowRight className="ml-3 h-6 w-6 transition-transform group-hover:translate-x-1" />
+          </Button>
+          
+          <p className="text-base opacity-80 apple-caption-enhanced">
+            No credit card required • No technical skills needed • Ready in 60 seconds
+          </p>
+        </div>
       </div>
     </section>
   );

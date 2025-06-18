@@ -180,6 +180,58 @@
     background: linear-gradient(135deg, rgba(76, 175, 80, 0.05) 0%, rgba(129, 199, 132, 0.05) 100%);
     border: 1px solid rgba(76, 175, 80, 0.2);
   }
+
+  /* Apple-inspired staggered animations */
+  .apple-slide-up {
+    animation: apple-slide-up 0.8s ease-out;
+  }
+
+  .apple-fade-in-stagger {
+    animation: apple-fade-in 0.6s ease-out;
+  }
+
+  @keyframes apple-slide-up {
+    0% {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes apple-fade-in {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Enhanced interactive cards */
+  .card-interactive {
+    @apply transition-all duration-300 ease-apple;
+  }
+
+  .card-interactive:hover {
+    @apply scale-[1.02] shadow-lg;
+    transform: translateY(-2px) scale(1.02);
+  }
+
+  .card-interactive:active {
+    @apply scale-[0.98];
+    transform: translateY(0px) scale(0.98);
+  }
+
+  /* Apple focus ring */
+  .apple-focus-ring:focus {
+    @apply outline-none;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.5);
+  }
 }
 
 /* Enhanced Keyframes */
@@ -241,4 +293,33 @@
 
 .sprout-animation {
   animation: sprout-grow 0.8s ease-out;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+@keyframes gentle-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }

@@ -9,56 +9,80 @@ interface HeroSectionProps {
 
 export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
   return (
-    <section className="py-24 px-6 text-center relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-br from-garden-background via-white to-garden-sage opacity-60" />
+    <section className="py-32 px-6 text-center relative overflow-hidden">
+      {/* Enhanced background with Apple-style gradients */}
+      <div className="absolute inset-0 bg-gradient-to-br from-garden-background via-white to-garden-sage/30 opacity-80" />
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-garden-green/5 to-transparent" />
       
-      <div className="max-w-4xl mx-auto relative z-10">
-        {/* Hero Icon */}
-        <div className="flex justify-center mb-8">
+      <div className="max-w-5xl mx-auto relative z-10 apple-section-spacing">
+        {/* Hero Icon with enhanced animation */}
+        <div className="flex justify-center mb-12">
           <LandingPageIcon 
             icon={Sparkles} 
             variant="hero" 
             theme="spring" 
             animated={true}
-            containerClassName="animate-pulse"
+            containerClassName="apple-fade-in-stagger garden-breathing shadow-2xl"
           />
         </div>
         
-        <h1 className="text-5xl md:text-6xl font-bold text-black mb-6 leading-tight">
-          Effortless Marketing for Garden Centers
+        {/* Enhanced Typography */}
+        <h1 className="text-6xl md:text-7xl font-bold text-black mb-8 leading-tight tracking-tight apple-fade-in-stagger">
+          Effortless Marketing for
+          <span className="block text-garden-green mt-2">Garden Centers</span>
         </h1>
         
-        <p className="text-xl md:text-2xl text-gray-600 mb-10 max-w-3xl mx-auto leading-relaxed">
-          In less than a minute, get personalized weekly content for social media, newsletters, blogs, video scripts, and email marketing — all tailored to your brand's unique voice.
+        <p className="text-xl md:text-2xl text-gray-600 mb-14 max-w-4xl mx-auto leading-relaxed apple-body-enhanced">
+          Transform your marketing in under a minute. Get personalized weekly content for social media, newsletters, blogs, and email campaigns — all perfectly tailored to your garden center's unique voice and seasonal needs.
         </p>
         
-        {/* Feature highlights with icons */}
-        <div className="flex justify-center gap-8 mb-10">
-          <div className="flex flex-col items-center gap-2">
-            <LandingPageIcon icon={Leaf} variant="feature" theme="spring" />
-            <span className="text-sm text-gray-600 font-medium">Plant Care Focus</span>
+        {/* Enhanced feature highlights with better spacing */}
+        <div className="flex justify-center gap-12 mb-16">
+          <div className="flex flex-col items-center gap-3 apple-fade-in-stagger" style={{animationDelay: '0.1s'}}>
+            <LandingPageIcon 
+              icon={Leaf} 
+              variant="feature" 
+              theme="spring" 
+              animated={true}
+              containerClassName="apple-icon-container"
+            />
+            <span className="text-base text-gray-700 font-medium apple-caption-enhanced">Plant Care Focus</span>
           </div>
-          <div className="flex flex-col items-center gap-2">
-            <LandingPageIcon icon={Calendar} variant="feature" theme="summer" />
-            <span className="text-sm text-gray-600 font-medium">Seasonal Content</span>
+          <div className="flex flex-col items-center gap-3 apple-fade-in-stagger" style={{animationDelay: '0.2s'}}>
+            <LandingPageIcon 
+              icon={Calendar} 
+              variant="feature" 
+              theme="summer" 
+              animated={true}
+              containerClassName="apple-icon-container"
+            />
+            <span className="text-base text-gray-700 font-medium apple-caption-enhanced">Seasonal Content</span>
           </div>
-          <div className="flex flex-col items-center gap-2">
-            <LandingPageIcon icon={TrendingUp} variant="feature" theme="autumn" />
-            <span className="text-sm text-gray-600 font-medium">Growth Focused</span>
+          <div className="flex flex-col items-center gap-3 apple-fade-in-stagger" style={{animationDelay: '0.3s'}}>
+            <LandingPageIcon 
+              icon={TrendingUp} 
+              variant="feature" 
+              theme="autumn" 
+              animated={true}
+              containerClassName="apple-icon-container"
+            />
+            <span className="text-base text-gray-700 font-medium apple-caption-enhanced">Growth Focused</span>
           </div>
         </div>
         
-        <Button 
-          onClick={onGetStarted}
-          className="bg-garden-green hover:bg-garden-green-dark text-white px-12 py-4 text-xl rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 group mb-4 mx-auto"
-        >
-          Get Started In Less Than A Minute
-        </Button>
-        
-        <p className="text-sm text-gray-600">
-          No credit card required. No tech skills needed.
-        </p>
+        {/* Enhanced CTA with Apple-style button */}
+        <div className="apple-fade-in-stagger" style={{animationDelay: '0.4s'}}>
+          <Button 
+            onClick={onGetStarted}
+            className="apple-button-premium apple-ripple-effect apple-spring-bounce px-16 py-6 text-xl rounded-2xl font-semibold text-white mb-6 shadow-lg hover:shadow-2xl transition-all duration-300"
+          >
+            Get Started In Less Than A Minute
+          </Button>
+          
+          <p className="text-sm text-gray-500 apple-caption-enhanced">
+            No credit card required • No technical skills needed • Ready in 60 seconds
+          </p>
+        </div>
       </div>
     </section>
   );
