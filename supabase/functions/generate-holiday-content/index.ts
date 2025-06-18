@@ -13,6 +13,19 @@ serve(async (req) => {
   }
 
   try {
+    // Check if OpenAI API key is available
+    const openAIKey = Deno.env.get('OPENAI_API_KEY')
+    if (!openAIKey) {
+      console.error('OpenAI API key not found in environment variables')
+      return new Response(
+        JSON.stringify({ error: 'OpenAI API key not configured. Please add OPENAI_API_KEY to your Supabase project secrets.' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      )
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -26,8 +39,17 @@ serve(async (req) => {
     const { holiday_id } = await req.json()
     
     if (!holiday_id) {
-      throw new Error('Holiday ID is required')
+      console.error('Holiday ID is required but not provided')
+      return new Response(
+        JSON.stringify({ error: 'Holiday ID is required' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      )
     }
+
+    console.log('Processing holiday content generation for ID:', holiday_id)
 
     // Get the holiday details with correct schema
     const { data: holiday, error: holidayError } = await supabaseClient
@@ -37,15 +59,29 @@ serve(async (req) => {
       .single()
 
     if (holidayError || !holiday) {
-      throw new Error('Holiday not found')
+      console.error('Holiday not found:', holidayError)
+      return new Response(
+        JSON.stringify({ error: `Holiday not found: ${holidayError?.message || 'Unknown error'}` }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404
+        }
+      )
     }
 
-    console.log('Found holiday:', holiday)
+    console.log('Found holiday:', holiday.holiday_name)
 
     // Get user's company profile for personalization
     const { data: { user } } = await supabaseClient.auth.getUser()
     if (!user) {
-      throw new Error('User not authenticated')
+      console.error('User not authenticated')
+      return new Response(
+        JSON.stringify({ error: 'User not authenticated' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 401
+        }
+      )
     }
 
     const { data: profile } = await supabaseClient
@@ -57,10 +93,11 @@ serve(async (req) => {
     console.log('User profile:', profile?.company_name || 'No profile found')
 
     // Generate content using OpenAI
+    console.log('Calling OpenAI API...')
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
+        'Authorization': `Bearer ${openAIKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -97,14 +134,45 @@ Format the response as JSON with keys: facebook, instagram, video, newsletter, b
 
     if (!openAIResponse.ok) {
       const errorText = await openAIResponse.text()
-      console.error('OpenAI API error:', errorText)
-      throw new Error('Failed to generate content with OpenAI')
+      console.error('OpenAI API error:', openAIResponse.status, errorText)
+      return new Response(
+        JSON.stringify({ error: `OpenAI API error (${openAIResponse.status}): ${errorText}` }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      )
     }
 
     const openAIData = await openAIResponse.json()
-    const generatedContent = JSON.parse(openAIData.choices[0].message.content)
+    
+    if (!openAIData.choices || !openAIData.choices[0] || !openAIData.choices[0].message) {
+      console.error('Invalid OpenAI response structure:', openAIData)
+      return new Response(
+        JSON.stringify({ error: 'Invalid response from OpenAI API' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      )
+    }
 
-    console.log('Generated content:', Object.keys(generatedContent))
+    let generatedContent
+    try {
+      generatedContent = JSON.parse(openAIData.choices[0].message.content)
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response as JSON:', parseError)
+      console.error('Raw content:', openAIData.choices[0].message.content)
+      return new Response(
+        JSON.stringify({ error: 'Failed to parse generated content as JSON' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      )
+    }
+
+    console.log('Generated content types:', Object.keys(generatedContent))
 
     // Create content tasks for each type
     const contentTypes = [
@@ -135,7 +203,13 @@ Format the response as JSON with keys: facebook, instagram, video, newsletter, b
 
     if (tasksError) {
       console.error('Tasks creation error:', tasksError)
-      throw new Error(`Failed to create content tasks: ${tasksError.message}`)
+      return new Response(
+        JSON.stringify({ error: `Failed to create content tasks: ${tasksError.message}` }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      )
     }
 
     console.log('Created tasks successfully:', createdTasks?.length || 0)
@@ -154,10 +228,10 @@ Format the response as JSON with keys: facebook, instagram, video, newsletter, b
   } catch (error) {
     console.error('Error generating holiday content:', error)
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: `Unexpected error: ${error.message}` }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400
+        status: 500
       }
     )
   }
