@@ -1,81 +1,69 @@
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Star } from "lucide-react";
+import { Star, Leaf } from "lucide-react";
 
 export const TestimonialsSection = () => {
+  const testimonials = [
+    {
+      name: "Sarah Chen",
+      business: "Bloom & Grow Nursery",
+      quote: "BloomSuite transformed our social media presence completely. We went from posting randomly to having a cohesive, professional marketing strategy that actually drives sales.",
+      rating: 5
+    },
+    {
+      name: "Mike Rodriguez",
+      business: "Garden Valley Center",
+      quote: "The time savings alone made this worth it. What used to take me hours every week now happens automatically, and the content quality is better than what I was creating myself.",
+      rating: 5
+    },
+    {
+      name: "Emma Thompson",
+      business: "Green Thumb Gardens",
+      quote: "Our email open rates doubled since using BloomSuite. The seasonal content suggestions are spot-on and our customers love the plant care tips we share.",
+      rating: 5
+    }
+  ];
+
   return (
-    <section className="py-12 px-6 bg-white/60">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-2xl font-semibold text-center mb-16 text-garden-green-dark">
-          What Garden Center Owners Say
-        </h2>
+    <section className="py-24 px-6 bg-[#E9F5EC]">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-20">
+          <h2 className="text-4xl font-bold mb-6 text-gray-900">
+            Loved by Garden Centers Everywhere
+          </h2>
+          <p className="text-xl text-[#6B7280] max-w-3xl mx-auto">
+            Join hundreds of garden centers who've transformed their marketing and grown their business.
+          </p>
+        </div>
         
         <div className="grid md:grid-cols-3 gap-8">
-          <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage border border-gray-200">
-            <CardContent className="pt-4">
-              <div className="flex mb-6">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-5 w-5 fill-garden-green text-garden-green" />
-                ))}
-              </div>
-              <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
-                "This saved us hours every week. We finally look professional online and our customers notice the difference."
-              </p>
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
-                  L
+          {testimonials.map((testimonial, index) => (
+            <Card 
+              key={index} 
+              className="apple-fade-in-stagger p-8 rounded-2xl bg-white border-2 border-[#47B881]/10 hover:border-[#47B881]/20 shadow-sm hover:shadow-lg transition-all duration-300"
+              style={{animationDelay: `${index * 0.1}s`}}
+            >
+              <CardContent className="p-0">
+                <div className="flex items-center gap-1 mb-4">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 fill-[#F4C430] text-[#F4C430]" />
+                  ))}
                 </div>
-                <div>
-                  <div className="font-semibold text-garden-green-dark">Linda Chen</div>
-                  <div className="text-sm text-gray-600">Maple Grove Greenhouse</div>
+                <blockquote className="text-[#6B7280] text-lg leading-relaxed mb-6 italic">
+                  "{testimonial.quote}"
+                </blockquote>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#E9F5EC] rounded-full flex items-center justify-center">
+                    <Leaf className="w-5 h-5 text-[#47B881]" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900">{testimonial.name}</div>
+                    <div className="text-sm text-[#6B7280]">{testimonial.business}</div>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage border border-gray-200">
-            <CardContent className="pt-4">
-              <div className="flex mb-6">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-5 w-5 fill-garden-green text-garden-green" />
-                ))}
-              </div>
-              <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
-                "We posted our Spring campaign and sold out of everything in three days. Best investment we've made."
-              </p>
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
-                  C
-                </div>
-                <div>
-                  <div className="font-semibold text-garden-green-dark">Carlos Rodriguez</div>
-                  <div className="text-sm text-gray-600">Bloom Market Garden Center</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="p-8 relative hover:shadow-xl transition-all duration-300 rounded-2xl bg-garden-sage border border-gray-200">
-            <CardContent className="pt-4">
-              <div className="flex mb-6">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-5 w-5 fill-garden-green text-garden-green" />
-                ))}
-              </div>
-              <p className="text-base text-gray-600 mb-6 italic leading-relaxed">
-                "The seasonal content is perfect. It's like having a marketing expert on our team without the cost."
-              </p>
-              <div className="flex items-center">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg mr-4">
-                  M
-                </div>
-                <div>
-                  <div className="font-semibold text-garden-green-dark">Maria Thompson</div>
-                  <div className="text-sm text-gray-600">Sunshine Nursery & Garden</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     </section>

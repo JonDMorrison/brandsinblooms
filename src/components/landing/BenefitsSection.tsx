@@ -1,83 +1,96 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { LandingPageIcon } from "./LandingPageIcon";
-import { Calendar, Sparkles, FileText, Megaphone, Zap, CheckCircle } from "lucide-react";
+import { Calendar, Sparkles, TrendingUp, Leaf, Clock, Star } from "lucide-react";
 
 export const BenefitsSection = () => {
   const benefits = [
     {
       icon: Calendar,
-      title: "Weekly Content Engine",
-      description: "Fresh, seasonally-perfect content delivered every week, automatically timed for your garden center's peak moments.",
-      theme: "spring" as const
+      title: "Year-Round Content Planning",
+      description: "Never run out of seasonal content ideas. Our AI creates marketing calendars that align with gardening seasons and holidays.",
+      bg: "#E9F5EC",
+      iconColor: "#47B881"
     },
     {
       icon: Sparkles,
-      title: "Brand Voice Mastery",
-      description: "Our AI learns your unique tone and personality, creating content that sounds authentically you, every single time.",
-      theme: "summer" as const
+      title: "Brand Voice Consistency",
+      description: "All content matches your unique tone and style, maintaining brand consistency across every platform and campaign.",
+      bg: "#FEF3C7",
+      iconColor: "#F4C430"
     },
     {
-      icon: FileText,
-      title: "Infinitely Customizable",
-      description: "Every piece of content is fully editable. Tweak, personalize, and make it perfect for your specific audience.",
-      theme: "autumn" as const
+      icon: TrendingUp,
+      title: "Data-Driven Optimization",
+      description: "Track what works best for your audience and automatically optimize future content for maximum engagement.",
+      bg: "#FDF2F2",
+      iconColor: "#F28C8C"
     },
     {
-      icon: Megaphone,
-      title: "All-Platform Publishing",
-      description: "Seamlessly distribute to social media, send newsletters, and update your website — all from one beautiful dashboard.",
-      theme: "winter" as const
+      icon: Leaf,
+      title: "Plant Care Expertise Built-In",
+      description: "Our AI understands gardening, so every piece of content includes valuable plant care tips and seasonal advice.",
+      bg: "#E9F5EC",
+      iconColor: "#47B881"
     },
     {
-      icon: Zap,
-      title: "Lightning-Fast Setup",
-      description: "Get started in under 60 seconds. No complicated onboarding, no technical knowledge required.",
-      theme: "spring" as const
+      icon: Clock,
+      title: "Save 10+ Hours Weekly",
+      description: "Automate your entire content creation process and focus on what you do best - helping customers grow amazing gardens.",
+      bg: "#FEF3C7",
+      iconColor: "#F4C430"
     },
     {
-      icon: CheckCircle,
-      title: "Garden Center Expertise",
-      description: "Industry-specific templates, seasonal strategies, and content designed exclusively for plant and garden businesses.",
-      theme: "neutral" as const
+      icon: Star,
+      title: "Multi-Platform Ready",
+      description: "One campaign creates content for Facebook, Instagram, email newsletters, blogs, and more - all perfectly formatted.",
+      bg: "#FDF2F2",
+      iconColor: "#F28C8C"
     }
   ];
 
   return (
-    <section className="py-24 px-6 bg-gradient-to-b from-white to-garden-background/30">
+    <section className="py-24 px-6 bg-white">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-20 apple-section-spacing">
-          <h2 className="text-4xl font-bold mb-6 text-black apple-headline-large">
-            Everything You Need to Grow
+        <div className="text-center mb-20">
+          <h2 className="text-4xl font-bold mb-6 text-gray-900">
+            Everything You Need to Grow Your Garden Center
           </h2>
-          <p className="text-xl text-gray-600 apple-body-enhanced max-w-3xl mx-auto">
-            Transform your marketing without hiring a full team. Get professional results with tools designed specifically for garden centers.
+          <p className="text-xl text-[#6B7280] max-w-3xl mx-auto">
+            Professional marketing tools designed specifically for garden centers, nurseries, and plant retailers.
           </p>
         </div>
         
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {benefits.map((benefit, index) => (
             <Card 
-              key={index}
-              className="apple-fade-in-stagger card-interactive p-10 rounded-3xl bg-white border-2 border-gray-100 hover:border-garden-green/20 apple-warm-neutral shadow-sm hover:shadow-2xl group"
-              style={{animationDelay: `${index * 0.1}s`}}
+              key={index} 
+              className="apple-fade-in-stagger p-8 rounded-2xl border-2 hover:shadow-lg transition-all duration-300 group"
+              style={{ 
+                backgroundColor: benefit.bg,
+                borderColor: `${benefit.iconColor}20`,
+                animationDelay: `${index * 0.1}s`
+              }}
             >
-              <CardContent className="pt-6 apple-card-spacing">
-                <div className="flex items-start gap-6 mb-6">
+              <CardContent className="p-0">
+                <div className="mb-6">
                   <LandingPageIcon 
-                    icon={benefit.icon} 
-                    variant="feature" 
-                    theme={benefit.theme}
+                    icon={benefit.icon}
+                    variant="section"
+                    theme="neutral"
                     animated={true}
-                    containerClassName="apple-icon-container apple-garden-icon"
+                    containerClassName="shadow-md"
+                    style={{ 
+                      backgroundColor: 'white',
+                      borderColor: `${benefit.iconColor}30`,
+                      color: benefit.iconColor
+                    }}
                   />
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-semibold text-black mb-3 apple-headline-medium">
-                      {benefit.title}
-                    </h3>
-                  </div>
                 </div>
-                <p className="text-lg text-gray-600 leading-relaxed apple-body-enhanced">
+                <h3 className="text-xl font-semibold mb-4 text-gray-900">
+                  {benefit.title}
+                </h3>
+                <p className="text-[#6B7280] leading-relaxed">
                   {benefit.description}
                 </p>
               </CardContent>
