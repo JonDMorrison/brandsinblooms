@@ -10,9 +10,9 @@ import { cn } from "@/lib/utils";
 
 interface Holiday {
   id: string;
-  name: string;
+  holiday_name: string;
   category: 'Month' | 'Week' | 'Day';
-  when: string;
+  holiday_date: string;
   description: string;
 }
 
@@ -87,16 +87,16 @@ export const HolidayItem = ({
       <AppleCardContent className="apple-card-spacing">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">{getSeasonalEmoji(holiday.name)}</div>
+            <div className="text-2xl">{getSeasonalEmoji(holiday.holiday_name)}</div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <Badge className={cn('text-xs', getCategoryColor(holiday.category))}>
                   <Calendar className="w-3 h-3 mr-1" />
-                  {holiday.when}
+                  {holiday.holiday_date}
                 </Badge>
               </div>
               <HeadlineMedium className="apple-headline-medium text-gray-800">
-                {holiday.name}
+                {holiday.holiday_name}
               </HeadlineMedium>
             </div>
           </div>

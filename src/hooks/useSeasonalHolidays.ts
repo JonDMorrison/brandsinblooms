@@ -5,9 +5,9 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface Holiday {
   id: string;
-  name: string;
+  holiday_name: string;
   category: 'Month' | 'Week' | 'Day';
-  when: string;
+  holiday_date: string;
   description: string;
   is_active: boolean;
 }
@@ -35,7 +35,7 @@ export const useSeasonalHolidays = () => {
         .from('holidays')
         .select('*')
         .eq('is_active', true)
-        .order('when', { ascending: true })
+        .order('holiday_date', { ascending: true })
         .limit(20);
 
       if (fetchError) {

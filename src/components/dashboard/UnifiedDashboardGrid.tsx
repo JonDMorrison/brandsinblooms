@@ -8,12 +8,27 @@ import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSe
 import { SeasonalHolidaysCard } from "./seasonal-holidays/SeasonalHolidaysCard";
 import { SmartThemeSelector } from "@/components/dashboard/SmartThemeSelector";
 import { useUser } from "@/hooks/useUser";
+import type { Campaign } from "@/types/content";
 
 interface UnifiedDashboardGridProps {
+  activeCampaign?: Campaign | null;
+  userCreatedCampaigns?: Campaign[];
+  tasks?: any[];
   onTaskUpdate: () => void;
+  onCampaignCreated?: () => void;
+  onCampaignUpdate?: () => void;
+  onCreateCampaign?: () => void;
 }
 
-export const UnifiedDashboardGrid = ({ onTaskUpdate }: UnifiedDashboardGridProps) => {
+export const UnifiedDashboardGrid = ({ 
+  activeCampaign,
+  userCreatedCampaigns = [],
+  tasks = [],
+  onTaskUpdate,
+  onCampaignCreated,
+  onCampaignUpdate,
+  onCreateCampaign
+}: UnifiedDashboardGridProps) => {
   const { user } = useAuth();
   const { isNewUser, loading } = useUser();
 
@@ -25,10 +40,10 @@ export const UnifiedDashboardGrid = ({ onTaskUpdate }: UnifiedDashboardGridProps
     <div className="space-y-8">
       {/* Current Campaign Section */}
       <CurrentCampaignSection 
-        activeCampaign={null}
+        activeCampaign={activeCampaign}
         onTaskUpdate={onTaskUpdate}
-        onCreateCampaign={() => {}}
-        onCampaignCreated={() => {}}
+        onCreateCampaign={onCreateCampaign || (() => {})}
+        onCampaignCreated={onCampaignCreated || (() => {})}
       />
 
       {/* Weekly Theme Planning - Only show for authenticated users */}
@@ -72,12 +87,12 @@ export const UnifiedDashboardGrid = ({ onTaskUpdate }: UnifiedDashboardGridProps
               See what your marketing content could look like
             </BodyMedium>
           </div>
-          <SampleCampaignCard onCreateRealCampaign={() => {}} />
+          <SampleCampaignCard onCreateRealCampaign={onCreateCampaign || (() => {})} />
         </div>
       )}
 
       {/* Quick Actions */}
-      <QuickActionsSection onCampaignCreated={() => {}} />
+      <QuickActionsSection onCampaignCreated={onCampaignCreated || (() => {})} />
     </div>
   );
 };

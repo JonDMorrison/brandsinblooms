@@ -171,9 +171,10 @@ export const useDashboardData = () => {
     campaign.source === 'quick_action'
   );
 
-  const completedTasksCount = tasks.filter(task => task.status === 'completed').length;
+  // Fix status calculations to use correct valid status values
+  const approvedTasksCount = tasks.filter(task => task.status === 'approved').length;
   const totalTasksCount = tasks.length;
-  const pendingTasksCount = tasks.filter(task => task.status === 'pending' || task.status === 'draft').length;
+  const reviewTasksCount = tasks.filter(task => task.status === 'review' || task.status === 'planned').length;
 
   return {
     campaigns,
@@ -181,9 +182,9 @@ export const useDashboardData = () => {
     activeCampaign,
     userCreatedCampaigns,
     currentWeekNumber,
-    completedTasksCount,
+    completedTasksCount: approvedTasksCount, // Using approved as "completed"
     totalTasksCount,
-    pendingTasksCount,
+    pendingTasksCount: reviewTasksCount, // Using review/planned as "pending"
     loading,
     error,
     isOffline,
