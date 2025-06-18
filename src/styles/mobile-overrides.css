@@ -81,7 +81,6 @@
       padding: 12px 16px !important;
       
       /* CRITICAL: Ensure text is visible and readable */
-      color: white !important;
       font-weight: 600 !important;
       font-size: 14px !important;
       line-height: 1.3 !important;
@@ -120,11 +119,10 @@
       hyphens: auto !important;
     }
 
-    /* Green button specific fixes - Ensure white text visibility */
+    /* Green button specific fixes - Ensure proper contrast */
     .bg-garden-green,
     .apple-button-premium,
-    button[class*="garden-green"],
-    .bg-white.text-garden-green {
+    button[class*="garden-green"] {
       background-color: rgb(76 175 80) !important; /* garden-green */
       color: white !important;
       border-color: rgb(76 175 80) !important;
@@ -134,18 +132,6 @@
     .apple-button-premium:hover,
     button[class*="garden-green"]:hover {
       background-color: rgb(46 125 50) !important; /* garden-green-dark */
-      color: white !important;
-    }
-
-    /* White buttons with green text */
-    .bg-white:not(.text-garden-green) {
-      background-color: white !important;
-      color: rgb(76 175 80) !important;
-      border: 2px solid rgb(76 175 80) !important;
-    }
-
-    .bg-white:not(.text-garden-green):hover {
-      background-color: rgb(76 175 80) !important;
       color: white !important;
     }
 
@@ -162,7 +148,6 @@
     /* HERO CTA BUTTONS - Special treatment for landing page */
     section button,
     .hero-section button,
-    .final-cta-section button,
     button[class*="px-16"],
     button[class*="px-8"] {
       /* Responsive sizing for CTA buttons */
@@ -189,22 +174,49 @@
       line-height: 1.2 !important;
     }
 
-    /* Specific override for buttons with very long text */
-    button[class*="Get Started"],
-    button:contains("Get Started"),
-    .hero-section button:first-of-type,
-    .final-cta-section button:first-of-type {
-      font-size: 14px !important;
-      padding: 16px 18px !important;
-      max-width: calc(100vw - 24px) !important;
-      margin-left: 12px !important;
-      margin-right: 12px !important;
+    /* FINAL CTA SECTION - Preserve green background and white text */
+    .final-cta-section {
+      background: linear-gradient(135deg, rgb(76 175 80), rgb(46 125 50)) !important;
+      color: white !important;
+    }
+    
+    .final-cta-section h2,
+    .final-cta-section p,
+    .final-cta-section span {
+      color: white !important;
+      opacity: 1 !important;
+    }
+    
+    .final-cta-section button {
+      background-color: white !important;
+      color: rgb(76 175 80) !important;
+      border-color: white !important;
+      opacity: 1 !important;
+    }
+
+    .final-cta-section button:hover {
+      background-color: rgb(248 250 252) !important;
+      color: rgb(46 125 50) !important;
+    }
+
+    /* FINAL CTA Section Icons - Ensure visibility */
+    .final-cta-section .w-4,
+    .final-cta-section .h-4,
+    .final-cta-section svg {
+      color: white !important;
+      opacity: 1 !important;
+    }
+
+    .final-cta-section button .w-4,
+    .final-cta-section button .h-4,
+    .final-cta-section button svg {
+      color: rgb(76 175 80) !important;
     }
 
     /* Fix background elements that might be blocking touches */
     .absolute:not(button):not([role="button"]),
-    .bg-gradient-to-br:not(button),
-    .bg-gradient-to-r:not(button) {
+    .bg-gradient-to-br:not(button):not(.final-cta-section),
+    .bg-gradient-to-r:not(button):not(.final-cta-section) {
       pointer-events: none !important;
     }
 
@@ -377,37 +389,15 @@
 
     /* BACKGROUND AND VISUAL HIERARCHY FIXES */
     
-    /* Allow controlled gradients while fixing problematic ones */
-    .bg-gradient-to-br,
-    .bg-gradient-to-r,
-    .bg-gradient-to-l,
-    .bg-gradient-to-t,
-    .bg-gradient-to-b,
-    .bg-gradient-to-tr,
-    .bg-gradient-to-tl,
-    .bg-gradient-to-bl {
-      /* Allow garden-themed gradients */
-      background: linear-gradient(135deg, rgb(240 244 240), white, rgb(240 244 240)) !important;
-    }
-
-    /* Hero section specific background */
+    /* Hero section specific background - Light garden theme */
     .hero-section {
       background: linear-gradient(135deg, rgb(240 244 240) 0%, white 50%, rgb(240 244 240) 100%) !important;
     }
 
-    /* Final CTA section - Keep the green gradient but ensure text visibility */
-    .final-cta-section {
-      background: linear-gradient(135deg, rgb(76 175 80), rgb(46 125 50)) !important;
-      color: white !important;
-    }
-    
-    .final-cta-section * {
-      color: white !important;
-    }
-    
-    .final-cta-section button {
-      background-color: white !important;
-      color: rgb(76 175 80) !important;
+    /* Other sections - Keep neutral backgrounds except Final CTA */
+    section:not(.final-cta-section) .bg-gradient-to-br,
+    section:not(.final-cta-section) .bg-gradient-to-r {
+      background: linear-gradient(135deg, rgb(240 244 240), white, rgb(240 244 240)) !important;
     }
 
     /* Card backgrounds */
@@ -488,41 +478,6 @@
 
     /* YELLOW/AMBER REMOVAL - Keep existing comprehensive overrides */
     
-    /* Global background overrides - Remove any yellow/amber backgrounds */
-    *,
-    *::before,
-    *::after,
-    body,
-    html,
-    div,
-    section,
-    main,
-    article,
-    header,
-    footer,
-    nav,
-    aside {
-      background-color: transparent !important;
-    }
-
-    /* Ensure main containers use correct backgrounds */
-    .min-h-screen,
-    body {
-      background: linear-gradient(135deg, rgb(240 244 240), rgb(240 244 240), rgb(240 244 240)) !important;
-    }
-
-    /* Override any gradient backgrounds that might contain yellow */
-    .bg-gradient-to-br,
-    .bg-gradient-to-r,
-    .bg-gradient-to-l,
-    .bg-gradient-to-t,
-    .bg-gradient-to-b,
-    .bg-gradient-to-tr,
-    .bg-gradient-to-tl,
-    .bg-gradient-to-bl {
-      background: linear-gradient(135deg, rgb(240 244 240), rgb(240 244 240)) !important;
-    }
-
     /* Override any yellow/amber classes */
     .bg-yellow-50,
     .bg-yellow-100,
