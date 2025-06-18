@@ -1,16 +1,14 @@
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
-import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { AppleCardContent } from "@/components/ui/apple-card";
+import { BodyMedium } from "@/components/ui/typography";
 import { ResponsiveGrid } from "@/components/ui/responsive-grid";
-import { CheckCircle, Eye, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { ImprovedReadyToPostItem } from "./ready-to-post/ImprovedReadyToPostItem";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { PremiumButton } from "@/components/ui/premium-button";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -169,9 +167,6 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           `}>
             <FileText className={`text-gray-400 transition-colors duration-300 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
           </div>
-          <HeadlineLarge className={`apple-headline-medium text-gray-600 mb-3 ${isMobile ? 'text-lg' : ''}`}>
-            Content Garden Growing
-          </HeadlineLarge>
           <BodyMedium className={`apple-body-enhanced text-gray-500 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
             Your marketing content will bloom here once generated. Create campaigns to start growing your content garden!
           </BodyMedium>
@@ -193,38 +188,6 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         className={`shadow-lg ${isMobile ? 'mobile-constrained' : ''}`}
         data-ready-to-post-section="true"
       >
-        <AppleCardHeader className={`apple-card-spacing ${isMobile ? 'pb-3' : 'pb-4'}`}>
-          <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-4 text-center' : ''}`}>
-            <div className={`flex items-center gap-4 ${isMobile ? 'w-full justify-center text-center' : ''}`}>
-              <div className={`
-                apple-icon-container apple-spring-bounce
-                ${isMobile ? 'w-10 h-10' : 'w-12 h-12'}
-              `}>
-                <CheckCircle className={`text-green-600 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
-              </div>
-              <div className={isMobile ? 'text-center' : ''}>
-                <HeadlineLarge className={`apple-headline-medium text-gray-800 ${isMobile ? 'text-lg' : ''}`}>
-                  🌟 Ready To Bloom
-                </HeadlineLarge>
-                <CaptionMedium className={`apple-caption-enhanced text-gray-600 ${isMobile ? 'text-sm' : ''}`}>
-                  {tasks.length} professional piece{tasks.length !== 1 ? 's' : ''} ready for your marketing garden
-                </CaptionMedium>
-              </div>
-            </div>
-            {!isMobile && (
-              <PremiumButton 
-                variant="tertiary" 
-                size="sm"
-                leadingIcon="analytics"
-                className="text-gray-600 hover:text-gray-800 apple-hover-premium"
-                onClick={handleViewAllContent}
-              >
-                View All Content
-              </PremiumButton>
-            )}
-          </div>
-        </AppleCardHeader>
-
         <AppleCardContent className="apple-card-spacing">
           <ResponsiveGrid 
             cols={{ mobile: 1, tablet: 1, desktop: 2 }}
