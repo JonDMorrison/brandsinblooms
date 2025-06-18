@@ -9,7 +9,7 @@ interface FinalCTASectionProps {
 
 export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
   return (
-    <section className="py-24 px-6 bg-gradient-to-br from-garden-green via-garden-green-dark to-garden-green text-white relative overflow-hidden">
+    <section className="py-24 px-6 bg-gradient-to-br from-garden-green via-garden-green-dark to-garden-green text-white relative overflow-hidden final-cta-section">
       {/* Enhanced background decorative elements */}
       <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent" />
       <div className="absolute inset-0 bg-gradient-to-r from-garden-green/80 via-transparent to-garden-green/80" />
@@ -34,16 +34,24 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           Join garden centers who've transformed their marketing and are growing their business effortlessly. Try it free and watch your marketing take care of itself.
         </p>
         
-        <div className="apple-fade-in-stagger" style={{animationDelay: '0.2s'}}>
+        <div className="apple-fade-in-stagger mx-auto px-4" style={{animationDelay: '0.2s'}}>
           <Button 
             onClick={onGetStarted}
-            className="bg-white hover:bg-gray-100 text-garden-green px-16 py-6 text-2xl rounded-2xl font-semibold shadow-2xl hover:shadow-3xl apple-spring-bounce apple-ripple-effect mb-8 transition-all duration-300"
+            className="bg-white hover:bg-gray-100 text-garden-green font-semibold shadow-2xl hover:shadow-3xl apple-spring-bounce apple-ripple-effect transition-all duration-300 rounded-2xl mx-auto block"
+            style={{
+              padding: '16px 20px',
+              fontSize: '15px',
+              maxWidth: 'calc(100vw - 32px)',
+              width: 'auto',
+              whiteSpace: 'normal',
+              lineHeight: '1.2'
+            }}
           >
-            Get Started In Less Than A Minute
-            <ArrowRight className="ml-3 h-6 w-6 transition-transform group-hover:translate-x-1" />
+            Start Your Free Trial
+            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
           
-          <p className="text-base opacity-80 apple-caption-enhanced">
+          <p className="text-base opacity-80 apple-caption-enhanced mt-6">
             No credit card required • No technical skills needed • Ready in 60 seconds
           </p>
         </div>

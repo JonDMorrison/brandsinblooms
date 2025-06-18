@@ -9,7 +9,7 @@ interface HeroSectionProps {
 
 export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
   return (
-    <section className="py-32 px-6 text-center relative overflow-hidden">
+    <section className="py-32 px-6 text-center relative overflow-hidden hero-section">
       {/* Enhanced background with Apple-style gradients */}
       <div className="absolute inset-0 bg-gradient-to-br from-garden-background via-white to-garden-sage/30 opacity-80" />
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-garden-green/5 to-transparent" />
@@ -70,16 +70,24 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
           </div>
         </div>
         
-        {/* Enhanced CTA with Apple-style button */}
-        <div className="apple-fade-in-stagger" style={{animationDelay: '0.4s'}}>
+        {/* Enhanced CTA with mobile-optimized button */}
+        <div className="apple-fade-in-stagger mx-auto px-4" style={{animationDelay: '0.4s'}}>
           <Button 
             onClick={onGetStarted}
-            className="apple-button-premium apple-ripple-effect apple-spring-bounce px-16 py-6 text-xl rounded-2xl font-semibold text-white mb-6 shadow-lg hover:shadow-2xl transition-all duration-300"
+            className="apple-button-premium apple-ripple-effect apple-spring-bounce bg-garden-green hover:bg-garden-green-dark text-white font-semibold rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 mx-auto block"
+            style={{
+              padding: '16px 20px',
+              fontSize: '15px',
+              maxWidth: 'calc(100vw - 32px)',
+              width: 'auto',
+              whiteSpace: 'normal',
+              lineHeight: '1.2'
+            }}
           >
             Get Started In Less Than A Minute
           </Button>
           
-          <p className="text-sm text-gray-500 apple-caption-enhanced">
+          <p className="text-sm text-gray-500 apple-caption-enhanced mt-6">
             No credit card required • No technical skills needed • Ready in 60 seconds
           </p>
         </div>
