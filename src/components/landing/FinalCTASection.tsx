@@ -9,7 +9,7 @@ interface FinalCTASectionProps {
 
 export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
   return (
-    <section className="py-16 md:py-24 px-6 bg-gradient-to-br from-garden-green to-garden-green-dark text-white relative overflow-hidden">
+    <section className="final-cta-section py-16 md:py-24 px-6 bg-gradient-to-br from-garden-green to-garden-green-dark text-white relative overflow-hidden">
       {/* Simplified background decoration */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/10 via-transparent to-black/10" />
       
@@ -25,27 +25,32 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           />
         </div>
         
-        <h2 className="text-3xl md:text-5xl font-bold mb-6 text-white leading-tight">
+        <h2 className="text-3xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: '#FFFFFF !important' }}>
           Ready to Save Hours Every Week?
         </h2>
         
-        <p className="text-lg md:text-xl mb-10 text-white/90 max-w-2xl mx-auto leading-relaxed">
+        <p className="text-lg md:text-xl mb-10 max-w-2xl mx-auto leading-relaxed" style={{ color: '#FFFFFF !important', opacity: '0.95' }}>
           Join garden centers who've transformed their marketing and are growing their business effortlessly. Try it free and watch your marketing take care of itself.
         </p>
         
-        {/* Clean button design */}
+        {/* Clean button design with forced visibility */}
         <div className="mb-6">
           <Button 
             onClick={onGetStarted}
             size="lg"
-            className="bg-white hover:bg-gray-100 text-garden-green font-semibold text-lg px-8 py-4 rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 border-2 border-white hover:border-gray-100"
+            className="final-cta-button"
+            style={{ 
+              backgroundColor: '#FFFFFF !important',
+              color: '#4CAF50 !important',
+              borderColor: '#FFFFFF !important'
+            }}
           >
             Start Your Free Trial
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
         
-        <p className="text-sm text-white/80">
+        <p className="text-sm" style={{ color: '#FFFFFF !important', opacity: '0.9' }}>
           No credit card required • No technical skills needed • Ready in 60 seconds
         </p>
       </div>
