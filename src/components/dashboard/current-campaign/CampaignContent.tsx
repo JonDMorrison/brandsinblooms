@@ -40,6 +40,9 @@ export const CampaignContent = ({
     >
       <AppleCardHeader className="pb-4">
         <div className="space-y-4">
+          {/* Main Section Title */}
+          <h2 className="text-2xl font-semibold text-text-primary">Your Weekly Content</h2>
+          
           {/* Weekly Content Explanation */}
           <WeeklyContentExplanation 
             activeCampaign={activeCampaign}
