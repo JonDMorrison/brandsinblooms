@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { useState } from "react";
 import { PremiumButton } from "@/components/ui/premium-button";
@@ -209,17 +210,20 @@ export const HolidayItem = ({
             premium={!hasContent}
             disabled={isGenerating}
             onClick={handleButtonClick}
-            className="w-full max-w-xs"
+            className={cn(
+              "w-full max-w-xs",
+              !hasContent && "text-white" // Ensure white text for primary Generate Content button
+            )}
           >
             {isGenerating ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                Generating...
+                <span className="text-white">Generating...</span>
               </>
             ) : hasContent ? (
               'View Your Content'
             ) : (
-              'Generate Content'
+              <span className="text-white">Generate Content</span>
             )}
           </PremiumButton>
         </div>
