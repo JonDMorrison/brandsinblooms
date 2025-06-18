@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -101,8 +102,17 @@ export const useSeasonalHolidays = () => {
   };
 
   const generateHolidayContent = async (holidayId: string) => {
+    if (!user?.id) {
+      console.error('❌ No user ID available for content generation');
+      toast.error('Authentication error', {
+        description: 'Please refresh the page and try again',
+        duration: 5000,
+      });
+      throw new Error('User not authenticated');
+    }
+
     try {
-      console.log('🎯 Generating holiday content for:', holidayId);
+      console.log('🎯 Generating holiday content for:', holidayId, 'User:', user.id);
       
       // Get holiday details
       const { data: holiday, error: holidayError } = await supabase
@@ -137,7 +147,7 @@ export const useSeasonalHolidays = () => {
               postType: contentType,
               campaignTitle: campaignTitle,
               weekDescription: campaignDescription,
-              userId: user?.id,
+              userId: user.id, // Ensure user ID is passed
               enforceCompanyName: true
             }
           });
@@ -154,11 +164,13 @@ export const useSeasonalHolidays = () => {
             continue;
           }
 
-          // Create content task
+          console.log(`✅ Generated ${contentType} content, creating task...`);
+
+          // Create content task with proper user association
           const { data: task, error: taskError } = await supabase
             .from('content_tasks')
             .insert({
-              user_id: user.id,
+              user_id: user.id, // Ensure user_id is set correctly
               holiday_id: holidayId,
               post_type: contentType,
               ai_output: content,
@@ -174,7 +186,25 @@ export const useSeasonalHolidays = () => {
             console.error(`❌ Error creating ${contentType} task:`, taskError);
           } else {
             createdTasks.push(task);
-            console.log(`✅ Created ${contentType} content task`);
+            console.log(`✅ Created ${contentType} content task with ID:`, task.id);
+            
+            // Generate images for the content task
+            try {
+              const imageQuery = `${holiday.holiday_name} garden center ${contentType}`;
+              console.log(`🖼️ Generating images for ${contentType} with query:`, imageQuery);
+              
+              await supabase.functions.invoke('fetch-unsplash-images', {
+                body: { 
+                  query: imageQuery,
+                  contentTaskId: task.id 
+                }
+              });
+              
+              console.log(`✅ Image generation triggered for ${contentType}`);
+            } catch (imageError) {
+              console.log(`⚠️ Image generation failed for ${contentType}, will use placeholders:`, imageError);
+              // Images will fall back to placeholders automatically
+            }
           }
         } catch (error) {
           console.error(`❌ Exception generating ${contentType} content:`, error);

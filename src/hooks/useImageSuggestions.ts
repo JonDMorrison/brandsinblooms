@@ -199,26 +199,28 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       });
 
       if (error) {
-        // If API key not configured, show platform-specific placeholder images
-        if (error.message?.includes('Unsplash API key not configured')) {
-          const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
-          setImages(placeholders);
-          setQuery(searchQuery);
-          setUsingPlaceholders(true);
-          toast.info('Using sample images - add your Unsplash API key for real images');
-          return;
-        }
-        throw error;
+        console.log('Unsplash API error, using placeholders:', error.message);
+        // Always use placeholders when API fails
+        const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
+        setImages(placeholders);
+        setQuery(searchQuery);
+        setUsingPlaceholders(true);
+        toast.info(`Using sample images for ${contentType || 'content'} - add your Unsplash API key for real images`);
+        return;
       }
 
-      setImages(data.images || []);
-      setQuery(searchQuery);
-      setUsingPlaceholders(false);
-      
-      if (data.images && data.images.length > 0) {
+      if (data?.images && data.images.length > 0) {
+        setImages(data.images);
+        setQuery(searchQuery);
+        setUsingPlaceholders(false);
         toast.success(`Found ${data.images.length} ${contentType ? contentType + ' ' : ''}images for "${searchQuery}"`);
       } else {
-        toast.info(`No images found for "${searchQuery}"`);
+        // Fallback to placeholders if no images returned
+        const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
+        setImages(placeholders);
+        setQuery(searchQuery);
+        setUsingPlaceholders(true);
+        toast.info(`No images found for "${searchQuery}", using sample images`);
       }
     } catch (error) {
       console.error('Error fetching images:', error);
@@ -228,7 +230,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       setImages(placeholders);
       setQuery(searchQuery);
       setUsingPlaceholders(true);
-      toast.info('Using sample images - add your Unsplash API key for real images');
+      toast.info(`Using sample images for ${postType || 'content'} - connection error`);
     } finally {
       setLoading(false);
     }
