@@ -3,7 +3,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { PremiumIcon } from "@/components/ui/premium-icons";
 import { EnhancedProgress } from "@/components/ui/enhanced-progress";
-import { HeadlineMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, CaptionMedium } from "@/components/ui/typography";
 
 interface EnhancedSuccessIndicatorProps {
   stepNumber: number;
@@ -46,14 +46,14 @@ export const EnhancedSuccessIndicator = ({
           )}
         </div>
         
-        <HeadlineMedium className={cn(
+        <HeadlineLarge className={cn(
           'apple-headline-medium flex-1',
           isComplete ? 'text-green-800' :
           isActive ? 'text-blue-800' :
           'text-gray-700'
         )}>
           {title}
-        </HeadlineMedium>
+        </HeadlineLarge>
       </div>
 
       {(isActive || isComplete) && totalItems > 0 && (

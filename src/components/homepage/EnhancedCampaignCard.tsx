@@ -3,7 +3,7 @@ import { useState } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Sparkles, Eye, Leaf, Droplets, Sun, Snowflake } from "lucide-react";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { EditableTheme } from "@/components/calendar/EditableTheme";
@@ -68,9 +68,9 @@ export const EnhancedCampaignCard = ({
             <SeasonIcon className={`w-5 h-5 ${seasonalInfo.color} transition-transform duration-200 hover:scale-110`} />
           </div>
           <div className="flex-1">
-            <HeadlineMedium className="text-text-primary apple-text-glow">
+            <HeadlineLarge className="text-text-primary apple-text-glow">
               {seasonalInfo.season} Theme: {campaign.title}
-            </HeadlineMedium>
+            </HeadlineLarge>
             <CaptionMedium className="text-text-secondary mt-1 apple-color-transition">
               Professional content for your garden center
             </CaptionMedium>

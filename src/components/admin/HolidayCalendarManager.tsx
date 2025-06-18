@@ -3,7 +3,7 @@ import * as React from "react";
 import { useState } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { PremiumButton } from "@/components/ui/premium-button";
 import { useHolidayCalendarUpdate } from "@/hooks/useHolidayCalendarUpdate";
 import { Calendar, Clock, RefreshCw } from "lucide-react";
@@ -29,9 +29,9 @@ export const HolidayCalendarManager = () => {
             <Calendar className="w-6 h-6 text-green-600" />
           </div>
           <div>
-            <HeadlineMedium className="apple-headline-medium text-gray-800">
+            <HeadlineLarge className="apple-headline-medium text-gray-800">
               Holiday Calendar Manager
-            </HeadlineMedium>
+            </HeadlineLarge>
             <CaptionMedium className="apple-caption-enhanced text-gray-600">
               Generate holidays for upcoming years
             </CaptionMedium>

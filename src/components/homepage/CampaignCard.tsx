@@ -3,7 +3,7 @@ import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/ap
 import { AppleButton } from "@/components/ui/apple-button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Sparkles, Eye, Leaf, Droplets, Sun, Snowflake, Crown } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -104,9 +104,9 @@ export const CampaignCard = ({ campaign, onTaskUpdate, onCampaignUpdate, seasona
             <SeasonIcon className={`w-5 h-5 ${seasonalInfo.color}`} />
           </div>
           <div className="flex-1">
-            <HeadlineMedium className="text-text-primary">
+            <HeadlineLarge className="text-text-primary">
               {seasonalInfo.season} Theme: {campaign.title}
-            </HeadlineMedium>
+            </HeadlineLarge>
             <CaptionMedium className="text-text-secondary mt-1">
               Professional content for your garden center
             </CaptionMedium>

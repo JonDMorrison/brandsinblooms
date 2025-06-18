@@ -2,7 +2,7 @@
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
-import { HeadlineMedium, BodyMedium, CaptionMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { PlusCircle, Calendar, BarChart3, CalendarPlus, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { AddEventDialog } from "./AddEventDialog";
@@ -78,7 +78,7 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
         <AppleCardContent className="responsive-padding">
           <div className="flex items-center gap-2 mb-6 apple-slide-up">
             <Sparkles className="w-5 h-5 text-primary apple-icon-bounce" />
-            <HeadlineMedium className="text-text-primary apple-text-glow">Quick Actions</HeadlineMedium>
+            <HeadlineLarge className="text-text-primary apple-text-glow">Quick Actions</HeadlineLarge>
           </div>
           
           <div className="flex flex-col items-start space-y-4">
@@ -105,9 +105,9 @@ export const QuickActionsGrid = ({ onCampaignCreated }: QuickActionsGridProps) =
                     </div>
                     
                     <div className="flex-1 min-w-0 space-y-1">
-                      <HeadlineMedium className="text-text-primary apple-text-glow">
+                      <HeadlineLarge className="text-text-primary apple-text-glow">
                         {item.title}
-                      </HeadlineMedium>
+                      </HeadlineLarge>
                       
                       <BodyMedium className="text-text-secondary apple-color-transition">
                         {item.description}
