@@ -1,0 +1,212 @@
+
+@layer utilities {
+  /* MOBILE RESPONSIVE DESIGN SYSTEM */
+  
+  /* Typography - Mobile-first responsive scaling */
+  .mobile-text-hero {
+    @apply text-3xl font-bold leading-tight;
+  }
+  
+  .mobile-text-heading {
+    @apply text-xl font-semibold leading-tight;
+  }
+  
+  .mobile-text-subheading {
+    @apply text-lg font-medium leading-normal;
+  }
+  
+  .mobile-text-body {
+    @apply text-base leading-relaxed;
+  }
+  
+  .mobile-text-caption {
+    @apply text-sm leading-normal;
+  }
+
+  /* Button System - Mobile optimized */
+  .mobile-btn-primary {
+    @apply bg-garden-green text-white font-semibold px-6 py-3 rounded-xl min-h-[48px] text-base;
+    min-width: 120px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  .mobile-btn-secondary {
+    @apply bg-white text-garden-green border-2 border-garden-green font-semibold px-6 py-3 rounded-xl min-h-[48px] text-base;
+    min-width: 120px;
+    max-width: calc(100vw - 32px);
+  }
+  
+  .mobile-btn-cta {
+    @apply bg-garden-green text-white font-bold px-8 py-4 rounded-2xl min-h-[56px] text-lg;
+    min-width: 160px;
+    max-width: calc(100vw - 24px);
+  }
+
+  /* Container System */
+  .mobile-container {
+    @apply mx-auto px-3 max-w-full;
+    width: calc(100vw - 24px);
+  }
+  
+  .mobile-section {
+    @apply py-8 px-3;
+  }
+  
+  .mobile-card {
+    @apply p-4 rounded-2xl bg-white shadow-sm border border-gray-200;
+  }
+
+  /* Grid System - Mobile responsive */
+  .mobile-grid-1 {
+    @apply grid grid-cols-1 gap-4;
+  }
+  
+  .mobile-grid-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+  }
+  
+  .mobile-grid-auto {
+    @apply grid grid-cols-1 gap-4;
+  }
+
+  /* Icon System - Mobile optimized */
+  .mobile-icon-sm {
+    @apply w-5 h-5;
+  }
+  
+  .mobile-icon-md {
+    @apply w-6 h-6;
+  }
+  
+  .mobile-icon-lg {
+    @apply w-8 h-8;
+  }
+  
+  .mobile-icon-xl {
+    @apply w-12 h-12;
+  }
+
+  /* Spacing System */
+  .mobile-space-tight {
+    @apply space-y-2;
+  }
+  
+  .mobile-space-normal {
+    @apply space-y-4;
+  }
+  
+  .mobile-space-loose {
+    @apply space-y-6;
+  }
+
+  /* Feature highlights - Mobile layout */
+  .mobile-feature-grid {
+    @apply flex flex-col gap-6 items-center;
+  }
+  
+  .mobile-feature-item {
+    @apply flex flex-col items-center text-center gap-3 max-w-[280px];
+  }
+
+  /* Landing page specific classes */
+  .mobile-hero-section {
+    @apply py-12 px-4 text-center;
+  }
+  
+  .mobile-benefits-grid {
+    @apply grid grid-cols-1 gap-6;
+  }
+  
+  .mobile-testimonial-card {
+    @apply p-4 rounded-2xl bg-white shadow-sm;
+  }
+
+  /* Interactive states - Mobile friendly */
+  .mobile-touch-feedback {
+    @apply active:scale-95 transition-transform duration-100;
+  }
+  
+  .mobile-hover-lift {
+    @apply hover:shadow-md transition-shadow duration-200;
+  }
+
+  /* Accessibility - Enhanced for mobile */
+  .mobile-focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-garden-green focus:ring-offset-2;
+  }
+  
+  .mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Visual hierarchy - Mobile optimized */
+  .mobile-card-elevated {
+    @apply bg-white shadow-lg rounded-2xl border border-gray-100;
+  }
+  
+  .mobile-surface-primary {
+    @apply bg-white;
+  }
+  
+  .mobile-surface-secondary {
+    @apply bg-gray-50;
+  }
+  
+  .mobile-surface-accent {
+    @apply bg-garden-green text-white;
+  }
+
+  /* Content optimization */
+  .mobile-content-wrapper {
+    @apply max-w-full overflow-hidden px-2;
+  }
+  
+  .mobile-text-balance {
+    text-wrap: balance;
+  }
+  
+  .mobile-prevent-overflow {
+    @apply overflow-hidden text-ellipsis;
+  }
+}
+
+/* Responsive breakpoints for mobile design system */
+@media (min-width: 480px) {
+  .mobile-text-hero {
+    @apply text-4xl;
+  }
+  
+  .mobile-container {
+    @apply px-4;
+    width: calc(100vw - 32px);
+  }
+  
+  .mobile-grid-auto {
+    @apply grid-cols-2;
+  }
+}
+
+@media (min-width: 640px) {
+  .mobile-text-hero {
+    @apply text-5xl;
+  }
+  
+  .mobile-benefits-grid {
+    @apply grid-cols-2;
+  }
+  
+  .mobile-feature-grid {
+    @apply flex-row justify-center;
+  }
+}
+
+@media (min-width: 768px) {
+  .mobile-benefits-grid {
+    @apply grid-cols-3;
+  }
+  
+  .mobile-grid-auto {
+    @apply grid-cols-3;
+  }
+}
