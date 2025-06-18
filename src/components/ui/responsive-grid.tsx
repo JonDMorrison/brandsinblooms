@@ -10,19 +10,23 @@ interface ResponsiveGridProps extends React.HTMLAttributes<HTMLDivElement> {
     desktop?: number;
   };
   gap?: {
-    mobile?: number;
-    tablet?: number;
-    desktop?: number;
+    mobile?: string;
+    tablet?: string;
+    desktop?: string;
   };
   animated?: boolean;
+  staggerDelay?: number;
+  performance?: 'smooth' | 'fast';
 }
 
 const ResponsiveGrid = React.forwardRef<HTMLDivElement, ResponsiveGridProps>(
   ({ 
     className, 
     cols = { mobile: 1, tablet: 2, desktop: 3 },
-    gap = { mobile: 4, tablet: 6, desktop: 8 },
+    gap = { mobile: "gap-4", tablet: "gap-6", desktop: "gap-8" },
     animated = true,
+    staggerDelay = 100,
+    performance = 'smooth',
     children,
     ...props 
   }, ref) => {
@@ -37,27 +41,21 @@ const ResponsiveGrid = React.forwardRef<HTMLDivElement, ResponsiveGridProps>(
       6: 'grid-cols-6'
     };
 
-    const gridGaps = {
-      2: 'gap-2',
-      4: 'gap-4',
-      6: 'gap-6',
-      8: 'gap-8',
-      12: 'gap-12'
-    };
-
     const mobileClass = gridCols[cols.mobile || 1];
     const tabletClass = cols.tablet ? `md:${gridCols[cols.tablet]}` : '';
     const desktopClass = cols.desktop ? `lg:${gridCols[cols.desktop]}` : '';
 
-    const mobileGap = gridGaps[gap.mobile || 4];
-    const tabletGap = gap.tablet ? `md:${gridGaps[gap.tablet]}` : '';
-    const desktopGap = gap.desktop ? `lg:${gridGaps[gap.desktop]}` : '';
+    const mobileGap = gap.mobile || "gap-4";
+    const tabletGap = gap.tablet ? `md:${gap.tablet}` : '';
+    const desktopGap = gap.desktop ? `lg:${gap.desktop}` : '';
+
+    const performanceClass = performance === 'fast' ? 'will-change-transform' : '';
 
     return (
       <div
         ref={ref}
         className={cn(
-          'grid',
+          'grid transition-all duration-300 ease-apple',
           mobileClass,
           tabletClass,
           desktopClass,
@@ -65,14 +63,21 @@ const ResponsiveGrid = React.forwardRef<HTMLDivElement, ResponsiveGridProps>(
           tabletGap,
           desktopGap,
           animated && 'apple-fade-in',
+          performanceClass,
           className
         )}
         {...props}
       >
         {React.Children.map(children, (child, index) => (
           <div 
-            className={animated ? `apple-stagger-${Math.min(index + 1, 4)}` : ''}
-            style={animated && index > 3 ? { animationDelay: `${(index + 1) * 0.1}s` } : {}}
+            className={cn(
+              animated && 'apple-slide-up',
+              performance === 'smooth' && 'transition-all duration-300 ease-apple'
+            )}
+            style={animated ? { 
+              animationDelay: `${(index * staggerDelay)}ms`,
+              animationFillMode: 'backwards'
+            } : {}}
           >
             {child}
           </div>
