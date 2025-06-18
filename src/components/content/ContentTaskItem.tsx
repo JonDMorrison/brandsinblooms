@@ -67,6 +67,17 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
     setShowContentSidebar(true);
   };
 
+  // Get the campaign theme, handling both campaign and holiday content
+  const getCampaignTheme = () => {
+    if (task.campaigns?.theme) {
+      return task.campaigns.theme;
+    }
+    if (task.holiday_id && task.holidays?.holiday_name) {
+      return task.holidays.holiday_name;
+    }
+    return 'Holiday Content';
+  };
+
   return (
     <>
       <div className="border rounded-lg p-4 space-y-3 relative group">
@@ -90,7 +101,7 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
           <div className="mt-4">
             <CompactImageCarousel 
               task={task}
-              campaignTheme={task.campaigns?.theme}
+              campaignTheme={getCampaignTheme()}
               onShowAll={handleShowAllImages}
             />
           </div>

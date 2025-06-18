@@ -34,18 +34,12 @@ export const useSeasonalHolidays = () => {
     try {
       console.log('Fetching content state for holidays:', holidayIds);
       
+      // Simplified query - fetch content_tasks directly by holiday_id and user_id
       const { data: contentTasks, error: contentError } = await supabase
         .from('content_tasks')
-        .select(`
-          *,
-          campaigns!inner (
-            id,
-            title,
-            user_id
-          )
-        `)
+        .select('*')
         .in('holiday_id', holidayIds)
-        .eq('campaigns.user_id', user.id);
+        .eq('user_id', user.id);
 
       if (contentError) {
         console.error('Error fetching holiday content state:', contentError);

@@ -36,18 +36,12 @@ export const HolidayContentViewer = ({
     setLoading(true);
     
     try {
-      // Fetch tasks for this specific holiday
+      // Fetch tasks for this specific holiday - simplified query without campaigns join
       const { data, error } = await supabase
         .from('content_tasks')
-        .select(`
-          *,
-          campaigns (
-            title,
-            user_id
-          )
-        `)
+        .select('*')
         .eq('holiday_id', holidayId)
-        .eq('user_id', user.id) // Ensure we only get tasks for the current user
+        .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
       console.log('HolidayContentViewer: Fetch result - data:', data?.length || 0, 'tasks, error:', error);
