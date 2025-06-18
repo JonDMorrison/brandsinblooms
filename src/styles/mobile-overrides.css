@@ -1,4 +1,3 @@
-
 @layer utilities {
   /* Mobile-first performance optimizations */
   @media (max-width: 768px) {
@@ -174,10 +173,11 @@
       line-height: 1.2 !important;
     }
 
-    /* FINAL CTA SECTION - CRITICAL FIXES FOR BUTTON VISIBILITY */
+    /* FINAL CTA SECTION - ULTRA HIGH SPECIFICITY FIXES */
     .final-cta-section {
       background: linear-gradient(135deg, rgb(76 175 80), rgb(46 125 50)) !important;
       color: white !important;
+      position: relative !important;
     }
     
     .final-cta-section h2,
@@ -187,48 +187,76 @@
       opacity: 1 !important;
     }
     
-    /* CRITICAL: High specificity button fix for Final CTA */
-    .final-cta-section button,
-    .final-cta-section .apple-button-premium,
-    .final-cta-section .apple-spring-bounce,
-    .final-cta-section .apple-ripple-effect,
-    section.final-cta-section button {
+    /* CRITICAL: Button container with isolation */
+    .final-cta-button-container {
+      position: relative !important;
+      z-index: 9999 !important;
+      isolation: isolate !important;
+      transform: translateZ(0) !important;
+      will-change: transform !important;
+    }
+    
+    /* CRITICAL: Maximum specificity button fixes */
+    .final-cta-section .final-cta-button,
+    .final-cta-section button.final-cta-button,
+    section.final-cta-section .final-cta-button,
+    section.final-cta-section button.final-cta-button,
+    .final-cta-section .final-cta-button-container button,
+    .final-cta-section div.final-cta-button-container button {
       background-color: white !important;
       color: rgb(76 175 80) !important;
-      border-color: white !important;
+      border: 2px solid white !important;
       opacity: 1 !important;
       visibility: visible !important;
       display: inline-flex !important;
-      z-index: 1000 !important;
+      position: relative !important;
+      z-index: 9999 !important;
+      isolation: isolate !important;
+      transform: translateZ(0) !important;
+      will-change: transform !important;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2) !important;
+      outline: 2px solid rgba(255, 255, 255, 0.8) !important;
+      outline-offset: 2px !important;
     }
 
-    .final-cta-section button:hover,
-    .final-cta-section .apple-button-premium:hover,
-    .final-cta-section .apple-spring-bounce:hover,
-    .final-cta-section .apple-ripple-effect:hover,
-    section.final-cta-section button:hover {
+    /* CRITICAL: Hover states with maximum specificity */
+    .final-cta-section .final-cta-button:hover,
+    .final-cta-section button.final-cta-button:hover,
+    section.final-cta-section .final-cta-button:hover,
+    section.final-cta-section button.final-cta-button:hover,
+    .final-cta-section .final-cta-button-container button:hover,
+    .final-cta-section div.final-cta-button-container button:hover {
       background-color: rgb(248 250 252) !important;
       color: rgb(46 125 50) !important;
       border-color: rgb(248 250 252) !important;
       opacity: 1 !important;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3) !important;
     }
 
-    /* FINAL CTA Section Icons - Ensure visibility */
-    .final-cta-section .w-4,
-    .final-cta-section .h-4,
-    .final-cta-section svg {
-      color: white !important;
-      opacity: 1 !important;
-    }
-
-    .final-cta-section button .w-4,
-    .final-cta-section button .h-4,
-    .final-cta-section button svg,
-    section.final-cta-section button .w-4,
-    section.final-cta-section button .h-4,
-    section.final-cta-section button svg {
+    /* CRITICAL: Icon visibility with maximum specificity */
+    .final-cta-section .final-cta-button .w-4,
+    .final-cta-section .final-cta-button .h-4,
+    .final-cta-section .final-cta-button svg,
+    .final-cta-section button.final-cta-button .w-4,
+    .final-cta-section button.final-cta-button .h-4,
+    .final-cta-section button.final-cta-button svg,
+    .final-cta-section .final-cta-button-container button .w-4,
+    .final-cta-section .final-cta-button-container button .h-4,
+    .final-cta-section .final-cta-button-container button svg {
       color: rgb(76 175 80) !important;
       opacity: 1 !important;
+      visibility: visible !important;
+    }
+
+    /* CRITICAL: Override ANY conflicting styles */
+    .final-cta-section button:not(.final-cta-button) {
+      background-color: white !important;
+      color: rgb(76 175 80) !important;
+      border: 2px solid white !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      display: inline-flex !important;
+      z-index: 9999 !important;
     }
 
     /* Fix background elements that might be blocking touches */
@@ -506,7 +534,6 @@
     .bg-amber-100,
     .bg-amber-200,
     .bg-amber-300,
-    .bg-amber-400,
     .border-yellow-200,
     .border-yellow-300,
     .border-amber-200,
@@ -566,5 +593,44 @@
     }
   }
 
-  /* ... keep existing code (tablet and desktop optimizations, reduced motion preferences, high contrast mode support) */
+  /* Tablet and desktop optimizations */
+  @media (min-width: 769px) {
+    .mobile-container-constraint {
+      @apply mx-auto !important;
+    }
+  }
+
+  /* Reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-delay: -1ms !important;
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      background-attachment: initial !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: more) {
+    body {
+      background-color: black !important;
+      color: white !important;
+    }
+
+    a {
+      color: lightblue !important;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      border-color: gray !important;
+      background-color: black !important;
+      color: white !important;
+    }
+  }
 }

@@ -34,24 +34,30 @@ export const FinalCTASection = ({ onGetStarted }: FinalCTASectionProps) => {
           Join garden centers who've transformed their marketing and are growing their business effortlessly. Try it free and watch your marketing take care of itself.
         </p>
         
-        <div className="apple-fade-in-stagger mx-auto px-4" style={{animationDelay: '0.2s'}}>
+        {/* CRITICAL: Enhanced button container with explicit layering */}
+        <div className="apple-fade-in-stagger mx-auto px-4 relative z-50 final-cta-button-container" style={{animationDelay: '0.2s'}}>
           <Button 
             onClick={onGetStarted}
-            className="bg-white hover:bg-gray-100 text-garden-green font-semibold shadow-2xl hover:shadow-3xl apple-spring-bounce apple-ripple-effect transition-all duration-300 rounded-2xl mx-auto block"
+            className="final-cta-button bg-white hover:bg-gray-100 text-garden-green font-semibold shadow-2xl hover:shadow-3xl apple-spring-bounce apple-ripple-effect transition-all duration-300 rounded-2xl mx-auto block relative z-50"
             style={{
               padding: '16px 20px',
               fontSize: '15px',
               maxWidth: 'calc(100vw - 32px)',
               width: 'auto',
               whiteSpace: 'normal',
-              lineHeight: '1.2'
+              lineHeight: '1.2',
+              position: 'relative',
+              zIndex: 9999,
+              backgroundColor: 'white',
+              color: 'rgb(76, 175, 80)',
+              borderColor: 'white'
             }}
           >
             Start Your Free Trial
             <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
           </Button>
           
-          <p className="text-base opacity-80 apple-caption-enhanced mt-6">
+          <p className="text-base opacity-80 apple-caption-enhanced mt-6 relative z-40">
             No credit card required • No technical skills needed • Ready in 60 seconds
           </p>
         </div>
