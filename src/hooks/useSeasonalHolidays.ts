@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -102,91 +101,115 @@ export const useSeasonalHolidays = () => {
   };
 
   const generateHolidayContent = async (holidayId: string) => {
-    const maxRetries = 3;
-    let lastError: Error | null = null;
+    try {
+      console.log('🎯 Generating holiday content for:', holidayId);
+      
+      // Get holiday details
+      const { data: holiday, error: holidayError } = await supabase
+        .from('holidays')
+        .select('*')
+        .eq('id', holidayId)
+        .single();
 
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        console.log(`🎯 Attempt ${attempt}/${maxRetries}: Generating content for holiday:`, holidayId);
-        
-        // Add connection test
-        if (attempt === 1) {
-          console.log('🔍 Testing Supabase connection...');
-          const { data: testData } = await supabase.from('holidays').select('id').limit(1);
-          console.log('✅ Supabase connection test successful:', testData ? 'Connected' : 'No data');
-        }
+      if (holidayError || !holiday) {
+        throw new Error(`Holiday not found: ${holidayError?.message || 'Unknown error'}`);
+      }
 
-        const { data, error } = await supabase.functions.invoke('generate-holiday-content', {
-          body: { holiday_id: holidayId },
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+      console.log('✅ Found holiday:', holiday.holiday_name);
 
-        if (error) {
-          console.error(`❌ Attempt ${attempt} failed with Supabase error:`, {
-            message: error.message,
-            context: error.context,
-            details: error.details,
-            hint: error.hint,
-            code: error.code
-          });
+      // Create a campaign title based on the holiday
+      const campaignTitle = `${holiday.holiday_name} - ${holiday.category}`;
+      const campaignDescription = `${holiday.description} - ${holiday.garden_relevance}`;
+
+      // Generate content for each type using the working generate-content function
+      const contentTypes = ['facebook', 'instagram', 'video', 'newsletter', 'email'];
+      const createdTasks = [];
+
+      console.log('📝 Generating content for', contentTypes.length, 'types');
+
+      for (const contentType of contentTypes) {
+        try {
+          console.log(`🔄 Generating ${contentType} content...`);
           
-          // Check if this is a connectivity issue
-          if (error.message?.includes('FunctionsFetchError') || 
-              error.message?.includes('Failed to fetch') ||
-              error.message?.includes('Network Error')) {
-            
-            lastError = new Error(`Connection failed (attempt ${attempt}/${maxRetries}): ${error.message}`);
-            
-            if (attempt < maxRetries) {
-              console.log(`⏳ Retrying in ${attempt * 2} seconds...`);
-              await new Promise(resolve => setTimeout(resolve, attempt * 2000));
-              continue;
+          // Use the existing working generate-content function
+          const { data: contentData, error: contentError } = await supabase.functions.invoke('generate-content', {
+            body: {
+              postType: contentType,
+              campaignTitle: campaignTitle,
+              weekDescription: campaignDescription,
+              userId: user?.id,
+              enforceCompanyName: true
             }
-          } else {
-            // Non-connectivity error, don't retry
-            throw new Error(error.message || 'Edge function error');
+          });
+
+          if (contentError) {
+            console.error(`❌ Error generating ${contentType} content:`, contentError);
+            continue; // Skip this type and continue with others
           }
-        } else {
-          console.log('✅ Holiday content generated successfully:', data);
-          return data;
-        }
-      } catch (error) {
-        console.error(`❌ Attempt ${attempt} failed with exception:`, error);
-        lastError = error instanceof Error ? error : new Error(String(error));
-        
-        if (attempt < maxRetries) {
-          console.log(`⏳ Retrying in ${attempt * 2} seconds...`);
-          await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+
+          const content = contentData?.content || contentData?.generatedText;
+          
+          if (!content) {
+            console.error(`❌ No content returned for ${contentType}`);
+            continue;
+          }
+
+          // Create content task
+          const { data: task, error: taskError } = await supabase
+            .from('content_tasks')
+            .insert({
+              user_id: user.id,
+              holiday_id: holidayId,
+              post_type: contentType,
+              ai_output: content,
+              status: 'review',
+              scheduled_date: getScheduledDate(holiday.holiday_date, holiday.category),
+              hashtags: getHolidayHashtags(holiday.holiday_name, contentType),
+              image_idea: getHolidayImageIdea(holiday.holiday_name, contentType)
+            })
+            .select()
+            .single();
+
+          if (taskError) {
+            console.error(`❌ Error creating ${contentType} task:`, taskError);
+          } else {
+            createdTasks.push(task);
+            console.log(`✅ Created ${contentType} content task`);
+          }
+        } catch (error) {
+          console.error(`❌ Exception generating ${contentType} content:`, error);
+          continue; // Continue with other content types
         }
       }
-    }
 
-    // All attempts failed
-    const finalError = lastError || new Error('Unknown error occurred');
-    console.error('💥 All retry attempts failed:', finalError);
-    
-    // Show helpful error message to user
-    if (finalError.message.includes('FunctionsFetchError') || 
-        finalError.message.includes('Failed to fetch')) {
-      toast.error('Connection issue detected', {
-        description: 'Please check your internet connection and try again. If the problem persists, the service may be temporarily unavailable.',
-        duration: 8000,
+      if (createdTasks.length === 0) {
+        throw new Error('Failed to generate any content');
+      }
+
+      console.log('✅ Successfully created', createdTasks.length, 'content tasks');
+      
+      toast.success(`Generated ${createdTasks.length} pieces of content for ${holiday.holiday_name}`, {
+        description: 'Content is ready for review in your dashboard',
+        duration: 5000,
       });
-    } else if (finalError.message.includes('OPENAI_API_KEY')) {
-      toast.error('Configuration issue', {
-        description: 'OpenAI API key is not properly configured. Please contact support.',
-        duration: 8000,
-      });
-    } else {
+
+      return {
+        success: true,
+        holiday: holiday,
+        tasks: createdTasks,
+        message: `Generated ${createdTasks.length} pieces of content for ${holiday.holiday_name}`
+      };
+    } catch (error) {
+      console.error('💥 Error in holiday content generation:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast.error('Content generation failed', {
-        description: finalError.message,
+        description: errorMessage,
         duration: 8000,
       });
+      
+      throw error;
     }
-    
-    throw finalError;
   };
 
   useEffect(() => {
@@ -201,3 +224,77 @@ export const useSeasonalHolidays = () => {
     refreshHolidays: fetchUpcomingHolidays
   };
 };
+
+function getScheduledDate(holidayDate: string, category: string): string {
+  const today = new Date()
+  const targetDate = new Date(holidayDate)
+  
+  // For specific dates, schedule a week before for preparation
+  if (category === 'Day') {
+    const scheduleDate = new Date(targetDate)
+    scheduleDate.setDate(targetDate.getDate() - 7)
+    return scheduleDate.toISOString().split('T')[0]
+  }
+  
+  // For months, schedule for the beginning of that month
+  if (category === 'Month') {
+    const scheduleDate = new Date(targetDate)
+    scheduleDate.setDate(1)
+    return scheduleDate.toISOString().split('T')[0]
+  }
+  
+  // For weeks, schedule at the start of the week
+  if (category === 'Week') {
+    return targetDate.toISOString().split('T')[0]
+  }
+  
+  // Default to the holiday date itself
+  return holidayDate
+}
+
+function getHolidayHashtags(holidayName: string, contentType: string): string {
+  const baseHashtags = ['#GardenCenter', '#Plants', '#Gardening']
+  const holidaySpecific = {
+    'Earth Day': ['#EarthDay', '#EcoFriendly', '#Sustainability', '#GreenLiving'],
+    'Arbor Day': ['#ArborDay', '#TreePlanting', '#Trees', '#Conservation'],
+    'World Bee Day': ['#WorldBeeDay', '#Pollinators', '#SaveTheBees', '#BeeGarden'],
+    'National Garden Month': ['#GardenMonth', '#PlantSeason', '#GreenThumb'],
+    'National Rose Month': ['#RoseMonth', '#Roses', '#FlowerGarden'],
+    'National Indoor Plant Month': ['#IndoorPlants', '#Houseplants', '#PlantParent'],
+    'Mother\'s Day': ['#MothersDay', '#FlowersForMom', '#GardenGifts'],
+    'Father\'s Day': ['#FathersDay', '#GardenDad', '#PlantGifts'],
+    'Valentine\'s Day': ['#ValentinesDay', '#LovePlants', '#RomanticGarden']
+  }
+  
+  let specific = ['#SeasonalGardening']
+  for (const [key, tags] of Object.entries(holidaySpecific)) {
+    if (holidayName.includes(key.replace('National ', '').replace('World ', ''))) {
+      specific = tags
+      break
+    }
+  }
+  
+  return [...baseHashtags, ...specific].join(' ')
+}
+
+function getHolidayImageIdea(holidayName: string, contentType: string): string {
+  const imageIdeas = {
+    'Earth Day': 'Hands planting seedlings in rich soil with composting materials nearby',
+    'Arbor Day': 'Young tree being planted with gardening tools and fresh soil',
+    'World Bee Day': 'Bee-friendly flowers in bloom with pollinator garden display',
+    'National Garden Month': 'Vibrant garden beds with diverse plants and flowers in peak condition',
+    'National Rose Month': 'Beautiful rose garden display with various colored roses',
+    'National Indoor Plant Month': 'Collection of healthy houseplants in decorative containers',
+    'Mother\'s Day': 'Beautiful flowering hanging baskets and colorful spring planters',
+    'Father\'s Day': 'Garden tools with vegetable plants and herbs arranged attractively',
+    'Valentine\'s Day': 'Romantic red and pink flowering plants with heart-shaped planters'
+  }
+  
+  for (const [key, idea] of Object.entries(imageIdeas)) {
+    if (holidayName.includes(key.replace('National ', '').replace('World ', ''))) {
+      return idea
+    }
+  }
+  
+  return 'Seasonal garden display appropriate for the holiday theme with relevant plants and decorations'
+}
