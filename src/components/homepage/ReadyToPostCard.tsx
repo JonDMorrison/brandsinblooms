@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -191,7 +190,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         surface="primary"
         hoverEffect="subtle"
         animated={true}
-        className={`border-l-4 border-l-green-400 shadow-lg ${isMobile ? 'mobile-constrained' : ''}`}
+        className={`shadow-lg ${isMobile ? 'mobile-constrained' : ''}`}
         data-ready-to-post-section="true"
       >
         <AppleCardHeader className={`apple-card-spacing ${isMobile ? 'pb-3' : 'pb-4'}`}>
