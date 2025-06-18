@@ -1,0 +1,27 @@
+
+-- Add missing garden-focused observances for 2025
+
+-- Monthly observances
+INSERT INTO public.holidays (holiday_name, holiday_date, description, category, garden_relevance, is_active) VALUES
+('National Bird-Feeding Month', '2025-02-01', 'Promotes feeding and sheltering wild birds during harsh winter weeks', 'Month', 'February is perfect for promoting bird feeders, winter bird seed mixes, suet cakes, heated bird baths, and wildlife-friendly winter shelter plants', true),
+('National Flower Month', '2025-03-01', 'Celebrates the beauty and diversity of flowers and encourages planting blooms', 'Month', 'Showcase early spring bulbs, flowering branches, cool-season annuals, and plan spring flower garden displays with customers', true),
+('National BBQ & Grilling Month', '2025-05-01', 'Kicks off outdoor cooking season—perfect for patio herbs and outdoor living tie-ins', 'Month', 'Promote culinary herbs, patio planters, grilling herb collections, outdoor dining plants, and container gardens for patios', true),
+('Perennial Gardening Month', '2025-06-01', 'Spotlights hardy perennials that return each year and reduce maintenance', 'Month', 'Feature low-maintenance perennial collections, drought-tolerant varieties, pollinator perennials, and perennial garden design services', true),
+('National Fresh Fruit & Veggies Month', '2025-06-01', 'Encourages eating seasonally and growing your own edible garden', 'Month', 'Promote vegetable starts, fruit trees, berry bushes, herb gardens, and edible landscaping for fresh homegrown produce', true),
+('National Water Gardening Month', '2025-07-01', 'Focuses on ponds, water features, and aquatic plants for landscapes', 'Month', 'Showcase water lilies, aquatic plants, pond supplies, fountain installations, and rain garden plants for water-wise landscapes', true),
+('National Outdoor Month', '2025-07-01', 'Celebrates time spent outside—great for patio décor and container combos', 'Month', 'Feature outdoor living plants, patio furniture plantings, container combinations, and garden décor for outdoor entertainment spaces', true),
+('National Tree Check Month', '2025-08-01', 'Public-service push to inspect trees for pests or disease before fall', 'Month', 'Promote tree care products, plant health services, pest control solutions, and fall tree planting for healthy landscapes', true),
+('National Farm-to-School Month', '2025-10-01', 'Connects kids with local food systems—feature edible starts and youth garden kits', 'Month', 'Promote school garden supplies, kids gardening tools, educational plant kits, and classroom growing projects', true),
+('Native American Heritage Month', '2025-11-01', 'Honors Indigenous cultures—perfect for featuring native plants and foods', 'Month', 'Showcase native plant collections, indigenous food plants, heritage varieties, and sustainable gardening practices', true),
+('Holiday Tree & Greenery Month', '2025-12-01', 'Spotlights live wreath workshops and potted conifers for the holidays', 'Month', 'Feature fresh wreaths, live Christmas trees, holiday planters, evergreen arrangements, and winter container gardens', true),
+
+-- Weekly observances with calculated dates for 2025
+('National Invasive Species Awareness Week', '2025-03-03', 'Educates gardeners about removing invasives and choosing native alternatives', 'Week', 'Promote native plant alternatives, invasive species removal services, and education about choosing eco-friendly landscape plants', true),
+('National Wildlife Week', '2025-04-07', 'Promotes habitat planting and wildlife-friendly gardening', 'Week', 'Feature pollinator plants, bird-attracting trees, butterfly gardens, native plant collections for wildlife habitat creation', true),
+('National Public Gardens Day', '2025-05-09', 'Highlights botanical gardens—host open greenhouse or community garden tours', 'Day', 'Host greenhouse tours, garden workshops, community garden partnerships, and botanical education events', true),
+('National Gardening Week', '2025-06-02', 'Week-long push to get Americans digging, planting, and mulching', 'Week', 'Major promotion of all garden supplies, tools, plants, soil amendments, mulch, and hands-on gardening workshops', true),
+('National Pollinator Week', '2025-06-16', 'Raises awareness of bees, butterflies, and pollinator-friendly plants', 'Week', 'Feature bee-friendly plants, butterfly gardens, pollinator plant collections, and native flowering plants for ecosystem support', true),
+('National Bee Appreciation Week', '2025-08-18', 'Celebrates bees role in food systems—ideal for pollinator bundles', 'Week', 'Promote pollinator plant bundles, bee houses, flowering herbs, and plants that support local bee populations', true),
+('National Indoor Plant Week', '2025-09-15', 'Focuses on air-purifying houseplants and indoor plant care', 'Week', 'Showcase houseplant collections, air-purifying plants, indoor plant care supplies, and low-light plant varieties', true),
+('National Seed Harvest Week', '2025-10-06', 'Encourages gardeners to collect and save seeds for next season', 'Week', 'Promote seed saving supplies, heirloom varieties, seed storage containers, and workshops on seed collection techniques', true),
+('National Urban Agriculture Week', '2025-10-13', 'Showcases rooftop gardens, balcony crops, and community-lot farming', 'Week', 'Feature container gardening supplies, vertical garden systems, small-space growing solutions, and urban farming techniques', true);
