@@ -58,12 +58,12 @@ serve(async (req) => {
       logStep("Existing customer found", { customerId });
     }
 
-    // TODO: Replace these with your actual Stripe Price IDs from your dashboard
+    // Updated with actual Stripe Price IDs
     const priceMapping = {
-      'sprout_monthly': 'price_1234567890_sprout_monthly', // Replace with actual Price ID
-      'sprout_annual': 'price_1234567890_sprout_annual',   // Replace with actual Price ID  
-      'bloom_monthly': 'price_1234567890_bloom_monthly',   // Replace with actual Price ID
-      'bloom_annual': 'price_1234567890_bloom_annual',     // Replace with actual Price ID
+      'sprout_monthly': 'price_1RbUP6DmtxsdhOlWBTpvxBaZ',
+      'sprout_annual': 'price_1RbUQNDmtxsdhOlWf2vCkehE',
+      'bloom_monthly': 'price_1RbUUUDmtxsdhOlWrjI1a1jC',
+      'bloom_annual': 'price_1RbUVODmtxsdhOlW7mrK3Q9y',
     };
 
     const priceKey = `${plan}_${billingInterval}` as keyof typeof priceMapping;

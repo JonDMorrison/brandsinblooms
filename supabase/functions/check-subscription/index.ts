@@ -74,16 +74,15 @@ serve(async (req) => {
       subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString().split('T')[0];
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       
-      // Determine plan and billing interval from price
+      // Determine plan and billing interval from price - Updated with actual Price IDs
       const priceId = subscription.items.data[0].price.id;
       const price = await stripe.prices.retrieve(priceId);
       
-      // Map price IDs back to plans - you'll need to update these with your actual Price IDs
       const priceToPlans: Record<string, { plan: string, interval: string }> = {
-        'price_1234567890_sprout_monthly': { plan: 'sprout', interval: 'monthly' },
-        'price_1234567890_sprout_annual': { plan: 'sprout', interval: 'annual' },
-        'price_1234567890_bloom_monthly': { plan: 'bloom', interval: 'monthly' },
-        'price_1234567890_bloom_annual': { plan: 'bloom', interval: 'annual' },
+        'price_1RbUP6DmtxsdhOlWBTpvxBaZ': { plan: 'sprout', interval: 'monthly' },
+        'price_1RbUQNDmtxsdhOlWf2vCkehE': { plan: 'sprout', interval: 'annual' },
+        'price_1RbUUUDmtxsdhOlWrjI1a1jC': { plan: 'bloom', interval: 'monthly' },
+        'price_1RbUVODmtxsdhOlW7mrK3Q9y': { plan: 'bloom', interval: 'annual' },
       };
 
       const planInfo = priceToPlans[priceId];
