@@ -1,11 +1,12 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { AppleCard, AppleCardProps } from "./apple-card"
 
-export interface EnhancedAppleCardProps extends AppleCardProps {
+export interface EnhancedAppleCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: 'default' | 'elevated' | 'interactive';
+  surface?: 'primary' | 'secondary' | 'tertiary';
+  hoverEffect?: 'none' | 'subtle' | 'medium' | 'strong';
   animated?: boolean;
-  hoverEffect?: 'subtle' | 'medium' | 'strong' | 'none';
   staggerDelay?: number;
 }
 
@@ -14,39 +15,44 @@ const EnhancedAppleCard = React.forwardRef<HTMLDivElement, EnhancedAppleCardProp
     className, 
     variant = 'default', 
     surface = 'primary', 
-    animated = true,
     hoverEffect = 'subtle',
+    animated = false,
     staggerDelay = 0,
-    children,
     ...props 
   }, ref) => {
-    const hoverClasses = {
-      none: '',
-      subtle: 'apple-hover-subtle',
-      medium: 'apple-hover',
-      strong: 'hover:scale-[1.03] hover:shadow-lg active:scale-[0.97]'
+    const variantClasses = {
+      default: 'shadow-sm',
+      elevated: 'shadow-lg',
+      interactive: 'shadow-sm card-interactive cursor-pointer' // Uses new global interactive class
     };
 
-    const animationClass = animated ? 'apple-fade-in' : '';
-    const staggerClass = staggerDelay > 0 ? `apple-stagger-${Math.min(staggerDelay, 4)}` : '';
+    const surfaceClasses = {
+      primary: 'bg-surface-primary',
+      secondary: 'bg-surface-secondary', 
+      tertiary: 'bg-surface-tertiary'
+    };
+
+    const hoverClasses = {
+      none: '',
+      subtle: 'hover:shadow-md',
+      medium: 'hover:shadow-lg hover:scale-[1.01]',
+      strong: 'hover:shadow-xl hover:scale-[1.02]'
+    };
 
     return (
-      <AppleCard
+      <div
         ref={ref}
-        variant={variant}
-        surface={surface}
         className={cn(
-          animationClass,
-          staggerClass,
+          "rounded-lg border border-gray-200 transition-all duration-300 ease-apple",
+          variantClasses[variant],
+          surfaceClasses[surface],
           hoverClasses[hoverEffect],
-          'apple-color-transition',
+          animated && "apple-slide-up",
           className
         )}
-        style={{ animationDelay: staggerDelay > 4 ? `${staggerDelay * 0.1}s` : undefined }}
+        style={animated ? { animationDelay: `${staggerDelay}ms` } : undefined}
         {...props}
-      >
-        {children}
-      </AppleCard>
+      />
     )
   }
 )

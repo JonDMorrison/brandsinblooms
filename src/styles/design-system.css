@@ -1,4 +1,3 @@
-
 @layer base {
   :root {
     /* Enhanced Brand Tokens */
@@ -201,6 +200,131 @@
   
   .apple-surface-3 {
     @apply bg-surface-tertiary;
+  }
+
+  /* PHASE 2: GLOBAL INTERACTIVE ENHANCEMENT */
+  
+  /* Universal smooth interactions for all buttonish elements */
+  button,
+  [role="button"],
+  .tile,
+  .card-interactive,
+  .apple-card-interactive,
+  .campaign-card,
+  .content-item {
+    @apply transition-all duration-150 ease-in-out;
+    transition-property: background-color, box-shadow, transform, border-color;
+  }
+  
+  /* Enhanced hover states with subtle elevation */
+  button:hover,
+  [role="button"]:hover,
+  .tile:hover,
+  .card-interactive:hover,
+  .apple-card-interactive:hover,
+  .campaign-card:hover,
+  .content-item:hover {
+    @apply shadow-md;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    transform: translateY(-1px);
+  }
+  
+  /* Consistent focus-visible states using brand green */
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  .tile:focus-visible,
+  .card-interactive:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid rgb(var(--brand-green));
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgb(var(--brand-green) / 0.1);
+  }
+  
+  /* Active states for better feedback */
+  button:active,
+  [role="button"]:active,
+  .tile:active,
+  .card-interactive:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  /* UNIFIED STATUS BADGE SYSTEM */
+  
+  /* Base status badge styling */
+  .status-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors duration-150;
+  }
+  
+  /* Status-specific colors using new tokens */
+  .status-draft {
+    background-color: rgb(var(--chip-draft));
+    color: white;
+  }
+  
+  .status-generated {
+    background-color: rgb(var(--chip-generated));
+    color: white;
+  }
+  
+  .status-review {
+    background-color: rgb(var(--chip-generated));
+    color: white;
+  }
+  
+  .status-approved {
+    background-color: rgb(var(--chip-approved));
+    color: white;
+  }
+  
+  .status-scheduled {
+    background-color: rgb(var(--chip-scheduled));
+    color: white;
+  }
+  
+  .status-posted {
+    background-color: rgb(var(--chip-posted));
+    color: white;
+  }
+
+  /* Platform-specific badge colors */
+  .platform-newsletter {
+    background-color: rgb(var(--brand-blue));
+    color: white;
+  }
+  
+  .platform-facebook {
+    background-color: #1877F2;
+    color: white;
+  }
+  
+  .platform-instagram {
+    background-color: #C13584;
+    color: white;
+  }
+  
+  .platform-video {
+    background-color: #F97316;
+    color: white;
+  }
+  
+  .platform-linkedin {
+    background-color: #0A66C2;
+    color: white;
+  }
+  
+  .platform-email {
+    background-color: rgb(var(--brand-green));
+    color: white;
+  }
+
+  /* Enhanced hover states for badges */
+  .status-badge:hover,
+  [class*="platform-"]:hover,
+  [class*="status-"]:hover {
+    @apply shadow-sm scale-105;
   }
 
   /* Garden-specific utility classes */
@@ -433,4 +557,3 @@
     border-color: rgb(76 175 80) !important;
   }
 }
-
