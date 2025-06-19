@@ -12,9 +12,32 @@ export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
     onToggle(checked);
   };
 
+  const handleMonthlyClick = () => {
+    if (isAnnual) {
+      onToggle(false);
+    }
+  };
+
+  const handleAnnualClick = () => {
+    if (!isAnnual) {
+      onToggle(true);
+    }
+  };
+
   return (
     <div className="flex items-center justify-center gap-4 mb-12">
-      <span className={`text-lg transition-all duration-200 ${!isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600'}`}>
+      <span 
+        className={`text-lg transition-all duration-200 cursor-pointer select-none ${!isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+        onClick={handleMonthlyClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleMonthlyClick();
+          }
+        }}
+      >
         Monthly
       </span>
       <div className="relative">
@@ -24,7 +47,18 @@ export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
           className="data-[state=checked]:bg-garden-green"
         />
       </div>
-      <span className={`text-lg transition-all duration-200 ${isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600'}`}>
+      <span 
+        className={`text-lg transition-all duration-200 cursor-pointer select-none ${isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+        onClick={handleAnnualClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleAnnualClick();
+          }
+        }}
+      >
         Annual
       </span>
       {isAnnual && (
