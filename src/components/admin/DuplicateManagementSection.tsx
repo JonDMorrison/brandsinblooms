@@ -82,7 +82,7 @@ export const DuplicateManagementSection = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-garden-green-dark flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-orange-500" />
+            <AlertTriangle className="w-5 h-5 text-gray-500" />
             Duplicate Account Management
           </h2>
           <p className="text-sm text-gray-600 mt-1">
@@ -109,18 +109,18 @@ export const DuplicateManagementSection = () => {
       ) : (
         <div className="space-y-4">
           {suggestions.map((suggestion, index) => (
-            <Card key={index} className="border-orange-200 bg-orange-50">
+            <Card key={index} className="border-gray-200 bg-gray-50">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-orange-600" />
+                    <AlertTriangle className="w-5 h-5 text-gray-600" />
                     {suggestion.email}
                   </div>
-                  <Badge variant="outline" className="bg-orange-100 text-orange-800">
+                  <Badge variant="outline" className="bg-gray-100 text-gray-800">
                     {suggestion.accounts.length} accounts
                   </Badge>
                 </CardTitle>
-                <p className="text-sm text-orange-700">
+                <p className="text-sm text-gray-700">
                   <strong>Suggestion:</strong> {suggestion.suggestion_reason}
                 </p>
               </CardHeader>
