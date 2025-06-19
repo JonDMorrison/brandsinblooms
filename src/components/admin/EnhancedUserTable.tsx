@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { MoreHorizontal, Mail, Calendar, Coins, Trash2, AlertTriangle, Merge } from "lucide-react";
 import {
   DropdownMenu,
@@ -25,6 +26,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { isSuperAdmin } from "@/utils/adminUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBulkUserOperations } from "@/hooks/useBulkUserOperations";
+import { BulkActionsToolbar } from "./BulkActionsToolbar";
 
 interface AdminUserData {
   id: string;
@@ -51,6 +54,16 @@ interface EnhancedUserTableProps {
 export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProps) => {
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
   const { user } = useAuth();
+
+  const {
+    selectedUserIds,
+    isProcessing,
+    progress,
+    toggleUserSelection,
+    selectAll,
+    clearSelection,
+    bulkDeleteUsers
+  } = useBulkUserOperations(onDeleteUser);
 
   const getPlanBadgeColor = (plan: string) => {
     switch (plan) {
@@ -140,187 +153,239 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
     }
   };
 
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      selectAll(users.map(u => u.id));
+    } else {
+      clearSelection();
+    }
+  };
+
+  const isAllSelected = users.length > 0 && selectedUserIds.size === users.length;
+  const isIndeterminate = selectedUserIds.size > 0 && selectedUserIds.size < users.length;
+
   return (
-    <Card className="rounded-xl">
-      <CardHeader>
-        <CardTitle className="text-xl">All Users ({users.length})</CardTitle>
-        <p className="text-sm text-gray-600">
-          Showing all accounts including duplicates. Users with multiple accounts are marked. Use the Duplicate Management section above to merge accounts safely.
-        </p>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Plan & Status</TableHead>
-              <TableHead>Trial Info</TableHead>
-              <TableHead>Tokens</TableHead>
-              <TableHead>Last Login</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => {
-              const daysRemaining = getDaysRemaining(user.trial_end_date);
-              const isDeleting = deletingUser === user.id;
-              
-              return (
-                <TableRow key={user.id} className={user.is_duplicate ? 'bg-gray-50' : ''}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="text-xs">
-                          {getInitials(user.email, user.company_name)}
-                        </AvatarFallback>
-                      </Avatar>
+    <div className="space-y-4">
+      <BulkActionsToolbar
+        selectedUserIds={selectedUserIds}
+        users={users}
+        onBulkDelete={bulkDeleteUsers}
+        onClearSelection={clearSelection}
+        isProcessing={isProcessing}
+        progress={progress}
+      />
+
+      <Card className="rounded-xl">
+        <CardHeader>
+          <CardTitle className="text-xl">All Users ({users.length})</CardTitle>
+          <p className="text-sm text-gray-600">
+            Showing all accounts including duplicates. Users with multiple accounts are marked. Use the Duplicate Management section above to merge accounts safely.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={isAllSelected}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all users"
+                    className={isIndeterminate ? "data-[state=checked]:bg-blue-600" : ""}
+                    ref={(el) => {
+                      if (el) {
+                        el.indeterminate = isIndeterminate;
+                      }
+                    }}
+                  />
+                </TableHead>
+                <TableHead>User</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead>Plan & Status</TableHead>
+                <TableHead>Trial Info</TableHead>
+                <TableHead>Tokens</TableHead>
+                <TableHead>Last Login</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {users.map((user) => {
+                const daysRemaining = getDaysRemaining(user.trial_end_date);
+                const isDeleting = deletingUser === user.id;
+                const isSelected = selectedUserIds.has(user.id);
+                
+                return (
+                  <TableRow 
+                    key={user.id} 
+                    className={`
+                      ${user.is_duplicate ? 'bg-gray-50' : ''} 
+                      ${isSelected ? 'bg-blue-50 border-blue-200' : ''}
+                    `}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleUserSelection(user.id)}
+                        aria-label={`Select ${user.email}`}
+                        disabled={isDeleting || isProcessing}
+                      />
+                    </TableCell>
+                    
+                    
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="text-xs">
+                            {getInitials(user.email, user.company_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">{user.email}</div>
+                            {user.is_duplicate && (
+                              <div className="flex items-center gap-1">
+                                <AlertTriangle className="w-4 h-4 text-gray-500" />
+                                <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800">
+                                  Account #{user.account_number}
+                                </Badge>
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Joined {formatDate(user.created_at)}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">{user.email}</div>
-                          {user.is_duplicate && (
-                            <div className="flex items-center gap-1">
-                              <AlertTriangle className="w-4 h-4 text-gray-500" />
-                              <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800">
-                                Account #{user.account_number}
-                              </Badge>
+                        <div className="font-medium">
+                          {user.company_name || 'Not set'}
+                        </div>
+                        <Badge variant="outline" className="mt-1">
+                          {user.onboarding_completed ? 'Onboarded' : 'Pending'}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell>
+                      <div className="space-y-1">
+                        <Badge className={getPlanBadgeColor(user.plan)}>
+                          {user.plan.replace('_', ' ').charAt(0).toUpperCase() + user.plan.slice(1)}
+                        </Badge>
+                        <Badge className={getStatusBadgeColor(user.status)}>
+                          {user.status}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    
+                    <TableCell>
+                      {user.plan === 'free_trial' && user.trial_end_date && (
+                        <div className="text-sm">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            Ends {formatDate(user.trial_end_date)}
+                          </div>
+                          {daysRemaining !== null && (
+                            <div className={`text-xs ${daysRemaining <= 3 ? 'text-red-600' : 'text-gray-600'}`}>
+                              {daysRemaining > 0 ? `${daysRemaining} days left` : 'Expired'}
                             </div>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500">
-                          Joined {formatDate(user.created_at)}
-                        </div>
+                      )}
+                    </TableCell>
+                    
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Coins className="w-4 h-4 text-orange-600" />
+                        <span className={user.tokens_balance && user.tokens_balance < 0 ? 'text-red-600' : ''}>
+                          {user.tokens_balance || 0}
+                        </span>
                       </div>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">
-                        {user.company_name || 'Not set'}
+                    </TableCell>
+                    
+                    <TableCell>
+                      <div className="text-sm text-gray-600">
+                        {formatDate(user.last_login)}
                       </div>
-                      <Badge variant="outline" className="mt-1">
-                        {user.onboarding_completed ? 'Onboarded' : 'Pending'}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="space-y-1">
-                      <Badge className={getPlanBadgeColor(user.plan)}>
-                        {user.plan.replace('_', ' ').charAt(0).toUpperCase() + user.plan.slice(1)}
-                      </Badge>
-                      <Badge className={getStatusBadgeColor(user.status)}>
-                        {user.status}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    {user.plan === 'free_trial' && user.trial_end_date && (
-                      <div className="text-sm">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          Ends {formatDate(user.trial_end_date)}
-                        </div>
-                        {daysRemaining !== null && (
-                          <div className={`text-xs ${daysRemaining <= 3 ? 'text-red-600' : 'text-gray-600'}`}>
-                            {daysRemaining > 0 ? `${daysRemaining} days left` : 'Expired'}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <Coins className="w-4 h-4 text-orange-600" />
-                      <span className={user.tokens_balance && user.tokens_balance < 0 ? 'text-red-600' : ''}>
-                        {user.tokens_balance || 0}
-                      </span>
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <div className="text-sm text-gray-600">
-                      {formatDate(user.last_login)}
-                    </div>
-                  </TableCell>
-                  
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem>
-                          <Mail className="mr-2 h-4 w-4" />
-                          Send Email
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          View Profile
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          Reset Password
-                        </DropdownMenuItem>
-                        {user.is_duplicate && (
-                          <DropdownMenuItem className="text-blue-600">
-                            <Merge className="mr-2 h-4 w-4" />
-                            Manage Duplicates
+                    </TableCell>
+                    
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting || isProcessing}>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem>
+                            <Mail className="mr-2 h-4 w-4" />
+                            Send Email
                           </DropdownMenuItem>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={isDeleting}>
-                              <Trash2 className="mr-2 h-4 w-4 text-red-600" />
-                              <span className="text-red-600">
-                                {isDeleting ? 'Deleting...' : 'Delete User'}
-                              </span>
+                          <DropdownMenuItem>
+                            View Profile
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            Reset Password
+                          </DropdownMenuItem>
+                          {user.is_duplicate && (
+                            <DropdownMenuItem className="text-blue-600">
+                              <Merge className="mr-2 h-4 w-4" />
+                              Manage Duplicates
                             </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete User Account</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to permanently delete the account for <strong>{user.email}</strong>
-                                {user.is_duplicate && ` (Account #${user.account_number})`}? 
-                                This will delete all their data including campaigns, content, and subscriptions. 
-                                This action cannot be undone.
-                                {user.is_duplicate && (
-                                  <div className="mt-2 p-2 bg-gray-50 rounded text-gray-800 text-sm">
-                                    <strong>Note:</strong> This user has multiple accounts. Consider using the Duplicate Management section to merge accounts instead of deleting.
+                          )}
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={isDeleting || isProcessing}>
+                                <Trash2 className="mr-2 h-4 w-4 text-red-600" />
+                                <span className="text-red-600">
+                                  {isDeleting ? 'Deleting...' : 'Delete User'}
+                                </span>
+                              </DropdownMenuItem>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete User Account</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to permanently delete the account for <strong>{user.email}</strong>
+                                  {user.is_duplicate && ` (Account #${user.account_number})`}? 
+                                  This will delete all their data including campaigns, content, and subscriptions. 
+                                  This action cannot be undone.
+                                  {user.is_duplicate && (
+                                    <div className="mt-2 p-2 bg-gray-50 rounded text-gray-800 text-sm">
+                                      <strong>Note:</strong> This user has multiple accounts. Consider using the Duplicate Management section to merge accounts instead of deleting.
+                                    </div>
+                                  )}
+                                  <div className="mt-2 p-2 bg-blue-50 rounded text-blue-800 text-sm">
+                                    <strong>Admin Check:</strong> Only super administrators can delete users. 
+                                    Current user: {user?.email || 'Not logged in'} 
+                                    {user?.email && isSuperAdmin(user.email) ? ' ✓ (Super Admin)' : ' ✗ (Not Super Admin)'}
                                   </div>
-                                )}
-                                <div className="mt-2 p-2 bg-blue-50 rounded text-blue-800 text-sm">
-                                  <strong>Admin Check:</strong> Only super administrators can delete users. 
-                                  Current user: {user?.email || 'Not logged in'} 
-                                  {user?.email && isSuperAdmin(user.email) ? ' ✓ (Super Admin)' : ' ✗ (Not Super Admin)'}
-                                </div>
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteUser(user.id, user.email)}
-                                disabled={isDeleting || !user?.email || !isSuperAdmin(user.email)}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                {isDeleting ? 'Deleting...' : 'Delete User'}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteUser(user.id, user.email)}
+                                  disabled={isDeleting || !user?.email || !isSuperAdmin(user.email)}
+                                  className="bg-red-600 hover:bg-red-700"
+                                >
+                                  {isDeleting ? 'Deleting...' : 'Delete User'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
