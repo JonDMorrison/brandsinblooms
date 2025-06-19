@@ -35,17 +35,17 @@ export const TrialBanner = () => {
     console.log('TrialBanner: Showing urgent banner for', daysLeft, dayText);
     
     return (
-      <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white px-4 py-3 text-center shadow-lg">
+      <div className="bg-gradient-to-r from-red-500 to-orange-500 text-black px-4 py-3 text-center shadow-lg">
         <div className="flex items-center justify-center gap-3 text-sm font-medium">
-          <Clock className="h-4 w-4 animate-pulse" />
-          <span>
+          <Clock className="h-4 w-4 animate-pulse text-black" />
+          <span className="text-black">
             ⚠️ Trial expires in {daysLeft} {dayText}! Don't lose your campaigns.
           </span>
           <Button 
             variant="outline" 
             size="sm" 
             onClick={handleUpgrade}
-            className="ml-4 text-white border-white hover:bg-white hover:text-red-600 font-semibold"
+            className="ml-4 text-black border-black hover:bg-black hover:text-white font-semibold"
           >
             <Crown className="h-3 w-3 mr-1" />
             Upgrade Now
@@ -59,17 +59,17 @@ export const TrialBanner = () => {
   console.log('TrialBanner: Showing regular banner for', daysLeft, 'days left');
   
   return (
-    <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 border-b shadow-sm">
+    <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-black px-4 py-2 border-b shadow-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm">
-          <Badge variant="outline" className="bg-white/20 text-white border-white/30 font-medium">
-            <Zap className="h-3 w-3 mr-1" />
+          <Badge variant="outline" className="bg-white/20 text-black border-black font-medium">
+            <Zap className="h-3 w-3 mr-1 text-black" />
             Free Trial: {daysLeft} days left
           </Badge>
-          <span className="hidden sm:inline">Experience premium features - </span>
+          <span className="hidden sm:inline text-black">Experience premium features - </span>
           <button 
             onClick={handleUpgrade}
-            className="text-white hover:text-blue-100 underline hover:no-underline font-medium cursor-pointer bg-transparent border-none p-0"
+            className="text-black hover:text-gray-700 underline hover:no-underline font-medium cursor-pointer bg-transparent border-none p-0"
           >
             upgrade to keep them forever
           </button>
@@ -80,7 +80,7 @@ export const TrialBanner = () => {
             onClick={handleUpgrade}
             variant="outline"
             size="sm"
-            className="text-white border-white hover:bg-white hover:text-blue-600"
+            className="text-black border-black hover:bg-black hover:text-white"
           >
             <Crown className="h-3 w-3 mr-1" />
             View Plans
