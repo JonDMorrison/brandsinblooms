@@ -134,16 +134,45 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
   }
 };
 
-export const generateContentForCampaign = async (
+export const generateCampaignContent = async (
   campaignId: string,
   theme: string,
   description: string,
   userId: string,
   weekNumber?: number
 ) => {
-  console.log(`🎯 Generating content pack for campaign: ${campaignId}`);
+  console.log(`🎯 Generating campaign content pack for campaign: ${campaignId}`);
   
   try {
+    // Get current month for the new edge function
+    const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+    
+    // Call the new generate_campaign_content edge function
+    console.log('📡 Calling generate_campaign_content function');
+    
+    const { data, error } = await supabase.functions.invoke('generate_campaign_content', {
+      body: {
+        theme: theme,
+        month: currentMonth,
+        tone: 'professional',
+        channels: ['facebook', 'instagram', 'blog', 'video', 'newsletter'],
+        campaignId: campaignId,
+        userId: userId
+      }
+    });
+
+    if (error) {
+      console.error('❌ Error from generate_campaign_content function:', error);
+      throw new Error(`Campaign content generation failed: ${error.message || 'Unknown error'}`);
+    }
+
+    if (!data || !data.success) {
+      throw new Error('Failed to generate campaign content');
+    }
+
+    const generatedContent = data.content;
+    console.log('📋 Generated campaign content:', generatedContent);
+
     // Spend tokens for content generation (5 content types = 5 tokens)
     const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
       p_user_id: userId,
@@ -158,19 +187,28 @@ export const generateContentForCampaign = async (
       throw new Error('Failed to process tokens for content generation');
     }
 
-    // Generate content for all required types
-    const contentTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
+    // Create content tasks for each type - UPDATED: Replace 'email' with 'blog'
+    const contentTypes = ['newsletter', 'instagram', 'facebook', 'blog', 'video'];
     const results = [];
 
     for (const type of contentTypes) {
       try {
-        let content;
+        let content = '';
+        
+        // Handle different content types from the structured response
         if (type === 'newsletter') {
-          content = await generateNewsletterContent(campaignId, theme, weekNumber || 1, userId, description);
-        } else if (type === 'video') {
-          content = await generateVideoScript(theme, userId, description);
+          // Format newsletter blocks into a single content string
+          const blocks = generatedContent.newsletter || [];
+          content = blocks.map((block, index) => {
+            return `**${block.heading}**\n\n${block.body}\n\n*Image: ${block.image_prompt}*`;
+          }).join('\n\n---\n\n');
         } else {
-          content = await generatePersonalizedContent(type, theme, userId, description);
+          content = generatedContent[type] || '';
+        }
+
+        if (!content) {
+          console.warn(`⚠️ No content generated for type: ${type}`);
+          continue;
         }
 
         // Create content task - FIXED: Set status to 'review' instead of 'generated' or 'posted'
@@ -223,13 +261,15 @@ export const generateContentForCampaign = async (
       tasks: results
     };
   } catch (error) {
-    console.error('❌ Error in generateContentForCampaign:', error);
+    console.error('❌ Error in generateCampaignContent:', error);
     return {
       success: false,
       message: error.message || 'Failed to generate content'
     };
   }
 };
+
+export const generateContentForCampaign = generateCampaignContent;
 
 // Helper function to extract keywords for image search with enhanced platform specificity
 const extractImageKeywords = (theme: string, description: string, contentType: string): string => {
@@ -246,7 +286,7 @@ const extractImageKeywords = (theme: string, description: string, contentType: s
   const typeKeywords = {
     instagram: 'lifestyle aesthetic beautiful vibrant colorful trendy square portrait garden',
     facebook: 'community educational informative people landscape wide garden',
-    email: 'simple clean product focused before after landscape garden tips',
+    blog: 'simple clean product focused before after landscape garden tips',
     newsletter: 'professional seasonal informative clean organized landscape header garden',
     video: 'action process tutorial hands-on behind scenes landscape cinematic garden'
   };

@@ -12,7 +12,8 @@ export const useContentGeneration = () => {
       const existingTypes = existingTasks.map(task => task.post_type);
       console.log('📊 Existing types:', existingTypes);
       
-      const requiredTypes = ['facebook', 'instagram', 'email', 'newsletter', 'video'];
+      //  UPDATED: Replace 'email' with 'blog' in required types
+      const requiredTypes = ['facebook', 'instagram', 'blog', 'newsletter', 'video'];
       const missingTypes = requiredTypes.filter(type => !existingTypes.includes(type));
       console.log('📝 Missing types that need new tasks:', missingTypes);
       
