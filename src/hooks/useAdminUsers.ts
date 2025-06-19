@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -100,29 +99,65 @@ export const useAdminUsers = () => {
   };
 
   const deleteUser = async (userId: string) => {
+    console.log(`[useAdminUsers] Starting deletion process for user: ${userId}`);
+    
     try {
-      console.log('Deleting user:', userId);
+      // Get current user info for logging
+      const { data: currentUser, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error(`[useAdminUsers] Error getting current user:`, userError);
+        throw new Error('Failed to verify user authentication');
+      }
+
+      if (!currentUser?.user?.email) {
+        console.error(`[useAdminUsers] No authenticated user found`);
+        throw new Error('You must be logged in to delete users');
+      }
+
+      console.log(`[useAdminUsers] Current user: ${currentUser.user.email}`);
+      console.log(`[useAdminUsers] Calling admin_delete_user RPC function...`);
       
       const { data, error } = await supabase.rpc('admin_delete_user', {
         target_user_id: userId
       });
 
+      console.log(`[useAdminUsers] RPC call completed. Data:`, data, 'Error:', error);
+
       if (error) {
-        console.error('Error deleting user:', error);
-        throw error;
+        console.error(`[useAdminUsers] RPC error:`, {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+        
+        // Provide specific error messages
+        if (error.message.includes('Access denied')) {
+          throw new Error('Access denied. Only super administrators can delete users.');
+        } else if (error.message.includes('does not exist')) {
+          throw new Error('User not found or already deleted.');
+        } else {
+          throw new Error(`Database error: ${error.message}`);
+        }
       }
 
-      console.log('User deleted successfully:', data);
-      toast.success('User deleted successfully');
+      console.log(`[useAdminUsers] User deleted successfully. Result:`, data);
       
       // Refresh the user list
+      console.log(`[useAdminUsers] Refreshing user list...`);
       await fetchUsers();
       
       return true;
     } catch (error) {
-      console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
-      return false;
+      console.error(`[useAdminUsers] Error in deleteUser:`, error);
+      
+      // Re-throw the error so the UI can handle it
+      if (error instanceof Error) {
+        throw error;
+      } else {
+        throw new Error('An unexpected error occurred while deleting the user');
+      }
     }
   };
 

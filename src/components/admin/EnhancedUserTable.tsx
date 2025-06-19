@@ -1,4 +1,3 @@
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +22,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
+import { toast } from "sonner";
+import { isSuperAdmin } from "@/utils/adminUtils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AdminUserData {
   id: string;
@@ -48,6 +50,7 @@ interface EnhancedUserTableProps {
 
 export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProps) => {
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const getPlanBadgeColor = (plan: string) => {
     switch (plan) {
@@ -83,16 +86,57 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
   };
 
   const handleDeleteUser = async (userId: string, userEmail: string) => {
+    console.log(`[EnhancedUserTable] Starting deletion process for user: ${userId} (${userEmail})`);
+    
+    // Check if current user is super admin
+    if (!user?.email || !isSuperAdmin(user.email)) {
+      console.error(`[EnhancedUserTable] Access denied: Current user ${user?.email} is not a super admin`);
+      toast.error('Access denied. Only super administrators can delete users.');
+      return;
+    }
+
+    console.log(`[EnhancedUserTable] Super admin check passed for: ${user.email}`);
+
+    if (deletingUser) {
+      console.log(`[EnhancedUserTable] Another deletion in progress, ignoring request`);
+      toast.warning('Another deletion is already in progress. Please wait.');
+      return;
+    }
+
     setDeletingUser(userId);
+    console.log(`[EnhancedUserTable] Set deleting state for user: ${userId}`);
+
     try {
+      console.log(`[EnhancedUserTable] Calling onDeleteUser function...`);
       const success = await onDeleteUser(userId);
-      if (!success) {
-        console.error('Failed to delete user');
+      
+      console.log(`[EnhancedUserTable] Delete operation result: ${success}`);
+      
+      if (success) {
+        toast.success(`User ${userEmail} has been successfully deleted.`);
+        console.log(`[EnhancedUserTable] Successfully deleted user: ${userEmail}`);
+      } else {
+        toast.error(`Failed to delete user ${userEmail}. Please check the console for details.`);
+        console.error(`[EnhancedUserTable] Delete operation returned false for user: ${userEmail}`);
       }
     } catch (error) {
-      console.error('Error deleting user:', error);
+      console.error(`[EnhancedUserTable] Error during deletion:`, error);
+      
+      // Provide specific error messages based on error type
+      if (error instanceof Error) {
+        if (error.message.includes('Access denied')) {
+          toast.error('Access denied. Only super administrators can delete users.');
+        } else if (error.message.includes('Network')) {
+          toast.error('Network error. Please check your connection and try again.');
+        } else {
+          toast.error(`Failed to delete user: ${error.message}`);
+        }
+      } else {
+        toast.error('An unexpected error occurred while deleting the user.');
+      }
     } finally {
       setDeletingUser(null);
+      console.log(`[EnhancedUserTable] Cleared deleting state for user: ${userId}`);
     }
   };
 
@@ -120,6 +164,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
           <TableBody>
             {users.map((user) => {
               const daysRemaining = getDaysRemaining(user.trial_end_date);
+              const isDeleting = deletingUser === user.id;
               
               return (
                 <TableRow key={user.id} className={user.is_duplicate ? 'bg-yellow-50' : ''}>
@@ -211,7 +256,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
+                        <Button variant="ghost" className="h-8 w-8 p-0" disabled={isDeleting}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -234,9 +279,11 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                         )}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={isDeleting}>
                               <Trash2 className="mr-2 h-4 w-4 text-red-600" />
-                              <span className="text-red-600">Delete User</span>
+                              <span className="text-red-600">
+                                {isDeleting ? 'Deleting...' : 'Delete User'}
+                              </span>
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -252,16 +299,21 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                                     <strong>Note:</strong> This user has multiple accounts. Consider using the Duplicate Management section to merge accounts instead of deleting.
                                   </div>
                                 )}
+                                <div className="mt-2 p-2 bg-blue-50 rounded text-blue-800 text-sm">
+                                  <strong>Admin Check:</strong> Only super administrators can delete users. 
+                                  Current user: {user?.email || 'Not logged in'} 
+                                  {user?.email && isSuperAdmin(user.email) ? ' ✓ (Super Admin)' : ' ✗ (Not Super Admin)'}
+                                </div>
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDeleteUser(user.id, user.email)}
-                                disabled={deletingUser === user.id}
+                                disabled={isDeleting || !user?.email || !isSuperAdmin(user.email)}
                                 className="bg-red-600 hover:bg-red-700"
                               >
-                                {deletingUser === user.id ? 'Deleting...' : 'Delete User'}
+                                {isDeleting ? 'Deleting...' : 'Delete User'}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
