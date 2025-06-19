@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -132,32 +133,35 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
   return (
     <Accordion type="multiple" className="w-full">
       <AccordionItem value={task.id} className="border-gray-200 rounded-lg">
-        <AccordionTrigger className="px-4 py-3 hover:no-underline flex-col items-start">
-          <div className="flex items-center justify-between w-full mr-4">
-            {/* Left cluster - Just platform chip */}
-            <div className="flex items-center gap-3">
-              <PlatformChip postType={task.post_type} />
+        <AccordionTrigger className="px-4 py-3 hover:no-underline">
+          <div className="flex flex-col w-full space-y-2">
+            {/* First row - Platform chip and badges */}
+            <div className="flex items-center justify-between w-full">
+              {/* Left cluster - Just platform chip */}
+              <div className="flex items-center gap-3">
+                <PlatformChip postType={task.post_type} />
+              </div>
+
+              {/* Right cluster */}
+              <div className="flex items-center gap-3">
+                <Badge className={`${statusConfig.bgColor} ${statusConfig.textColor} border-0`}>
+                  {statusConfig.label}
+                </Badge>
+                {imageCount > 0 && (
+                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                    <Image className="w-3 h-3" />
+                    <span>{imageCount}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Right cluster */}
-            <div className="flex items-center gap-3">
-              <Badge className={`${statusConfig.bgColor} ${statusConfig.textColor} border-0`}>
-                {statusConfig.label}
-              </Badge>
-              {imageCount > 0 && (
-                <div className="flex items-center gap-1 text-sm text-gray-500">
-                  <Image className="w-3 h-3" />
-                  <span>{imageCount}</span>
-                </div>
-              )}
+            {/* Second row - Preview text (spans full width, chevron will be on the right) */}
+            <div className="flex items-center justify-between w-full">
+              <p className="text-sm text-gray-600 italic flex-1 text-left">
+                {previewText}
+              </p>
             </div>
-          </div>
-
-          {/* Preview line - now inside the trigger */}
-          <div className="w-full mt-2 text-left">
-            <p className="text-sm text-gray-600 italic">
-              {previewText}
-            </p>
           </div>
         </AccordionTrigger>
 
@@ -256,3 +260,4 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
     </Accordion>
   );
 };
+
