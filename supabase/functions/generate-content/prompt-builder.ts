@@ -1,3 +1,4 @@
+
 export function buildContentPrompt(
   postType: string, 
   campaignTitle: string, 
@@ -75,9 +76,10 @@ FACEBOOK POST REQUIREMENTS:
       return `${basePrompt}
 
 BLOG POST REQUIREMENTS:
-- Compelling, SEO-friendly headline that captures the campaign theme
+- Create an engaging, descriptive headline that captures the campaign theme WITHOUT including the company name
+- The headline should focus on the gardening topic, seasonal advice, or plant care theme
 - 600-800 words of comprehensive, educational content
-- Structure with clear H2 and H3 headings for better readability
+- Structure with clear H2 and H3 headings for better readability (NO H1 tags in content)
 - Value-driven content that provides actionable gardening advice
 - Include detailed plant care instructions when relevant to campaign theme
 - Address seasonal gardening challenges and solutions
@@ -85,7 +87,8 @@ BLOG POST REQUIREMENTS:
 - Educational tone that establishes garden center expertise
 - Include call-to-action for garden center visit or expert consultation
 - Format: Complete blog post with headline and structured content sections
-- SEO considerations: natural keyword integration related to gardening and plants`;
+- SEO considerations: natural keyword integration related to gardening and plants
+- IMPORTANT: Do NOT use H1 tags in the content body - start with H2 for main sections`;
 
     case 'newsletter':
       return `${basePrompt}

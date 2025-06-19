@@ -1,3 +1,4 @@
+
 // Content filtering utilities
 export const SUPPORTED_POST_TYPES = ['instagram', 'facebook', 'newsletter', 'email', 'blog', 'video'] as const;
 
@@ -37,9 +38,14 @@ export const formatBlogContent = (text: string): string => {
   
   console.log('formatBlogContent input:', text.substring(0, 200) + '...');
   
-  let formatted = text
-    // Convert markdown headers to proper HTML with better styling
-    .replace(/^#{1}\s+(.+)$/gm, '<h1 class="text-4xl font-bold font-display text-slate-900 mt-12 mb-6 first:mt-0">$1</h1>')
+  let formatted = text;
+  
+  // First, remove any existing H1 tags since the title will be displayed in the header
+  // This prevents redundant titles from appearing in the content
+  formatted = formatted.replace(/^#{1}\s+.*$/gm, '');
+  
+  // Convert markdown headers to proper HTML with better styling (starting from H2)
+  formatted = formatted
     .replace(/^#{2}\s+(.+)$/gm, '<h2 class="text-3xl font-semibold font-display text-slate-900 mt-10 mb-4">$1</h2>')
     .replace(/^#{3}\s+(.+)$/gm, '<h3 class="text-2xl font-semibold font-display text-slate-900 mt-8 mb-3">$1</h3>')
     .replace(/^#{4}\s+(.+)$/gm, '<h4 class="text-xl font-semibold font-display text-slate-900 mt-6 mb-2">$1</h4>')
@@ -59,7 +65,7 @@ export const formatBlogContent = (text: string): string => {
       if (!paragraph) return '';
       
       // Skip if already wrapped in HTML tags
-      if (paragraph.match(/^<(h[1-6]|li|blockquote|ul|ol)/)) {
+      if (paragraph.match(/^<(h[2-6]|li|blockquote|ul|ol)/)) {
         return paragraph;
       }
       
@@ -73,8 +79,8 @@ export const formatBlogContent = (text: string): string => {
     })
     // Clean up empty paragraphs and fix formatting
     .replace(/<p[^>]*><\/p>/g, '')
-    .replace(/<p[^>]*>(<[h1-6])/g, '$1')
-    .replace(/(<\/[h1-6]>)<\/p>/g, '$1')
+    .replace(/<p[^>]*>(<[h2-6])/g, '$1')
+    .replace(/(<\/[h2-6]>)<\/p>/g, '$1')
     // Add call-out support
     .replace(/\[!TIP\]\s*\n(.*?)(?=\n\n|\n$|$)/gs, '<aside class="bg-primary/10 border-l-4 border-primary rounded-lg p-4 my-8"><p class="m-0 text-slate-700">💡 $1</p></aside>')
     .replace(/\[!NOTE\]\s*\n(.*?)(?=\n\n|\n$|$)/gs, '<aside class="bg-blue-50 border-l-4 border-blue-400 rounded-lg p-4 my-8"><p class="m-0 text-slate-700">📝 $1</p></aside>')
@@ -115,10 +121,10 @@ export const cleanContentForDisplay = (content: string, postType: string = ''): 
   return cleaned;
 };
 
-// Extract blog metadata from content
+// Enhanced blog metadata extraction that ignores H1 tags in content
 export const extractBlogMetadata = (content: string) => {
-  const titleMatch = content.match(/<h1[^>]*>(.*?)<\/h1>/i) || content.match(/^#\s+(.+)$/m);
-  const title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : null;
+  // Don't extract title from H1 tags since we'll use the campaign title instead
+  const title = null;
   
   // Estimate reading time (average 200 words per minute)
   const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
