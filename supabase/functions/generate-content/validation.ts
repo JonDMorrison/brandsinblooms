@@ -1,12 +1,8 @@
 
-import { FORBIDDEN_PATTERNS, INSTAGRAM_FORBIDDEN_PATTERNS } from './constants.ts';
 import { ValidationResult } from './types.ts';
 
 export function validateContent(content: string, contentType?: string): ValidationResult {
   const issues: string[] = [];
-  
-  // Use more relaxed validation that allows better formatting
-  const patterns = contentType === 'instagram' ? INSTAGRAM_FORBIDDEN_PATTERNS : FORBIDDEN_PATTERNS;
   
   // Focus on critical issues only - allow formatting elements
   const criticalPatterns = [
@@ -16,6 +12,7 @@ export function validateContent(content: string, contentType?: string): Validati
     /\[Location\]/gi,               // Location placeholder
     /\[Region\]/gi,                 // Region placeholder
     /Your Garden Center(?!\s+name)/gi, // Generic garden center reference (but allow "Your Garden Center name")
+    /\[.*?\]/gi,                    // Any remaining bracket placeholders
     /```[\s\S]*?```/g,              // Code blocks
   ];
   
@@ -29,7 +26,8 @@ export function validateContent(content: string, contentType?: string): Validati
         case 3:
         case 4: issues.push('Contains location placeholder'); break;
         case 5: issues.push('Contains generic garden center reference'); break;
-        case 6: issues.push('Contains code blocks'); break;
+        case 6: issues.push('Contains placeholder text in brackets'); break;
+        case 7: issues.push('Contains code blocks'); break;
       }
     }
   });

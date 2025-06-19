@@ -15,10 +15,10 @@ export async function generateContentWithValidation(prompt: string, openAIApiKey
       
 CRITICAL: The previous attempt had issues. You MUST:
 - Write in natural, engaging language appropriate for ${contentType || 'content'}
-- Use proper formatting: short paragraphs, bullet points, numbered lists where helpful
+- Use proper formatting: short paragraphs, bullet points, numbered lists, emojis when appropriate
 - NEVER use square brackets like [Company Name] or [Location] - use actual names or "we"/"our"
 - Write like a professional garden center expert speaking to customers
-${contentType === 'instagram' ? '- Use emojis and social media formatting naturally' : '- Use formatting that improves readability'}
+- Use formatting that improves readability and engagement
       
 IMMEDIATE REJECTION if content contains:
 - Any text in square brackets [like this]
@@ -36,17 +36,17 @@ IMMEDIATE REJECTION if content contains:
         messages: [
           { 
             role: 'system', 
-            content: `You are a professional garden center content writer who creates engaging, well-formatted content. You use natural formatting including paragraphs, bullet points, and lists to improve readability. You NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business.
+            content: `You are a professional garden center content writer who creates engaging, well-formatted content. You use natural formatting including paragraphs, bullet points, numbered lists, and emojis to improve readability and engagement. You NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business.
 
 CONTENT FORMATTING GUIDELINES:
 1. Use short, readable paragraphs (2-3 sentences)
 2. Use bullet points or numbered lists when they improve clarity
-3. Include emojis for social media content when appropriate
+3. Include emojis for social media content when appropriate and engaging
 4. Use proper spacing and formatting for the content type
 5. Write conversationally but professionally
-${contentType === 'instagram' ? '6. For Instagram: Use natural social media formatting with emojis and hashtags' : '6. Format appropriately for the content type'}
+6. Format content to maximize engagement and readability for the platform
 
-You write content that real garden center customers would want to read and engage with.` 
+You write content that real garden center customers would want to read, share, and engage with.` 
           },
           { role: 'user', content: enhancedPrompt }
         ],
@@ -62,7 +62,7 @@ You write content that real garden center customers would want to read and engag
     const data = await response.json();
     const generatedContent = data.choices[0].message.content;
     
-    // Validate content with more permissive rules
+    // Validate content with relaxed rules focused on real issues
     const validation = validateContent(generatedContent, contentType);
     
     if (validation.isValid) {

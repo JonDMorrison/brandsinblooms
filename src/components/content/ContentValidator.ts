@@ -1,5 +1,5 @@
 
-import { validateContent, FORBIDDEN_PATTERNS, FORBIDDEN_PHRASES } from '../../utils/contentValidation';
+import { validateContent } from '../../utils/contentValidation';
 import type { ValidationResult } from '../../types/contentGeneration';
 
 export type { ValidationResult };
@@ -43,6 +43,7 @@ export class ContentValidator {
       }
     }
     
+    // Only attempt basic cleanup for placeholder issues - preserve all formatting
     const cleanedContent = this.attemptBasicCleanup(currentContent);
     const finalValidation = this.validate(cleanedContent);
     
@@ -56,16 +57,16 @@ export class ContentValidator {
   private static attemptBasicCleanup(content: string): string {
     let cleaned = content;
     
-    cleaned = cleaned.replace(/green\s*thumb[s]?/gi, 'gardening skills');
-    cleaned = cleaned.replace(/welcome\s*to[^.!?]*/gi, '');
-    cleaned = cleaned.replace(/week\s*\d+/gi, 'this season');
-    cleaned = cleaned.replace(/this\s*week/gi, 'right now');
-    cleaned = cleaned.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]/gu, '');
-    cleaned = cleaned.replace(/^\s*[-•]\s*(.+)$/gm, '$1. ');
-    cleaned = cleaned.replace(/^\s*\d+\.\s*(.+)$/gm, '$1. ');
-    cleaned = cleaned.replace(/\s+/g, ' ').trim();
+    // Only clean up actual placeholder issues - preserve all formatting
+    cleaned = cleaned.replace(/\[company\s*name\]/gi, 'we');
+    cleaned = cleaned.replace(/\[garden\s*center\s*name\]/gi, 'our garden center');
+    cleaned = cleaned.replace(/\[business\s*name\]/gi, 'our business');
+    cleaned = cleaned.replace(/your\s*garden\s*center(?!\s+name)/gi, 'our garden center');
+    cleaned = cleaned.replace(/\[region\]/gi, 'your area');
+    cleaned = cleaned.replace(/\[location\]/gi, 'your area');
+    cleaned = cleaned.replace(/\[garden\s*center\s*location\]/gi, 'your area');
     
-    return cleaned;
+    return cleaned.trim();
   }
   
   static getValidationSummary(issues: string[]): string {
