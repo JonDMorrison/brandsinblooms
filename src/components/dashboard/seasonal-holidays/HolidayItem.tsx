@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useState } from "react";
 import { PremiumButton } from "@/components/ui/premium-button";
@@ -188,11 +187,9 @@ export const HolidayItem = ({
           seasonalTheme.accent
         )}>
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center flex-shrink-0">
-              <Target className="w-4 h-4 text-green-600" />
-            </div>
             <div className="flex-1">
               <CaptionMedium className="font-semibold text-gray-800 mb-1">
+                <Target className="w-4 h-4 text-green-600 inline mr-2" />
                 Marketing Opportunity
               </CaptionMedium>
               <CaptionMedium className="text-gray-700 leading-relaxed">
