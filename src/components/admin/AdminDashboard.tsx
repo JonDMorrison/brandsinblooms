@@ -1,4 +1,5 @@
 
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RevenueSection } from "./RevenueSection";  
 import { EnhancedUserTable } from "./EnhancedUserTable";
@@ -67,24 +68,6 @@ export const AdminDashboard = () => {
           />
         </div>
 
-        {/* Duplicate accounts warning */}
-        {duplicateUsers.length > 0 && (
-          <Card className="border-gray-200 bg-gray-50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-gray-800 text-lg flex items-center gap-2">
-                <span>⚠️</span>
-                Duplicate Accounts Detected
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-700 text-sm">
-                Found {duplicateUsers.length} duplicate accounts across {detailedUsers.length - uniqueEmails} users. 
-                These accounts are highlighted in grey below.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         {usersLoading ? (
           <Card>
             <CardContent className="flex items-center justify-center py-20">
@@ -98,3 +81,4 @@ export const AdminDashboard = () => {
     </div>
   );
 };
+
