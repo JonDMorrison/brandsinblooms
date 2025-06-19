@@ -4,6 +4,7 @@ import { EditableBusinessName } from '@/components/EditableBusinessName';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DisplayMedium, BodyLarge } from '@/components/ui/typography';
+import { extractCompanyName } from '@/utils/companyNameUtils';
 
 interface WelcomeSectionProps {
   onboardingData: any;
@@ -51,11 +52,11 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
         if (onboardingData?.aboutBusiness) {
           console.log('WelcomeSection: Extracting business name from onboarding data');
           const aboutText = onboardingData.aboutBusiness;
-          const firstSentence = aboutText.split('.')[0];
           
-          const nameMatch = firstSentence.match(/^([^,]+?)(?:\s+(?:has been|is|provides|offers|specializes))/);
-          if (nameMatch) {
-            const extractedName = nameMatch[1].trim();
+          // Use the new utility function for extraction
+          const extractedName = extractCompanyName(aboutText);
+          
+          if (extractedName) {
             console.log('WelcomeSection: Extracted business name:', extractedName);
             setBusinessName(extractedName);
             
@@ -74,24 +75,8 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
               console.warn('WelcomeSection: Could not save extracted name to profile:', saveError);
               // Continue anyway - the name is still set locally
             }
-          } else if (firstSentence.length < 50) {
-            const extractedName = firstSentence.trim();
-            console.log('WelcomeSection: Using first sentence as business name:', extractedName);
-            setBusinessName(extractedName);
-            
-            // Try to save to company profile
-            try {
-              await supabase
-                .from('company_profiles')
-                .upsert({
-                  user_id: user.id,
-                  company_name: extractedName
-                }, {
-                  onConflict: 'user_id'
-                });
-            } catch (saveError) {
-              console.warn('WelcomeSection: Could not save extracted name to profile:', saveError);
-            }
+          } else {
+            console.log('WelcomeSection: Could not extract clean company name from onboarding data');
           }
         }
       } catch (error) {
