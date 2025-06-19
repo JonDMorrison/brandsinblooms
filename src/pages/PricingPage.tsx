@@ -38,6 +38,8 @@ const PricingPage = () => {
     setLoadingPlan(plan);
     
     try {
+      console.log('Creating checkout session for:', { plan, billingInterval: isAnnual ? 'annual' : 'monthly' });
+      
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
           plan: plan,
@@ -45,16 +47,36 @@ const PricingPage = () => {
         }
       });
 
+      console.log('Checkout response:', { data, error });
+
       if (error) {
-        throw error;
+        console.error('Supabase function error:', error);
+        if (error.message?.includes('configuration')) {
+          toast.error('Payment system is not configured. Please contact support.');
+        } else if (error.message?.includes('authentication')) {
+          toast.error('Authentication required. Please sign in and try again.');
+        } else {
+          toast.error('Failed to start checkout. Please try again or contact support.');
+        }
+        return;
+      }
+
+      if (data?.error) {
+        console.error('Function returned error:', data.error);
+        toast.error(data.error);
+        return;
       }
 
       if (data?.url) {
+        console.log('Redirecting to Stripe checkout:', data.url);
         window.location.href = data.url;
+      } else {
+        console.error('No checkout URL received:', data);
+        toast.error('Invalid response from payment system. Please try again.');
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
-      toast.error('Failed to start checkout. Please try again.');
+      toast.error('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
       setLoadingPlan(null);
