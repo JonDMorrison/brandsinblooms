@@ -175,7 +175,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
         progress={progress}
       />
 
-      <Card className="rounded-xl">
+      <Card className="rounded-xl enhanced-user-table">
         <CardHeader>
           <CardTitle className="text-xl">All Users ({users.length})</CardTitle>
           <p className="text-sm text-gray-600">
@@ -216,6 +216,12 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                       ${user.is_duplicate ? 'bg-gray-50' : ''} 
                       ${isSelected ? 'bg-gray-50 border-gray-200' : ''}
                     `}
+                    style={{
+                      backgroundColor: isSelected ? '#F9FAFB' : undefined,
+                      borderColor: isSelected ? '#E5E7EB' : undefined,
+                      borderWidth: isSelected ? '1px' : undefined,
+                      borderStyle: isSelected ? 'solid' : undefined
+                    }}
                   >
                     <TableCell>
                       <Checkbox

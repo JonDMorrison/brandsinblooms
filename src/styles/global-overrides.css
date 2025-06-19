@@ -51,6 +51,29 @@ body, html, #root {
   background-color: #FFFFFF !important;
 }
 
+/* SPECIFIC FIX FOR ADMIN USER TABLE YELLOW BORDERS */
+/* Target the EnhancedUserTable component specifically */
+.enhanced-user-table tr,
+.enhanced-user-table tr.selected,
+.enhanced-user-table tr[data-state="selected"],
+.enhanced-user-table tbody tr,
+table tbody tr.bg-gray-50,
+table tbody tr[class*="selected"] {
+  background-color: #F9FAFB !important; /* Very light gray */
+  border-color: #E5E7EB !important; /* Light gray border */
+}
+
+/* Override any table row selection states */
+[role="table"] tr[data-state="selected"],
+[role="table"] tr.selected,
+table tr[data-state="selected"],
+table tr.selected {
+  background-color: #F9FAFB !important;
+  border: 1px solid #E5E7EB !important;
+  border-left: 3px solid #E5E7EB !important;
+  border-right: 3px solid #E5E7EB !important;
+}
+
 /* COMPREHENSIVE YELLOW/AMBER ELIMINATION - GLOBAL OVERRIDES */
 
 /* NUCLEAR OPTION: Override ALL yellow/amber Tailwind classes globally */
@@ -116,7 +139,7 @@ body, html, #root {
 .border-yellow-700,
 .border-yellow-800,
 .border-yellow-900 {
-  border-color: rgb(76 175 80) !important; /* Garden green */
+  border-color: rgb(229 231 235) !important; /* Light gray instead of garden green */
 }
 
 .border-amber-50,
@@ -129,7 +152,7 @@ body, html, #root {
 .border-amber-700,
 .border-amber-800,
 .border-amber-900 {
-  border-color: rgb(255 152 0) !important; /* Orange */
+  border-color: rgb(229 231 235) !important; /* Light gray instead of orange */
 }
 
 .ring-yellow-50,
@@ -152,7 +175,7 @@ body, html, #root {
 .focus\:ring-yellow-700:focus,
 .focus\:ring-yellow-800:focus,
 .focus\:ring-yellow-900:focus {
-  --tw-ring-color: rgb(76 175 80) !important; /* Garden green */
+  --tw-ring-color: rgb(229 231 235) !important; /* Light gray */
 }
 
 .ring-amber-50,
@@ -175,7 +198,7 @@ body, html, #root {
 .focus\:ring-amber-700:focus,
 .focus\:ring-amber-800:focus,
 .focus\:ring-amber-900:focus {
-  --tw-ring-color: rgb(255 152 0) !important; /* Orange */
+  --tw-ring-color: rgb(229 231 235) !important; /* Light gray */
 }
 
 /* Override ANY inline yellow/amber styles with white backgrounds */
@@ -212,8 +235,16 @@ body, html, #root {
 [style*="border-color: #FFC107"],
 [style*="border-color: #FFD600"],
 [style*="border-color: #F59E0B"],
-[style*="border-color: #D97706"] {
-  border-color: rgb(76 175 80) !important; /* Garden green */
+[style*="border-color: #D97706"],
+[style*="border: 1px solid #FBBC05"],
+[style*="border: 1px solid #FDD835"],
+[style*="border: 1px solid #FFEB3B"],
+[style*="border: 1px solid #FFC107"],
+[style*="border: 1px solid #FFD600"],
+[style*="border: 1px solid #F59E0B"],
+[style*="border: 1px solid #D97706"] {
+  border-color: rgb(229 231 235) !important; /* Light gray */
+  border: 1px solid rgb(229 231 235) !important;
 }
 
 /* Target badge and status components specifically */
@@ -225,7 +256,7 @@ body, html, #root {
 .status-badge[class*="amber"] {
   background-color: #FFFFFF !important; /* Force white */
   color: rgb(46 125 50) !important; /* Garden green dark */
-  border-color: rgb(76 175 80) !important; /* Garden green */
+  border-color: rgb(229 231 235) !important; /* Light gray */
 }
 
 /* Target status indicators specifically */
@@ -305,7 +336,7 @@ svg [stroke="#FFD600"] {
   /* Force override any class containing yellow or amber */
   background-color: #FFFFFF !important;
   color: rgb(46 125 50) !important;
-  border-color: rgb(76 175 80) !important;
+  border-color: rgb(229 231 235) !important;
 }
 
 /* Final fallback for any missed yellow elements */
@@ -317,7 +348,7 @@ body .purge-yellow *[style*="#FDD835"],
 body .purge-yellow *[style*="#FFEB3B"] {
   background-color: #FFFFFF !important;
   color: rgb(46 125 50) !important;
-  border-color: rgb(76 175 80) !important;
+  border-color: rgb(229 231 235) !important;
 }
 
 /* ULTIMATE NUCLEAR OPTION - Override browser default selection colors */
