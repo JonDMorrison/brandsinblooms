@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PlatformChip } from "@/components/ui/platform-chip";
-import { stripMarkdown, truncateText, getStatusConfig } from "@/utils/contentUtils";
+import { stripMarkdown, truncateText, getStatusConfig, isSupportedPostType } from "@/utils/contentUtils";
 import { useTaskImages } from "@/hooks/useTaskImages";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
@@ -48,6 +46,12 @@ const cleanContentForDisplay = (content: string): string => {
 
 export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTaskItemProps) => {
   console.log('AccordionTaskItem: Rendering task:', task.id, task.post_type, task.status);
+  
+  // Don't render unsupported post types
+  if (!isSupportedPostType(task.post_type)) {
+    console.log('AccordionTaskItem: Filtering out unsupported post type:', task.post_type);
+    return null;
+  }
   
   const { images, imageCount, loading: imagesLoading } = useTaskImages(task?.id);
   const [approvingTask, setApprovingTask] = useState(false);
@@ -260,4 +264,3 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
     </Accordion>
   );
 };
-

@@ -33,14 +33,23 @@ const formatPostTypeName = (postType: string) => {
       return 'Video';
     case 'email':
       return 'Blog'; // Map email to Blog as they seem to be the same content type
-    case 'linkedin':
-      return 'LinkedIn'; // Properly capitalized LinkedIn
     default:
       return postType.charAt(0).toUpperCase() + postType.slice(1);
   }
 };
 
+// Filter function to only allow supported post types
+const isSupportedPostType = (postType: string): boolean => {
+  const supportedTypes = ['instagram', 'facebook', 'newsletter', 'blog', 'video', 'email'];
+  return supportedTypes.includes(postType.toLowerCase());
+};
+
 export const PlatformChip = ({ postType, className }: PlatformChipProps) => {
+  // Don't render unsupported post types
+  if (!isSupportedPostType(postType)) {
+    return null;
+  }
+
   const configs = {
     newsletter: {
       icon: 'Mail',
@@ -77,12 +86,6 @@ export const PlatformChip = ({ postType, className }: PlatformChipProps) => {
       bgColor: 'bg-pink-50',
       textColor: 'text-pink-700',
       borderColor: 'border-pink-200'
-    },
-    linkedin: {
-      icon: 'Linkedin',
-      bgColor: 'bg-blue-50',
-      textColor: 'text-blue-700',
-      borderColor: 'border-blue-200'
     }
   };
 
