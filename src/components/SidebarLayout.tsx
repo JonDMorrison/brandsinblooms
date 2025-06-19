@@ -1,13 +1,11 @@
+
 import { ReactNode, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
 import { TrialBanner } from "@/components/TrialBanner";
-import { WelcomeSection } from "@/components/homepage/WelcomeSection";
 import { UserMenu } from "@/components/UserMenu";
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent } from "@/components/ui/apple-card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -124,24 +122,6 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
                 <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
                   <UserMenu />
                 </div>
-
-                <EnhancedAppleCard 
-                  variant="default" 
-                  surface="primary" 
-                  className="border-0 border-b border-gray-200 rounded-none shadow-sm bg-white"
-                  hoverEffect="none"
-                  animated={true}
-                >
-                  <AppleCardContent className={`
-                    bg-white
-                    ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
-                  `}>
-                    <WelcomeSection 
-                      onboardingData={onboardingData}
-                      onBusinessNameChange={handleBusinessNameChange}
-                    />
-                  </AppleCardContent>
-                </EnhancedAppleCard>
                 
                 <div className={`
                   bg-white
