@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +19,13 @@ const PricingPage = () => {
   const [loading, setLoading] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const { user } = useAuth();
+
+  // Debug logging for annual toggle
+  const handleAnnualToggle = (checked: boolean) => {
+    console.log('Annual toggle clicked:', { from: isAnnual, to: checked });
+    setIsAnnual(checked);
+    console.log('Annual state updated to:', checked);
+  };
 
   const handleStartTrial = () => {
     navigate('/auth');
@@ -73,6 +81,15 @@ const PricingPage = () => {
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [navigate]);
+
+  // Debug effect to log pricing changes
+  useEffect(() => {
+    console.log('Pricing display updated:', {
+      isAnnual,
+      sproutPrice: isAnnual ? '32' : '39',
+      bloomPrice: isAnnual ? '66' : '79'
+    });
+  }, [isAnnual]);
 
   const sproutFeatures = [
     "Weekly AI-generated campaign prompts",
@@ -170,21 +187,29 @@ const PricingPage = () => {
       {/* Pricing Plans Section */}
       <section className="py-12 px-6 bg-white/60">
         <div className="max-w-6xl mx-auto">
-          {/* Pricing Toggle */}
+          {/* Pricing Toggle with enhanced styling and debugging */}
           <div className="flex items-center justify-center gap-4 mb-12">
-            <span className={`text-lg ${!isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600'}`}>
+            <span className={`text-lg transition-all duration-200 ${!isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600'}`}>
               Monthly
             </span>
-            <Switch 
-              checked={isAnnual} 
-              onCheckedChange={setIsAnnual}
-              className="data-[state=checked]:bg-garden-green"
-            />
-            <span className={`text-lg ${isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600'}`}>
+            <div className="relative">
+              <Switch 
+                checked={isAnnual} 
+                onCheckedChange={handleAnnualToggle}
+                className="data-[state=checked]:bg-garden-green pointer-events-auto cursor-pointer relative z-10"
+                style={{ pointerEvents: 'auto' }}
+                onClick={() => console.log('Switch clicked directly')}
+              />
+              {/* Debug indicator */}
+              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs text-gray-500">
+                {isAnnual ? 'Annual' : 'Monthly'}
+              </div>
+            </div>
+            <span className={`text-lg transition-all duration-200 ${isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600'}`}>
               Annual
             </span>
             {isAnnual && (
-              <Badge className="bg-warning-500 text-warning-foreground ml-2">
+              <Badge className="bg-garden-green text-white ml-2 animate-in slide-in-from-left duration-200">
                 Save 17%
               </Badge>
             )}
