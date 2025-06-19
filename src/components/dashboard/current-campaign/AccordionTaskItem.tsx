@@ -152,10 +152,10 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
         <AccordionContent className="px-4 pb-4">
           <div className="space-y-4">
-            {/* Full content - now with proper blog formatting */}
+            {/* Full content - now with proper blog and newsletter formatting */}
             {hasContent && (
               <div className="bg-gray-50 rounded-lg p-3">
-                {task.post_type === 'blog' ? (
+                {(task.post_type === 'blog' || task.post_type === 'newsletter') ? (
                   <div 
                     className="text-sm text-gray-800 leading-relaxed prose prose-sm max-w-none"
                     dangerouslySetInnerHTML={{ __html: cleanContent }}

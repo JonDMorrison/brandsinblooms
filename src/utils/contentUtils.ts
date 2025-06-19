@@ -59,12 +59,12 @@ export const formatBlogContent = (text: string): string => {
     .trim();
 };
 
-// Enhanced cleaning function that preserves structure for blog posts
+// Enhanced cleaning function that preserves structure for blog posts and newsletters
 export const cleanContentForDisplay = (content: string, postType: string = ''): string => {
   if (!content) return '';
   
-  // For blog posts, preserve more structure
-  if (postType === 'blog') {
+  // For blog posts and newsletters, preserve more structure
+  if (postType === 'blog' || postType === 'newsletter') {
     return formatBlogContent(content);
   }
   

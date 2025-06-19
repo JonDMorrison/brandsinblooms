@@ -42,7 +42,7 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
       <h3 className="text-sm font-medium text-gray-700">Content</h3>
       <div className="p-4 bg-gray-50 rounded-md border min-h-[400px]">
         {displayContent ? (
-          task?.post_type === 'blog' ? (
+          (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
             <div 
               className="text-sm prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{ __html: displayContent }}
