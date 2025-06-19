@@ -1,12 +1,24 @@
-
 // Content filtering utilities
 export const SUPPORTED_POST_TYPES = ['instagram', 'facebook', 'newsletter', 'email', 'blog', 'video'] as const;
 
 export type SupportedPostType = typeof SUPPORTED_POST_TYPES[number];
 
-// Filter function to remove unsupported content types
-export const filterSupportedContent = <T extends { post_type: string }>(items: T[]): T[] => {
-  return items.filter(item => SUPPORTED_POST_TYPES.includes(item.post_type as SupportedPostType));
+// Filter function to remove unsupported content types and duplicate blog posts
+export const filterSupportedContent = <T extends { post_type: string, campaign_id?: string }>(items: T[]): T[] => {
+  const filteredItems = items.filter(item => SUPPORTED_POST_TYPES.includes(item.post_type as SupportedPostType));
+  
+  // Remove duplicate blog posts - keep only the first blog post per campaign
+  const seenBlogs = new Set<string>();
+  return filteredItems.filter(item => {
+    if (item.post_type === 'blog') {
+      const campaignKey = item.campaign_id || 'default';
+      if (seenBlogs.has(campaignKey)) {
+        return false; // Skip duplicate blog
+      }
+      seenBlogs.add(campaignKey);
+    }
+    return true;
+  });
 };
 
 // Check if a post type is supported
