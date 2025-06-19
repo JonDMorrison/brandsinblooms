@@ -1,4 +1,3 @@
-
 // Content filtering utilities
 export const SUPPORTED_POST_TYPES = ['instagram', 'facebook', 'newsletter', 'email', 'blog', 'video'] as const;
 
@@ -32,30 +31,41 @@ export const stripMarkdown = (text: string): string => {
     .trim();
 };
 
-// New function to preserve blog formatting
+// Enhanced blog content formatting for the polished layout
 export const formatBlogContent = (text: string): string => {
   if (!text) return '';
   
   return text
-    // Convert markdown headers to proper formatting
-    .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
-    .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
-    .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
-    .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')
-    // Convert bold and italic
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Convert lists
-    .replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+    // Convert markdown headers to proper formatting with better styling
+    .replace(/^#{1}\s+(.+)$/gm, '<h1 class="text-4xl font-bold font-display text-slate-900 mt-12 mb-6 first:mt-0">$1</h1>')
+    .replace(/^#{2}\s+(.+)$/gm, '<h2 class="text-3xl font-semibold font-display text-slate-900 mt-10 mb-4">$1</h2>')
+    .replace(/^#{3}\s+(.+)$/gm, '<h3 class="text-2xl font-semibold font-display text-slate-900 mt-8 mb-3">$1</h3>')
+    .replace(/^#{4}\s+(.+)$/gm, '<h4 class="text-xl font-semibold font-display text-slate-900 mt-6 mb-2">$1</h4>')
+    // Convert bold and italic with better styling
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-slate-700">$1</em>')
+    // Convert blockquotes with custom styling
+    .replace(/^>\s+(.+)$/gm, '<blockquote class="border-l-4 border-primary bg-primary/5 pl-6 py-4 my-6 italic text-slate-700">$1</blockquote>')
+    // Convert lists with custom styling
+    .replace(/^\s*[-*+]\s+(.+)$/gm, '<li class="mb-2 text-slate-700">$1</li>')
+    .replace(/(<li>.*<\/li>)/gs, '<ul class="list-disc list-inside space-y-2 my-6 text-slate-700">$1</ul>')
     .replace(/<\/ul>\s*<ul>/g, '') // Combine consecutive lists
-    // Convert line breaks to paragraphs
-    .replace(/\n\n+/g, '</p><p>')
-    .replace(/^(?!<[h1-6]|<ul|<li)(.+)$/gm, '<p>$1</p>')
+    // Convert numbered lists
+    .replace(/^\s*\d+\.\s+(.+)$/gm, '<li class="mb-2 text-slate-700">$1</li>')
+    .replace(/(<li class="mb-2 text-slate-700">(?:(?!<li).)*<\/li>\s*)+/gs, (match) => {
+      return `<ol class="list-decimal list-inside space-y-2 my-6 text-slate-700">${match}</ol>`;
+    })
+    // Convert paragraphs with proper spacing
+    .replace(/\n\n+/g, '</p><p class="mb-6 text-slate-700 leading-relaxed">')
+    .replace(/^(?!<[h1-6]|<ul|<ol|<li|<blockquote)(.+)$/gm, '<p class="mb-6 text-slate-700 leading-relaxed">$1</p>')
     // Clean up empty paragraphs and fix formatting
-    .replace(/<p><\/p>/g, '')
-    .replace(/<p>(<[h1-6])/g, '$1')
+    .replace(/<p[^>]*><\/p>/g, '')
+    .replace(/<p[^>]*>(<[h1-6])/g, '$1')
     .replace(/(<\/[h1-6]>)<\/p>/g, '$1')
+    // Add call-out support
+    .replace(/\[!TIP\]\s*\n(.*?)(?=\n\n|\n$|$)/gs, '<aside class="bg-primary/10 border-l-4 border-primary rounded-lg p-4 my-8"><p class="m-0 text-slate-700">💡 $1</p></aside>')
+    .replace(/\[!NOTE\]\s*\n(.*?)(?=\n\n|\n$|$)/gs, '<aside class="bg-blue-50 border-l-4 border-blue-400 rounded-lg p-4 my-8"><p class="m-0 text-slate-700">📝 $1</p></aside>')
+    .replace(/\[!WARNING\]\s*\n(.*?)(?=\n\n|\n$|$)/gs, '<aside class="bg-orange-50 border-l-4 border-orange-400 rounded-lg p-4 my-8"><p class="m-0 text-slate-700">⚠️ $1</p></aside>')
     .trim();
 };
 
@@ -87,6 +97,22 @@ export const cleanContentForDisplay = (content: string, postType: string = ''): 
     .trim();
     
   return cleaned;
+};
+
+// Extract blog metadata from content
+export const extractBlogMetadata = (content: string) => {
+  const titleMatch = content.match(/<h1[^>]*>(.*?)<\/h1>/i) || content.match(/^#\s+(.+)$/m);
+  const title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : null;
+  
+  // Estimate reading time (average 200 words per minute)
+  const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
+  const readingTime = Math.ceil(wordCount / 200);
+  
+  return {
+    title,
+    readingTime,
+    wordCount
+  };
 };
 
 export const truncateText = (text: string, maxLength: number, suffix: string = '...'): string => {

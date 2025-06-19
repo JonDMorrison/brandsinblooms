@@ -7,11 +7,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PlatformChip } from "@/components/ui/platform-chip";
-import { stripMarkdown, truncateText, getStatusConfig, isSupportedPostType, cleanContentForDisplay } from "@/utils/contentUtils";
+import { stripMarkdown, truncateText, getStatusConfig, isSupportedPostType, cleanContentForDisplay, extractBlogMetadata } from "@/utils/contentUtils";
 import { useTaskImages } from "@/hooks/useTaskImages";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { ApproveButton } from "@/components/ui/approve-button";
+import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 
 interface AccordionTaskItemProps {
   task: any;
@@ -36,6 +37,9 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
   const statusConfig = getStatusConfig(task.status);
   const hasContent = task.ai_output && task.ai_output.trim() !== '';
   const cleanContent = hasContent ? cleanContentForDisplay(task.ai_output, task.post_type) : '';
+  
+  // Extract blog metadata for enhanced display
+  const blogMetadata = task.post_type === 'blog' && hasContent ? extractBlogMetadata(cleanContent) : null;
   
   // For preview, strip HTML tags but keep text structure
   const previewText = cleanContent ? 
@@ -122,9 +126,14 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
           <div className="flex flex-col w-full space-y-2">
             {/* First row - Platform chip and badges */}
             <div className="flex items-center justify-between w-full">
-              {/* Left cluster - Just platform chip */}
+              {/* Left cluster - Platform chip with enhanced blog title */}
               <div className="flex items-center gap-3">
                 <PlatformChip postType={task.post_type} />
+                {task.post_type === 'blog' && blogMetadata?.title && (
+                  <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
+                    {blogMetadata.title}
+                  </span>
+                )}
               </div>
 
               {/* Right cluster */}
@@ -132,6 +141,11 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
                 <Badge className={`${statusConfig.bgColor} ${statusConfig.textColor} border-0`}>
                   {statusConfig.label}
                 </Badge>
+                {blogMetadata?.readingTime && (
+                  <span className="text-xs text-gray-500">
+                    {blogMetadata.readingTime} min read
+                  </span>
+                )}
                 {imageCount > 0 && (
                   <div className="flex items-center gap-1 text-sm text-gray-500">
                     <Image className="w-3 h-3" />
@@ -152,17 +166,28 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
         <AccordionContent className="px-4 pb-4">
           <div className="space-y-4">
-            {/* Full content - now with proper blog and newsletter formatting */}
+            {/* Enhanced content display with blog polish */}
             {hasContent && (
-              <div className="bg-gray-50 rounded-lg p-3">
-                {(task.post_type === 'blog' || task.post_type === 'newsletter') ? (
-                  <div 
-                    className="text-sm text-gray-800 leading-relaxed prose prose-sm max-w-none"
-                    dangerouslySetInnerHTML={{ __html: cleanContent }}
+              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                {task.post_type === 'blog' ? (
+                  <BlogPostLayout
+                    title={blogMetadata?.title}
+                    companyName={task.campaigns?.company_profiles?.business_name}
+                    content={cleanContent}
+                    className="bg-white min-h-0"
                   />
+                ) : (task.post_type === 'newsletter') ? (
+                  <div className="p-6">
+                    <div 
+                      className="prose prose-lg prose-headings:font-display prose-a:text-primary prose-strong:text-slate-900 prose-li:marker:text-primary max-w-none"
+                      dangerouslySetInnerHTML={{ __html: cleanContent }}
+                    />
+                  </div>
                 ) : (
-                  <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                    {cleanContent.replace(/<[^>]*>/g, '')}
+                  <div className="p-4 bg-gray-50">
+                    <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                      {cleanContent.replace(/<[^>]*>/g, '')}
+                    </div>
                   </div>
                 )}
               </div>

@@ -24,7 +24,10 @@ export default {
 			}
 		},
 		extend: {
-			fontFamily,
+			fontFamily: {
+				...fontFamily,
+				display: ['Inter', 'system-ui', 'sans-serif'],
+			},
 			fontSize,
 			fontWeight,
 			spacing: {
@@ -33,6 +36,10 @@ export default {
 			},
 			colors: {
 				...colors,
+				primary: {
+					...colors.primary,
+					DEFAULT: '#15803d', // Garden green for blog polish
+				},
 				// Enhanced brand tokens
 				'brand-green': {
 					DEFAULT: 'rgb(var(--brand-green))',
@@ -43,7 +50,7 @@ export default {
 					400: '#66BB6A',
 					500: '#22C55E', // Primary brand green
 					600: '#16A34A',
-					700: '#15803D',
+					700: '#15803D', // Updated for blog polish
 					800: '#166534',
 					900: '#14532D',
 				},
@@ -99,9 +106,24 @@ export default {
 				'lg': '1024px', // Key breakpoint for 12-column grid
 				'xl': '1280px',
 				'2xl': '1536px',
-			}
+			},
+			typography: {
+				DEFAULT: {
+					css: {
+						'--tw-prose-headings': '#1f2937',
+						'--tw-prose-links': '#15803d',
+						'--tw-prose-bold': '#111827',
+						'--tw-prose-counters': '#15803d',
+						'--tw-prose-bullets': '#15803d',
+						'--tw-prose-quotes': '#111827',
+						'--tw-prose-quote-borders': '#15803d',
+					},
+				},
+			},
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		require("@tailwindcss/typography"),
+	],
 } satisfies Config;
-
