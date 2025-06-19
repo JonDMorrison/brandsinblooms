@@ -20,6 +20,13 @@ interface DuplicateSuggestion {
   suggestion_reason: string;
 }
 
+interface DatabaseDuplicateSuggestion {
+  email: string;
+  accounts: any; // This is the Json type from Supabase
+  suggested_keep_user_id: string;
+  suggestion_reason: string;
+}
+
 export const useDuplicateManagement = () => {
   const [loading, setLoading] = useState(false);
   const [mergingPair, setMergingPair] = useState<{keep: string, merge: string} | null>(null);
@@ -44,7 +51,16 @@ export const useDuplicateManagement = () => {
       const { data, error } = await supabase.rpc('get_duplicate_merge_suggestions');
 
       if (error) throw error;
-      return data || [];
+      
+      // Transform the database response to match our TypeScript types
+      const suggestions: DuplicateSuggestion[] = (data as DatabaseDuplicateSuggestion[] || []).map(item => ({
+        email: item.email,
+        accounts: Array.isArray(item.accounts) ? item.accounts as DuplicateAccount[] : [],
+        suggested_keep_user_id: item.suggested_keep_user_id,
+        suggestion_reason: item.suggestion_reason
+      }));
+
+      return suggestions;
     } catch (error) {
       console.error('Error fetching duplicate suggestions:', error);
       toast.error('Failed to fetch duplicate suggestions');
