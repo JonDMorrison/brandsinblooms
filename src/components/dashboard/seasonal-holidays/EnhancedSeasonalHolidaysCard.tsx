@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { SeasonalHolidaysCard } from './SeasonalHolidaysCard';
 import { ThemePreview } from '@/components/content/ThemePreview';
 import { GenerationProgress } from '@/components/content/GenerationProgress';
-import { ContentStrategyExplainer } from '@/components/content/ContentStrategyExplainer';
 import { FirstTimeUserGuide } from '@/components/content/FirstTimeUserGuide';
 import { useUser } from '@/hooks/useUser';
 
@@ -52,9 +51,6 @@ export const EnhancedSeasonalHolidaysCard = ({ onContentGenerated }: EnhancedSea
           }}
         />
       )}
-
-      {/* Content Strategy Explainer */}
-      <ContentStrategyExplainer />
 
       {/* Generation Progress */}
       <GenerationProgress 
