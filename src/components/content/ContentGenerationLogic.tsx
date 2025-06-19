@@ -26,30 +26,41 @@ export const useContentGeneration = () => {
       if (missingTypes.length > 0) {
         console.log('📋 Creating missing task types:', missingTypes);
         for (const type of missingTypes) {
-          const { data: newTask, error: createError } = await supabase
-            .from('content_tasks')
-            .insert({
-              campaign_id: campaignId,
-              post_type: type,
-              status: 'planned',
-              scheduled_date: new Date().toISOString().split('T')[0]
-            })
-            .select()
-            .single();
+          try {
+            const { data: newTask, error: createError } = await supabase
+              .from('content_tasks')
+              .insert({
+                campaign_id: campaignId,
+                post_type: type,
+                status: 'planned',
+                scheduled_date: new Date().toISOString().split('T')[0],
+                user_id: userId
+              })
+              .select()
+              .single();
 
-          if (createError) {
-            console.error(`❌ Error creating ${type} task:`, createError);
-          } else {
-            console.log(`✅ Created new ${type} task:`, newTask.id);
-            tasksNeedingContent.push(newTask);
+            if (createError) {
+              console.error(`❌ Error creating ${type} task:`, createError);
+              toast.error(`Failed to create ${type} task: ${createError.message}`);
+            } else {
+              console.log(`✅ Created new ${type} task:`, newTask.id);
+              tasksNeedingContent.push(newTask);
+            }
+          } catch (error) {
+            console.error(`❌ Error creating ${type} task:`, error);
+            toast.error(`Failed to create ${type} task`);
           }
         }
       }
 
       if (tasksNeedingContent.length === 0) {
         console.log('✅ All tasks already have content');
+        toast.success('All content is already generated!');
         return true;
       }
+
+      // Show progress toast
+      toast.info(`Generating content for ${tasksNeedingContent.length} tasks...`);
 
       // Use parallel generation for much faster content creation
       const result = await generateContentInParallel(
@@ -59,10 +70,17 @@ export const useContentGeneration = () => {
         userId
       );
       
+      if (result.success) {
+        toast.success(`Successfully generated ${result.successCount} content pieces! ${result.failureCount > 0 ? `${result.failureCount} failed.` : ''}`);
+      } else {
+        toast.error(`Content generation failed: ${result.error || 'Unknown error'}`);
+      }
+      
       return result.success;
     } catch (error) {
       console.error('❌ Error in autoGenerateAllContent:', error);
-      toast.error('Failed to auto-generate content');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to generate content: ${errorMessage}`);
       return false;
     }
   };
@@ -79,6 +97,7 @@ export const useContentGeneration = () => {
 
       if (error) {
         console.error('❌ Error fetching tasks:', error);
+        toast.error(`Failed to fetch tasks: ${error.message}`);
         throw error;
       }
 
@@ -87,7 +106,8 @@ export const useContentGeneration = () => {
       return await autoGenerateAllContent(campaignId, campaignTitle, tasks || [], userId);
     } catch (error) {
       console.error('❌ Error in generateMissingContent:', error);
-      toast.error('Failed to generate missing content');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast.error(`Failed to generate missing content: ${errorMessage}`);
       return false;
     }
   };

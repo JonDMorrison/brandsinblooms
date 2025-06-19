@@ -26,8 +26,15 @@ export const handleError = (error: any, context: string): AppError => {
     isNetworkError: isNetworkError(error)
   };
 
-  if (appError.isNetworkError) {
+  // Provide more specific error messages for common issues
+  if (appError.message.includes('OpenAI API key not configured')) {
+    toast.error('OpenAI API key is not configured. Please contact support.');
+  } else if (appError.message.includes('Unsplash API key not configured')) {
+    toast.warning('Image generation temporarily unavailable. Content generated without images.');
+  } else if (appError.isNetworkError) {
     toast.warning(`Connection issue in ${context}. Using cached data when available.`);
+  } else if (appError.message.includes('Content generation failed')) {
+    toast.error('Content generation failed. Please try again or contact support.');
   } else {
     // Only show user-friendly error toast, detailed logs are in console
     toast.error(`Error in ${context}. Check console for details.`);

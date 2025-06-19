@@ -216,7 +216,7 @@ export const generateCampaignContent = async (
           results.push(task);
           console.log(`✅ Created ${type} content task with status 'review'`);
           
-          // Auto-generate images for the task
+          // Auto-generate images for the task (make this optional)
           try {
             console.log(`🖼️ Auto-generating images for ${type} content`);
             const imageQuery = extractImageKeywords(theme, description, type);

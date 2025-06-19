@@ -29,6 +29,10 @@ serve(async (req) => {
 
     console.log('Generating magazine-style newsletter:', { business_name, theme, week_focus, promo_items: promo_items.length });
 
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get company profile for additional context
