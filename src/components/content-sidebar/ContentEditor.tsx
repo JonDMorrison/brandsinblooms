@@ -1,6 +1,7 @@
 
 import { Textarea } from "@/components/ui/textarea";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
+import { StructuredNewsletterDisplay } from "./StructuredNewsletterDisplay";
 
 interface ContentEditorProps {
   content: string;
@@ -34,22 +35,24 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
     );
   }
 
-  // Format content for display based on post type
-  const displayContent = content ? cleanContentForDisplay(content, task?.post_type) : '';
-
+  // Check if this is a structured newsletter
+  const isStructuredNewsletter = task?.post_type === 'newsletter' && content.includes('newsletter_md:');
+  
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium text-gray-700">Content</h3>
       <div className="p-4 bg-gray-50 rounded-md border min-h-[400px]">
-        {displayContent ? (
-          (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
+        {content ? (
+          isStructuredNewsletter ? (
+            <StructuredNewsletterDisplay content={content} />
+          ) : (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
             <div 
               className="text-sm prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: displayContent }}
+              dangerouslySetInnerHTML={{ __html: cleanContentForDisplay(content, task?.post_type) }}
             />
           ) : (
             <div className="text-sm whitespace-pre-wrap">
-              {displayContent.replace(/<[^>]*>/g, '')}
+              {cleanContentForDisplay(content, task?.post_type).replace(/<[^>]*>/g, '')}
             </div>
           )
         ) : (

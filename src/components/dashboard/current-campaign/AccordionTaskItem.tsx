@@ -13,6 +13,7 @@ import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
+import { StructuredNewsletterDisplay } from "@/components/content-sidebar/StructuredNewsletterDisplay";
 
 interface AccordionTaskItemProps {
   task: any;
@@ -36,15 +37,33 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
   const statusConfig = getStatusConfig(task.status);
   const hasContent = task.ai_output && task.ai_output.trim() !== '';
-  const cleanContent = hasContent ? cleanContentForDisplay(task.ai_output, task.post_type) : '';
+  
+  // Check if this is a structured newsletter
+  const isStructuredNewsletter = task.post_type === 'newsletter' && hasContent && task.ai_output.includes('newsletter_md:');
+  
+  let cleanContent = '';
+  let previewText = '';
+  
+  if (hasContent) {
+    if (isStructuredNewsletter) {
+      // For structured newsletters, extract the markdown content for preview
+      const yamlMatch = task.ai_output.match(/newsletter_md:\s*\|\s*\n([\s\S]*?)(?=\nblocks:|$)/);
+      if (yamlMatch) {
+        cleanContent = yamlMatch[1].trim();
+        previewText = truncateText(cleanContent.replace(/[#*]/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
+      } else {
+        previewText = 'Structured newsletter content available...';
+      }
+    } else {
+      cleanContent = cleanContentForDisplay(task.ai_output, task.post_type);
+      previewText = truncateText(cleanContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
+    }
+  } else {
+    previewText = 'Content will be generated soon...';
+  }
   
   // Extract blog metadata for enhanced display
   const blogMetadata = task.post_type === 'blog' && hasContent ? extractBlogMetadata(cleanContent) : null;
-  
-  // For preview, strip HTML tags but keep text structure
-  const previewText = cleanContent ? 
-    truncateText(cleanContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(), 110, '…') : 
-    'Content will be generated soon...';
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -126,12 +145,17 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
           <div className="flex flex-col w-full space-y-2">
             {/* First row - Platform chip and badges */}
             <div className="flex items-center justify-between w-full">
-              {/* Left cluster - Platform chip with enhanced blog title */}
+              {/* Left cluster - Platform chip with enhanced title */}
               <div className="flex items-center gap-3">
                 <PlatformChip postType={task.post_type} />
                 {task.post_type === 'blog' && blogMetadata?.title && (
                   <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
                     {blogMetadata.title}
+                  </span>
+                )}
+                {isStructuredNewsletter && (
+                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                    Structured
                   </span>
                 )}
               </div>
@@ -155,7 +179,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
               </div>
             </div>
 
-            {/* Second row - Preview text (spans full width, chevron will be on the right) */}
+            {/* Second row - Preview text */}
             <div className="flex items-center justify-between w-full">
               <p className="text-sm text-gray-600 italic flex-1 text-left">
                 {previewText}
@@ -166,7 +190,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
         <AccordionContent className="px-4 pb-4">
           <div className="space-y-4">
-            {/* Enhanced content display with blog polish */}
+            {/* Enhanced content display */}
             {hasContent && (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {task.post_type === 'blog' ? (
@@ -176,6 +200,10 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
                     content={cleanContent}
                     className="bg-white min-h-0"
                   />
+                ) : isStructuredNewsletter ? (
+                  <div className="p-6">
+                    <StructuredNewsletterDisplay content={task.ai_output} />
+                  </div>
                 ) : (task.post_type === 'newsletter') ? (
                   <div className="p-6">
                     <div 

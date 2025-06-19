@@ -1,7 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-
-// REMOVED TOKEN SPENDING - Edge functions now handle this to prevent double charging
+import { generateStructuredNewsletter } from "./StructuredNewsletterService";
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
   console.log(`🎯 Generating validated ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
@@ -62,43 +60,6 @@ export const generatePersonalizedContent = async (postType: string, campaignTitl
   }
 };
 
-export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number, userId?: string, weekDescription?: string) => {
-  console.log(`🎯 Generating newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
-  
-  try {
-    console.log('📡 About to call generate-newsletter function');
-
-    const { data, error } = await supabase.functions.invoke('generate-newsletter', {
-      body: {
-        campaignId: campaignId,
-        campaignTitle: campaignTitle,
-        weekNumber: weekNumber,
-        weekDescription: weekDescription,
-        userId: userId,
-        enforceCompanyName: true
-      }
-    });
-
-    console.log('📨 Response from generate-newsletter function:', { data, error });
-
-    if (error) {
-      console.error('❌ Error generating newsletter content:', error);
-      throw new Error(`Newsletter generation failed: ${error.message || 'Unknown error'}`);
-    }
-
-    const content = data?.content || data?.generatedText;
-    if (!content) {
-      throw new Error('No newsletter content returned');
-    }
-
-    console.log(`✅ Generated newsletter content successfully (${content.length} chars):`, content.substring(0, 100) + '...');
-    return content;
-  } catch (error) {
-    console.error('❌ Error in generateNewsletterContent:', error);
-    throw error;
-  }
-};
-
 export const generateVideoScript = async (campaignTitle: string, userId?: string, weekDescription?: string) => {
   console.log(`🎯 Generating video script for: ${campaignTitle} with description: ${weekDescription}`);
   
@@ -134,6 +95,27 @@ export const generateVideoScript = async (campaignTitle: string, userId?: string
   }
 };
 
+export const generateNewsletterContent = async (campaignId: string, campaignTitle: string, weekNumber: number, userId?: string, weekDescription?: string) => {
+  console.log(`🎯 Generating structured newsletter content for campaign: ${campaignTitle} (Week ${weekNumber}) with description: ${weekDescription}`);
+  
+  try {
+    // Use the new structured newsletter generator
+    const content = await generateStructuredNewsletter(
+      campaignId,
+      campaignTitle,
+      weekNumber,
+      userId,
+      weekDescription
+    );
+
+    console.log(`✅ Generated structured newsletter content successfully`);
+    return content;
+  } catch (error) {
+    console.error('❌ Error in generateNewsletterContent:', error);
+    throw error;
+  }
+};
+
 export const generateCampaignContent = async (
   campaignId: string,
   theme: string,
@@ -155,7 +137,7 @@ export const generateCampaignContent = async (
         theme: theme,
         month: currentMonth,
         tone: 'professional',
-        channels: ['facebook', 'instagram', 'newsletter', 'blog', 'video'], // UPDATED: Replaced email with blog
+        channels: ['facebook', 'instagram', 'newsletter', 'blog', 'video'],
         campaignId: campaignId,
         userId: userId
       }
@@ -187,38 +169,27 @@ export const generateCampaignContent = async (
       throw new Error('Failed to process tokens for content generation');
     }
 
-    // Create content tasks for each type - UPDATED: Added blog content type
-    const contentTypes = ['newsletter', 'instagram', 'facebook', 'blog', 'video'];
+    // Create content tasks for each type
+    const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
     const results = [];
 
+    // Handle regular content types
     for (const type of contentTypes) {
       try {
-        let content = '';
-        
-        // Handle different content types from the structured response
-        if (type === 'newsletter') {
-          // Format newsletter blocks into a single content string
-          const blocks = generatedContent.newsletter || [];
-          content = blocks.map((block, index) => {
-            return `**${block.heading}**\n\n${block.body}\n\n*Image: ${block.image_prompt}*`;
-          }).join('\n\n---\n\n');
-        } else {
-          content = generatedContent[type] || '';
-        }
+        const content = generatedContent[type] || '';
 
         if (!content) {
           console.warn(`⚠️ No content generated for type: ${type}`);
           continue;
         }
 
-        // Create content task - FIXED: Set status to 'review' instead of 'generated' or 'posted'
         const { data: task, error: taskError } = await supabase
           .from('content_tasks')
           .insert({
             campaign_id: campaignId,
             post_type: type,
             ai_output: content,
-            status: 'review', // FIXED: Always set to 'review' so content requires explicit approval
+            status: 'review',
             scheduled_date: new Date().toISOString().split('T')[0],
             user_id: userId,
             notes: `Generated from theme: ${theme}`
@@ -230,7 +201,7 @@ export const generateCampaignContent = async (
           console.error(`❌ Error creating ${type} task:`, taskError);
         } else {
           results.push(task);
-          console.log(`✅ Created ${type} content task with status 'review' - requires approval`);
+          console.log(`✅ Created ${type} content task with status 'review'`);
           
           // Auto-generate images for the task
           try {
@@ -253,6 +224,41 @@ export const generateCampaignContent = async (
       } catch (error) {
         console.error(`❌ Error generating ${type} content:`, error);
       }
+    }
+
+    // Handle newsletter separately with structured format
+    try {
+      console.log('📰 Generating structured newsletter content');
+      const newsletterContent = await generateStructuredNewsletter(
+        campaignId,
+        theme,
+        1,
+        userId,
+        description
+      );
+
+      const { data: newsletterTask, error: newsletterError } = await supabase
+        .from('content_tasks')
+        .insert({
+          campaign_id: campaignId,
+          post_type: 'newsletter',
+          ai_output: newsletterContent,
+          status: 'review',
+          scheduled_date: new Date().toISOString().split('T')[0],
+          user_id: userId,
+          notes: `Structured newsletter generated from theme: ${theme}`
+        })
+        .select()
+        .single();
+
+      if (newsletterError) {
+        console.error('❌ Error creating newsletter task:', newsletterError);
+      } else {
+        results.push(newsletterTask);
+        console.log('✅ Created structured newsletter content task');
+      }
+    } catch (error) {
+      console.error('❌ Error generating structured newsletter:', error);
     }
 
     return {
