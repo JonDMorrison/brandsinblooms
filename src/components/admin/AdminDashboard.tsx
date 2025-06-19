@@ -2,7 +2,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RevenueSection } from "./RevenueSection";  
 import { EnhancedUserTable } from "./EnhancedUserTable";
-import { DuplicateManagementSection } from "./DuplicateManagementSection";
 import { UserSearch } from "./UserSearch";
 import { useAdminData } from "@/hooks/useAdminData";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
@@ -49,11 +48,6 @@ export const AdminDashboard = () => {
       {/* Revenue Section */}
       <RevenueSection metrics={metrics} />
 
-      {/* Duplicate Management Section */}
-      {duplicateUsers.length > 0 && (
-        <DuplicateManagementSection />
-      )}
-
       {/* Users Section */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -75,17 +69,17 @@ export const AdminDashboard = () => {
 
         {/* Duplicate accounts warning */}
         {duplicateUsers.length > 0 && (
-          <Card className="border-orange-200 bg-orange-50">
+          <Card className="border-gray-200 bg-gray-50">
             <CardHeader className="pb-3">
-              <CardTitle className="text-orange-800 text-lg flex items-center gap-2">
+              <CardTitle className="text-gray-800 text-lg flex items-center gap-2">
                 <span>⚠️</span>
                 Duplicate Accounts Detected
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-orange-700 text-sm">
+              <p className="text-gray-700 text-sm">
                 Found {duplicateUsers.length} duplicate accounts across {detailedUsers.length - uniqueEmails} users. 
-                These accounts are highlighted in yellow below. Use the Duplicate Management section above to safely merge accounts.
+                These accounts are highlighted in grey below.
               </p>
             </CardContent>
           </Card>
