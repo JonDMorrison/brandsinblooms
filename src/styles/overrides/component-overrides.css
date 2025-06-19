@@ -1,34 +1,11 @@
 
-/* SWITCH COMPONENT EMERGENCY FIXES */
-[data-radix-collection-item] {
-  pointer-events: auto !important;
+/* SWITCH COMPONENT FIXES */
+button[role="switch"] {
+  cursor: pointer !important;
 }
 
 /* Ensure switches are always clickable */
-button[role="switch"] {
-  pointer-events: auto !important;
-  cursor: pointer !important;
-  position: relative !important;
-  z-index: 10 !important;
-}
-
-/* Make sure switch container doesn't block clicks */
-.flex.items-center.justify-center.gap-4 {
-  pointer-events: auto !important;
-}
-
-/* Force switch to be interactive */
 [data-state="checked"],
 [data-state="unchecked"] {
   pointer-events: auto !important;
-  touch-action: manipulation !important;
-}
-
-/* Prevent any overlay blocking the switch */
-* {
-  max-z-index: 9 !important;
-}
-
-button[role="switch"] {
-  z-index: 999 !important;
 }

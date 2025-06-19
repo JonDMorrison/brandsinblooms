@@ -50,7 +50,6 @@ const PricingPage = () => {
       }
 
       if (data?.url) {
-        // Same-window redirect instead of new tab
         window.location.href = data.url;
       }
     } catch (error) {
@@ -69,24 +68,13 @@ const PricingPage = () => {
     
     if (checkout === 'success') {
       toast.success('Payment successful! Your subscription is now active.');
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
       navigate('/');
     } else if (checkout === 'cancelled') {
       toast.error('Checkout was cancelled.');
-      // Clean up URL
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [navigate]);
-
-  // Debug effect to log pricing changes
-  useEffect(() => {
-    console.log('Pricing display updated:', {
-      isAnnual,
-      sproutPrice: isAnnual ? '32' : '39',
-      bloomPrice: isAnnual ? '66' : '79'
-    });
-  }, [isAnnual]);
 
   return (
     <div className="min-h-screen bg-garden-background">

@@ -9,9 +9,7 @@ interface PricingToggleProps {
 
 export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
   const handleAnnualToggle = (checked: boolean) => {
-    console.log('Annual toggle clicked:', { from: isAnnual, to: checked });
     onToggle(checked);
-    console.log('Annual state updated to:', checked);
   };
 
   return (
@@ -23,14 +21,8 @@ export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
         <Switch 
           checked={isAnnual} 
           onCheckedChange={handleAnnualToggle}
-          className="data-[state=checked]:bg-garden-green pointer-events-auto cursor-pointer relative z-10"
-          style={{ pointerEvents: 'auto' }}
-          onClick={() => console.log('Switch clicked directly')}
+          className="data-[state=checked]:bg-garden-green"
         />
-        {/* Debug indicator */}
-        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs text-gray-500">
-          {isAnnual ? 'Annual' : 'Monthly'}
-        </div>
       </div>
       <span className={`text-lg transition-all duration-200 ${isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600'}`}>
         Annual
