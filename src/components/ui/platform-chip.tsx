@@ -30,6 +30,8 @@ const formatPostTypeName = (postType: string) => {
       return 'Blog';
     case 'video':
       return 'Video';
+    case 'email':
+      return 'Blog'; // Map email to Blog as they seem to be the same content type
     default:
       return postType.charAt(0).toUpperCase() + postType.slice(1);
   }
@@ -50,7 +52,13 @@ export const PlatformChip = ({ postType, className }: PlatformChipProps) => {
       borderColor: 'border-blue-200'
     },
     blog: {
-      icon: 'BookOpen',
+      icon: 'BookOpen',  
+      bgColor: 'bg-purple-50',
+      textColor: 'text-purple-700',
+      borderColor: 'border-purple-200'
+    },
+    email: {
+      icon: 'BookOpen', // Use BookOpen icon for email (which should display as Blog)
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-700',
       borderColor: 'border-purple-200'
