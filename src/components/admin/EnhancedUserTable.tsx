@@ -53,7 +53,7 @@ interface EnhancedUserTableProps {
 
 export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProps) => {
   const [deletingUser, setDeletingUser] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user: currentUser } = useAuth();
 
   const {
     selectedUserIds,
@@ -102,13 +102,13 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
     console.log(`[EnhancedUserTable] Starting deletion process for user: ${userId} (${userEmail})`);
     
     // Check if current user is super admin
-    if (!user?.email || !isSuperAdmin(user.email)) {
-      console.error(`[EnhancedUserTable] Access denied: Current user ${user?.email} is not a super admin`);
+    if (!currentUser?.email || !isSuperAdmin(currentUser.email)) {
+      console.error(`[EnhancedUserTable] Access denied: Current user ${currentUser?.email} is not a super admin`);
       toast.error('Access denied. Only super administrators can delete users.');
       return;
     }
 
-    console.log(`[EnhancedUserTable] Super admin check passed for: ${user.email}`);
+    console.log(`[EnhancedUserTable] Super admin check passed for: ${currentUser.email}`);
 
     if (deletingUser) {
       console.log(`[EnhancedUserTable] Another deletion in progress, ignoring request`);
@@ -360,8 +360,8 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                                   )}
                                   <div className="mt-2 p-2 bg-blue-50 rounded text-blue-800 text-sm">
                                     <strong>Admin Check:</strong> Only super administrators can delete users. 
-                                    Current user: {user?.email || 'Not logged in'} 
-                                    {user?.email && isSuperAdmin(user.email) ? ' ✓ (Super Admin)' : ' ✗ (Not Super Admin)'}
+                                    Current user: {currentUser?.email || 'Not logged in'} 
+                                    {currentUser?.email && isSuperAdmin(currentUser.email) ? ' ✓ (Super Admin)' : ' ✗ (Not Super Admin)'}
                                   </div>
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
@@ -369,7 +369,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                                 <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
                                 <AlertDialogAction
                                   onClick={() => handleDeleteUser(user.id, user.email)}
-                                  disabled={isDeleting || !user?.email || !isSuperAdmin(user.email)}
+                                  disabled={isDeleting || !currentUser?.email || !isSuperAdmin(currentUser.email)}
                                   className="bg-red-600 hover:bg-red-700"
                                 >
                                   {isDeleting ? 'Deleting...' : 'Delete User'}
