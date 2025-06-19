@@ -1,0 +1,40 @@
+
+/* Apply to any element that might have yellow classes */
+*[class*="yellow"],
+*[class*="amber"] {
+  /* Force override any class containing yellow or amber */
+  background-color: #FFFFFF !important;
+  color: rgb(46 125 50) !important;
+  border-color: rgb(229 231 235) !important;
+}
+
+/* Final fallback for any missed yellow elements */
+body .purge-yellow *[style*="yellow"],
+body .purge-yellow *[style*="amber"],
+body .purge-yellow *[style*="#FFC107"],
+body .purge-yellow *[style*="#FBBC05"],
+body .purge-yellow *[style*="#FDD835"],
+body .purge-yellow *[style*="#FFEB3B"] {
+  background-color: #FFFFFF !important;
+  color: rgb(46 125 50) !important;
+  border-color: rgb(229 231 235) !important;
+}
+
+/* ULTIMATE NUCLEAR OPTION - Override browser default selection colors */
+::selection {
+  background-color: rgb(219 234 254) !important; /* Blue selection instead of yellow */
+  color: rgb(30 64 175) !important;
+}
+
+::-moz-selection {
+  background-color: rgb(219 234 254) !important; /* Blue selection for Firefox */
+  color: rgb(30 64 175) !important;
+}
+
+/* Override any potential highlight colors */
+::-webkit-search-decoration,
+::-webkit-search-cancel-button,
+::-webkit-search-results-button,
+::-webkit-search-results-decoration {
+  background-color: #FFFFFF !important;
+}

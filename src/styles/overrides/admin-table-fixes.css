@@ -1,0 +1,23 @@
+
+/* SPECIFIC FIX FOR ADMIN USER TABLE YELLOW BORDERS */
+/* Target the EnhancedUserTable component specifically */
+.enhanced-user-table tr,
+.enhanced-user-table tr.selected,
+.enhanced-user-table tr[data-state="selected"],
+.enhanced-user-table tbody tr,
+table tbody tr.bg-gray-50,
+table tbody tr[class*="selected"] {
+  background-color: #F9FAFB !important; /* Very light gray */
+  border-color: #E5E7EB !important; /* Light gray border */
+}
+
+/* Override any table row selection states */
+[role="table"] tr[data-state="selected"],
+[role="table"] tr.selected,
+table tr[data-state="selected"],
+table tr.selected {
+  background-color: #F9FAFB !important;
+  border: 1px solid #E5E7EB !important;
+  border-left: 3px solid #E5E7EB !important;
+  border-right: 3px solid #E5E7EB !important;
+}

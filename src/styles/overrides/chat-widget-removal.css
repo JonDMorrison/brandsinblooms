@@ -1,0 +1,21 @@
+
+/* Remove any floating chat widgets or white squares */
+[class*="chat-widget"],
+[class*="floating-widget"],
+.fixed.bottom-4.right-4,
+.fixed.top-4.right-4,
+[style*="position: fixed"][style*="right:"],
+iframe[src*="chat"],
+div[style*="position: fixed; right:"] {
+  display: none !important;
+}
+
+/* Ensure no unwanted floating elements appear */
+body > div:last-child:not(#root):not([id]):not([class]) {
+  display: none !important;
+}
+
+/* Hide any potential chat bubble or floating elements */
+.purge-yellow *[style*="position: fixed"] {
+  display: none !important;
+}

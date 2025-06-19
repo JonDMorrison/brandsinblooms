@@ -1,0 +1,46 @@
+
+/* Override ANY inline yellow/amber styles with white backgrounds */
+[style*="background-color: #FBBC05"],
+[style*="background-color: #FDD835"],
+[style*="background-color: #FFEB3B"],
+[style*="background-color: #FFC107"],
+[style*="background-color: #FFD600"],
+[style*="background-color: #F59E0B"],
+[style*="background-color: #D97706"],
+[style*="background: #FBBC05"],
+[style*="background: #FDD835"],
+[style*="background: #FFEB3B"],
+[style*="background: #FFC107"],
+[style*="background: #FFD600"],
+[style*="background: #F59E0B"],
+[style*="background: #D97706"] {
+  background-color: #FFFFFF !important; /* Force white */
+}
+
+[style*="color: #FBBC05"],
+[style*="color: #FDD835"],
+[style*="color: #FFEB3B"],
+[style*="color: #FFC107"],
+[style*="color: #FFD600"],
+[style*="color: #F59E0B"],
+[style*="color: #D97706"] {
+  color: rgb(46 125 50) !important; /* Garden green dark */
+}
+
+[style*="border-color: #FBBC05"],
+[style*="border-color: #FDD835"],
+[style*="border-color: #FFEB3B"],
+[style*="border-color: #FFC107"],
+[style*="border-color: #FFD600"],
+[style*="border-color: #F59E0B"],
+[style*="border-color: #D97706"],
+[style*="border: 1px solid #FBBC05"],
+[style*="border: 1px solid #FDD835"],
+[style*="border: 1px solid #FFEB3B"],
+[style*="border: 1px solid #FFC107"],
+[style*="border: 1px solid #FFD600"],
+[style*="border: 1px solid #F59E0B"],
+[style*="border: 1px solid #D97706"] {
+  border-color: rgb(229 231 235) !important; /* Light gray */
+  border: 1px solid rgb(229 231 235) !important;
+}

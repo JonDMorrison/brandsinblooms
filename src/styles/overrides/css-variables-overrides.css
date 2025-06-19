@@ -1,0 +1,25 @@
+
+/* Override any CSS custom properties that might contain yellow */
+:root {
+  --yellow-50: 255, 255, 255 !important; /* Force white */
+  --yellow-100: 255, 255, 255 !important;
+  --yellow-200: 255, 255, 255 !important;
+  --yellow-300: 255, 255, 255 !important;
+  --yellow-400: 255, 255, 255 !important;
+  --yellow-500: 255, 255, 255 !important;
+  --yellow-600: 255, 255, 255 !important;
+  --yellow-700: 255, 255, 255 !important;
+  --yellow-800: 255, 255, 255 !important;
+  --yellow-900: 255, 255, 255 !important;
+  
+  --amber-50: 255, 255, 255 !important; /* Force white */
+  --amber-100: 255, 255, 255 !important;
+  --amber-200: 255, 255, 255 !important;
+  --amber-300: 255, 255, 255 !important;
+  --amber-400: 255, 255, 255 !important;
+  --amber-500: 255, 255, 255 !important;
+  --amber-600: 255, 255, 255 !important;
+  --amber-700: 255, 255, 255 !important;
+  --amber-800: 255, 255, 255 !important;
+  --amber-900: 255, 255, 255 !important;
+}
