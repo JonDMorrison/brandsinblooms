@@ -1,6 +1,6 @@
 
 import { ContentTypeCard } from "./ContentTypeCard";
-import { Instagram, Facebook, Mail, BookOpen, Video, Sparkles } from "lucide-react";
+import { Instagram, Facebook, Mail, Video, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ContentType {
@@ -45,6 +45,7 @@ export const ContentGenerationTab = ({
   onSocialMediaPost,
   onEditedContentChange
 }: ContentGenerationTabProps) => {
+  // FIXED: Standardized content types - removed email/blog confusion
   const contentTypes: ContentType[] = [
     {
       id: 'instagram',
@@ -63,20 +64,12 @@ export const ContentGenerationTab = ({
       bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200'
     },
     {
-      id: 'email',
-      name: 'Email Campaign',
-      icon: Mail,
-      description: 'Direct marketing email content',
-      color: 'text-green-700',
-      bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
-    },
-    {
       id: 'newsletter',
       name: 'Newsletter',
-      icon: BookOpen,
+      icon: Mail,
       description: 'Weekly newsletter content',
-      color: 'text-purple-700',
-      bgColor: 'bg-gradient-to-br from-purple-50 to-violet-50 border-purple-200'
+      color: 'text-green-700',
+      bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
     },
     {
       id: 'video',

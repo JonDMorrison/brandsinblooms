@@ -6,8 +6,7 @@ export const getPostTypeIcon = (postType: string) => {
   switch (postType) {
     case 'instagram': return <Instagram className="w-4 h-4" />;
     case 'facebook': return <Facebook className="w-4 h-4" />;
-    case 'email': return <Mail className="w-4 h-4" />;
-    case 'newsletter': return <BookOpen className="w-4 h-4" />;
+    case 'newsletter': return <Mail className="w-4 h-4" />;
     case 'video': return <Video className="w-4 h-4" />;
     default: return <FileText className="w-4 h-4" />;
   }
@@ -16,11 +15,11 @@ export const getPostTypeIcon = (postType: string) => {
 export const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed': return 'bg-green-100 text-green-800';
-    case 'scheduled': return 'bg-blue-100 text-blue-800'; // Changed from yellow to blue
-    case 'draft': return 'bg-gray-100 text-gray-800'; // Changed from yellow to gray
+    case 'scheduled': return 'bg-blue-100 text-blue-800';
+    case 'draft': return 'bg-gray-100 text-gray-800';
     case 'generating': return 'bg-purple-100 text-purple-800';
     case 'published': return 'bg-gray-100 text-gray-800';
-    case 'review': return 'bg-orange-100 text-orange-800'; // Use orange for warnings
+    case 'review': return 'bg-orange-100 text-orange-800';
     case 'pending': return 'bg-blue-100 text-blue-800';
     default: return 'bg-gray-100 text-gray-800';
   }
@@ -28,21 +27,19 @@ export const getStatusColor = (status: string) => {
 
 export const getHashtagsForType = (postType: string): string => {
   const hashtagsMap: Record<string, string> = {
-    instagram: '#business #entrepreneur #success #motivation #growth',
-    facebook: '#business #community #update #news',
-    email: '',
+    instagram: '#GardenCenter #Plants #Gardening #LocalBusiness #GreenLife',
+    facebook: '#GardenCenter #LocalGardening #PlantLife #Community',
     newsletter: '',
-    video: '#video #content #business #tips'
+    video: '#GardenTips #Gardening #LocalExperts #PlantCare'
   };
   
-  return hashtagsMap[postType] || '#business #content';
+  return hashtagsMap[postType] || '#GardenCenter #Plants';
 };
 
 export const getImageIdeaForType = (postType: string): string => {
   const imageIdeasMap: Record<string, string> = {
     instagram: 'Professional photo with engaging visual elements',
     facebook: 'Community-focused image or infographic',
-    email: 'Simple header image or company logo',
     newsletter: 'Newsletter banner with company branding',
     video: 'Thumbnail image for video content'
   };
