@@ -35,8 +35,10 @@ export const stripMarkdown = (text: string): string => {
 export const formatBlogContent = (text: string): string => {
   if (!text) return '';
   
-  return text
-    // Convert markdown headers to proper formatting with better styling
+  console.log('formatBlogContent input:', text.substring(0, 200) + '...');
+  
+  let formatted = text
+    // Convert markdown headers to proper HTML with better styling
     .replace(/^#{1}\s+(.+)$/gm, '<h1 class="text-4xl font-bold font-display text-slate-900 mt-12 mb-6 first:mt-0">$1</h1>')
     .replace(/^#{2}\s+(.+)$/gm, '<h2 class="text-3xl font-semibold font-display text-slate-900 mt-10 mb-4">$1</h2>')
     .replace(/^#{3}\s+(.+)$/gm, '<h3 class="text-2xl font-semibold font-display text-slate-900 mt-8 mb-3">$1</h3>')
@@ -48,16 +50,27 @@ export const formatBlogContent = (text: string): string => {
     .replace(/^>\s+(.+)$/gm, '<blockquote class="border-l-4 border-primary bg-primary/5 pl-6 py-4 my-6 italic text-slate-700">$1</blockquote>')
     // Convert lists with custom styling
     .replace(/^\s*[-*+]\s+(.+)$/gm, '<li class="mb-2 text-slate-700">$1</li>')
-    .replace(/(<li>.*<\/li>)/gs, '<ul class="list-disc list-inside space-y-2 my-6 text-slate-700">$1</ul>')
-    .replace(/<\/ul>\s*<ul>/g, '') // Combine consecutive lists
     // Convert numbered lists
     .replace(/^\s*\d+\.\s+(.+)$/gm, '<li class="mb-2 text-slate-700">$1</li>')
-    .replace(/(<li class="mb-2 text-slate-700">(?:(?!<li).)*<\/li>\s*)+/gs, (match) => {
-      return `<ol class="list-decimal list-inside space-y-2 my-6 text-slate-700">${match}</ol>`;
+    // Convert line breaks to paragraphs - handle this more carefully
+    .split('\n\n')
+    .map(paragraph => {
+      paragraph = paragraph.trim();
+      if (!paragraph) return '';
+      
+      // Skip if already wrapped in HTML tags
+      if (paragraph.match(/^<(h[1-6]|li|blockquote|ul|ol)/)) {
+        return paragraph;
+      }
+      
+      // Wrap plain text in paragraph tags
+      return `<p class="mb-6 text-slate-700 leading-relaxed">${paragraph}</p>`;
     })
-    // Convert paragraphs with proper spacing
-    .replace(/\n\n+/g, '</p><p class="mb-6 text-slate-700 leading-relaxed">')
-    .replace(/^(?!<[h1-6]|<ul|<ol|<li|<blockquote)(.+)$/gm, '<p class="mb-6 text-slate-700 leading-relaxed">$1</p>')
+    .join('\n')
+    // Group list items into proper ul/ol tags
+    .replace(/(<li class="mb-2 text-slate-700">.*?<\/li>\s*)+/gs, (match) => {
+      return `<ul class="list-disc list-inside space-y-2 my-6 text-slate-700">${match}</ul>`;
+    })
     // Clean up empty paragraphs and fix formatting
     .replace(/<p[^>]*><\/p>/g, '')
     .replace(/<p[^>]*>(<[h1-6])/g, '$1')
@@ -67,6 +80,9 @@ export const formatBlogContent = (text: string): string => {
     .replace(/\[!NOTE\]\s*\n(.*?)(?=\n\n|\n$|$)/gs, '<aside class="bg-blue-50 border-l-4 border-blue-400 rounded-lg p-4 my-8"><p class="m-0 text-slate-700">📝 $1</p></aside>')
     .replace(/\[!WARNING\]\s*\n(.*?)(?=\n\n|\n$|$)/gs, '<aside class="bg-orange-50 border-l-4 border-orange-400 rounded-lg p-4 my-8"><p class="m-0 text-slate-700">⚠️ $1</p></aside>')
     .trim();
+
+  console.log('formatBlogContent output:', formatted.substring(0, 200) + '...');
+  return formatted;
 };
 
 // Enhanced cleaning function that preserves structure for blog posts and newsletters

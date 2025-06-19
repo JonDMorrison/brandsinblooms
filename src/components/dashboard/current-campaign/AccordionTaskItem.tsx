@@ -55,6 +55,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
         previewText = 'Structured newsletter content available...';
       }
     } else {
+      // Process content through the appropriate formatter
       cleanContent = cleanContentForDisplay(task.ai_output, task.post_type);
       previewText = truncateText(cleanContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
     }
