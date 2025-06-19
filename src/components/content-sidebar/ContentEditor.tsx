@@ -1,7 +1,7 @@
 
 import { Textarea } from "@/components/ui/textarea";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
-import { StructuredNewsletterDisplay } from "./StructuredNewsletterDisplay";
+import { MagazineNewsletterDisplay } from "./MagazineNewsletterDisplay";
 
 interface ContentEditorProps {
   content: string;
@@ -35,16 +35,16 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
     );
   }
 
-  // Check if this is a structured newsletter
+  // Check if this is a structured newsletter for magazine display
   const isStructuredNewsletter = task?.post_type === 'newsletter' && content.includes('newsletter_md:');
   
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium text-gray-700">Content</h3>
-      <div className="p-4 bg-gray-50 rounded-md border min-h-[400px]">
+      <div className="p-6 bg-white rounded-lg border min-h-[400px] overflow-y-auto max-h-[800px]">
         {content ? (
           isStructuredNewsletter ? (
-            <StructuredNewsletterDisplay content={content} />
+            <MagazineNewsletterDisplay content={content} />
           ) : (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
             <div 
               className="text-sm prose prose-sm max-w-none"

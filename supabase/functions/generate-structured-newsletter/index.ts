@@ -27,7 +27,7 @@ serve(async (req) => {
       userId 
     } = await req.json();
 
-    console.log('Generating structured newsletter:', { business_name, theme, week_focus, promo_items: promo_items.length });
+    console.log('Generating magazine-style newsletter:', { business_name, theme, week_focus, promo_items: promo_items.length });
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -43,89 +43,87 @@ serve(async (req) => {
     }
 
     const contentIdeas = [
-      "Quick Tip", "Did You Know?", "Local Weather Note", "Tool of the Week", 
-      "Recipe Featuring Garden Produce", "Employee Spotlight", "Success Story / Photo Share", 
-      `Fun Fact About ${theme}`
+      "Quick Gardening Tip", "Seasonal Plant Care", "Local Weather Advisory", "Featured Plant Variety", 
+      "Garden Problem Solution", "Customer Success Story", "Expert Plant Advice", 
+      `Spotlight on ${theme}`
     ];
 
-    const systemPrompt = `You are a professional newsletter formatter for garden centers.
+    const systemPrompt = `You are a professional newsletter creator for garden centers, specializing in magazine-style layouts.
 
-STRICT FORMATTING RULES:
-- Headline ≤ 60 characters
-- Intro paragraph ≤ 120 characters  
-- Block body ≤ 220 characters
-- CTA line ≤ 55 characters
-- Alt text ≤ 80 characters
-- Max 1 emoji per block (at start of title or after first sentence)
-- Grade 8 reading level maximum
+MAGAZINE FORMAT REQUIREMENTS:
+- Main headline: Compelling, benefit-focused ≤ 50 characters
+- Intro paragraph: Engaging hook ≤ 100 characters  
+- Section headlines: Bold, specific ≤ 45 characters
+- Body paragraphs: Exactly 2-3 concise sentences ≤ 180 characters
+- Call-to-action: Clear, actionable ≤ 50 characters
+- Professional, scannable format
+- Grade 7-8 reading level
 
-INPUT:
-- Business: ${business_name || companyProfile?.company_name || 'Garden Center'}
+BUSINESS CONTEXT:
+- Business: ${business_name || companyProfile?.company_name || 'Your Garden Center'}
 - Theme: ${theme}
 - Week Focus: ${week_focus}
 - Promotional Items: ${JSON.stringify(promo_items)}
 - Tone: ${tone_note || 'friendly-expert'}
 
-Generate exactly 4-5 content blocks. Use promo_items for promotional blocks, fill remaining with value content from: ${contentIdeas.join(', ')}.
+Create exactly 4 content sections. Use promo_items for promotional sections, fill remaining with valuable gardening content from: ${contentIdeas.join(', ')}.
+
+Each section needs a specific, detailed image_prompt for garden-related photography.
 
 Return ONLY valid YAML in this exact format:
 \`\`\`yaml
 newsletter_md: |
-  # [headline ≤60 chars]
-  *[intro ≤120 chars]*
+  # [Compelling headline ≤50 chars]
+  *[Engaging intro hook ≤100 chars]*
 
-  ## [Block 1 Title]
-  [body ≤220 chars]
-  **[cta ≤55 chars]** → [link]
+  ## [Section 1 headline ≤45 chars]
+  [Exactly 2-3 sentences about gardening topic. Keep under 180 characters total.]
 
-  ## [Block 2 Title] 
-  [body ≤220 chars]
-  **[cta ≤55 chars]** → [link]
+  ## [Section 2 headline ≤45 chars] 
+  [Exactly 2-3 sentences about gardening topic. Keep under 180 characters total.]
 
-  ## [Block 3 Title]
-  [body ≤220 chars] 
-  **[cta ≤55 chars]** → [link]
+  ## [Section 3 headline ≤45 chars]
+  [Exactly 2-3 sentences about gardening topic. Keep under 180 characters total.]
 
-  ## [Block 4 Title]
-  [body ≤220 chars]
-  **[cta ≤55 chars]** → [link]
+  ## [Section 4 headline ≤45 chars]
+  [Exactly 2-3 sentences about gardening topic. Keep under 180 characters total.]
 
   ---
-  Thanks for reading **${business_name || companyProfile?.company_name || 'Garden Center'}** 🌿
+  Thanks for reading **${business_name || companyProfile?.company_name || 'Your Garden Center'}** 🌿
 blocks:
-  - title: "[title]"
-    body: "[body ≤220]"
-    cta: "[cta ≤55]"
-    link: "[link]"
-    image_prompt: "[prompt for relevant image]"
-    alt_text: "[alt ≤80]"
-  - title: "[title]"
-    body: "[body ≤220]"
-    cta: "[cta ≤55]"
-    link: "[link]"
-    image_prompt: "[prompt for relevant image]"
-    alt_text: "[alt ≤80]"
-  - title: "[title]"
-    body: "[body ≤220]"
-    cta: "[cta ≤55]"
-    link: "[link]"
-    image_prompt: "[prompt for relevant image]"
-    alt_text: "[alt ≤80]"
-  - title: "[title]"
-    body: "[body ≤220]"
-    cta: "[cta ≤55]"
-    link: "[link]"
-    image_prompt: "[prompt for relevant image]"
-    alt_text: "[alt ≤80]"
+  - title: "[Section 1 headline]"
+    body: "[2-3 sentences ≤180 chars]"
+    cta: "[Clear action ≤50 chars]"
+    link: "[relevant link]"
+    image_prompt: "[Detailed garden/plant photography prompt]"
+    alt_text: "[Descriptive alt text ≤60 chars]"
+  - title: "[Section 2 headline]"
+    body: "[2-3 sentences ≤180 chars]"
+    cta: "[Clear action ≤50 chars]"
+    link: "[relevant link]"
+    image_prompt: "[Detailed garden/plant photography prompt]"
+    alt_text: "[Descriptive alt text ≤60 chars]"
+  - title: "[Section 3 headline]"
+    body: "[2-3 sentences ≤180 chars]"
+    cta: "[Clear action ≤50 chars]"
+    link: "[relevant link]"
+    image_prompt: "[Detailed garden/plant photography prompt]"
+    alt_text: "[Descriptive alt text ≤60 chars]"
+  - title: "[Section 4 headline]"
+    body: "[2-3 sentences ≤180 chars]"
+    cta: "[Clear action ≤50 chars]"
+    link: "[relevant link]"
+    image_prompt: "[Detailed garden/plant photography prompt]"
+    alt_text: "[Descriptive alt text ≤60 chars]"
 extra_content_ideas:
-  - title: "[idea 1 ≤40]"
-    quick_desc: "[desc ≤40]"
-  - title: "[idea 2 ≤40]"
-    quick_desc: "[desc ≤40]"
-  - title: "[idea 3 ≤40]"
-    quick_desc: "[desc ≤40]"
-  - title: "[idea 4 ≤40]"
-    quick_desc: "[desc ≤40]"
+  - title: "[Future idea ≤35 chars]"
+    quick_desc: "[Brief description ≤35 chars]"
+  - title: "[Future idea ≤35 chars]"
+    quick_desc: "[Brief description ≤35 chars]"
+  - title: "[Future idea ≤35 chars]"
+    quick_desc: "[Brief description ≤35 chars]"
+  - title: "[Future idea ≤35 chars]"
+    quick_desc: "[Brief description ≤35 chars]"
 meta:
   reading_time: "≈3 min"
   theme: "${theme}"
@@ -145,7 +143,7 @@ meta:
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Generate a structured newsletter for theme "${theme}" with focus "${week_focus}". Include ${promo_items.length} promotional items and fill remaining blocks with value content.` 
+            content: `Generate a magazine-style structured newsletter for theme "${theme}" with focus "${week_focus}". Create exactly 4 sections with compelling headlines, concise 2-3 sentence bodies, and specific image prompts for garden photography.` 
           }
         ]
       }),
@@ -158,11 +156,11 @@ meta:
     const data = await response.json();
     const content = data.choices[0].message.content;
 
-    // Extract YAML from response (remove code block markers if present)
+    // Extract YAML from response
     const yamlMatch = content.match(/```yaml\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
     const yamlContent = yamlMatch ? yamlMatch[1] : content;
 
-    console.log('Generated structured newsletter YAML');
+    console.log('Generated magazine-style newsletter YAML');
 
     return new Response(JSON.stringify({
       success: true,
