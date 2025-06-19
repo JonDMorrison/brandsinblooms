@@ -190,7 +190,6 @@ export const HolidayItem = ({
             <div className="flex-1">
               <CaptionMedium className="font-semibold text-gray-800 mb-1">
                 <Target className="w-4 h-4 text-green-600 inline mr-2" />
-                Marketing Opportunity
               </CaptionMedium>
               <CaptionMedium className="text-gray-700 leading-relaxed">
                 {holiday.garden_relevance}
