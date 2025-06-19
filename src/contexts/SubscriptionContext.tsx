@@ -224,14 +224,32 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const isTrialExpired = subscription?.plan === 'expired';
 
   const trialDaysLeft = (() => {
-    if (!subscription || subscription.plan !== 'free_trial') return 0;
+    console.log('SubscriptionContext: Calculating trialDaysLeft', {
+      subscription: subscription,
+      plan: subscription?.plan,
+      endDate: subscription?.end_date
+    });
+    
+    if (!subscription || subscription.plan !== 'free_trial') {
+      console.log('SubscriptionContext: Not a free trial, returning 0 days');
+      return 0;
+    }
     
     const endDate = new Date(subscription.end_date);
     const now = new Date();
     const diffTime = endDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    return Math.max(0, diffDays);
+    const daysLeft = Math.max(0, diffDays);
+    console.log('SubscriptionContext: Trial days calculation', {
+      endDate: endDate.toISOString(),
+      now: now.toISOString(),
+      diffTime,
+      diffDays,
+      daysLeft
+    });
+    
+    return daysLeft;
   })();
 
   useEffect(() => {
@@ -276,6 +294,13 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     checkAccess,
     refreshSubscription
   };
+
+  console.log('SubscriptionContext: Providing context value', {
+    subscription: subscription?.plan,
+    loading,
+    isTrialExpired,
+    trialDaysLeft
+  });
 
   return (
     <SubscriptionContext.Provider value={value}>
