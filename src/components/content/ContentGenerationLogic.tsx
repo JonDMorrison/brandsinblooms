@@ -71,9 +71,9 @@ export const useContentGeneration = () => {
       );
       
       if (result.success) {
-        toast.success(`Successfully generated ${result.successCount} content pieces! ${result.failureCount > 0 ? `${result.failureCount} failed.` : ''}`);
+        toast.success(`Successfully generated ${result.generatedCount} content pieces! ${result.failedTypes.length > 0 ? `${result.failedTypes.length} failed.` : ''}`);
       } else {
-        toast.error(`Content generation failed: ${result.error || 'Unknown error'}`);
+        toast.error(`Content generation failed. Please try again.`);
       }
       
       return result.success;
