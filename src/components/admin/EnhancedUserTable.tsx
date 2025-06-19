@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreHorizontal, Mail, MapPin, Calendar, Coins, Trash2, AlertTriangle, Merge } from "lucide-react";
+import { MoreHorizontal, Mail, Calendar, Coins, Trash2, AlertTriangle, Merge } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -199,12 +199,6 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                       <div className="font-medium">
                         {user.company_name || 'Not set'}
                       </div>
-                      {user.location_info && (
-                        <div className="text-sm text-gray-500 flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {user.location_info}
-                        </div>
-                      )}
                       <Badge variant="outline" className="mt-1">
                         {user.onboarding_completed ? 'Onboarded' : 'Pending'}
                       </Badge>
