@@ -1,3 +1,4 @@
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -192,11 +193,6 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                     onCheckedChange={handleSelectAll}
                     aria-label="Select all users"
                     className={isIndeterminate ? "data-[state=checked]:bg-blue-600" : ""}
-                    ref={(el) => {
-                      if (el) {
-                        el.indeterminate = isIndeterminate;
-                      }
-                    }}
                   />
                 </TableHead>
                 <TableHead>User</TableHead>
