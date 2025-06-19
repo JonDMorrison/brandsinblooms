@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { getSeasonalGreeting, getWelcomeMessage } from './SeasonalContent';
 import { EditableBusinessName } from '@/components/EditableBusinessName';
@@ -5,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { DisplayMedium, BodyLarge } from '@/components/ui/typography';
 import { extractCompanyName } from '@/utils/companyNameUtils';
+import { isSuperAdmin } from '@/utils/adminUtils';
 
 interface WelcomeSectionProps {
   onboardingData: any;
@@ -20,6 +22,13 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
   useEffect(() => {
     const fetchBusinessName = async () => {
       if (!user) return;
+
+      // Check if current user is a super admin
+      if (isSuperAdmin(user.email)) {
+        console.log('WelcomeSection: User is super admin, setting admin-specific business name');
+        setBusinessName("Admin Dashboard");
+        return;
+      }
 
       try {
         console.log('WelcomeSection: Fetching business name for user:', user.id);
@@ -100,6 +109,9 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
     onBusinessNameChange(newName);
   };
 
+  // Don't show EditableBusinessName for super admins
+  const isCurrentUserSuperAdmin = user?.email && isSuperAdmin(user.email);
+
   return (
     <div className="space-y-6 apple-fade-in">
       {/* Main Welcome */}
@@ -111,12 +123,20 @@ export const WelcomeSection = ({ onboardingData, onBusinessNameChange, onGetStar
           </DisplayMedium>
         </div>
         <BodyLarge className="text-text-secondary mb-6 max-w-4xl mx-auto leading-relaxed apple-slide-up apple-stagger-1">
-          Your AI-powered gardening assistant is ready to help you create engaging content that grows{' '}
-          <EditableBusinessName 
-            businessName={businessName}
-            onBusinessNameChange={handleBusinessNameChange}
-          />{' '}
-          and cultivates customer relationships.
+          {isCurrentUserSuperAdmin ? (
+            <>
+              Your super admin dashboard for managing the BloomSuite platform and all user accounts.
+            </>
+          ) : (
+            <>
+              Your AI-powered gardening assistant is ready to help you create engaging content that grows{' '}
+              <EditableBusinessName 
+                businessName={businessName}
+                onBusinessNameChange={handleBusinessNameChange}
+              />{' '}
+              and cultivates customer relationships.
+            </>
+          )}
         </BodyLarge>
       </div>
     </div>

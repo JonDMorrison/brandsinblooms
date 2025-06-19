@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { isSuperAdmin } from "@/utils/adminUtils";
 
 interface EditableBusinessNameProps {
   businessName: string;
@@ -28,6 +30,9 @@ export const EditableBusinessName = ({
   const [isOpen, setIsOpen] = useState(false);
   const [newName, setNewName] = useState(businessName);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Prevent super admins from editing business name
+  const isCurrentUserSuperAdmin = user?.email && isSuperAdmin(user.email);
 
   const handleSave = async () => {
     if (!newName.trim() || !user) return;
@@ -80,6 +85,15 @@ export const EditableBusinessName = ({
     setNewName(businessName);
     setIsOpen(false);
   };
+
+  // If user is super admin, render as plain text without edit functionality
+  if (isCurrentUserSuperAdmin) {
+    return (
+      <span className="font-bold text-slate-950">
+        {businessName}
+      </span>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
