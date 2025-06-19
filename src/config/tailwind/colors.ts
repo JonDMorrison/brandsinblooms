@@ -2,11 +2,11 @@
 import type { Config } from "tailwindcss";
 
 export const colors: Config["theme"]["extend"]["colors"] = {
-  border: 'hsl(var(--border))',
-  input: 'hsl(var(--input))',
-  ring: 'hsl(var(--ring))',
-  background: 'hsl(var(--background))',
-  foreground: 'hsl(var(--foreground))',
+  border: 'rgb(var(--border))',
+  input: 'rgb(var(--input))',
+  ring: 'rgb(var(--ring))',
+  background: 'rgb(var(--background))',
+  foreground: 'rgb(var(--foreground))',
   
   // Enhanced Brand Colors - New token system
   'brand-green': {
