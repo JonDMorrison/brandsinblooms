@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/contexts/SubscriptionContext";
@@ -14,7 +15,7 @@ import { FinalCTA } from "@/components/pricing/FinalCTA";
 const PricingPage = () => {
   const navigate = useNavigate();
   const { updateSubscription, subscription } = useSubscription();
-  const [isAnnual, setIsAnnual] = useState(true); // Changed from false to true
+  const [isAnnual, setIsAnnual] = useState(true);
   const [loading, setLoading] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const { user } = useAuth();
@@ -28,7 +29,8 @@ const PricingPage = () => {
   };
 
   const handleSelectPlan = async (plan: 'sprout' | 'bloom') => {
-    if (!subscription || !user) {
+    if (!user) {
+      console.log('No user found, redirecting to auth');
       navigate('/auth');
       return;
     }
@@ -40,38 +42,34 @@ const PricingPage = () => {
       console.log('=== CHECKOUT DEBUG START ===');
       console.log('User:', { id: user.id, email: user.email });
       console.log('Plan selection:', { plan, billingInterval: isAnnual ? 'annual' : 'monthly' });
-      console.log('Subscription state:', subscription);
+      console.log('Current user session:', await supabase.auth.getSession());
 
       const requestBody = {
         plan: plan,
         billingInterval: isAnnual ? 'annual' : 'monthly'
       };
       
-      console.log('Sending request to create-checkout with body:', requestBody);
+      console.log('Calling create-checkout function with:', requestBody);
       
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: requestBody
       });
 
-      console.log('=== SUPABASE FUNCTION RESPONSE ===');
-      console.log('Raw response data:', data);
-      console.log('Raw response error:', error);
+      console.log('=== FUNCTION RESPONSE ===');
+      console.log('Data:', data);
+      console.log('Error:', error);
 
       if (error) {
-        console.error('=== SUPABASE FUNCTION ERROR ===');
-        console.error('Error object:', error);
-        console.error('Error message:', error.message);
-        console.error('Error context:', error.context);
+        console.error('=== FUNCTION ERROR ===');
+        console.error('Error details:', error);
         
-        // Show user-friendly error messages based on error type
-        if (error.message?.includes('Failed to send a request')) {
-          toast.error('Service temporarily unavailable. Please check your connection and try again.');
-        } else if (error.message?.includes('configuration')) {
-          toast.error('Payment system is not configured. Please contact support.');
-        } else if (error.message?.includes('authentication')) {
-          toast.error('Authentication required. Please sign in and try again.');
+        // More specific error handling
+        if (error.message?.includes('Failed to send a request') || error.message?.includes('network')) {
+          toast.error('Network error. Please check your connection and try again.');
+        } else if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
+          toast.error('Authentication error. Please try logging out and back in.');
         } else {
-          toast.error(`Checkout failed: ${error.message || 'Unknown error'}`);
+          toast.error(`Payment error: ${error.message}`);
         }
         return;
       }
@@ -79,32 +77,31 @@ const PricingPage = () => {
       if (data?.error) {
         console.error('=== FUNCTION RETURNED ERROR ===');
         console.error('Function error:', data.error);
-        console.error('Function error details:', data.details);
-        toast.error(`Error: ${data.error}${data.details ? ` - ${data.details}` : ''}`);
+        toast.error(`Error: ${data.error}`);
         return;
       }
 
       if (data?.url) {
         console.log('=== CHECKOUT SUCCESS ===');
-        console.log('Redirecting to Stripe checkout:', data.url);
-        window.location.href = data.url;
+        console.log('Redirecting to:', data.url);
+        // Open in new tab to prevent losing the current page
+        window.open(data.url, '_blank');
       } else {
-        console.error('=== INVALID RESPONSE ===');
-        console.error('No checkout URL received. Full response:', data);
-        toast.error('Invalid response from payment system. Please try again.');
+        console.error('=== NO CHECKOUT URL ===');
+        console.error('Response data:', data);
+        toast.error('No checkout URL received. Please try again.');
       }
     } catch (error) {
-      console.error('=== NETWORK ERROR ===');
+      console.error('=== UNEXPECTED ERROR ===');
       console.error('Caught error:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error constructor:', error?.constructor?.name);
       
       if (error instanceof Error) {
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
+        toast.error(`Unexpected error: ${error.message}`);
+      } else {
+        toast.error('An unexpected error occurred. Please try again.');
       }
-      
-      toast.error('Network error. Please check your connection and try again.');
     } finally {
       console.log('=== CHECKOUT DEBUG END ===');
       setLoading(false);
