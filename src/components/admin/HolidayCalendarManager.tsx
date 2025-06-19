@@ -84,18 +84,18 @@ export const HolidayCalendarManager = () => {
           </div>
 
           {lastUpdate && (
-            <div className={`rounded-lg p-4 border ${lastUpdate.success ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}>
+            <div className={`rounded-lg p-4 border ${lastUpdate.success ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
               <div className="flex items-start gap-3">
-                <Clock className={`w-5 h-5 mt-0.5 ${lastUpdate.success ? 'text-green-600' : 'text-yellow-600'}`} />
+                <Clock className={`w-5 h-5 mt-0.5 ${lastUpdate.success ? 'text-green-600' : 'text-gray-600'}`} />
                 <div>
-                  <CaptionMedium className={`font-medium mb-1 ${lastUpdate.success ? 'text-green-800' : 'text-yellow-800'}`}>
+                  <CaptionMedium className={`font-medium mb-1 ${lastUpdate.success ? 'text-green-800' : 'text-gray-800'}`}>
                     Last Update Result
                   </CaptionMedium>
-                  <BodyMedium className={lastUpdate.success ? 'text-green-700' : 'text-yellow-700'}>
+                  <BodyMedium className={lastUpdate.success ? 'text-green-700' : 'text-gray-700'}>
                     {lastUpdate.message}
                   </BodyMedium>
                   {lastUpdate.holidays_generated > 0 && (
-                    <CaptionMedium className={lastUpdate.success ? 'text-green-600' : 'text-yellow-600'}>
+                    <CaptionMedium className={lastUpdate.success ? 'text-green-600' : 'text-gray-600'}>
                       Generated {lastUpdate.holidays_generated} holidays for {lastUpdate.year}
                       {lastUpdate.holidays_deactivated > 0 && `, deactivated ${lastUpdate.holidays_deactivated} old holidays`}
                     </CaptionMedium>

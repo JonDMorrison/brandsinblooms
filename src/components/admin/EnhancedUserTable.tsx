@@ -167,7 +167,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
               const isDeleting = deletingUser === user.id;
               
               return (
-                <TableRow key={user.id} className={user.is_duplicate ? 'bg-yellow-50' : ''}>
+                <TableRow key={user.id} className={user.is_duplicate ? 'bg-gray-50' : ''}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
@@ -180,8 +180,8 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                           <div className="font-medium">{user.email}</div>
                           {user.is_duplicate && (
                             <div className="flex items-center gap-1">
-                              <AlertTriangle className="w-4 h-4 text-orange-500" />
-                              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
+                              <AlertTriangle className="w-4 h-4 text-gray-500" />
+                              <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800">
                                 Account #{user.account_number}
                               </Badge>
                             </div>
@@ -295,7 +295,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                                 This will delete all their data including campaigns, content, and subscriptions. 
                                 This action cannot be undone.
                                 {user.is_duplicate && (
-                                  <div className="mt-2 p-2 bg-orange-50 rounded text-orange-800 text-sm">
+                                  <div className="mt-2 p-2 bg-gray-50 rounded text-gray-800 text-sm">
                                     <strong>Note:</strong> This user has multiple accounts. Consider using the Duplicate Management section to merge accounts instead of deleting.
                                   </div>
                                 )}
