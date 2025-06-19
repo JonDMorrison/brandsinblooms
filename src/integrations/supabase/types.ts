@@ -865,6 +865,10 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      check_email_exists: {
+        Args: { email_to_check: string }
+        Returns: boolean
+      }
       check_trial_expiration_emails: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -889,6 +893,15 @@ export type Database = {
           subscription_end_date: string
         }[]
       }
+      get_duplicate_merge_suggestions: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          email: string
+          accounts: Json
+          suggested_keep_user_id: string
+          suggestion_reason: string
+        }[]
+      }
       get_token_balance: {
         Args: { p_user_id: string }
         Returns: {
@@ -900,6 +913,10 @@ export type Database = {
       increment_template_usage: {
         Args: { template_id: string }
         Returns: undefined
+      }
+      merge_duplicate_accounts: {
+        Args: { keep_user_id: string; merge_user_id: string }
+        Returns: boolean
       }
       refill_tokens: {
         Args: { p_user_id: string; p_tokens?: number }

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreHorizontal, Mail, MapPin, Calendar, Coins, Trash2, AlertTriangle } from "lucide-react";
+import { MoreHorizontal, Mail, MapPin, Calendar, Coins, Trash2, AlertTriangle, Merge } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,7 +101,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
       <CardHeader>
         <CardTitle className="text-xl">All Users ({users.length})</CardTitle>
         <p className="text-sm text-gray-600">
-          Showing all accounts including duplicates. Users with multiple accounts are marked.
+          Showing all accounts including duplicates. Users with multiple accounts are marked. Use the Duplicate Management section above to merge accounts safely.
         </p>
       </CardHeader>
       <CardContent>
@@ -227,8 +227,9 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                           Reset Password
                         </DropdownMenuItem>
                         {user.is_duplicate && (
-                          <DropdownMenuItem>
-                            Merge Accounts
+                          <DropdownMenuItem className="text-blue-600">
+                            <Merge className="mr-2 h-4 w-4" />
+                            Manage Duplicates
                           </DropdownMenuItem>
                         )}
                         <AlertDialog>
@@ -248,7 +249,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                                 This action cannot be undone.
                                 {user.is_duplicate && (
                                   <div className="mt-2 p-2 bg-orange-50 rounded text-orange-800 text-sm">
-                                    <strong>Note:</strong> This user has multiple accounts. Consider merging instead of deleting.
+                                    <strong>Note:</strong> This user has multiple accounts. Consider using the Duplicate Management section to merge accounts instead of deleting.
                                   </div>
                                 )}
                               </AlertDialogDescription>
