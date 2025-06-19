@@ -75,11 +75,11 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
           </div>
         </div>
         
-        {/* Enhanced CTA with nature-inspired styling */}
+        {/* Enhanced CTA with nature-inspired styling and fixed text centering */}
         <div className="apple-fade-in-stagger mx-auto px-4" style={{animationDelay: '0.4s'}}>
           <Button 
             onClick={onGetStarted}
-            className="bg-[#47B881] hover:bg-[#3A9B6C] text-white font-semibold rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 mx-auto block border-0"
+            className="bg-[#47B881] hover:bg-[#3A9B6C] text-white font-semibold rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 mx-auto block border-0 text-center"
             style={{
               padding: '16px 20px',
               fontSize: '15px',
@@ -87,7 +87,11 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
               width: 'auto',
               whiteSpace: 'normal',
               lineHeight: '1.2',
-              boxShadow: '0 8px 16px rgba(71, 184, 129, 0.2)'
+              boxShadow: '0 8px 16px rgba(71, 184, 129, 0.2)',
+              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
             Get Started In Less Than A Minute
