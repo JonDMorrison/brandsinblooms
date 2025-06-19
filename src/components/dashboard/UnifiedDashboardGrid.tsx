@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +13,7 @@ import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { useUser } from "@/hooks/useUser";
 import type { Campaign } from "@/types/content";
 import { toast } from "sonner";
+import { EnhancedSeasonalHolidaysCard } from "./seasonal-holidays/EnhancedSeasonalHolidaysCard";
 
 interface UnifiedDashboardGridProps {
   activeCampaign?: Campaign | null;
@@ -91,7 +91,7 @@ export const UnifiedDashboardGrid = ({
           onCampaignCreated={onCampaignCreated || (() => {})}
         />
 
-        {/* Seasonal Holidays Section - Only show for authenticated users */}
+        {/* Enhanced Seasonal Holidays Section - Only show for authenticated users */}
         {user && (
           <div className="space-y-6">
             <div>
@@ -102,7 +102,7 @@ export const UnifiedDashboardGrid = ({
                 Create timely content for upcoming holidays and observances
               </BodyMedium>
             </div>
-            <SeasonalHolidaysCard onContentGenerated={onTaskUpdate} />
+            <EnhancedSeasonalHolidaysCard onContentGenerated={onTaskUpdate} />
           </div>
         )}
 
