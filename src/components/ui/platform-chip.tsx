@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Mail, Facebook, Video, Instagram, FileText } from 'lucide-react';
+import { Mail, Facebook, Video, Instagram, FileText, BookOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PlatformChipProps {
@@ -13,7 +13,8 @@ const iconMap = {
   Facebook,
   Video,
   Instagram,
-  FileText
+  FileText,
+  BookOpen
 };
 
 // Helper function to properly format post type names
@@ -25,6 +26,8 @@ const formatPostTypeName = (postType: string) => {
       return 'Facebook';
     case 'newsletter':
       return 'Newsletter';
+    case 'blog':
+      return 'Blog';
     case 'video':
       return 'Video';
     default:
@@ -45,6 +48,12 @@ export const PlatformChip = ({ postType, className }: PlatformChipProps) => {
       bgColor: 'bg-blue-50',
       textColor: 'text-blue-700',
       borderColor: 'border-blue-200'
+    },
+    blog: {
+      icon: 'BookOpen',
+      bgColor: 'bg-purple-50',
+      textColor: 'text-purple-700',
+      borderColor: 'border-purple-200'
     },
     video: {
       icon: 'Video',

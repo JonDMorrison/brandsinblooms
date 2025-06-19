@@ -7,6 +7,7 @@ export const getPostTypeIcon = (postType: string) => {
     case 'instagram': return <Instagram className="w-4 h-4" />;
     case 'facebook': return <Facebook className="w-4 h-4" />;
     case 'newsletter': return <Mail className="w-4 h-4" />;
+    case 'blog': return <BookOpen className="w-4 h-4" />;
     case 'video': return <Video className="w-4 h-4" />;
     default: return <FileText className="w-4 h-4" />;
   }
@@ -30,6 +31,7 @@ export const getHashtagsForType = (postType: string): string => {
     instagram: '#GardenCenter #Plants #Gardening #LocalBusiness #GreenLife',
     facebook: '#GardenCenter #LocalGardening #PlantLife #Community',
     newsletter: '',
+    blog: '#Gardening #PlantCare #GardenTips #LocalExperts',
     video: '#GardenTips #Gardening #LocalExperts #PlantCare'
   };
   
@@ -41,6 +43,7 @@ export const getImageIdeaForType = (postType: string): string => {
     instagram: 'Professional photo with engaging visual elements',
     facebook: 'Community-focused image or infographic',
     newsletter: 'Newsletter banner with company branding',
+    blog: 'Featured image for blog post with gardening theme',
     video: 'Thumbnail image for video content'
   };
   

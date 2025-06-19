@@ -1,4 +1,3 @@
-
 export function buildContentPrompt(
   postType: string, 
   campaignTitle: string, 
@@ -72,23 +71,21 @@ FACEBOOK POST REQUIREMENTS:
 - Include call-to-action for visiting garden center or trying gardening techniques
 - Format: Engaging post text with natural formatting (lists/bullets OK for readability)`;
 
-    case 'email':
+    case 'blog':
       return `${basePrompt}
 
-EMAIL CONTENT REQUIREMENTS:
-- Subject line related to the campaign theme or seasonal gardening opportunity
-- 300-400 words
-- Valuable gardening advice with specific, actionable instructions when theme is relevant
-- Personal, helpful tone from garden center gardening experts
-- Include plant care tips, timing, and techniques when they align with campaign theme
-- Address seasonal gardening challenges and solutions when relevant to theme
-- Call-to-action to visit garden center for plants/supplies or expert consultation
-- Format as complete email with subject line
-
-Format:
-Subject: [compelling subject line related to campaign theme]
-
-[Email body content focused on campaign theme]`;
+BLOG POST REQUIREMENTS:
+- Compelling, SEO-friendly headline that captures the campaign theme
+- 600-800 words of comprehensive, educational content
+- Structure with clear H2 and H3 headings for better readability
+- Value-driven content that provides actionable gardening advice
+- Include detailed plant care instructions when relevant to campaign theme
+- Address seasonal gardening challenges and solutions
+- Cover plant varieties, care techniques, and troubleshooting when appropriate
+- Educational tone that establishes garden center expertise
+- Include call-to-action for garden center visit or expert consultation
+- Format: Complete blog post with headline and structured content sections
+- SEO considerations: natural keyword integration related to gardening and plants`;
 
     case 'newsletter':
       return `${basePrompt}

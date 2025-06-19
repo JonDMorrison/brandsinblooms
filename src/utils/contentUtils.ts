@@ -58,6 +58,13 @@ export const getPlatformConfig = (postType: string) => {
       textColor: 'text-blue-700',
       borderColor: 'border-blue-200'
     },
+    blog: {
+      icon: 'BookOpen',
+      color: '#7C3AED',
+      bgColor: 'bg-purple-50',
+      textColor: 'text-purple-700',
+      borderColor: 'border-purple-200'
+    },
     video: {
       icon: 'Video',
       color: '#F97316',
@@ -71,13 +78,6 @@ export const getPlatformConfig = (postType: string) => {
       bgColor: 'bg-pink-50',
       textColor: 'text-pink-700',
       borderColor: 'border-pink-200'
-    },
-    email: {
-      icon: 'Mail',
-      color: '#6366F1',
-      bgColor: 'bg-indigo-50',
-      textColor: 'text-indigo-700',
-      borderColor: 'border-indigo-200'
     }
   };
 

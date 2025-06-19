@@ -155,7 +155,7 @@ export const generateCampaignContent = async (
         theme: theme,
         month: currentMonth,
         tone: 'professional',
-        channels: ['facebook', 'instagram', 'newsletter', 'video'], // FIXED: Standardized content types
+        channels: ['facebook', 'instagram', 'newsletter', 'blog', 'video'], // UPDATED: Replaced email with blog
         campaignId: campaignId,
         userId: userId
       }
@@ -173,10 +173,10 @@ export const generateCampaignContent = async (
     const generatedContent = data.content;
     console.log('📋 Generated campaign content:', generatedContent);
 
-    // Spend tokens for content generation (4 content types = 4 tokens)
+    // Spend tokens for content generation (5 content types = 5 tokens)
     const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
       p_user_id: userId,
-      p_tokens: 4,
+      p_tokens: 5,
       p_action_type: 'generation',
       p_content_type: 'content_pack',
       p_campaign_id: campaignId
@@ -187,8 +187,8 @@ export const generateCampaignContent = async (
       throw new Error('Failed to process tokens for content generation');
     }
 
-    // Create content tasks for each type - FIXED: Standardized content types
-    const contentTypes = ['newsletter', 'instagram', 'facebook', 'video'];
+    // Create content tasks for each type - UPDATED: Added blog content type
+    const contentTypes = ['newsletter', 'instagram', 'facebook', 'blog', 'video'];
     const results = [];
 
     for (const type of contentTypes) {
@@ -287,6 +287,7 @@ const extractImageKeywords = (theme: string, description: string, contentType: s
     instagram: 'lifestyle aesthetic beautiful vibrant colorful trendy square portrait garden',
     facebook: 'community educational informative people landscape wide garden',
     newsletter: 'professional seasonal informative clean organized landscape header garden',
+    blog: 'featured image professional educational informative landscape header garden',
     video: 'action process tutorial hands-on behind scenes landscape cinematic garden'
   };
   

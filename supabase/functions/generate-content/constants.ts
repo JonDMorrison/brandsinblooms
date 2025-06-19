@@ -1,4 +1,3 @@
-
 import { ContentTypeRules } from './types.ts';
 
 export const CONTENT_TYPE_RULES: Record<string, ContentTypeRules> = {
@@ -29,17 +28,19 @@ export const CONTENT_TYPE_RULES: Record<string, ContentTypeRules> = {
       'Feel personal and authentic with practical plant advice'
     ]
   },
-  email: {
-    max_words: 200,
-    tone: 'informative and valuable',
-    format: 'scannable, professional yet warm',
-    cta_style: 'helpful instructions, clear next steps',
+  blog: {
+    max_words: 700,
+    tone: 'educational and authoritative',
+    format: 'structured with headings, scannable sections',
+    cta_style: 'educational with actionable advice',
     specific_requirements: [
-      'Include detailed plant care tips and seasonal timing',
-      'Address specific plant health challenges and solutions',
-      'Provide region-specific plant care advice and schedules',
-      'Cover watering, fertilizing, or pruning techniques',
-      'Professional but approachable plant care guidance'
+      'Create compelling, SEO-friendly headlines',
+      'Structure content with H2 and H3 headings for readability',
+      'Provide comprehensive, value-driven educational content',
+      'Include detailed plant care instructions and seasonal guidance',
+      'Address common gardening challenges with step-by-step solutions',
+      'Cover plant varieties, care schedules, and troubleshooting techniques',
+      'Provide actionable advice that readers can implement immediately'
     ]
   },
   newsletter: {
