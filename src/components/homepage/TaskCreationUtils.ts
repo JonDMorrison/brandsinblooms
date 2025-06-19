@@ -66,6 +66,7 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       
       try {
         if (postType === 'newsletter') {
+          // Use structured newsletter generation
           aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, campaignDescription);
         } else if (postType === 'video') {
           aiOutput = await generateVideoScript(campaignTitle, userId, campaignDescription);

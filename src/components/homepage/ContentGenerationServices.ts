@@ -1,8 +1,21 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
   console.log(`🎯 Generating validated ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
+  
+  // Route newsletter requests to structured generator
+  if (postType === 'newsletter') {
+    console.log('📰 Routing newsletter request to structured generator');
+    return await generateStructuredNewsletter(
+      'temp-campaign-id', // This will be replaced with actual campaign ID when available
+      campaignTitle,
+      1, // Week number
+      userId,
+      weekDescription
+    );
+  }
   
   try {
     console.log('📡 About to call generate-content function with:', {
