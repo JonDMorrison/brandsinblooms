@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PlatformChip } from "@/components/ui/platform-chip";
-import { stripMarkdown, truncateText, getStatusConfig, isSupportedPostType } from "@/utils/contentUtils";
+import { stripMarkdown, truncateText, getStatusConfig, isSupportedPostType, cleanContentForDisplay } from "@/utils/contentUtils";
 import { useTaskImages } from "@/hooks/useTaskImages";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
@@ -18,31 +18,6 @@ interface AccordionTaskItemProps {
   onClick: (task: any) => void;
   onTaskUpdate?: () => void;
 }
-
-// Enhanced content cleaning function for better display
-const cleanContentForDisplay = (content: string): string => {
-  if (!content) return '';
-  
-  // First strip markdown and HTML
-  let cleaned = stripMarkdown(content);
-  
-  // Remove any remaining technical artifacts
-  cleaned = cleaned
-    // Remove code blocks that might have been missed
-    .replace(/```[\s\S]*?```/g, '')
-    .replace(/`[^`]+`/g, '')
-    // Remove HTML entities
-    .replace(/&[a-zA-Z0-9#]+;/g, '')
-    // Remove excessive whitespace and normalize line breaks
-    .replace(/\n\s*\n\s*\n/g, '\n\n')
-    .replace(/\s+/g, ' ')
-    // Remove any leftover brackets or technical formatting
-    .replace(/\[.*?\]/g, '')
-    .replace(/\{.*?\}/g, '')
-    .trim();
-    
-  return cleaned;
-};
 
 export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTaskItemProps) => {
   console.log('AccordionTaskItem: Rendering task:', task.id, task.post_type, task.status);
@@ -60,8 +35,12 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
   const statusConfig = getStatusConfig(task.status);
   const hasContent = task.ai_output && task.ai_output.trim() !== '';
-  const cleanContent = hasContent ? cleanContentForDisplay(task.ai_output) : '';
-  const previewText = cleanContent ? truncateText(cleanContent, 110, '…') : 'Content will be generated soon...';
+  const cleanContent = hasContent ? cleanContentForDisplay(task.ai_output, task.post_type) : '';
+  
+  // For preview, strip HTML tags but keep text structure
+  const previewText = cleanContent ? 
+    truncateText(cleanContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(), 110, '…') : 
+    'Content will be generated soon...';
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -126,7 +105,9 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
   const handleCopyContent = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (hasContent) {
-      handleCopy(cleanContent);
+      // Copy the clean text without HTML tags for clipboard
+      const textToCopy = cleanContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+      handleCopy(textToCopy);
       toast.success('Content copied to clipboard');
     }
   };
@@ -171,12 +152,19 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
         <AccordionContent className="px-4 pb-4">
           <div className="space-y-4">
-            {/* Full content - now using cleaned content */}
+            {/* Full content - now with proper blog formatting */}
             {hasContent && (
               <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                  {cleanContent}
-                </div>
+                {task.post_type === 'blog' ? (
+                  <div 
+                    className="text-sm text-gray-800 leading-relaxed prose prose-sm max-w-none"
+                    dangerouslySetInnerHTML={{ __html: cleanContent }}
+                  />
+                ) : (
+                  <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                    {cleanContent.replace(/<[^>]*>/g, '')}
+                  </div>
+                )}
               </div>
             )}
 

@@ -1,3 +1,4 @@
+
 // Content filtering utilities
 export const SUPPORTED_POST_TYPES = ['instagram', 'facebook', 'newsletter', 'email', 'blog', 'video'] as const;
 
@@ -29,6 +30,63 @@ export const stripMarkdown = (text: string): string => {
     .replace(/^\s*>\s+/gm, '') // Remove blockquotes
     .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
     .trim();
+};
+
+// New function to preserve blog formatting
+export const formatBlogContent = (text: string): string => {
+  if (!text) return '';
+  
+  return text
+    // Convert markdown headers to proper formatting
+    .replace(/^#{1}\s+(.+)$/gm, '<h1>$1</h1>')
+    .replace(/^#{2}\s+(.+)$/gm, '<h2>$1</h2>')
+    .replace(/^#{3}\s+(.+)$/gm, '<h3>$1</h3>')
+    .replace(/^#{4}\s+(.+)$/gm, '<h4>$1</h4>')
+    // Convert bold and italic
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    // Convert lists
+    .replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+    .replace(/<\/ul>\s*<ul>/g, '') // Combine consecutive lists
+    // Convert line breaks to paragraphs
+    .replace(/\n\n+/g, '</p><p>')
+    .replace(/^(?!<[h1-6]|<ul|<li)(.+)$/gm, '<p>$1</p>')
+    // Clean up empty paragraphs and fix formatting
+    .replace(/<p><\/p>/g, '')
+    .replace(/<p>(<[h1-6])/g, '$1')
+    .replace(/(<\/[h1-6]>)<\/p>/g, '$1')
+    .trim();
+};
+
+// Enhanced cleaning function that preserves structure for blog posts
+export const cleanContentForDisplay = (content: string, postType: string = ''): string => {
+  if (!content) return '';
+  
+  // For blog posts, preserve more structure
+  if (postType === 'blog') {
+    return formatBlogContent(content);
+  }
+  
+  // For other post types, use the existing cleaning logic
+  let cleaned = stripMarkdown(content);
+  
+  // Remove any remaining technical artifacts
+  cleaned = cleaned
+    // Remove code blocks that might have been missed
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`]+`/g, '')
+    // Remove HTML entities
+    .replace(/&[a-zA-Z0-9#]+;/g, '')
+    // Remove excessive whitespace and normalize line breaks
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/\s+/g, ' ')
+    // Remove any leftover brackets or technical formatting
+    .replace(/\[.*?\]/g, '')
+    .replace(/\{.*?\}/g, '')
+    .trim();
+    
+  return cleaned;
 };
 
 export const truncateText = (text: string, maxLength: number, suffix: string = '...'): string => {
