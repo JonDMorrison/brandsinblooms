@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Mail, Facebook, Video, Instagram, FileText, BookOpen } from 'lucide-react';
+import { Mail, Facebook, Video, Instagram, FileText, BookOpen, Linkedin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PlatformChipProps {
@@ -14,7 +14,8 @@ const iconMap = {
   Video,
   Instagram,
   FileText,
-  BookOpen
+  BookOpen,
+  Linkedin
 };
 
 // Helper function to properly format post type names
@@ -32,6 +33,8 @@ const formatPostTypeName = (postType: string) => {
       return 'Video';
     case 'email':
       return 'Blog'; // Map email to Blog as they seem to be the same content type
+    case 'linkedin':
+      return 'LinkedIn';
     default:
       return postType.charAt(0).toUpperCase() + postType.slice(1);
   }
@@ -74,6 +77,12 @@ export const PlatformChip = ({ postType, className }: PlatformChipProps) => {
       bgColor: 'bg-pink-50',
       textColor: 'text-pink-700',
       borderColor: 'border-pink-200'
+    },
+    linkedin: {
+      icon: 'Linkedin',
+      bgColor: 'bg-blue-50',
+      textColor: 'text-blue-700',
+      borderColor: 'border-blue-200'
     }
   };
 
