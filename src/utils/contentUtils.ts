@@ -1,3 +1,4 @@
+
 // Content filtering utilities
 export const SUPPORTED_POST_TYPES = ['instagram', 'facebook', 'newsletter', 'email', 'blog', 'video'] as const;
 
@@ -42,6 +43,37 @@ export const stripMarkdown = (text: string): string => {
     .replace(/^\s*>\s+/gm, '') // Remove blockquotes
     .replace(/\n{3,}/g, '\n\n') // Normalize line breaks
     .trim();
+};
+
+// Parse newsletter JSON content
+export const parseNewsletterJson = (content: string): { subject: string; content: string } | null => {
+  try {
+    // Check if content starts with ```json
+    if (content.includes('```json')) {
+      const jsonMatch = content.match(/```json\s*\n([\s\S]*?)\n```/) || content.match(/```json\s*([\s\S]*?)```/);
+      if (jsonMatch) {
+        const jsonContent = jsonMatch[1].trim();
+        const parsed = JSON.parse(jsonContent);
+        return {
+          subject: parsed.subject || '',
+          content: parsed.content || ''
+        };
+      }
+    }
+    
+    // Try parsing as direct JSON
+    const parsed = JSON.parse(content);
+    if (parsed.subject && parsed.content) {
+      return {
+        subject: parsed.subject,
+        content: parsed.content
+      };
+    }
+  } catch (error) {
+    console.log('Failed to parse newsletter JSON, treating as regular content');
+  }
+  
+  return null;
 };
 
 // Enhanced blog content formatting for the polished layout
@@ -106,6 +138,16 @@ export const formatBlogContent = (text: string): string => {
 // Enhanced cleaning function that preserves structure for blog posts and newsletters
 export const cleanContentForDisplay = (content: string, postType: string = ''): string => {
   if (!content) return '';
+  
+  // For newsletters, try to parse JSON first
+  if (postType === 'newsletter') {
+    const parsedNewsletter = parseNewsletterJson(content);
+    if (parsedNewsletter) {
+      // Return formatted newsletter content with subject as title
+      const formattedContent = formatBlogContent(parsedNewsletter.content);
+      return `<h1 class="text-4xl font-bold text-slate-900 mb-6">${parsedNewsletter.subject}</h1>${formattedContent}`;
+    }
+  }
   
   // For blog posts and newsletters, preserve more structure
   if (postType === 'blog' || postType === 'newsletter') {
