@@ -1,4 +1,3 @@
-
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -215,7 +214,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                     key={user.id} 
                     className={`
                       ${user.is_duplicate ? 'bg-gray-50' : ''} 
-                      ${isSelected ? 'bg-blue-50 border-blue-200' : ''}
+                      ${isSelected ? 'bg-gray-50 border-gray-200' : ''}
                     `}
                   >
                     <TableCell>
