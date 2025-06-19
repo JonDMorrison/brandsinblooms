@@ -1,5 +1,4 @@
 
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RevenueSection } from "./RevenueSection";  
 import { EnhancedUserTable } from "./EnhancedUserTable";
@@ -41,7 +40,6 @@ export const AdminDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-garden-green-dark">Admin Dashboard</h1>
           <p className="text-garden-green font-medium">Real platform metrics and user management</p>
         </div>
       </div>
@@ -81,4 +79,3 @@ export const AdminDashboard = () => {
     </div>
   );
 };
-
