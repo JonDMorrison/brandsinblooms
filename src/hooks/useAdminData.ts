@@ -11,6 +11,8 @@ interface AdminMetrics {
   currentMRR: number;
   potentialMRR: number;
   conversionRate: number;
+  uniqueUsers: number;
+  duplicateAccounts: number;
 }
 
 export const useAdminData = () => {
@@ -22,6 +24,8 @@ export const useAdminData = () => {
     currentMRR: 0,
     potentialMRR: 0,
     conversionRate: 0,
+    uniqueUsers: 0,
+    duplicateAccounts: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -39,29 +43,26 @@ export const useAdminData = () => {
 
       console.log("Admin data from function:", adminData);
 
-      // Remove duplicates based on email to get unique users
-      const uniqueUsers = adminData?.reduce((acc, current) => {
-        const existingUser = acc.find(user => user.email === current.email);
-        if (!existingUser) {
-          acc.push(current);
-        }
-        return acc;
-      }, []) || [];
-
-      const totalUsers = uniqueUsers.length;
+      // Calculate metrics based on ALL accounts (not just unique users)
+      const totalAccounts = adminData?.length || 0;
       
-      // Calculate subscription metrics from unique users
-      const activeTrialUsers = uniqueUsers.filter(user => 
-        user.subscription_plan === 'free_trial' && user.subscription_status === 'active'
-      ).length;
+      // Calculate unique users
+      const uniqueEmails = new Set(adminData?.map(user => user.email) || []);
+      const uniqueUsers = uniqueEmails.size;
+      const duplicateAccounts = totalAccounts - uniqueUsers;
 
-      const activePaidUsers = uniqueUsers.filter(user => 
+      // Calculate subscription metrics from all accounts
+      const activeTrialAccounts = adminData?.filter(user => 
+        user.subscription_plan === 'free_trial' && user.subscription_status === 'active'
+      ).length || 0;
+
+      const activePaidAccounts = adminData?.filter(user => 
         user.subscription_plan !== 'free_trial' && user.subscription_status === 'active'
-      ).length;
+      ).length || 0;
 
       // Calculate MRR based on active paid subscriptions
       let currentMRR = 0;
-      uniqueUsers.forEach(user => {
+      adminData?.forEach(user => {
         if (user.subscription_plan !== 'free_trial' && user.subscription_status === 'active') {
           // Estimate monthly revenue based on plan
           if (user.subscription_plan === 'sprout') {
@@ -72,25 +73,30 @@ export const useAdminData = () => {
         }
       });
 
-      // Calculate potential MRR if all trial users converted to Sprout plan
-      const potentialMRR = activeTrialUsers * 99;
+      // Calculate potential MRR if all trial accounts converted to Sprout plan
+      const potentialMRR = activeTrialAccounts * 99;
 
-      const conversionRate = totalUsers > 0 ? Math.round((activePaidUsers / totalUsers) * 100) : 0;
+      // Calculate conversion rate based on unique users
+      const conversionRate = uniqueUsers > 0 ? Math.round((activePaidAccounts / uniqueUsers) * 100) : 0;
 
       setMetrics({
-        totalUsers,
-        totalProfiles: totalUsers, // Same as total users now
-        trialUsers: activeTrialUsers,
-        paidUsers: activePaidUsers,
+        totalUsers: totalAccounts,
+        totalProfiles: totalAccounts, 
+        trialUsers: activeTrialAccounts,
+        paidUsers: activePaidAccounts,
         currentMRR,
         potentialMRR,
         conversionRate,
+        uniqueUsers,
+        duplicateAccounts,
       });
 
       console.log("Calculated metrics:", {
-        totalUsers,
-        activeTrialUsers,
-        activePaidUsers,
+        totalAccounts,
+        uniqueUsers,
+        duplicateAccounts,
+        activeTrialAccounts,
+        activePaidAccounts,
         currentMRR,
         potentialMRR,
         conversionRate

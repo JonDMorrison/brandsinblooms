@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -15,6 +16,8 @@ interface AdminUserData {
   last_login?: string;
   tokens_balance?: number;
   onboarding_completed?: boolean;
+  is_duplicate?: boolean;
+  account_number?: number;
 }
 
 export const useAdminUsers = () => {
@@ -52,23 +55,41 @@ export const useAdminUsers = () => {
         onboarding_completed: !!user.onboarding_completed_at
       })) || [];
 
-      // Remove duplicates based on email (keep the most recent one)
-      const uniqueUsers = transformedUsers.reduce((acc, current) => {
-        const existingUser = acc.find(user => user.email === current.email);
-        if (!existingUser) {
-          acc.push(current);
-        } else {
-          // Keep the more recent one
-          if (new Date(current.created_at) > new Date(existingUser.created_at)) {
-            const index = acc.indexOf(existingUser);
-            acc[index] = current;
-          }
-        }
+      // Instead of removing duplicates, identify them and add metadata
+      const emailCounts = transformedUsers.reduce((acc, user) => {
+        acc[user.email] = (acc[user.email] || 0) + 1;
         return acc;
-      }, [] as AdminUserData[]);
+      }, {} as Record<string, number>);
 
-      setUsers(uniqueUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-      console.log("Transformed unique users:", uniqueUsers);
+      const emailCounters = {} as Record<string, number>;
+
+      const usersWithDuplicateInfo = transformedUsers.map(user => {
+        const hasDuplicates = emailCounts[user.email] > 1;
+        if (hasDuplicates) {
+          emailCounters[user.email] = (emailCounters[user.email] || 0) + 1;
+          return {
+            ...user,
+            is_duplicate: true,
+            account_number: emailCounters[user.email]
+          };
+        }
+        return {
+          ...user,
+          is_duplicate: false,
+          account_number: 1
+        };
+      });
+
+      // Sort by email first, then by creation date (newest first within same email)
+      const sortedUsers = usersWithDuplicateInfo.sort((a, b) => {
+        if (a.email !== b.email) {
+          return a.email.localeCompare(b.email);
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      setUsers(sortedUsers);
+      console.log("All users with duplicate info:", sortedUsers);
 
     } catch (error) {
       console.error('Error fetching admin users:', error);

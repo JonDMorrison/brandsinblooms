@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreHorizontal, Mail, MapPin, Calendar, Coins, Trash2 } from "lucide-react";
+import { MoreHorizontal, Mail, MapPin, Calendar, Coins, Trash2, AlertTriangle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,8 @@ interface AdminUserData {
   last_login?: string;
   tokens_balance?: number;
   onboarding_completed?: boolean;
+  is_duplicate?: boolean;
+  account_number?: number;
 }
 
 interface EnhancedUserTableProps {
@@ -98,6 +100,9 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
     <Card className="rounded-xl">
       <CardHeader>
         <CardTitle className="text-xl">All Users ({users.length})</CardTitle>
+        <p className="text-sm text-gray-600">
+          Showing all accounts including duplicates. Users with multiple accounts are marked.
+        </p>
       </CardHeader>
       <CardContent>
         <Table>
@@ -117,7 +122,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
               const daysRemaining = getDaysRemaining(user.trial_end_date);
               
               return (
-                <TableRow key={user.id}>
+                <TableRow key={user.id} className={user.is_duplicate ? 'bg-yellow-50' : ''}>
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
@@ -126,7 +131,17 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="font-medium">{user.email}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium">{user.email}</div>
+                          {user.is_duplicate && (
+                            <div className="flex items-center gap-1">
+                              <AlertTriangle className="w-4 h-4 text-orange-500" />
+                              <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800">
+                                Account #{user.account_number}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
                         <div className="text-sm text-gray-500">
                           Joined {formatDate(user.created_at)}
                         </div>
@@ -211,6 +226,11 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                         <DropdownMenuItem>
                           Reset Password
                         </DropdownMenuItem>
+                        {user.is_duplicate && (
+                          <DropdownMenuItem>
+                            Merge Accounts
+                          </DropdownMenuItem>
+                        )}
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
@@ -222,9 +242,15 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                             <AlertDialogHeader>
                               <AlertDialogTitle>Delete User Account</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to permanently delete the account for <strong>{user.email}</strong>? 
+                                Are you sure you want to permanently delete the account for <strong>{user.email}</strong>
+                                {user.is_duplicate && ` (Account #${user.account_number})`}? 
                                 This will delete all their data including campaigns, content, and subscriptions. 
                                 This action cannot be undone.
+                                {user.is_duplicate && (
+                                  <div className="mt-2 p-2 bg-orange-50 rounded text-orange-800 text-sm">
+                                    <strong>Note:</strong> This user has multiple accounts. Consider merging instead of deleting.
+                                  </div>
+                                )}
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

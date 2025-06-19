@@ -21,6 +21,10 @@ export const AdminDashboard = () => {
     (user.company_name && user.company_name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
+  // Calculate duplicate statistics
+  const duplicateUsers = detailedUsers.filter(user => user.is_duplicate);
+  const uniqueEmails = new Set(detailedUsers.map(user => user.email)).size;
+
   if (metricsLoading && usersLoading) {
     return (
       <div className="space-y-6">
@@ -47,14 +51,39 @@ export const AdminDashboard = () => {
       {/* Users Section */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-garden-green-dark">
-            All Users ({filteredUsers.length} of {detailedUsers.length})
-          </h2>
+          <div>
+            <h2 className="text-xl font-semibold text-garden-green-dark">
+              All Users ({filteredUsers.length} of {detailedUsers.length})
+            </h2>
+            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+              <span>Unique emails: {uniqueEmails}</span>
+              <span>Duplicate accounts: {duplicateUsers.length}</span>
+              <span>Total accounts: {detailedUsers.length}</span>
+            </div>
+          </div>
           <UserSearch 
             onSearch={setSearchTerm}
             placeholder="Search by email or company name..."
           />
         </div>
+
+        {/* Duplicate accounts warning */}
+        {duplicateUsers.length > 0 && (
+          <Card className="border-orange-200 bg-orange-50">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-orange-800 text-lg flex items-center gap-2">
+                <span>⚠️</span>
+                Duplicate Accounts Detected
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-orange-700 text-sm">
+                Found {duplicateUsers.length} duplicate accounts across {detailedUsers.length - uniqueEmails} users. 
+                These accounts are highlighted in yellow below. Consider merging or cleaning up duplicate accounts.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {usersLoading ? (
           <Card>
