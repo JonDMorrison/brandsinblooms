@@ -34,7 +34,7 @@ const formatPostTypeName = (postType: string) => {
     case 'email':
       return 'Blog'; // Map email to Blog as they seem to be the same content type
     case 'linkedin':
-      return 'LinkedIn';
+      return 'LinkedIn'; // Fixed capitalization
     default:
       return postType.charAt(0).toUpperCase() + postType.slice(1);
   }
