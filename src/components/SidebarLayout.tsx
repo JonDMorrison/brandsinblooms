@@ -1,9 +1,9 @@
-
 import { ReactNode, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/dashboard/DashboardLayout";
+import { TrialBanner } from "@/components/TrialBanner";
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -102,14 +102,17 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   };
 
   return (
-    <DashboardLayout
-      currentView={currentView}
-      onViewChange={handleViewChange}
-      onboardingData={onboardingData}
-      onBusinessNameChange={handleBusinessNameChange}
-      onCampaignCreated={handleCampaignCreated}
-    >
-      {children}
-    </DashboardLayout>
+    <>
+      <TrialBanner />
+      <DashboardLayout
+        currentView={currentView}
+        onViewChange={handleViewChange}
+        onboardingData={onboardingData}
+        onBusinessNameChange={handleBusinessNameChange}
+        onCampaignCreated={handleCampaignCreated}
+      >
+        {children}
+      </DashboardLayout>
+    </>
   );
 };
