@@ -40,7 +40,6 @@ export const AdminDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-garden-green font-medium">Real platform metrics and user management</p>
         </div>
       </div>
 
