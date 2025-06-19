@@ -4,10 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Crown, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useSidebar } from "@/components/ui/sidebar";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const TrialBanner = () => {
   const { subscription, trialDaysLeft } = useSubscription();
   const navigate = useNavigate();
+  const { state } = useSidebar();
+  const isMobile = useIsMobile();
 
   console.log('TrialBanner: Rendering with values', {
     subscription: subscription?.plan,
@@ -20,7 +24,6 @@ export const TrialBanner = () => {
     return null;
   }
 
-  // Ensure trialDaysLeft is a valid number
   const daysLeft = typeof trialDaysLeft === 'number' && !isNaN(trialDaysLeft) ? trialDaysLeft : 0;
   
   console.log('TrialBanner: Processed daysLeft:', daysLeft);
@@ -29,13 +32,27 @@ export const TrialBanner = () => {
     navigate('/pricing');
   };
 
+  // Calculate proper margin based on sidebar state
+  const isCollapsed = state === "collapsed";
+  const sidebarWidth = isMobile ? 0 : (isCollapsed ? 56 : 256); // 14 * 4 = 56px collapsed, 64 * 4 = 256px expanded
+  
+  const bannerStyle = isMobile 
+    ? {} 
+    : { 
+        marginLeft: `${sidebarWidth}px`,
+        width: `calc(100% - ${sidebarWidth}px)`
+      };
+
   // Show urgent banner for last 3 days
   if (daysLeft <= 3) {
     const dayText = daysLeft === 1 ? 'day' : 'days';
     console.log('TrialBanner: Showing urgent banner for', daysLeft, dayText);
     
     return (
-      <div className="bg-gradient-to-r from-red-500 to-orange-500 text-black px-4 py-3 text-center shadow-lg">
+      <div 
+        className="bg-gradient-to-r from-red-500 to-orange-500 text-black px-4 py-3 text-center shadow-lg relative z-40"
+        style={bannerStyle}
+      >
         <div className="flex items-center justify-center gap-3 text-sm font-medium">
           <Clock className="h-4 w-4 animate-pulse text-black" />
           <span className="text-black">
@@ -59,7 +76,10 @@ export const TrialBanner = () => {
   console.log('TrialBanner: Showing regular banner for', daysLeft, 'days left');
   
   return (
-    <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-black px-4 py-2 border-b shadow-sm">
+    <div 
+      className="bg-gradient-to-r from-blue-500 to-purple-600 text-black px-4 py-2 border-b shadow-sm relative z-40"
+      style={bannerStyle}
+    >
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4 text-sm">
           <Badge variant="outline" className="bg-white/20 text-black border-black font-medium">

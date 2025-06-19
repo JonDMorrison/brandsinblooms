@@ -1,4 +1,3 @@
-
 import { ReactNode, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
@@ -10,6 +9,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -26,7 +26,6 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     websiteUrl: ""
   });
 
-  // Determine current view based on pathname
   const getCurrentView = (): "home" | "calendar" | "team" | "profile" => {
     const path = location.pathname;
     if (path === "/calendar") return "calendar";
@@ -37,17 +36,14 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   const [currentView, setCurrentView] = useState<"home" | "calendar" | "team" | "profile">(getCurrentView());
 
-  // Update current view when location changes
   useEffect(() => {
     setCurrentView(getCurrentView());
   }, [location.pathname]);
 
-  // Load onboarding data
   useEffect(() => {
     const loadOnboardingData = async () => {
       if (!user) return;
 
-      // First check localStorage
       const savedData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
       
       if (savedData) {
@@ -56,7 +52,6 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         return;
       }
 
-      // If not in localStorage, check the database
       try {
         const { data: dbOnboardingData, error } = await supabase
           .from('onboarding_responses')
@@ -111,53 +106,56 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
   const isHomePage = currentView === "home";
 
   return (
-    <>
-      <TrialBanner />
-      <DashboardLayout
-        currentView={currentView}
-        onViewChange={handleViewChange}
-        onboardingData={onboardingData}
-        onBusinessNameChange={handleBusinessNameChange}
-        onCampaignCreated={handleCampaignCreated}
-      >
-        {isHomePage ? (
-          <div className="space-y-6 bg-white">
-            {/* Fixed UserMenu in top right corner */}
-            <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
-              <UserMenu />
-            </div>
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full flex-col">
+        {/* Trial Banner - positioned to respect sidebar */}
+        <TrialBanner />
+        
+        <div className="flex flex-1 min-h-0">
+          <DashboardLayout
+            currentView={currentView}
+            onViewChange={handleViewChange}
+            onboardingData={onboardingData}
+            onBusinessNameChange={handleBusinessNameChange}
+            onCampaignCreated={handleCampaignCreated}
+          >
+            {isHomePage ? (
+              <div className="space-y-6 bg-white">
+                <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
+                  <UserMenu />
+                </div>
 
-            {/* Enhanced Header with Apple Design - Force white background */}
-            <EnhancedAppleCard 
-              variant="default" 
-              surface="primary" 
-              className="border-0 border-b border-gray-200 rounded-none shadow-sm bg-white"
-              hoverEffect="none"
-              animated={true}
-            >
-              <AppleCardContent className={`
-                bg-white
-                ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
-              `}>
-                <WelcomeSection 
-                  onboardingData={onboardingData}
-                  onBusinessNameChange={handleBusinessNameChange}
-                />
-              </AppleCardContent>
-            </EnhancedAppleCard>
-            
-            {/* Dashboard Content - Force white background on main content area */}
-            <div className={`
-              bg-white
-              ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
-            `}>
-              {children}
-            </div>
-          </div>
-        ) : (
-          children
-        )}
-      </DashboardLayout>
-    </>
+                <EnhancedAppleCard 
+                  variant="default" 
+                  surface="primary" 
+                  className="border-0 border-b border-gray-200 rounded-none shadow-sm bg-white"
+                  hoverEffect="none"
+                  animated={true}
+                >
+                  <AppleCardContent className={`
+                    bg-white
+                    ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
+                  `}>
+                    <WelcomeSection 
+                      onboardingData={onboardingData}
+                      onBusinessNameChange={handleBusinessNameChange}
+                    />
+                  </AppleCardContent>
+                </EnhancedAppleCard>
+                
+                <div className={`
+                  bg-white
+                  ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
+                `}>
+                  {children}
+                </div>
+              </div>
+            ) : (
+              children
+            )}
+          </DashboardLayout>
+        </div>
+      </div>
+    </SidebarProvider>
   );
 };
