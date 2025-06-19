@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -131,7 +132,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
   return (
     <Accordion type="multiple" className="w-full">
       <AccordionItem value={task.id} className="border-gray-200 rounded-lg">
-        <AccordionTrigger className="px-4 py-3 hover:no-underline">
+        <AccordionTrigger className="px-4 py-3 hover:no-underline flex-col items-start">
           <div className="flex items-center justify-between w-full mr-4">
             {/* Left cluster - Just platform chip */}
             <div className="flex items-center gap-3">
@@ -151,14 +152,14 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
               )}
             </div>
           </div>
-        </AccordionTrigger>
 
-        {/* Subheader - Preview line */}
-        <div className="px-4 pb-2">
-          <p className="text-sm text-gray-600 italic">
-            {previewText}
-          </p>
-        </div>
+          {/* Preview line - now inside the trigger */}
+          <div className="w-full mt-2 text-left">
+            <p className="text-sm text-gray-600 italic">
+              {previewText}
+            </p>
+          </div>
+        </AccordionTrigger>
 
         <AccordionContent className="px-4 pb-4">
           <div className="space-y-4">
