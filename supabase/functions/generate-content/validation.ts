@@ -5,32 +5,31 @@ import { ValidationResult } from './types.ts';
 export function validateContent(content: string, contentType?: string): ValidationResult {
   const issues: string[] = [];
   
-  // Use relaxed validation for Instagram
+  // Use more relaxed validation that allows better formatting
   const patterns = contentType === 'instagram' ? INSTAGRAM_FORBIDDEN_PATTERNS : FORBIDDEN_PATTERNS;
   
-  // Check each forbidden pattern
-  patterns.forEach((pattern, index) => {
+  // Focus on critical issues only - allow formatting elements
+  const criticalPatterns = [
+    /\[Company Name\]/gi,           // Company name placeholder
+    /\[Business Name\]/gi,          // Business name placeholder  
+    /\[Garden Center Name\]/gi,     // Garden center placeholder
+    /\[Location\]/gi,               // Location placeholder
+    /\[Region\]/gi,                 // Region placeholder
+    /Your Garden Center(?!\s+name)/gi, // Generic garden center reference (but allow "Your Garden Center name")
+    /```[\s\S]*?```/g,              // Code blocks
+  ];
+  
+  // Check critical patterns only
+  criticalPatterns.forEach((pattern, index) => {
     if (pattern.test(content)) {
       switch (index) {
-        case 0: issues.push('Contains "green thumb" phrase'); break;
-        case 1: issues.push('Contains "Welcome to" opening'); break;
-        case 2:
+        case 0:
+        case 1:
+        case 2: issues.push('Contains company name placeholder'); break;
         case 3:
-        case 4:
-        case 5: issues.push('Contains week number references'); break;
-        case 6: 
-          if (contentType !== 'instagram') {
-            issues.push('Contains emojis'); 
-          }
-          break;
-        case 7: issues.push('Contains company name placeholder'); break;
-        case 8: issues.push('Contains garden center name placeholder'); break;
-        case 9: issues.push('Contains generic garden center reference'); break;
-        case 10: issues.push('Contains region placeholder'); break;
-        case 11: issues.push('Contains location placeholder'); break;
-        case 12: issues.push('Contains garden center location placeholder'); break;
-        case 13: issues.push('Contains square bracket placeholders'); break;
-        case 14: issues.push('Contains code blocks'); break;
+        case 4: issues.push('Contains location placeholder'); break;
+        case 5: issues.push('Contains generic garden center reference'); break;
+        case 6: issues.push('Contains code blocks'); break;
       }
     }
   });

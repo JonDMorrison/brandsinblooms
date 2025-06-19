@@ -8,21 +8,21 @@ export async function generateContentWithValidation(prompt: string, openAIApiKey
   while (attempts < maxAttempts) {
     attempts++;
     
-    // Add progressively stricter instructions with each attempt
+    // Add progressively stricter instructions with each attempt, but allow formatting
     let enhancedPrompt = prompt;
     if (attempts > 1) {
-      enhancedPrompt += `\n\n🚨 REGENERATION ATTEMPT ${attempts} - PREVIOUS FAILURES: ${lastIssues.join(', ')}
+      enhancedPrompt += `\n\n🚨 REGENERATION ATTEMPT ${attempts} - PREVIOUS ISSUES: ${lastIssues.join(', ')}
       
-CRITICAL: The previous attempt was REJECTED for violating content rules. You MUST:
-- Write in PLAIN ENGLISH only
-- Use SHORT PARAGRAPHS (2-3 sentences max)
-- NEVER use square brackets like [Company Name] or [Location]
-- Write like a human speaking naturally to another human
-${contentType === 'instagram' ? '- Natural social media style is OK for Instagram' : '- NO formatting whatsoever'}
+CRITICAL: The previous attempt had issues. You MUST:
+- Write in natural, engaging language appropriate for ${contentType || 'content'}
+- Use proper formatting: short paragraphs, bullet points, numbered lists where helpful
+- NEVER use square brackets like [Company Name] or [Location] - use actual names or "we"/"our"
+- Write like a professional garden center expert speaking to customers
+${contentType === 'instagram' ? '- Use emojis and social media formatting naturally' : '- Use formatting that improves readability'}
       
 IMMEDIATE REJECTION if content contains:
 - Any text in square brackets [like this]
-- Generic placeholders instead of specific names`;
+- Generic placeholders instead of specific names or "we"/"our" references`;
     }
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -36,16 +36,17 @@ IMMEDIATE REJECTION if content contains:
         messages: [
           { 
             role: 'system', 
-            content: `You are a professional garden center content writer who writes in plain, conversational English. You NEVER use placeholders, formatting, or technical language. You write like a friendly local expert talking to customers.
+            content: `You are a professional garden center content writer who creates engaging, well-formatted content. You use natural formatting including paragraphs, bullet points, and lists to improve readability. You NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business.
 
-CRITICAL RULES (VIOLATION = CONTENT REJECTION):
-1. Write in natural, flowing paragraphs only
-2. Use specific company names, never placeholders like [Company Name]
-3. Keep paragraphs short (2-3 sentences) for mobile reading
-4. Sound conversational and authentic, not corporate or technical
-${contentType === 'instagram' ? '5. For Instagram: Natural social media style is acceptable' : '5. No formatting: no bold, italic, bullets, numbers, or code blocks'}
+CONTENT FORMATTING GUIDELINES:
+1. Use short, readable paragraphs (2-3 sentences)
+2. Use bullet points or numbered lists when they improve clarity
+3. Include emojis for social media content when appropriate
+4. Use proper spacing and formatting for the content type
+5. Write conversationally but professionally
+${contentType === 'instagram' ? '6. For Instagram: Use natural social media formatting with emojis and hashtags' : '6. Format appropriately for the content type'}
 
-You must write content that sounds like it came from a real person at a real garden center talking to real customers.` 
+You write content that real garden center customers would want to read and engage with.` 
           },
           { role: 'user', content: enhancedPrompt }
         ],
@@ -61,7 +62,7 @@ You must write content that sounds like it came from a real person at a real gar
     const data = await response.json();
     const generatedContent = data.choices[0].message.content;
     
-    // Validate content with content-type specific rules
+    // Validate content with more permissive rules
     const validation = validateContent(generatedContent, contentType);
     
     if (validation.isValid) {

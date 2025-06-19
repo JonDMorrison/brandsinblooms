@@ -25,6 +25,5 @@ export {
   validateContent
 } from '../../utils/contentValidation';
 
-export {
-  buildContentPrompt
-} from '../../utils/promptBuilder';
+// NOTE: buildContentPrompt has been moved to edge functions only
+// This eliminates the conflicting prompt systems and ensures consistency
