@@ -169,13 +169,6 @@ export const SeasonalHolidaysCard = ({
               <Sparkles className="w-5 h-5 text-white" />
             </div>
           </div>
-          
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-full border border-blue-200">
-            <Clock className="w-4 h-4 text-blue-600" />
-            <CaptionMedium className="text-blue-700 font-medium">
-              {holidays.length} opportunities
-            </CaptionMedium>
-          </div>
         </div>
 
         {/* Holiday Cards Grid */}
