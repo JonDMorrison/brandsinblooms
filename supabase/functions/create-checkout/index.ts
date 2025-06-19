@@ -22,38 +22,34 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Check for Stripe secret key first
+    // Check for required environment variables first
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) {
-      logStep("ERROR: STRIPE_SECRET_KEY is not configured");
-      return new Response(JSON.stringify({ 
-        error: "Stripe configuration missing. Please contact support.",
-        details: "STRIPE_SECRET_KEY environment variable is not set"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
-    }
-    logStep("Stripe key verified");
-
-    // Check Supabase environment variables
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
-    if (!supabaseUrl || !supabaseKey) {
-      logStep("ERROR: Supabase environment variables missing", { 
-        hasUrl: !!supabaseUrl, 
-        hasKey: !!supabaseKey 
-      });
+    if (!stripeKey) {
+      logStep("ERROR: STRIPE_SECRET_KEY missing");
       return new Response(JSON.stringify({ 
-        error: "Server configuration error",
-        details: "Missing Supabase configuration"
+        error: "Payment system configuration error. Please try again later." 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
+    
+    if (!supabaseUrl || !supabaseKey) {
+      logStep("ERROR: Supabase environment variables missing");
+      return new Response(JSON.stringify({ 
+        error: "Server configuration error. Please try again later." 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });
     }
 
+    logStep("Environment variables verified");
+
+    // Create Supabase client
     const supabaseClient = createClient(supabaseUrl, supabaseKey, { 
       auth: { persistSession: false } 
     });
@@ -61,42 +57,30 @@ serve(async (req) => {
     // Check authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
-      logStep("ERROR: No authorization header provided");
+      logStep("ERROR: No authorization header");
       return new Response(JSON.stringify({ 
-        error: "Authentication required",
-        details: "No authorization header found"
+        error: "Authentication required. Please sign in and try again." 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
       });
     }
-    logStep("Authorization header found");
 
     // Authenticate user
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) {
-      logStep("ERROR: Authentication failed", { error: userError.message });
+    
+    if (userError || !userData.user?.email) {
+      logStep("ERROR: Authentication failed", { error: userError?.message });
       return new Response(JSON.stringify({ 
-        error: "Authentication failed",
-        details: userError.message
+        error: "Authentication failed. Please sign in and try again." 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
       });
     }
-    
+
     const user = userData.user;
-    if (!user?.email) {
-      logStep("ERROR: User not authenticated or email not available");
-      return new Response(JSON.stringify({ 
-        error: "User email not available",
-        details: "User must have a valid email address"
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 400,
-      });
-    }
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     // Parse request body
@@ -104,10 +88,9 @@ serve(async (req) => {
     try {
       requestBody = await req.json();
     } catch (error) {
-      logStep("ERROR: Invalid request body", { error: error.message });
+      logStep("ERROR: Invalid request body");
       return new Response(JSON.stringify({ 
-        error: "Invalid request format",
-        details: "Request body must be valid JSON"
+        error: "Invalid request format. Please try again." 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
@@ -118,32 +101,20 @@ serve(async (req) => {
     if (!plan || !billingInterval) {
       logStep("ERROR: Missing plan or billing interval", { plan, billingInterval });
       return new Response(JSON.stringify({ 
-        error: "Plan and billing interval are required",
-        details: "Both 'plan' and 'billingInterval' must be provided"
+        error: "Plan and billing interval are required." 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
     }
+
     logStep("Request data received", { plan, billingInterval });
 
     // Initialize Stripe
-    let stripe;
-    try {
-      stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
-      logStep("Stripe initialized successfully");
-    } catch (error) {
-      logStep("ERROR: Failed to initialize Stripe", { error: error.message });
-      return new Response(JSON.stringify({ 
-        error: "Stripe initialization failed",
-        details: error.message
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
-    }
+    const stripe = new Stripe(stripeKey, { apiVersion: "2023-10-16" });
+    logStep("Stripe initialized");
 
-    // Check if customer exists
+    // Check for existing customer
     let customerId;
     try {
       const customers = await stripe.customers.list({ email: user.email, limit: 1 });
@@ -151,20 +122,19 @@ serve(async (req) => {
         customerId = customers.data[0].id;
         logStep("Existing customer found", { customerId });
       } else {
-        logStep("No existing customer found, will create new one");
+        logStep("No existing customer found");
       }
     } catch (error) {
-      logStep("ERROR: Failed to check existing customers", { error: error.message });
+      logStep("ERROR: Failed to check customers", { error: error.message });
       return new Response(JSON.stringify({ 
-        error: "Failed to process customer information",
-        details: error.message
+        error: "Payment system error. Please try again." 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });
     }
 
-    // Price mapping with validation
+    // Price mapping
     const priceMapping = {
       'sprout_monthly': 'price_1RbUP6DmtxsdhOlWBTpvxBaZ',
       'sprout_annual': 'price_1RbUQNDmtxsdhOlWf2vCkehE',
@@ -176,19 +146,19 @@ serve(async (req) => {
     const priceId = priceMapping[priceKey];
     
     if (!priceId) {
-      logStep("ERROR: Invalid plan/billing combination", { priceKey, availableKeys: Object.keys(priceMapping) });
+      logStep("ERROR: Invalid plan/billing combination", { priceKey });
       return new Response(JSON.stringify({ 
-        error: `Invalid plan/billing combination: ${priceKey}`,
-        details: `Available combinations: ${Object.keys(priceMapping).join(', ')}`
+        error: `Invalid plan selection: ${plan} ${billingInterval}` 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400,
       });
     }
+
     logStep("Price ID determined", { priceKey, priceId });
 
     // Get origin for redirect URLs
-    const origin = req.headers.get("origin") || "http://localhost:3000";
+    const origin = req.headers.get("origin") || "https://be93ec50-2043-42c4-b91c-5d7c30f0ef2d.lovableproject.com";
     logStep("Origin determined", { origin });
     
     // Create checkout session
@@ -212,7 +182,7 @@ serve(async (req) => {
         }
       };
 
-      logStep("Creating checkout session with config", { 
+      logStep("Creating checkout session", { 
         priceId, 
         customerId: customerId || 'new', 
         email: user.email 
@@ -222,39 +192,34 @@ serve(async (req) => {
 
       logStep("Checkout session created successfully", { 
         sessionId: session.id, 
-        url: session.url?.substring(0, 50) + '...' 
+        url: session.url 
       });
 
       return new Response(JSON.stringify({ url: session.url }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
+
     } catch (stripeError: any) {
-      logStep("ERROR: Stripe checkout session creation failed", { 
+      logStep("ERROR: Stripe checkout creation failed", { 
         error: stripeError.message,
-        type: stripeError.type,
-        code: stripeError.code,
-        param: stripeError.param
+        type: stripeError.type 
       });
       
       return new Response(JSON.stringify({ 
-        error: "Failed to create checkout session. Please try again.",
-        details: stripeError.message,
-        stripeErrorType: stripeError.type
+        error: "Failed to create checkout session. Please try again." 
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 500,
       });
     }
+
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR: Unexpected error in create-checkout", { 
-      message: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined
-    });
+    logStep("ERROR: Unexpected error", { message: errorMessage });
+    
     return new Response(JSON.stringify({ 
-      error: "An unexpected error occurred. Please try again.",
-      details: errorMessage
+      error: "An unexpected error occurred. Please try again." 
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
