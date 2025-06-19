@@ -61,11 +61,15 @@ export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
       >
         Annual
       </span>
-      {isAnnual && (
-        <Badge className="bg-garden-green text-white ml-2 animate-in slide-in-from-left duration-200">
-          Save 17%
-        </Badge>
-      )}
+      <Badge 
+        className={`ml-2 transition-all duration-200 ${
+          isAnnual 
+            ? 'bg-garden-green text-white animate-in slide-in-from-left' 
+            : 'bg-gray-200 text-gray-600 opacity-60'
+        }`}
+      >
+        Save 17%
+      </Badge>
     </div>
   );
 };

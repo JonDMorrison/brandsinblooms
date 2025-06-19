@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/contexts/SubscriptionContext";
@@ -15,7 +14,7 @@ import { FinalCTA } from "@/components/pricing/FinalCTA";
 const PricingPage = () => {
   const navigate = useNavigate();
   const { updateSubscription, subscription } = useSubscription();
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [isAnnual, setIsAnnual] = useState(true); // Changed from false to true
   const [loading, setLoading] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const { user } = useAuth();
