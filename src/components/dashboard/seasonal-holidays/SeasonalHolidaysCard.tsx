@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -197,21 +198,6 @@ export const SeasonalHolidaysCard = ({
               />
             </div>
           ))}
-        </div>
-
-        {/* Bottom CTA Section */}
-        <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <BodyMedium className="text-gray-800 font-medium mb-1">
-                💡 Pro Tip: Generate content early
-              </BodyMedium>
-              <CaptionMedium className="text-gray-600">
-                Create your holiday content 2-3 weeks in advance for best results
-              </CaptionMedium>
-            </div>
-            <div className="text-2xl">🚀</div>
-          </div>
         </div>
       </div>
 
