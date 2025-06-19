@@ -3,30 +3,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
-import { WelcomeSection } from "@/components/homepage/WelcomeSection";
-import { UserMenu } from "@/components/UserMenu";
-import { AddEventDialog } from "@/components/homepage/AddEventDialog";
-import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
-import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
-import { AppleCardContent } from "@/components/ui/apple-card";
-import { toast } from "sonner";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Navigate } from "react-router-dom";
 
 const Index = () => {
   const { user, loading } = useAuth();
-  const isMobile = useIsMobile();
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
     annualEvents: "",
     websiteUrl: ""
   });
-
-  // Add state for quick action modals
-  const [showAddEventDialog, setShowAddEventDialog] = useState(false);
-  const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
   // Load onboarding data
   useEffect(() => {
@@ -91,19 +77,6 @@ const Index = () => {
     window.location.reload();
   };
 
-  // Quick action handlers
-  const handleEventCreated = () => {
-    setShowAddEventDialog(false);
-    handleCampaignCreated();
-    toast.success('🎉 Event added successfully! Your marketing content will be tailored for this event.');
-  };
-
-  const handleCampaignCreatedInternal = () => {
-    setShowNewCampaignModal(false);
-    handleCampaignCreated();
-    toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
-  };
-
   // Show loading state while auth is loading
   if (loading) {
     return (
@@ -122,58 +95,11 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="space-y-6 bg-white">
-        {/* Fixed UserMenu in top right corner */}
-        <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
-          <UserMenu />
-        </div>
-
-        {/* Enhanced Header with Apple Design - Force white background */}
-        <EnhancedAppleCard 
-          variant="default" 
-          surface="primary" 
-          className="border-0 border-b border-gray-200 rounded-none shadow-sm bg-white"
-          hoverEffect="none"
-          animated={true}
-        >
-          <AppleCardContent className={`
-            bg-white
-            ${isMobile ? 'mobile-safe-area mobile-welcome-section' : 'responsive-padding'}
-          `}>
-            <WelcomeSection 
-              onboardingData={onboardingData}
-              onBusinessNameChange={handleBusinessNameChange}
-            />
-          </AppleCardContent>
-        </EnhancedAppleCard>
-        
-        {/* Dashboard Content - Force white background on main content area */}
-        <div className={`
-          bg-white
-          ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
-        `}>
-          <DashboardContent
-            onboardingData={onboardingData}
-            onBusinessNameChange={handleBusinessNameChange}
-            onCampaignCreated={handleCampaignCreated}
-          />
-        </div>
-
-        {/* Quick Action Modals */}
-        <AddEventDialog 
-          open={showAddEventDialog}
-          onOpenChange={setShowAddEventDialog}
-          onEventCreated={handleEventCreated}
-        />
-
-        <NewCampaignModal 
-          open={showNewCampaignModal}
-          onOpenChange={setShowNewCampaignModal}
-          onCampaignCreated={handleCampaignCreatedInternal}
-        />
-      </div>
-    </div>
+    <DashboardContent
+      onboardingData={onboardingData}
+      onBusinessNameChange={handleBusinessNameChange}
+      onCampaignCreated={handleCampaignCreated}
+    />
   );
 };
 
