@@ -4,13 +4,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreHorizontal, Mail, MapPin, Calendar, Coins } from "lucide-react";
+import { MoreHorizontal, Mail, MapPin, Calendar, Coins, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useState } from "react";
 
 interface AdminUserData {
   id: string;
@@ -29,9 +41,12 @@ interface AdminUserData {
 
 interface EnhancedUserTableProps {
   users: AdminUserData[];
+  onDeleteUser: (userId: string) => Promise<boolean>;
 }
 
-export const EnhancedUserTable = ({ users }: EnhancedUserTableProps) => {
+export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProps) => {
+  const [deletingUser, setDeletingUser] = useState<string | null>(null);
+
   const getPlanBadgeColor = (plan: string) => {
     switch (plan) {
       case 'bloom': return 'bg-purple-100 text-purple-800 border-purple-200';
@@ -42,7 +57,7 @@ export const EnhancedUserTable = ({ users }: EnhancedUserTableProps) => {
   };
 
   const getStatusBadgeColor = (status: string) => {
-    return status === 'Active' 
+    return status === 'active' 
       ? 'bg-green-100 text-green-800 border-green-200' 
       : 'bg-red-100 text-red-800 border-red-200';
   };
@@ -63,6 +78,20 @@ export const EnhancedUserTable = ({ users }: EnhancedUserTableProps) => {
     if (!endDate) return null;
     const days = Math.ceil((new Date(endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
     return days;
+  };
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    setDeletingUser(userId);
+    try {
+      const success = await onDeleteUser(userId);
+      if (!success) {
+        console.error('Failed to delete user');
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    } finally {
+      setDeletingUser(null);
+    }
   };
 
   return (
@@ -182,6 +211,34 @@ export const EnhancedUserTable = ({ users }: EnhancedUserTableProps) => {
                         <DropdownMenuItem>
                           Reset Password
                         </DropdownMenuItem>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                              <Trash2 className="mr-2 h-4 w-4 text-red-600" />
+                              <span className="text-red-600">Delete User</span>
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete User Account</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to permanently delete the account for <strong>{user.email}</strong>? 
+                                This will delete all their data including campaigns, content, and subscriptions. 
+                                This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteUser(user.id, user.email)}
+                                disabled={deletingUser === user.id}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                {deletingUser === user.id ? 'Deleting...' : 'Delete User'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

@@ -9,7 +9,7 @@ import { useState } from "react";
 
 export const AdminDashboard = () => {
   const { metrics, loading: metricsLoading } = useAdminData();
-  const { users: detailedUsers, loading: usersLoading } = useAdminUsers();
+  const { users: detailedUsers, loading: usersLoading, deleteUser } = useAdminUsers();
   const [searchTerm, setSearchTerm] = useState("");
 
   console.log("Admin Dashboard - Metrics:", metrics);
@@ -63,7 +63,7 @@ export const AdminDashboard = () => {
             </CardContent>
           </Card>
         ) : (
-          <EnhancedUserTable users={filteredUsers} />
+          <EnhancedUserTable users={filteredUsers} onDeleteUser={deleteUser} />
         )}
       </div>
     </div>

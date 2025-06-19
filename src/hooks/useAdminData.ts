@@ -27,63 +27,59 @@ export const useAdminData = () => {
 
   const fetchAdminData = async () => {
     try {
-      console.log("Fetching real admin data...");
+      console.log("Fetching admin metrics using new function...");
 
-      // Get all company profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from('company_profiles')
-        .select('*');
+      // Use the new admin function to get accurate user data
+      const { data: adminData, error: adminError } = await supabase.rpc('get_admin_user_data');
 
-      if (profilesError) {
-        console.error('Error fetching profiles:', profilesError);
-        throw profilesError;
+      if (adminError) {
+        console.error('Error fetching admin data:', adminError);
+        throw adminError;
       }
 
-      // Get all subscriptions
-      const { data: subscriptions, error: subscriptionsError } = await supabase
-        .from('subscriptions')
-        .select('*');
+      console.log("Admin data from function:", adminData);
 
-      if (subscriptionsError) {
-        console.error('Error fetching subscriptions:', subscriptionsError);
-        throw subscriptionsError;
-      }
+      // Remove duplicates based on email to get unique users
+      const uniqueUsers = adminData?.reduce((acc, current) => {
+        const existingUser = acc.find(user => user.email === current.email);
+        if (!existingUser) {
+          acc.push(current);
+        }
+        return acc;
+      }, []) || [];
 
-      console.log("Profiles found:", profiles?.length || 0);
-      console.log("Subscriptions found:", subscriptions?.length || 0);
-
-      const totalProfiles = profiles?.length || 0;
+      const totalUsers = uniqueUsers.length;
       
-      // Calculate subscription metrics
-      const activeTrialUsers = subscriptions?.filter(sub => 
-        sub.plan === 'free_trial' && new Date(sub.end_date) > new Date()
-      ).length || 0;
+      // Calculate subscription metrics from unique users
+      const activeTrialUsers = uniqueUsers.filter(user => 
+        user.subscription_plan === 'free_trial' && user.subscription_status === 'active'
+      ).length;
 
-      const activePaidUsers = subscriptions?.filter(sub => 
-        sub.plan !== 'free_trial' && new Date(sub.end_date) > new Date()
-      ).length || 0;
+      const activePaidUsers = uniqueUsers.filter(user => 
+        user.subscription_plan !== 'free_trial' && user.subscription_status === 'active'
+      ).length;
 
       // Calculate MRR based on active paid subscriptions
       let currentMRR = 0;
-      subscriptions?.forEach(sub => {
-        if (sub.plan !== 'free_trial' && new Date(sub.end_date) > new Date()) {
+      uniqueUsers.forEach(user => {
+        if (user.subscription_plan !== 'free_trial' && user.subscription_status === 'active') {
           // Estimate monthly revenue based on plan
-          if (sub.plan === 'sprout') {
-            currentMRR += sub.billing_interval === 'annual' ? 79 : 99; // $79/month annual, $99 monthly
-          } else if (sub.plan === 'bloom') {
-            currentMRR += sub.billing_interval === 'annual' ? 199 : 249; // $199/month annual, $249 monthly
+          if (user.subscription_plan === 'sprout') {
+            currentMRR += 99; // Assume $99/month for sprout
+          } else if (user.subscription_plan === 'bloom') {
+            currentMRR += 249; // Assume $249/month for bloom
           }
         }
       });
 
       // Calculate potential MRR if all trial users converted to Sprout plan
-      const potentialMRR = activeTrialUsers * 99; // Assume $99/month Sprout plan
+      const potentialMRR = activeTrialUsers * 99;
 
-      const conversionRate = totalProfiles > 0 ? Math.round((activePaidUsers / totalProfiles) * 100) : 0;
+      const conversionRate = totalUsers > 0 ? Math.round((activePaidUsers / totalUsers) * 100) : 0;
 
       setMetrics({
-        totalUsers: totalProfiles, // Use profiles as the main user count
-        totalProfiles,
+        totalUsers,
+        totalProfiles: totalUsers, // Same as total users now
         trialUsers: activeTrialUsers,
         paidUsers: activePaidUsers,
         currentMRR,
@@ -92,7 +88,7 @@ export const useAdminData = () => {
       });
 
       console.log("Calculated metrics:", {
-        totalProfiles,
+        totalUsers,
         activeTrialUsers,
         activePaidUsers,
         currentMRR,

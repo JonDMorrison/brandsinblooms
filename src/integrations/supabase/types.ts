@@ -861,6 +861,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_delete_user: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       check_trial_expiration_emails: {
         Args: Record<PropertyKey, never>
         Returns: number
@@ -868,6 +872,22 @@ export type Database = {
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
         Returns: number
+      }
+      get_admin_user_data: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          email: string
+          created_at: string
+          company_name: string
+          company_overview: string
+          location_info: string
+          tokens_balance: number
+          onboarding_completed_at: string
+          subscription_plan: string
+          subscription_status: string
+          subscription_end_date: string
+        }[]
       }
       get_token_balance: {
         Args: { p_user_id: string }
