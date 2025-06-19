@@ -13,6 +13,7 @@ interface MetricCardProps {
   clickable?: boolean;
   href?: string;
   suffix?: string;
+  prefix?: string;
 }
 
 export const MetricCard = ({ 
@@ -25,11 +26,11 @@ export const MetricCard = ({
   bgColor, 
   clickable = false,
   href,
-  suffix = ""
+  suffix = "",
+  prefix = ""
 }: MetricCardProps) => {
   const handleClick = () => {
     if (clickable && href) {
-      // In a real app, this would use React Router navigation
       console.log(`Navigate to: ${href}`);
     }
   };
@@ -47,7 +48,7 @@ export const MetricCard = ({
       </CardHeader>
       <CardContent>
         <div className={`text-2xl font-bold ${color}`}>
-          {value === 0 && !clickable ? '—' : `${value}${suffix}`}
+          {value === 0 && !clickable ? '—' : `${prefix}${value}${suffix}`}
         </div>
         <p className="text-sm text-gray-500 mt-1">{description}</p>
       </CardContent>

@@ -1,88 +1,108 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AdminMetrics {
   totalUsers: number;
-  totalCampaigns: number;
-  totalTasks: number;
-  activeSubscriptions: number;
-  freeTrialUsers: number;
+  totalProfiles: number;
+  trialUsers: number;
   paidUsers: number;
-}
-
-interface BasicUserData {
-  id: string;
-  email: string;
-  created_at: string;
-  plan: string;
-  status: string;
-  campaignCount: number;
-  taskCount: number;
+  currentMRR: number;
+  potentialMRR: number;
+  conversionRate: number;
 }
 
 export const useAdminData = () => {
   const [metrics, setMetrics] = useState<AdminMetrics>({
     totalUsers: 0,
-    totalCampaigns: 0,
-    totalTasks: 0,
-    activeSubscriptions: 0,
-    freeTrialUsers: 0,
+    totalProfiles: 0,
+    trialUsers: 0,
     paidUsers: 0,
+    currentMRR: 0,
+    potentialMRR: 0,
+    conversionRate: 0,
   });
-  const [users, setUsers] = useState<BasicUserData[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAdminData = async () => {
     try {
-      console.log("Fetching admin data...");
+      console.log("Fetching real admin data...");
 
-      // Get basic counts from available tables
-      const [
-        { count: totalUsers },
-        { count: totalCampaigns }, 
-        { count: totalTasks },
-        { data: subscriptions }
-      ] = await Promise.all([
-        supabase.from('company_profiles').select('*', { count: 'exact', head: true }),
-        supabase.from('campaigns').select('*', { count: 'exact', head: true }),
-        supabase.from('content_tasks').select('*', { count: 'exact', head: true }),
-        supabase.from('subscriptions').select('*')
-      ]);
+      // Get all company profiles
+      const { data: profiles, error: profilesError } = await supabase
+        .from('company_profiles')
+        .select('*');
 
-      console.log("Fetched subscriptions:", subscriptions);
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        throw profilesError;
+      }
 
+      // Get all subscriptions
+      const { data: subscriptions, error: subscriptionsError } = await supabase
+        .from('subscriptions')
+        .select('*');
+
+      if (subscriptionsError) {
+        console.error('Error fetching subscriptions:', subscriptionsError);
+        throw subscriptionsError;
+      }
+
+      console.log("Profiles found:", profiles?.length || 0);
+      console.log("Subscriptions found:", subscriptions?.length || 0);
+
+      const totalProfiles = profiles?.length || 0;
+      
       // Calculate subscription metrics
-      const activeSubscriptions = subscriptions?.filter(sub => 
-        new Date(sub.end_date) > new Date()
-      ).length || 0;
-
-      const freeTrialUsers = subscriptions?.filter(sub => 
+      const activeTrialUsers = subscriptions?.filter(sub => 
         sub.plan === 'free_trial' && new Date(sub.end_date) > new Date()
       ).length || 0;
 
-      const paidUsers = subscriptions?.filter(sub => 
+      const activePaidUsers = subscriptions?.filter(sub => 
         sub.plan !== 'free_trial' && new Date(sub.end_date) > new Date()
       ).length || 0;
 
-      console.log("Active subscriptions:", activeSubscriptions);
-      console.log("Free trial users:", freeTrialUsers);
-      console.log("Paid users:", paidUsers);
-
-      setMetrics({
-        totalUsers: totalUsers || 0,
-        totalCampaigns: totalCampaigns || 0,
-        totalTasks: totalTasks || 0,
-        activeSubscriptions,
-        freeTrialUsers,
-        paidUsers,
+      // Calculate MRR based on active paid subscriptions
+      let currentMRR = 0;
+      subscriptions?.forEach(sub => {
+        if (sub.plan !== 'free_trial' && new Date(sub.end_date) > new Date()) {
+          // Estimate monthly revenue based on plan
+          if (sub.plan === 'sprout') {
+            currentMRR += sub.billing_interval === 'annual' ? 79 : 99; // $79/month annual, $99 monthly
+          } else if (sub.plan === 'bloom') {
+            currentMRR += sub.billing_interval === 'annual' ? 199 : 249; // $199/month annual, $249 monthly
+          }
+        }
       });
 
-      // For basic users, we'll use the same data as detailed but simplified
-      setUsers([]); // We'll populate this from company profiles if needed
+      // Calculate potential MRR if all trial users converted to Sprout plan
+      const potentialMRR = activeTrialUsers * 99; // Assume $99/month Sprout plan
+
+      const conversionRate = totalProfiles > 0 ? Math.round((activePaidUsers / totalProfiles) * 100) : 0;
+
+      setMetrics({
+        totalUsers: totalProfiles, // Use profiles as the main user count
+        totalProfiles,
+        trialUsers: activeTrialUsers,
+        paidUsers: activePaidUsers,
+        currentMRR,
+        potentialMRR,
+        conversionRate,
+      });
+
+      console.log("Calculated metrics:", {
+        totalProfiles,
+        activeTrialUsers,
+        activePaidUsers,
+        currentMRR,
+        potentialMRR,
+        conversionRate
+      });
 
     } catch (error) {
       console.error("Error fetching admin data:", error);
+      toast.error("Failed to load admin data");
     } finally {
       setLoading(false);
     }
@@ -92,5 +112,5 @@ export const useAdminData = () => {
     fetchAdminData();
   }, []);
 
-  return { metrics, users, loading, refetch: fetchAdminData };
+  return { metrics, loading, refetch: fetchAdminData };
 };
