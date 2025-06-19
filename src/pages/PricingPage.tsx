@@ -38,46 +38,76 @@ const PricingPage = () => {
     setLoadingPlan(plan);
     
     try {
-      console.log('Creating checkout session for:', { plan, billingInterval: isAnnual ? 'annual' : 'monthly' });
+      console.log('=== CHECKOUT DEBUG START ===');
+      console.log('User:', { id: user.id, email: user.email });
+      console.log('Plan selection:', { plan, billingInterval: isAnnual ? 'annual' : 'monthly' });
+      console.log('Subscription state:', subscription);
+
+      const requestBody = {
+        plan: plan,
+        billingInterval: isAnnual ? 'annual' : 'monthly'
+      };
+      
+      console.log('Sending request to create-checkout with body:', requestBody);
       
       const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: {
-          plan: plan,
-          billingInterval: isAnnual ? 'annual' : 'monthly'
-        }
+        body: requestBody
       });
 
-      console.log('Checkout response:', { data, error });
+      console.log('=== SUPABASE FUNCTION RESPONSE ===');
+      console.log('Raw response data:', data);
+      console.log('Raw response error:', error);
 
       if (error) {
-        console.error('Supabase function error:', error);
-        if (error.message?.includes('configuration')) {
+        console.error('=== SUPABASE FUNCTION ERROR ===');
+        console.error('Error object:', error);
+        console.error('Error message:', error.message);
+        console.error('Error context:', error.context);
+        
+        // Show user-friendly error messages based on error type
+        if (error.message?.includes('Failed to send a request')) {
+          toast.error('Service temporarily unavailable. Please check your connection and try again.');
+        } else if (error.message?.includes('configuration')) {
           toast.error('Payment system is not configured. Please contact support.');
         } else if (error.message?.includes('authentication')) {
           toast.error('Authentication required. Please sign in and try again.');
         } else {
-          toast.error('Failed to start checkout. Please try again or contact support.');
+          toast.error(`Checkout failed: ${error.message || 'Unknown error'}`);
         }
         return;
       }
 
       if (data?.error) {
-        console.error('Function returned error:', data.error);
-        toast.error(data.error);
+        console.error('=== FUNCTION RETURNED ERROR ===');
+        console.error('Function error:', data.error);
+        console.error('Function error details:', data.details);
+        toast.error(`Error: ${data.error}${data.details ? ` - ${data.details}` : ''}`);
         return;
       }
 
       if (data?.url) {
+        console.log('=== CHECKOUT SUCCESS ===');
         console.log('Redirecting to Stripe checkout:', data.url);
         window.location.href = data.url;
       } else {
-        console.error('No checkout URL received:', data);
+        console.error('=== INVALID RESPONSE ===');
+        console.error('No checkout URL received. Full response:', data);
         toast.error('Invalid response from payment system. Please try again.');
       }
     } catch (error) {
-      console.error('Error creating checkout session:', error);
+      console.error('=== NETWORK ERROR ===');
+      console.error('Caught error:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error constructor:', error?.constructor?.name);
+      
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
+      
       toast.error('Network error. Please check your connection and try again.');
     } finally {
+      console.log('=== CHECKOUT DEBUG END ===');
       setLoading(false);
       setLoadingPlan(null);
     }
