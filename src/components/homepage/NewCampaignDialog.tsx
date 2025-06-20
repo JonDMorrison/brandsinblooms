@@ -12,26 +12,18 @@ import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-
-interface Campaign {
-  title: string;
-  description: string | null;
-  start_date: string;
-  theme: string | null;
-  week_number: number;
-  prompt?: string | null;
-  source?: string | null;
-  user_id: string;
-}
+import { useTenant } from "@/hooks/useTenant";
+import { Campaign } from "@/types/content";
 
 interface NewCampaignDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (campaign: Omit<Campaign, 'id'>) => void;
+  onCreate: (campaign: Campaign) => void;
 }
 
 export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignDialogProps) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
@@ -72,8 +64,8 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
-      setError("You must be logged in to create a campaign");
+    if (!user || !tenant) {
+      setError("You must be logged in and assigned to an organization");
       return;
     }
     
@@ -112,7 +104,8 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
         start_date: startDate,
         week_number: weekNumber,
         source: 'quick_action',
-        user_id: user.id
+        user_id: user.id,
+        tenant_id: tenant.id
       };
 
       // Create campaign directly in Supabase

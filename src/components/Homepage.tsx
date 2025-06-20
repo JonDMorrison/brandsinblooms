@@ -15,17 +15,7 @@ import { HomepageHeader } from "./homepage/HomepageHeader";
 import { HomepageActions } from "./homepage/HomepageActions";
 import { HomepageMainContent } from "./homepage/HomepageMainContent";
 import { HomepageSidebar } from "./homepage/HomepageSidebar";
-
-interface Campaign {
-  id: string;
-  title: string;
-  description: string | null;
-  start_date: string;
-  theme: string | null;
-  week_number: number;
-  tenant_id: string;
-  created_by_user_id?: string;
-}
+import { Campaign } from "@/types/content";
 
 export const Homepage = () => {
   const { user } = useAuth();
@@ -106,7 +96,7 @@ export const Homepage = () => {
     }
   };
 
-  const handleCampaignCreate = async (newCampaign: Omit<Campaign, 'id'>) => {
+  const handleCampaignCreate = async (newCampaign: Campaign) => {
     await fetchCampaigns();
     toast.success('Campaign created successfully');
     setOpenNewCampaign(false);
