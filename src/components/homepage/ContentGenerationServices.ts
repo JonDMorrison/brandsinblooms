@@ -137,6 +137,7 @@ export const generateCampaignContent = async (
   weekNumber?: number
 ) => {
   console.log(`🎯 Generating campaign content pack for campaign: ${campaignId}`);
+  console.log(`📝 Campaign details: theme="${theme}", description="${description}", userId="${userId}"`);
   
   try {
     // Get current month for the new edge function
@@ -150,7 +151,7 @@ export const generateCampaignContent = async (
         theme: theme,
         month: currentMonth,
         tone: 'professional',
-        // FIXED: Updated content types to use blog instead of email
+        // Content types to generate including blog
         channels: ['facebook', 'instagram', 'newsletter', 'blog', 'video'],
         campaignId: campaignId,
         userId: userId
@@ -183,9 +184,11 @@ export const generateCampaignContent = async (
       throw new Error('Failed to process tokens for content generation');
     }
 
-    // FIXED: Updated content types to use blog instead of email
+    // Content types to process - ensuring blog is included
     const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
     const results = [];
+
+    console.log('🔄 Processing content types:', contentTypes);
 
     // Handle regular content types
     for (const type of contentTypes) {
@@ -197,7 +200,9 @@ export const generateCampaignContent = async (
           continue;
         }
 
-        // FIXED: Set status to 'review' and include user_id
+        console.log(`📝 Creating ${type} task with content length: ${content.length} chars`);
+
+        // Create task with status 'review' and include user_id
         const { data: task, error: taskError } = await supabase
           .from('content_tasks')
           .insert({
@@ -216,9 +221,9 @@ export const generateCampaignContent = async (
           console.error(`❌ Error creating ${type} task:`, taskError);
         } else {
           results.push(task);
-          console.log(`✅ Created ${type} content task with status 'review'`);
+          console.log(`✅ Created ${type} content task with ID: ${task.id} and status 'review'`);
           
-          // FIXED: Enhanced image generation with improved error handling
+          // Enhanced image generation with improved error handling for visual content types
           if (type === 'facebook' || type === 'instagram' || type === 'blog') {
             try {
               console.log(`🖼️ Auto-generating images for ${type} content`);
@@ -288,11 +293,14 @@ export const generateCampaignContent = async (
         console.error('❌ Error creating newsletter task:', newsletterError);
       } else {
         results.push(newsletterTask);
-        console.log('✅ Created structured newsletter content task');
+        console.log('✅ Created structured newsletter content task with ID:', newsletterTask.id);
       }
     } catch (error) {
       console.error('❌ Error generating structured newsletter:', error);
     }
+
+    console.log(`🎉 Campaign content generation complete! Created ${results.length} content pieces`);
+    console.log('📊 Content summary:', results.map(task => `${task.post_type}: ${task.id}`));
 
     return {
       success: true,

@@ -4,22 +4,23 @@ export const SUPPORTED_POST_TYPES = ['instagram', 'facebook', 'newsletter', 'blo
 
 export type SupportedPostType = typeof SUPPORTED_POST_TYPES[number];
 
-// Filter function to remove unsupported content types and duplicate blog posts
+// Filter function to remove unsupported content types - REMOVED duplicate blog filtering
 export const filterSupportedContent = <T extends { post_type: string, campaign_id?: string }>(items: T[]): T[] => {
-  const filteredItems = items.filter(item => SUPPORTED_POST_TYPES.includes(item.post_type as SupportedPostType));
+  console.log('🔍 filterSupportedContent: Input items:', items.length);
+  console.log('🔍 filterSupportedContent: Item types:', items.map(item => `${item.post_type}${item.campaign_id ? ` (campaign: ${item.campaign_id.slice(0, 8)}...)` : ''}`));
   
-  // Remove duplicate blog posts - keep only the first blog post per campaign
-  const seenBlogs = new Set<string>();
-  return filteredItems.filter(item => {
-    if (item.post_type === 'blog') {
-      const campaignKey = item.campaign_id || 'default';
-      if (seenBlogs.has(campaignKey)) {
-        return false; // Skip duplicate blog
-      }
-      seenBlogs.add(campaignKey);
+  const filteredItems = items.filter(item => {
+    const isSupported = SUPPORTED_POST_TYPES.includes(item.post_type as SupportedPostType);
+    if (!isSupported) {
+      console.log(`🚫 filterSupportedContent: Filtering out unsupported type: ${item.post_type}`);
     }
-    return true;
+    return isSupported;
   });
+  
+  console.log('✅ filterSupportedContent: Output items:', filteredItems.length);
+  console.log('✅ filterSupportedContent: Final types:', filteredItems.map(item => `${item.post_type}${item.campaign_id ? ` (campaign: ${item.campaign_id.slice(0, 8)}...)` : ''}`));
+  
+  return filteredItems;
 };
 
 // Check if a post type is supported
@@ -139,10 +140,13 @@ export const formatBlogContent = (text: string): string => {
 export const cleanContentForDisplay = (content: string, postType: string = ''): string => {
   if (!content) return '';
   
+  console.log('🧹 cleanContentForDisplay: Processing', postType, 'content, length:', content.length);
+  
   // For newsletters, try to parse JSON first
   if (postType === 'newsletter') {
     const parsedNewsletter = parseNewsletterJson(content);
     if (parsedNewsletter) {
+      console.log('📰 cleanContentForDisplay: Parsed newsletter JSON successfully');
       // Return formatted newsletter content with subject as title
       const formattedContent = formatBlogContent(parsedNewsletter.content);
       return `<h1 class="text-4xl font-bold text-slate-900 mb-6">${parsedNewsletter.subject}</h1>${formattedContent}`;
@@ -151,10 +155,12 @@ export const cleanContentForDisplay = (content: string, postType: string = ''): 
   
   // For blog posts and newsletters, preserve more structure
   if (postType === 'blog' || postType === 'newsletter') {
+    console.log('📝 cleanContentForDisplay: Formatting blog/newsletter content');
     return formatBlogContent(content);
   }
   
   // For other post types, use the existing cleaning logic
+  console.log('📱 cleanContentForDisplay: Cleaning social media content');
   let cleaned = stripMarkdown(content);
   
   // Remove any remaining technical artifacts
@@ -172,6 +178,7 @@ export const cleanContentForDisplay = (content: string, postType: string = ''): 
     .replace(/\{.*?\}/g, '')
     .trim();
     
+  console.log('✅ cleanContentForDisplay: Cleaned content, final length:', cleaned.length);
   return cleaned;
 };
 
