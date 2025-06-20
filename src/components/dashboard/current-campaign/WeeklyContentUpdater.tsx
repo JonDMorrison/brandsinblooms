@@ -218,22 +218,29 @@ export const WeeklyContentUpdater = () => {
           targetCampaign = newCampaign;
         }
 
-        // 🔧 CRITICAL FIX: Auto-generate content for campaigns without tasks
+        // 🔧 ENHANCED AUTO-GENERATION: Always check and generate content if missing
         if (targetCampaign) {
           // Check if campaign has content tasks
           const { data: existingTasks } = await supabase
             .from('content_tasks')
-            .select('id, ai_output')
+            .select('id, ai_output, status')
             .eq('campaign_id', targetCampaign.id);
 
-          const hasContent = existingTasks?.some(task => task.ai_output && task.ai_output.trim() !== '');
+          const hasActualContent = existingTasks?.some(task => 
+            task.ai_output && 
+            task.ai_output.trim() !== '' && 
+            task.status !== 'generating'
+          );
 
-          if (!hasContent) {
-            console.log('WeeklyContentUpdater: Campaign has no content, generating automatically...');
+          // Always generate content if none exists or if tasks are stuck in generating state
+          if (!hasActualContent || (existingTasks && existingTasks.every(task => task.status === 'generating'))) {
+            console.log('WeeklyContentUpdater: Campaign needs content generation - hasActualContent:', hasActualContent, 'existingTasks:', existingTasks?.length || 0);
             
             try {
-              // Use the existing generateCampaignContent function with hybrid support
-              await generateCampaignContent(
+              // 🔧 FORCE CONTENT GENERATION: Use the existing generateCampaignContent function
+              console.log('WeeklyContentUpdater: Starting content generation for campaign:', targetCampaign.title);
+              
+              const result = await generateCampaignContent(
                 targetCampaign.id,
                 targetCampaign.theme || targetCampaign.title,
                 targetCampaign.description || '',
@@ -242,12 +249,16 @@ export const WeeklyContentUpdater = () => {
                 tenant?.id // Pass tenant_id if available, undefined if not
               );
               
-              console.log('WeeklyContentUpdater: Successfully generated content for campaign:', targetCampaign.title);
+              if (result.success) {
+                console.log('WeeklyContentUpdater: Successfully generated content for campaign:', targetCampaign.title, '- Tasks created:', result.tasks?.length || 0);
+              } else {
+                console.error('WeeklyContentUpdater: Content generation failed:', result.message);
+              }
             } catch (error) {
               console.error('WeeklyContentUpdater: Error generating content for campaign:', error);
             }
           } else {
-            console.log('WeeklyContentUpdater: Campaign already has content, skipping generation');
+            console.log('WeeklyContentUpdater: Campaign already has sufficient content, skipping generation');
           }
         }
 
@@ -256,7 +267,10 @@ export const WeeklyContentUpdater = () => {
       }
     };
 
-    updateWeeklyContent();
+    // Run the update with a small delay to ensure everything is initialized
+    const timeoutId = setTimeout(updateWeeklyContent, 1000);
+    
+    return () => clearTimeout(timeoutId);
   }, [user, tenant, tenantLoading, currentWeekNumber]);
 
   return null; // This component doesn't render anything
