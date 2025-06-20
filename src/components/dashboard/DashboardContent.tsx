@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -217,6 +216,39 @@ export const DashboardContent = ({
         
         console.log('✅ DashboardContent: After filtering:', securityCheckedTasks.length, 'tasks (isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ')');
         setTasks(securityCheckedTasks);
+
+        // 🔧 NEW: Check if we have tasks with stuck "generating" status and log it
+        const stuckGeneratingTasks = securityCheckedTasks.filter(task => task.status === 'generating');
+        if (stuckGeneratingTasks.length > 0) {
+          console.warn('⚠️ DashboardContent: Found', stuckGeneratingTasks.length, 'tasks stuck in generating status');
+          stuckGeneratingTasks.forEach(task => {
+            console.warn(`⚠️ Stuck task: ${task.post_type} (${task.id}) for campaign ${task.campaigns?.title}`);
+          });
+        }
+
+        // 🔧 NEW: Auto-detect if we should show generating state based on campaign content
+        if (selectedCampaign) {
+          const campaignTasks = securityCheckedTasks.filter(task => task.campaign_id === selectedCampaign.id);
+          const hasRealContent = campaignTasks.some(task => 
+            task.ai_output && 
+            task.ai_output.trim() !== '' && 
+            task.status !== 'generating'
+          );
+          
+          // If campaign has no real content, show generating state temporarily
+          if (!hasRealContent && campaignTasks.length === 0) {
+            console.log('🔄 DashboardContent: Campaign has no content tasks, may be generating...');
+            setGeneratingContent(true);
+            
+            // Clear generating state after 10 seconds to prevent getting stuck
+            setTimeout(() => {
+              console.log('🔄 DashboardContent: Clearing generating state after timeout');
+              setGeneratingContent(false);
+            }, 10000);
+          } else {
+            setGeneratingContent(false);
+          }
+        }
       }
 
     } catch (error) {

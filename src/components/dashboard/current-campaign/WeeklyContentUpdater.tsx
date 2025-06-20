@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,9 +25,9 @@ export const WeeklyContentUpdater = () => {
       }
 
       try {
-        console.log('WeeklyContentUpdater: Checking for week', currentWeekNumber, 'user:', user.id, 'tenant:', tenant?.id || 'none');
+        console.log('WeeklyContentUpdater: Starting for user:', user.id, 'tenant:', tenant?.id || 'none', 'week:', currentWeekNumber);
 
-        // 🔧 HYBRID QUERY: Use tenant_id if available, otherwise user_id
+        // 🔧 STEP 1: CLEAN UP DUPLICATE CAMPAIGNS FIRST
         let campaignQuery = supabase
           .from('campaigns')
           .select('*')
@@ -36,10 +35,8 @@ export const WeeklyContentUpdater = () => {
           .order('created_at', { ascending: false });
 
         if (tenant?.id) {
-          console.log('WeeklyContentUpdater: Using tenant-based query for tenant:', tenant.id);
           campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
         } else {
-          console.log('WeeklyContentUpdater: Using user-based query for user:', user.id);
           campaignQuery = campaignQuery.eq('user_id', user.id);
         }
 
@@ -50,102 +47,80 @@ export const WeeklyContentUpdater = () => {
           return;
         }
 
-        console.log('WeeklyContentUpdater: Found existing campaigns:', existingCampaigns?.length || 0);
+        console.log('WeeklyContentUpdater: Found campaigns for current week:', existingCampaigns?.length || 0);
 
-        // Enhanced cleanup logic for duplicates
+        // 🔧 AGGRESSIVE CLEANUP: Delete all duplicate empty campaigns
         if (existingCampaigns && existingCampaigns.length > 1) {
-          console.log('WeeklyContentUpdater: Found multiple campaigns, analyzing for cleanup...');
+          console.log('WeeklyContentUpdater: Found', existingCampaigns.length, 'campaigns - cleaning up duplicates');
           
           // Check content for each campaign
           const campaignsWithContent = await Promise.all(
             existingCampaigns.map(async (campaign) => {
               const { data: tasks } = await supabase
                 .from('content_tasks')
-                .select('id, ai_output')
+                .select('id, ai_output, status')
                 .eq('campaign_id', campaign.id);
 
-              const hasContent = tasks?.some(task => task.ai_output && task.ai_output.trim() !== '') || false;
-              const taskCount = tasks?.length || 0;
-
+              const hasRealContent = tasks?.some(task => 
+                task.ai_output && 
+                task.ai_output.trim() !== '' && 
+                task.status !== 'generating'
+              ) || false;
+              
+              console.log(`WeeklyContentUpdater: Campaign "${campaign.title}" (${campaign.id}) has ${tasks?.length || 0} tasks, hasRealContent: ${hasRealContent}`);
+              
               return {
                 campaign,
-                hasContent,
-                taskCount
+                hasRealContent,
+                taskCount: tasks?.length || 0,
+                tasks: tasks || []
               };
             })
           );
 
-          // Find campaigns to delete (empty ones when there are campaigns with content)
-          const campaignsWithActualContent = campaignsWithContent.filter(c => c.hasContent);
-          const emptyCampaigns = campaignsWithContent.filter(c => !c.hasContent);
+          // Find the best campaign to keep
+          const campaignsWithRealContent = campaignsWithContent.filter(c => c.hasRealContent);
+          
+          let campaignToKeep;
+          let campaignsToDelete = [];
 
-          // If we have campaigns with content, delete the empty ones
-          if (campaignsWithActualContent.length > 0 && emptyCampaigns.length > 0) {
-            console.log('WeeklyContentUpdater: Deleting', emptyCampaigns.length, 'empty campaigns');
-            
-            for (const { campaign } of emptyCampaigns) {
-              try {
-                console.log('WeeklyContentUpdater: Deleting empty campaign:', campaign.title, campaign.id);
-                
-                // Delete associated tasks first
-                await supabase
-                  .from('content_tasks')
-                  .delete()
-                  .eq('campaign_id', campaign.id);
-                
-                // Then delete the campaign
-                await supabase
-                  .from('campaigns')
-                  .delete()
-                  .eq('id', campaign.id);
-                
-                console.log('WeeklyContentUpdater: Successfully deleted empty campaign:', campaign.title);
-              } catch (error) {
-                console.error('WeeklyContentUpdater: Error deleting empty campaign', campaign.id, ':', error);
-              }
-            }
+          if (campaignsWithRealContent.length > 0) {
+            // Keep the one with most content
+            campaignToKeep = campaignsWithRealContent.sort((a, b) => b.taskCount - a.taskCount)[0];
+            campaignsToDelete = campaignsWithContent.filter(c => c.campaign.id !== campaignToKeep.campaign.id);
+          } else {
+            // All campaigns are empty, keep the newest one and delete the rest
+            campaignToKeep = campaignsWithContent[0]; // Most recent due to ordering
+            campaignsToDelete = campaignsWithContent.slice(1);
           }
-          // If all campaigns are empty, keep the most recent one and delete the rest
-          else if (campaignsWithActualContent.length === 0 && emptyCampaigns.length > 1) {
-            const campaignsToDelete = emptyCampaigns.slice(1); // Keep first (most recent), delete rest
-            
-            console.log('WeeklyContentUpdater: All campaigns are empty, keeping most recent, deleting', campaignsToDelete.length);
-            
-            for (const { campaign } of campaignsToDelete) {
-              try {
-                await supabase.from('content_tasks').delete().eq('campaign_id', campaign.id);
-                await supabase.from('campaigns').delete().eq('id', campaign.id);
-                console.log('WeeklyContentUpdater: Deleted duplicate empty campaign:', campaign.title);
-              } catch (error) {
-                console.error('WeeklyContentUpdater: Error deleting duplicate campaign:', error);
-              }
-            }
-          }
-          // If we have multiple campaigns with content, keep the one with most content
-          else if (campaignsWithActualContent.length > 1) {
-            console.log('WeeklyContentUpdater: Multiple campaigns with content, keeping the best one');
-            
-            // Sort by content amount, then by creation date
-            campaignsWithActualContent.sort((a, b) => {
-              if (a.taskCount !== b.taskCount) return b.taskCount - a.taskCount;
-              return new Date(b.campaign.created_at || '').getTime() - new Date(a.campaign.created_at || '').getTime();
-            });
 
-            const campaignsToDelete = campaignsWithActualContent.slice(1);
-            
-            for (const { campaign } of campaignsToDelete) {
-              try {
-                await supabase.from('content_tasks').delete().eq('campaign_id', campaign.id);
-                await supabase.from('campaigns').delete().eq('id', campaign.id);
-                console.log('WeeklyContentUpdater: Deleted redundant campaign with content:', campaign.title);
-              } catch (error) {
-                console.error('WeeklyContentUpdater: Error deleting redundant campaign:', error);
-              }
+          console.log(`WeeklyContentUpdater: Keeping campaign "${campaignToKeep.campaign.title}", deleting ${campaignsToDelete.length} duplicates`);
+
+          // Delete duplicate campaigns and their tasks
+          for (const { campaign } of campaignsToDelete) {
+            try {
+              console.log(`WeeklyContentUpdater: Deleting duplicate campaign: ${campaign.title} (${campaign.id})`);
+              
+              // Delete tasks first
+              await supabase
+                .from('content_tasks')
+                .delete()
+                .eq('campaign_id', campaign.id);
+              
+              // Delete the campaign
+              await supabase
+                .from('campaigns')
+                .delete()
+                .eq('id', campaign.id);
+                
+              console.log(`WeeklyContentUpdater: Successfully deleted duplicate: ${campaign.title}`);
+            } catch (error) {
+              console.error(`WeeklyContentUpdater: Error deleting campaign ${campaign.id}:`, error);
             }
           }
         }
 
-        // Re-check after cleanup using the same hybrid query
+        // 🔧 STEP 2: GET THE REMAINING CAMPAIGN
         let finalQuery = supabase
           .from('campaigns')
           .select('*')
@@ -158,15 +133,12 @@ export const WeeklyContentUpdater = () => {
         }
 
         const { data: finalCampaigns } = await finalQuery;
-
-        // Check if we have a campaign and if it has content
         let targetCampaign = finalCampaigns?.[0];
 
-        // If no campaigns exist for current week, create one
-        if (!finalCampaigns || finalCampaigns.length === 0) {
-          console.log('WeeklyContentUpdater: No campaign found for week', currentWeekNumber, ', creating one');
+        // 🔧 STEP 3: CREATE CAMPAIGN IF NONE EXISTS
+        if (!targetCampaign) {
+          console.log('WeeklyContentUpdater: No campaign found, creating one for week', currentWeekNumber);
           
-          // Generate a theme for the current week
           const { data: themeData, error: themeError } = await supabase.functions.invoke('generate-weekly-themes', {
             body: { 
               userId: user.id, 
@@ -185,7 +157,6 @@ export const WeeklyContentUpdater = () => {
             return;
           }
 
-          // 🔧 HYBRID CREATION: Create campaign with appropriate ownership
           const campaignData: any = {
             week_number: currentWeekNumber,
             title: theme.title,
@@ -218,52 +189,94 @@ export const WeeklyContentUpdater = () => {
           targetCampaign = newCampaign;
         }
 
-        // 🔧 ENHANCED AUTO-GENERATION: Always check and generate content if missing
+        // 🔧 STEP 4: FORCE CONTENT GENERATION FOR CAMPAIGNS WITHOUT CONTENT
         if (targetCampaign) {
-          // Check if campaign has content tasks
+          console.log(`WeeklyContentUpdater: Checking content for campaign: ${targetCampaign.title} (${targetCampaign.id})`);
+          
           const { data: existingTasks } = await supabase
             .from('content_tasks')
-            .select('id, ai_output, status')
+            .select('id, ai_output, status, post_type')
             .eq('campaign_id', targetCampaign.id);
 
-          const hasActualContent = existingTasks?.some(task => 
+          console.log(`WeeklyContentUpdater: Found ${existingTasks?.length || 0} existing tasks:`, 
+            existingTasks?.map(t => `${t.post_type}(${t.status})`) || []);
+
+          const hasRealContent = existingTasks?.some(task => 
             task.ai_output && 
             task.ai_output.trim() !== '' && 
             task.status !== 'generating'
           );
 
-          // Always generate content if none exists or if tasks are stuck in generating state
-          if (!hasActualContent || (existingTasks && existingTasks.every(task => task.status === 'generating'))) {
-            console.log('WeeklyContentUpdater: Campaign needs content generation - hasActualContent:', hasActualContent, 'existingTasks:', existingTasks?.length || 0);
+          const hasStuckTasks = existingTasks?.some(task => task.status === 'generating');
+          const hasNoTasks = !existingTasks || existingTasks.length === 0;
+
+          console.log(`WeeklyContentUpdater: Content analysis - hasRealContent: ${hasRealContent}, hasStuckTasks: ${hasStuckTasks}, hasNoTasks: ${hasNoTasks}`);
+
+          // Force content generation if: no real content, stuck tasks, or no tasks at all
+          if (!hasRealContent || hasStuckTasks || hasNoTasks) {
+            console.log('WeeklyContentUpdater: FORCING content generation for campaign:', targetCampaign.title);
             
             try {
-              // 🔧 FORCE CONTENT GENERATION: Use the existing generateCampaignContent function
-              console.log('WeeklyContentUpdater: Starting content generation for campaign:', targetCampaign.title);
-              
+              // Delete any stuck generating tasks first
+              if (hasStuckTasks) {
+                console.log('WeeklyContentUpdater: Deleting stuck generating tasks');
+                await supabase
+                  .from('content_tasks')
+                  .delete()
+                  .eq('campaign_id', targetCampaign.id)
+                  .eq('status', 'generating');
+              }
+
+              // Generate fresh content
               const result = await generateCampaignContent(
                 targetCampaign.id,
                 targetCampaign.theme || targetCampaign.title,
                 targetCampaign.description || '',
                 user.id,
                 targetCampaign.week_number,
-                tenant?.id // Pass tenant_id if available, undefined if not
+                tenant?.id
               );
               
               if (result.success) {
-                console.log('WeeklyContentUpdater: Successfully generated content for campaign:', targetCampaign.title, '- Tasks created:', result.tasks?.length || 0);
+                console.log('WeeklyContentUpdater: ✅ Successfully generated content! Tasks created:', result.tasks?.length || 0);
+                
+                // Log the task details
+                if (result.tasks) {
+                  result.tasks.forEach(task => {
+                    console.log(`WeeklyContentUpdater: Created ${task.post_type} task (${task.id}) with ${task.ai_output?.length || 0} chars`);
+                  });
+                }
               } else {
-                console.error('WeeklyContentUpdater: Content generation failed:', result.message);
+                console.error('WeeklyContentUpdater: ❌ Content generation failed:', result.message);
               }
             } catch (error) {
-              console.error('WeeklyContentUpdater: Error generating content for campaign:', error);
+              console.error('WeeklyContentUpdater: ❌ Error during content generation:', error);
+              
+              // Enhanced error logging
+              if (error instanceof Error) {
+                console.error('WeeklyContentUpdater: Error details:', {
+                  name: error.name,
+                  message: error.message,
+                  stack: error.stack
+                });
+              }
             }
           } else {
-            console.log('WeeklyContentUpdater: Campaign already has sufficient content, skipping generation');
+            console.log('WeeklyContentUpdater: ✅ Campaign already has sufficient content, skipping generation');
           }
         }
 
       } catch (error) {
-        console.error('WeeklyContentUpdater: Unexpected error:', error);
+        console.error('WeeklyContentUpdater: ❌ Unexpected error:', error);
+        
+        // Enhanced error logging for debugging
+        if (error instanceof Error) {
+          console.error('WeeklyContentUpdater: Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
+        }
       }
     };
 
