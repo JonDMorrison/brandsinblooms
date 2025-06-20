@@ -16,14 +16,30 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
 
   if (task.ai_output) {
-    // Always use MagazineNewsletterDisplay for ALL newsletters
+    // Check if this is a newsletter and use appropriate display
     if (task.post_type === 'newsletter') {
-      return (
-        <MagazineNewsletterDisplay 
-          content={task.ai_output}
-          className="bg-white rounded-lg border"
-        />
-      );
+      // Check if it's a structured newsletter (YAML format)
+      const isStructuredNewsletter = task.ai_output.includes('newsletter_md:') || 
+                                   task.ai_output.includes('blocks:') ||
+                                   task.ai_output.startsWith('---');
+      
+      if (isStructuredNewsletter) {
+        // Use MagazineNewsletterDisplay for structured newsletters
+        return (
+          <MagazineNewsletterDisplay 
+            content={task.ai_output}
+            className="bg-white rounded-lg border"
+          />
+        );
+      } else {
+        // Use MagazineContentDisplay for plain text newsletters
+        return (
+          <MagazineContentDisplay 
+            content={task.ai_output}
+            postType={task.post_type}
+          />
+        );
+      }
     }
 
     // Use magazine-style display for all other content types
