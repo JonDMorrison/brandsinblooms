@@ -1,9 +1,9 @@
+
 import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
-import { SampleCampaignCard } from "@/components/dashboard/SampleCampaignCard";
 import { QuickActionsSection } from "@/components/dashboard/current-campaign/QuickActionsSection";
 import { CurrentCampaignSection } from "@/components/dashboard/CurrentCampaignSection";
 import { SeasonalHolidaysCard } from "./seasonal-holidays/SeasonalHolidaysCard";
@@ -132,21 +132,6 @@ export const UnifiedDashboardGrid = ({
               </BodyMedium>
             </div>
             <EnhancedSeasonalHolidaysCard onContentGenerated={onTaskUpdate} />
-          </div>
-        )}
-
-        {/* Sample Campaign Section - Only show for new users or non-authenticated */}
-        {(!user || isNewUser) && (
-          <div className="space-y-6">
-            <div>
-              <HeadlineLarge className="text-text-primary">
-                Sample Campaign Preview
-              </HeadlineLarge>
-              <BodyMedium className="text-text-secondary mt-1">
-                See what your marketing content could look like
-              </BodyMedium>
-            </div>
-            <SampleCampaignCard onCreateRealCampaign={onCreateCampaign || (() => {})} />
           </div>
         )}
 
