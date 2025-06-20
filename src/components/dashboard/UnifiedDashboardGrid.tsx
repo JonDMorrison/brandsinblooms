@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -38,6 +39,9 @@ export const UnifiedDashboardGrid = ({
   const { isNewUser, loading } = useUser();
   const navigate = useNavigate();
 
+  // Check if user is developer
+  const isDeveloper = user?.email === 'jon@getclear.ca';
+
   // State for quick action modals
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
   const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
@@ -73,12 +77,31 @@ export const UnifiedDashboardGrid = ({
     return <div className="text-center py-12">Loading dashboard...</div>;
   }
 
-  // Filter ready tasks for the ReadyToPostCard
-  const readyTasks = tasks.filter(task => 
-    ['review', 'approved', 'posted'].includes(task.status) && 
-    task.ai_output &&
-    task.campaigns?.user_id === user?.id
-  );
+  // Filter ready tasks for the ReadyToPostCard - include preview for developers
+  const readyStatusFilter = ['approved', 'posted', 'review'];
+  if (isDeveloper) {
+    readyStatusFilter.push('preview');
+  }
+
+  const readyTasks = tasks.filter(task => {
+    const hasValidStatus = readyStatusFilter.includes(task.status);
+    const hasContent = task.ai_output && task.ai_output.trim() !== '';
+    const belongsToUser = task.campaigns?.user_id === user?.id || task.user_id === user?.id;
+    
+    console.log('UnifiedDashboardGrid: Filtering task', {
+      taskId: task.id,
+      status: task.status,
+      hasValidStatus,
+      hasContent,
+      belongsToUser,
+      isDeveloper,
+      isPreview: task.status === 'preview'
+    });
+    
+    return hasValidStatus && hasContent && belongsToUser;
+  });
+
+  console.log('UnifiedDashboardGrid: Ready tasks after filtering:', readyTasks.length, 'out of', tasks.length);
 
   return (
     <>
@@ -128,12 +151,15 @@ export const UnifiedDashboardGrid = ({
           onViewCalendar={handleViewCalendar}
         />
 
-        {/* Ready to Post Section - Only show for authenticated users with ready content */}
-        {user && readyTasks.length > 0 && (
+        {/* Ready to Post Section - Show for authenticated users with ready content OR for developers */}
+        {user && (readyTasks.length > 0 || isDeveloper) && (
           <div className="space-y-6">
             <div>
               <HeadlineLarge className="text-text-primary">
                 Ready to Post
+                {isDeveloper && readyTasks.length === 0 && (
+                  <span className="text-sm text-blue-600 ml-2">(Developer Preview - No Content)</span>
+                )}
               </HeadlineLarge>
               <BodyMedium className="text-text-secondary mt-1">
                 Your content is ready to share with your audience
