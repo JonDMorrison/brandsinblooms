@@ -28,56 +28,88 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
 
   const newsletter = parseNewsletterYAML(content);
   
-  // Parse plain newsletter content into sections for 60/40 layout
-  const parsePlainNewsletter = (content: string) => {
-    // Clean HTML tags and get text content
+  // Enhanced parsing for magazine-style display
+  const parseMagazineNewsletter = (content: string) => {
     const cleanContent = content.replace(/<[^>]*>/g, '\n').replace(/\n\s*\n/g, '\n').trim();
     const lines = cleanContent.split('\n').filter(line => line.trim());
     
     if (lines.length === 0) return { title: 'Newsletter', sections: [] };
     
-    // Extract title (first line or first heading)
-    const title = lines[0].replace(/^#+\s*/, '').trim() || 'Newsletter';
+    // Extract title - look for main heading
+    let title = 'Newsletter Update';
+    const titleMatch = content.match(/^#\s+(.+)$/m) || content.match(/^\*\*(.+)\*\*$/m);
+    if (titleMatch) {
+      title = titleMatch[1].trim();
+    } else if (lines[0] && !lines[0].includes('*') && !lines[0].includes('#')) {
+      title = lines[0].trim();
+    }
     
-    // Split content into sections based on paragraphs
-    const paragraphs = lines.slice(1).filter(line => line.trim().length > 20);
+    // Parse into structured sections
     const sections: PlainNewsletterSection[] = [];
+    let currentHeading = '';
+    let currentBody = '';
     
-    // Create sections from paragraphs (group every 2-3 sentences)
-    for (let i = 0; i < paragraphs.length; i += 2) {
-      const sectionTitle = `Section ${Math.floor(i / 2) + 1}`;
-      const body = paragraphs.slice(i, i + 2).join(' ');
-      const imagePrompt = `newsletter content section ${Math.floor(i / 2) + 1}`;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
       
-      if (body.trim()) {
-        sections.push({
-          title: sectionTitle,
-          body: body,
-          imagePrompt: imagePrompt
-        });
+      // Check if this is a heading (starts with ##, ***, or is in title case)
+      if (line.match(/^##\s+/) || line.match(/^\*\*.*\*\*$/) || 
+          (line.length < 60 && line.match(/^[A-Z][a-zA-Z\s]+$/) && !line.includes('.'))) {
+        
+        // Save previous section if it exists
+        if (currentHeading && currentBody) {
+          sections.push({
+            title: currentHeading,
+            body: currentBody.trim(),
+            imagePrompt: `${title.toLowerCase()} ${currentHeading.toLowerCase()} garden plants`
+          });
+        }
+        
+        // Start new section
+        currentHeading = line.replace(/^##\s*/, '').replace(/^\*\*(.*)\*\*$/, '$1').trim();
+        currentBody = '';
+      } else if (line && currentHeading) {
+        // Add to current section body
+        currentBody += (currentBody ? ' ' : '') + line;
       }
     }
     
-    // If no good sections found, create one from all content
-    if (sections.length === 0 && paragraphs.length > 0) {
+    // Add final section
+    if (currentHeading && currentBody) {
       sections.push({
-        title: 'Newsletter Content',
-        body: paragraphs.join(' '),
-        imagePrompt: 'newsletter content'
+        title: currentHeading,
+        body: currentBody.trim(),
+        imagePrompt: `${title.toLowerCase()} ${currentHeading.toLowerCase()} garden plants`
+      });
+    }
+    
+    // If no good sections found, create default ones
+    if (sections.length === 0) {
+      const paragraphs = lines.filter(line => line.length > 20);
+      const chunks = [];
+      for (let i = 0; i < paragraphs.length; i += 3) {
+        chunks.push(paragraphs.slice(i, i + 3).join(' '));
+      }
+      
+      chunks.forEach((chunk, index) => {
+        sections.push({
+          title: `Garden Insight ${index + 1}`,
+          body: chunk.substring(0, 300),
+          imagePrompt: `${title.toLowerCase()} garden insight ${index + 1}`
+        });
       });
     }
     
     return { title, sections };
   };
   
-  // Determine if this is structured or plain newsletter
+  // Determine content type and parse accordingly
   const isStructured = !!newsletter;
-  const plainNewsletter = !isStructured ? parsePlainNewsletter(content) : null;
+  const magazineNewsletter = !isStructured ? parseMagazineNewsletter(content) : null;
   
-  // Get sections for image fetching
   const sectionsForImages = isStructured 
     ? newsletter.blocks 
-    : (plainNewsletter?.sections || []);
+    : (magazineNewsletter?.sections || []);
 
   // Fetch images for each section
   useEffect(() => {
@@ -129,76 +161,54 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
     fetchImages();
   }, [sectionsForImages]);
 
-  // For structured newsletters
+  // Render structured newsletter
   if (isStructured) {
-    // Extract main headline from newsletter_md
     const headlineMatch = newsletter.newsletter_md.match(/^# (.+)$/m);
-    const headline = headlineMatch?.[1] || 'Newsletter';
+    const headline = headlineMatch?.[1] || 'Newsletter Update';
     
-    // Extract intro from newsletter_md
     const introMatch = newsletter.newsletter_md.match(/\*(.+?)\*/);
     const intro = introMatch?.[1] || '';
 
     return (
-      <div className={`max-w-6xl mx-auto bg-white ${className || ''}`}>
-        {/* Header Section */}
+      <div className={`max-w-4xl mx-auto bg-white ${className || ''}`}>
+        {/* Header */}
         <div className="mb-8 pb-6 border-b border-gray-200">
           <div className="flex items-center gap-3 mb-4">
             <Badge variant="outline" className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
               {newsletter.meta.reading_time || '≈3 min'}
             </Badge>
-            {newsletter.meta.theme && (
-              <Badge variant="secondary">
-                {newsletter.meta.theme}
-              </Badge>
-            )}
+            <Badge variant="secondary">Newsletter</Badge>
           </div>
           
-          <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">
+          <h1 className="text-3xl font-bold text-slate-900 leading-tight mb-4">
             {headline}
           </h1>
           
           {intro && (
-            <p className="text-xl text-slate-600 leading-relaxed font-light">
+            <p className="text-lg text-slate-600 leading-relaxed font-light italic">
               {intro}
             </p>
           )}
         </div>
 
-        {/* Content Blocks - 60/40 Split */}
+        {/* Content Sections - Magazine Layout */}
         <div className="space-y-12">
           {newsletter.blocks.map((block, index) => (
             <div key={index} className="grid lg:grid-cols-[3fr_2fr] gap-8 items-start">
-              {/* Content Section - 60% */}
               <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-slate-900 mb-4 leading-tight">
+                <h2 className="text-xl font-bold text-slate-900 leading-tight">
                   {block.title}
-                </h3>
-                
-                <div className="prose prose-slate max-w-none">
-                  <p className="text-lg text-slate-700 leading-relaxed mb-6">
-                    {block.body}
-                  </p>
-                </div>
-                
-                {block.cta && (
-                  <div className="mt-6">
-                    <a 
-                      href={block.link || '#'} 
-                      className="inline-flex items-center text-primary font-semibold hover:text-primary/80 transition-colors"
-                    >
-                      {block.cta} →
-                    </a>
-                  </div>
-                )}
+                </h2>
+                <p className="text-slate-700 leading-relaxed">
+                  {block.body}
+                </p>
               </div>
 
-              {/* Image Section - 40% */}
               <div className="lg:pl-4">
                 {loadingImages ? (
-                  <div className="aspect-[4/3] bg-gradient-to-br from-teal-100 to-cyan-100 rounded-lg flex items-center justify-center border border-teal-200">
-                    <ImageIcon className="w-8 h-8 text-teal-500" />
+                  <div className="aspect-[4/3] bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
+                    <ImageIcon className="w-8 h-8 text-green-500" />
                   </div>
                 ) : images[index] ? (
                   <div className="aspect-[4/3] rounded-lg overflow-hidden shadow-sm">
@@ -214,11 +224,10 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                     )}
                   </div>
                 ) : (
-                  <div className="aspect-[4/3] bg-gradient-to-br from-teal-100 to-cyan-100 rounded-lg flex items-center justify-center border border-teal-200">
-                    <div className="text-center text-teal-600">
+                  <div className="aspect-[4/3] bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
+                    <div className="text-center text-green-600">
                       <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                      <p className="text-sm font-medium">Newsletter Image</p>
-                      <p className="text-xs opacity-75">{block.image_prompt}</p>
+                      <p className="text-sm font-medium">Garden Image</p>
                     </div>
                   </div>
                 )}
@@ -227,59 +236,49 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
           ))}
         </div>
 
-        {/* Footer */}
         <div className="mt-16 pt-8 border-t border-gray-200 text-center">
-          <p className="text-gray-600">
-            Thanks for reading! 🌿
-          </p>
+          <p className="text-gray-600">Thanks for reading! 🌿</p>
         </div>
       </div>
     );
   }
 
-  // For plain newsletters - use same 60/40 layout
-  if (plainNewsletter && plainNewsletter.sections.length > 0) {
+  // Render magazine-style newsletter for plain content
+  if (magazineNewsletter && magazineNewsletter.sections.length > 0) {
     return (
-      <div className={`max-w-6xl mx-auto bg-white ${className || ''}`}>
-        {/* Header Section */}
+      <div className={`max-w-4xl mx-auto bg-white ${className || ''}`}>
+        {/* Header */}
         <div className="mb-8 pb-6 border-b border-gray-200">
           <div className="flex items-center gap-3 mb-4">
             <Badge variant="outline" className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
               ≈3 min
             </Badge>
-            <Badge variant="secondary">
-              Newsletter
-            </Badge>
+            <Badge variant="secondary">Newsletter</Badge>
           </div>
           
-          <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">
-            {plainNewsletter.title}
+          <h1 className="text-3xl font-bold text-slate-900 leading-tight mb-4">
+            {magazineNewsletter.title}
           </h1>
         </div>
 
-        {/* Content Sections - 60/40 Split */}
+        {/* Magazine Sections */}
         <div className="space-y-12">
-          {plainNewsletter.sections.map((section, index) => (
+          {magazineNewsletter.sections.map((section, index) => (
             <div key={index} className="grid lg:grid-cols-[3fr_2fr] gap-8 items-start">
-              {/* Content Section - 60% */}
               <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-slate-900 mb-4 leading-tight">
+                <h2 className="text-xl font-bold text-slate-900 leading-tight">
                   {section.title}
-                </h3>
-                
-                <div className="prose prose-slate max-w-none">
-                  <p className="text-lg text-slate-700 leading-relaxed mb-6">
-                    {section.body}
-                  </p>
-                </div>
+                </h2>
+                <p className="text-slate-700 leading-relaxed">
+                  {section.body}
+                </p>
               </div>
 
-              {/* Image Section - 40% */}
               <div className="lg:pl-4">
                 {loadingImages ? (
-                  <div className="aspect-[4/3] bg-gradient-to-br from-teal-100 to-cyan-100 rounded-lg flex items-center justify-center border border-teal-200">
-                    <ImageIcon className="w-8 h-8 text-teal-500" />
+                  <div className="aspect-[4/3] bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
+                    <ImageIcon className="w-8 h-8 text-green-500" />
                   </div>
                 ) : images[index] ? (
                   <div className="aspect-[4/3] rounded-lg overflow-hidden shadow-sm">
@@ -295,11 +294,10 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                     )}
                   </div>
                 ) : (
-                  <div className="aspect-[4/3] bg-gradient-to-br from-teal-100 to-cyan-100 rounded-lg flex items-center justify-center border border-teal-200">
-                    <div className="text-center text-teal-600">
+                  <div className="aspect-[4/3] bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
+                    <div className="text-center text-green-600">
                       <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                      <p className="text-sm font-medium">Newsletter Image</p>
-                      <p className="text-xs opacity-75">{section.imagePrompt}</p>
+                      <p className="text-sm font-medium">Garden Image</p>
                     </div>
                   </div>
                 )}
@@ -308,17 +306,14 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
           ))}
         </div>
 
-        {/* Footer */}
         <div className="mt-16 pt-8 border-t border-gray-200 text-center">
-          <p className="text-gray-600">
-            Thanks for reading! 🌿
-          </p>
+          <p className="text-gray-600">Thanks for reading! 🌿</p>
         </div>
       </div>
     );
   }
 
-  // Final fallback for empty or invalid content
+  // Fallback for any other content
   return (
     <div className={`prose prose-lg max-w-none ${className || ''}`}>
       <div dangerouslySetInnerHTML={{ __html: content }} />
