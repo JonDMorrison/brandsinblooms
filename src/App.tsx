@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { NetworkErrorBoundary } from './components/NetworkErrorBoundary';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from 'sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { LandingPage } from './components/LandingPage';
 import { SidebarLayout } from './components/SidebarLayout';
@@ -39,57 +40,59 @@ function App() {
           <BrowserRouter>
             <AuthProvider>
               <SubscriptionProvider>
-                <div className="App">
-                  <Routes>
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/pricing" element={<PricingPage />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/onboarding" element={<OnboardingPage />} />
-                    <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
-                    <Route path="/admin" element={<AdminPage />} />
-                    
-                    {/* Main app route uses Homepage component directly */}
-                    <Route path="/app" element={<Homepage />} />
-                    
-                    {/* Other dashboard routes use SidebarLayout */}
-                    <Route path="/dashboard" element={
-                      <SidebarLayout>
-                        <Index />
-                      </SidebarLayout>
-                    } />
-                    <Route path="/home" element={
-                      <SidebarLayout>
-                        <Index />
-                      </SidebarLayout>
-                    } />
-                    <Route path="/calendar" element={
-                      <SidebarLayout>
-                        <CalendarPage />
-                      </SidebarLayout>
-                    } />
-                    <Route path="/analytics" element={
-                      <SidebarLayout>
-                        <AnalyticsPage />
-                      </SidebarLayout>
-                    } />
-                    <Route path="/profile" element={
-                      <SidebarLayout>
-                        <ProfilePage />
-                      </SidebarLayout>
-                    } />
-                    <Route path="/team" element={
-                      <SidebarLayout>
-                        <TeamPage />
-                      </SidebarLayout>
-                    } />
-                    <Route path="/subscription" element={
-                      <SidebarLayout>
-                        <SubscriptionPage />
-                      </SidebarLayout>
-                    } />
-                  </Routes>
-                  <Toaster />
-                </div>
+                <TooltipProvider>
+                  <div className="App">
+                    <Routes>
+                      <Route path="/" element={<LandingPage />} />
+                      <Route path="/pricing" element={<PricingPage />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/onboarding" element={<OnboardingPage />} />
+                      <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
+                      <Route path="/admin" element={<AdminPage />} />
+                      
+                      {/* Main app route uses Homepage component directly */}
+                      <Route path="/app" element={<Homepage />} />
+                      
+                      {/* Other dashboard routes use SidebarLayout */}
+                      <Route path="/dashboard" element={
+                        <SidebarLayout>
+                          <Index />
+                        </SidebarLayout>
+                      } />
+                      <Route path="/home" element={
+                        <SidebarLayout>
+                          <Index />
+                        </SidebarLayout>
+                      } />
+                      <Route path="/calendar" element={
+                        <SidebarLayout>
+                          <CalendarPage />
+                        </SidebarLayout>
+                      } />
+                      <Route path="/analytics" element={
+                        <SidebarLayout>
+                          <AnalyticsPage />
+                        </SidebarLayout>
+                      } />
+                      <Route path="/profile" element={
+                        <SidebarLayout>
+                          <ProfilePage />
+                        </SidebarLayout>
+                      } />
+                      <Route path="/team" element={
+                        <SidebarLayout>
+                          <TeamPage />
+                        </SidebarLayout>
+                      } />
+                      <Route path="/subscription" element={
+                        <SidebarLayout>
+                          <SubscriptionPage />
+                        </SidebarLayout>
+                      } />
+                    </Routes>
+                    <Toaster />
+                  </div>
+                </TooltipProvider>
               </SubscriptionProvider>
             </AuthProvider>
           </BrowserRouter>
