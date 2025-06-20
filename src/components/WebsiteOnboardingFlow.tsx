@@ -58,7 +58,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       return;
     }
 
-    console.log('Starting enhanced onboarding completion with content generation...');
+    console.log('🚀 Starting enhanced onboarding completion process...');
     setIsCompleting(true);
     
     try {
@@ -70,13 +70,42 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
         websiteUrl: websiteUrl
       };
       
-      console.log('Completing onboarding with enhanced data:', finalData);
+      console.log('📋 Final onboarding data prepared:', finalData);
       
-      // Save onboarding response to database
-      await saveOnboardingResponse(finalData, user.id);
+      // STEP 1: Save onboarding response to database (quick operation)
+      console.log('💾 Step 1: Saving onboarding response...');
+      try {
+        await saveOnboardingResponse(finalData, user.id);
+        console.log('✅ Onboarding response saved successfully');
+      } catch (saveError) {
+        console.error('❌ Failed to save onboarding response:', saveError);
+        toast.error("Failed to save onboarding data. Please try again.");
+        return;
+      }
       
-      // 🚀 NEW: Enhanced company profile creation that includes automatic content generation
-      await createCompanyProfileFromOnboarding(finalData, user.id);
+      // STEP 2: Create company profile and generate content (complex operation)
+      console.log('🔧 Step 2: Creating company profile and generating content...');
+      try {
+        await createCompanyProfileFromOnboarding(finalData, user.id);
+        console.log('✅ Company profile creation completed successfully');
+      } catch (profileError) {
+        console.error('❌ Failed to create company profile:', profileError);
+        
+        // Show specific error message based on the error
+        let errorMessage = "Failed to complete setup. ";
+        if (profileError.message.includes('tenant')) {
+          errorMessage += "Workspace setup failed. Please try again.";
+        } else if (profileError.message.includes('Profile generation')) {
+          errorMessage += "AI profile generation failed. Please try again or contact support.";
+        } else if (profileError.message.includes('Campaign creation')) {
+          errorMessage += "Content planning failed. Please try again.";
+        } else {
+          errorMessage += "Please try again or contact support if the problem persists.";
+        }
+        
+        toast.error(errorMessage);
+        return;
+      }
       
       // Store the onboarding data in localStorage as backup
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(finalData));
@@ -90,8 +119,14 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       navigate('/app');
       
     } catch (error) {
-      console.error('Error completing enhanced onboarding:', error);
-      toast.error("Failed to complete setup. Please try again.");
+      console.error('🚨 Critical error in onboarding completion:', error);
+      
+      // Provide user-friendly error message
+      const friendlyMessage = error.message?.includes('Onboarding failed:') 
+        ? error.message.replace('Onboarding failed: ', '')
+        : 'An unexpected error occurred during setup';
+        
+      toast.error(`Setup failed: ${friendlyMessage}. Please try again.`);
     } finally {
       setIsCompleting(false);
     }
