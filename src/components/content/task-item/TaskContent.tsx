@@ -1,9 +1,8 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { MagazineContentDisplay } from "./MagazineContentDisplay";
-import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
-import { BlogContentDisplay } from "@/components/content-sidebar/BlogContentDisplay";
 
 interface TaskContentProps {
   task: any;
@@ -16,44 +15,25 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
 
   if (task.ai_output) {
-    // Check if this is a blog post
-    if (task.post_type === 'blog') {
+    // Check if this is a structured newsletter for special handling
+    const isStructuredNewsletter = task.post_type === 'newsletter' && task.ai_output.includes('newsletter_md:');
+    
+    if (isStructuredNewsletter) {
+      // For structured newsletters, show a simplified preview since full magazine display is in the sidebar
       return (
-        <BlogContentDisplay 
-          content={task.ai_output}
-          postType={task.post_type}
-          className="bg-white rounded-lg border"
-        />
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <span className="text-sm font-medium text-blue-700">Structured Newsletter</span>
+          </div>
+          <p className="text-sm text-gray-600 italic">
+            Magazine-style newsletter with multiple sections and content blocks. Click to view full layout.
+          </p>
+        </div>
       );
     }
 
-    // Check if this is a newsletter and use appropriate display
-    if (task.post_type === 'newsletter') {
-      // Check if it's a structured newsletter (YAML format)
-      const isStructuredNewsletter = task.ai_output.includes('newsletter_md:') || 
-                                   task.ai_output.includes('blocks:') ||
-                                   task.ai_output.startsWith('---');
-      
-      if (isStructuredNewsletter) {
-        // Use MagazineNewsletterDisplay for structured newsletters
-        return (
-          <MagazineNewsletterDisplay 
-            content={task.ai_output}
-            className="bg-white rounded-lg border"
-          />
-        );
-      } else {
-        // Use MagazineContentDisplay for plain text newsletters
-        return (
-          <MagazineContentDisplay 
-            content={task.ai_output}
-            postType={task.post_type}
-          />
-        );
-      }
-    }
-
-    // Use magazine-style display for all other content types (social media, etc.)
+    // Use magazine-style display for all other content types
     return (
       <MagazineContentDisplay 
         content={task.ai_output}

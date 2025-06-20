@@ -99,7 +99,6 @@ export const generateContentInParallel = async (
         throw new Error(`Token spending failed: ${tokenError.message}`);
       }
       
-      // FIXED: Use structured newsletter generation for newsletters
       if (task.post_type === 'newsletter') {
         generatedContent = await generateNewsletterContent(campaignId, campaignTitle, 1, userId, weekDescription);
       } else if (task.post_type === 'video') {
@@ -129,42 +128,6 @@ export const generateContentInParallel = async (
       }
       
       console.log(`✅ Successfully updated ${task.post_type} task ${task.id} with generated content`);
-      
-      // FIXED: Enhanced image generation with improved error handling
-      if (task.post_type === 'facebook' || task.post_type === 'instagram' || task.post_type === 'blog') {
-        try {
-          const imageQuery = `${campaignTitle} garden center ${task.post_type} plants flowers gardening`;
-          console.log(`🖼️ Generating images for ${task.post_type} with query:`, imageQuery);
-          
-          const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
-            body: { 
-              query: imageQuery,
-              contentTaskId: task.id 
-            }
-          });
-          
-          if (imageError) {
-            console.warn(`⚠️ Image generation failed for ${task.post_type}, creating placeholder:`, imageError);
-            // Create placeholder image suggestion
-            await supabase
-              .from('image_suggestions')
-              .insert([{
-                content_task_id: task.id,
-                query: imageQuery,
-                thumb_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop&crop=center`,
-                download_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&h=800&fit=crop&crop=center`,
-                alt: `${campaignTitle} garden center content`,
-                photographer: 'Placeholder Image',
-                unsplash_id: 'placeholder-garden'
-              }]);
-          } else {
-            console.log(`✅ Image generation successful for ${task.post_type}`);
-          }
-        } catch (imageError) {
-          console.warn(`⚠️ Image generation exception for ${task.post_type}:`, imageError);
-          // Don't fail the whole process for image issues
-        }
-      }
       
       return { 
         taskId: task.id, 

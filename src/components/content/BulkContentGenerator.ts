@@ -45,8 +45,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
     return { success: false, generatedCount: 0, failedTypes: [], tokenCost: 0 };
   }
 
-  // FIXED: Updated content types to use blog instead of email
-  const totalTokensNeeded = 8; // 2+1+1+1+2+1 for newsletter, facebook, instagram, blog, video, linkedin
+  const totalTokensNeeded = 8; // 2+1+1+1+2+1 for newsletter, facebook, instagram, email, video, linkedin
   const willGoIntoOverage = balance.tokens_balance < totalTokensNeeded;
   
   if (willGoIntoOverage) {
@@ -67,13 +66,13 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
     }
   }
 
-  // FIXED: Updated content types to match holiday system
   const contentTypes = [
     { type: 'newsletter', tokens: 2 },
     { type: 'facebook', tokens: 1 },
     { type: 'instagram', tokens: 1 },
-    { type: 'blog', tokens: 1 },
-    { type: 'video', tokens: 2 }
+    { type: 'email', tokens: 1 },
+    { type: 'video', tokens: 2 },
+    { type: 'linkedin', tokens: 1 }
   ];
 
   const results = [];
@@ -113,7 +112,6 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
       
       let generatedContent = '';
       
-      // FIXED: Use structured newsletter generation for newsletters
       if (type === 'newsletter') {
         generatedContent = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, enhancedContextPrompt);
       } else if (type === 'video') {
@@ -136,8 +134,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
         ? `Generated from theme: ${theme}\nContent Focus: ${description}`
         : `Generated from theme: ${theme}`;
 
-      // FIXED: Set status to 'review' and include user_id
-      const { data: task, error: insertError } = await supabase
+      const { error: insertError } = await supabase
         .from('content_tasks')
         .insert({
           campaign_id: campaignId,
@@ -147,54 +144,14 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
           ai_output: generatedContent,
           hashtags: getHashtagsForType(type),
           image_idea: getImageIdeaForType(type),
-          notes: taskNotes,
-          user_id: userId
-        })
-        .select()
-        .single();
+          notes: taskNotes
+        });
 
       if (insertError) {
         throw insertError;
       }
 
       console.log(`✅ Successfully generated ${type} content`);
-      
-      // FIXED: Enhanced image generation with improved error handling
-      if (type === 'facebook' || type === 'instagram' || type === 'blog') {
-        try {
-          const imageQuery = `${theme} garden center ${type} plants flowers gardening`;
-          console.log(`🖼️ Generating images for ${type} with query:`, imageQuery);
-          
-          const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
-            body: { 
-              query: imageQuery,
-              contentTaskId: task.id 
-            }
-          });
-          
-          if (imageError) {
-            console.warn(`⚠️ Image generation failed for ${type}, creating placeholder:`, imageError);
-            // Create placeholder image suggestion
-            await supabase
-              .from('image_suggestions')
-              .insert([{
-                content_task_id: task.id,
-                query: imageQuery,
-                thumb_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop&crop=center`,
-                download_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&h=800&fit=crop&crop=center`,
-                alt: `${theme} garden center content`,
-                photographer: 'Placeholder Image',
-                unsplash_id: 'placeholder-garden'
-              }]);
-          } else {
-            console.log(`✅ Image generation successful for ${type}`);
-          }
-        } catch (imageError) {
-          console.warn(`⚠️ Image generation exception for ${type}:`, imageError);
-          // Don't fail the whole process for image issues
-        }
-      }
-      
       totalTokenCost += tokens;
       generatedCount++;
       
@@ -232,9 +189,10 @@ const getHashtagsForType = (type: string): string => {
   const hashtags = {
     facebook: '#GardenCenter #LocalGardening #PlantLife #GreenThumb',
     instagram: '#GardenCenter #Plants #Gardening #LocalBusiness #GreenLife #PlantParent',
-    blog: '#GardenCenter #Gardening #PlantCare #LocalExperts #GreenLiving',
+    email: '',
     newsletter: '',
-    video: '#GardenTips #Gardening #LocalExperts #PlantCare'
+    video: '#GardenTips #Gardening #LocalExperts #PlantCare',
+    linkedin: '#GardenIndustry #LocalBusiness #Sustainability #GreenBusiness'
   };
   return hashtags[type as keyof typeof hashtags] || '';
 };
@@ -243,9 +201,10 @@ const getImageIdeaForType = (type: string): string => {
   const imageIdeas = {
     facebook: 'Vibrant garden display with seasonal plants and flowers',
     instagram: 'Aesthetic plant arrangement with natural lighting',
-    blog: 'Professional garden center storefront or featured products',
+    email: 'Professional garden center storefront or featured products',
     newsletter: 'Seasonal garden showcase or expert demonstration',
-    video: 'Behind-the-scenes footage of garden center operations'
+    video: 'Behind-the-scenes footage of garden center operations',
+    linkedin: 'Professional team photo or business achievement highlight'
   };
   return imageIdeas[type as keyof typeof imageIdeas] || 'Garden center related imagery';
 };

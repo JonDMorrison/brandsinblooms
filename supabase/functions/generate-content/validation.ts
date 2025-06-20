@@ -32,26 +32,6 @@ export function validateContent(content: string, contentType?: string): Validati
     }
   });
   
-  // Additional paragraph length validation for Facebook content
-  if (contentType === 'facebook') {
-    // Check for overly long paragraphs (more than 3 sentences without line breaks)
-    const paragraphs = content.split('\n').filter(p => p.trim().length > 0);
-    const longParagraphs = paragraphs.filter(p => {
-      const sentences = p.split(/[.!?]+/).filter(s => s.trim().length > 0);
-      return sentences.length > 2;
-    });
-    
-    if (longParagraphs.length > 0) {
-      issues.push('Contains paragraphs that are too long - use shorter paragraphs with line breaks');
-    }
-    
-    // Check total word count for Facebook (should be ~125 words)
-    const wordCount = content.split(/\s+/).length;
-    if (wordCount > 150) {
-      issues.push('Facebook content exceeds recommended word count - keep it shorter and more scannable');
-    }
-  }
-  
   // Additional specific checks for problematic content
   const lowerContent = content.toLowerCase();
   

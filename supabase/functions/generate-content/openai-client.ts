@@ -8,25 +8,21 @@ export async function generateContentWithValidation(prompt: string, openAIApiKey
   while (attempts < maxAttempts) {
     attempts++;
     
-    // Add progressively stricter instructions with each attempt, emphasizing paragraph formatting
+    // Add progressively stricter instructions with each attempt, but allow formatting
     let enhancedPrompt = prompt;
     if (attempts > 1) {
       enhancedPrompt += `\n\n🚨 REGENERATION ATTEMPT ${attempts} - PREVIOUS ISSUES: ${lastIssues.join(', ')}
       
 CRITICAL: The previous attempt had issues. You MUST:
 - Write in natural, engaging language appropriate for ${contentType || 'content'}
-- Use VERY SHORT paragraphs with frequent line breaks (1-2 sentences max for social media)
+- Use proper formatting: short paragraphs, bullet points, numbered lists, emojis when appropriate
 - NEVER use square brackets like [Company Name] or [Location] - use actual names or "we"/"our"
 - Write like a professional garden center expert speaking to customers
-- Format content for mobile readability with plenty of white space
-- Add line breaks between different thoughts, tips, or key points
-- Make content scannable and easy to read on mobile devices
+- Use formatting that improves readability and engagement
       
 IMMEDIATE REJECTION if content contains:
 - Any text in square brackets [like this]
-- Generic placeholders instead of specific names or "we"/"our" references
-- Long paragraphs without line breaks (especially for Facebook - max 125 words total)
-- Dense blocks of text that are hard to scan on mobile`;
+- Generic placeholders instead of specific names or "we"/"our" references`;
     }
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -40,25 +36,17 @@ IMMEDIATE REJECTION if content contains:
         messages: [
           { 
             role: 'system', 
-            content: `You are a professional garden center content writer who creates engaging, well-formatted content optimized for mobile reading. 
+            content: `You are a professional garden center content writer who creates engaging, well-formatted content. You use natural formatting including paragraphs, bullet points, numbered lists, and emojis to improve readability and engagement. You NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business.
 
-CRITICAL FORMATTING RULES:
-- Use VERY SHORT paragraphs - maximum 1-2 sentences per paragraph for social media, 2-3 for longer content
-- Add line breaks between different thoughts, tips, or key points
-- Format content for mobile scanning with plenty of white space
-- Make content easily readable on smartphones
-- Break up any long blocks of text into digestible chunks
-- Use natural formatting including short paragraphs, bullet points, numbered lists, and emojis to improve readability and engagement
-- NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business
+CONTENT FORMATTING GUIDELINES:
+1. Use short, readable paragraphs (2-3 sentences)
+2. Use bullet points or numbered lists when they improve clarity
+3. Include emojis for social media content when appropriate and engaging
+4. Use proper spacing and formatting for the content type
+5. Write conversationally but professionally
+6. Format content to maximize engagement and readability for the platform
 
-CONTENT FORMATTING GUIDELINES BY TYPE:
-- Facebook: Maximum 125 words, very short paragraphs (1-2 sentences), frequent line breaks
-- Instagram: Short paragraphs with line breaks between key points
-- Blog: Short paragraphs (2-3 sentences max) with clear section breaks
-- Newsletter: Short paragraphs throughout with line breaks between topics
-- Video: Short sentences with natural pauses and clear segment breaks
-
-You write content that real garden center customers would want to read, share, and engage with on their mobile devices.` 
+You write content that real garden center customers would want to read, share, and engage with.` 
           },
           { role: 'user', content: enhancedPrompt }
         ],
@@ -74,7 +62,7 @@ You write content that real garden center customers would want to read, share, a
     const data = await response.json();
     const generatedContent = data.choices[0].message.content;
     
-    // Validate content with enhanced rules including paragraph length
+    // Validate content with relaxed rules focused on real issues
     const validation = validateContent(generatedContent, contentType);
     
     if (validation.isValid) {

@@ -1,6 +1,7 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Copy, Edit, ExternalLink, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -183,95 +184,97 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
   const isApproved = task.status === 'posted';
 
   return (
-    <div className="flex gap-2">
-      {task.ai_output && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            handleCopy(task.ai_output);
-            toast.success('Content copied to clipboard');
-          }}
-        >
-          <Copy className="w-3 h-3 mr-1" />
-          Copy
-        </Button>
-      )}
+    <TooltipProvider>
+      <div className="flex gap-2">
+        {task.ai_output && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              handleCopy(task.ai_output);
+              toast.success('Content copied to clipboard');
+            }}
+          >
+            <Copy className="w-3 h-3 mr-1" />
+            Copy
+          </Button>
+        )}
 
-      {(hasFailedGeneration || isStuckGenerating) && (
+        {(hasFailedGeneration || isStuckGenerating) && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleRetryGeneration}
+                disabled={retryingGeneration}
+                className="border-orange-300 text-orange-600 hover:bg-orange-50"
+              >
+                <RefreshCw className={`w-3 h-3 mr-1 ${retryingGeneration ? 'animate-spin' : ''}`} />
+                {retryingGeneration ? 'Retrying...' : 'Retry'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Retry content generation</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
+        {canEdit && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onEdit}
+            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+          >
+            <Edit className="w-3 h-3 mr-1" />
+            Edit
+          </Button>
+        )}
+        
+        {canApprove && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <ApproveButton
+                isApproved={isApproved}
+                onApprove={handleApprove}
+                disabled={approvingTask}
+              />
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{isApproved ? 'Content is approved' : 'Approve this content and send it to the Ready to Post section'}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
+        
+        {task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => toast.info('Publishing integration coming soon')}
+          >
+            <ExternalLink className="w-3 h-3 mr-1" />
+            Publish
+          </Button>
+        )}
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               size="sm"
               variant="outline"
-              onClick={handleRetryGeneration}
-              disabled={retryingGeneration}
-              className="border-orange-300 text-orange-600 hover:bg-orange-50"
+              onClick={handleDelete}
+              disabled={deletingTask}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
             >
-              <RefreshCw className={`w-3 h-3 mr-1 ${retryingGeneration ? 'animate-spin' : ''}`} />
-              {retryingGeneration ? 'Retrying...' : 'Retry'}
+              <Trash2 className="w-3 h-3" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Retry content generation</p>
+            <p>Delete this content</p>
           </TooltipContent>
         </Tooltip>
-      )}
-      
-      {canEdit && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={onEdit}
-          className="border-blue-300 text-blue-600 hover:bg-blue-50"
-        >
-          <Edit className="w-3 h-3 mr-1" />
-          Edit
-        </Button>
-      )}
-      
-      {canApprove && (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <ApproveButton
-              isApproved={isApproved}
-              onApprove={handleApprove}
-              disabled={approvingTask}
-            />
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>{isApproved ? 'Content is approved' : 'Approve this content and send it to the Ready to Post section'}</p>
-          </TooltipContent>
-        </Tooltip>
-      )}
-      
-      {task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => toast.info('Publishing integration coming soon')}
-        >
-          <ExternalLink className="w-3 h-3 mr-1" />
-          Publish
-        </Button>
-      )}
-
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleDelete}
-            disabled={deletingTask}
-            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
-          >
-            <Trash2 className="w-3 h-3" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>Delete this content</p>
-        </TooltipContent>
-      </Tooltip>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 };

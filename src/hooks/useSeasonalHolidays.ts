@@ -1,9 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { generateStructuredNewsletter } from '@/components/homepage/StructuredNewsletterService';
 
 interface Holiday {
   id: string;
@@ -190,10 +188,9 @@ export const useSeasonalHolidays = () => {
       const campaignTitle = `${holiday.holiday_name} - ${holiday.category}`;
       const campaignDescription = `${holiday.description} - ${holiday.garden_relevance}`;
 
-      // FIXED: Generate content for proper types including blog instead of email
-      const contentTypes = ['facebook', 'instagram', 'video', 'newsletter', 'blog'];
+      // Generate content for each type using the working generate-content function
+      const contentTypes = ['facebook', 'instagram', 'video', 'newsletter', 'email'];
       const createdTasks = [];
-      const failedTasks = [];
 
       console.log('📝 Generating content for', contentTypes.length, 'types');
 
@@ -201,42 +198,26 @@ export const useSeasonalHolidays = () => {
         try {
           console.log(`🔄 Generating ${contentType} content...`);
           
-          let content = '';
-          
-          // FIXED: Use structured newsletter generation for newsletters
-          if (contentType === 'newsletter') {
-            console.log('📰 Generating structured newsletter content');
-            content = await generateStructuredNewsletter(
-              'temp-campaign-id',
-              campaignTitle,
-              1,
-              user.id,
-              campaignDescription
-            );
-          } else {
-            // Use the existing working generate-content function for other types
-            const { data: contentData, error: contentError } = await supabase.functions.invoke('generate-content', {
-              body: {
-                postType: contentType,
-                campaignTitle: campaignTitle,
-                weekDescription: campaignDescription,
-                userId: user.id,
-                enforceCompanyName: true
-              }
-            });
-
-            if (contentError) {
-              console.error(`❌ Error generating ${contentType} content:`, contentError);
-              failedTasks.push(contentType);
-              continue;
+          // Use the existing working generate-content function
+          const { data: contentData, error: contentError } = await supabase.functions.invoke('generate-content', {
+            body: {
+              postType: contentType,
+              campaignTitle: campaignTitle,
+              weekDescription: campaignDescription,
+              userId: user.id, // Ensure user ID is passed
+              enforceCompanyName: true
             }
+          });
 
-            content = contentData?.content || contentData?.generatedText;
+          if (contentError) {
+            console.error(`❌ Error generating ${contentType} content:`, contentError);
+            continue; // Skip this type and continue with others
           }
+
+          const content = contentData?.content || contentData?.generatedText;
           
           if (!content) {
             console.error(`❌ No content returned for ${contentType}`);
-            failedTasks.push(contentType);
             continue;
           }
 
@@ -246,7 +227,7 @@ export const useSeasonalHolidays = () => {
           const { data: task, error: taskError } = await supabase
             .from('content_tasks')
             .insert({
-              user_id: user.id,
+              user_id: user.id, // Ensure user_id is set correctly
               holiday_id: holidayId,
               post_type: contentType,
               ai_output: content,
@@ -260,51 +241,31 @@ export const useSeasonalHolidays = () => {
 
           if (taskError) {
             console.error(`❌ Error creating ${contentType} task:`, taskError);
-            failedTasks.push(contentType);
           } else {
             createdTasks.push(task);
             console.log(`✅ Created ${contentType} content task with ID:`, task.id);
             
-            // FIXED: Enhanced image generation with better error handling and fallbacks
-            if (contentType === 'facebook' || contentType === 'instagram' || contentType === 'blog') {
-              try {
-                const imageQuery = `${holiday.holiday_name} garden center ${contentType} plants flowers gardening`;
-                console.log(`🖼️ Generating images for ${contentType} with query:`, imageQuery);
-                
-                const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
-                  body: { 
-                    query: imageQuery,
-                    contentTaskId: task.id 
-                  }
-                });
-                
-                if (imageError) {
-                  console.warn(`⚠️ Image generation failed for ${contentType}, will use placeholders:`, imageError);
-                  // Create placeholder image suggestions
-                  await supabase
-                    .from('image_suggestions')
-                    .insert([{
-                      content_task_id: task.id,
-                      query: imageQuery,
-                      thumb_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop&crop=center`,
-                      download_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&h=800&fit=crop&crop=center`,
-                      alt: `${holiday.holiday_name} garden center content`,
-                      photographer: 'Placeholder Image',
-                      unsplash_id: 'placeholder-garden'
-                    }]);
-                } else {
-                  console.log(`✅ Image generation successful for ${contentType}`);
+            // Generate images for the content task
+            try {
+              const imageQuery = `${holiday.holiday_name} garden center ${contentType}`;
+              console.log(`🖼️ Generating images for ${contentType} with query:`, imageQuery);
+              
+              await supabase.functions.invoke('fetch-unsplash-images', {
+                body: { 
+                  query: imageQuery,
+                  contentTaskId: task.id 
                 }
-              } catch (imageError) {
-                console.warn(`⚠️ Image generation exception for ${contentType}:`, imageError);
-                // Fallback to placeholder - don't fail the whole process
-              }
+              });
+              
+              console.log(`✅ Image generation triggered for ${contentType}`);
+            } catch (imageError) {
+              console.log(`⚠️ Image generation failed for ${contentType}, will use placeholders:`, imageError);
+              // Images will fall back to placeholders automatically
             }
           }
         } catch (error) {
           console.error(`❌ Exception generating ${contentType} content:`, error);
-          failedTasks.push(contentType);
-          continue;
+          continue; // Continue with other content types
         }
       }
 
@@ -313,9 +274,6 @@ export const useSeasonalHolidays = () => {
       }
 
       console.log('✅ Successfully created', createdTasks.length, 'content tasks');
-      if (failedTasks.length > 0) {
-        console.warn('⚠️ Failed to create', failedTasks.length, 'content tasks:', failedTasks);
-      }
       
       // Update content state for this holiday
       setHolidayContentState(prev => ({
@@ -327,11 +285,7 @@ export const useSeasonalHolidays = () => {
         }
       }));
       
-      const successMessage = failedTasks.length > 0 
-        ? `Generated ${createdTasks.length} of ${contentTypes.length} pieces of content for ${holiday.holiday_name}. ${failedTasks.length} failed.`
-        : `Generated ${createdTasks.length} pieces of content for ${holiday.holiday_name}`;
-      
-      toast.success(successMessage, {
+      toast.success(`Generated ${createdTasks.length} pieces of content for ${holiday.holiday_name}`, {
         description: 'Content is ready for review in your dashboard',
         duration: 5000,
       });
@@ -340,8 +294,7 @@ export const useSeasonalHolidays = () => {
         success: true,
         holiday: holiday,
         tasks: createdTasks,
-        failed: failedTasks,
-        message: successMessage
+        message: `Generated ${createdTasks.length} pieces of content for ${holiday.holiday_name}`
       };
     } catch (error) {
       console.error('💥 Error in holiday content generation:', error);

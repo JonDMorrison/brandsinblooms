@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { Badge } from "@/components/ui/badge";
 import { Copy, Trash2, Edit, Eye } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
@@ -144,68 +144,74 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
         flex gap-2 flex-wrap
         ${isMobile ? 'justify-center' : 'justify-start'}
       `}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <EnhancedAppleButton
-              size="sm"
-              variant="secondary"
-              onClick={handleEdit}
-              className={`
-                border-blue-200 text-blue-700 hover:bg-blue-50
-                ${isMobile ? 'flex-1 min-w-[70px]' : ''}
-              `}
-              iconAnimation="bounce"
-            >
-              <Edit className="w-3 h-3 mr-1" />
-              {isMobile ? '' : 'Edit'}
-            </EnhancedAppleButton>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Edit content</p>
-          </TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <EnhancedAppleButton
+                size="sm"
+                variant="secondary"
+                onClick={handleEdit}
+                className={`
+                  border-blue-200 text-blue-700 hover:bg-blue-50
+                  ${isMobile ? 'flex-1 min-w-[70px]' : ''}
+                `}
+                iconAnimation="bounce"
+              >
+                <Edit className="w-3 h-3 mr-1" />
+                {isMobile ? '' : 'Edit'}
+              </EnhancedAppleButton>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Edit content</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <EnhancedAppleButton
-              size="sm"
-              variant="tertiary"
-              onClick={handleCopyContent}
-              className={`
-                text-stone-600 hover:bg-stone-100
-                ${isMobile ? 'flex-1 min-w-[70px]' : ''}
-              `}
-              iconAnimation="bounce"
-            >
-              <Copy className="w-3 h-3 mr-1" />
-              {isMobile ? '' : 'Copy'}
-            </EnhancedAppleButton>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Copy content to clipboard</p>
-          </TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <EnhancedAppleButton
+                size="sm"
+                variant="tertiary"
+                onClick={handleCopyContent}
+                className={`
+                  text-stone-600 hover:bg-stone-100
+                  ${isMobile ? 'flex-1 min-w-[70px]' : ''}
+                `}
+                iconAnimation="bounce"
+              >
+                <Copy className="w-3 h-3 mr-1" />
+                {isMobile ? '' : 'Copy'}
+              </EnhancedAppleButton>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Copy content to clipboard</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <EnhancedAppleButton
-              size="sm"
-              variant="secondary"
-              onClick={handleViewFull}
-              className={`
-                border-stone-200 text-stone-700 hover:bg-stone-50
-                ${isMobile ? 'flex-1 min-w-[70px]' : ''}
-              `}
-              iconAnimation="bounce"
-            >
-              <Eye className="w-3 h-3 mr-1" />
-              {isMobile ? '' : 'View Full'}
-            </EnhancedAppleButton>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>View full content</p>
-          </TooltipContent>
-        </Tooltip>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <EnhancedAppleButton
+                size="sm"
+                variant="secondary"
+                onClick={handleViewFull}
+                className={`
+                  border-stone-200 text-stone-700 hover:bg-stone-50
+                  ${isMobile ? 'flex-1 min-w-[70px]' : ''}
+                `}
+                iconAnimation="bounce"
+              >
+                <Eye className="w-3 h-3 mr-1" />
+                {isMobile ? '' : 'View Full'}
+              </EnhancedAppleButton>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View full content</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
         {!isMobile && (
           <Tooltip>

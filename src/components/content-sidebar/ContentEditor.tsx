@@ -2,7 +2,6 @@
 import { Textarea } from "@/components/ui/textarea";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
 import { MagazineNewsletterDisplay } from "./MagazineNewsletterDisplay";
-import { BlogContentDisplay } from "./BlogContentDisplay";
 
 interface ContentEditorProps {
   content: string;
@@ -36,21 +35,15 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
     );
   }
 
-  // Check if this is a blog post
-  const isBlogPost = task?.post_type === 'blog';
-  
   // Check if this is a structured newsletter for magazine display
-  const isStructuredNewsletter = task?.post_type === 'newsletter' && 
-    (content.includes('newsletter_md:') || content.includes('blocks:') || content.startsWith('---'));
+  const isStructuredNewsletter = task?.post_type === 'newsletter' && content.includes('newsletter_md:');
   
   return (
     <div className="space-y-2">
       <h3 className="text-sm font-medium text-gray-700">Content</h3>
       <div className="p-6 bg-white rounded-lg border min-h-[400px] overflow-y-auto max-h-[800px]">
         {content ? (
-          isBlogPost ? (
-            <BlogContentDisplay content={content} postType={task?.post_type} />
-          ) : isStructuredNewsletter ? (
+          isStructuredNewsletter ? (
             <MagazineNewsletterDisplay content={content} />
           ) : (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
             <div 
