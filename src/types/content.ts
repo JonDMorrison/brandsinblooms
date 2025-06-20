@@ -1,3 +1,4 @@
+
 export type TaskStatus = 
   | 'planned' 
   | 'review' 
@@ -20,6 +21,8 @@ export interface Campaign {
   start_date?: string;
   end_date?: string;
   holiday_id?: string;
+  prompt?: string; // Add prompt property
+  source?: string; // Add source property
 }
 
 export interface ContentTask {
