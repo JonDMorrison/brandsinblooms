@@ -150,6 +150,7 @@ export const generateCampaignContent = async (
         theme: theme,
         month: currentMonth,
         tone: 'professional',
+        // FIXED: Updated content types to use blog instead of email
         channels: ['facebook', 'instagram', 'newsletter', 'blog', 'video'],
         campaignId: campaignId,
         userId: userId
@@ -182,7 +183,7 @@ export const generateCampaignContent = async (
       throw new Error('Failed to process tokens for content generation');
     }
 
-    // Create content tasks for each type
+    // FIXED: Updated content types to use blog instead of email
     const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
     const results = [];
 
@@ -196,6 +197,7 @@ export const generateCampaignContent = async (
           continue;
         }
 
+        // FIXED: Set status to 'review' and include user_id
         const { data: task, error: taskError } = await supabase
           .from('content_tasks')
           .insert({
@@ -216,22 +218,40 @@ export const generateCampaignContent = async (
           results.push(task);
           console.log(`✅ Created ${type} content task with status 'review'`);
           
-          // Auto-generate images for the task (make this optional)
-          try {
-            console.log(`🖼️ Auto-generating images for ${type} content`);
-            const imageQuery = extractImageKeywords(theme, description, type);
-            
-            await supabase.functions.invoke('fetch-unsplash-images', {
-              body: { 
-                query: imageQuery,
-                contentTaskId: task.id 
+          // FIXED: Enhanced image generation with improved error handling
+          if (type === 'facebook' || type === 'instagram' || type === 'blog') {
+            try {
+              console.log(`🖼️ Auto-generating images for ${type} content`);
+              const imageQuery = extractImageKeywords(theme, description, type);
+              
+              const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
+                body: { 
+                  query: imageQuery,
+                  contentTaskId: task.id 
+                }
+              });
+              
+              if (imageError) {
+                console.warn(`⚠️ Image generation failed for ${type}, creating placeholder:`, imageError);
+                // Create placeholder image suggestion
+                await supabase
+                  .from('image_suggestions')
+                  .insert([{
+                    content_task_id: task.id,
+                    query: imageQuery,
+                    thumb_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop&crop=center`,
+                    download_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&h=800&fit=crop&crop=center`,
+                    alt: `${theme} garden center content`,
+                    photographer: 'Placeholder Image',
+                    unsplash_id: 'placeholder-garden'
+                  }]);
+              } else {
+                console.log(`✅ Generated images for ${type} content`);
               }
-            });
-            
-            console.log(`✅ Generated images for ${type} content`);
-          } catch (imageError) {
-            console.error(`❌ Error generating images for ${type}:`, imageError);
-            // Don't fail the content generation if images fail
+            } catch (imageError) {
+              console.error(`❌ Error generating images for ${type}:`, imageError);
+              // Don't fail the content generation if images fail
+            }
           }
         }
       } catch (error) {

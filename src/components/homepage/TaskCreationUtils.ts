@@ -65,8 +65,8 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
       let aiOutput = '';
       
       try {
+        // FIXED: Use structured newsletter generation for newsletters
         if (postType === 'newsletter') {
-          // Use structured newsletter generation
           aiOutput = await generateNewsletterContent(campaignId, campaignTitle, weekNumber, userId, campaignDescription);
         } else if (postType === 'video') {
           aiOutput = await generateVideoScript(campaignTitle, userId, campaignDescription);
@@ -94,15 +94,54 @@ export const createMissingTasks = async (campaignId: string, missingTypes: strin
     if (tasksToCreate.length > 0) {
       console.log('Creating missing tasks for review:', tasksToCreate.map(t => t.post_type));
 
-      const { error } = await supabase
+      const { data: createdTasks, error } = await supabase
         .from('content_tasks')
-        .insert(tasksToCreate);
+        .insert(tasksToCreate)
+        .select();
       
       if (error) {
         console.error('Error creating missing tasks:', error);
         throw error;
       } else {
         console.log('Missing tasks created and require approval');
+        
+        // FIXED: Enhanced image generation for visual content types
+        for (const task of createdTasks || []) {
+          if (task.post_type === 'facebook' || task.post_type === 'instagram' || task.post_type === 'blog') {
+            try {
+              const imageQuery = `${campaignTitle} garden center ${task.post_type} plants flowers gardening`;
+              console.log(`🖼️ Generating images for ${task.post_type} with query:`, imageQuery);
+              
+              const { data: imageData, error: imageError } = await supabase.functions.invoke('fetch-unsplash-images', {
+                body: { 
+                  query: imageQuery,
+                  contentTaskId: task.id 
+                }
+              });
+              
+              if (imageError) {
+                console.warn(`⚠️ Image generation failed for ${task.post_type}, creating placeholder:`, imageError);
+                // Create placeholder image suggestion
+                await supabase
+                  .from('image_suggestions')
+                  .insert([{
+                    content_task_id: task.id,
+                    query: imageQuery,
+                    thumb_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop&crop=center`,
+                    download_url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&h=800&fit=crop&crop=center`,
+                    alt: `${campaignTitle} garden center content`,
+                    photographer: 'Placeholder Image',
+                    unsplash_id: 'placeholder-garden'
+                  }]);
+              } else {
+                console.log(`✅ Image generation successful for ${task.post_type}`);
+              }
+            } catch (imageError) {
+              console.warn(`⚠️ Image generation exception for ${task.post_type}:`, imageError);
+              // Don't fail the whole process for image issues
+            }
+          }
+        }
       }
     }
   } catch (error) {
