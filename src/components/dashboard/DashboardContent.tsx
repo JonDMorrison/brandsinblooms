@@ -47,9 +47,9 @@ export const DashboardContent = ({
     }
 
     try {
-      console.log('🔍 DashboardContent: Fetching campaign data for tenant:', tenant.id, 'week:', currentWeekNumber);
+      console.log('🔍 DashboardContent: Fetching campaign data for tenant:', tenant.id, 'week:', currentWeekNumber, 'isDevelopment:', isDevelopment);
 
-      // STEP 1: Look for campaigns in this tenant, prioritizing current week
+      // STEP 1: Look for campaigns in this tenant, prioritizing PREVIEW campaigns in development
       console.log('🔍 DashboardContent: Looking for campaigns...');
       
       let campaignQuery = supabase
@@ -86,16 +86,39 @@ export const DashboardContent = ({
         return;
       }
 
-      // Find the best campaign to show (prefer current week, fallback to any)
-      let selectedCampaign = allCampaigns.find(c => c.week_number === currentWeekNumber);
+      // 🔧 FIXED: Updated campaign selection logic to prioritize preview campaigns in development
+      let selectedCampaign: Campaign | undefined;
+      
+      if (isDevelopment) {
+        // In development, prioritize PREVIEW campaigns first
+        selectedCampaign = allCampaigns.find(c => 
+          c.title?.includes('PREVIEW') || c.title?.includes('DEV PREVIEW')
+        );
+        
+        if (selectedCampaign) {
+          console.log('✅ DashboardContent: Found PREVIEW campaign for development:', selectedCampaign.title);
+        } else {
+          console.log('🔍 DashboardContent: No PREVIEW campaign found, falling back to current week');
+          // Fall back to current week campaign
+          selectedCampaign = allCampaigns.find(c => c.week_number === currentWeekNumber);
+        }
+      } else {
+        // In production, use current week campaign
+        selectedCampaign = allCampaigns.find(c => c.week_number === currentWeekNumber);
+      }
       
       if (!selectedCampaign) {
         // If no current week campaign, use the most recent one
         selectedCampaign = allCampaigns[allCampaigns.length - 1];
         console.log('🔍 DashboardContent: No current week campaign, using most recent:', selectedCampaign?.title);
-      } else {
-        console.log('✅ DashboardContent: Found current week campaign:', selectedCampaign.title);
       }
+
+      console.log('🎯 DashboardContent: Selected campaign:', {
+        title: selectedCampaign?.title,
+        id: selectedCampaign?.id,
+        isPreview: selectedCampaign?.title?.includes('PREVIEW'),
+        isDevelopment
+      });
 
       setActiveCampaign(selectedCampaign);
 
