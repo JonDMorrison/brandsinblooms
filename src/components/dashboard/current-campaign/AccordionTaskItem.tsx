@@ -38,19 +38,46 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
   const statusConfig = getStatusConfig(task.status);
   const hasContent = task.ai_output && task.ai_output.trim() !== '';
   
-  // Check if this is a structured newsletter
-  const isStructuredNewsletter = task.post_type === 'newsletter' && hasContent && task.ai_output.includes('newsletter_md:');
+  // Enhanced structured newsletter detection with debugging
+  const isStructuredNewsletter = task.post_type === 'newsletter' && hasContent && (
+    task.ai_output.includes('newsletter_md:') || 
+    task.ai_output.includes('blocks:') ||
+    task.ai_output.startsWith('---') ||
+    task.ai_output.includes('subject:') // Also detect JSON newsletters
+  );
+  
+  console.log('AccordionTaskItem: Newsletter detection:', {
+    postType: task.post_type,
+    hasContent,
+    isStructured: isStructuredNewsletter,
+    contentPreview: hasContent ? task.ai_output.substring(0, 100) : null
+  });
   
   let cleanContent = '';
   let previewText = '';
   
   if (hasContent) {
     if (isStructuredNewsletter) {
-      // For structured newsletters, extract the markdown content for preview
-      const yamlMatch = task.ai_output.match(/newsletter_md:\s*\|\s*\n([\s\S]*?)(?=\nblocks:|$)/);
-      if (yamlMatch) {
-        cleanContent = yamlMatch[1].trim();
-        previewText = truncateText(cleanContent.replace(/[#*]/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
+      // For structured newsletters, extract meaningful preview text
+      if (task.ai_output.includes('newsletter_md:')) {
+        const yamlMatch = task.ai_output.match(/newsletter_md:\s*\|\s*\n([\s\S]*?)(?=\nblocks:|$)/);
+        if (yamlMatch) {
+          cleanContent = yamlMatch[1].trim();
+          previewText = truncateText(cleanContent.replace(/[#*]/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
+        } else {
+          previewText = 'Structured newsletter content available...';
+        }
+      } else if (task.ai_output.includes('subject:')) {
+        // Handle JSON newsletters
+        try {
+          const jsonMatch = task.ai_output.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            previewText = parsed.subject || 'Newsletter content available...';
+          }
+        } catch (e) {
+          previewText = 'Newsletter content available...';
+        }
       } else {
         previewText = 'Structured newsletter content available...';
       }
@@ -191,7 +218,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
         <AccordionContent className="px-4 pb-4">
           <div className="space-y-4">
-            {/* Enhanced content display */}
+            {/* Enhanced content display with newsletter fix */}
             {hasContent && (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {task.post_type === 'blog' ? (
@@ -201,18 +228,12 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
                     content={cleanContent}
                     className="bg-white min-h-0"
                   />
-                ) : isStructuredNewsletter ? (
+                ) : task.post_type === 'newsletter' ? (
+                  // Always use MagazineNewsletterDisplay for ALL newsletters
                   <MagazineNewsletterDisplay 
                     content={task.ai_output}
                     className="p-6"
                   />
-                ) : (task.post_type === 'newsletter') ? (
-                  <div className="p-6">
-                    <div 
-                      className="prose prose-lg prose-headings:font-display prose-a:text-primary prose-strong:text-slate-900 prose-li:marker:text-primary max-w-none"
-                      dangerouslySetInnerHTML={{ __html: cleanContent }}
-                    />
-                  </div>
                 ) : (
                   <div className="p-4 bg-gray-50">
                     <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
