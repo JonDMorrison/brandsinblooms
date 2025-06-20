@@ -1,0 +1,47 @@
+
+/* Mobile-optimized typography styles */
+@media (max-width: 768px) {
+  /* Responsive font sizes */
+  .text-4xl, .text-3xl {
+    font-size: 1.875rem;
+    line-height: 2.25rem;
+  }
+  
+  .text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+  
+  .text-xl {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+  
+  /* Improve readability on mobile */
+  body, .text-base {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  
+  .text-sm {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  /* Headings spacing */
+  h1, h2, h3, h4, h5, h6 {
+    margin-bottom: 0.75rem;
+  }
+  
+  /* Paragraph spacing */
+  p {
+    margin-bottom: 1rem;
+  }
+  
+  /* Prevent text overflow */
+  .truncate-mobile {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

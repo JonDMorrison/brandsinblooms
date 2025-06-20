@@ -1,0 +1,53 @@
+
+/* Mobile-optimized interaction styles */
+@media (max-width: 768px) {
+  /* Touch-friendly interactions */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Hover states disabled on touch devices */
+  @media (hover: none) {
+    .hover\\:bg-gray-100:hover {
+      background-color: initial;
+    }
+    
+    .hover\\:text-blue-600:hover {
+      color: initial;
+    }
+  }
+  
+  /* Focus states for accessibility */
+  button:focus,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+  
+  /* Swipe gestures */
+  .swipeable {
+    touch-action: pan-x;
+  }
+  
+  /* Prevent text selection on interactive elements */
+  button, .btn, [role="button"] {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+  
+  /* Scroll behavior */
+  .scroll-container {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Pull to refresh */
+  .pull-to-refresh {
+    overscroll-behavior-y: contain;
+  }
+}

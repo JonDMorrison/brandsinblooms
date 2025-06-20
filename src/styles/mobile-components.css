@@ -1,0 +1,56 @@
+
+/* Mobile-optimized component styles */
+@media (max-width: 768px) {
+  /* Card components */
+  .card {
+    padding: 1rem;
+    margin: 0 0 1rem 0;
+  }
+  
+  /* Form components */
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  input, textarea, select {
+    width: 100%;
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 12px;
+    border-radius: 6px;
+  }
+  
+  /* Navigation components */
+  .nav-mobile {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 8px;
+    z-index: 50;
+  }
+  
+  /* Tab components */
+  .tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Accordion components */
+  .accordion-content {
+    max-height: none;
+    overflow: visible;
+  }
+  
+  /* Loading states */
+  .loading-spinner {
+    width: 32px;
+    height: 32px;
+  }
+}
