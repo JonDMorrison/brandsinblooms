@@ -109,9 +109,73 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
     const currentWeek = getCurrentWeekNumber();
 
-    // 🚀 NEW: Automatically generate ALL 52-week themes for the entire year WITH TENANT SUPPORT
+    // 🚀 CRITICAL FIX: Create immediate campaign for current week FIRST
+    console.log('🎯 Creating immediate campaign for current week:', currentWeek);
+    
+    const immediateStartDate = new Date();
+    const immediateCampaign = {
+      week_number: currentWeek,
+      title: `Week ${currentWeek} Garden Center Theme`,
+      theme: `Seasonal Gardening Focus - Week ${currentWeek}`,
+      description: 'AI-generated weekly theme for your garden center marketing',
+      start_date: immediateStartDate.toISOString().split('T')[0],
+      prompt: 'Create engaging content focused on current seasonal gardening needs and trends',
+      user_id: userId,
+      tenant_id: tenant.id,
+      source: 'onboarding_immediate'
+    };
+
+    const { data: immediateCampaignData, error: immediateCampaignError } = await supabase
+      .from('campaigns')
+      .insert(immediateCampaign)
+      .select()
+      .single();
+
+    if (immediateCampaignError) {
+      console.error('Error creating immediate campaign:', immediateCampaignError);
+      throw new Error('Failed to create immediate campaign');
+    }
+
+    console.log('✅ Created immediate campaign:', immediateCampaignData.title, 'ID:', immediateCampaignData.id);
+
+    // Generate content for the immediate campaign RIGHT NOW
+    console.log('🎯 Generating content for immediate campaign');
     try {
-      console.log('🎯 Auto-generating complete 52-week garden center theme collection with tenant support...');
+      const dummyTaskUpdate = () => {
+        console.log('Task update during onboarding');
+      };
+      
+      await generateRequiredTasks(
+        immediateCampaignData.id, 
+        [immediateCampaignData], 
+        userId, 
+        dummyTaskUpdate,
+        tenant.id
+      );
+      
+      console.log('🎉 IMMEDIATE CONTENT GENERATED! User will see 5 ready posts on dashboard');
+      
+      // Verify content was created
+      const { data: verifyContent, error: verifyError } = await supabase
+        .from('content_tasks')
+        .select('id, post_type, status, tenant_id')
+        .eq('campaign_id', immediateCampaignData.id)
+        .eq('tenant_id', tenant.id);
+
+      if (verifyError) {
+        console.error('Error verifying generated content:', verifyError);
+      } else {
+        console.log('✅ Immediate content verification - Generated tasks:', verifyContent?.length || 0, 'for tenant:', tenant.id);
+      }
+      
+    } catch (contentError) {
+      console.error('🚨 Error generating immediate content during onboarding:', contentError);
+      // Don't throw - profile creation was successful
+    }
+
+    // NOW generate the full 52-week collection (optional, for future weeks)
+    try {
+      console.log('🎯 Auto-generating complete 52-week collection for future planning...');
       
       const { data: themesData, error: themesError } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
@@ -122,101 +186,57 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
       if (themesError) {
         console.error('Error auto-generating 52-week themes:', themesError);
-        // Don't throw here - profile creation was successful, themes are optional
       } else if (themesData?.themes && Array.isArray(themesData.themes)) {
         
-        // Save all 52 themes as campaigns WITH TENANT_ID
-        const campaigns = themesData.themes.map((theme: any, index: number) => {
+        // Save remaining weeks (skip current week since we already created it)
+        const remainingThemes = themesData.themes.filter(theme => theme.week !== currentWeek);
+        
+        const futureCampaigns = remainingThemes.map((theme: any, index: number) => {
           const startDate = new Date();
-          startDate.setDate(startDate.getDate() + (index * 7));
-          
-          // Use the week number from the theme data
-          const weekNumber = theme.week;
+          startDate.setDate(startDate.getDate() + ((theme.week - currentWeek) * 7));
           
           return {
-            week_number: weekNumber,
+            week_number: theme.week,
             title: theme.title,
             theme: theme.title,
             description: theme.description,
             start_date: startDate.toISOString().split('T')[0],
             prompt: theme.content_ideas.join(' • '),
             user_id: userId,
-            tenant_id: tenant.id,  // 🔧 CRITICAL FIX: Include tenant_id
+            tenant_id: tenant.id,
             source: 'auto_generated_52_weeks'
           };
         });
 
-        const { data: createdCampaigns, error: campaignError } = await supabase
-          .from('campaigns')
-          .insert(campaigns)
-          .select();
+        if (futureCampaigns.length > 0) {
+          const { data: createdFutureCampaigns, error: futureCampaignError } = await supabase
+            .from('campaigns')
+            .insert(futureCampaigns)
+            .select();
 
-        if (campaignError) {
-          console.error('Error saving auto-generated 52-week campaigns:', campaignError);
-        } else {
-          console.log(`✅ Successfully auto-generated complete 52-week garden center theme collection (${themesData.themes.length} themes) with tenant_id: ${tenant.id}`);
-          
-          // 🚀 Generate content for the FIRST week (current week) to create amazing first impression
-          if (createdCampaigns && createdCampaigns.length > 0) {
-            // Find the campaign for the current week
-            const currentWeekCampaign = createdCampaigns.find(c => c.week_number === currentWeek) || createdCampaigns[0];
-            
-            console.log('🎯 Auto-generating FIRST WEEK content for immediate wow factor:', currentWeekCampaign.title, 'with tenant_id:', tenant.id);
-            
-            try {
-              // Create a dummy callback function for onTaskUpdate since we're in onboarding
-              const dummyTaskUpdate = () => {
-                console.log('Task update during onboarding');
-              };
-              
-              // Generate all 5 content pieces for the first week
-              await generateRequiredTasks(
-                currentWeekCampaign.id, 
-                createdCampaigns, 
-                userId, 
-                dummyTaskUpdate,
-                tenant.id  // 🔧 CRITICAL FIX: Pass tenant_id to content generation
-              );
-              
-              console.log('🎉 FIRST WEEK CONTENT GENERATED with tenant_id! User will see 5 ready posts on dashboard');
-              
-              // Verify content was created with tenant_id
-              const { data: verifyContent, error: verifyError } = await supabase
-                .from('content_tasks')
-                .select('id, post_type, status, tenant_id')
-                .eq('campaign_id', currentWeekCampaign.id)
-                .eq('tenant_id', tenant.id);
-
-              if (verifyError) {
-                console.error('Error verifying generated content:', verifyError);
-              } else {
-                console.log('✅ Content verification - Generated tasks:', verifyContent?.length || 0, 'for tenant:', tenant.id);
-                console.log('📋 Generated content details:', verifyContent);
-              }
-              
-              // Mark this user as having completed their first onboarding content generation
-              const { error: updateError } = await supabase
-                .from('company_profiles')
-                .update({ 
-                  first_content_generated: true,
-                  onboarding_completed_at: new Date().toISOString()
-                })
-                .eq('user_id', userId);
-                
-              if (updateError) {
-                console.error('Error updating first content generated status:', updateError);
-              }
-                
-            } catch (contentError) {
-              console.error('🚨 Error generating first week content during onboarding:', contentError);
-              // Don't throw - profile and themes were successful
-            }
+          if (futureCampaignError) {
+            console.error('Error saving future campaigns:', futureCampaignError);
+          } else {
+            console.log(`✅ Successfully created ${futureCampaigns.length} future campaigns`);
           }
         }
       }
     } catch (themeError) {
-      console.error('Error in 52-week theme auto-generation:', themeError);
-      // Continue - profile creation was successful
+      console.error('Error in 52-week theme generation:', themeError);
+      // Don't throw - immediate campaign was successful
+    }
+
+    // Mark onboarding as completed
+    const { error: updateError } = await supabase
+      .from('company_profiles')
+      .update({ 
+        first_content_generated: true,
+        onboarding_completed_at: new Date().toISOString()
+      })
+      .eq('user_id', userId);
+      
+    if (updateError) {
+      console.error('Error updating onboarding completion status:', updateError);
     }
     
     return savedProfile;
