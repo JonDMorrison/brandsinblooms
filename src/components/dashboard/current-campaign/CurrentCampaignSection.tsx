@@ -24,7 +24,9 @@ export const CurrentCampaignSection = ({
     selectedTask, 
     showContentViewer, 
     isDevelopment, 
-    usesTenantModel 
+    usesTenantModel,
+    handleTaskClick,
+    handleContentViewerClose
   } = useCurrentCampaignSection(activeCampaign, tasks);
 
   console.log('🔍 CurrentCampaignSection: Rendering with:', {
@@ -115,10 +117,10 @@ export const CurrentCampaignSection = ({
             </div>
           ) : (
             <CampaignContent 
-              campaign={activeCampaign}
+              activeCampaign={activeCampaign}
               tasks={tasks}
               onTaskUpdate={onTaskUpdate}
-              onTaskClick={onTaskClick}
+              onTaskClick={onTaskClick || handleTaskClick}
             />
           )}
         </CardContent>
