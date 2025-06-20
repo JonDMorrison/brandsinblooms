@@ -1,25 +1,31 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const currentWeekNumber = getCurrentWeekNumber();
 
   useEffect(() => {
     const updateWeeklyContent = async () => {
-      if (!user) return;
+      if (!user || !tenant) {
+        console.log('WeeklyContentUpdater: Missing user or tenant, skipping update');
+        return;
+      }
 
       try {
-        console.log('WeeklyContentUpdater: Checking for week', currentWeekNumber, 'user:', user.id);
+        console.log('WeeklyContentUpdater: Checking for week', currentWeekNumber, 'tenant:', tenant.id);
 
-        // Check if there are any campaigns for the current week for this user
+        // Check if there are any campaigns for the current week for this tenant
         const { data: existingCampaigns, error: checkError } = await supabase
           .from('campaigns')
           .select('*')
           .eq('week_number', currentWeekNumber)
-          .eq('user_id', user.id)
+          .eq('tenant_id', tenant.id)  // Use tenant_id instead of user_id
           .order('created_at', { ascending: false });
 
         if (checkError) {
@@ -127,11 +133,11 @@ export const WeeklyContentUpdater = () => {
           .from('campaigns')
           .select('*')
           .eq('week_number', currentWeekNumber)
-          .eq('user_id', user.id);
+          .eq('tenant_id', tenant.id);
 
         // If no campaigns exist for current week, create one
         if (!finalCampaigns || finalCampaigns.length === 0) {
-          console.log('WeeklyContentUpdater: No campaign found for week', currentWeekNumber, ', creating one');
+          console.log('WeeklyContentUpdater: No campaign found for week', currentWeekNumber, ', creating one for tenant:', tenant.id);
           
           // Generate a theme for the current week
           const { data: themeData, error: themeError } = await supabase.functions.invoke('generate-weekly-themes', {
@@ -152,7 +158,7 @@ export const WeeklyContentUpdater = () => {
             return;
           }
 
-          // Create the campaign
+          // Create the campaign with both user_id and tenant_id
           const { data: newCampaign, error: campaignError } = await supabase
             .from('campaigns')
             .insert({
@@ -162,7 +168,8 @@ export const WeeklyContentUpdater = () => {
               theme: theme.title,
               prompt: theme.description,
               start_date: new Date().toISOString().split('T')[0],
-              user_id: user.id,
+              user_id: user.id,           // Keep for backward compatibility
+              tenant_id: tenant.id,       // Essential for multi-tenant queries
               source: 'auto_generated'
             })
             .select()
@@ -173,7 +180,7 @@ export const WeeklyContentUpdater = () => {
             return;
           }
 
-          console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title);
+          console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title, 'for tenant:', tenant.id);
         } else {
           console.log('WeeklyContentUpdater: Campaign exists for week', currentWeekNumber, '- campaign:', finalCampaigns[0].title);
         }
@@ -184,7 +191,7 @@ export const WeeklyContentUpdater = () => {
     };
 
     updateWeeklyContent();
-  }, [user, currentWeekNumber]);
+  }, [user, tenant, currentWeekNumber]);
 
   return null; // This component doesn't render anything
 };
