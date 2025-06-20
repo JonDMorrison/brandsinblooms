@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, User, ArrowRight } from "lucide-react";
-import { HeadlineMedium, BodyMedium } from "@/components/ui/typography";
+import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
 
 interface CompanyProfileSetupProps {
   onComplete: () => void;
@@ -24,7 +24,7 @@ export const CompanyProfileSetup = ({ onComplete }: CompanyProfileSetupProps) =>
           <Building2 className="w-8 h-8 text-green-600" />
         </div>
         <CardTitle>
-          <HeadlineMedium>Complete Your Profile</HeadlineMedium>
+          <HeadlineLarge>Complete Your Profile</HeadlineLarge>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
