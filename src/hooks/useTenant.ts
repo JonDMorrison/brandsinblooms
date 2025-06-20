@@ -17,9 +17,13 @@ export const useTenant = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchTenant = async () => {
       if (!user) {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
         return;
       }
 
@@ -30,6 +34,8 @@ export const useTenant = () => {
           .select('tenant_id')
           .eq('id', user.id)
           .single();
+
+        if (!isMounted) return;
 
         if (userError || !userData?.tenant_id) {
           console.log('User not assigned to a tenant yet');
@@ -44,19 +50,29 @@ export const useTenant = () => {
           .eq('id', userData.tenant_id)
           .single();
 
+        if (!isMounted) return;
+
         if (tenantError) {
           console.error('Error fetching tenant:', tenantError);
         } else {
           setTenant(tenantData);
         }
       } catch (error) {
-        console.error('Error in useTenant:', error);
+        if (isMounted) {
+          console.error('Error in useTenant:', error);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchTenant();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   return { tenant, loading };
