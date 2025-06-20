@@ -135,9 +135,9 @@ export const generateCampaignContent = async (
   description: string,
   userId: string,
   weekNumber?: number,
-  tenantId?: string  // 🔧 NEW: Accept tenant_id parameter
+  tenantId?: string  // 🔧 HYBRID: Accept tenant_id parameter
 ) => {
-  console.log(`🎯 Generating campaign content pack for campaign: ${campaignId} with tenant_id: ${tenantId}`);
+  console.log(`🎯 Generating campaign content pack for campaign: ${campaignId} with tenantId: ${tenantId || 'none'} for user: ${userId}`);
   
   try {
     // Get current month for the new edge function
@@ -183,7 +183,7 @@ export const generateCampaignContent = async (
       throw new Error('Failed to process tokens for content generation');
     }
 
-    // Create content tasks for each type WITH TENANT_ID
+    // Create content tasks for each type WITH HYBRID TENANT/USER SUPPORT
     const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
     const results = [];
 
@@ -197,19 +197,24 @@ export const generateCampaignContent = async (
           continue;
         }
 
+        // 🔧 HYBRID FIX: Create task data with proper ownership
         const taskData: any = {
           campaign_id: campaignId,
           post_type: type,
           ai_output: content,
           status: 'review',
           scheduled_date: new Date().toISOString().split('T')[0],
-          user_id: userId,
           notes: `Generated from theme: ${theme}`
         };
 
-        // 🔧 CRITICAL FIX: Include tenant_id if provided
+        // Set ownership based on tenant availability
         if (tenantId) {
+          // Multi-tenant model
           taskData.tenant_id = tenantId;
+          taskData.created_by_user_id = userId;
+        } else {
+          // Single-user model
+          taskData.user_id = userId;
         }
 
         const { data: task, error: taskError } = await supabase
@@ -222,7 +227,7 @@ export const generateCampaignContent = async (
           console.error(`❌ Error creating ${type} task:`, taskError);
         } else {
           results.push(task);
-          console.log(`✅ Created ${type} content task with status 'review' and tenant_id: ${tenantId}`);
+          console.log(`✅ Created ${type} content task with ${tenantId ? 'tenant_id' : 'user_id'} ownership`);
           
           // Auto-generate images for the task (make this optional)
           try {
@@ -258,19 +263,24 @@ export const generateCampaignContent = async (
         description
       );
 
+      // 🔧 HYBRID FIX: Create newsletter task with proper ownership
       const newsletterTaskData: any = {
         campaign_id: campaignId,
         post_type: 'newsletter',
         ai_output: newsletterContent,
         status: 'review',
         scheduled_date: new Date().toISOString().split('T')[0],
-        user_id: userId,
         notes: `Structured newsletter generated from theme: ${theme}`
       };
 
-      // 🔧 CRITICAL FIX: Include tenant_id if provided
+      // Set ownership based on tenant availability
       if (tenantId) {
+        // Multi-tenant model
         newsletterTaskData.tenant_id = tenantId;
+        newsletterTaskData.created_by_user_id = userId;
+      } else {
+        // Single-user model
+        newsletterTaskData.user_id = userId;
       }
 
       const { data: newsletterTask, error: newsletterError } = await supabase
@@ -283,13 +293,13 @@ export const generateCampaignContent = async (
         console.error('❌ Error creating newsletter task:', newsletterError);
       } else {
         results.push(newsletterTask);
-        console.log('✅ Created structured newsletter content task with tenant_id:', tenantId);
+        console.log('✅ Created structured newsletter content task with hybrid ownership');
       }
     } catch (error) {
       console.error('❌ Error generating structured newsletter:', error);
     }
 
-    console.log(`🎉 Content generation completed: ${results.length} tasks created with tenant support`);
+    console.log(`🎉 Content generation completed: ${results.length} tasks created with hybrid tenant/user support`);
 
     return {
       success: true,

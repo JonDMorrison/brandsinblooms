@@ -4,29 +4,46 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
-  const { tenant } = useTenant();
+  const { tenant, loading: tenantLoading } = useTenant();
   const currentWeekNumber = getCurrentWeekNumber();
 
   useEffect(() => {
     const updateWeeklyContent = async () => {
-      if (!user || !tenant) {
-        console.log('WeeklyContentUpdater: Missing user or tenant, skipping update');
+      // 🔧 HYBRID FIX: Support both tenant and user-based models
+      if (!user) {
+        console.log('WeeklyContentUpdater: No user available, skipping update');
+        return;
+      }
+
+      // Don't proceed if tenant is still loading
+      if (tenantLoading) {
+        console.log('WeeklyContentUpdater: Tenant still loading, waiting...');
         return;
       }
 
       try {
-        console.log('WeeklyContentUpdater: Checking for week', currentWeekNumber, 'tenant:', tenant.id);
+        console.log('WeeklyContentUpdater: Checking for week', currentWeekNumber, 'user:', user.id, 'tenant:', tenant?.id || 'none');
 
-        // Check if there are any campaigns for the current week for this tenant
-        const { data: existingCampaigns, error: checkError } = await supabase
+        // 🔧 HYBRID QUERY: Use tenant_id if available, otherwise user_id
+        let campaignQuery = supabase
           .from('campaigns')
           .select('*')
           .eq('week_number', currentWeekNumber)
-          .eq('tenant_id', tenant.id)  // Use tenant_id instead of user_id
           .order('created_at', { ascending: false });
+
+        if (tenant?.id) {
+          console.log('WeeklyContentUpdater: Using tenant-based query for tenant:', tenant.id);
+          campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
+        } else {
+          console.log('WeeklyContentUpdater: Using user-based query for user:', user.id);
+          campaignQuery = campaignQuery.eq('user_id', user.id);
+        }
+
+        const { data: existingCampaigns, error: checkError } = await campaignQuery;
 
         if (checkError) {
           console.error('WeeklyContentUpdater: Error checking existing campaigns:', checkError);
@@ -128,16 +145,26 @@ export const WeeklyContentUpdater = () => {
           }
         }
 
-        // Re-check after cleanup
-        const { data: finalCampaigns } = await supabase
+        // Re-check after cleanup using the same hybrid query
+        let finalQuery = supabase
           .from('campaigns')
           .select('*')
-          .eq('week_number', currentWeekNumber)
-          .eq('tenant_id', tenant.id);
+          .eq('week_number', currentWeekNumber);
+
+        if (tenant?.id) {
+          finalQuery = finalQuery.eq('tenant_id', tenant.id);
+        } else {
+          finalQuery = finalQuery.eq('user_id', user.id);
+        }
+
+        const { data: finalCampaigns } = await finalQuery;
+
+        // Check if we have a campaign and if it has content
+        let targetCampaign = finalCampaigns?.[0];
 
         // If no campaigns exist for current week, create one
         if (!finalCampaigns || finalCampaigns.length === 0) {
-          console.log('WeeklyContentUpdater: No campaign found for week', currentWeekNumber, ', creating one for tenant:', tenant.id);
+          console.log('WeeklyContentUpdater: No campaign found for week', currentWeekNumber, ', creating one');
           
           // Generate a theme for the current week
           const { data: themeData, error: themeError } = await supabase.functions.invoke('generate-weekly-themes', {
@@ -158,20 +185,27 @@ export const WeeklyContentUpdater = () => {
             return;
           }
 
-          // Create the campaign with both user_id and tenant_id
+          // 🔧 HYBRID CREATION: Create campaign with appropriate ownership
+          const campaignData: any = {
+            week_number: currentWeekNumber,
+            title: theme.title,
+            description: theme.description,
+            theme: theme.title,
+            prompt: theme.description,
+            start_date: new Date().toISOString().split('T')[0],
+            source: 'auto_generated'
+          };
+
+          if (tenant?.id) {
+            campaignData.tenant_id = tenant.id;
+            campaignData.created_by_user_id = user.id;
+          } else {
+            campaignData.user_id = user.id;
+          }
+
           const { data: newCampaign, error: campaignError } = await supabase
             .from('campaigns')
-            .insert({
-              week_number: currentWeekNumber,
-              title: theme.title,
-              description: theme.description,
-              theme: theme.title,
-              prompt: theme.description,
-              start_date: new Date().toISOString().split('T')[0],
-              user_id: user.id,           // Keep for backward compatibility
-              tenant_id: tenant.id,       // Essential for multi-tenant queries
-              source: 'auto_generated'
-            })
+            .insert(campaignData)
             .select()
             .single();
 
@@ -180,9 +214,41 @@ export const WeeklyContentUpdater = () => {
             return;
           }
 
-          console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title, 'for tenant:', tenant.id);
-        } else {
-          console.log('WeeklyContentUpdater: Campaign exists for week', currentWeekNumber, '- campaign:', finalCampaigns[0].title);
+          console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title);
+          targetCampaign = newCampaign;
+        }
+
+        // 🔧 CRITICAL FIX: Auto-generate content for campaigns without tasks
+        if (targetCampaign) {
+          // Check if campaign has content tasks
+          const { data: existingTasks } = await supabase
+            .from('content_tasks')
+            .select('id, ai_output')
+            .eq('campaign_id', targetCampaign.id);
+
+          const hasContent = existingTasks?.some(task => task.ai_output && task.ai_output.trim() !== '');
+
+          if (!hasContent) {
+            console.log('WeeklyContentUpdater: Campaign has no content, generating automatically...');
+            
+            try {
+              // Use the existing generateCampaignContent function with hybrid support
+              await generateCampaignContent(
+                targetCampaign.id,
+                targetCampaign.theme || targetCampaign.title,
+                targetCampaign.description || '',
+                user.id,
+                targetCampaign.week_number,
+                tenant?.id // Pass tenant_id if available, undefined if not
+              );
+              
+              console.log('WeeklyContentUpdater: Successfully generated content for campaign:', targetCampaign.title);
+            } catch (error) {
+              console.error('WeeklyContentUpdater: Error generating content for campaign:', error);
+            }
+          } else {
+            console.log('WeeklyContentUpdater: Campaign already has content, skipping generation');
+          }
         }
 
       } catch (error) {
@@ -191,7 +257,7 @@ export const WeeklyContentUpdater = () => {
     };
 
     updateWeeklyContent();
-  }, [user, tenant, currentWeekNumber]);
+  }, [user, tenant, tenantLoading, currentWeekNumber]);
 
   return null; // This component doesn't render anything
 };

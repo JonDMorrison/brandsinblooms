@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -37,13 +38,19 @@ export const DashboardContent = ({
   // Use environment-based detection instead of hardcoded email
   const isDevelopment = import.meta.env.DEV;
 
-  console.log('🔍 DashboardContent: Rendering with user:', user?.id, 'tenant:', tenant?.id, 'isDevelopment:', isDevelopment);
+  console.log('🔍 DashboardContent: Rendering with user:', user?.id, 'tenant:', tenant?.id || 'none', 'isDevelopment:', isDevelopment);
 
   const fetchCampaignData = async () => {
     // 🔧 HYBRID: Support both tenant-based and user-based models
     if (!user) {
       console.log('❌ DashboardContent: No authenticated user, skipping fetch');
       setLoading(false);
+      return;
+    }
+
+    // Wait for tenant loading to complete
+    if (tenantLoading) {
+      console.log('🔍 DashboardContent: Tenant still loading, waiting...');
       return;
     }
 
@@ -90,7 +97,7 @@ export const DashboardContent = ({
       console.log('✅ DashboardContent: Found campaigns:', allCampaigns?.length || 0);
       
       if (!allCampaigns || allCampaigns.length === 0) {
-        console.log('❌ DashboardContent: No campaigns found for user:', user.id, 'tenant:', tenant?.id || 'none');
+        console.log('❌ DashboardContent: No campaigns found - WeeklyContentUpdater should create one');
         setActiveCampaign(undefined);
         setTasks([]);
         setLoading(false);
@@ -128,7 +135,8 @@ export const DashboardContent = ({
         title: selectedCampaign?.title,
         id: selectedCampaign?.id,
         isPreview: selectedCampaign?.title?.includes('PREVIEW'),
-        isDevelopment
+        isDevelopment,
+        hasContent: false // Will be determined below
       });
 
       setActiveCampaign(selectedCampaign);
@@ -209,12 +217,6 @@ export const DashboardContent = ({
         
         console.log('✅ DashboardContent: After filtering:', securityCheckedTasks.length, 'tasks (isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ')');
         setTasks(securityCheckedTasks);
-
-        // STEP 3: Auto-generate content if campaign exists but has no tasks
-        if (selectedCampaign && securityCheckedTasks.length === 0) {
-          console.log('🔍 DashboardContent: Campaign exists but no tasks found, auto-generating...');
-          await autoGenerateContentForCampaign(selectedCampaign, []);
-        }
       }
 
     } catch (error) {
@@ -226,41 +228,14 @@ export const DashboardContent = ({
     }
   };
 
-  const autoGenerateContentForCampaign = async (campaign: Campaign, existingTasks: any[]) => {
-    if (generatingContent || existingTasks.length > 0) {
-      console.log('DashboardContent: Skipping auto-generation - already generating or tasks exist');
-      return;
-    }
-
-    console.log('DashboardContent: Auto-generating content for campaign:', campaign.title);
-    setGeneratingContent(true);
-
-    try {
-      await generateRequiredTasks(
-        campaign.id,
-        [campaign], // Pass campaigns array
-        user.id,
-        () => {
-          console.log('DashboardContent: Content generation completed, refetching data');
-          fetchCampaignData();
-        },
-        tenant?.id // 🔧 HYBRID: Pass tenant_id if available, otherwise undefined for user-based model
-      );
-    } catch (error) {
-      console.error('DashboardContent: Error auto-generating content:', error);
-    } finally {
-      setGeneratingContent(false);
-    }
-  };
-
   useEffect(() => {
-    console.log('🔍 DashboardContent: useEffect triggered, user:', user?.id, 'tenant:', tenant?.id || 'none');
+    console.log('🔍 DashboardContent: useEffect triggered, user:', user?.id, 'tenant:', tenant?.id || 'none', 'tenantLoading:', tenantLoading);
     if (user && !tenantLoading) {
-      // 🔧 HYBRID: Don't wait for tenant - proceed if user is available
+      // 🔧 HYBRID: Don't wait for tenant - proceed if user is available and tenant loading is complete
       fetchCampaignData();
     } else {
-      console.log('🔍 DashboardContent: No user or tenant loading, skipping data fetch');
-      setLoading(false);
+      console.log('🔍 DashboardContent: Waiting for user or tenant loading to complete');
+      if (!user) setLoading(false);
     }
   }, [user, tenant, tenantLoading, currentWeekNumber]);
 
@@ -308,7 +283,7 @@ export const DashboardContent = ({
       >
         <AppleCardContent className="flex flex-col items-center justify-center py-12">
           <BodyMedium className="text-text-secondary">
-            Please log in to access your dashboard
+            {!user ? 'Please log in to access your dashboard' : 'Loading your workspace...'}
           </BodyMedium>
         </AppleCardContent>
       </EnhancedAppleCard>
@@ -344,7 +319,7 @@ export const DashboardContent = ({
         </div>
       )}
 
-      {/* Weekly Content Updater - runs automatically to maintain campaigns */}
+      {/* Weekly Content Updater - runs automatically to maintain campaigns and generate content */}
       <WeeklyContentUpdater />
       
       {/* First Time User Welcome */}
