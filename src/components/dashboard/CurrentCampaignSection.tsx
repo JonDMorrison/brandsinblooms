@@ -32,6 +32,15 @@ export const CurrentCampaignSection = ({
     handleContentViewerClose
   } = useCurrentCampaignSection(activeCampaign);
 
+  console.log('🔍 CurrentCampaignSection: Rendering with:', {
+    hasUser: !!user,
+    hasActiveCampaign: !!activeCampaign,
+    activeCampaignTitle: activeCampaign?.title,
+    activeCampaignId: activeCampaign?.id,
+    tasksCount: tasks.length,
+    loading
+  });
+
   const handleTaskClickInternal = (task: any) => {
     if (onTaskClick) {
       onTaskClick(task);
@@ -49,16 +58,22 @@ export const CurrentCampaignSection = ({
 
   // Early return if no authenticated user
   if (!user) {
+    console.log('🔍 CurrentCampaignSection: No user, showing NoUserState');
     return <NoUserState />;
   }
 
-  if (!activeCampaign) {
+  // Check for active campaign more carefully
+  if (!activeCampaign || !activeCampaign.id) {
+    console.log('🔍 CurrentCampaignSection: No active campaign, showing NoCampaignStateCard');
     return <NoCampaignStateCard onCreateCampaign={onCreateCampaign} />;
   }
 
   if (loading) {
+    console.log('🔍 CurrentCampaignSection: Loading tasks, showing CampaignLoadingState');
     return <CampaignLoadingState />;
   }
+
+  console.log('🔍 CurrentCampaignSection: Showing CampaignContent with campaign:', activeCampaign.title);
 
   return (
     <>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,13 +42,13 @@ export const DashboardContent = ({
 
   const fetchCampaignData = async () => {
     if (!user || !tenant) {
-      console.log('DashboardContent: No authenticated user or tenant, skipping fetch');
+      console.log('❌ DashboardContent: No authenticated user or tenant, skipping fetch');
       setLoading(false);
       return;
     }
 
     try {
-      console.log('DashboardContent: Fetching campaign data for tenant:', tenant.id, 'week:', currentWeekNumber);
+      console.log('🔍 DashboardContent: Fetching campaign data for tenant:', tenant.id, 'week:', currentWeekNumber);
 
       // URGENT FIX: Updated status filter to match live user requirements
       const statusFilter = ['generating', 'review', 'ready', 'approved', 'posted'];
@@ -81,10 +80,10 @@ export const DashboardContent = ({
         .order('created_at', { ascending: false });
 
       if (allTasksError) {
-        console.error('DashboardContent: Error fetching all tasks:', allTasksError);
+        console.error('❌ DashboardContent: Error fetching all tasks:', allTasksError);
         setTasks([]);
       } else {
-        console.log('DashboardContent: Successfully fetched', allTasks?.length || 0, 'tasks for tenant', tenant.id);
+        console.log('✅ DashboardContent: Successfully fetched', allTasks?.length || 0, 'tasks for tenant', tenant.id);
         
         // Security verification and PREVIEW filtering for live users
         const tenantTasks = allTasks?.filter(task => {
@@ -99,15 +98,15 @@ export const DashboardContent = ({
           return belongsToTenant;
         }) || [];
         
-        console.log('DashboardContent: After security filter and PREVIEW exclusion:', tenantTasks.length, 'tasks');
+        console.log('✅ DashboardContent: After security filter and PREVIEW exclusion:', tenantTasks.length, 'tasks');
         setTasks(tenantTasks);
 
         // STEP 2: Find campaign from tasks if they exist
         if (tenantTasks.length > 0) {
-          console.log('DashboardContent: Found tasks, extracting campaign...');
+          console.log('✅ DashboardContent: Found tasks, extracting campaign...');
           
           const firstTask = tenantTasks[0];
-          console.log('DashboardContent: First task campaign data:', firstTask.campaigns);
+          console.log('🔍 DashboardContent: First task campaign data:', firstTask.campaigns);
           
           if (firstTask.campaigns) {
             const campaign: Campaign = {
@@ -124,7 +123,7 @@ export const DashboardContent = ({
               source: firstTask.campaigns.source || 'system'
             };
 
-            console.log('DashboardContent: Setting activeCampaign to:', campaign);
+            console.log('✅ DashboardContent: Setting activeCampaign to:', campaign.title, 'ID:', campaign.id);
             setActiveCampaign(campaign);
             setLoading(false);
             return;
@@ -132,7 +131,7 @@ export const DashboardContent = ({
         }
 
         // STEP 3: Enhanced campaign resolution with current week focus
-        console.log('DashboardContent: No tasks with campaigns found, trying fallback campaign search...');
+        console.log('🔍 DashboardContent: No tasks with campaigns found, trying fallback campaign search...');
         
         // First try to find a campaign for the current week
         let campaignQuery = supabase
@@ -150,10 +149,10 @@ export const DashboardContent = ({
         const { data: currentWeekCampaigns, error: currentWeekError } = await campaignQuery.limit(1);
 
         if (currentWeekError) {
-          console.error('DashboardContent: Error fetching current week campaigns:', currentWeekError);
+          console.error('❌ DashboardContent: Error fetching current week campaigns:', currentWeekError);
         } else if (currentWeekCampaigns && currentWeekCampaigns.length > 0) {
           const selectedCampaign = currentWeekCampaigns[0];
-          console.log('DashboardContent: Found current week campaign:', selectedCampaign.title);
+          console.log('✅ DashboardContent: Found current week campaign:', selectedCampaign.title, 'ID:', selectedCampaign.id);
           setActiveCampaign(selectedCampaign);
           
           // AUTO-GENERATE CONTENT if campaign exists but has no tasks
@@ -163,7 +162,7 @@ export const DashboardContent = ({
         }
 
         // If no current week campaign, try any recent campaign for this tenant
-        console.log('DashboardContent: No current week campaign, searching for any recent campaign...');
+        console.log('🔍 DashboardContent: No current week campaign, searching for any recent campaign...');
         
         let fallbackQuery = supabase
           .from('campaigns')
@@ -178,26 +177,26 @@ export const DashboardContent = ({
         const { data: campaigns, error: campaignError } = await fallbackQuery.limit(1);
 
         if (campaignError) {
-          console.error('DashboardContent: Error fetching fallback campaigns:', campaignError);
+          console.error('❌ DashboardContent: Error fetching fallback campaigns:', campaignError);
         } else {
-          console.log('DashboardContent: Fallback search found campaigns:', campaigns?.length || 0);
+          console.log('🔍 DashboardContent: Fallback search found campaigns:', campaigns?.length || 0);
           
           if (campaigns && campaigns.length > 0) {
             const selectedCampaign = campaigns[0];
-            console.log('DashboardContent: Selected fallback campaign:', selectedCampaign.title);
+            console.log('✅ DashboardContent: Selected fallback campaign:', selectedCampaign.title, 'ID:', selectedCampaign.id);
             setActiveCampaign(selectedCampaign);
             
             // AUTO-GENERATE CONTENT if campaign exists but has no tasks
             await autoGenerateContentForCampaign(selectedCampaign, []);
           } else {
-            console.log('DashboardContent: No campaigns found for tenant:', tenant.id);
+            console.log('❌ DashboardContent: No campaigns found for tenant:', tenant.id);
             setActiveCampaign(undefined);
           }
         }
       }
 
     } catch (error) {
-      console.error('DashboardContent: Error in fetchCampaignData:', error);
+      console.error('❌ DashboardContent: Error in fetchCampaignData:', error);
       setActiveCampaign(undefined);
       setTasks([]);
     } finally {
