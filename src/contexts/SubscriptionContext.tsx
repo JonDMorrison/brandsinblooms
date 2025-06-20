@@ -1,6 +1,8 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
@@ -40,6 +42,7 @@ export const useSubscription = () => {
 
 export const SubscriptionProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +51,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     if (!user) return null;
 
     try {
-      console.log('Creating default subscription for user:', user.id);
+      console.log('Creating default subscription for user:', user.id, 'tenant:', tenant?.id || 'none');
       
       const startDate = new Date();
       const endDate = new Date();
@@ -131,9 +134,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      console.log('Fetching subscription for user:', user.id);
+      console.log('Fetching subscription for user:', user.id, 'tenant:', tenant?.id || 'none');
       
-      // First try to get existing subscription
+      // In tenant model, subscription is still tied to the user who created the tenant
+      // So we always query by user_id, not tenant_id
       const { data, error } = await supabase
         .from('subscriptions')
         .select('*')
@@ -147,7 +151,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
 
       if (data) {
-        console.log('Found existing subscription:', data);
+        console.log('Found existing subscription:', data.plan, 'for user:', user.id);
         setSubscription(data);
         
         // Check if trial has expired and update if needed
@@ -258,7 +262,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       // Also check with Stripe on load
       checkStripeSubscription();
     }
-  }, [user]);
+  }, [user, tenant]);
 
   // Enhanced trial expiration handling
   useEffect(() => {

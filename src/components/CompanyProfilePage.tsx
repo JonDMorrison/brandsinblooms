@@ -5,6 +5,7 @@ import { CompanyProfileForm } from "@/components/CompanyProfileForm";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Save, ArrowLeft } from "lucide-react";
@@ -12,6 +13,7 @@ import { UserMenu } from "@/components/UserMenu";
 
 export const CompanyProfilePage = () => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -22,10 +24,14 @@ export const CompanyProfilePage = () => {
     if (user) {
       fetchProfile();
     }
-  }, [user]);
+  }, [user, tenant]);
 
   const fetchProfile = async () => {
     try {
+      console.log('CompanyProfilePage: Fetching profile for user:', user?.id, 'tenant:', tenant?.id || 'none');
+
+      // In tenant model, company profile is still tied to the user who created the tenant
+      // But we should be aware of tenant context for any tenant-specific settings
       const { data, error } = await supabase
         .from('company_profiles')
         .select('*')
@@ -38,6 +44,7 @@ export const CompanyProfilePage = () => {
         return;
       }
 
+      console.log('CompanyProfilePage: Profile loaded for', tenant?.id ? 'tenant mode' : 'user mode');
       setProfile(data);
     } catch (error) {
       console.error('Error in fetchProfile:', error);
@@ -98,9 +105,19 @@ export const CompanyProfilePage = () => {
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-garden-green-dark mb-2">
                 Company Profile
+                {tenant?.name && (
+                  <span className="text-lg font-normal text-gray-600 ml-2">
+                    ({tenant.name})
+                  </span>
+                )}
               </h1>
               <p className="text-garden-green">
                 Manage your company information to help AI create better, more personalized content
+                {tenant?.id && (
+                  <span className="block text-sm text-gray-500 mt-1">
+                    Profile settings apply to all users in your organization
+                  </span>
+                )}
               </p>
             </div>
             

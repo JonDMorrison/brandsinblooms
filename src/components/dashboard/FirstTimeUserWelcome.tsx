@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import {
+
+} from "@/hooks/useTenant";
 
 interface FirstTimeUserWelcomeProps {
   onGetStarted: () => void;
@@ -13,6 +16,7 @@ interface FirstTimeUserWelcomeProps {
 
 export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUserWelcomeProps) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [isFirstTime, setIsFirstTime] = useState(false);
   const [companyName, setCompanyName] = useState("");
 
@@ -21,12 +25,25 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
       if (!user) return;
 
       try {
-        // Use maybeSingle to handle cases where multiple profiles might exist
-        const { data: profile, error } = await supabase
+        console.log('FirstTimeUserWelcome: Checking first time user status for user:', user.id, 'tenant:', tenant?.id || 'none');
+
+        // Query company profile with tenant awareness
+        let profileQuery = supabase
           .from('company_profiles')
-          .select('first_content_generated, company_name, onboarding_completed_at, first_welcome_dismissed')
-          .eq('user_id', user.id)
-          .maybeSingle();
+          .select('first_content_generated, company_name, onboarding_completed_at, first_welcome_dismissed');
+
+        if (tenant?.id) {
+          // In tenant model, we might need to look for tenant-level settings
+          // For now, we'll still check the user who created the tenant
+          profileQuery = profileQuery.eq('user_id', user.id);
+          console.log('FirstTimeUserWelcome: Using tenant-aware query for tenant:', tenant.id);
+        } else {
+          // User-based query
+          profileQuery = profileQuery.eq('user_id', user.id);
+          console.log('FirstTimeUserWelcome: Using user-based query for user:', user.id);
+        }
+
+        const { data: profile, error } = await profileQuery.maybeSingle();
 
         if (error) {
           console.error('Error checking first time user status:', error);
@@ -52,7 +69,8 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
             first_welcome_dismissed: profile.first_welcome_dismissed,
             first_content_generated: profile.first_content_generated,
             hasRecentOnboarding,
-            shouldShowWelcome
+            shouldShowWelcome,
+            tenant: tenant?.id || 'none'
           });
           
           setIsFirstTime(shouldShowWelcome);
@@ -69,7 +87,7 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
     };
 
     checkFirstTimeUser();
-  }, [user, tasksCount]);
+  }, [user, tenant, tasksCount]);
 
   const handleDismiss = async () => {
     setIsFirstTime(false);

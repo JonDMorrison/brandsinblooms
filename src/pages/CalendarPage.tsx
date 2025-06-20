@@ -1,4 +1,3 @@
-
 import { CalendarView } from "@/components/CalendarView";
 import { BackfillCampaigns } from "@/components/calendar/BackfillCampaigns";
 import { useState, useEffect } from "react";
@@ -12,9 +11,11 @@ import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 
 const CalendarPage = () => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,22 +36,33 @@ const CalendarPage = () => {
     try {
       setError(null);
       
-      console.log('CalendarPage: Fetching data for user:', user.id);
+      console.log('CalendarPage: Fetching data for user:', user.id, 'tenant:', tenant?.id || 'none');
       
-      // SECURITY FIX: Explicitly filter campaigns by current user
-      const { data: campaignsData, error: campaignsError } = await supabase
+      // Build campaigns query based on tenant vs user model
+      let campaignsQuery = supabase
         .from('campaigns')
         .select('*')
-        .eq('user_id', user.id)  // CRITICAL: Only fetch current user's campaigns
         .order('start_date', { ascending: true });
+
+      if (tenant?.id) {
+        // Tenant-based access control
+        campaignsQuery = campaignsQuery.eq('tenant_id', tenant.id);
+        console.log('CalendarPage: Using tenant-based campaigns query for tenant:', tenant.id);
+      } else {
+        // User-based access control
+        campaignsQuery = campaignsQuery.eq('user_id', user.id);
+        console.log('CalendarPage: Using user-based campaigns query for user:', user.id);
+      }
+
+      const { data: campaignsData, error: campaignsError } = await campaignsQuery;
 
       if (campaignsError) {
         console.error('CalendarPage: Error fetching campaigns:', campaignsError);
         throw campaignsError;
       }
 
-      // SECURITY FIX: Use inner join to ensure we only get tasks for user's campaigns
-      const { data: tasksData, error: tasksError } = await supabase
+      // Build tasks query with inner join to ensure we only get tasks for user's/tenant's campaigns
+      let tasksQuery = supabase
         .from('content_tasks')
         .select(`
           *,
@@ -58,30 +70,47 @@ const CalendarPage = () => {
             title,
             week_number,
             start_date,
-            user_id
+            user_id,
+            tenant_id
           )
         `)
-        .eq('campaigns.user_id', user.id)  // CRITICAL: Filter by current user
         .order('scheduled_date', { ascending: true });
+
+      if (tenant?.id) {
+        // Tenant-based access control
+        tasksQuery = tasksQuery.eq('campaigns.tenant_id', tenant.id);
+        console.log('CalendarPage: Using tenant-based tasks query for tenant:', tenant.id);
+      } else {
+        // User-based access control
+        tasksQuery = tasksQuery.eq('campaigns.user_id', user.id);
+        console.log('CalendarPage: Using user-based tasks query for user:', user.id);
+      }
+
+      const { data: tasksData, error: tasksError } = await tasksQuery;
 
       if (tasksError) {
         console.error('CalendarPage: Error fetching tasks:', tasksError);
         throw tasksError;
       }
 
-      console.log('CalendarPage: Successfully fetched', campaignsData?.length || 0, 'campaigns and', tasksData?.length || 0, 'tasks for user', user.id);
+      console.log('CalendarPage: Successfully fetched', campaignsData?.length || 0, 'campaigns and', tasksData?.length || 0, 'tasks');
 
-      // Additional security verification
-      const userCampaigns = campaignsData?.filter(campaign => campaign.user_id === user.id) || [];
+      // Additional security verification - ensure all data belongs to current user/tenant
+      const userCampaigns = campaignsData?.filter(campaign => 
+        tenant?.id ? campaign.tenant_id === tenant.id : campaign.user_id === user.id
+      ) || [];
+      
       const userTasks = tasksData?.filter(task => 
-        task.campaigns && task.campaigns.user_id === user.id
+        task.campaigns && (
+          tenant?.id ? task.campaigns.tenant_id === tenant.id : task.campaigns.user_id === user.id
+        )
       ) || [];
 
       if (userCampaigns.length !== campaignsData?.length) {
-        console.warn('CalendarPage: Security alert - some campaigns did not belong to current user');
+        console.warn('CalendarPage: Security alert - some campaigns did not belong to current user/tenant');
       }
       if (userTasks.length !== tasksData?.length) {
-        console.warn('CalendarPage: Security alert - some tasks did not belong to current user');
+        console.warn('CalendarPage: Security alert - some tasks did not belong to current user/tenant');
       }
 
       setCampaigns(userCampaigns);
@@ -108,7 +137,7 @@ const CalendarPage = () => {
     } else {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, tenant]);
 
   // Quick action handlers
   const handleEventCreated = () => {

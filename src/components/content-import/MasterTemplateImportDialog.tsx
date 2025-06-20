@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload, FileText, CheckCircle, Database, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from 'xlsx';
@@ -25,6 +27,8 @@ interface ParsedMasterTemplate {
 }
 
 export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateImportDialogProps) => {
+  const { user } = useAuth();
+  const { tenant } = useTenant();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [parsedData, setParsedData] = useState<ParsedMasterTemplate[]>([]);
@@ -181,16 +185,57 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
   };
 
   const handleCopyToCampaigns = async () => {
+    if (!user) {
+      toast.error('Please log in to copy templates');
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
-      const { data, error } = await supabase.rpc('copy_master_templates_to_campaigns');
+      console.log('MasterTemplateImportDialog: Copying templates for user:', user.id, 'tenant:', tenant?.id || 'none');
 
-      if (error) {
-        throw error;
+      // Instead of using the existing RPC function, we'll manually copy templates with tenant awareness
+      const { data: templates, error: fetchError } = await supabase
+        .from('master_campaign_templates')
+        .select('*')
+        .order('week_number');
+
+      if (fetchError) {
+        throw fetchError;
       }
 
-      toast.success(`Successfully created ${data} campaigns from master templates`);
+      if (!templates || templates.length === 0) {
+        toast.error('No master templates found to copy');
+        return;
+      }
+
+      // Prepare campaigns data with proper user/tenant assignment
+      const campaignsToInsert = templates.map(template => ({
+        week_number: template.week_number,
+        title: template.title,
+        theme: template.theme,
+        prompt: template.prompt,
+        description: template.content_ideas,
+        start_date: new Date(Date.now() + (template.week_number - 1) * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        user_id: tenant?.id ? null : user.id, // Set user_id only if not in tenant mode
+        tenant_id: tenant?.id || null, // Set tenant_id if in tenant mode
+        created_by_user_id: user.id // Always track who created it
+      }));
+
+      const { data: insertedCampaigns, error: insertError } = await supabase
+        .from('campaigns')
+        .insert(campaignsToInsert)
+        .select();
+
+      if (insertError) {
+        throw insertError;
+      }
+
+      const createdCount = insertedCampaigns?.length || 0;
+      console.log('MasterTemplateImportDialog: Successfully created', createdCount, 'campaigns');
+      
+      toast.success(`Successfully created ${createdCount} campaigns from master templates`);
       onImportComplete?.();
     } catch (error: any) {
       console.error('Copy error:', error);
@@ -219,7 +264,14 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
       </DialogTrigger>
       <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Master Campaign Templates</DialogTitle>
+          <DialogTitle>
+            Master Campaign Templates
+            {tenant?.name && (
+              <span className="text-sm font-normal text-gray-600 ml-2">
+                for {tenant.name}
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
         
         {!previewMode ? (
@@ -234,6 +286,15 @@ export const MasterTemplateImportDialog = ({ onImportComplete }: MasterTemplateI
                 {isProcessing ? "Copying..." : "Copy Templates to Campaigns"}
               </Button>
             </div>
+            
+            {tenant?.id && (
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  <strong>Tenant Mode:</strong> Templates will be copied for your organization ({tenant.name}) 
+                  and will be accessible to all team members.
+                </p>
+              </div>
+            )}
             
             <div className="border-t pt-4 space-y-4">
               <h3 className="font-medium">Import New Master Templates</h3>
