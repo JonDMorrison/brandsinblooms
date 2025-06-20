@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 
@@ -15,7 +16,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         .from('users')
         .select('tenant_id, tenants(*)')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (userError && userError.code !== 'PGRST116') {
         console.error('❌ Error fetching existing user:', userError);
@@ -28,6 +29,14 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       } else {
         console.log('🔧 Creating new tenant...');
         
+        // Get user info from auth for tenant creation
+        const { data: authUser, error: authUserError } = await supabase.auth.getUser();
+        
+        if (authUserError || !authUser.user) {
+          console.error('❌ Error getting auth user:', authUserError);
+          throw new Error('Failed to get authenticated user information');
+        }
+
         // Create a new tenant for this user
         const { data: newTenant, error: tenantError } = await supabase
           .from('tenants')
@@ -42,18 +51,16 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
         if (tenantError) {
           console.error('❌ Error creating tenant:', tenantError);
+          console.error('❌ Tenant error details:', {
+            code: tenantError.code,
+            message: tenantError.message,
+            details: tenantError.details,
+            hint: tenantError.hint
+          });
           throw new Error(`Failed to create tenant: ${tenantError.message}`);
         }
 
         console.log('✅ Created new tenant:', newTenant.id);
-
-        // Get user info from auth.users for the public.users table
-        const { data: authUser, error: authUserError } = await supabase.auth.getUser();
-        
-        if (authUserError || !authUser.user) {
-          console.error('❌ Error getting auth user:', authUserError);
-          throw new Error('Failed to get authenticated user information');
-        }
 
         // Update/create user record in public.users table with tenant_id
         const { error: updateUserError } = await supabase

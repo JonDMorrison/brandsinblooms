@@ -94,11 +94,13 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
         // Show specific error message based on the error
         let errorMessage = "Failed to complete setup. ";
         if (profileError.message.includes('tenant')) {
-          errorMessage += "Workspace setup failed. Please try again.";
+          errorMessage += "There was an issue setting up your workspace. Please try again.";
         } else if (profileError.message.includes('Profile generation')) {
           errorMessage += "AI profile generation failed. Please try again or contact support.";
         } else if (profileError.message.includes('Campaign creation')) {
           errorMessage += "Content planning failed. Please try again.";
+        } else if (profileError.message.includes('Failed to create tenant')) {
+          errorMessage += "Workspace creation failed. Please check your internet connection and try again.";
         } else {
           errorMessage += "Please try again or contact support if the problem persists.";
         }
