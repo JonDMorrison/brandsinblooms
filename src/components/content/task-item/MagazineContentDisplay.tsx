@@ -45,98 +45,129 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
     return { text: textWithoutHashtags, hashtags };
   };
 
+  // FIXED: Enhanced newsletter parsing with better fallback handling
+  const parseNewsletterContent = (content: string) => {
+    // Try to parse as structured newsletter first
+    if (content.includes('newsletter_md:') || content.includes('---')) {
+      // Parse YAML-style structured newsletter
+      const lines = content.split('\n');
+      let title = '';
+      let sections = [];
+      let currentSection = '';
+      let inContent = false;
+      
+      for (const line of lines) {
+        if (line.startsWith('title:')) {
+          title = line.replace('title:', '').trim().replace(/['"]/g, '');
+        } else if (line.startsWith('newsletter_md:') || line === '---') {
+          inContent = true;
+        } else if (inContent && line.trim()) {
+          if (line.startsWith('#')) {
+            if (currentSection) {
+              sections.push(currentSection);
+            }
+            currentSection = line;
+          } else {
+            currentSection += '\n' + line;
+          }
+        }
+      }
+      
+      if (currentSection) {
+        sections.push(currentSection);
+      }
+      
+      if (title || sections.length > 0) {
+        return { title, sections, isStructured: true };
+      }
+    }
+    
+    // Try JSON parsing
+    const parsedNewsletter = parseNewsletterJson(content);
+    if (parsedNewsletter) {
+      return {
+        title: parsedNewsletter.subject,
+        sections: [parsedNewsletter.content],
+        isStructured: true
+      };
+    }
+    
+    // Fallback to plain text with basic formatting
+    const lines = content.split('\n').filter(line => line.trim());
+    const title = lines[0] || 'Newsletter';
+    const sections = lines.slice(1);
+    
+    return { title, sections, isStructured: false };
+  };
+
   const { text, hashtags } = formatContent(content);
 
   if (postType === 'newsletter') {
-    // Try to parse as JSON newsletter first
-    const parsedNewsletter = parseNewsletterJson(content);
+    const { title, sections, isStructured } = parseNewsletterContent(content);
     
-    if (parsedNewsletter) {
-      // Structured newsletter with subject and content
-      return (
-        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            {getPostTypeIcon()}
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-              Newsletter
+    return (
+      <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          {getPostTypeIcon()}
+          <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+            Newsletter
+          </Badge>
+          {isStructured && (
+            <Badge variant="outline" className="text-xs">
+              Structured
             </Badge>
-          </div>
+          )}
+        </div>
 
-          {/* Featured Image */}
-          <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
-            <div className="text-center text-purple-600">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Newsletter header image</p>
-            </div>
-          </div>
-
-          {/* Newsletter Content */}
-          <div className="space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-                {parsedNewsletter.subject}
-              </h2>
-              <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
-            </div>
-            
-            <div className="prose prose-sm max-w-none">
-              {parsedNewsletter.content.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="text-gray-700 leading-relaxed mb-4">
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </div>
-
-          {/* Newsletter Footer */}
-          <div className="mt-6 pt-4 border-t border-purple-200">
-            <p className="text-center text-sm text-purple-600 italic">
-              Thanks for reading! 📧
-            </p>
+        {/* Featured Image */}
+        <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
+          <div className="text-center text-purple-600">
+            <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+            <p className="text-sm">Newsletter header image</p>
           </div>
         </div>
-      );
-    } else {
-      // Plain text newsletter
-      return (
-        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            {getPostTypeIcon()}
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-              Newsletter
-            </Badge>
-          </div>
 
-          {/* Featured Image */}
-          <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
-            <div className="text-center text-purple-600">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Newsletter header image</p>
-            </div>
+        {/* Newsletter Content */}
+        <div className="space-y-4">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
+              {title}
+            </h2>
+            <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
           </div>
-
-          {/* Content */}
-          <div className="space-y-4">
-            <div className="prose prose-sm max-w-none">
-              {text.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="text-gray-700 leading-relaxed mb-4">
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </div>
-
-          {/* Newsletter Footer */}
-          <div className="mt-6 pt-4 border-t border-purple-200">
-            <p className="text-center text-sm text-purple-600 italic">
-              Thanks for reading! 📧
-            </p>
+          
+          <div className="prose prose-sm max-w-none">
+            {sections.map((section, index) => (
+              <div key={index} className="mb-4">
+                {section.startsWith('#') ? (
+                  <div dangerouslySetInnerHTML={{ 
+                    __html: section.replace(/^#+\s*/, '<h3 class="font-bold text-lg mb-2">') + '</h3>'
+                  }} />
+                ) : (
+                  <div className="text-gray-700 leading-relaxed">
+                    {section.split('\n').map((paragraph, pIndex) => (
+                      paragraph.trim() && (
+                        <p key={pIndex} className="mb-3">
+                          {paragraph}
+                        </p>
+                      )
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      );
-    }
+
+        {/* Newsletter Footer */}
+        <div className="mt-6 pt-4 border-t border-purple-200">
+          <p className="text-center text-sm text-purple-600 italic">
+            Thanks for reading! 📧
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (postType === 'instagram') {
@@ -152,11 +183,13 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </div>
         </div>
 
-        {/* Image Placeholder */}
-        <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 flex items-center justify-center border border-pink-200">
-          <div className="text-center text-pink-600">
+        {/* FIXED: Enhanced Image Placeholder with better styling */}
+        <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 flex items-center justify-center border border-pink-200 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-pink-50/50 to-purple-50/50"></div>
+          <div className="text-center text-pink-600 z-10">
             <ImageIcon className="w-12 h-12 mx-auto mb-2" />
-            <p className="text-sm">Visual content area</p>
+            <p className="text-sm font-medium">Instagram Visual</p>
+            <p className="text-xs opacity-75">Square format image</p>
           </div>
         </div>
 
@@ -200,11 +233,13 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
             {text}
           </p>
           
-          {/* Image Placeholder */}
-          <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200">
-            <div className="text-center text-blue-600">
+          {/* FIXED: Enhanced Image Placeholder with better styling */}
+          <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/50"></div>
+            <div className="text-center text-blue-600 z-10">
               <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Featured image</p>
+              <p className="text-sm font-medium">Facebook Featured Image</p>
+              <p className="text-xs opacity-75">Landscape format</p>
             </div>
           </div>
 
@@ -238,11 +273,13 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </Badge>
         </div>
 
-        {/* Featured Image */}
-        <div className="aspect-video bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg mb-6 flex items-center justify-center border border-green-200">
-          <div className="text-center text-green-600">
+        {/* FIXED: Enhanced Featured Image for blog posts */}
+        <div className="aspect-video bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg mb-6 flex items-center justify-center border border-green-200 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-emerald-50/50"></div>
+          <div className="text-center text-green-600 z-10">
             <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-            <p className="text-sm">Featured image</p>
+            <p className="text-sm font-medium">Blog Featured Image</p>
+            <p className="text-xs opacity-75">Header image for article</p>
           </div>
         </div>
 

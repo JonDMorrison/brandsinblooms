@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -15,14 +16,30 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
 
   if (task.ai_output) {
-    // For newsletters, use the magazine-style newsletter display
+    // FIXED: Better newsletter detection and display logic
     if (task.post_type === 'newsletter') {
-      return (
-        <MagazineNewsletterDisplay 
-          content={task.ai_output}
-          className="bg-white rounded-lg border"
-        />
-      );
+      // Check if it's a structured newsletter (YAML format)
+      const isStructuredNewsletter = task.ai_output.includes('newsletter_md:') || 
+                                   task.ai_output.includes('title:') ||
+                                   task.ai_output.startsWith('---');
+      
+      if (isStructuredNewsletter) {
+        // Use MagazineNewsletterDisplay for structured newsletters
+        return (
+          <MagazineNewsletterDisplay 
+            content={task.ai_output}
+            className="bg-white rounded-lg border"
+          />
+        );
+      } else {
+        // Use MagazineContentDisplay for plain text newsletters with enhanced parsing
+        return (
+          <MagazineContentDisplay 
+            content={task.ai_output}
+            postType={task.post_type}
+          />
+        );
+      }
     }
 
     // Use magazine-style display for all other content types
