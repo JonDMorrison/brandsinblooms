@@ -39,12 +39,22 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         throw new Error('Failed to create tenant');
       }
 
-      // Update user with tenant_id
+      // Get user info from auth.users for the public.users table
+      const { data: authUser, error: authUserError } = await supabase.auth.getUser();
+      
+      if (authUserError || !authUser.user) {
+        console.error('Error getting auth user:', authUserError);
+        throw new Error('Failed to get user information');
+      }
+
+      // Update/create user record in public.users table with tenant_id
       const { error: updateUserError } = await supabase
         .from('users')
         .upsert({
           id: userId,
-          tenant_id: newTenant.id
+          tenant_id: newTenant.id,
+          email: authUser.user.email || '',
+          name: authUser.user.user_metadata?.full_name || authUser.user.email?.split('@')[0] || 'User'
         });
 
       if (updateUserError) {
