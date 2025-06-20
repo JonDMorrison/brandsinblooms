@@ -1,163 +1,144 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Edit } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
-import { getPostTypeIcon } from "@/components/homepage/ready-to-post/postTypeUtils";
-import { ApproveButton } from "@/components/ui/approve-button";
+import { CheckCircle2, Eye, Calendar, FileText } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ContentTask } from "@/types/content";
+import { useAuth } from "@/contexts/AuthContext";
+import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
 
 interface ReviewQueueItemProps {
-  task: any;
+  task: ContentTask;
   onApprove: (taskId: string, event: React.MouseEvent) => void;
-  onClick: (task: any) => void;
+  onClick: (task: ContentTask) => void;
   isApproving: boolean;
   onTaskUpdate?: () => void;
-  onEdit?: (task: any, editMode: boolean) => void;
 }
 
 export const ReviewQueueItem = ({ 
   task, 
   onApprove, 
   onClick, 
-  isApproving, 
-  onTaskUpdate,
-  onEdit
+  isApproving,
+  onTaskUpdate 
 }: ReviewQueueItemProps) => {
-  const [deletingTask, setDeletingTask] = useState(false);
+  const { user } = useAuth();
+  const isDeveloper = user?.email === 'jon@getclear.ca';
+  const isPreviewTask = task.status === 'preview';
 
-  const stripHtmlAndFormat = (content: string) => {
+  const getPostTypeIcon = (postType: string) => {
+    switch (postType) {
+      case 'newsletter':
+        return '📧';
+      case 'instagram':
+        return '📸';
+      case 'facebook':
+        return '👥';
+      case 'video':
+        return '🎥';
+      case 'blog':
+        return '📝';
+      default:
+        return '📄';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'preview':
+        return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'pending':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'review':
+        return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'generated':
+        return 'bg-green-100 text-green-800 border-green-300';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  const truncateContent = (content: string, maxLength: number = 120) => {
     if (!content) return '';
-    return content
-      .replace(/<[^>]*>/g, '')
-      .replace(/\\n/g, ' ')
-      .trim();
+    return content.length > maxLength ? content.substring(0, maxLength) + '...' : content;
   };
-
-  const handleEdit = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    if (onEdit) onEdit(task, true);
-    else onClick(task);
-  };
-
-  const handleDelete = async (event: React.MouseEvent) => {
-    event.stopPropagation();
-    
-    if (!confirm('Are you sure you want to delete this content? This action cannot be undone.')) {
-      return;
-    }
-
-    setDeletingTask(true);
-    
-    try {
-      const { error } = await supabase
-        .from('content_tasks')
-        .delete()
-        .eq('id', task.id);
-
-      if (error) {
-        console.error('Error deleting task:', error);
-        toast.error('Failed to delete content');
-      } else {
-        toast.success('Content deleted successfully');
-        if (onTaskUpdate) onTaskUpdate();
-      }
-    } catch (error) {
-      console.error('Error deleting task:', error);
-      toast.error('Failed to delete content');
-    } finally {
-      setDeletingTask(false);
-    }
-  };
-
-  const handleApproveWrapper = async (event: React.MouseEvent) => {
-    event.stopPropagation();
-    
-    try {
-      // Update status to 'posted' so it appears in the Ready to Post section
-      const { error } = await supabase
-        .from('content_tasks')
-        .update({ status: 'posted' })
-        .eq('id', task.id);
-
-      if (error) {
-        console.error('Error approving task:', error);
-        toast.error('Failed to approve content');
-        throw error;
-      }
-
-      toast.success('Content approved and ready to post!');
-      if (onTaskUpdate) onTaskUpdate();
-    } catch (error) {
-      console.error('Error approving task:', error);
-      toast.error('Failed to approve content');
-      throw error;
-    }
-  };
-
-  const isApproved = task.status === 'posted' || task.status === 'scheduled';
 
   return (
-    <div
-      key={task.id}
-      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer relative group"
+    <div 
+      className={`
+        group border rounded-lg p-4 hover:bg-gray-50 cursor-pointer transition-all duration-200
+        ${isPreviewTask && isDeveloper ? 'border-2 border-dashed border-blue-300 bg-blue-50/30' : 'border-gray-200'}
+      `}
       onClick={() => onClick(task)}
+      data-status={task.status}
     >
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          {getPostTypeIcon(task.post_type)}
-          <Badge className="bg-orange-100 text-orange-800">
-            {task.post_type}
-          </Badge>
-          {task.campaigns?.title && (
-            <span className="text-sm text-gray-600">
-              {task.campaigns.title}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-lg">{getPostTypeIcon(task.post_type || '')}</span>
+            <span className="font-medium text-gray-900 capitalize">
+              {task.post_type || 'Content'}
             </span>
+            <Badge className={getStatusColor(task.status)}>
+              {task.status}
+            </Badge>
+            <DevPreviewBadge show={isPreviewTask && isDeveloper} size="sm" />
+            {task.scheduled_date && (
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <Calendar className="w-3 h-3" />
+                <span>{new Date(task.scheduled_date).toLocaleDateString()}</span>
+              </div>
+            )}
+          </div>
+
+          {task.ai_output && (
+            <div className="mb-2">
+              <p className="text-sm text-gray-700 line-clamp-2">
+                {truncateContent(task.ai_output)}
+              </p>
+            </div>
           )}
+
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            {task.campaigns && (
+              <span className="flex items-center gap-1">
+                <FileText className="w-3 h-3" />
+                {task.campaigns.title}
+              </span>
+            )}
+            <span>
+              {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+            </span>
+          </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
+
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <Button
             size="sm"
             variant="outline"
-            onClick={handleEdit}
-            className="border-blue-300 text-blue-600 hover:bg-blue-50"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick(task);
+            }}
+            className="border-gray-300 text-gray-600 hover:bg-gray-100"
           >
-            <Edit className="w-3 h-3 mr-1" />
-            Edit
+            <Eye className="w-3 h-3 mr-1" />
+            Review
           </Button>
           
-          <ApproveButton
-            isApproved={isApproved}
-            onApprove={handleApproveWrapper}
-            disabled={isApproving}
-          />
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleDelete}
-                  disabled={deletingTask}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete this content</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          {!isPreviewTask && (
+            <Button
+              size="sm"
+              onClick={(e) => onApprove(task.id, e)}
+              disabled={isApproving}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <CheckCircle2 className="w-3 h-3 mr-1" />
+              {isApproving ? 'Approving...' : 'Approve'}
+            </Button>
+          )}
         </div>
       </div>
-      
-      <p className="text-sm text-gray-700 line-clamp-2">
-        {stripHtmlAndFormat(task.ai_output)}
-      </p>
     </div>
   );
 };

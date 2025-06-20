@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +14,9 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const [approvingTasks, setApprovingTasks] = useState(new Set<string>());
   const channelRef = useRef<any>(null);
 
+  // Check if user is developer
+  const isDeveloper = user?.email === 'jon@getclear.ca';
+
   const fetchPendingTasks = async () => {
     if (!user || !tenant) {
       setLoading(false);
@@ -23,6 +25,12 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
 
     try {
       setError(null);
+      
+      // Build status filter - include 'preview' for developer
+      const statusFilter = ['pending', 'generated', 'review'];
+      if (isDeveloper) {
+        statusFilter.push('preview');
+      }
       
       const { data, error: fetchError } = await supabase
         .from('content_tasks')
@@ -37,7 +45,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
           )
         `)
         .eq('tenant_id', tenant.id)
-        .in('status', ['pending', 'generated', 'review'])
+        .in('status', statusFilter)
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -57,6 +65,10 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
             tenant_id: task.campaigns.tenant_id
           } : undefined
         })) || []) as ContentTask[];
+        
+        console.log('Review Queue: Found', userTasks.length, 'tasks including', 
+          userTasks.filter(t => t.status === 'preview').length, 'preview tasks (dev only)');
+        
         setPendingTasks(userTasks);
       }
     } catch (error) {
@@ -102,7 +114,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
 
   useEffect(() => {
     fetchPendingTasks();
-  }, [user, tenant]);
+  }, [user, tenant, isDeveloper]);
 
   // Set up real-time subscription only once
   useEffect(() => {

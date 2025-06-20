@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,6 +8,9 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
+
+  // Check if user is developer
+  const isDeveloper = user?.email === 'jon@getclear.ca';
 
   useEffect(() => {
     const fetchTasks = async () => {
@@ -27,7 +29,8 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
         campaignId: activeCampaign.id,
         campaignTitle: activeCampaign.title,
         campaignUserId: activeCampaign.user_id,
-        currentUserId: user.id
+        currentUserId: user.id,
+        isDeveloper
       });
       
       setLoading(true);
@@ -39,6 +42,12 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
           setTasks([]);
           setLoading(false);
           return;
+        }
+
+        // Build status filter - include 'preview' for developer
+        const statusFilter = ['planned', 'review', 'approved', 'posted', 'generated'];
+        if (isDeveloper) {
+          statusFilter.push('preview');
         }
 
         // Fetch tasks for this specific campaign
@@ -54,6 +63,7 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
             )
           `)
           .eq('campaign_id', activeCampaign.id)
+          .in('status', statusFilter)
           .order('created_at', { ascending: false });
 
         console.log('useCurrentCampaignSection: Query result:', { data, error });
@@ -71,7 +81,8 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
               taskId: task.id,
               taskType: task.post_type,
               campaignsData: task.campaigns,
-              belongsToUser
+              belongsToUser,
+              isPreview: task.status === 'preview'
             });
             return belongsToUser;
           }) || [];
@@ -101,7 +112,7 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
     };
 
     fetchTasks();
-  }, [activeCampaign, user]);
+  }, [activeCampaign, user, isDeveloper]);
 
   const handleTaskClick = (task: any) => {
     // Security check: Verify task belongs to current user before opening
