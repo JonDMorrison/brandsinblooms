@@ -1,9 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import { parseNewsletterYAML, StructuredNewsletter } from '@/utils/newsletterUtils';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Image as ImageIcon } from 'lucide-react';
+import { Clock, Image as ImageIcon, RefreshCw, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 interface MagazineNewsletterDisplayProps {
   content: string;
@@ -14,6 +14,7 @@ interface ImageData {
   url: string;
   alt: string;
   photographer?: string;
+  isPlaceholder?: boolean;
 }
 
 interface PlainNewsletterSection {
@@ -25,6 +26,7 @@ interface PlainNewsletterSection {
 export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsletterDisplayProps) => {
   const [images, setImages] = useState<Record<number, ImageData>>({});
   const [loadingImages, setLoadingImages] = useState(false);
+  const [imageRefreshCount, setImageRefreshCount] = useState(0);
 
   console.log('📰 MagazineNewsletterDisplay received content:', content?.substring(0, 200) + '...');
 
@@ -120,66 +122,91 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
 
   console.log(`🖼️ Loading images for ${sectionsForImages.length} sections`);
 
-  // Fetch images for each section with enhanced error handling
-  useEffect(() => {
-    const fetchImages = async () => {
-      if (!sectionsForImages.length) return;
-      
-      setLoadingImages(true);
-      console.log('🔍 Fetching images for newsletter sections');
-      
-      const imagePromises = sectionsForImages.map(async (section, index) => {
-        const prompt = isStructured 
-          ? (section as any).image_prompt 
-          : (section as PlainNewsletterSection).imagePrompt;
-          
-        if (!prompt) return null;
+  // Enhanced image fetching with better fallback handling
+  const fetchImages = async () => {
+    if (!sectionsForImages.length) return;
+    
+    setLoadingImages(true);
+    console.log('🔍 Fetching images for newsletter sections');
+    
+    const imagePromises = sectionsForImages.map(async (section, index) => {
+      const prompt = isStructured 
+        ? (section as any).image_prompt 
+        : (section as PlainNewsletterSection).imagePrompt;
         
-        try {
-          console.log(`📸 Fetching image ${index + 1} with prompt: ${prompt}`);
-          
-          const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
-            body: { query: prompt }
-          });
-          
-          if (error) {
-            console.warn(`⚠️ Image fetch failed for section ${index + 1}:`, error);
-            return null;
-          }
-          
-          if (data?.images?.[0]) {
-            console.log(`✅ Successfully fetched image for section ${index + 1}`);
-            return {
-              index,
-              image: {
-                url: data.images[0].thumb_url,
-                alt: data.images[0].alt || prompt,
-                photographer: data.images[0].photographer
-              }
-            };
-          }
-        } catch (error) {
-          console.error(`❌ Error fetching image for section ${index + 1}:`, error);
-        }
-        return null;
-      });
-
-      const results = await Promise.all(imagePromises);
-      const imageMap: Record<number, ImageData> = {};
+      if (!prompt) return null;
       
-      results.forEach(result => {
-        if (result) {
-          imageMap[result.index] = result.image;
+      try {
+        console.log(`📸 Fetching image ${index + 1} with prompt: ${prompt}`);
+        
+        const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
+          body: { query: prompt }
+        });
+        
+        if (error) {
+          console.warn(`⚠️ Image fetch failed for section ${index + 1}, using placeholder:`, error);
+          // Return enhanced placeholder
+          return {
+            index,
+            image: {
+              url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=400&fit=crop&auto=format`,
+              alt: `Garden scene for ${prompt}`,
+              photographer: 'Sample Garden Center',
+              isPlaceholder: true
+            }
+          };
         }
-      });
+        
+        if (data?.images?.[0]) {
+          console.log(`✅ Successfully fetched image for section ${index + 1}`);
+          return {
+            index,
+            image: {
+              url: data.images[0].thumb_url,
+              alt: data.images[0].alt || prompt,
+              photographer: data.images[0].photographer,
+              isPlaceholder: false
+            }
+          };
+        }
+      } catch (error) {
+        console.error(`❌ Error fetching image for section ${index + 1}:`, error);
+      }
       
-      console.log(`🖼️ Successfully loaded ${Object.keys(imageMap).length} images`);
-      setImages(imageMap);
-      setLoadingImages(false);
-    };
+      // Fallback to enhanced placeholder
+      return {
+        index,
+        image: {
+          url: `https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=400&fit=crop&auto=format`,
+          alt: `Garden scene for ${prompt}`,
+          photographer: 'Sample Garden Center',
+          isPlaceholder: true
+        }
+      };
+    });
 
+    const results = await Promise.all(imagePromises);
+    const imageMap: Record<number, ImageData> = {};
+    
+    results.forEach(result => {
+      if (result) {
+        imageMap[result.index] = result.image;
+      }
+    });
+    
+    console.log(`🖼️ Successfully loaded ${Object.keys(imageMap).length} images`);
+    setImages(imageMap);
+    setLoadingImages(false);
+  };
+
+  // Fetch images for each section
+  useEffect(() => {
     fetchImages();
-  }, [sectionsForImages.length]);
+  }, [sectionsForImages.length, imageRefreshCount]);
+
+  const refreshImages = () => {
+    setImageRefreshCount(prev => prev + 1);
+  };
 
   // Render structured newsletter
   if (isStructured) {
@@ -195,12 +222,34 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
       <div className={`max-w-4xl mx-auto bg-white ${className || ''}`}>
         {/* Header */}
         <div className="mb-8 pb-6 border-b border-gray-200">
-          <div className="flex items-center gap-3 mb-4">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {newsletter.meta.reading_time || '≈3 min'}
-            </Badge>
-            <Badge variant="secondary">Newsletter</Badge>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                {newsletter.meta.reading_time || '≈3 min'}
+              </Badge>
+              <Badge variant="secondary">Newsletter</Badge>
+            </div>
+            
+            {/* Image controls */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refreshImages}
+                disabled={loadingImages}
+                className="text-xs"
+              >
+                <RefreshCw className={`w-3 h-3 mr-1 ${loadingImages ? 'animate-spin' : ''}`} />
+                Refresh Images
+              </Button>
+              {Object.values(images).some(img => img.isPlaceholder) && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  <Info className="w-3 h-3 mr-1" />
+                  Sample Images
+                </Badge>
+              )}
+            </div>
           </div>
           
           <h1 className="text-3xl font-bold text-slate-900 leading-tight mb-4">
@@ -238,10 +287,17 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                       src={images[index].url}
                       alt={images[index].alt}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to placeholder on image error
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=400&fit=crop&auto=format';
+                      }}
                     />
                     {images[index].photographer && (
                       <p className="text-xs text-gray-500 mt-2 text-center">
                         Photo by {images[index].photographer}
+                        {images[index].isPlaceholder && (
+                          <span className="text-blue-600 ml-1">(Sample)</span>
+                        )}
                       </p>
                     )}
                   </div>
@@ -273,12 +329,34 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
       <div className={`max-w-4xl mx-auto bg-white ${className || ''}`}>
         {/* Header */}
         <div className="mb-8 pb-6 border-b border-gray-200">
-          <div className="flex items-center gap-3 mb-4">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              ≈3 min
-            </Badge>
-            <Badge variant="secondary">Newsletter</Badge>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                ≈3 min
+              </Badge>
+              <Badge variant="secondary">Newsletter</Badge>
+            </div>
+            
+            {/* Image controls */}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={refreshImages}
+                disabled={loadingImages}
+                className="text-xs"
+              >
+                <RefreshCw className={`w-3 h-3 mr-1 ${loadingImages ? 'animate-spin' : ''}`} />
+                Refresh Images
+              </Button>
+              {Object.values(images).some(img => img.isPlaceholder) && (
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  <Info className="w-3 h-3 mr-1" />
+                  Sample Images
+                </Badge>
+              )}
+            </div>
           </div>
           
           <h1 className="text-3xl font-bold text-slate-900 leading-tight mb-4">
@@ -310,10 +388,17 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                       src={images[index].url}
                       alt={images[index].alt}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to placeholder on image error
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=400&fit=crop&auto=format';
+                      }}
                     />
                     {images[index].photographer && (
                       <p className="text-xs text-gray-500 mt-2 text-center">
                         Photo by {images[index].photographer}
+                        {images[index].isPlaceholder && (
+                          <span className="text-blue-600 ml-1">(Sample)</span>
+                        )}
                       </p>
                     )}
                   </div>
