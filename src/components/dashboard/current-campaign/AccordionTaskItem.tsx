@@ -12,7 +12,7 @@ import { useTaskImages } from "@/hooks/useTaskImages";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { ApproveButton } from "@/components/ui/approve-button";
-import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
+import { BlogContentDisplay } from "@/components/content-sidebar/BlogContentDisplay";
 import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
 
 interface AccordionTaskItemProps {
@@ -195,10 +195,9 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
             {hasContent && (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {task.post_type === 'blog' ? (
-                  <BlogPostLayout
-                    title={blogMetadata?.title}
-                    companyName={task.campaigns?.company_profiles?.business_name}
-                    content={cleanContent}
+                  <BlogContentDisplay
+                    content={task.ai_output}
+                    postType={task.post_type}
                     className="bg-white min-h-0"
                   />
                 ) : isStructuredNewsletter ? (
