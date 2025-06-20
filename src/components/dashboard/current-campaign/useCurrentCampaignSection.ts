@@ -1,25 +1,29 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 
 export const useCurrentCampaignSection = (activeCampaign: any) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
 
-  // Check if user is developer
-  const isDeveloper = user?.email === 'jon@getclear.ca';
+  // Use environment-based detection instead of hardcoded email
+  const isDevelopment = import.meta.env.DEV;
 
   useEffect(() => {
     const fetchTasks = async () => {
       console.log('useCurrentCampaignSection: Starting fetchTasks');
       console.log('useCurrentCampaignSection: activeCampaign:', activeCampaign);
       console.log('useCurrentCampaignSection: user:', user?.id);
+      console.log('useCurrentCampaignSection: tenant:', tenant?.id);
 
-      if (!activeCampaign || !user) {
-        console.log('useCurrentCampaignSection: Missing requirements - activeCampaign:', !!activeCampaign, 'user:', !!user);
+      if (!activeCampaign || !user || !tenant) {
+        console.log('useCurrentCampaignSection: Missing requirements - activeCampaign:', !!activeCampaign, 'user:', !!user, 'tenant:', !!tenant);
         setTasks([]);
         setLoading(false);
         return;
@@ -28,29 +32,21 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
       console.log('useCurrentCampaignSection: Fetching tasks for campaign:', {
         campaignId: activeCampaign.id,
         campaignTitle: activeCampaign.title,
-        campaignUserId: activeCampaign.user_id,
+        tenantId: tenant.id,
         currentUserId: user.id,
-        isDeveloper
+        isDevelopment
       });
       
       setLoading(true);
 
       try {
-        // Security check - verify campaign belongs to current user
-        if (activeCampaign.user_id && activeCampaign.user_id !== user.id) {
-          console.error('useCurrentCampaignSection: Campaign does not belong to current user');
-          setTasks([]);
-          setLoading(false);
-          return;
-        }
-
-        // Build status filter - include 'preview' for developer
-        const statusFilter = ['planned', 'review', 'approved', 'posted', 'generated'];
-        if (isDeveloper) {
+        // URGENT FIX: Updated status filter to match live user requirements
+        const statusFilter = ['generating', 'review', 'ready', 'approved', 'posted'];
+        if (isDevelopment) {
           statusFilter.push('preview');
         }
 
-        // Fetch tasks for this specific campaign
+        // Fetch tasks for this specific campaign with tenant security
         console.log('useCurrentCampaignSection: Executing query for campaign_id:', activeCampaign.id);
         
         const { data, error } = await supabase
@@ -59,10 +55,11 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
             *,
             campaigns!inner (
               title,
-              user_id
+              tenant_id
             )
           `)
           .eq('campaign_id', activeCampaign.id)
+          .eq('tenant_id', tenant.id)  // SECURITY: Filter by current tenant
           .in('status', statusFilter)
           .order('created_at', { ascending: false });
 
@@ -74,33 +71,33 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
         } else {
           console.log('useCurrentCampaignSection: Raw tasks response:', data);
           
-          // Filter tasks to ensure they belong to the current user (double-check security)
-          const userTasks = data?.filter(task => {
-            const belongsToUser = task.campaigns && task.campaigns.user_id === user.id;
+          // Additional security check: Verify all tasks belong to current tenant
+          const tenantTasks = data?.filter(task => {
+            const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
             console.log('useCurrentCampaignSection: Task security check:', {
               taskId: task.id,
               taskType: task.post_type,
               campaignsData: task.campaigns,
-              belongsToUser,
+              belongsToTenant,
               isPreview: task.status === 'preview'
             });
-            return belongsToUser;
+            return belongsToTenant;
           }) || [];
           
-          console.log('useCurrentCampaignSection: Final filtered tasks:', userTasks.length, 'out of', data?.length || 0);
+          console.log('useCurrentCampaignSection: Final filtered tasks:', tenantTasks.length, 'out of', data?.length || 0);
           
-          if (userTasks.length > 0) {
+          if (tenantTasks.length > 0) {
             console.log('useCurrentCampaignSection: Sample task data:', {
-              id: userTasks[0].id,
-              post_type: userTasks[0].post_type,
-              status: userTasks[0].status,
-              hasAiOutput: !!userTasks[0].ai_output,
-              aiOutputPreview: userTasks[0].ai_output?.substring(0, 50) || 'No content'
+              id: tenantTasks[0].id,
+              post_type: tenantTasks[0].post_type,
+              status: tenantTasks[0].status,
+              hasAiOutput: !!tenantTasks[0].ai_output,
+              aiOutputPreview: tenantTasks[0].ai_output?.substring(0, 50) || 'No content'
             });
           }
           
-          console.log('useCurrentCampaignSection: Setting tasks state with:', userTasks);
-          setTasks(userTasks);
+          console.log('useCurrentCampaignSection: Setting tasks state with:', tenantTasks);
+          setTasks(tenantTasks);
         }
       } catch (error) {
         console.error('useCurrentCampaignSection: Error in fetchTasks:', error);
@@ -112,12 +109,12 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
     };
 
     fetchTasks();
-  }, [activeCampaign, user, isDeveloper]);
+  }, [activeCampaign, user, tenant, isDevelopment]);
 
   const handleTaskClick = (task: any) => {
-    // Security check: Verify task belongs to current user before opening
-    if (!user || !task.campaigns || task.campaigns.user_id !== user.id) {
-      console.error('useCurrentCampaignSection: Attempted to access task not owned by current user');
+    // Security check: Verify task belongs to current tenant before opening
+    if (!user || !tenant || !task.campaigns || task.campaigns.tenant_id !== tenant.id) {
+      console.error('useCurrentCampaignSection: Attempted to access task not owned by current tenant');
       return;
     }
     

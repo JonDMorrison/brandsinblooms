@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -39,8 +38,8 @@ export const UnifiedDashboardGrid = ({
   const { isNewUser, loading } = useUser();
   const navigate = useNavigate();
 
-  // Check if user is developer
-  const isDeveloper = user?.email === 'jon@getclear.ca';
+  // Use environment-based detection instead of hardcoded email
+  const isDevelopment = import.meta.env.DEV;
 
   // State for quick action modals
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
@@ -77,9 +76,9 @@ export const UnifiedDashboardGrid = ({
     return <div className="text-center py-12">Loading dashboard...</div>;
   }
 
-  // Filter ready tasks for the ReadyToPostCard - include preview for developers
-  const readyStatusFilter = ['approved', 'posted', 'review'];
-  if (isDeveloper) {
+  // URGENT FIX: Filter ready tasks with corrected statuses and PREVIEW exclusion
+  const readyStatusFilter = ['ready', 'approved', 'posted', 'review'];
+  if (isDevelopment) {
     readyStatusFilter.push('preview');
   }
 
@@ -88,14 +87,21 @@ export const UnifiedDashboardGrid = ({
     const hasContent = task.ai_output && task.ai_output.trim() !== '';
     const belongsToUser = task.campaigns?.user_id === user?.id || task.user_id === user?.id;
     
+    // URGENT FIX: Exclude PREVIEW campaigns for live users
+    const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
+    if (!isDevelopment && isPreviewCampaign) {
+      return false;
+    }
+    
     console.log('UnifiedDashboardGrid: Filtering task', {
       taskId: task.id,
       status: task.status,
       hasValidStatus,
       hasContent,
       belongsToUser,
-      isDeveloper,
-      isPreview: task.status === 'preview'
+      isDevelopment,
+      isPreview: task.status === 'preview',
+      isPreviewCampaign
     });
     
     return hasValidStatus && hasContent && belongsToUser;
@@ -152,12 +158,12 @@ export const UnifiedDashboardGrid = ({
         />
 
         {/* Ready to Post Section - Show for authenticated users with ready content OR for developers */}
-        {user && (readyTasks.length > 0 || isDeveloper) && (
+        {user && (readyTasks.length > 0 || isDevelopment) && (
           <div className="space-y-6">
             <div>
               <HeadlineLarge className="text-text-primary">
                 Ready to Post
-                {isDeveloper && readyTasks.length === 0 && (
+                {isDevelopment && readyTasks.length === 0 && (
                   <span className="text-sm text-blue-600 ml-2">(Developer Preview - No Content)</span>
                 )}
               </HeadlineLarge>
