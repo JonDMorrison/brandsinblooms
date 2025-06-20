@@ -17,20 +17,15 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
 
   useEffect(() => {
     const fetchTasks = async () => {
-      console.log('useCurrentCampaignSection: Starting fetchTasks');
-      console.log('useCurrentCampaignSection: activeCampaign:', activeCampaign);
-      console.log('useCurrentCampaignSection: user:', user?.id);
-      console.log('useCurrentCampaignSection: tenant:', tenant?.id);
-      console.log('useCurrentCampaignSection: isDevelopment:', isDevelopment);
-
-      if (!activeCampaign || !user || !tenant) {
-        console.log('useCurrentCampaignSection: Missing requirements - activeCampaign:', !!activeCampaign, 'user:', !!user, 'tenant:', !!tenant);
+      // 🔧 FIXED: Add better dependency checking to prevent unnecessary re-runs
+      if (!activeCampaign?.id || !user?.id || !tenant?.id) {
+        console.log('useCurrentCampaignSection: Missing requirements - activeCampaign:', !!activeCampaign?.id, 'user:', !!user?.id, 'tenant:', !!tenant?.id);
         setTasks([]);
         setLoading(false);
         return;
       }
 
-      console.log('useCurrentCampaignSection: Fetching tasks for campaign:', {
+      console.log('useCurrentCampaignSection: Starting fetchTasks for campaign:', {
         campaignId: activeCampaign.id,
         campaignTitle: activeCampaign.title,
         isPreviewCampaign: activeCampaign.title?.startsWith('PREVIEW'),
@@ -115,7 +110,7 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
     };
 
     fetchTasks();
-  }, [activeCampaign, user, tenant, isDevelopment]);
+  }, [activeCampaign?.id, user?.id, tenant?.id, isDevelopment]); // 🔧 FIXED: More specific dependencies
 
   const handleTaskClick = (task: any) => {
     // Security check: Verify task belongs to current tenant before opening
