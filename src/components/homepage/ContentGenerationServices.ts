@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
+import { toast } from "sonner";
 
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
   console.log(`🎯 Generating validated ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
@@ -129,25 +130,92 @@ export const generateNewsletterContent = async (campaignId: string, campaignTitl
   }
 };
 
+// Enhanced content generation with comprehensive error handling and retry logic
 export const generateCampaignContent = async (
   campaignId: string,
   theme: string,
   description: string,
   userId: string,
   weekNumber?: number,
-  tenantId?: string  // 🔧 HYBRID: Accept tenant_id parameter
+  tenantId?: string
 ) => {
   console.log(`🎯 generateCampaignContent: Starting for campaign ${campaignId}`);
   console.log(`🎯 Parameters:`, { theme, description, userId, weekNumber, tenantId: tenantId || 'none' });
   
   try {
+    // Log content generation attempt
+    await logContentGenerationAttempt(campaignId, userId, 'started', tenantId);
+    
     // Get current month for the new edge function
     const currentMonth = new Date().toLocaleString('default', { month: 'long' });
     
-    // Call the new generate_campaign_content edge function
     console.log('📡 Calling generate_campaign_content function with theme:', theme);
     
-    const { data, error } = await supabase.functions.invoke('generate_campaign_content', {
+    // Retry mechanism for edge function calls
+    let retryCount = 0;
+    const maxRetries = 3;
+    let lastError: any;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const { data, error } = await supabase.functions.invoke('generate_campaign_content', {
+          body: {
+            theme: theme,
+            month: currentMonth,
+            tone: 'professional',
+            channels: ['facebook', 'instagram', 'newsletter', 'blog', 'video'],
+            campaignId: campaignId,
+            userId: userId
+          }
+        });
+
+        if (error) {
+          console.error(`❌ Error from generate_campaign_content function (attempt ${retryCount + 1}):`, error);
+          lastError = error;
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            console.log(`⏳ Retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            continue;
+          }
+          throw new Error(`Campaign content generation failed after ${maxRetries} attempts: ${error.message || 'Unknown error'}`);
+        }
+
+        if (!data || !data.success) {
+          console.error('❌ Function returned unsuccessful result:', data);
+          lastError = new Error('Failed to generate campaign content');
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            console.log(`⏳ Retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            continue;
+          }
+          throw new Error('Failed to generate campaign content');
+        }
+
+        // Success - break out of retry loop
+        const generatedContent = data.content;
+        console.log('📋 Generated campaign content keys:', Object.keys(generatedContent || {}));
+        break;
+        
+      } catch (error) {
+        console.error(`❌ Edge function call failed (attempt ${retryCount + 1}):`, error);
+        lastError = error;
+        retryCount++;
+        
+        if (retryCount < maxRetries) {
+          console.log(`⏳ Retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    // If we get here, we have successfully generated content
+    const generatedContent = (await supabase.functions.invoke('generate_campaign_content', {
       body: {
         theme: theme,
         month: currentMonth,
@@ -156,41 +224,10 @@ export const generateCampaignContent = async (
         campaignId: campaignId,
         userId: userId
       }
-    });
+    })).data.content;
 
-    if (error) {
-      console.error('❌ Error from generate_campaign_content function:', error);
-      throw new Error(`Campaign content generation failed: ${error.message || 'Unknown error'}`);
-    }
-
-    if (!data || !data.success) {
-      console.error('❌ Function returned unsuccessful result:', data);
-      throw new Error('Failed to generate campaign content');
-    }
-
-    const generatedContent = data.content;
-    console.log('📋 Generated campaign content keys:', Object.keys(generatedContent || {}));
-
-    // 🔧 ENHANCED TOKEN SPENDING: Only spend tokens if content was actually generated
-    try {
-      const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
-        p_user_id: userId,
-        p_tokens: 5,
-        p_action_type: 'generation',
-        p_content_type: 'content_pack',
-        p_campaign_id: campaignId
-      });
-
-      if (tokenError) {
-        console.error('❌ Error spending tokens:', tokenError);
-        // Don't throw here - content generation succeeded, token spending is secondary
-      } else {
-        console.log('✅ Tokens spent successfully');
-      }
-    } catch (tokenError) {
-      console.error('❌ Token spending failed:', tokenError);
-      // Continue with content creation even if token spending fails
-    }
+    // Try to spend tokens but don't fail if it doesn't work
+    await spendTokensWithFallback(userId, campaignId);
 
     // Create content tasks for each type WITH HYBRID TENANT/USER SUPPORT
     const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
@@ -210,7 +247,6 @@ export const generateCampaignContent = async (
 
         console.log(`🔧 Creating ${type} task (${content.length} chars) with ${tenantId ? 'tenant' : 'user'} ownership`);
 
-        // 🔧 HYBRID FIX: Create task data with proper ownership
         const taskData: any = {
           campaign_id: campaignId,
           post_type: type,
@@ -222,12 +258,10 @@ export const generateCampaignContent = async (
 
         // Set ownership based on tenant availability
         if (tenantId) {
-          // Multi-tenant model
           taskData.tenant_id = tenantId;
           taskData.created_by_user_id = userId;
           console.log(`🔧 Using tenant model: tenant_id=${tenantId}, created_by_user_id=${userId}`);
         } else {
-          // Single-user model
           taskData.user_id = userId;
           console.log(`🔧 Using user model: user_id=${userId}`);
         }
@@ -240,33 +274,25 @@ export const generateCampaignContent = async (
 
         if (taskError) {
           console.error(`❌ Error creating ${type} task:`, taskError);
+          await logContentGenerationAttempt(campaignId, userId, 'task_creation_failed', tenantId, { 
+            contentType: type, 
+            error: taskError.message 
+          });
         } else {
           results.push(task);
           console.log(`✅ Created ${type} content task (${task.id}) with ${tenantId ? 'tenant_id' : 'user_id'} ownership`);
           
           // Auto-generate images for the task (make this optional and non-blocking)
-          try {
-            console.log(`🖼️ Auto-generating images for ${type} content`);
-            const imageQuery = extractImageKeywords(theme, description, type);
-            
-            // Don't await this - let it run in background
-            supabase.functions.invoke('fetch-unsplash-images', {
-              body: { 
-                query: imageQuery,
-                contentTaskId: task.id 
-              }
-            }).then(() => {
-              console.log(`✅ Generated images for ${type} content`);
-            }).catch((imageError) => {
-              console.error(`❌ Error generating images for ${type}:`, imageError);
-            });
-          } catch (imageError) {
-            console.error(`❌ Error starting image generation for ${type}:`, imageError);
-            // Don't fail the content generation if images fail
-          }
+          generateImagesForTask(task, theme, description, type).catch(error => {
+            console.error(`❌ Error generating images for ${type}:`, error);
+          });
         }
       } catch (error) {
         console.error(`❌ Error generating ${type} content:`, error);
+        await logContentGenerationAttempt(campaignId, userId, 'content_generation_failed', tenantId, { 
+          contentType: type, 
+          error: error.message 
+        });
       }
     }
 
@@ -281,7 +307,6 @@ export const generateCampaignContent = async (
         description
       );
 
-      // 🔧 HYBRID FIX: Create newsletter task with proper ownership
       const newsletterTaskData: any = {
         campaign_id: campaignId,
         post_type: 'newsletter',
@@ -293,11 +318,9 @@ export const generateCampaignContent = async (
 
       // Set ownership based on tenant availability
       if (tenantId) {
-        // Multi-tenant model
         newsletterTaskData.tenant_id = tenantId;
         newsletterTaskData.created_by_user_id = userId;
       } else {
-        // Single-user model
         newsletterTaskData.user_id = userId;
       }
 
@@ -309,13 +332,24 @@ export const generateCampaignContent = async (
 
       if (newsletterError) {
         console.error('❌ Error creating newsletter task:', newsletterError);
+        await logContentGenerationAttempt(campaignId, userId, 'newsletter_creation_failed', tenantId, { 
+          error: newsletterError.message 
+        });
       } else {
         results.push(newsletterTask);
         console.log('✅ Created structured newsletter content task with hybrid ownership');
       }
     } catch (error) {
       console.error('❌ Error generating structured newsletter:', error);
+      await logContentGenerationAttempt(campaignId, userId, 'newsletter_generation_failed', tenantId, { 
+        error: error.message 
+      });
     }
+
+    // Log successful completion
+    await logContentGenerationAttempt(campaignId, userId, 'completed', tenantId, { 
+      tasksCreated: results.length 
+    });
 
     console.log(`🎉 Content generation completed: ${results.length} tasks created with hybrid tenant/user support`);
     
@@ -324,6 +358,9 @@ export const generateCampaignContent = async (
       console.log(`✅ Task created: ${task.post_type} (${task.id}) - ${task.ai_output?.length || 0} chars`);
     });
 
+    // Show success toast to user
+    toast.success(`Generated ${results.length} content pieces for review!`);
+
     return {
       success: true,
       message: `Generated ${results.length} content pieces for review and approval`,
@@ -331,6 +368,11 @@ export const generateCampaignContent = async (
     };
   } catch (error) {
     console.error('❌ Error in generateCampaignContent:', error);
+    
+    // Log the failure
+    await logContentGenerationAttempt(campaignId, userId, 'failed', tenantId, { 
+      error: error.message || 'Unknown error' 
+    });
     
     // Enhanced error logging
     if (error instanceof Error) {
@@ -341,11 +383,86 @@ export const generateCampaignContent = async (
       });
     }
     
+    // Show error toast to user
+    toast.error(`Failed to generate content: ${error.message || 'Unknown error'}`);
+    
     return {
       success: false,
       message: error.message || 'Failed to generate content',
       error: error
     };
+  }
+};
+
+// Helper functions for improved error handling
+const spendTokensWithFallback = async (userId: string, campaignId: string) => {
+  try {
+    const { data: tokenSpent, error: tokenError } = await supabase.rpc('spend_tokens', {
+      p_user_id: userId,
+      p_tokens: 5,
+      p_action_type: 'generation',
+      p_content_type: 'content_pack',
+      p_campaign_id: campaignId
+    });
+
+    if (tokenError) {
+      console.error('❌ Error spending tokens:', tokenError);
+      // Don't throw here - content generation succeeded, token spending is secondary
+    } else {
+      console.log('✅ Tokens spent successfully');
+    }
+  } catch (tokenError) {
+    console.error('❌ Token spending failed:', tokenError);
+    // Continue with content creation even if token spending fails
+  }
+};
+
+const generateImagesForTask = async (task: any, theme: string, description: string, contentType: string) => {
+  try {
+    console.log(`🖼️ Auto-generating images for ${contentType} content`);
+    const imageQuery = extractImageKeywords(theme, description, contentType);
+    
+    // Don't await this - let it run in background
+    supabase.functions.invoke('fetch-unsplash-images', {
+      body: { 
+        query: imageQuery,
+        contentTaskId: task.id 
+      }
+    }).then(() => {
+      console.log(`✅ Generated images for ${contentType} content`);
+    }).catch((imageError) => {
+      console.error(`❌ Error generating images for ${contentType}:`, imageError);
+    });
+  } catch (imageError) {
+    console.error(`❌ Error starting image generation for ${contentType}:`, imageError);
+    // Don't fail the content generation if images fail
+  }
+};
+
+const logContentGenerationAttempt = async (
+  campaignId: string, 
+  userId: string, 
+  status: string, 
+  tenantId?: string, 
+  metadata?: any
+) => {
+  try {
+    await supabase.from('token_usage').insert({
+      user_id: userId,
+      action_type: 'content_generation_log',
+      tokens_consumed: 0,
+      tokens_remaining: 0,
+      campaign_id: campaignId,
+      metadata: {
+        status,
+        tenant_id: tenantId,
+        timestamp: new Date().toISOString(),
+        ...metadata
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error logging content generation attempt:', error);
+    // Don't throw - logging is secondary
   }
 };
 

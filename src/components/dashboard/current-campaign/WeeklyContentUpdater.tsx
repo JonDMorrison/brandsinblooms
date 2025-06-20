@@ -1,9 +1,11 @@
+
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
+import { toast } from "sonner";
 
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
@@ -44,6 +46,7 @@ export const WeeklyContentUpdater = () => {
 
         if (checkError) {
           console.error('WeeklyContentUpdater: Error checking existing campaigns:', checkError);
+          toast.error('Failed to check existing campaigns');
           return;
         }
 
@@ -139,57 +142,66 @@ export const WeeklyContentUpdater = () => {
         if (!targetCampaign) {
           console.log('WeeklyContentUpdater: No campaign found, creating one for week', currentWeekNumber);
           
-          const { data: themeData, error: themeError } = await supabase.functions.invoke('generate-weekly-themes', {
-            body: { 
-              userId: user.id, 
-              weekNumber: currentWeekNumber 
+          try {
+            const { data: themeData, error: themeError } = await supabase.functions.invoke('generate-weekly-themes', {
+              body: { 
+                userId: user.id, 
+                weekNumber: currentWeekNumber 
+              }
+            });
+
+            if (themeError) {
+              console.error('WeeklyContentUpdater: Error generating theme:', themeError);
+              toast.error('Failed to generate weekly theme');
+              return;
             }
-          });
 
-          if (themeError) {
-            console.error('WeeklyContentUpdater: Error generating theme:', themeError);
+            const theme = themeData?.themes?.[0];
+            if (!theme) {
+              console.error('WeeklyContentUpdater: No theme generated');
+              toast.error('No theme could be generated');
+              return;
+            }
+
+            const campaignData: any = {
+              week_number: currentWeekNumber,
+              title: theme.title,
+              description: theme.description,
+              theme: theme.title,
+              prompt: theme.description,
+              start_date: new Date().toISOString().split('T')[0],
+              source: 'auto_generated'
+            };
+
+            if (tenant?.id) {
+              campaignData.tenant_id = tenant.id;
+              campaignData.created_by_user_id = user.id;
+            } else {
+              campaignData.user_id = user.id;
+            }
+
+            const { data: newCampaign, error: campaignError } = await supabase
+              .from('campaigns')
+              .insert(campaignData)
+              .select()
+              .single();
+
+            if (campaignError) {
+              console.error('WeeklyContentUpdater: Error creating campaign:', campaignError);
+              toast.error('Failed to create weekly campaign');
+              return;
+            }
+
+            console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title);
+            targetCampaign = newCampaign;
+          } catch (error) {
+            console.error('WeeklyContentUpdater: Error in campaign creation:', error);
+            toast.error('Failed to create weekly campaign');
             return;
           }
-
-          const theme = themeData?.themes?.[0];
-          if (!theme) {
-            console.error('WeeklyContentUpdater: No theme generated');
-            return;
-          }
-
-          const campaignData: any = {
-            week_number: currentWeekNumber,
-            title: theme.title,
-            description: theme.description,
-            theme: theme.title,
-            prompt: theme.description,
-            start_date: new Date().toISOString().split('T')[0],
-            source: 'auto_generated'
-          };
-
-          if (tenant?.id) {
-            campaignData.tenant_id = tenant.id;
-            campaignData.created_by_user_id = user.id;
-          } else {
-            campaignData.user_id = user.id;
-          }
-
-          const { data: newCampaign, error: campaignError } = await supabase
-            .from('campaigns')
-            .insert(campaignData)
-            .select()
-            .single();
-
-          if (campaignError) {
-            console.error('WeeklyContentUpdater: Error creating campaign:', campaignError);
-            return;
-          }
-
-          console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title);
-          targetCampaign = newCampaign;
         }
 
-        // 🔧 STEP 4: FORCE CONTENT GENERATION FOR CAMPAIGNS WITHOUT CONTENT
+        // 🔧 STEP 4: ENHANCED CONTENT GENERATION FOR CAMPAIGNS WITHOUT CONTENT
         if (targetCampaign) {
           console.log(`WeeklyContentUpdater: Checking content for campaign: ${targetCampaign.title} (${targetCampaign.id})`);
           
@@ -227,7 +239,10 @@ export const WeeklyContentUpdater = () => {
                   .eq('status', 'generating');
               }
 
-              // Generate fresh content
+              // Show progress toast
+              toast.loading('Generating your weekly content...', { id: 'content-generation' });
+
+              // Generate fresh content with enhanced error handling
               const result = await generateCampaignContent(
                 targetCampaign.id,
                 targetCampaign.theme || targetCampaign.title,
@@ -246,8 +261,12 @@ export const WeeklyContentUpdater = () => {
                     console.log(`WeeklyContentUpdater: Created ${task.post_type} task (${task.id}) with ${task.ai_output?.length || 0} chars`);
                   });
                 }
+                
+                // Success toast
+                toast.success(`Generated ${result.tasks?.length || 0} content pieces for review!`, { id: 'content-generation' });
               } else {
                 console.error('WeeklyContentUpdater: ❌ Content generation failed:', result.message);
+                toast.error(`Content generation failed: ${result.message}`, { id: 'content-generation' });
               }
             } catch (error) {
               console.error('WeeklyContentUpdater: ❌ Error during content generation:', error);
@@ -260,6 +279,10 @@ export const WeeklyContentUpdater = () => {
                   stack: error.stack
                 });
               }
+              
+              // Error toast
+              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+              toast.error(`Content generation failed: ${errorMessage}`, { id: 'content-generation' });
             }
           } else {
             console.log('WeeklyContentUpdater: ✅ Campaign already has sufficient content, skipping generation');
@@ -277,6 +300,9 @@ export const WeeklyContentUpdater = () => {
             stack: error.stack
           });
         }
+        
+        // Show user-friendly error
+        toast.error('Failed to update weekly content. Please try refreshing the page.');
       }
     };
 
