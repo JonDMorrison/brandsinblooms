@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +11,7 @@ import { BodyMedium } from "@/components/ui/typography";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { UnifiedDashboardGrid } from "./UnifiedDashboardGrid";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
+import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
 import type { Campaign } from "@/types/content";
 
 interface DashboardContentProps {
@@ -37,7 +37,7 @@ export const DashboardContent = ({
   // Use environment-based detection instead of hardcoded email
   const isDevelopment = import.meta.env.DEV;
 
-  console.log('🔍 DashboardContent: Rendering with user:', user?.id, 'tenant:', tenant?.id);
+  console.log('🔍 DashboardContent: Rendering with user:', user?.id, 'tenant:', tenant?.id, 'isDevelopment:', isDevelopment);
 
   const fetchCampaignData = async () => {
     if (!user || !tenant) {
@@ -49,12 +49,6 @@ export const DashboardContent = ({
     try {
       console.log('🔍 DashboardContent: Fetching campaign data for tenant:', tenant.id, 'week:', currentWeekNumber);
 
-      // URGENT FIX: Updated status filter to match live user requirements
-      const statusFilter = ['generating', 'review', 'ready', 'approved', 'posted'];
-      if (isDevelopment) {
-        statusFilter.push('preview');
-      }
-
       // STEP 1: Look for campaigns in this tenant, prioritizing current week
       console.log('🔍 DashboardContent: Looking for campaigns...');
       
@@ -63,9 +57,12 @@ export const DashboardContent = ({
         .select('*')
         .eq('tenant_id', tenant.id);
 
-      // URGENT FIX: Exclude PREVIEW campaigns for live users
+      // 🔧 FIXED: Only exclude PREVIEW campaigns for production users, not development
       if (!isDevelopment) {
         campaignQuery = campaignQuery.not('title', 'ilike', 'PREVIEW%');
+        console.log('🔍 DashboardContent: Production mode - excluding PREVIEW campaigns');
+      } else {
+        console.log('🔍 DashboardContent: Development mode - including PREVIEW campaigns');
       }
 
       const { data: allCampaigns, error: campaignError } = await campaignQuery
@@ -102,7 +99,13 @@ export const DashboardContent = ({
 
       setActiveCampaign(selectedCampaign);
 
-      // STEP 2: Fetch tasks for all campaigns (not just the selected one)
+      // STEP 2: Fetch tasks for all campaigns
+      const statusFilter = ['generating', 'review', 'ready', 'approved', 'posted'];
+      if (isDevelopment) {
+        statusFilter.push('preview');
+        console.log('🔍 DashboardContent: Development mode - including preview status in filter');
+      }
+
       const { data: allTasks, error: allTasksError } = await supabase
         .from('content_tasks')
         .select(`
@@ -131,12 +134,12 @@ export const DashboardContent = ({
       } else {
         console.log('✅ DashboardContent: Successfully fetched', allTasks?.length || 0, 'tasks');
         
-        // Security verification and PREVIEW filtering for live users
+        // Security verification and PREVIEW filtering
         const tenantTasks = allTasks?.filter(task => {
           const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
           const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
           
-          // URGENT FIX: Exclude PREVIEW campaigns for live users
+          // 🔧 FIXED: Only exclude PREVIEW campaigns for production users
           if (!isDevelopment && isPreviewCampaign) {
             return false;
           }
@@ -144,7 +147,7 @@ export const DashboardContent = ({
           return belongsToTenant;
         }) || [];
         
-        console.log('✅ DashboardContent: After filtering:', tenantTasks.length, 'tasks');
+        console.log('✅ DashboardContent: After filtering:', tenantTasks.length, 'tasks (isDevelopment:', isDevelopment, ')');
         setTasks(tenantTasks);
 
         // STEP 3: Auto-generate content if campaign exists but has no tasks
@@ -207,14 +210,16 @@ export const DashboardContent = ({
         id: activeCampaign.id,
         title: activeCampaign.title,
         week_number: activeCampaign.week_number,
-        tenant_id: activeCampaign.tenant_id
+        tenant_id: activeCampaign.tenant_id,
+        isPreview: activeCampaign.title?.startsWith('PREVIEW')
       } : null,
       tasksCount: tasks.length,
       loading,
       generatingContent,
-      tenantId: tenant?.id
+      tenantId: tenant?.id,
+      isDevelopment
     });
-  }, [activeCampaign, tasks, loading, generatingContent, tenant]);
+  }, [activeCampaign, tasks, loading, generatingContent, tenant, isDevelopment]);
 
   const handleTaskUpdate = () => {
     console.log('DashboardContent: Task update triggered, refetching campaign data');
@@ -268,6 +273,13 @@ export const DashboardContent = ({
 
   return (
     <div className="space-y-8 mobile-dashboard-spacing bg-garden-background">
+      {/* Development Preview Badge */}
+      {isDevelopment && activeCampaign?.title?.startsWith('PREVIEW') && (
+        <div className="flex justify-center">
+          <DevPreviewBadge show={true} />
+        </div>
+      )}
+
       {/* Weekly Content Updater - runs automatically to maintain campaigns */}
       <WeeklyContentUpdater />
       

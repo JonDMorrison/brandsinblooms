@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +20,7 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
       console.log('useCurrentCampaignSection: activeCampaign:', activeCampaign);
       console.log('useCurrentCampaignSection: user:', user?.id);
       console.log('useCurrentCampaignSection: tenant:', tenant?.id);
+      console.log('useCurrentCampaignSection: isDevelopment:', isDevelopment);
 
       if (!activeCampaign || !user || !tenant) {
         console.log('useCurrentCampaignSection: Missing requirements - activeCampaign:', !!activeCampaign, 'user:', !!user, 'tenant:', !!tenant);
@@ -32,6 +32,7 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
       console.log('useCurrentCampaignSection: Fetching tasks for campaign:', {
         campaignId: activeCampaign.id,
         campaignTitle: activeCampaign.title,
+        isPreviewCampaign: activeCampaign.title?.startsWith('PREVIEW'),
         tenantId: tenant.id,
         currentUserId: user.id,
         isDevelopment
@@ -40,10 +41,11 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
       setLoading(true);
 
       try {
-        // URGENT FIX: Updated status filter to match live user requirements
+        // 🔧 FIXED: Properly include preview status for development
         const statusFilter = ['generating', 'review', 'ready', 'approved', 'posted'];
         if (isDevelopment) {
           statusFilter.push('preview');
+          console.log('useCurrentCampaignSection: Development mode - including preview status');
         }
 
         // Fetch tasks for this specific campaign with tenant security
@@ -77,14 +79,16 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
             console.log('useCurrentCampaignSection: Task security check:', {
               taskId: task.id,
               taskType: task.post_type,
+              status: task.status,
               campaignsData: task.campaigns,
               belongsToTenant,
-              isPreview: task.status === 'preview'
+              isPreview: task.status === 'preview',
+              isPreviewCampaign: task.campaigns?.title?.startsWith('PREVIEW')
             });
             return belongsToTenant;
           }) || [];
           
-          console.log('useCurrentCampaignSection: Final filtered tasks:', tenantTasks.length, 'out of', data?.length || 0);
+          console.log('useCurrentCampaignSection: Final filtered tasks:', tenantTasks.length, 'out of', data?.length || 0, '(isDevelopment:', isDevelopment, ')');
           
           if (tenantTasks.length > 0) {
             console.log('useCurrentCampaignSection: Sample task data:', {
@@ -92,7 +96,8 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
               post_type: tenantTasks[0].post_type,
               status: tenantTasks[0].status,
               hasAiOutput: !!tenantTasks[0].ai_output,
-              aiOutputPreview: tenantTasks[0].ai_output?.substring(0, 50) || 'No content'
+              aiOutputPreview: tenantTasks[0].ai_output?.substring(0, 50) || 'No content',
+              isPreview: tenantTasks[0].status === 'preview'
             });
           }
           
@@ -132,7 +137,8 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
     tasksCount: tasks.length,
     loading,
     selectedTask: selectedTask?.id,
-    showContentViewer
+    showContentViewer,
+    isDevelopment
   });
 
   return {

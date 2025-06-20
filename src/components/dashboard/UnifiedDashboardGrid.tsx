@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +10,7 @@ import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { useUser } from "@/hooks/useUser";
+import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
 import type { Campaign } from "@/types/content";
 import { toast } from "sonner";
 import { EnhancedSeasonalHolidaysCard } from "./seasonal-holidays/EnhancedSeasonalHolidaysCard";
@@ -76,7 +76,7 @@ export const UnifiedDashboardGrid = ({
     return <div className="text-center py-12">Loading dashboard...</div>;
   }
 
-  // URGENT FIX: Filter ready tasks with corrected statuses and PREVIEW exclusion
+  // 🔧 FIXED: Properly handle preview content filtering for development
   const readyStatusFilter = ['ready', 'approved', 'posted', 'review'];
   if (isDevelopment) {
     readyStatusFilter.push('preview');
@@ -87,7 +87,7 @@ export const UnifiedDashboardGrid = ({
     const hasContent = task.ai_output && task.ai_output.trim() !== '';
     const belongsToUser = task.campaigns?.user_id === user?.id || task.user_id === user?.id;
     
-    // URGENT FIX: Exclude PREVIEW campaigns for live users
+    // 🔧 FIXED: Only exclude PREVIEW campaigns for production users
     const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
     if (!isDevelopment && isPreviewCampaign) {
       return false;
@@ -101,13 +101,14 @@ export const UnifiedDashboardGrid = ({
       belongsToUser,
       isDevelopment,
       isPreview: task.status === 'preview',
-      isPreviewCampaign
+      isPreviewCampaign,
+      includeThis: hasValidStatus && hasContent && belongsToUser
     });
     
     return hasValidStatus && hasContent && belongsToUser;
   });
 
-  console.log('UnifiedDashboardGrid: Ready tasks after filtering:', readyTasks.length, 'out of', tasks.length);
+  console.log('UnifiedDashboardGrid: Ready tasks after filtering:', readyTasks.length, 'out of', tasks.length, '(isDevelopment:', isDevelopment, ')');
 
   return (
     <>
@@ -142,20 +143,26 @@ export const UnifiedDashboardGrid = ({
           onViewCalendar={handleViewCalendar}
         />
 
-        {/* Ready to Post Section - Show for authenticated users with ready content OR for developers */}
+        {/* Ready to Post Section */}
         {user && (readyTasks.length > 0 || isDevelopment) && (
           <div className="space-y-6">
-            <div>
+            <div className="flex items-center gap-3">
               <HeadlineLarge className="text-text-primary">
                 Ready to Post
-                {isDevelopment && readyTasks.length === 0 && (
-                  <span className="text-sm text-blue-600 ml-2">(Developer Preview - No Content)</span>
-                )}
               </HeadlineLarge>
-              <BodyMedium className="text-text-secondary mt-1">
-                Your content is ready to share with your audience
-              </BodyMedium>
+              {isDevelopment && readyTasks.length === 0 && (
+                <DevPreviewBadge show={true} size="sm" />
+              )}
+              {isDevelopment && readyTasks.some(task => task.campaigns?.title?.startsWith('PREVIEW')) && (
+                <DevPreviewBadge show={true} size="sm" />
+              )}
             </div>
+            <BodyMedium className="text-text-secondary mt-1">
+              Your content is ready to share with your audience
+              {isDevelopment && readyTasks.length === 0 && (
+                <span className="text-blue-600 ml-2">(No content available in development preview)</span>
+              )}
+            </BodyMedium>
             <ReadyToPostCard 
               tasks={readyTasks}
               onTaskUpdate={onTaskUpdate}
