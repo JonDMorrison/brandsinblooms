@@ -81,70 +81,70 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
   };
 
   return (
-    <TooltipProvider>
-      <div
-        className={`
-          border border-stone-200 rounded-lg p-4 cursor-pointer transition-all duration-200 
-          bg-white hover:bg-stone-50 hover:border-stone-300 hover:shadow-sm
-          ${isMobile ? 'min-h-[200px]' : ''}
-        `}
-        onClick={handleViewFull}
-      >
-        {/* Header Section - Simplified without campaign title */}
-        <div className="flex items-start justify-between mb-3 gap-2">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="flex-shrink-0 text-stone-600">
-              {getPostTypeIcon(task.post_type)}
-            </div>
-            <div className="flex flex-col gap-1 min-w-0 flex-1">
-              <Badge 
-                variant="secondary" 
-                className="capitalize w-fit text-xs bg-stone-100 text-stone-700 border-stone-200"
-              >
-                {task.post_type}
-              </Badge>
-              <Badge 
-                className={`w-fit text-xs ${getStatusColor()}`}
-              >
-                ✓ Ready to Use
-              </Badge>
-            </div>
+    <div
+      className={`
+        border border-stone-200 rounded-lg p-4 cursor-pointer transition-all duration-200 
+        bg-white hover:bg-stone-50 hover:border-stone-300 hover:shadow-sm
+        ${isMobile ? 'min-h-[200px]' : ''}
+      `}
+      onClick={handleViewFull}
+    >
+      {/* Header Section - Simplified without campaign title */}
+      <div className="flex items-start justify-between mb-3 gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex-shrink-0 text-stone-600">
+            {getPostTypeIcon(task.post_type)}
+          </div>
+          <div className="flex flex-col gap-1 min-w-0 flex-1">
+            <Badge 
+              variant="secondary" 
+              className="capitalize w-fit text-xs bg-stone-100 text-stone-700 border-stone-200"
+            >
+              {task.post_type}
+            </Badge>
+            <Badge 
+              className={`w-fit text-xs ${getStatusColor()}`}
+            >
+              ✓ Ready to Use
+            </Badge>
           </div>
         </div>
+      </div>
 
-        {/* Content Preview */}
-        {task.ai_output && (
-          <div className="mb-4">
-            <ContentPreview 
-              content={task.ai_output} 
-              postType={task.post_type}
-            />
-          </div>
-        )}
-
-        {/* Image Suggestions */}
-        <div className="mb-4" onClick={(e) => e.stopPropagation()}>
-          <CompactImageCarousel 
-            task={task}
-            campaignTheme={task.campaigns?.theme}
-            onShowAll={handleShowAllImages}
+      {/* Content Preview */}
+      {task.ai_output && (
+        <div className="mb-4">
+          <ContentPreview 
+            content={task.ai_output} 
+            postType={task.post_type}
           />
         </div>
+      )}
 
-        {/* Scheduled Date */}
-        {task.scheduled_date && (
-          <div className="mb-4">
-            <CaptionMedium className="text-stone-500">
-              Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-            </CaptionMedium>
-          </div>
-        )}
+      {/* Image Suggestions */}
+      <div className="mb-4" onClick={(e) => e.stopPropagation()}>
+        <CompactImageCarousel 
+          task={task}
+          campaignTheme={task.campaigns?.theme}
+          onShowAll={handleShowAllImages}
+        />
+      </div>
 
-        {/* Action Buttons */}
-        <div className={`
-          flex gap-2 flex-wrap
-          ${isMobile ? 'justify-center' : 'justify-start'}
-        `}>
+      {/* Scheduled Date */}
+      {task.scheduled_date && (
+        <div className="mb-4">
+          <CaptionMedium className="text-stone-500">
+            Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+          </CaptionMedium>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className={`
+        flex gap-2 flex-wrap
+        ${isMobile ? 'justify-center' : 'justify-start'}
+      `}>
+        <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <EnhancedAppleButton
@@ -165,7 +165,9 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
               <p>Edit content</p>
             </TooltipContent>
           </Tooltip>
+        </TooltipProvider>
 
+        <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <EnhancedAppleButton
@@ -186,7 +188,9 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
               <p>Copy content to clipboard</p>
             </TooltipContent>
           </Tooltip>
+        </TooltipProvider>
 
+        <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <EnhancedAppleButton
@@ -207,29 +211,29 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
               <p>View full content</p>
             </TooltipContent>
           </Tooltip>
+        </TooltipProvider>
 
-          {!isMobile && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <EnhancedAppleButton
-                  size="sm"
-                  variant="tertiary"
-                  onClick={handleDelete}
-                  disabled={deletingTask}
-                  loading={deletingTask}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  iconAnimation="bounce"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </EnhancedAppleButton>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Delete this content</p>
-              </TooltipContent>
-            </Tooltip>
-          )}
-        </div>
+        {!isMobile && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <EnhancedAppleButton
+                size="sm"
+                variant="tertiary"
+                onClick={handleDelete}
+                disabled={deletingTask}
+                loading={deletingTask}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                iconAnimation="bounce"
+              >
+                <Trash2 className="w-3 h-3" />
+              </EnhancedAppleButton>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete this content</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
-    </TooltipProvider>
+    </div>
   );
 };
