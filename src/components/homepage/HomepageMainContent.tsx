@@ -6,15 +6,7 @@ import { WhatsComingNextCard } from "./WhatsComingNextCard";
 import { getSeasonalContent } from "./SeasonalContent";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Calendar, Plus } from "lucide-react";
-
-interface Campaign {
-  id: string;
-  title: string;
-  description: string | null;
-  start_date: string;
-  theme: string | null;
-  week_number: number;
-}
+import { Campaign } from "@/types/content";
 
 interface HomepageMainContentProps {
   currentCampaign: Campaign | undefined;

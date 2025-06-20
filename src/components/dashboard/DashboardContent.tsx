@@ -1,6 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
@@ -24,6 +26,7 @@ export const DashboardContent = ({
   onCampaignCreated
 }: DashboardContentProps) => {
   const { user } = useAuth();
+  const { tenant, loading: tenantLoading } = useTenant();
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +39,8 @@ export const DashboardContent = ({
   console.log('🎨 DashboardContent: Component loaded, should show garden green theme');
 
   const fetchCampaignData = async () => {
-    if (!user) {
-      console.log('DashboardContent: No authenticated user, skipping fetch');
+    if (!user || !tenant) {
+      console.log('DashboardContent: No authenticated user or tenant, skipping fetch');
       setLoading(false);
       return;
     }
@@ -60,31 +63,32 @@ export const DashboardContent = ({
             description,
             start_date,
             prompt,
-            source
+            source,
+            tenant_id
           )
         `)
-        .eq('campaigns.user_id', user.id)
+        .eq('tenant_id', tenant.id)
         .order('created_at', { ascending: false });
 
       if (allTasksError) {
         console.error('DashboardContent: Error fetching all tasks:', allTasksError);
         setTasks([]);
       } else {
-        console.log('DashboardContent: Successfully fetched', allTasks?.length || 0, 'tasks for user', user.id);
+        console.log('DashboardContent: Successfully fetched', allTasks?.length || 0, 'tasks for tenant', tenant.id);
         
         // Security verification
-        const userTasks = allTasks?.filter(task => 
-          task.campaigns && task.campaigns.user_id === user.id
+        const tenantTasks = allTasks?.filter(task => 
+          task.campaigns && task.campaigns.tenant_id === tenant.id
         ) || [];
         
-        console.log('DashboardContent: After security filter:', userTasks.length, 'tasks');
-        setTasks(userTasks);
+        console.log('DashboardContent: After security filter:', tenantTasks.length, 'tasks');
+        setTasks(tenantTasks);
 
         // STEP 2: Find campaign from tasks if they exist
-        if (userTasks.length > 0) {
+        if (tenantTasks.length > 0) {
           console.log('DashboardContent: Found tasks, extracting campaign...');
           
-          const firstTask = userTasks[0];
+          const firstTask = tenantTasks[0];
           console.log('DashboardContent: First task campaign data:', firstTask.campaigns);
           
           if (firstTask.campaigns) {
@@ -95,9 +99,10 @@ export const DashboardContent = ({
               start_date: firstTask.campaigns.start_date,
               created_at: firstTask.campaigns.created_at,
               user_id: firstTask.campaigns.user_id,
-              theme: firstTask.campaigns.theme || null,
-              description: firstTask.campaigns.description || null,
-              prompt: firstTask.campaigns.prompt || null,
+              tenant_id: firstTask.campaigns.tenant_id,
+              theme: firstTask.campaigns.theme || undefined,
+              description: firstTask.campaigns.description || undefined,
+              prompt: firstTask.campaigns.prompt || undefined,
               source: firstTask.campaigns.source || 'system'
             };
 
@@ -115,7 +120,7 @@ export const DashboardContent = ({
           .from('campaigns')
           .select('*')
           .eq('week_number', currentWeekNumber)
-          .eq('user_id', user.id)
+          .eq('tenant_id', tenant.id)
           .order('created_at', { ascending: false });
 
         if (campaignError) {
@@ -174,13 +179,13 @@ export const DashboardContent = ({
 
   useEffect(() => {
     console.log('🔍 DashboardContent: useEffect triggered, user:', user?.id);
-    if (user) {
+    if (user && !tenantLoading) {
       fetchCampaignData();
     } else {
-      console.log('🔍 DashboardContent: No user authenticated, skipping data fetch');
+      console.log('🔍 DashboardContent: No user authenticated or tenant loading, skipping data fetch');
       setLoading(false);
     }
-  }, [user, currentWeekNumber]);
+  }, [user, tenant, tenantLoading, currentWeekNumber]);
 
   // Debug logging for final state
   useEffect(() => {
@@ -208,8 +213,8 @@ export const DashboardContent = ({
     }
   };
 
-  // Early return if no authenticated user
-  if (!user) {
+  // Early return if no authenticated user or tenant is loading
+  if (!user || tenantLoading) {
     return (
       <EnhancedAppleCard 
         variant="default" 
