@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
@@ -8,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { ContentViewer } from "@/components/content/ContentViewer";
-import { ImprovedReadyToPostItem } from "./ready-to-post/ImprovedReadyToPostItem";
+import { SimpleReadyToPostCard } from "./ready-to-post/SimpleReadyToPostCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ReadyToPostCardProps {
@@ -24,8 +25,6 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
-  const [showAllContent, setShowAllContent] = useState(false);
-  const [currentCampaign, setCurrentCampaign] = useState<any>(null);
 
   // Check if user is developer
   const isDeveloper = user?.email === 'jon@getclear.ca';
@@ -59,7 +58,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           .in('status', statusFilter)  // Include approved, posted, and preview (for dev)
           .not('ai_output', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(6);
+          .limit(12); // Show more items in simplified view
 
         if (error) {
           console.error('ReadyToPostCard: Error fetching ready tasks:', error);
@@ -77,9 +76,6 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           }
           
           setTasks(tenantTasks);
-          if (tenantTasks.length > 0) {
-            setCurrentCampaign(tenantTasks[0].campaigns);
-          }
         }
       } catch (error) {
         console.error('ReadyToPostCard: Exception in fetchReadyTasks:', error);
@@ -111,13 +107,10 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           // Updated filter to include approved, posted, and preview (for dev) content
           return belongsToTenant && statusFilter.includes(task.status) && task.ai_output;
         })
-        .slice(0, 6);
+        .slice(0, 12); // Show more items in simplified view
       
       console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned ready tasks');
       setTasks(readyTasks);
-      if (readyTasks.length > 0) {
-        setCurrentCampaign(readyTasks[0].campaigns);
-      }
     } else {
       fetchReadyTasks();
     }
@@ -138,24 +131,9 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     }
   };
 
-  const handleViewAllContent = () => {
-    if (!user || !tenant || !currentCampaign || currentCampaign.tenant_id !== tenant.id) {
-      console.error('ReadyToPostCard: Attempted to view content for campaign not owned by current tenant');
-      return;
-    }
-    
-    if (currentCampaign && tasks.length > 0) {
-      const firstTask = tasks[0];
-      setSelectedTask(firstTask);
-      setShowAllContent(true);
-      setShowContentViewer(true);
-    }
-  };
-
   const handleContentViewerClose = () => {
     setShowContentViewer(false);
     setSelectedTask(null);
-    setShowAllContent(false);
     if (onTaskUpdate) {
       onTaskUpdate();
     }
@@ -204,22 +182,20 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       >
         <AppleCardContent className="apple-card-spacing">
           <ResponsiveGrid 
-            cols={{ mobile: 1, tablet: 1, desktop: 2 }}
-            gap={{ mobile: "gap-4", tablet: "gap-5", desktop: "gap-6" }}
+            cols={{ mobile: 1, tablet: 2, desktop: 4 }}
+            gap={{ mobile: "gap-4", tablet: "gap-4", desktop: "gap-4" }}
             animated={true}
-            staggerDelay={150}
+            staggerDelay={100}
           >
             {tasks.map((task, index) => (
               <div 
                 key={task.id}
-                className="apple-hover-premium rounded-lg border border-gray-100 p-4 bg-white transition-all duration-300"
-                style={{ animationDelay: `${index * 100}ms` }}
+                className="relative"
+                style={{ animationDelay: `${index * 75}ms` }}
               >
-                <ImprovedReadyToPostItem
+                <SimpleReadyToPostCard
                   task={task}
                   onClick={handleTaskClick}
-                  onTaskUpdate={onTaskUpdate}
-                  onEdit={onTaskClick}
                 />
               </div>
             ))}
@@ -230,7 +206,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       {selectedTask && (
         <ContentViewer
           campaignId={selectedTask.campaign_id}
-          campaignTitle={selectedTask.campaigns?.title || currentCampaign?.title || 'Campaign'}
+          campaignTitle={selectedTask.campaigns?.title || 'Campaign'}
           isOpen={showContentViewer}
           onClose={handleContentViewerClose}
           onTaskUpdate={onTaskUpdate}

@@ -1,103 +1,42 @@
 
-@layer components {
-  /* Enhanced Apple Card variants with micro-interactions */
-  .apple-card-default {
-    @apply bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300 ease-apple;
-  }
-  
-  .apple-card-elevated {
-    @apply bg-white rounded-lg border border-gray-200 shadow-lg transition-all duration-300 ease-apple;
-  }
-  
-  .apple-card-interactive {
-    @apply bg-white rounded-lg border border-gray-200 shadow-sm transition-all duration-300 ease-apple cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] hover:border-gray-300;
-  }
+/* Line clamping utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
 
-  /* Enhanced button system with micro-interactions */
-  .apple-button-base {
-    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-all duration-150 ease-apple focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98];
-    min-height: 44px;
-  }
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
 
-  .apple-button-primary {
-    @apply apple-button-base bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-md active:shadow-sm;
-  }
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
 
-  .apple-button-secondary {
-    @apply apple-button-base bg-transparent border border-gray-300 text-text-primary hover:bg-gray-50 hover:border-gray-400 hover:shadow-sm;
-  }
+/* Relative positioning utility */
+.relative {
+  position: relative;
+}
 
-  /* Enhanced seasonal and campaign cards */
-  .seasonal-emoji {
-    @apply inline-flex items-center justify-center w-10 h-10 bg-white rounded-full text-xl border border-gray-200 shadow-sm transition-all duration-200 hover:scale-110 hover:shadow-md;
-  }
-  
-  .campaign-card-active {
-    @apply bg-green-50 border-green-200 shadow-sm hover:bg-green-100 hover:border-green-300 hover:shadow-md transition-all duration-200;
-  }
-  
-  .campaign-card-review {
-    @apply bg-blue-50 border-blue-200 shadow-sm hover:bg-blue-100 hover:border-blue-300 hover:shadow-md transition-all duration-200;
-  }
-  
-  .campaign-card-attention {
-    @apply bg-white border-gray-200 shadow-sm hover:bg-gray-50 hover:border-gray-300 hover:shadow-md transition-all duration-200;
-  }
+.absolute {
+  position: absolute;
+}
 
-  /* Enhanced loading states with animations */
-  .apple-loading {
-    @apply animate-pulse;
-  }
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
 
-  .apple-skeleton {
-    @apply bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite] rounded;
-  }
-
-  /* Enhanced focus indicators with animations */
-  .apple-focus-ring {
-    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white transition-all duration-150;
-  }
-
-  /* Enhanced responsive design */
-  @media (max-width: 768px) {
-    .seasonal-emoji {
-      @apply w-8 h-8 text-lg;
-    }
-    
-    .campaign-card-active,
-    .campaign-card-review,
-    .campaign-card-attention {
-      @apply bg-white border-opacity-80 hover:bg-white;
-    }
-
-    .apple-button-base {
-      min-height: 48px;
-      @apply px-6 py-3;
-    }
-
-    /* Reduced motion on mobile for better performance */
-    .apple-card-interactive {
-      @apply hover:scale-100 active:scale-[0.99];
-    }
-
-    .seasonal-emoji {
-      @apply hover:scale-100;
-    }
-  }
-
-  /* Improved accessibility */
-  @media (prefers-reduced-motion: reduce) {
-    .apple-card-interactive,
-    .seasonal-emoji,
-    .apple-button-base,
-    .campaign-card-active,
-    .campaign-card-review,
-    .campaign-card-attention {
-      @apply transition-none;
-    }
-    
-    .apple-skeleton {
-      @apply animate-none bg-gray-200;
-    }
-  }
+.pointer-events-none {
+  pointer-events: none;
 }
