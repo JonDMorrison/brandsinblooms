@@ -35,9 +35,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       try {
         console.log('ReadyToPostCard: Fetching tasks for user:', user.id);
         
-        // SECURITY FIX: Explicitly filter by user ownership through campaigns
-        // The RLS policies will enforce this at the database level, but we're being explicit
-        // Updated to include 'posted' status for approved content
+        // UPDATED FILTER: Only fetch approved and posted content tasks
         const { data, error } = await supabase
           .from('content_tasks')
           .select(`
@@ -47,8 +45,8 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
               user_id
             )
           `)
-          .eq('campaigns.user_id', user.id)  // CRITICAL: Filter by current user
-          .in('status', ['review', 'approved', 'posted'])  // Include posted status for approved content
+          .eq('campaigns.user_id', user.id)  // Filter by current user
+          .in('status', ['approved', 'posted'])  // Updated filter to only show approved/posted
           .not('ai_output', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
@@ -57,7 +55,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           console.error('ReadyToPostCard: Error fetching ready tasks:', error);
           setTasks([]);
         } else {
-          console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'tasks for user', user.id);
+          console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'approved/posted tasks for user', user.id);
           
           // Additional security check: Verify all tasks belong to user's campaigns
           const userTasks = data?.filter(task => 
@@ -80,7 +78,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     };
 
     if (propTasks && propTasks.length > 0) {
-      // SECURITY FIX: When using prop tasks, still filter by user ownership
+      // UPDATED FILTER: When using prop tasks, filter to only approved/posted
       if (!user) {
         console.warn('ReadyToPostCard: Received prop tasks but no authenticated user');
         setTasks([]);
@@ -94,12 +92,12 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           if (!belongsToUser) {
             console.warn('ReadyToPostCard: Filtering out task that does not belong to current user:', task.id);
           }
-          // Updated to include 'posted' status for approved content
-          return belongsToUser && ['review', 'approved', 'posted'].includes(task.status) && task.ai_output;
+          // Updated filter to only show approved/posted content
+          return belongsToUser && ['approved', 'posted'].includes(task.status) && task.ai_output;
         })
         .slice(0, 6);
       
-      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'user-owned tasks');
+      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'user-owned approved/posted tasks');
       setTasks(readyTasks);
       if (readyTasks.length > 0) {
         setCurrentCampaign(readyTasks[0].campaigns);
@@ -168,7 +166,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
             <FileText className={`text-gray-400 transition-colors duration-300 ${isMobile ? 'w-6 h-6' : 'w-8 h-8'}`} />
           </div>
           <BodyMedium className={`apple-body-enhanced text-gray-500 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
-            Your marketing content will bloom here once generated. Create campaigns to start growing your content garden!
+            Your approved marketing content will appear here once ready to post. Create and approve campaigns to start growing your content garden!
           </BodyMedium>
           <div className="mt-4">
             <span className="text-2xl garden-breathing">🌱</span>

@@ -31,6 +31,11 @@ const queryClient = new QueryClient({
   },
 });
 
+// Load dev-only CSS in development
+if (import.meta.env.DEV) {
+  import('./styles/dev-debug.css');
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -39,7 +44,7 @@ function App() {
           <BrowserRouter>
             <AuthProvider>
               <SubscriptionProvider>
-                <div className="App">
+                <div className={`App ${import.meta.env.DEV ? 'dev-only' : ''}`}>
                   <Routes>
                     <Route path="/" element={<LandingPage />} />
                     <Route path="/pricing" element={<PricingPage />} />

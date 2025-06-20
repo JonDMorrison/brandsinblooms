@@ -102,7 +102,7 @@ Return JSON:
       throw new Error('Newsletter must be an array of exactly 5 blocks');
     }
 
-    // Validate character limits
+    // Enforce character limits strictly
     if (generatedContent.facebook.length > 600) {
       generatedContent.facebook = generatedContent.facebook.substring(0, 597) + '...';
     }
