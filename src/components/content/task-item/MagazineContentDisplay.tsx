@@ -1,8 +1,8 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterJson } from '@/utils/contentUtils';
+import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -11,6 +11,34 @@ interface MagazineContentDisplayProps {
 }
 
 export const MagazineContentDisplay = ({ content, postType, className }: MagazineContentDisplayProps) => {
+  const { images, loading, fetchNewImages } = useImageSuggestions();
+  const [contentImage, setContentImage] = useState<string | null>(null);
+
+  // Extract keywords from content for image search
+  const extractImageQuery = (content: string) => {
+    const cleanContent = content.replace(/<[^>]*>/g, '').toLowerCase();
+    const words = cleanContent.split(/\s+/).filter(word => 
+      word.length > 4 && 
+      !['with', 'that', 'this', 'your', 'have', 'they', 'will', 'from', 'been'].includes(word)
+    );
+    return `${words.slice(0, 3).join(' ')} garden plants seasonal`.trim();
+  };
+
+  // Fetch image when component mounts for social media posts
+  useEffect(() => {
+    if ((postType === 'facebook' || postType === 'instagram') && !contentImage && !loading) {
+      const query = extractImageQuery(content);
+      fetchNewImages(query);
+    }
+  }, [postType, content]);
+
+  // Set the first image when images are loaded
+  useEffect(() => {
+    if (images.length > 0 && !contentImage) {
+      setContentImage(images[0].thumb_url);
+    }
+  }, [images]);
+
   const getPostTypeIcon = () => {
     switch (postType) {
       case 'instagram': return <Instagram className="w-5 h-5 text-pink-500" />;
@@ -183,33 +211,55 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </div>
         </div>
 
-        {/* FIXED: Enhanced Image Placeholder with better styling */}
-        <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 flex items-center justify-center border border-pink-200 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-50/50 to-purple-50/50"></div>
-          <div className="text-center text-pink-600 z-10">
-            <ImageIcon className="w-12 h-12 mx-auto mb-2" />
-            <p className="text-sm font-medium">Instagram Visual</p>
-            <p className="text-xs opacity-75">Square format image</p>
+        {/* 60/40 Layout: Text (60%) and Image (40%) */}
+        <div className="flex gap-4 mb-4">
+          {/* Text Content - 60% */}
+          <div className="flex-[3] space-y-3">
+            <p className="text-gray-800 leading-relaxed text-sm">
+              {text}
+            </p>
+          </div>
+          
+          {/* Image - 40% */}
+          <div className="flex-[2]">
+            {loading ? (
+              <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg flex items-center justify-center border border-pink-200">
+                <ImageIcon className="w-8 h-8 text-pink-500 animate-pulse" />
+              </div>
+            ) : contentImage ? (
+              <div className="aspect-square rounded-lg overflow-hidden border border-pink-200">
+                <img
+                  src={contentImage}
+                  alt="Instagram post visual"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=400&fit=crop&auto=format';
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg flex items-center justify-center border border-pink-200 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-pink-50/50 to-purple-50/50"></div>
+                <div className="text-center text-pink-600 z-10">
+                  <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                  <p className="text-xs font-medium">Instagram Visual</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Content */}
-        <div className="space-y-3">
-          <p className="text-gray-800 leading-relaxed text-sm">
-            {text}
-          </p>
-          
-          {hashtags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {hashtags.map((tag, index) => (
-                <span key={index} className="inline-flex items-center gap-1 text-xs text-pink-600 bg-pink-100 px-2 py-1 rounded-full">
-                  <Hash className="w-3 h-3" />
-                  {tag.replace('#', '')}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Hashtags */}
+        {hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {hashtags.map((tag, index) => (
+              <span key={index} className="inline-flex items-center gap-1 text-xs text-pink-600 bg-pink-100 px-2 py-1 rounded-full">
+                <Hash className="w-3 h-3" />
+                {tag.replace('#', '')}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
@@ -227,33 +277,55 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </div>
         </div>
 
-        {/* Content */}
-        <div className="space-y-4">
-          <p className="text-gray-800 leading-relaxed">
-            {text}
-          </p>
-          
-          {/* FIXED: Enhanced Image Placeholder with better styling */}
-          <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/50"></div>
-            <div className="text-center text-blue-600 z-10">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm font-medium">Facebook Featured Image</p>
-              <p className="text-xs opacity-75">Landscape format</p>
-            </div>
+        {/* 60/40 Layout: Text (60%) and Image (40%) */}
+        <div className="flex gap-4 mb-4">
+          {/* Text Content - 60% */}
+          <div className="flex-[3] space-y-3">
+            <p className="text-gray-800 leading-relaxed">
+              {text}
+            </p>
           </div>
-
-          {hashtags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {hashtags.map((tag, index) => (
-                <span key={index} className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                  <Hash className="w-3 h-3" />
-                  {tag.replace('#', '')}
-                </span>
-              ))}
-            </div>
-          )}
+          
+          {/* Image - 40% */}
+          <div className="flex-[2]">
+            {loading ? (
+              <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200">
+                <ImageIcon className="w-8 h-8 text-blue-500 animate-pulse" />
+              </div>
+            ) : contentImage ? (
+              <div className="aspect-video rounded-lg overflow-hidden border border-blue-200">
+                <img
+                  src={contentImage}
+                  alt="Facebook post visual"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=600&h=400&fit=crop&auto=format';
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/50"></div>
+                <div className="text-center text-blue-600 z-10">
+                  <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                  <p className="text-xs font-medium">Facebook Featured Image</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Hashtags */}
+        {hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {hashtags.map((tag, index) => (
+              <span key={index} className="inline-flex items-center gap-1 text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                <Hash className="w-3 h-3" />
+                {tag.replace('#', '')}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     );
   }
