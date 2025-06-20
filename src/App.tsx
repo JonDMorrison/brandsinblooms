@@ -10,6 +10,7 @@ import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { LandingPage } from './components/LandingPage';
 import { SidebarLayout } from './components/SidebarLayout';
 import { Homepage } from './components/Homepage';
+import { DashboardContent } from './components/dashboard/DashboardContent';
 import PricingPage from './pages/PricingPage';
 import Index from './pages/Index';
 import Auth from './pages/Auth';
@@ -37,10 +38,10 @@ function App() {
     <ErrorBoundary>
       <NetworkErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
-            <AuthProvider>
-              <SubscriptionProvider>
-                <TooltipProvider>
+          <TooltipProvider>
+            <BrowserRouter>
+              <AuthProvider>
+                <SubscriptionProvider>
                   <div className="App">
                     <Routes>
                       <Route path="/" element={<LandingPage />} />
@@ -50,8 +51,22 @@ function App() {
                       <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
                       <Route path="/admin" element={<AdminPage />} />
                       
-                      {/* Main app route uses Homepage component directly */}
-                      <Route path="/app" element={<Homepage />} />
+                      {/* Main app route now uses DashboardContent directly */}
+                      <Route path="/app" element={
+                        <DashboardContent
+                          onboardingData={{
+                            aboutBusiness: "",
+                            toneSamples: "",
+                            annualEvents: "",
+                            websiteUrl: ""
+                          }}
+                          onBusinessNameChange={() => {}}
+                          onCampaignCreated={() => {}}
+                        />
+                      } />
+                      
+                      {/* Keep Homepage available for legacy routes */}
+                      <Route path="/homepage" element={<Homepage />} />
                       
                       {/* Other dashboard routes use SidebarLayout */}
                       <Route path="/dashboard" element={
@@ -92,10 +107,10 @@ function App() {
                     </Routes>
                     <Toaster />
                   </div>
-                </TooltipProvider>
-              </SubscriptionProvider>
-            </AuthProvider>
-          </BrowserRouter>
+                </SubscriptionProvider>
+              </AuthProvider>
+            </BrowserRouter>
+          </TooltipProvider>
         </QueryClientProvider>
       </NetworkErrorBoundary>
     </ErrorBoundary>
