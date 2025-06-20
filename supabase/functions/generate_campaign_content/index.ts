@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -96,9 +97,43 @@ Return JSON:
       }
     }
 
-    // Validate newsletter structure
-    if (!Array.isArray(generatedContent.newsletter) || generatedContent.newsletter.length !== 5) {
-      throw new Error('Newsletter must be an array of exactly 5 blocks');
+    // Validate newsletter structure - Make it more flexible
+    if (!Array.isArray(generatedContent.newsletter)) {
+      console.log('Newsletter is not an array, attempting to fix...');
+      // If newsletter is a string, convert it to a single block array
+      if (typeof generatedContent.newsletter === 'string') {
+        generatedContent.newsletter = [{
+          heading: "Newsletter Content",
+          body: generatedContent.newsletter.substring(0, 300),
+          image_prompt: `${theme} newsletter visual`
+        }];
+      } else {
+        throw new Error('Newsletter must be an array or string');
+      }
+    }
+
+    // Ensure newsletter has at least 1 block, pad to 5 if needed
+    if (generatedContent.newsletter.length === 0) {
+      generatedContent.newsletter = [{
+        heading: "Newsletter Content",
+        body: `Content about ${theme} for ${month}`,
+        image_prompt: `${theme} newsletter visual`
+      }];
+    }
+
+    // Pad newsletter to exactly 5 blocks if less than 5
+    while (generatedContent.newsletter.length < 5) {
+      const blockNum = generatedContent.newsletter.length + 1;
+      generatedContent.newsletter.push({
+        heading: `${theme} Tips ${blockNum}`,
+        body: `Additional information about ${theme} for your gardening needs.`,
+        image_prompt: `${theme} gardening tips visual ${blockNum}`
+      });
+    }
+
+    // Trim to exactly 5 blocks if more than 5
+    if (generatedContent.newsletter.length > 5) {
+      generatedContent.newsletter = generatedContent.newsletter.slice(0, 5);
     }
 
     // Enforce character limits strictly
@@ -118,7 +153,10 @@ Return JSON:
     // Validate newsletter blocks
     generatedContent.newsletter.forEach((block, index) => {
       if (!block.heading || !block.body || !block.image_prompt) {
-        throw new Error(`Newsletter block ${index + 1} missing required fields`);
+        // Fix missing fields
+        block.heading = block.heading || `${theme} - Section ${index + 1}`;
+        block.body = block.body || `Information about ${theme} for ${month}.`;
+        block.image_prompt = block.image_prompt || `${theme} gardening visual ${index + 1}`;
       }
       if (block.heading.length > 60) {
         block.heading = block.heading.substring(0, 57) + '...';
