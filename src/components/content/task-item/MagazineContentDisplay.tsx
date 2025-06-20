@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
@@ -45,7 +44,7 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
     return { text: textWithoutHashtags, hashtags };
   };
 
-  // FIXED: Enhanced newsletter parsing with better fallback handling
+  // Enhanced newsletter parsing with better fallback handling
   const parseNewsletterContent = (content: string) => {
     // Try to parse as structured newsletter first
     if (content.includes('newsletter_md:') || content.includes('---')) {
@@ -120,48 +119,54 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           )}
         </div>
 
-        {/* Featured Image */}
-        <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
-          <div className="text-center text-purple-600">
-            <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-            <p className="text-sm">Newsletter header image</p>
+        {/* 60/40 Split Layout - Text Left, Image Right */}
+        <div className="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 mb-6">
+          {/* Text Content - 60% */}
+          <div className="space-y-4">
+            <div className="text-center lg:text-left">
+              <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
+                {title}
+              </h2>
+              <div className="w-16 h-1 bg-purple-500 mx-auto lg:mx-0 rounded-full"></div>
+            </div>
+            
+            <div className="prose prose-sm max-w-none">
+              {sections.map((section, index) => (
+                <div key={index} className="mb-4">
+                  {section.startsWith('#') ? (
+                    <div dangerouslySetInnerHTML={{ 
+                      __html: section.replace(/^#+\s*/, '<h3 class="font-bold text-lg mb-2">') + '</h3>'
+                    }} />
+                  ) : (
+                    <div className="text-gray-700 leading-relaxed">
+                      {section.split('\n').map((paragraph, pIndex) => (
+                        paragraph.trim() && (
+                          <p key={pIndex} className="mb-3">
+                            {paragraph}
+                          </p>
+                        )
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Newsletter Content */}
-        <div className="space-y-4">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-              {title}
-            </h2>
-            <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
-          </div>
-          
-          <div className="prose prose-sm max-w-none">
-            {sections.map((section, index) => (
-              <div key={index} className="mb-4">
-                {section.startsWith('#') ? (
-                  <div dangerouslySetInnerHTML={{ 
-                    __html: section.replace(/^#+\s*/, '<h3 class="font-bold text-lg mb-2">') + '</h3>'
-                  }} />
-                ) : (
-                  <div className="text-gray-700 leading-relaxed">
-                    {section.split('\n').map((paragraph, pIndex) => (
-                      paragraph.trim() && (
-                        <p key={pIndex} className="mb-3">
-                          {paragraph}
-                        </p>
-                      )
-                    ))}
-                  </div>
-                )}
+          {/* Featured Image - 40% */}
+          <div className="flex items-start justify-center lg:justify-end">
+            <div className="w-full max-w-sm aspect-[4/5] bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg flex items-center justify-center border border-purple-200">
+              <div className="text-center text-purple-600">
+                <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm font-medium">Newsletter</p>
+                <p className="text-xs opacity-75">Featured Image</p>
               </div>
-            ))}
+            </div>
           </div>
         </div>
 
         {/* Newsletter Footer */}
-        <div className="mt-6 pt-4 border-t border-purple-200">
+        <div className="pt-4 border-t border-purple-200">
           <p className="text-center text-sm text-purple-600 italic">
             Thanks for reading! 📧
           </p>
@@ -183,7 +188,7 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </div>
         </div>
 
-        {/* FIXED: Enhanced Image Placeholder with better styling */}
+        {/* Enhanced Image Placeholder with better styling */}
         <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 flex items-center justify-center border border-pink-200 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-pink-50/50 to-purple-50/50"></div>
           <div className="text-center text-pink-600 z-10">
@@ -233,7 +238,7 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
             {text}
           </p>
           
-          {/* FIXED: Enhanced Image Placeholder with better styling */}
+          {/* Enhanced Image Placeholder with better styling */}
           <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-indigo-50/50"></div>
             <div className="text-center text-blue-600 z-10">
@@ -273,7 +278,7 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </Badge>
         </div>
 
-        {/* FIXED: Enhanced Featured Image for blog posts */}
+        {/* Enhanced Featured Image for blog posts */}
         <div className="aspect-video bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg mb-6 flex items-center justify-center border border-green-200 relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-emerald-50/50"></div>
           <div className="text-center text-green-600 z-10">
