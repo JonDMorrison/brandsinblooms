@@ -5,6 +5,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ContentTaskItem } from "@/components/content/ContentTaskItem";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 
 interface HolidayContentViewerProps {
@@ -23,6 +24,7 @@ export const HolidayContentViewer = ({
   onTaskUpdate 
 }: HolidayContentViewerProps) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -32,17 +34,28 @@ export const HolidayContentViewer = ({
       return;
     }
     
-    console.log('HolidayContentViewer: Starting fetch for holidayId:', holidayId, 'user:', user.id);
+    console.log('HolidayContentViewer: Starting fetch for holidayId:', holidayId, 'user:', user.id, 'tenant:', tenant?.id || 'none');
     setLoading(true);
     
     try {
-      // Fetch tasks for this specific holiday - simplified query without campaigns join
-      const { data, error } = await supabase
+      // Build query based on tenant vs user model (same logic as useSeasonalHolidays)
+      let query = supabase
         .from('content_tasks')
         .select('*')
         .eq('holiday_id', holidayId)
-        .eq('user_id', user.id)
         .order('created_at', { ascending: true });
+
+      if (tenant?.id) {
+        // Tenant-based access control
+        query = query.eq('tenant_id', tenant.id);
+        console.log('HolidayContentViewer: Using tenant-based query for tenant:', tenant.id);
+      } else {
+        // User-based access control
+        query = query.eq('user_id', user.id);
+        console.log('HolidayContentViewer: Using user-based query for user:', user.id);
+      }
+
+      const { data, error } = await query;
 
       console.log('HolidayContentViewer: Fetch result - data:', data?.length || 0, 'tasks, error:', error);
 
@@ -52,6 +65,14 @@ export const HolidayContentViewer = ({
         setTasks([]);
       } else {
         console.log('HolidayContentViewer: Successfully fetched', data?.length || 0, 'tasks for holiday', holidayId);
+        console.log('HolidayContentViewer: Task details:', data?.map(t => ({
+          id: t.id,
+          post_type: t.post_type,
+          status: t.status,
+          user_id: t.user_id,
+          tenant_id: t.tenant_id,
+          holiday_id: t.holiday_id
+        })));
         setTasks(data || []);
       }
     } catch (error) {
@@ -64,14 +85,14 @@ export const HolidayContentViewer = ({
   };
 
   useEffect(() => {
-    console.log('HolidayContentViewer: useEffect triggered - holidayId:', holidayId, 'isOpen:', isOpen, 'user:', !!user);
+    console.log('HolidayContentViewer: useEffect triggered - holidayId:', holidayId, 'isOpen:', isOpen, 'user:', !!user, 'tenant:', !!tenant);
     if (isOpen && holidayId && user) {
       fetchHolidayTasks();
     } else if (!isOpen) {
       // Reset state when dialog closes
       setTasks([]);
     }
-  }, [holidayId, isOpen, user]);
+  }, [holidayId, isOpen, user, tenant]);
 
   const handleTaskUpdate = () => {
     console.log('HolidayContentViewer: Task update requested');
@@ -106,7 +127,12 @@ export const HolidayContentViewer = ({
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="text-6xl mb-4">🎉</div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No content found</h3>
-                <p className="text-gray-500">Holiday content may still be generating or there was an issue creating it.</p>
+                <p className="text-gray-500">
+                  Holiday content may still be generating or there was an issue creating it.
+                </p>
+                <div className="text-xs text-gray-400 mt-2">
+                  Searching with: {tenant?.id ? `tenant_id: ${tenant.id}` : `user_id: ${user.id}`}
+                </div>
               </div>
             ) : (
               <div className="space-y-6">
