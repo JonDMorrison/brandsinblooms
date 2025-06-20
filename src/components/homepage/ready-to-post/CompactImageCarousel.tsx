@@ -17,6 +17,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
   const { images, loading, fetchNewImages, usingPlaceholders } = useImageSuggestions(task?.id, task?.post_type);
   const isMobile = useIsMobile();
   const [hasAutoFetched, setHasAutoFetched] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
   // Get initial query from campaign theme or post type
   const getInitialQuery = () => {
@@ -31,9 +32,10 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
     return task?.post_type || 'garden';
   };
 
-  // Auto-fetch images when component mounts (for all users)
+  // Auto-fetch images when component mounts
   useEffect(() => {
     if (task?.id && images.length === 0 && !loading && !hasAutoFetched) {
+      console.log('[COMPACT_CAROUSEL] Auto-fetching images for task:', task.id);
       const initialQuery = getInitialQuery();
       fetchNewImages(initialQuery, task.id, task.post_type);
       setHasAutoFetched(true);
@@ -43,7 +45,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
   const handleDownload = (imageUrl: string, photographer: string, event: React.MouseEvent) => {
     event.stopPropagation();
     if (usingPlaceholders) {
-      toast.info('Add your Unsplash API key to download real images');
+      toast.info('These are sample images - add your Unsplash API key for downloads');
       return;
     }
     
@@ -64,6 +66,20 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
       : `Photo by ${photographer} on Unsplash`;
     navigator.clipboard.writeText(credit);
     toast.success('Credit copied to clipboard');
+  };
+
+  const handleImageError = (imageId: string) => {
+    console.log('[COMPACT_CAROUSEL] Image load error for:', imageId);
+    setImageErrors(prev => new Set([...prev, imageId]));
+  };
+
+  const handleImageLoad = (imageId: string) => {
+    console.log('[COMPACT_CAROUSEL] Image loaded successfully:', imageId);
+    setImageErrors(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(imageId);
+      return newSet;
+    });
   };
 
   if (loading) {
@@ -132,12 +148,20 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
             key={image.id}
             className="relative group aspect-video rounded-md overflow-hidden bg-stone-100 cursor-pointer"
           >
-            <img
-              src={image.thumb_url}
-              alt={image.alt}
-              className="w-full h-full object-cover transition-transform group-hover:scale-105"
-              loading="lazy"
-            />
+            {!imageErrors.has(image.id) ? (
+              <img
+                src={image.thumb_url}
+                alt={image.alt}
+                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                loading="lazy"
+                onError={() => handleImageError(image.id)}
+                onLoad={() => handleImageLoad(image.id)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                <ImageIcon className="w-8 h-8 text-gray-400" />
+              </div>
+            )}
             
             {/* Hover overlay with actions */}
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
@@ -161,6 +185,12 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
           </div>
         ))}
       </div>
+
+      {usingPlaceholders && (
+        <div className="text-xs text-stone-500 italic">
+          💡 Using sample images - add Unsplash API key for real photos
+        </div>
+      )}
     </div>
   );
 };

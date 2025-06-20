@@ -20,15 +20,17 @@ serve(async (req) => {
   try {
     const { query, contentTaskId } = await req.json();
 
-    if (!unsplashAccessKey) {
-      throw new Error('Unsplash API key not configured');
-    }
-
     if (!query) {
       throw new Error('Query parameter is required');
     }
 
-    console.log(`Fetching Unsplash images for query: ${query}`);
+    console.log(`[UNSPLASH] Fetching images for query: ${query}`);
+    console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey}`);
+
+    if (!unsplashAccessKey) {
+      console.log('[UNSPLASH] API key not configured, returning error for fallback handling');
+      throw new Error('Unsplash API key not configured');
+    }
 
     // Fetch images from Unsplash API
     const unsplashResponse = await fetch(
@@ -40,14 +42,18 @@ serve(async (req) => {
       }
     );
 
+    console.log(`[UNSPLASH] API Response status: ${unsplashResponse.status}`);
+
     if (!unsplashResponse.ok) {
+      const errorText = await unsplashResponse.text();
+      console.error(`[UNSPLASH] API error ${unsplashResponse.status}: ${errorText}`);
       throw new Error(`Unsplash API error: ${unsplashResponse.status}`);
     }
 
     const unsplashData = await unsplashResponse.json();
     const images = unsplashData.results || [];
 
-    console.log(`Found ${images.length} images from Unsplash`);
+    console.log(`[UNSPLASH] Found ${images.length} images from Unsplash`);
 
     // If contentTaskId is provided, store the images in the database
     if (contentTaskId && images.length > 0) {
@@ -68,11 +74,11 @@ serve(async (req) => {
         .insert(imageSuggestions);
 
       if (error) {
-        console.error('Error storing image suggestions:', error);
+        console.error('[UNSPLASH] Error storing image suggestions:', error);
         throw new Error('Failed to store image suggestions');
       }
 
-      console.log(`Stored ${imageSuggestions.length} image suggestions for task ${contentTaskId}`);
+      console.log(`[UNSPLASH] Stored ${imageSuggestions.length} image suggestions for task ${contentTaskId}`);
     }
 
     // Return the images
@@ -92,7 +98,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in fetch-unsplash-images function:', error);
+    console.error('[UNSPLASH] Error in fetch-unsplash-images function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

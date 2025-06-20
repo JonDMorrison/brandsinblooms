@@ -13,109 +13,112 @@ interface ImageSuggestion {
   query: string;
 }
 
-// Platform-specific placeholder images with appropriate styles
+// Reliable placeholder images using Lorem Picsum (no API key required)
 const getPlatformPlaceholderImages = (query: string, postType: string): ImageSuggestion[] => {
-  const basePhotographer = 'Sample Photographer';
+  const basePhotographer = 'Lorem Picsum';
+  
+  // Generate consistent seed based on query for reproducible images
+  const seed = query.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   
   const platformImages = {
     instagram: [
       {
-        id: 'instagram-1',
-        thumb_url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=400&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1080&h=1080&fit=crop',
-        alt: `${query} - aesthetic lifestyle shot`,
+        id: `instagram-1-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 1}/400/400`,
+        download_url: `https://picsum.photos/seed/${seed + 1}/1080/1080`,
+        alt: `${query} - aesthetic square image`,
       },
       {
-        id: 'instagram-2',
-        thumb_url: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=400&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=1080&h=1080&fit=crop',
-        alt: `${query} - vibrant garden close-up`,
+        id: `instagram-2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 2}/400/400`,
+        download_url: `https://picsum.photos/seed/${seed + 2}/1080/1080`,
+        alt: `${query} - vibrant square composition`,
       },
       {
-        id: 'instagram-3',
-        thumb_url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=400&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1080&h=1080&fit=crop',
-        alt: `${query} - lifestyle gardening`,
+        id: `instagram-3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 3}/400/400`,
+        download_url: `https://picsum.photos/seed/${seed + 3}/1080/1080`,
+        alt: `${query} - lifestyle square shot`,
       }
     ],
     facebook: [
       {
-        id: 'facebook-1',
-        thumb_url: 'https://images.unsplash.com/photo-1574263867128-b83ee8c8b7c0?w=400&h=300&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1574263867128-b83ee8c8b7c0?w=1200&h=630&fit=crop',
-        alt: `${query} - community gardening`,
+        id: `facebook-1-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 4}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 4}/1200/630`,
+        alt: `${query} - landscape format`,
       },
       {
-        id: 'facebook-2',
-        thumb_url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&h=630&fit=crop',
-        alt: `${query} - garden landscape`,
+        id: `facebook-2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 5}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 5}/1200/630`,
+        alt: `${query} - wide composition`,
       },
       {
-        id: 'facebook-3',
-        thumb_url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=400&h=300&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=1200&h=630&fit=crop',
-        alt: `${query} - gardening education`,
+        id: `facebook-3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 6}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 6}/1200/630`,
+        alt: `${query} - community style`,
       }
     ],
     newsletter: [
       {
-        id: 'newsletter-1',
-        thumb_url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=250&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1000&h=600&fit=crop',
-        alt: `${query} - professional garden setup`,
+        id: `newsletter-1-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 7}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 7}/1000/600`,
+        alt: `${query} - newsletter header`,
       },
       {
-        id: 'newsletter-2',
-        thumb_url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=400&h=250&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=1000&h=600&fit=crop',
-        alt: `${query} - seasonal gardening tips`,
+        id: `newsletter-2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 8}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 8}/1000/600`,
+        alt: `${query} - professional layout`,
       },
       {
-        id: 'newsletter-3',
-        thumb_url: 'https://images.unsplash.com/photo-1574263867128-b83ee8c8b7c0?w=400&h=250&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1574263867128-b83ee8c8b7c0?w=1000&h=600&fit=crop',
-        alt: `${query} - informative garden guide`,
+        id: `newsletter-3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 9}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 9}/1000/600`,
+        alt: `${query} - informative design`,
       }
     ],
     email: [
       {
-        id: 'email-1',
-        thumb_url: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=250&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=800&h=500&fit=crop',
-        alt: `${query} - clean garden product shot`,
+        id: `email-1-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 10}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 10}/800/500`,
+        alt: `${query} - email friendly`,
       },
       {
-        id: 'email-2',
-        thumb_url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400&h=250&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=500&fit=crop',
-        alt: `${query} - simple garden tools`,
+        id: `email-2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 11}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 11}/800/500`,
+        alt: `${query} - clean design`,
       },
       {
-        id: 'email-3',
-        thumb_url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=250&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&h=500&fit=crop',
-        alt: `${query} - before and after garden`,
+        id: `email-3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 12}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 12}/800/500`,
+        alt: `${query} - simple layout`,
       }
     ],
     video: [
       {
-        id: 'video-1',
-        thumb_url: 'https://images.unsplash.com/photo-1574263867128-b83ee8c8b7c0?w=400&h=300&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1574263867128-b83ee8c8b7c0?w=1280&h=720&fit=crop',
-        alt: `${query} - gardening in action`,
+        id: `video-1-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 13}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 13}/1280/720`,
+        alt: `${query} - video thumbnail`,
       },
       {
-        id: 'video-2',
-        thumb_url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=400&h=300&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=1280&h=720&fit=crop',
-        alt: `${query} - tutorial process`,
+        id: `video-2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 14}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 14}/1280/720`,
+        alt: `${query} - cinematic style`,
       },
       {
-        id: 'video-3',
-        thumb_url: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop',
-        download_url: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=1280&h=720&fit=crop',
-        alt: `${query} - behind the scenes gardening`,
+        id: `video-3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 15}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 15}/1280/720`,
+        alt: `${query} - video format`,
       }
     ]
   };
@@ -162,34 +165,41 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
 
   const fetchStoredImages = async (taskId: string) => {
     try {
+      console.log('[IMAGE_HOOK] Fetching stored images for task:', taskId);
       const { data, error } = await supabase
         .from('image_suggestions')
         .select('*')
         .eq('content_task_id', taskId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[IMAGE_HOOK] Error fetching stored images:', error);
+        return false;
+      }
 
       if (data && data.length > 0) {
+        console.log('[IMAGE_HOOK] Found', data.length, 'stored images');
         setImages(data);
         setQuery(data[0].query);
         setUsingPlaceholders(false);
         return true;
       }
+      console.log('[IMAGE_HOOK] No stored images found');
       return false;
     } catch (error) {
-      console.error('Error fetching stored images:', error);
+      console.error('[IMAGE_HOOK] Exception fetching stored images:', error);
       return false;
     }
   };
 
   const fetchNewImages = async (searchQuery: string, taskId?: string, contentType?: string) => {
     setLoading(true);
+    console.log('[IMAGE_HOOK] Fetching new images for query:', searchQuery, 'type:', contentType);
+    
     try {
-      console.log(`Fetching new images for query: ${searchQuery}, type: ${contentType}`);
-      
       // Generate platform-specific query
       const platformQuery = contentType ? generatePlatformQuery(searchQuery, contentType) : searchQuery;
+      console.log('[IMAGE_HOOK] Platform query:', platformQuery);
       
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
@@ -199,22 +209,24 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       });
 
       if (error) {
-        console.log('Unsplash API error, using placeholders:', error.message);
+        console.log('[IMAGE_HOOK] Unsplash API error, using placeholders:', error.message);
         // Always use placeholders when API fails
         const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
         setImages(placeholders);
         setQuery(searchQuery);
         setUsingPlaceholders(true);
-        toast.info(`Using sample images for ${contentType || 'content'} - add your Unsplash API key for real images`);
+        toast.info(`Using sample images - Unsplash API unavailable`);
         return;
       }
 
       if (data?.images && data.images.length > 0) {
+        console.log('[IMAGE_HOOK] Successfully fetched', data.images.length, 'real images');
         setImages(data.images);
         setQuery(searchQuery);
         setUsingPlaceholders(false);
-        toast.success(`Found ${data.images.length} ${contentType ? contentType + ' ' : ''}images for "${searchQuery}"`);
+        toast.success(`Found ${data.images.length} ${contentType || 'images'}`);
       } else {
+        console.log('[IMAGE_HOOK] No images returned, using placeholders');
         // Fallback to placeholders if no images returned
         const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
         setImages(placeholders);
@@ -223,14 +235,14 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         toast.info(`No images found for "${searchQuery}", using sample images`);
       }
     } catch (error) {
-      console.error('Error fetching images:', error);
+      console.error('[IMAGE_HOOK] Error fetching images:', error);
       
       // Fallback to platform-specific placeholder images on any error
       const placeholders = getPlatformPlaceholderImages(searchQuery, postType || 'instagram');
       setImages(placeholders);
       setQuery(searchQuery);
       setUsingPlaceholders(true);
-      toast.info(`Using sample images for ${postType || 'content'} - connection error`);
+      toast.info(`Using sample images - connection error`);
     } finally {
       setLoading(false);
     }
@@ -238,19 +250,20 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
 
   const shuffleImages = async () => {
     if (query) {
+      console.log('[IMAGE_HOOK] Shuffling images for query:', query);
       if (usingPlaceholders) {
         // Shuffle placeholder images with platform-specific variations
         const variations = postType ? [
           `${query} ${postType}`,
           `${query} garden ${postType}`,
           `${query} plants ${postType}`,
-          `${query} horticulture ${postType}`,
+          `${query} nature ${postType}`,
           query
         ] : [
           `${query} garden`,
           `${query} plants`,
-          `${query} horticulture`,
           `${query} nature`,
+          `${query} seasonal`,
           query
         ];
         const randomVariation = variations[Math.floor(Math.random() * variations.length)];
@@ -264,13 +277,13 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
           `${query} ${postType}`,
           `${query} garden ${postType}`,
           `${query} plants ${postType}`,
-          `${query} horticulture ${postType}`,
+          `${query} nature ${postType}`,
           query
         ] : [
           `${query} garden`,
           `${query} plants`,
-          `${query} horticulture`,
           `${query} nature`,
+          `${query} seasonal`,
           query
         ];
         
@@ -282,6 +295,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
 
   useEffect(() => {
     if (contentTaskId) {
+      console.log('[IMAGE_HOOK] Component mounted with task ID:', contentTaskId);
       fetchStoredImages(contentTaskId);
     }
   }, [contentTaskId]);
