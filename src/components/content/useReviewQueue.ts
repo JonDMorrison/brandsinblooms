@@ -2,11 +2,13 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { ContentTask } from "@/types/content";
 
 export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [pendingTasks, setPendingTasks] = useState<ContentTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +16,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const channelRef = useRef<any>(null);
 
   const fetchPendingTasks = async () => {
-    if (!user) {
+    if (!user || !tenant) {
       setLoading(false);
       return;
     }
@@ -27,21 +29,34 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         .select(`
           *,
           campaigns (
+            id,
             title,
-            user_id
+            week_number,
+            start_date,
+            tenant_id
           )
         `)
-        .in('status', ['pending', 'generated'])
+        .eq('tenant_id', tenant.id)
+        .in('status', ['pending', 'generated', 'review'])
         .order('created_at', { ascending: false });
 
       if (fetchError) {
         console.error('Error fetching pending tasks:', fetchError);
         setError('Failed to load pending content');
       } else {
-        // Filter to only show tasks for current user's campaigns and cast to ContentTask type
+        // Filter and map to ContentTask type with proper campaign data
         const userTasks = (data?.filter(task => 
-          task.campaigns?.user_id === user.id
-        ) || []) as ContentTask[];
+          task.campaigns?.tenant_id === tenant.id
+        ).map(task => ({
+          ...task,
+          campaigns: task.campaigns ? {
+            id: task.campaigns.id,
+            title: task.campaigns.title,
+            week_number: task.campaigns.week_number,
+            start_date: task.campaigns.start_date,
+            tenant_id: task.campaigns.tenant_id
+          } : undefined
+        })) || []) as ContentTask[];
         setPendingTasks(userTasks);
       }
     } catch (error) {
@@ -60,7 +75,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'posted' })
+        .update({ status: 'approved' })
         .eq('id', taskId);
 
       if (error) throw error;
@@ -87,11 +102,11 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
 
   useEffect(() => {
     fetchPendingTasks();
-  }, [user]);
+  }, [user, tenant]);
 
   // Set up real-time subscription only once
   useEffect(() => {
-    if (!user) return;
+    if (!user || !tenant) return;
 
     // Clean up existing channel if it exists
     if (channelRef.current) {
@@ -124,7 +139,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
         channelRef.current = null;
       }
     };
-  }, [user]);
+  }, [user, tenant]);
 
   return {
     pendingTasks,

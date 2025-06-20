@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,9 +82,11 @@ export const useDashboardData = () => {
         .select(`
           *,
           campaigns (
+            id,
             title,
             week_number,
-            start_date
+            start_date,
+            tenant_id
           )
         `)
         .eq('tenant_id', tenant.id)
@@ -102,7 +105,14 @@ export const useDashboardData = () => {
       } else {
         const tasks = (tasksData || []).map(task => ({
           ...task,
-          status: task.status as ContentTask['status']
+          status: task.status as ContentTask['status'],
+          campaigns: task.campaigns ? {
+            id: task.campaigns.id,
+            title: task.campaigns.title,
+            week_number: task.campaigns.week_number,
+            start_date: task.campaigns.start_date,
+            tenant_id: task.campaigns.tenant_id
+          } : undefined
         })) as ContentTask[];
         setTasks(tasks);
         setCachedData(CACHE_KEYS.tasks, tasks);

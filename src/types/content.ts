@@ -6,6 +6,7 @@ export interface Campaign {
   start_date: string;
   created_at?: string;  // Make optional
   user_id?: string;     // Make optional
+  tenant_id?: string;   // Add tenant_id as optional
   theme?: string;
   description?: string;
   prompt?: string;
@@ -24,6 +25,8 @@ export interface ContentTask {
   scheduled_date: string | null;
   assigned_user_id: string | null;
   user_id: string | null;
+  tenant_id?: string | null;  // Add tenant_id
+  created_by_user_id?: string | null;  // Add created_by_user_id
   notes: string | null;
   created_at: string;
   campaigns?: Campaign;
