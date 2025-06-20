@@ -48,8 +48,18 @@ function App() {
                     <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
                     <Route path="/admin" element={<AdminPage />} />
                     
-                    {/* All dashboard routes now use SidebarLayout */}
+                    {/* All dashboard routes now use SidebarLayout with unified DashboardContent */}
                     <Route path="/app" element={
+                      <SidebarLayout>
+                        <Index />
+                      </SidebarLayout>
+                    } />
+                    <Route path="/dashboard" element={
+                      <SidebarLayout>
+                        <Index />
+                      </SidebarLayout>
+                    } />
+                    <Route path="/home" element={
                       <SidebarLayout>
                         <Index />
                       </SidebarLayout>

@@ -33,7 +33,7 @@ export const DashboardContent = ({
 
   // Debug logging to see what's rendering
   console.log('🔍 DashboardContent: Rendering with user:', user?.id);
-  console.log('🎨 DashboardContent: Component loaded, should show garden green theme');
+  console.log('🎨 DashboardContent: Component loaded, should show unified dashboard theme');
 
   const fetchCampaignData = async () => {
     if (!user) {
@@ -158,7 +158,7 @@ export const DashboardContent = ({
     try {
       await generateRequiredTasks(
         campaign.id,
-        [campaign], // Pass campaigns array
+        [campaign],
         user.id,
         () => {
           console.log('DashboardContent: Content generation completed, refetching data');
@@ -247,7 +247,7 @@ export const DashboardContent = ({
   console.log('🎨 DashboardContent: Final render - activeCampaign:', activeCampaign?.title, 'tasks:', tasks.length);
 
   return (
-    <div className="space-y-8 mobile-dashboard-spacing bg-garden-background">
+    <div className="space-y-8 mobile-dashboard-spacing bg-white min-h-screen">
       {/* Weekly Content Updater - runs automatically to maintain campaigns */}
       <WeeklyContentUpdater />
       
