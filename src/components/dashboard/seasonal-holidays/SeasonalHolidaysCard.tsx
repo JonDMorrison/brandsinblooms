@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -5,8 +6,11 @@ import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typogr
 import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { HolidayItem } from "./HolidayItem";
 import { HolidayContentViewer } from "./HolidayContentViewer";
+import { CompanyProfileSetup } from "@/components/onboarding/CompanyProfileSetup";
 import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Calendar, Clock, Sparkles, Leaf } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -20,9 +24,12 @@ export const SeasonalHolidaysCard = ({
   onContentGenerated,
   className
 }: SeasonalHolidaysCardProps) => {
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const { holidays, holidayContentState, loading, error, generateHolidayContent, refreshHolidayContent } = useSeasonalHolidays();
   const [generatingHolidays, setGeneratingHolidays] = React.useState<Set<string>>(new Set());
+  const [showProfileSetup, setShowProfileSetup] = React.useState(false);
+  const [hasCompanyProfile, setHasCompanyProfile] = React.useState<boolean | null>(null);
   const [contentViewerState, setContentViewerState] = React.useState<{
     isOpen: boolean;
     holidayId: string | null;
@@ -33,7 +40,41 @@ export const SeasonalHolidaysCard = ({
     holidayName: ''
   });
 
+  // Check if user has company profile
+  React.useEffect(() => {
+    const checkCompanyProfile = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('company_profiles')
+          .select('id, company_name')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking company profile:', error);
+          setHasCompanyProfile(false);
+        } else {
+          setHasCompanyProfile(!!profile);
+          console.log('Company profile status:', !!profile, profile?.company_name || 'No name');
+        }
+      } catch (error) {
+        console.error('Exception checking company profile:', error);
+        setHasCompanyProfile(false);
+      }
+    };
+
+    checkCompanyProfile();
+  }, [user]);
+
   const handleGenerateContent = async (holidayId: string) => {
+    // Check if user has company profile before generating
+    if (hasCompanyProfile === false) {
+      setShowProfileSetup(true);
+      return;
+    }
+
     const holiday = holidays.find(h => h.id === holidayId);
     if (!holiday) return;
 
@@ -44,11 +85,7 @@ export const SeasonalHolidaysCard = ({
       
       const result = await generateHolidayContent(holidayId);
       
-      toast.success(`🎉 Generated ${result.tasks?.length || 5} pieces of content for ${holiday.holiday_name}!`, {
-        description: "Content is ready for review in your dashboard",
-        duration: 5000,
-      });
-
+      // Success toast is handled in the hook
       // Refresh content state to show the new content
       await refreshHolidayContent();
 
@@ -57,10 +94,7 @@ export const SeasonalHolidaysCard = ({
       }
     } catch (error) {
       console.error('Failed to generate holiday content:', error);
-      toast.error(`Failed to generate content for ${holiday.holiday_name}`, {
-        description: error instanceof Error ? error.message : 'Please try again',
-        duration: 5000,
-      });
+      // Error toast is handled in the hook
     } finally {
       setGeneratingHolidays(prev => {
         const newSet = new Set(prev);
@@ -94,6 +128,20 @@ export const SeasonalHolidaysCard = ({
     // Refresh content state when viewer closes
     refreshHolidayContent();
   };
+
+  const handleProfileSetupComplete = () => {
+    setShowProfileSetup(false);
+    setHasCompanyProfile(true);
+  };
+
+  // Show profile setup modal if needed
+  if (showProfileSetup) {
+    return (
+      <div className={cn('space-y-6', className)}>
+        <CompanyProfileSetup onComplete={handleProfileSetupComplete} />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -164,6 +212,7 @@ export const SeasonalHolidaysCard = ({
         {/* Modern Header Section */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {/* Header content if needed */}
           </div>
         </div>
 

@@ -1,6 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/hooks/useTenant';
 import { toast } from 'sonner';
 
 interface Holiday {
@@ -23,6 +25,7 @@ interface HolidayContentState {
 
 export const useSeasonalHolidays = () => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [holidayContentState, setHolidayContentState] = useState<HolidayContentState>({});
   const [loading, setLoading] = useState(true);
@@ -34,12 +37,19 @@ export const useSeasonalHolidays = () => {
     try {
       console.log('Fetching content state for holidays:', holidayIds);
       
-      // Simplified query - fetch content_tasks directly by holiday_id and user_id
-      const { data: contentTasks, error: contentError } = await supabase
+      // Build query based on tenant vs user model
+      let query = supabase
         .from('content_tasks')
         .select('*')
-        .in('holiday_id', holidayIds)
-        .eq('user_id', user.id);
+        .in('holiday_id', holidayIds);
+
+      if (tenant?.id) {
+        query = query.eq('tenant_id', tenant.id);
+      } else {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data: contentTasks, error: contentError } = await query;
 
       if (contentError) {
         console.error('Error fetching holiday content state:', contentError);
@@ -169,7 +179,34 @@ export const useSeasonalHolidays = () => {
     }
 
     try {
-      console.log('🎯 Generating holiday content for:', holidayId, 'User:', user.id);
+      console.log('🎯 Generating holiday content for:', holidayId, 'User:', user.id, 'Tenant:', tenant?.id || 'none');
+      
+      // Check if user has company profile first
+      const { data: companyProfile, error: profileError } = await supabase
+        .from('company_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('❌ Error fetching company profile:', profileError);
+        toast.error('Profile error', {
+          description: 'Unable to fetch your company profile. Please try again.',
+          duration: 5000,
+        });
+        throw new Error('Failed to fetch company profile');
+      }
+
+      if (!companyProfile) {
+        console.error('❌ No company profile found for user:', user.id);
+        toast.error('Company profile required', {
+          description: 'Please complete your company profile setup first.',
+          duration: 8000,
+        });
+        throw new Error('Company profile not found');
+      }
+
+      console.log('✅ Found company profile:', companyProfile.company_name || 'Unnamed');
       
       // Get holiday details
       const { data: holiday, error: holidayError } = await supabase
@@ -179,6 +216,11 @@ export const useSeasonalHolidays = () => {
         .single();
 
       if (holidayError || !holiday) {
+        console.error('❌ Holiday fetch error:', holidayError);
+        toast.error('Holiday not found', {
+          description: holidayError?.message || 'Could not find holiday details',
+          duration: 5000,
+        });
         throw new Error(`Holiday not found: ${holidayError?.message || 'Unknown error'}`);
       }
 
@@ -204,13 +246,17 @@ export const useSeasonalHolidays = () => {
               postType: contentType,
               campaignTitle: campaignTitle,
               weekDescription: campaignDescription,
-              userId: user.id, // Ensure user ID is passed
+              userId: user.id,
               enforceCompanyName: true
             }
           });
 
           if (contentError) {
             console.error(`❌ Error generating ${contentType} content:`, contentError);
+            toast.warning(`${contentType} content generation failed`, {
+              description: contentError.message || 'Will continue with other content types',
+              duration: 3000,
+            });
             continue; // Skip this type and continue with others
           }
 
@@ -218,29 +264,46 @@ export const useSeasonalHolidays = () => {
           
           if (!content) {
             console.error(`❌ No content returned for ${contentType}`);
+            toast.warning(`${contentType} content empty`, {
+              description: 'Will continue with other content types',
+              duration: 3000,
+            });
             continue;
           }
 
           console.log(`✅ Generated ${contentType} content, creating task...`);
 
-          // Create content task with proper user association
+          // Create content task with proper tenant/user association
+          const taskData: any = {
+            holiday_id: holidayId,
+            post_type: contentType,
+            ai_output: content,
+            status: 'review',
+            scheduled_date: getScheduledDate(holiday.holiday_date, holiday.category),
+            hashtags: getHolidayHashtags(holiday.holiday_name, contentType),
+            image_idea: getHolidayImageIdea(holiday.holiday_name, contentType)
+          };
+
+          // Set proper ownership based on tenant model
+          if (tenant?.id) {
+            taskData.tenant_id = tenant.id;
+            taskData.created_by_user_id = user.id;
+          } else {
+            taskData.user_id = user.id;
+          }
+
           const { data: task, error: taskError } = await supabase
             .from('content_tasks')
-            .insert({
-              user_id: user.id, // Ensure user_id is set correctly
-              holiday_id: holidayId,
-              post_type: contentType,
-              ai_output: content,
-              status: 'review',
-              scheduled_date: getScheduledDate(holiday.holiday_date, holiday.category),
-              hashtags: getHolidayHashtags(holiday.holiday_name, contentType),
-              image_idea: getHolidayImageIdea(holiday.holiday_name, contentType)
-            })
+            .insert(taskData)
             .select()
             .single();
 
           if (taskError) {
             console.error(`❌ Error creating ${contentType} task:`, taskError);
+            toast.warning(`Failed to save ${contentType} content`, {
+              description: taskError.message,
+              duration: 3000,
+            });
           } else {
             createdTasks.push(task);
             console.log(`✅ Created ${contentType} content task with ID:`, task.id);
@@ -265,11 +328,19 @@ export const useSeasonalHolidays = () => {
           }
         } catch (error) {
           console.error(`❌ Exception generating ${contentType} content:`, error);
+          toast.warning(`${contentType} generation failed`, {
+            description: error instanceof Error ? error.message : 'Unknown error',
+            duration: 3000,
+          });
           continue; // Continue with other content types
         }
       }
 
       if (createdTasks.length === 0) {
+        toast.error('Content generation failed', {
+          description: 'No content could be generated. Please check your internet connection and try again.',
+          duration: 8000,
+        });
         throw new Error('Failed to generate any content');
       }
 
@@ -285,8 +356,8 @@ export const useSeasonalHolidays = () => {
         }
       }));
       
-      toast.success(`Generated ${createdTasks.length} pieces of content for ${holiday.holiday_name}`, {
-        description: 'Content is ready for review in your dashboard',
+      toast.success(`Generated ${createdTasks.length} pieces of content!`, {
+        description: `Content for ${holiday.holiday_name} is ready for review`,
         duration: 5000,
       });
 
@@ -300,10 +371,14 @@ export const useSeasonalHolidays = () => {
       console.error('💥 Error in holiday content generation:', error);
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast.error('Content generation failed', {
-        description: errorMessage,
-        duration: 8000,
-      });
+      
+      // Don't show duplicate toast if we already showed a specific error
+      if (!errorMessage.includes('Company profile') && !errorMessage.includes('not found')) {
+        toast.error('Content generation failed', {
+          description: errorMessage,
+          duration: 8000,
+        });
+      }
       
       throw error;
     }
@@ -318,7 +393,7 @@ export const useSeasonalHolidays = () => {
 
   useEffect(() => {
     fetchUpcomingHolidays();
-  }, [user]);
+  }, [user, tenant]);
 
   return {
     holidays,
