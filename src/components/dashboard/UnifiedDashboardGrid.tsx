@@ -129,6 +129,7 @@ export const UnifiedDashboardGrid = ({
         {/* Current Campaign Section */}
         <CurrentCampaignSection 
           activeCampaign={activeCampaign}
+          tasks={tasks}
           onTaskUpdate={onTaskUpdate}
           onCreateCampaign={onCreateCampaign || (() => {})}
           onCampaignCreated={onCampaignCreated || (() => {})}
