@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon } from 'lucide-react';
+import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
+import { parseNewsletterJson } from '@/utils/contentUtils';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -16,6 +17,7 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
       case 'facebook': return <Facebook className="w-5 h-5 text-blue-600" />;
       case 'blog': return <FileText className="w-5 h-5 text-green-600" />;
       case 'video': return <Video className="w-5 h-5 text-red-500" />;
+      case 'newsletter': return <Mail className="w-5 h-5 text-purple-500" />;
       default: return <FileText className="w-5 h-5 text-gray-500" />;
     }
   };
@@ -26,6 +28,7 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
       case 'facebook': return 'from-blue-50 to-indigo-50 border-blue-200';
       case 'blog': return 'from-green-50 to-emerald-50 border-green-200';
       case 'video': return 'from-red-50 to-orange-50 border-red-200';
+      case 'newsletter': return 'from-purple-50 to-indigo-50 border-purple-200';
       default: return 'from-gray-50 to-slate-50 border-gray-200';
     }
   };
@@ -43,6 +46,98 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
   };
 
   const { text, hashtags } = formatContent(content);
+
+  if (postType === 'newsletter') {
+    // Try to parse as JSON newsletter first
+    const parsedNewsletter = parseNewsletterJson(content);
+    
+    if (parsedNewsletter) {
+      // Structured newsletter with subject and content
+      return (
+        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            {getPostTypeIcon()}
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+              Newsletter
+            </Badge>
+          </div>
+
+          {/* Featured Image */}
+          <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
+            <div className="text-center text-purple-600">
+              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+              <p className="text-sm">Newsletter header image</p>
+            </div>
+          </div>
+
+          {/* Newsletter Content */}
+          <div className="space-y-4">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
+                {parsedNewsletter.subject}
+              </h2>
+              <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
+            </div>
+            
+            <div className="prose prose-sm max-w-none">
+              {parsedNewsletter.content.split('\n\n').map((paragraph, index) => (
+                <p key={index} className="text-gray-700 leading-relaxed mb-4">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          {/* Newsletter Footer */}
+          <div className="mt-6 pt-4 border-t border-purple-200">
+            <p className="text-center text-sm text-purple-600 italic">
+              Thanks for reading! 📧
+            </p>
+          </div>
+        </div>
+      );
+    } else {
+      // Plain text newsletter
+      return (
+        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            {getPostTypeIcon()}
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+              Newsletter
+            </Badge>
+          </div>
+
+          {/* Featured Image */}
+          <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
+            <div className="text-center text-purple-600">
+              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+              <p className="text-sm">Newsletter header image</p>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="space-y-4">
+            <div className="prose prose-sm max-w-none">
+              {text.split('\n\n').map((paragraph, index) => (
+                <p key={index} className="text-gray-700 leading-relaxed mb-4">
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          {/* Newsletter Footer */}
+          <div className="mt-6 pt-4 border-t border-purple-200">
+            <p className="text-center text-sm text-purple-600 italic">
+              Thanks for reading! 📧
+            </p>
+          </div>
+        </div>
+      );
+    }
+  }
 
   if (postType === 'instagram') {
     return (
