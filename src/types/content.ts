@@ -1,54 +1,58 @@
-
+export type TaskStatus = 
+  | 'planned' 
+  | 'review' 
+  | 'approved' 
+  | 'posted' 
+  | 'rejected'
+  | 'generated'
+  | 'pending'
+  | 'preview'; // Add preview status
 
 export interface Campaign {
   id: string;
+  created_at?: string;
   title: string;
-  week_number: number;
-  start_date: string;
-  created_at?: string;  // Make optional
-  user_id?: string;     // Make optional
-  tenant_id: string;    // Make required for tenant isolation
   theme?: string;
   description?: string;
-  prompt?: string;
-  source?: string;
+  user_id?: string;
+  tenant_id?: string;
+  week_number?: number;
+  start_date?: string;
+  end_date?: string;
+  holiday_id?: string;
 }
 
 export interface ContentTask {
   id: string;
-  campaign_id: string | null;
-  holiday_id?: string | null;
-  post_type: string | null;
-  status: 'planned' | 'review' | 'approved' | 'posted' | 'rejected';
-  ai_output: string | null;
-  hashtags: string | null;
-  image_idea: string | null;
-  scheduled_date: string | null;
-  assigned_user_id: string | null;
-  user_id: string | null;
-  tenant_id: string;  // Make required for tenant isolation
-  created_by_user_id?: string | null;  // Add created_by_user_id
-  notes: string | null;
+  campaign_id?: string;
+  post_type?: string;
+  status: TaskStatus; // Use the updated TaskStatus type
+  ai_output?: string;
+  scheduled_date?: string;
   created_at: string;
-  campaigns?: Campaign;
+  notes?: string;
+  hashtags?: string;
+  image_idea?: string;
+  user_id?: string;
+  tenant_id?: string;
+  created_by_user_id?: string;
+  assigned_user_id?: string;
+  holiday_id?: string;
+  campaigns?: {
+    id: string;
+    title: string;
+    week_number?: number;
+    start_date?: string;
+    tenant_id: string;
+    user_id?: string;
+  };
   holidays?: {
     holiday_name: string;
     holiday_date: string;
   };
 }
 
-export interface Holiday {
-  id: string;
-  holiday_name: string;
-  holiday_date: string;
-  description: string;
-  category: string;
-  garden_relevance: string;
-  is_active: boolean;
-}
-
 export interface ReviewQueueProps {
   onTaskUpdate?: () => void;
   onTaskClick?: (task: ContentTask) => void;
 }
-

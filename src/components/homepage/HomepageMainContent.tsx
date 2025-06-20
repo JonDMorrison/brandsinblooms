@@ -7,6 +7,10 @@ import { getSeasonalContent } from "./SeasonalContent";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Calendar, Plus } from "lucide-react";
 import { Campaign } from "@/types/content";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 
 interface HomepageMainContentProps {
   currentCampaign: Campaign | undefined;
@@ -14,7 +18,61 @@ interface HomepageMainContentProps {
 }
 
 export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageMainContentProps) => {
+  const { user } = useAuth();
+  const { tenant } = useTenant();
+  const [campaignTasks, setCampaignTasks] = useState([]);
+  const [isGeneratingTasks, setIsGeneratingTasks] = useState(false);
   const seasonalContent = getSeasonalContent();
+
+  // Check if user is developer
+  const isDeveloper = user?.email === 'jon@getclear.ca';
+
+  const fetchCampaignTasks = async () => {
+    if (!currentCampaign || !tenant) return;
+
+    try {
+      // Build status filter - include 'preview' for developer
+      const statusFilter = ['planned', 'review', 'approved', 'posted', 'generated'];
+      if (isDeveloper) {
+        statusFilter.push('preview');
+      }
+
+      const { data, error } = await supabase
+        .from('content_tasks')
+        .select(`
+          *,
+          campaigns!inner (
+            title,
+            tenant_id
+          )
+        `)
+        .eq('campaign_id', currentCampaign.id)
+        .in('status', statusFilter)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching campaign tasks:', error);
+      } else {
+        const userTasks = data?.filter(task => 
+          task.campaigns?.tenant_id === tenant.id
+        ) || [];
+        setCampaignTasks(userTasks);
+      }
+    } catch (error) {
+      console.error('Error fetching campaign tasks:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (currentCampaign) {
+      fetchCampaignTasks();
+    }
+  }, [currentCampaign, tenant, isDeveloper]);
+
+  const handleTaskClick = (task: any) => {
+    // Handle task click - could open a modal or navigate
+    console.log('Task clicked:', task);
+  };
 
   return (
     <div className="lg:col-span-2 space-y-8">
@@ -38,6 +96,9 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
         {currentCampaign ? (
           <CampaignCard 
             campaign={currentCampaign} 
+            campaignTasks={campaignTasks}
+            isGeneratingTasks={isGeneratingTasks}
+            onTaskClick={handleTaskClick}
             onTaskUpdate={onTaskUpdate}
             seasonalContent={seasonalContent} 
           />
