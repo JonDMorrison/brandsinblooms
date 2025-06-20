@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,6 +8,7 @@ import { Toaster } from 'sonner';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { LandingPage } from './components/LandingPage';
 import { SidebarLayout } from './components/SidebarLayout';
+import { Homepage } from './components/Homepage';
 import PricingPage from './pages/PricingPage';
 import Index from './pages/Index';
 import Auth from './pages/Auth';
@@ -48,12 +48,10 @@ function App() {
                     <Route path="/subscription/success" element={<SubscriptionSuccessPage />} />
                     <Route path="/admin" element={<AdminPage />} />
                     
-                    {/* All dashboard routes now use SidebarLayout with unified DashboardContent */}
-                    <Route path="/app" element={
-                      <SidebarLayout>
-                        <Index />
-                      </SidebarLayout>
-                    } />
+                    {/* Main dashboard route now uses the original Homepage design */}
+                    <Route path="/app" element={<Homepage />} />
+                    
+                    {/* Other dashboard routes continue to use SidebarLayout */}
                     <Route path="/dashboard" element={
                       <SidebarLayout>
                         <Index />
