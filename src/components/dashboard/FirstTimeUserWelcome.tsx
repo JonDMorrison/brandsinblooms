@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, CheckCircle, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-
-} from "@/hooks/useTenant";
+import { useTenant } from "@/hooks/useTenant";
 
 interface FirstTimeUserWelcomeProps {
   onGetStarted: () => void;
