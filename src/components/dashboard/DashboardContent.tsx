@@ -40,22 +40,33 @@ export const DashboardContent = ({
   console.log('🔍 DashboardContent: Rendering with user:', user?.id, 'tenant:', tenant?.id, 'isDevelopment:', isDevelopment);
 
   const fetchCampaignData = async () => {
-    if (!user || !tenant) {
-      console.log('❌ DashboardContent: No authenticated user or tenant, skipping fetch');
+    // 🔧 HYBRID: Support both tenant-based and user-based models
+    if (!user) {
+      console.log('❌ DashboardContent: No authenticated user, skipping fetch');
       setLoading(false);
       return;
     }
 
     try {
-      console.log('🔍 DashboardContent: Fetching campaign data for tenant:', tenant.id, 'week:', currentWeekNumber, 'isDevelopment:', isDevelopment);
+      console.log('🔍 DashboardContent: Fetching campaign data for user:', user.id, 'tenant:', tenant?.id || 'none', 'week:', currentWeekNumber, 'isDevelopment:', isDevelopment);
 
-      // STEP 1: Look for campaigns in this tenant, prioritizing PREVIEW campaigns in development
+      // STEP 1: Look for campaigns with hybrid approach
       console.log('🔍 DashboardContent: Looking for campaigns...');
       
       let campaignQuery = supabase
         .from('campaigns')
-        .select('*')
-        .eq('tenant_id', tenant.id);
+        .select('*');
+
+      // 🔧 HYBRID: Apply appropriate filtering based on available data
+      if (tenant?.id) {
+        // If user has tenant, use tenant-based filtering
+        campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
+        console.log('🔍 DashboardContent: Using tenant-based campaign filtering for tenant:', tenant.id);
+      } else {
+        // If no tenant, fall back to user-based filtering
+        campaignQuery = campaignQuery.eq('user_id', user.id);
+        console.log('🔍 DashboardContent: Using user-based campaign filtering for user:', user.id);
+      }
 
       // 🔧 FIXED: Only exclude PREVIEW campaigns for production users, not development
       if (!isDevelopment) {
@@ -79,7 +90,7 @@ export const DashboardContent = ({
       console.log('✅ DashboardContent: Found campaigns:', allCampaigns?.length || 0);
       
       if (!allCampaigns || allCampaigns.length === 0) {
-        console.log('❌ DashboardContent: No campaigns found for tenant:', tenant.id);
+        console.log('❌ DashboardContent: No campaigns found for user:', user.id, 'tenant:', tenant?.id || 'none');
         setActiveCampaign(undefined);
         setTasks([]);
         setLoading(false);
@@ -122,14 +133,14 @@ export const DashboardContent = ({
 
       setActiveCampaign(selectedCampaign);
 
-      // STEP 2: Fetch tasks for all campaigns
+      // STEP 2: Fetch tasks for all campaigns with hybrid approach
       const statusFilter = ['generating', 'review', 'ready', 'approved', 'posted'];
       if (isDevelopment) {
         statusFilter.push('preview');
         console.log('🔍 DashboardContent: Development mode - including preview status in filter');
       }
 
-      const { data: allTasks, error: allTasksError } = await supabase
+      let taskQuery = supabase
         .from('content_tasks')
         .select(`
           *,
@@ -147,9 +158,21 @@ export const DashboardContent = ({
             tenant_id
           )
         `)
-        .eq('tenant_id', tenant.id)
         .in('status', statusFilter)
         .order('created_at', { ascending: false });
+
+      // 🔧 HYBRID: Apply appropriate filtering based on available data
+      if (tenant?.id) {
+        // If user has tenant, use tenant-based filtering
+        taskQuery = taskQuery.eq('tenant_id', tenant.id);
+        console.log('🔍 DashboardContent: Using tenant-based task filtering for tenant:', tenant.id);
+      } else {
+        // If no tenant, fall back to user-based filtering
+        taskQuery = taskQuery.eq('user_id', user.id);
+        console.log('🔍 DashboardContent: Using user-based task filtering for user:', user.id);
+      }
+
+      const { data: allTasks, error: allTasksError } = await taskQuery;
 
       if (allTasksError) {
         console.error('❌ DashboardContent: Error fetching tasks:', allTasksError);
@@ -157,24 +180,38 @@ export const DashboardContent = ({
       } else {
         console.log('✅ DashboardContent: Successfully fetched', allTasks?.length || 0, 'tasks');
         
-        // Security verification and PREVIEW filtering
-        const tenantTasks = allTasks?.filter(task => {
-          const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
-          const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
-          
-          // 🔧 FIXED: Only exclude PREVIEW campaigns for production users
-          if (!isDevelopment && isPreviewCampaign) {
-            return false;
+        // 🔧 HYBRID: Security verification and PREVIEW filtering
+        const securityCheckedTasks = allTasks?.filter(task => {
+          if (tenant?.id) {
+            // Tenant-based security
+            const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
+            const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
+            
+            // Only exclude PREVIEW campaigns for production users
+            if (!isDevelopment && isPreviewCampaign) {
+              return false;
+            }
+            
+            return belongsToTenant;
+          } else {
+            // User-based security
+            const belongsToUser = task.campaigns && (task.campaigns.user_id === user.id || task.user_id === user.id);
+            const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
+            
+            // Only exclude PREVIEW campaigns for production users
+            if (!isDevelopment && isPreviewCampaign) {
+              return false;
+            }
+            
+            return belongsToUser;
           }
-          
-          return belongsToTenant;
         }) || [];
         
-        console.log('✅ DashboardContent: After filtering:', tenantTasks.length, 'tasks (isDevelopment:', isDevelopment, ')');
-        setTasks(tenantTasks);
+        console.log('✅ DashboardContent: After filtering:', securityCheckedTasks.length, 'tasks (isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ')');
+        setTasks(securityCheckedTasks);
 
         // STEP 3: Auto-generate content if campaign exists but has no tasks
-        if (selectedCampaign && tenantTasks.length === 0) {
+        if (selectedCampaign && securityCheckedTasks.length === 0) {
           console.log('🔍 DashboardContent: Campaign exists but no tasks found, auto-generating...');
           await autoGenerateContentForCampaign(selectedCampaign, []);
         }
@@ -207,7 +244,7 @@ export const DashboardContent = ({
           console.log('DashboardContent: Content generation completed, refetching data');
           fetchCampaignData();
         },
-        tenant.id // CRITICAL: Pass tenant_id
+        tenant?.id // 🔧 HYBRID: Pass tenant_id if available, otherwise undefined for user-based model
       );
     } catch (error) {
       console.error('DashboardContent: Error auto-generating content:', error);
@@ -217,11 +254,12 @@ export const DashboardContent = ({
   };
 
   useEffect(() => {
-    console.log('🔍 DashboardContent: useEffect triggered, user:', user?.id, 'tenant:', tenant?.id);
-    if (user && tenant && !tenantLoading) {
+    console.log('🔍 DashboardContent: useEffect triggered, user:', user?.id, 'tenant:', tenant?.id || 'none');
+    if (user && !tenantLoading) {
+      // 🔧 HYBRID: Don't wait for tenant - proceed if user is available
       fetchCampaignData();
     } else {
-      console.log('🔍 DashboardContent: No user/tenant or tenant loading, skipping data fetch');
+      console.log('🔍 DashboardContent: No user or tenant loading, skipping data fetch');
       setLoading(false);
     }
   }, [user, tenant, tenantLoading, currentWeekNumber]);
@@ -234,15 +272,18 @@ export const DashboardContent = ({
         title: activeCampaign.title,
         week_number: activeCampaign.week_number,
         tenant_id: activeCampaign.tenant_id,
+        user_id: activeCampaign.user_id,
         isPreview: activeCampaign.title?.startsWith('PREVIEW')
       } : null,
       tasksCount: tasks.length,
       loading,
       generatingContent,
-      tenantId: tenant?.id,
-      isDevelopment
+      tenantId: tenant?.id || 'none',
+      userId: user?.id,
+      isDevelopment,
+      usesTenantModel: !!tenant?.id
     });
-  }, [activeCampaign, tasks, loading, generatingContent, tenant, isDevelopment]);
+  }, [activeCampaign, tasks, loading, generatingContent, tenant, user, isDevelopment]);
 
   const handleTaskUpdate = () => {
     console.log('DashboardContent: Task update triggered, refetching campaign data');

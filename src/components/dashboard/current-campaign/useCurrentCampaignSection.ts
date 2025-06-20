@@ -17,9 +17,9 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
 
   useEffect(() => {
     const fetchTasks = async () => {
-      // 🔧 FIXED: Add better dependency checking to prevent unnecessary re-runs
-      if (!activeCampaign?.id || !user?.id || !tenant?.id) {
-        console.log('useCurrentCampaignSection: Missing requirements - activeCampaign:', !!activeCampaign?.id, 'user:', !!user?.id, 'tenant:', !!tenant?.id);
+      // 🔧 HYBRID: Support both tenant-based and user-based filtering
+      if (!activeCampaign?.id || !user?.id) {
+        console.log('useCurrentCampaignSection: Missing requirements - activeCampaign:', !!activeCampaign?.id, 'user:', !!user?.id);
         setTasks([]);
         setLoading(false);
         return;
@@ -29,9 +29,10 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
         campaignId: activeCampaign.id,
         campaignTitle: activeCampaign.title,
         isPreviewCampaign: activeCampaign.title?.startsWith('PREVIEW'),
-        tenantId: tenant.id,
+        tenantId: tenant?.id || 'none',
         currentUserId: user.id,
-        isDevelopment
+        isDevelopment,
+        usesTenantModel: !!tenant?.id
       });
       
       setLoading(true);
@@ -44,22 +45,35 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
           console.log('useCurrentCampaignSection: Development mode - including preview status');
         }
 
-        // Fetch tasks for this specific campaign with tenant security
+        // Fetch tasks for this specific campaign with hybrid security model
         console.log('useCurrentCampaignSection: Executing query for campaign_id:', activeCampaign.id);
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('content_tasks')
           .select(`
             *,
             campaigns!inner (
               title,
-              tenant_id
+              tenant_id,
+              user_id
             )
           `)
           .eq('campaign_id', activeCampaign.id)
-          .eq('tenant_id', tenant.id)  // SECURITY: Filter by current tenant
           .in('status', statusFilter)
           .order('created_at', { ascending: false });
+
+        // 🔧 HYBRID: Apply appropriate filtering based on available data
+        if (tenant?.id) {
+          // If user has tenant, use tenant-based filtering (new multi-tenant model)
+          query = query.eq('tenant_id', tenant.id);
+          console.log('useCurrentCampaignSection: Using tenant-based filtering for tenant:', tenant.id);
+        } else {
+          // If no tenant, fall back to user-based filtering (legacy single-user model)
+          query = query.eq('user_id', user.id);
+          console.log('useCurrentCampaignSection: Using user-based filtering for user:', user.id);
+        }
+
+        const { data, error } = await query;
 
         console.log('useCurrentCampaignSection: Query result:', { data, error });
 
@@ -69,36 +83,50 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
         } else {
           console.log('useCurrentCampaignSection: Raw tasks response:', data);
           
-          // Additional security check: Verify all tasks belong to current tenant
-          const tenantTasks = data?.filter(task => {
-            const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
-            console.log('useCurrentCampaignSection: Task security check:', {
-              taskId: task.id,
-              taskType: task.post_type,
-              status: task.status,
-              campaignsData: task.campaigns,
-              belongsToTenant,
-              isPreview: task.status === 'preview',
-              isPreviewCampaign: task.campaigns?.title?.startsWith('PREVIEW')
-            });
-            return belongsToTenant;
+          // 🔧 HYBRID: Security check based on available model
+          const securityCheckedTasks = data?.filter(task => {
+            if (tenant?.id) {
+              // Tenant-based security: Verify task belongs to current tenant
+              const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
+              console.log('useCurrentCampaignSection: Tenant security check:', {
+                taskId: task.id,
+                taskType: task.post_type,
+                status: task.status,
+                campaignsData: task.campaigns,
+                belongsToTenant,
+                isPreview: task.status === 'preview'
+              });
+              return belongsToTenant;
+            } else {
+              // User-based security: Verify task belongs to current user
+              const belongsToUser = task.campaigns && (task.campaigns.user_id === user.id || task.user_id === user.id);
+              console.log('useCurrentCampaignSection: User security check:', {
+                taskId: task.id,
+                taskType: task.post_type,
+                status: task.status,
+                campaignsData: task.campaigns,
+                belongsToUser,
+                isPreview: task.status === 'preview'
+              });
+              return belongsToUser;
+            }
           }) || [];
           
-          console.log('useCurrentCampaignSection: Final filtered tasks:', tenantTasks.length, 'out of', data?.length || 0, '(isDevelopment:', isDevelopment, ')');
+          console.log('useCurrentCampaignSection: Final filtered tasks:', securityCheckedTasks.length, 'out of', data?.length || 0, '(isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ')');
           
-          if (tenantTasks.length > 0) {
+          if (securityCheckedTasks.length > 0) {
             console.log('useCurrentCampaignSection: Sample task data:', {
-              id: tenantTasks[0].id,
-              post_type: tenantTasks[0].post_type,
-              status: tenantTasks[0].status,
-              hasAiOutput: !!tenantTasks[0].ai_output,
-              aiOutputPreview: tenantTasks[0].ai_output?.substring(0, 50) || 'No content',
-              isPreview: tenantTasks[0].status === 'preview'
+              id: securityCheckedTasks[0].id,
+              post_type: securityCheckedTasks[0].post_type,
+              status: securityCheckedTasks[0].status,
+              hasAiOutput: !!securityCheckedTasks[0].ai_output,
+              aiOutputPreview: securityCheckedTasks[0].ai_output?.substring(0, 50) || 'No content',
+              isPreview: securityCheckedTasks[0].status === 'preview'
             });
           }
           
-          console.log('useCurrentCampaignSection: Setting tasks state with:', tenantTasks);
-          setTasks(tenantTasks);
+          console.log('useCurrentCampaignSection: Setting tasks state with:', securityCheckedTasks);
+          setTasks(securityCheckedTasks);
         }
       } catch (error) {
         console.error('useCurrentCampaignSection: Error in fetchTasks:', error);
@@ -110,12 +138,26 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
     };
 
     fetchTasks();
-  }, [activeCampaign?.id, user?.id, tenant?.id, isDevelopment]); // 🔧 FIXED: More specific dependencies
+  }, [activeCampaign?.id, user?.id, tenant?.id, isDevelopment]); // 🔧 HYBRID: Dependencies work for both models
 
   const handleTaskClick = (task: any) => {
-    // Security check: Verify task belongs to current tenant before opening
-    if (!user || !tenant || !task.campaigns || task.campaigns.tenant_id !== tenant.id) {
-      console.error('useCurrentCampaignSection: Attempted to access task not owned by current tenant');
+    // 🔧 HYBRID: Security check based on available model
+    if (!user || !task.campaigns) {
+      console.error('useCurrentCampaignSection: Invalid task or user data');
+      return;
+    }
+
+    let hasAccess = false;
+    if (tenant?.id) {
+      // Tenant-based access control
+      hasAccess = task.campaigns.tenant_id === tenant.id;
+    } else {
+      // User-based access control
+      hasAccess = task.campaigns.user_id === user.id || task.user_id === user.id;
+    }
+
+    if (!hasAccess) {
+      console.error('useCurrentCampaignSection: Attempted to access task without proper permissions');
       return;
     }
     
@@ -134,7 +176,8 @@ export const useCurrentCampaignSection = (activeCampaign: any) => {
     loading,
     selectedTask: selectedTask?.id,
     showContentViewer,
-    isDevelopment
+    isDevelopment,
+    usesTenantModel: !!tenant?.id
   });
 
   return {
