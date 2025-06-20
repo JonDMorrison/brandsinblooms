@@ -9,6 +9,7 @@ import { CampaignContent } from "./current-campaign/CampaignContent";
 
 interface CurrentCampaignSectionProps {
   activeCampaign: any;
+  tasks: any[];
   onTaskUpdate: () => void;
   onCreateCampaign: () => void;
   onCampaignCreated: () => void;
@@ -17,6 +18,7 @@ interface CurrentCampaignSectionProps {
 
 export const CurrentCampaignSection = ({
   activeCampaign,
+  tasks,
   onTaskUpdate,
   onCreateCampaign,
   onCampaignCreated,
@@ -24,20 +26,23 @@ export const CurrentCampaignSection = ({
 }: CurrentCampaignSectionProps) => {
   const { user } = useAuth();
   const {
-    tasks,
+    tasks: hookTasks,
+    tasksCount,
     loading,
     selectedTask,
     showContentViewer,
+    isDevelopment,
+    usesTenantModel,
     handleTaskClick,
     handleContentViewerClose
-  } = useCurrentCampaignSection(activeCampaign);
+  } = useCurrentCampaignSection(activeCampaign, tasks);
 
   console.log('🔍 CurrentCampaignSection: Rendering with:', {
     hasUser: !!user,
     hasActiveCampaign: !!activeCampaign,
     activeCampaignTitle: activeCampaign?.title,
     activeCampaignId: activeCampaign?.id,
-    tasksCount: tasks.length,
+    tasksCount,
     loading
   });
 
@@ -79,7 +84,7 @@ export const CurrentCampaignSection = ({
     <>
       <CampaignContent
         activeCampaign={activeCampaign}
-        tasks={tasks}
+        tasks={hookTasks}
         onTaskClick={handleTaskClickInternal}
         onTaskUpdate={onTaskUpdate}
       />

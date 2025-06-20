@@ -62,6 +62,7 @@ export const useCurrentCampaignSection = (activeCampaign: any, tasks: any[]) => 
   });
 
   return {
+    tasks,
     tasksCount,
     loading,
     selectedTask,
