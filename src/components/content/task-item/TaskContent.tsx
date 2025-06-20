@@ -16,11 +16,11 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
 
   if (task.ai_output) {
-    // FIXED: Better newsletter detection and display logic
+    // Check if this is a newsletter and use appropriate display
     if (task.post_type === 'newsletter') {
       // Check if it's a structured newsletter (YAML format)
       const isStructuredNewsletter = task.ai_output.includes('newsletter_md:') || 
-                                   task.ai_output.includes('title:') ||
+                                   task.ai_output.includes('blocks:') ||
                                    task.ai_output.startsWith('---');
       
       if (isStructuredNewsletter) {
@@ -32,7 +32,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
           />
         );
       } else {
-        // Use MagazineContentDisplay for plain text newsletters with enhanced parsing
+        // Use MagazineContentDisplay for plain text newsletters
         return (
           <MagazineContentDisplay 
             content={task.ai_output}

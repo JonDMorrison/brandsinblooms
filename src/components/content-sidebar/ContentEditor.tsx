@@ -36,7 +36,8 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
   }
 
   // Check if this is a structured newsletter for magazine display
-  const isStructuredNewsletter = task?.post_type === 'newsletter' && content.includes('newsletter_md:');
+  const isStructuredNewsletter = task?.post_type === 'newsletter' && 
+    (content.includes('newsletter_md:') || content.includes('blocks:') || content.startsWith('---'));
   
   return (
     <div className="space-y-2">

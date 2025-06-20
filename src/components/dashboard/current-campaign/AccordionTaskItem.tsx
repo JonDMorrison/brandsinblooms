@@ -13,7 +13,7 @@ import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
-import { StructuredNewsletterDisplay } from "@/components/content-sidebar/StructuredNewsletterDisplay";
+import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
 
 interface AccordionTaskItemProps {
   task: any;
@@ -202,9 +202,10 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
                     className="bg-white min-h-0"
                   />
                 ) : isStructuredNewsletter ? (
-                  <div className="p-6">
-                    <StructuredNewsletterDisplay content={task.ai_output} />
-                  </div>
+                  <MagazineNewsletterDisplay 
+                    content={task.ai_output}
+                    className="p-6"
+                  />
                 ) : (task.post_type === 'newsletter') ? (
                   <div className="p-6">
                     <div 
