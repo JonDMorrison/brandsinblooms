@@ -140,11 +140,11 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
       )}
 
       {/* Action Buttons */}
-      <div className={`
-        flex gap-2 flex-wrap
-        ${isMobile ? 'justify-center' : 'justify-start'}
-      `}>
-        <TooltipProvider>
+      <TooltipProvider>
+        <div className={`
+          flex gap-2 flex-wrap
+          ${isMobile ? 'justify-center' : 'justify-start'}
+        `}>
           <Tooltip>
             <TooltipTrigger asChild>
               <EnhancedAppleButton
@@ -165,9 +165,7 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
               <p>Edit content</p>
             </TooltipContent>
           </Tooltip>
-        </TooltipProvider>
 
-        <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <EnhancedAppleButton
@@ -188,9 +186,7 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
               <p>Copy content to clipboard</p>
             </TooltipContent>
           </Tooltip>
-        </TooltipProvider>
 
-        <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <EnhancedAppleButton
@@ -211,29 +207,29 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
               <p>View full content</p>
             </TooltipContent>
           </Tooltip>
-        </TooltipProvider>
 
-        {!isMobile && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <EnhancedAppleButton
-                size="sm"
-                variant="tertiary"
-                onClick={handleDelete}
-                disabled={deletingTask}
-                loading={deletingTask}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                iconAnimation="bounce"
-              >
-                <Trash2 className="w-3 h-3" />
-              </EnhancedAppleButton>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Delete this content</p>
-            </TooltipContent>
-          </Tooltip>
-        )}
-      </div>
+          {!isMobile && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <EnhancedAppleButton
+                  size="sm"
+                  variant="tertiary"
+                  onClick={handleDelete}
+                  disabled={deletingTask}
+                  loading={deletingTask}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  iconAnimation="bounce"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </EnhancedAppleButton>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete this content</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+      </TooltipProvider>
     </div>
   );
 };
