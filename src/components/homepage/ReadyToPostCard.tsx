@@ -3,13 +3,12 @@ import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
 import { BodyMedium } from "@/components/ui/typography";
-import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { ContentViewer } from "@/components/content/ContentViewer";
-import { SimpleReadyToPostCard } from "./ready-to-post/SimpleReadyToPostCard";
+import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostItem";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ReadyToPostCardProps {
@@ -58,7 +57,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           .in('status', statusFilter)  // Include approved, posted, and preview (for dev)
           .not('ai_output', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(12); // Show more items in simplified view
+          .limit(12); // Show more items in accordion view
 
         if (error) {
           console.error('ReadyToPostCard: Error fetching ready tasks:', error);
@@ -107,7 +106,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           // Updated filter to include approved, posted, and preview (for dev) content
           return belongsToTenant && statusFilter.includes(task.status) && task.ai_output;
         })
-        .slice(0, 12); // Show more items in simplified view
+        .slice(0, 12); // Show more items in accordion view
       
       console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned ready tasks');
       setTasks(readyTasks);
@@ -116,7 +115,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     }
   }, [user, tenant, propTasks, isDeveloper]);
 
-  const handleTaskClick = (task: any) => {
+  const handleTaskViewFull = (task: any) => {
     // SECURITY CHECK: Verify task belongs to current tenant before opening
     if (!user || !tenant || !task.campaigns || task.campaigns.tenant_id !== tenant.id) {
       console.error('ReadyToPostCard: Attempted to access task not owned by current tenant');
@@ -181,25 +180,20 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         data-ready-to-post-section="true"
       >
         <AppleCardContent className="apple-card-spacing">
-          <ResponsiveGrid 
-            cols={{ mobile: 1, tablet: 2, desktop: 4 }}
-            gap={{ mobile: "gap-4", tablet: "gap-4", desktop: "gap-4" }}
-            animated={true}
-            staggerDelay={100}
-          >
+          <div className="space-y-2">
             {tasks.map((task, index) => (
               <div 
                 key={task.id}
-                className="relative"
                 style={{ animationDelay: `${index * 75}ms` }}
               >
-                <SimpleReadyToPostCard
+                <AccordionReadyToPostItem
                   task={task}
-                  onClick={handleTaskClick}
+                  onViewFull={handleTaskViewFull}
+                  onTaskUpdate={onTaskUpdate}
                 />
               </div>
             ))}
-          </ResponsiveGrid>
+          </div>
         </AppleCardContent>
       </EnhancedAppleCard>
 
