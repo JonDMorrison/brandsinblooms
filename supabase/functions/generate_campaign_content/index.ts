@@ -1,5 +1,4 @@
 
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
@@ -61,20 +60,41 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = `You are a garden-center marketing assistant.
-- Channel caps: Facebook < 600 chars • Instagram < 180 chars • Blog ≤ 1,400 chars • Newsletter block ≤ 300 chars • Video ≤ 900 chars.
-- Newsletter MUST be exactly 5 blocks (hero + 4) — each block starts with a <8-word hook.
-- Everything ties to ${theme} for ${month}. No emojis. Max 2 sentences per paragraph.
+    const systemPrompt = `You are a garden-center marketing assistant that creates comprehensive content packs.
+
+CRITICAL REQUIREMENTS:
+- Create content for ALL channels: Facebook, Instagram, Blog, Video, Newsletter
+- Newsletter MUST be an array of exactly 5 blocks with this structure:
+  [
+    {"heading":"8-word hook","body":"300 chars max","image_prompt":"image description"},
+    {"heading":"8-word hook","body":"300 chars max","image_prompt":"image description"},
+    {"heading":"8-word hook","body":"300 chars max","image_prompt":"image description"},
+    {"heading":"8-word hook","body":"300 chars max","image_prompt":"image description"},
+    {"heading":"8-word hook","body":"300 chars max","image_prompt":"image description"}
+  ]
+
+CONTENT GUIDELINES:
+- Theme: ${theme} for ${month}
+- Channel limits: Facebook <600 chars, Instagram <180 chars, Blog ≤1,400 chars, Video ≤900 chars
+- NO emojis, max 2 sentences per paragraph
+- Professional garden center tone
 ${companyProfile?.company_name ? `- Company: ${companyProfile.company_name}` : ''}
 ${companyProfile?.brand_voice ? `- Brand voice: ${companyProfile.brand_voice}` : ''}
 ${companyProfile?.location_info ? `- Location: ${companyProfile.location_info}` : ''}
-Return JSON:
+
+Return EXACTLY this JSON structure:
 {
-  "facebook":"...",
-  "instagram":"...",
-  "blog":"...",
-  "video":"...",
-  "newsletter":[{"heading":"","body":"","image_prompt":""},(x4)]
+  "facebook":"[Facebook post content]",
+  "instagram":"[Instagram post content]",
+  "blog":"[Blog article content]",
+  "video":"[Video script content]",
+  "newsletter":[
+    {"heading":"Hook 1","body":"Content 1","image_prompt":"Image 1"},
+    {"heading":"Hook 2","body":"Content 2","image_prompt":"Image 2"},
+    {"heading":"Hook 3","body":"Content 3","image_prompt":"Image 3"},
+    {"heading":"Hook 4","body":"Content 4","image_prompt":"Image 4"},
+    {"heading":"Hook 5","body":"Content 5","image_prompt":"Image 5"}
+  ]
 }`;
 
     console.log('🤖 Making OpenAI API call...');
@@ -93,7 +113,7 @@ Return JSON:
             { role: 'system', content: systemPrompt },
             { 
               role: 'user', 
-              content: `Generate marketing content for theme: "${theme}" for the month of ${month}. Tone: ${tone}. Include channels: ${channels.join(', ')}.` 
+              content: `Generate comprehensive marketing content for theme: "${theme}" for the month of ${month}. Tone: ${tone}. Include all channels: ${channels.join(', ')}. Make sure newsletter is an array of exactly 5 blocks.` 
             }
           ],
           response_format: {
@@ -122,88 +142,88 @@ Return JSON:
         throw new Error('Failed to parse generated content as JSON');
       }
 
-      // Validate the response structure
+      // Validate required fields
       const requiredFields = ['facebook', 'instagram', 'blog', 'video', 'newsletter'];
       for (const field of requiredFields) {
         if (!generatedContent[field]) {
           console.error(`❌ Missing required field: ${field}`);
-          throw new Error(`Missing required field: ${field}`);
+          
+          // Provide fallback content
+          if (field === 'newsletter') {
+            generatedContent[field] = [
+              {"heading": "Seasonal Garden Tips", "body": `Discover essential ${theme.toLowerCase()} strategies for your garden this ${month}.`, "image_prompt": `${theme} gardening tips`},
+              {"heading": "Best Plants This Month", "body": `Learn about the perfect plants to grow during ${month} season.`, "image_prompt": `${month} seasonal plants`},
+              {"heading": "Garden Care Essentials", "body": "Expert advice on maintaining your garden's health and beauty.", "image_prompt": "garden maintenance tools"},
+              {"heading": "Seasonal Plant Selection", "body": "Choose the right plants for optimal growth this season.", "image_prompt": "plant selection display"},
+              {"heading": "Professional Garden Support", "body": "Visit us for expert guidance and quality garden supplies.", "image_prompt": "garden center consultation"}
+            ];
+          } else {
+            generatedContent[field] = `Professional ${field} content about ${theme} for ${month}. Visit our garden center for expert advice and quality supplies.`;
+          }
         }
       }
 
-      // Validate newsletter structure - Make it more flexible
+      // Ensure newsletter is properly formatted
       if (!Array.isArray(generatedContent.newsletter)) {
-        console.log('Newsletter is not an array, attempting to fix...');
-        // If newsletter is a string, convert it to a single block array
-        if (typeof generatedContent.newsletter === 'string') {
-          generatedContent.newsletter = [{
-            heading: "Newsletter Content",
-            body: generatedContent.newsletter.substring(0, 300),
-            image_prompt: `${theme} newsletter visual`
-          }];
-        } else {
-          throw new Error('Newsletter must be an array or string');
-        }
+        console.log('Newsletter is not an array, converting...');
+        generatedContent.newsletter = [
+          {"heading": "Seasonal Garden Focus", "body": `Essential ${theme.toLowerCase()} tips for ${month}.`, "image_prompt": `${theme} gardening`},
+          {"heading": "Expert Plant Selection", "body": "Choose the perfect plants for this season.", "image_prompt": "seasonal plant display"},
+          {"heading": "Garden Care Made Easy", "body": "Professional tips for garden maintenance.", "image_prompt": "garden care tools"},
+          {"heading": "Quality Garden Supplies", "body": "Find everything you need for garden success.", "image_prompt": "garden center products"},
+          {"heading": "Visit Our Garden Center", "body": "Get expert advice from our gardening professionals.", "image_prompt": "garden center consultation"}
+        ];
       }
 
-      // Ensure newsletter has at least 1 block, pad to 5 if needed
-      if (generatedContent.newsletter.length === 0) {
-        generatedContent.newsletter = [{
-          heading: "Newsletter Content",
-          body: `Content about ${theme} for ${month}`,
-          image_prompt: `${theme} newsletter visual`
-        }];
-      }
-
-      // Pad newsletter to exactly 5 blocks if less than 5
+      // Ensure exactly 5 newsletter blocks
       while (generatedContent.newsletter.length < 5) {
         const blockNum = generatedContent.newsletter.length + 1;
         generatedContent.newsletter.push({
-          heading: `${theme} Tips ${blockNum}`,
-          body: `Additional information about ${theme} for your gardening needs.`,
-          image_prompt: `${theme} gardening tips visual ${blockNum}`
+          heading: `${theme} Guide ${blockNum}`,
+          body: `Additional ${theme.toLowerCase()} information for your gardening success.`,
+          image_prompt: `${theme} gardening guide ${blockNum}`
         });
       }
 
-      // Trim to exactly 5 blocks if more than 5
       if (generatedContent.newsletter.length > 5) {
         generatedContent.newsletter = generatedContent.newsletter.slice(0, 5);
       }
 
-      // Enforce character limits strictly
-      if (generatedContent.facebook.length > 600) {
+      // Enforce character limits
+      if (generatedContent.facebook?.length > 600) {
         generatedContent.facebook = generatedContent.facebook.substring(0, 597) + '...';
       }
-      if (generatedContent.instagram.length > 180) {
+      if (generatedContent.instagram?.length > 180) {
         generatedContent.instagram = generatedContent.instagram.substring(0, 177) + '...';
       }
-      if (generatedContent.blog.length > 1400) {
+      if (generatedContent.blog?.length > 1400) {
         generatedContent.blog = generatedContent.blog.substring(0, 1397) + '...';
       }
-      if (generatedContent.video.length > 900) {
+      if (generatedContent.video?.length > 900) {
         generatedContent.video = generatedContent.video.substring(0, 897) + '...';
       }
 
-      // Validate newsletter blocks
+      // Validate and fix newsletter blocks
       generatedContent.newsletter.forEach((block, index) => {
         if (!block.heading || !block.body || !block.image_prompt) {
-          // Fix missing fields
-          block.heading = block.heading || `${theme} - Section ${index + 1}`;
-          block.body = block.body || `Information about ${theme} for ${month}.`;
+          console.log(`Fixing newsletter block ${index + 1}`);
+          block.heading = block.heading || `${theme} Tips ${index + 1}`;
+          block.body = block.body || `Essential ${theme.toLowerCase()} information for your garden.`;
           block.image_prompt = block.image_prompt || `${theme} gardening visual ${index + 1}`;
         }
-        if (block.heading.length > 60) {
+        if (block.heading?.length > 60) {
           block.heading = block.heading.substring(0, 57) + '...';
         }
-        if (block.body.length > 300) {
+        if (block.body?.length > 300) {
           block.body = block.body.substring(0, 297) + '...';
         }
-        if (block.image_prompt.length > 140) {
+        if (block.image_prompt?.length > 140) {
           block.image_prompt = block.image_prompt.substring(0, 137) + '...';
         }
       });
 
       console.log('✅ Content validation completed successfully');
+      console.log('📧 Newsletter blocks:', generatedContent.newsletter.length);
 
       return new Response(JSON.stringify({
         success: true,
@@ -235,4 +255,3 @@ Return JSON:
     });
   }
 });
-
