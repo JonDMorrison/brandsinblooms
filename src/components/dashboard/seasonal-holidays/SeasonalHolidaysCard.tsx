@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -162,15 +161,6 @@ export const SeasonalHolidaysCard = ({
   return (
     <>
       <div className={cn('space-y-6', className)}>
-        {/* Modern Header Section */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-          </div>
-        </div>
-
         {/* Holiday Cards Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {holidays.map((holiday, index) => (
