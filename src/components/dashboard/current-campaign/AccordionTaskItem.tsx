@@ -14,6 +14,8 @@ import { CompactImageCarousel } from "@/components/homepage/ready-to-post/Compac
 import { ApproveButton } from "@/components/ui/approve-button";
 import { BlogContentDisplay } from "@/components/content-sidebar/BlogContentDisplay";
 import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
+import { validateFacebookContent } from '@/utils/facebookContentValidator';
+import { ContentComplianceBadge } from '@/components/ui/content-compliance-badge';
 
 interface AccordionTaskItemProps {
   task: any;
@@ -43,6 +45,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
   
   let cleanContent = '';
   let previewText = '';
+  let facebookValidation = null;
   
   if (hasContent) {
     if (isStructuredNewsletter) {
@@ -58,6 +61,12 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
       // Process content through the appropriate formatter
       cleanContent = cleanContentForDisplay(task.ai_output, task.post_type);
       previewText = truncateText(cleanContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
+      
+      // Validate Facebook content if applicable
+      if (task.post_type === 'facebook') {
+        const textContent = cleanContent.replace(/<[^>]*>/g, '').trim();
+        facebookValidation = validateFacebookContent(textContent);
+      }
     }
   } else {
     previewText = 'Content will be generated soon...';
@@ -170,6 +179,13 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
                   <span className="text-xs text-gray-500">
                     {blogMetadata.readingTime} min read
                   </span>
+                )}
+                {facebookValidation && (
+                  <ContentComplianceBadge
+                    wordCount={facebookValidation.wordCount}
+                    maxWords={facebookValidation.maxWords}
+                    issues={facebookValidation.issues}
+                  />
                 )}
                 {imageCount > 0 && (
                   <div className="flex items-center gap-1 text-sm text-gray-500">

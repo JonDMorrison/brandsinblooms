@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterJson } from '@/utils/contentUtils';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
+import { validateFacebookContent } from '@/utils/facebookContentValidator';
+import { ContentComplianceBadge } from '@/components/ui/content-compliance-badge';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -129,6 +131,9 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
   };
 
   const { text, hashtags } = formatContent(content);
+  
+  // Validate Facebook content compliance
+  const facebookValidation = postType === 'facebook' ? validateFacebookContent(text) : null;
 
   if (postType === 'newsletter') {
     const { title, sections, isStructured } = parseNewsletterContent(content);
@@ -268,14 +273,38 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
         {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          {getPostTypeIcon()}
-          <div>
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-3">
+            {getPostTypeIcon()}
             <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">
               Facebook Post
             </Badge>
           </div>
+          {facebookValidation && (
+            <ContentComplianceBadge
+              wordCount={facebookValidation.wordCount}
+              maxWords={facebookValidation.maxWords}
+              issues={facebookValidation.issues}
+            />
+          )}
         </div>
+
+        {/* Content Guidelines Alert */}
+        {facebookValidation && !facebookValidation.isValid && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <div className="text-yellow-600 mt-0.5">⚠️</div>
+              <div className="text-sm">
+                <p className="font-medium text-yellow-800 mb-1">Content Guidelines Issues:</p>
+                <ul className="text-yellow-700 space-y-1">
+                  {facebookValidation.issues.map((issue, index) => (
+                    <li key={index}>• {issue}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 60/40 Layout: Text (60%) and Image (40%) */}
         <div className="flex gap-4 mb-4">
