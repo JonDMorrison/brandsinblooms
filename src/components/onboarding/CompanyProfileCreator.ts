@@ -4,8 +4,58 @@ import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenera
 
 export const createCompanyProfileFromOnboarding = async (onboardingData: any, userId: string) => {
   try {
-    console.log('Creating company profile from onboarding data:', onboardingData);
+    console.log('🔧 Creating company profile from onboarding data:', onboardingData);
     
+    // STEP 1: Get or create tenant for the user
+    let tenant;
+    const { data: existingUser, error: userError } = await supabase
+      .from('users')
+      .select('tenant_id, tenants(*)')
+      .eq('id', userId)
+      .single();
+
+    if (userError && userError.code !== 'PGRST116') {
+      console.error('Error fetching user tenant:', userError);
+    }
+
+    if (existingUser?.tenant_id && existingUser.tenants) {
+      tenant = existingUser.tenants;
+      console.log('✅ Using existing tenant:', tenant.id);
+    } else {
+      // Create a new tenant for this user
+      const { data: newTenant, error: tenantError } = await supabase
+        .from('tenants')
+        .insert({
+          name: onboardingData.aboutBusiness?.split('.')[0] || 'My Garden Center',
+          slug: `tenant-${userId.slice(0, 8)}`,
+          settings: {},
+          is_active: true
+        })
+        .select()
+        .single();
+
+      if (tenantError) {
+        console.error('Error creating tenant:', tenantError);
+        throw new Error('Failed to create tenant');
+      }
+
+      // Update user with tenant_id
+      const { error: updateUserError } = await supabase
+        .from('users')
+        .upsert({
+          id: userId,
+          tenant_id: newTenant.id
+        });
+
+      if (updateUserError) {
+        console.error('Error updating user with tenant_id:', updateUserError);
+        throw new Error('Failed to assign user to tenant');
+      }
+
+      tenant = newTenant;
+      console.log('✅ Created new tenant:', tenant.id);
+    }
+
     // Generate company profile using the existing edge function
     const { data: profileResponse, error: profileError } = await supabase.functions.invoke('generate-company-profile', {
       body: {
@@ -37,7 +87,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       throw new Error('Failed to save company profile');
     }
 
-    console.log('Company profile created successfully:', savedProfile);
+    console.log('✅ Company profile created successfully:', savedProfile);
 
     // Calculate current week number
     const getCurrentWeekNumber = () => {
@@ -49,9 +99,9 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
 
     const currentWeek = getCurrentWeekNumber();
 
-    // 🚀 NEW: Automatically generate ALL 52-week themes for the entire year
+    // 🚀 NEW: Automatically generate ALL 52-week themes for the entire year WITH TENANT SUPPORT
     try {
-      console.log('🎯 Auto-generating complete 52-week garden center theme collection...');
+      console.log('🎯 Auto-generating complete 52-week garden center theme collection with tenant support...');
       
       const { data: themesData, error: themesError } = await supabase.functions.invoke('generate-weekly-themes', {
         body: { 
@@ -65,7 +115,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         // Don't throw here - profile creation was successful, themes are optional
       } else if (themesData?.themes && Array.isArray(themesData.themes)) {
         
-        // Save all 52 themes as campaigns
+        // Save all 52 themes as campaigns WITH TENANT_ID
         const campaigns = themesData.themes.map((theme: any, index: number) => {
           const startDate = new Date();
           startDate.setDate(startDate.getDate() + (index * 7));
@@ -81,6 +131,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
             start_date: startDate.toISOString().split('T')[0],
             prompt: theme.content_ideas.join(' • '),
             user_id: userId,
+            tenant_id: tenant.id,  // 🔧 CRITICAL FIX: Include tenant_id
             source: 'auto_generated_52_weeks'
           };
         });
@@ -93,14 +144,14 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
         if (campaignError) {
           console.error('Error saving auto-generated 52-week campaigns:', campaignError);
         } else {
-          console.log(`✅ Successfully auto-generated complete 52-week garden center theme collection (${themesData.themes.length} themes)`);
+          console.log(`✅ Successfully auto-generated complete 52-week garden center theme collection (${themesData.themes.length} themes) with tenant_id: ${tenant.id}`);
           
           // 🚀 Generate content for the FIRST week (current week) to create amazing first impression
           if (createdCampaigns && createdCampaigns.length > 0) {
             // Find the campaign for the current week
             const currentWeekCampaign = createdCampaigns.find(c => c.week_number === currentWeek) || createdCampaigns[0];
             
-            console.log('🎯 Auto-generating FIRST WEEK content for immediate wow factor:', currentWeekCampaign.title);
+            console.log('🎯 Auto-generating FIRST WEEK content for immediate wow factor:', currentWeekCampaign.title, 'with tenant_id:', tenant.id);
             
             try {
               // Create a dummy callback function for onTaskUpdate since we're in onboarding
@@ -113,10 +164,25 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
                 currentWeekCampaign.id, 
                 createdCampaigns, 
                 userId, 
-                dummyTaskUpdate
+                dummyTaskUpdate,
+                tenant.id  // 🔧 CRITICAL FIX: Pass tenant_id to content generation
               );
               
-              console.log('🎉 FIRST WEEK CONTENT GENERATED! User will see 5 ready posts on dashboard');
+              console.log('🎉 FIRST WEEK CONTENT GENERATED with tenant_id! User will see 5 ready posts on dashboard');
+              
+              // Verify content was created with tenant_id
+              const { data: verifyContent, error: verifyError } = await supabase
+                .from('content_tasks')
+                .select('id, post_type, status, tenant_id')
+                .eq('campaign_id', currentWeekCampaign.id)
+                .eq('tenant_id', tenant.id);
+
+              if (verifyError) {
+                console.error('Error verifying generated content:', verifyError);
+              } else {
+                console.log('✅ Content verification - Generated tasks:', verifyContent?.length || 0, 'for tenant:', tenant.id);
+                console.log('📋 Generated content details:', verifyContent);
+              }
               
               // Mark this user as having completed their first onboarding content generation
               const { error: updateError } = await supabase
@@ -132,7 +198,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
               }
                 
             } catch (contentError) {
-              console.error('Error generating first week content during onboarding:', contentError);
+              console.error('🚨 Error generating first week content during onboarding:', contentError);
               // Don't throw - profile and themes were successful
             }
           }
@@ -145,7 +211,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
     
     return savedProfile;
   } catch (error) {
-    console.error('Error creating company profile:', error);
+    console.error('🚨 Error creating company profile:', error);
     throw error;
   }
 };

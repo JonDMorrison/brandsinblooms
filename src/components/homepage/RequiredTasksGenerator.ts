@@ -1,165 +1,75 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { generateCampaignContent } from "./ContentGenerationServices";
+
+interface Campaign {
+  id: string;
+  title: string;
+  theme?: string;
+  description?: string;
+  week_number?: number;
+  tenant_id?: string;
+}
 
 export const generateRequiredTasks = async (
   campaignId: string,
-  campaigns: any[],
+  campaigns: Campaign[],
   userId: string,
-  onTaskUpdate: () => void
+  onTaskUpdate: () => void,
+  tenantId?: string  // 🔧 NEW: Accept tenant_id parameter
 ) => {
-  console.log('=== GENERATE REQUIRED TASKS START ===');
-  console.log('Parameters:', { campaignId, campaignsCount: campaigns.length, userId });
-  
-  const requiredPostTypes = ['newsletter', 'instagram', 'facebook', 'email', 'video'];
-  
   try {
-    // Get current tasks for this campaign
-    console.log('Fetching existing tasks for campaign:', campaignId);
-    const { data: existingTasks, error: fetchError } = await supabase
-      .from('content_tasks')
-      .select('post_type')
-      .eq('campaign_id', campaignId);
-
-    if (fetchError) {
-      console.error('Error fetching existing tasks:', fetchError);
-      throw new Error(`Failed to fetch existing tasks: ${fetchError.message}`);
-    }
-
-    console.log('Existing tasks found:', existingTasks);
-    const existingPostTypes = existingTasks?.map(task => task.post_type) || [];
-    const missingPostTypes = requiredPostTypes.filter(type => !existingPostTypes.includes(type));
-
-    console.log('Missing post types:', missingPostTypes);
-
-    if (missingPostTypes.length === 0) {
-      console.log('All required tasks already exist for campaign:', campaignId);
-      return { message: 'All tasks already exist' };
-    }
-
-    // Find the campaign
+    console.log('🚀 RequiredTasksGenerator: Starting content generation for campaign:', campaignId, 'with tenant_id:', tenantId);
+    
     const campaign = campaigns.find(c => c.id === campaignId);
     if (!campaign) {
-      console.error('Campaign not found:', campaignId);
-      throw new Error(`Campaign not found: ${campaignId}`);
+      throw new Error('Campaign not found');
     }
 
-    console.log(`Creating ${missingPostTypes.length} missing tasks for campaign:`, campaign.title);
+    // Get tenant_id from campaign if not provided
+    const finalTenantId = tenantId || campaign.tenant_id;
+    if (!finalTenantId) {
+      console.warn('⚠️ No tenant_id provided - content may not be visible in dashboard');
+    }
 
-    // Create tasks for missing post types with 'planned' status
-    const tasksToCreate = missingPostTypes.map(postType => ({
-      campaign_id: campaignId,
-      post_type: postType,
-      status: 'planned', // Start with planned status
-      scheduled_date: campaign.start_date
-    }));
-
-    console.log('Tasks to create:', tasksToCreate);
-
-    const { data: createdTasks, error: createError } = await supabase
+    // Check if tasks already exist for this campaign
+    const { data: existingTasks, error: checkError } = await supabase
       .from('content_tasks')
-      .insert(tasksToCreate)
-      .select();
+      .select('id, post_type')
+      .eq('campaign_id', campaignId);
 
-    if (createError) {
-      console.error('Error creating tasks:', createError);
-      throw new Error(`Failed to create content tasks: ${createError.message}`);
+    if (checkError) {
+      console.error('Error checking existing tasks:', checkError);
+      throw checkError;
     }
 
-    console.log('Created tasks:', createdTasks);
-
-    // Generate content for each task
-    if (createdTasks) {
-      for (const task of createdTasks) {
-        try {
-          console.log(`🤖 Generating content for ${task.post_type} task:`, task.id);
-          
-          // Update task status to generating first
-          await supabase
-            .from('content_tasks')
-            .update({ status: 'generating' })
-            .eq('id', task.id);
-          
-          console.log('About to call supabase.functions.invoke with:', {
-            functionName: 'generate-content',
-            body: {
-              postType: task.post_type,
-              campaignTitle: campaign.title,
-              userId: userId,
-              weekDescription: campaign.description
-            }
-          });
-          
-          const response = await supabase.functions.invoke('generate-content', {
-            body: {
-              postType: task.post_type,
-              campaignTitle: campaign.title,
-              userId: userId,
-              weekDescription: campaign.description
-            }
-          });
-
-          console.log('Supabase function response:', response);
-
-          if (response.error) {
-            console.error(`Error from generate-content function for ${task.post_type}:`, response.error);
-            // Update task status back to planned on error
-            await supabase
-              .from('content_tasks')
-              .update({ status: 'planned' })
-              .eq('id', task.id);
-            
-            console.log(`Continuing with other tasks despite ${task.post_type} failure`);
-            continue;
-          }
-
-          console.log('Raw response data:', response.data);
-          const { content } = response.data;
-          
-          if (!content) {
-            console.error(`No content returned for ${task.post_type}. Full response:`, response.data);
-            await supabase
-              .from('content_tasks')
-              .update({ status: 'planned' })
-              .eq('id', task.id);
-            continue;
-          }
-          
-          // Update task with generated content and set status to 'review' for review
-          console.log(`Updating task ${task.id} with generated content`);
-          const { error: updateError } = await supabase
-            .from('content_tasks')
-            .update({ 
-              ai_output: content,
-              status: 'review' // Changed from 'draft' to 'review' so it goes through review process
-            })
-            .eq('id', task.id);
-
-          if (updateError) {
-            console.error(`Error updating task ${task.id}:`, updateError);
-          } else {
-            console.log(`Generated ${task.post_type} content successfully - awaiting review`);
-          }
-        } catch (error) {
-          console.error(`Error generating ${task.post_type} content:`, error);
-          // Update task status back to planned on error
-          await supabase
-            .from('content_tasks')
-            .update({ status: 'planned' })
-            .eq('id', task.id);
-        }
-      }
+    if (existingTasks && existingTasks.length > 0) {
+      console.log('Tasks already exist for campaign, skipping generation');
+      return;
     }
 
-    console.log('Content generation completed - all content awaiting review');
+    // Generate campaign content using the enhanced service
+    const result = await generateCampaignContent(
+      campaignId,
+      campaign.theme || campaign.title,
+      campaign.description || '',
+      userId,
+      campaign.week_number,
+      finalTenantId  // 🔧 CRITICAL FIX: Pass tenant_id to content generation
+    );
+
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to generate content');
+    }
+
+    console.log('✅ RequiredTasksGenerator: Content generation completed successfully with tenant support');
+    
+    // Trigger task update callback
     onTaskUpdate();
     
-    return { message: 'Content generation completed - awaiting review', tasksCreated: createdTasks?.length || 0 };
-    
+    return result;
   } catch (error) {
-    console.error('=== ERROR IN GENERATE REQUIRED TASKS ===');
-    console.error('Error details:', error);
+    console.error('🚨 RequiredTasksGenerator: Error generating required tasks:', error);
     throw error;
-  } finally {
-    console.log('=== GENERATE REQUIRED TASKS END ===');
   }
 };

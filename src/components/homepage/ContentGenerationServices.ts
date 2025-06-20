@@ -134,9 +134,10 @@ export const generateCampaignContent = async (
   theme: string,
   description: string,
   userId: string,
-  weekNumber?: number
+  weekNumber?: number,
+  tenantId?: string  // 🔧 NEW: Accept tenant_id parameter
 ) => {
-  console.log(`🎯 Generating campaign content pack for campaign: ${campaignId}`);
+  console.log(`🎯 Generating campaign content pack for campaign: ${campaignId} with tenant_id: ${tenantId}`);
   
   try {
     // Get current month for the new edge function
@@ -182,7 +183,7 @@ export const generateCampaignContent = async (
       throw new Error('Failed to process tokens for content generation');
     }
 
-    // Create content tasks for each type
+    // Create content tasks for each type WITH TENANT_ID
     const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
     const results = [];
 
@@ -196,17 +197,24 @@ export const generateCampaignContent = async (
           continue;
         }
 
+        const taskData: any = {
+          campaign_id: campaignId,
+          post_type: type,
+          ai_output: content,
+          status: 'review',
+          scheduled_date: new Date().toISOString().split('T')[0],
+          user_id: userId,
+          notes: `Generated from theme: ${theme}`
+        };
+
+        // 🔧 CRITICAL FIX: Include tenant_id if provided
+        if (tenantId) {
+          taskData.tenant_id = tenantId;
+        }
+
         const { data: task, error: taskError } = await supabase
           .from('content_tasks')
-          .insert({
-            campaign_id: campaignId,
-            post_type: type,
-            ai_output: content,
-            status: 'review',
-            scheduled_date: new Date().toISOString().split('T')[0],
-            user_id: userId,
-            notes: `Generated from theme: ${theme}`
-          })
+          .insert(taskData)
           .select()
           .single();
 
@@ -214,7 +222,7 @@ export const generateCampaignContent = async (
           console.error(`❌ Error creating ${type} task:`, taskError);
         } else {
           results.push(task);
-          console.log(`✅ Created ${type} content task with status 'review'`);
+          console.log(`✅ Created ${type} content task with status 'review' and tenant_id: ${tenantId}`);
           
           // Auto-generate images for the task (make this optional)
           try {
@@ -250,17 +258,24 @@ export const generateCampaignContent = async (
         description
       );
 
+      const newsletterTaskData: any = {
+        campaign_id: campaignId,
+        post_type: 'newsletter',
+        ai_output: newsletterContent,
+        status: 'review',
+        scheduled_date: new Date().toISOString().split('T')[0],
+        user_id: userId,
+        notes: `Structured newsletter generated from theme: ${theme}`
+      };
+
+      // 🔧 CRITICAL FIX: Include tenant_id if provided
+      if (tenantId) {
+        newsletterTaskData.tenant_id = tenantId;
+      }
+
       const { data: newsletterTask, error: newsletterError } = await supabase
         .from('content_tasks')
-        .insert({
-          campaign_id: campaignId,
-          post_type: 'newsletter',
-          ai_output: newsletterContent,
-          status: 'review',
-          scheduled_date: new Date().toISOString().split('T')[0],
-          user_id: userId,
-          notes: `Structured newsletter generated from theme: ${theme}`
-        })
+        .insert(newsletterTaskData)
         .select()
         .single();
 
@@ -268,11 +283,13 @@ export const generateCampaignContent = async (
         console.error('❌ Error creating newsletter task:', newsletterError);
       } else {
         results.push(newsletterTask);
-        console.log('✅ Created structured newsletter content task');
+        console.log('✅ Created structured newsletter content task with tenant_id:', tenantId);
       }
     } catch (error) {
       console.error('❌ Error generating structured newsletter:', error);
     }
+
+    console.log(`🎉 Content generation completed: ${results.length} tasks created with tenant support`);
 
     return {
       success: true,
