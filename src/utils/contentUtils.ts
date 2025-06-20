@@ -1,6 +1,6 @@
 
 // Content filtering utilities
-export const SUPPORTED_POST_TYPES = ['instagram', 'facebook', 'newsletter', 'email', 'blog', 'video'] as const;
+export const SUPPORTED_POST_TYPES = ['instagram', 'facebook', 'newsletter', 'blog', 'video'] as const;
 
 export type SupportedPostType = typeof SUPPORTED_POST_TYPES[number];
 
