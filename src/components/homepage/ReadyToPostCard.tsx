@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
@@ -28,6 +27,9 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
   const [showAllContent, setShowAllContent] = useState(false);
   const [currentCampaign, setCurrentCampaign] = useState<any>(null);
 
+  // Check if user is developer
+  const isDeveloper = user?.email === 'jon@getclear.ca';
+
   useEffect(() => {
     const fetchReadyTasks = async () => {
       if (!user || !tenant) {
@@ -38,7 +40,12 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       try {
         console.log('ReadyToPostCard: Fetching tasks for tenant:', tenant.id);
         
-        // UPDATED FILTER: Fetch approved and posted content tasks for the tenant
+        // Build status filter - include 'approved' for everyone, 'posted' for everyone, and 'preview' for developer
+        const statusFilter = ['approved', 'posted'];
+        if (isDeveloper) {
+          statusFilter.push('preview');
+        }
+
         const { data, error } = await supabase
           .from('content_tasks')
           .select(`
@@ -49,7 +56,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
             )
           `)
           .eq('tenant_id', tenant.id)  // Filter by current tenant
-          .in('status', ['approved', 'posted'])  // Only show approved/posted
+          .in('status', statusFilter)  // Include approved, posted, and preview (for dev)
           .not('ai_output', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
@@ -58,7 +65,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           console.error('ReadyToPostCard: Error fetching ready tasks:', error);
           setTasks([]);
         } else {
-          console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'approved/posted tasks for tenant', tenant.id);
+          console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'ready tasks for tenant', tenant.id);
           
           // Additional security check: Verify all tasks belong to current tenant
           const tenantTasks = data?.filter(task => 
@@ -81,11 +88,17 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     };
 
     if (propTasks && propTasks.length > 0) {
-      // UPDATED FILTER: When using prop tasks, filter to only approved/posted for current tenant
+      // When using prop tasks, filter to include approved, posted, and preview (for dev) for current tenant
       if (!user || !tenant) {
         console.warn('ReadyToPostCard: Received prop tasks but no authenticated user or tenant');
         setTasks([]);
         return;
+      }
+      
+      // Build status filter
+      const statusFilter = ['approved', 'posted'];
+      if (isDeveloper) {
+        statusFilter.push('preview');
       }
       
       const readyTasks = propTasks
@@ -95,12 +108,12 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           if (!belongsToTenant) {
             console.warn('ReadyToPostCard: Filtering out task that does not belong to current tenant:', task.id);
           }
-          // Updated filter to only show approved/posted content
-          return belongsToTenant && ['approved', 'posted'].includes(task.status) && task.ai_output;
+          // Updated filter to include approved, posted, and preview (for dev) content
+          return belongsToTenant && statusFilter.includes(task.status) && task.ai_output;
         })
         .slice(0, 6);
       
-      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned approved/posted tasks');
+      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned ready tasks');
       setTasks(readyTasks);
       if (readyTasks.length > 0) {
         setCurrentCampaign(readyTasks[0].campaigns);
@@ -108,7 +121,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     } else {
       fetchReadyTasks();
     }
-  }, [user, tenant, propTasks]);
+  }, [user, tenant, propTasks, isDeveloper]);
 
   const handleTaskClick = (task: any) => {
     // SECURITY CHECK: Verify task belongs to current tenant before opening
