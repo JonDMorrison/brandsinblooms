@@ -85,7 +85,7 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
   const intro = introMatch?.[1] || '';
 
   return (
-    <div className={`max-w-4xl mx-auto ${className || ''}`}>
+    <div className={`max-w-6xl mx-auto bg-white ${className || ''}`}>
       {/* Header Section */}
       <div className="mb-8 pb-6 border-b border-gray-200">
         <div className="flex items-center gap-3 mb-4">
@@ -111,12 +111,12 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
         )}
       </div>
 
-      {/* Content Blocks */}
+      {/* Content Blocks - 60/40 Split */}
       <div className="space-y-12">
         {newsletter.blocks.map((block, index) => (
-          <div key={index} className="grid lg:grid-cols-3 gap-8 items-start">
-            {/* Content */}
-            <div className="lg:col-span-2">
+          <div key={index} className="grid lg:grid-cols-[3fr_2fr] gap-8 items-start">
+            {/* Content Section - 60% */}
+            <div className="space-y-4">
               <h3 className="text-2xl font-bold text-slate-900 mb-4 leading-tight">
                 {block.title}
               </h3>
@@ -139,11 +139,11 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
               )}
             </div>
 
-            {/* Image */}
-            <div className="lg:col-span-1">
+            {/* Image Section - 40% */}
+            <div className="lg:pl-4">
               {loadingImages ? (
-                <div className="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center">
-                  <ImageIcon className="w-8 h-8 text-gray-400" />
+                <div className="aspect-[4/3] bg-gradient-to-br from-teal-100 to-cyan-100 rounded-lg flex items-center justify-center border border-teal-200">
+                  <ImageIcon className="w-8 h-8 text-teal-500" />
                 </div>
               ) : images[index] ? (
                 <div className="aspect-[4/3] rounded-lg overflow-hidden shadow-sm">
@@ -159,10 +159,11 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                   )}
                 </div>
               ) : (
-                <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
-                  <div className="text-center text-gray-500">
+                <div className="aspect-[4/3] bg-gradient-to-br from-teal-100 to-cyan-100 rounded-lg flex items-center justify-center border border-teal-200">
+                  <div className="text-center text-teal-600">
                     <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm">{block.image_prompt}</p>
+                    <p className="text-sm font-medium">Newsletter Image</p>
+                    <p className="text-xs opacity-75">{block.image_prompt}</p>
                   </div>
                 </div>
               )}
