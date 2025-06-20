@@ -1,9 +1,9 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { MagazineContentDisplay } from "./MagazineContentDisplay";
 import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
+import { BlogContentDisplay } from "@/components/content-sidebar/BlogContentDisplay";
 
 interface TaskContentProps {
   task: any;
@@ -16,6 +16,17 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
 
   if (task.ai_output) {
+    // Check if this is a blog post
+    if (task.post_type === 'blog') {
+      return (
+        <BlogContentDisplay 
+          content={task.ai_output}
+          postType={task.post_type}
+          className="bg-white rounded-lg border"
+        />
+      );
+    }
+
     // Check if this is a newsletter and use appropriate display
     if (task.post_type === 'newsletter') {
       // Check if it's a structured newsletter (YAML format)
@@ -42,7 +53,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       }
     }
 
-    // Use magazine-style display for all other content types
+    // Use magazine-style display for all other content types (social media, etc.)
     return (
       <MagazineContentDisplay 
         content={task.ai_output}
