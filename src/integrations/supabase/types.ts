@@ -110,11 +110,13 @@ export type Database = {
       campaigns: {
         Row: {
           created_at: string
+          created_by_user_id: string | null
           description: string | null
           id: string
           prompt: string | null
           source: string | null
           start_date: string
+          tenant_id: string | null
           theme: string | null
           title: string
           user_id: string | null
@@ -122,11 +124,13 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by_user_id?: string | null
           description?: string | null
           id?: string
           prompt?: string | null
           source?: string | null
           start_date: string
+          tenant_id?: string | null
           theme?: string | null
           title: string
           user_id?: string | null
@@ -134,17 +138,27 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by_user_id?: string | null
           description?: string | null
           id?: string
           prompt?: string | null
           source?: string | null
           start_date?: string
+          tenant_id?: string | null
           theme?: string | null
           title?: string
           user_id?: string | null
           week_number?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       company_profiles: {
         Row: {
@@ -269,6 +283,7 @@ export type Database = {
           assigned_user_id: string | null
           campaign_id: string | null
           created_at: string
+          created_by_user_id: string | null
           hashtags: string | null
           holiday_id: string | null
           id: string
@@ -277,6 +292,7 @@ export type Database = {
           post_type: string | null
           scheduled_date: string | null
           status: string
+          tenant_id: string | null
           user_id: string | null
         }
         Insert: {
@@ -284,6 +300,7 @@ export type Database = {
           assigned_user_id?: string | null
           campaign_id?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           hashtags?: string | null
           holiday_id?: string | null
           id?: string
@@ -292,6 +309,7 @@ export type Database = {
           post_type?: string | null
           scheduled_date?: string | null
           status?: string
+          tenant_id?: string | null
           user_id?: string | null
         }
         Update: {
@@ -299,6 +317,7 @@ export type Database = {
           assigned_user_id?: string | null
           campaign_id?: string | null
           created_at?: string
+          created_by_user_id?: string | null
           hashtags?: string | null
           holiday_id?: string | null
           id?: string
@@ -307,6 +326,7 @@ export type Database = {
           post_type?: string | null
           scheduled_date?: string | null
           status?: string
+          tenant_id?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -329,6 +349,13 @@ export type Database = {
             columns: ["holiday_id"]
             isOneToOne: false
             referencedRelation: "holidays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "content_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
             referencedColumns: ["id"]
           },
         ]
@@ -413,6 +440,66 @@ export type Database = {
           year?: number
         }
         Relationships: []
+      }
+      holiday_tasks: {
+        Row: {
+          content_suggestions: Json | null
+          created_at: string
+          created_by_user_id: string | null
+          holiday_id: string
+          id: string
+          priority: number | null
+          status: string
+          suggested_date: string | null
+          task_description: string | null
+          task_title: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          content_suggestions?: Json | null
+          created_at?: string
+          created_by_user_id?: string | null
+          holiday_id: string
+          id?: string
+          priority?: number | null
+          status?: string
+          suggested_date?: string | null
+          task_description?: string | null
+          task_title: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          content_suggestions?: Json | null
+          created_at?: string
+          created_by_user_id?: string | null
+          holiday_id?: string
+          id?: string
+          priority?: number | null
+          status?: string
+          suggested_date?: string | null
+          task_description?: string | null
+          task_title?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holiday_tasks_holiday_id_fkey"
+            columns: ["holiday_id"]
+            isOneToOne: false
+            referencedRelation: "holidays"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "holiday_tasks_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       holiday_templates: {
         Row: {
@@ -761,6 +848,36 @@ export type Database = {
         }
         Relationships: []
       }
+      tenants: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          settings: Json | null
+          slug: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          settings?: Json | null
+          slug?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          settings?: Json | null
+          slug?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       token_usage: {
         Row: {
           action_type: string
@@ -835,26 +952,40 @@ export type Database = {
       users: {
         Row: {
           created_at: string
+          created_by_user_id: string | null
           email: string
           id: string
           name: string
           role: string
+          tenant_id: string | null
         }
         Insert: {
           created_at?: string
+          created_by_user_id?: string | null
           email: string
           id?: string
           name: string
           role?: string
+          tenant_id?: string | null
         }
         Update: {
           created_at?: string
+          created_by_user_id?: string | null
           email?: string
           id?: string
           name?: string
           role?: string
+          tenant_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "users_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
@@ -6,6 +7,7 @@ import { ResponsiveGrid } from "@/components/ui/responsive-grid";
 import { FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { ImprovedReadyToPostItem } from "./ready-to-post/ImprovedReadyToPostItem";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -18,6 +20,7 @@ interface ReadyToPostCardProps {
 
 export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }: ReadyToPostCardProps) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const isMobile = useIsMobile();
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -27,26 +30,26 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
 
   useEffect(() => {
     const fetchReadyTasks = async () => {
-      if (!user) {
-        console.log('ReadyToPostCard: No authenticated user, skipping fetch');
+      if (!user || !tenant) {
+        console.log('ReadyToPostCard: No authenticated user or tenant, skipping fetch');
         return;
       }
 
       try {
-        console.log('ReadyToPostCard: Fetching tasks for user:', user.id);
+        console.log('ReadyToPostCard: Fetching tasks for tenant:', tenant.id);
         
-        // UPDATED FILTER: Only fetch approved and posted content tasks
+        // UPDATED FILTER: Fetch approved and posted content tasks for the tenant
         const { data, error } = await supabase
           .from('content_tasks')
           .select(`
             *,
             campaigns!inner (
               title,
-              user_id
+              tenant_id
             )
           `)
-          .eq('campaigns.user_id', user.id)  // Filter by current user
-          .in('status', ['approved', 'posted'])  // Updated filter to only show approved/posted
+          .eq('tenant_id', tenant.id)  // Filter by current tenant
+          .in('status', ['approved', 'posted'])  // Only show approved/posted
           .not('ai_output', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
@@ -55,20 +58,20 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           console.error('ReadyToPostCard: Error fetching ready tasks:', error);
           setTasks([]);
         } else {
-          console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'approved/posted tasks for user', user.id);
+          console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'approved/posted tasks for tenant', tenant.id);
           
-          // Additional security check: Verify all tasks belong to user's campaigns
-          const userTasks = data?.filter(task => 
-            task.campaigns && task.campaigns.user_id === user.id
+          // Additional security check: Verify all tasks belong to current tenant
+          const tenantTasks = data?.filter(task => 
+            task.campaigns && task.campaigns.tenant_id === tenant.id
           ) || [];
           
-          if (userTasks.length !== data?.length) {
-            console.warn('ReadyToPostCard: Security alert - some tasks did not belong to current user');
+          if (tenantTasks.length !== data?.length) {
+            console.warn('ReadyToPostCard: Security alert - some tasks did not belong to current tenant');
           }
           
-          setTasks(userTasks);
-          if (userTasks.length > 0) {
-            setCurrentCampaign(userTasks[0].campaigns);
+          setTasks(tenantTasks);
+          if (tenantTasks.length > 0) {
+            setCurrentCampaign(tenantTasks[0].campaigns);
           }
         }
       } catch (error) {
@@ -78,26 +81,26 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     };
 
     if (propTasks && propTasks.length > 0) {
-      // UPDATED FILTER: When using prop tasks, filter to only approved/posted
-      if (!user) {
-        console.warn('ReadyToPostCard: Received prop tasks but no authenticated user');
+      // UPDATED FILTER: When using prop tasks, filter to only approved/posted for current tenant
+      if (!user || !tenant) {
+        console.warn('ReadyToPostCard: Received prop tasks but no authenticated user or tenant');
         setTasks([]);
         return;
       }
       
       const readyTasks = propTasks
         .filter(task => {
-          // Verify task belongs to current user's campaign
-          const belongsToUser = task.campaigns?.user_id === user.id;
-          if (!belongsToUser) {
-            console.warn('ReadyToPostCard: Filtering out task that does not belong to current user:', task.id);
+          // Verify task belongs to current tenant
+          const belongsToTenant = task.tenant_id === tenant.id;
+          if (!belongsToTenant) {
+            console.warn('ReadyToPostCard: Filtering out task that does not belong to current tenant:', task.id);
           }
           // Updated filter to only show approved/posted content
-          return belongsToUser && ['approved', 'posted'].includes(task.status) && task.ai_output;
+          return belongsToTenant && ['approved', 'posted'].includes(task.status) && task.ai_output;
         })
         .slice(0, 6);
       
-      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'user-owned approved/posted tasks');
+      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned approved/posted tasks');
       setTasks(readyTasks);
       if (readyTasks.length > 0) {
         setCurrentCampaign(readyTasks[0].campaigns);
@@ -105,12 +108,12 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     } else {
       fetchReadyTasks();
     }
-  }, [user, propTasks]);
+  }, [user, tenant, propTasks]);
 
   const handleTaskClick = (task: any) => {
-    // SECURITY CHECK: Verify task belongs to current user before opening
-    if (!user || !task.campaigns || task.campaigns.user_id !== user.id) {
-      console.error('ReadyToPostCard: Attempted to access task not owned by current user');
+    // SECURITY CHECK: Verify task belongs to current tenant before opening
+    if (!user || !tenant || !task.campaigns || task.campaigns.tenant_id !== tenant.id) {
+      console.error('ReadyToPostCard: Attempted to access task not owned by current tenant');
       return;
     }
     
@@ -123,8 +126,8 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
   };
 
   const handleViewAllContent = () => {
-    if (!user || !currentCampaign || currentCampaign.user_id !== user.id) {
-      console.error('ReadyToPostCard: Attempted to view content for campaign not owned by current user');
+    if (!user || !tenant || !currentCampaign || currentCampaign.tenant_id !== tenant.id) {
+      console.error('ReadyToPostCard: Attempted to view content for campaign not owned by current tenant');
       return;
     }
     

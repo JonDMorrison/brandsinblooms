@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { CACHE_KEYS } from "@/constants/cache";
 import { getCachedData, setCachedData } from "@/utils/cache";
@@ -17,6 +17,7 @@ const getCurrentWeekNumber = () => {
 
 export const useDashboardData = () => {
   const { user } = useAuth();
+  const { tenant, loading: tenantLoading } = useTenant();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [tasks, setTasks] = useState<ContentTask[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,7 +25,7 @@ export const useDashboardData = () => {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   const fetchData = async () => {
-    if (!user) {
+    if (!user || !tenant) {
       setLoading(false);
       return;
     }
@@ -51,9 +52,11 @@ export const useDashboardData = () => {
 
       setIsOffline(false);
 
+      // Fetch campaigns for the tenant
       const { data: campaignsData, error: campaignsError } = await supabase
         .from('campaigns')
         .select('*')
+        .eq('tenant_id', tenant.id)
         .order('start_date', { ascending: true });
 
       if (campaignsError) {
@@ -72,6 +75,7 @@ export const useDashboardData = () => {
         setCachedData(CACHE_KEYS.campaigns, campaigns);
       }
 
+      // Fetch content tasks for the tenant
       const { data: tasksData, error: tasksError } = await supabase
         .from('content_tasks')
         .select(`
@@ -82,6 +86,7 @@ export const useDashboardData = () => {
             start_date
           )
         `)
+        .eq('tenant_id', tenant.id)
         .order('scheduled_date', { ascending: true });
 
       if (tasksError) {
@@ -95,7 +100,6 @@ export const useDashboardData = () => {
           throw new Error(`Failed to load content tasks: ${tasksError.message}`);
         }
       } else {
-        // Type assertion to ensure status field matches our ContentTask interface
         const tasks = (tasksData || []).map(task => ({
           ...task,
           status: task.status as ContentTask['status']
@@ -123,8 +127,10 @@ export const useDashboardData = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [user]);
+    if (!tenantLoading) {
+      fetchData();
+    }
+  }, [user, tenant, tenantLoading]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -171,7 +177,6 @@ export const useDashboardData = () => {
     campaign.source === 'quick_action'
   );
 
-  // Fix status calculations to use correct valid status values
   const approvedTasksCount = tasks.filter(task => task.status === 'approved').length;
   const totalTasksCount = tasks.length;
   const reviewTasksCount = tasks.filter(task => task.status === 'review' || task.status === 'planned').length;
@@ -182,12 +187,13 @@ export const useDashboardData = () => {
     activeCampaign,
     userCreatedCampaigns,
     currentWeekNumber,
-    completedTasksCount: approvedTasksCount, // Using approved as "completed"
+    completedTasksCount: approvedTasksCount,
     totalTasksCount,
-    pendingTasksCount: reviewTasksCount, // Using review/planned as "pending"
-    loading,
+    pendingTasksCount: reviewTasksCount,
+    loading: loading || tenantLoading,
     error,
     isOffline,
+    tenant,
     handleTaskUpdate,
     handleCampaignCreated,
     refetch: fetchData
