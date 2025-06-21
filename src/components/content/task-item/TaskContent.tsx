@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -24,6 +23,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
         <SocialMediaPostPreview 
           content={task.ai_output}
           postType={task.post_type as 'instagram' | 'facebook'}
+          contentTaskId={task.id}
         />
       );
     }

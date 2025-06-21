@@ -1,20 +1,50 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 
 interface SocialMediaPostPreviewProps {
   content: string;
   postType: 'instagram' | 'facebook';
   className?: string;
+  contentTaskId?: string;
 }
 
-export const SocialMediaPostPreview = ({ content, postType, className }: SocialMediaPostPreviewProps) => {
+export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId }: SocialMediaPostPreviewProps) => {
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  
   // Extract hashtags from content
   const hashtagRegex = /#[\w]+/g;
   const hashtags = content.match(hashtagRegex) || [];
   const textWithoutHashtags = content.replace(hashtagRegex, '').trim();
+
+  // Extract keywords for image search
+  const extractKeywords = (text: string): string => {
+    // Remove hashtags and common words, extract meaningful keywords
+    const cleanText = text
+      .toLowerCase()
+      .replace(hashtagRegex, '')
+      .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|a|an|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might)\b/g, '')
+      .trim();
+    
+    // Take first few meaningful words
+    const words = cleanText.split(/\s+/).filter(word => word.length > 3);
+    const keywords = words.slice(0, 3).join(' ');
+    
+    return keywords || postType;
+  };
+
+  const searchQuery = extractKeywords(content) + ' garden';
+  const { images, loading, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
+
+  // Auto-fetch images when component mounts
+  useEffect(() => {
+    if (images.length === 0 && !loading && searchQuery) {
+      fetchNewImages(searchQuery, contentTaskId, postType);
+    }
+  }, [searchQuery, contentTaskId, postType]);
 
   const getPlatformIcon = () => {
     return postType === 'instagram' ? (
@@ -29,6 +59,9 @@ export const SocialMediaPostPreview = ({ content, postType, className }: SocialM
       ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-pink-200'
       : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200';
   };
+
+  const currentImage = images[selectedImageIndex];
+  const thumbnailImages = images.slice(0, 4);
 
   return (
     <div className={cn('rounded-lg border-2 overflow-hidden shadow-sm', getPlatformStyle(), className)}>
@@ -102,15 +135,39 @@ export const SocialMediaPostPreview = ({ content, postType, className }: SocialM
         <div className="flex-1 border-l border-gray-200">
           {/* Main Featured Image */}
           <div className={cn(
-            "relative bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center",
+            "relative bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden",
             postType === 'instagram' ? 'aspect-square' : 'aspect-[4/3]'
           )}>
-            <div className="text-center text-gray-500">
-              <div className="w-12 h-12 mx-auto mb-2 bg-gray-300 rounded-lg flex items-center justify-center">
-                <span className="text-xl">🖼️</span>
+            {loading ? (
+              <div className="text-center text-gray-500">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-2"></div>
+                <p className="text-sm">Loading image...</p>
               </div>
-              <p className="text-sm font-medium">Featured Image</p>
-              <p className="text-xs">Will be generated</p>
+            ) : currentImage ? (
+              <img
+                src={currentImage.thumb_url}
+                alt={currentImage.alt}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  // Fallback to placeholder on image error
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement?.querySelector('.fallback-placeholder')?.classList.remove('hidden');
+                }}
+              />
+            ) : null}
+            
+            {/* Fallback placeholder */}
+            <div className={cn(
+              "absolute inset-0 flex items-center justify-center text-center text-gray-500 bg-gradient-to-br from-gray-100 to-gray-200",
+              currentImage && !loading ? "hidden fallback-placeholder" : ""
+            )}>
+              <div>
+                <div className="w-12 h-12 mx-auto mb-2 bg-gray-300 rounded-lg flex items-center justify-center">
+                  <span className="text-xl">🖼️</span>
+                </div>
+                <p className="text-sm font-medium">Featured Image</p>
+                <p className="text-xs">{currentImage ? 'Loading...' : 'Will be generated'}</p>
+              </div>
             </div>
           </div>
 
@@ -118,10 +175,38 @@ export const SocialMediaPostPreview = ({ content, postType, className }: SocialM
           <div className="p-3 bg-gray-50 border-t">
             <p className="text-xs text-gray-600 mb-2 font-medium">Additional Images</p>
             <div className="grid grid-cols-4 gap-2">
-              {[1, 2, 3, 4].map((i) => (
+              {thumbnailImages.map((image, index) => (
                 <div 
-                  key={i}
-                  className="aspect-square bg-gray-200 rounded border flex items-center justify-center hover:bg-gray-300 transition-colors cursor-pointer"
+                  key={image.id}
+                  className={cn(
+                    "aspect-square rounded border flex items-center justify-center cursor-pointer transition-all overflow-hidden",
+                    selectedImageIndex === index 
+                      ? "ring-2 ring-blue-500 border-blue-300" 
+                      : "hover:border-gray-400"
+                  )}
+                  onClick={() => setSelectedImageIndex(index)}
+                >
+                  <img
+                    src={image.thumb_url}
+                    alt={image.alt}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to placeholder on thumbnail error
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.querySelector('.thumb-fallback')?.classList.remove('hidden');
+                    }}
+                  />
+                  <div className="hidden thumb-fallback text-xs text-gray-500 bg-gray-200 w-full h-full flex items-center justify-center">
+                    <span>+</span>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Fill remaining slots with placeholders if needed */}
+              {Array.from({ length: Math.max(0, 4 - thumbnailImages.length) }).map((_, index) => (
+                <div 
+                  key={`placeholder-${index}`}
+                  className="aspect-square bg-gray-200 rounded border flex items-center justify-center hover:bg-gray-300 transition-colors"
                 >
                   <span className="text-xs text-gray-500">+</span>
                 </div>

@@ -51,6 +51,7 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
             <SocialMediaPostPreview 
               content={content}
               postType={task.post_type as 'instagram' | 'facebook'}
+              contentTaskId={task.id}
             />
           ) : isStructuredNewsletter ? (
             <MagazineNewsletterDisplay content={content} />
