@@ -1,5 +1,5 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { generateNewsletterContent } from "./NewsletterGenerationService";
 
 export const generatePersonalizedContent = async (
   postType: string,
@@ -103,5 +103,87 @@ export const generateVideoScript = async (
       name: error.name
     });
     throw error;
+  }
+};
+
+// Newsletter generation function
+export const generateNewsletterContent = async (
+  newsletterType: string,
+  campaignTitle: string,
+  weekNumber: number,
+  userId?: string,
+  description?: string
+): Promise<string> => {
+  console.log(`📧 NEWSLETTER DEBUG: Generating newsletter content`);
+  console.log(`📧 NEWSLETTER DEBUG: Campaign: "${campaignTitle}"`);
+  console.log(`📧 NEWSLETTER DEBUG: Week: ${weekNumber}`);
+  console.log(`📧 NEWSLETTER DEBUG: User ID: ${userId}`);
+
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-newsletter', {
+      body: {
+        newsletterType,
+        campaignTitle,
+        weekNumber,
+        userId,
+        description
+      }
+    });
+
+    if (error) {
+      console.error(`📧 NEWSLETTER ERROR: Generation failed:`, error);
+      throw new Error(`Newsletter generation failed: ${error.message}`);
+    }
+
+    if (!data?.content) {
+      console.error(`📧 NEWSLETTER ERROR: No content returned`);
+      throw new Error('No newsletter content generated');
+    }
+
+    console.log(`📧 NEWSLETTER DEBUG: Newsletter generated successfully, length: ${data.content.length}`);
+    return data.content;
+  } catch (error) {
+    console.error(`📧 NEWSLETTER ERROR: Exception in generateNewsletterContent:`, error);
+    throw error;
+  }
+};
+
+// Campaign content generation function
+export const generateCampaignContent = async (
+  campaignId: string,
+  campaignTitle: string,
+  description: string,
+  userId: string,
+  weekNumber?: number,
+  tenantId?: string
+): Promise<{ success: boolean; message?: string; tasks?: any[] }> => {
+  console.log(`🚀 CAMPAIGN_GEN DEBUG: Starting campaign content generation`);
+  console.log(`🚀 CAMPAIGN_GEN DEBUG: Campaign ID: ${campaignId}`);
+  console.log(`🚀 CAMPAIGN_GEN DEBUG: Title: "${campaignTitle}"`);
+  console.log(`🚀 CAMPAIGN_GEN DEBUG: User ID: ${userId}`);
+  console.log(`🚀 CAMPAIGN_GEN DEBUG: Tenant ID: ${tenantId}`);
+
+  try {
+    const { data, error } = await supabase.functions.invoke('generate_campaign_content', {
+      body: {
+        campaign_id: campaignId,
+        campaign_title: campaignTitle,
+        description,
+        user_id: userId,
+        week_number: weekNumber,
+        tenant_id: tenantId
+      }
+    });
+
+    if (error) {
+      console.error(`🚀 CAMPAIGN_GEN ERROR: Generation failed:`, error);
+      return { success: false, message: error.message };
+    }
+
+    console.log(`🚀 CAMPAIGN_GEN DEBUG: Campaign content generated successfully`);
+    return { success: true, tasks: data?.tasks || [] };
+  } catch (error) {
+    console.error(`🚀 CAMPAIGN_GEN ERROR: Exception in generateCampaignContent:`, error);
+    return { success: false, message: error.message };
   }
 };

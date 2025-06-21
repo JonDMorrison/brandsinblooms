@@ -3,7 +3,8 @@
 export { 
   generatePersonalizedContent, 
   generateNewsletterContent, 
-  generateVideoScript 
+  generateVideoScript,
+  generateCampaignContent
 } from "./ContentGenerationServices";
 
 export { 
