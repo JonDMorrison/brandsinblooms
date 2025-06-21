@@ -43,12 +43,6 @@ export const CampaignContent = ({
           {/* Main Section Title */}
           <h2 className="text-2xl font-semibold text-text-primary">Your Weekly Content</h2>
           
-          {/* Weekly Content Explanation */}
-          <WeeklyContentExplanation 
-            activeCampaign={activeCampaign}
-            tasksCount={tasksWithContent.length}
-          />
-
           {/* Campaign Info */}
           <div className="flex items-center gap-3 apple-slide-up">
             <div className="flex items-center justify-center w-8 h-8 bg-primary/10 rounded-lg">
