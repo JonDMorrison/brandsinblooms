@@ -2,6 +2,7 @@
 import { Textarea } from "@/components/ui/textarea";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
 import { MagazineNewsletterDisplay } from "./MagazineNewsletterDisplay";
+import { SocialMediaPostPreview } from "@/components/content/task-item/SocialMediaPostPreview";
 
 interface ContentEditorProps {
   content: string;
@@ -35,6 +36,9 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
     );
   }
 
+  // Check if this is a social media post for special preview handling
+  const isSocialMediaPost = task?.post_type === 'instagram' || task?.post_type === 'facebook';
+  
   // Check if this is a structured newsletter for magazine display
   const isStructuredNewsletter = task?.post_type === 'newsletter' && content.includes('newsletter_md:');
   
@@ -43,7 +47,12 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
       <h3 className="text-sm font-medium text-gray-700">Content</h3>
       <div className="p-6 bg-white rounded-lg border min-h-[400px] overflow-y-auto max-h-[800px]">
         {content ? (
-          isStructuredNewsletter ? (
+          isSocialMediaPost ? (
+            <SocialMediaPostPreview 
+              content={content}
+              postType={task.post_type as 'instagram' | 'facebook'}
+            />
+          ) : isStructuredNewsletter ? (
             <MagazineNewsletterDisplay content={content} />
           ) : (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
             <div 

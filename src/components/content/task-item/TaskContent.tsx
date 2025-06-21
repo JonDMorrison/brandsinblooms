@@ -3,6 +3,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { MagazineContentDisplay } from "./MagazineContentDisplay";
+import { SocialMediaPostPreview } from "./SocialMediaPostPreview";
 
 interface TaskContentProps {
   task: any;
@@ -15,6 +16,18 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
 
   if (task.ai_output) {
+    // Check if this is a social media post for special preview handling
+    const isSocialMediaPost = task.post_type === 'instagram' || task.post_type === 'facebook';
+    
+    if (isSocialMediaPost) {
+      return (
+        <SocialMediaPostPreview 
+          content={task.ai_output}
+          postType={task.post_type as 'instagram' | 'facebook'}
+        />
+      );
+    }
+
     // Check if this is a structured newsletter for special handling
     const isStructuredNewsletter = task.post_type === 'newsletter' && task.ai_output.includes('newsletter_md:');
     
@@ -33,7 +46,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       );
     }
 
-    // Use magazine-style display for all other content types
+    // Use magazine-style display for all other content types (blog, video, newsletter)
     return (
       <MagazineContentDisplay 
         content={task.ai_output}
