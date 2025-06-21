@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { Navigate } from "react-router-dom";
+import { PreviewModeProvider } from "@/contexts/PreviewModeContext";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -95,11 +95,13 @@ const Index = () => {
   }
 
   return (
-    <DashboardContent
-      onboardingData={onboardingData}
-      onBusinessNameChange={handleBusinessNameChange}
-      onCampaignCreated={handleCampaignCreated}
-    />
+    <PreviewModeProvider>
+      <DashboardContent
+        onboardingData={onboardingData}
+        onBusinessNameChange={handleBusinessNameChange}
+        onCampaignCreated={handleCampaignCreated}
+      />
+    </PreviewModeProvider>
   );
 };
 

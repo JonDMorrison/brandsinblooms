@@ -10,6 +10,7 @@ import { ContentViewer } from "@/components/content/ContentViewer";
 import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostItem";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
+import { usePreviewMode } from "@/contexts/PreviewModeContext";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -20,6 +21,7 @@ interface ReadyToPostCardProps {
 export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }: ReadyToPostCardProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { isPreviewMode } = usePreviewMode();
   const isMobile = useIsMobile();
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -38,9 +40,9 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       try {
         console.log('ReadyToPostCard: Fetching tasks for tenant:', tenant.id);
         
-        // 🔧 FIXED: Properly include preview status for development
+        // Include preview status for development or preview mode
         const statusFilter = ['ready', 'approved', 'posted'];
-        if (isDevelopment) {
+        if (isDevelopment || isPreviewMode) {
           statusFilter.push('preview');
         }
 
@@ -53,11 +55,11 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
               tenant_id
             )
           `)
-          .eq('tenant_id', tenant.id)  // Filter by current tenant
-          .in('status', statusFilter)  // Use corrected status filter
+          .eq('tenant_id', tenant.id)
+          .in('status', statusFilter)
           .not('ai_output', 'is', null)
           .order('created_at', { ascending: false })
-          .limit(12); // Show more items in accordion view
+          .limit(12);
 
         if (error) {
           console.error('ReadyToPostCard: Error fetching ready tasks:', error);
@@ -65,24 +67,18 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         } else {
           console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'ready tasks for tenant', tenant.id);
           
-          // Additional security check: Verify all tasks belong to current tenant
-          // 🔧 FIXED: Only exclude PREVIEW campaigns for production users
           const tenantTasks = data?.filter(task => {
             const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
             const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
             
-            if (!isDevelopment && isPreviewCampaign) {
+            if (!isDevelopment && !isPreviewMode && isPreviewCampaign) {
               return false;
             }
             
             return belongsToTenant;
           }) || [];
           
-          if (tenantTasks.length !== data?.length) {
-            console.warn('ReadyToPostCard: Security alert - some tasks did not belong to current tenant or were PREVIEW');
-          }
-          
-          console.log('ReadyToPostCard: Final filtered tasks:', tenantTasks.length, '(isDevelopment:', isDevelopment, ')');
+          console.log('ReadyToPostCard: Final filtered tasks:', tenantTasks.length, '(isDevelopment:', isDevelopment, ', previewMode:', isPreviewMode, ')');
           setTasks(tenantTasks);
         }
       } catch (error) {
@@ -92,45 +88,57 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     };
 
     if (propTasks && propTasks.length > 0) {
-      // When using prop tasks, filter appropriately
       if (!user || !tenant) {
         console.warn('ReadyToPostCard: Received prop tasks but no authenticated user or tenant');
         setTasks([]);
         return;
       }
       
-      // 🔧 FIXED: Proper status filtering for prop tasks
       const statusFilter = ['ready', 'approved', 'posted'];
-      if (isDevelopment) {
+      if (isDevelopment || isPreviewMode) {
         statusFilter.push('preview');
       }
       
       const readyTasks = propTasks
         .filter(task => {
-          // Verify task belongs to current tenant
+          // For preview tasks, skip tenant validation
+          if (task.campaigns?.tenant_id === 'preview') {
+            return statusFilter.includes(task.status) && task.ai_output;
+          }
+          
           const belongsToTenant = task.tenant_id === tenant.id;
           if (!belongsToTenant) {
             console.warn('ReadyToPostCard: Filtering out task that does not belong to current tenant:', task.id);
           }
           
-          // 🔧 FIXED: Only exclude PREVIEW campaigns for production users
           const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
-          if (!isDevelopment && isPreviewCampaign) {
+          if (!isDevelopment && !isPreviewMode && isPreviewCampaign) {
             return false;
           }
           
           return belongsToTenant && statusFilter.includes(task.status) && task.ai_output;
         })
-        .slice(0, 12); // Show more items in accordion view
+        .slice(0, 12);
       
-      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned ready tasks (isDevelopment:', isDevelopment, ')');
+      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned ready tasks (isDevelopment:', isDevelopment, ', previewMode:', isPreviewMode, ')');
       setTasks(readyTasks);
     } else {
       fetchReadyTasks();
     }
-  }, [user, tenant, propTasks, isDevelopment]);
+  }, [user, tenant, propTasks, isDevelopment, isPreviewMode]);
 
   const handleTaskViewFull = (task: any) => {
+    // Skip tenant validation for preview tasks
+    if (task.campaigns?.tenant_id === 'preview') {
+      if (onTaskClick) {
+        onTaskClick(task);
+      } else {
+        setSelectedTask(task);
+        setShowContentViewer(true);
+      }
+      return;
+    }
+    
     // SECURITY CHECK: Verify task belongs to current tenant before opening
     if (!user || !tenant || !task.campaigns || task.campaigns.tenant_id !== tenant.id) {
       console.error('ReadyToPostCard: Attempted to access task not owned by current tenant');
@@ -175,8 +183,13 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           </div>
           <BodyMedium className={`apple-body-enhanced text-gray-500 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
             Your approved marketing content will appear here once ready to post. Create and approve campaigns to start growing your content garden!
+            {isPreviewMode && (
+              <span className="block mt-2 text-blue-600 text-sm">
+                Enable preview mode to see sample content
+              </span>
+            )}
           </BodyMedium>
-          {isDevelopment && (
+          {(isDevelopment || isPreviewMode) && (
             <div className="mt-4 flex justify-center">
               <DevPreviewBadge show={true} size="sm" />
             </div>
@@ -204,7 +217,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         data-ready-to-post-section="true"
       >
         <AppleCardContent className="apple-card-spacing">
-          {isDevelopment && hasPreviewContent && (
+          {(isDevelopment || isPreviewMode) && hasPreviewContent && (
             <div className="mb-4 flex justify-center">
               <DevPreviewBadge show={true} />
             </div>
