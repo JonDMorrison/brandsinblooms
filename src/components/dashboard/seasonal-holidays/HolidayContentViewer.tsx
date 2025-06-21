@@ -220,53 +220,51 @@ export const HolidayContentViewer = ({
               </TabsList>
             </div>
 
-            <div className="flex-1 min-h-0">
-              {contentTypes.map(type => {
-                const task = tasksByType[type];
-                if (!task) return null;
+            {contentTypes.map(type => {
+              const task = tasksByType[type];
+              if (!task) return null;
 
-                return (
-                  <TabsContent 
-                    key={type} 
-                    value={type} 
-                    className="h-full m-0 p-6 data-[state=active]:flex data-[state=active]:flex-col"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        {getPostTypeIcon(type)}
-                        <div>
-                          <h3 className="font-semibold capitalize text-lg">
-                            {getPlatformLabel(type)} Content
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Badge variant={getPlatformBadgeVariant(type)}>
-                              {getPlatformLabel(type)}
-                            </Badge>
-                            <Badge variant={getStatusBadgeVariant(task.status)}>
-                              {getStatusLabel(task.status)}
-                            </Badge>
-                          </div>
+              return (
+                <TabsContent 
+                  key={type} 
+                  value={type} 
+                  className="h-full m-0 p-6 data-[state=active]:flex data-[state=active]:flex-col"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      {getPostTypeIcon(type)}
+                      <div>
+                        <h3 className="font-semibold capitalize text-lg">
+                          {getPlatformLabel(type)} Content
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant={getPlatformBadgeVariant(type)}>
+                            {getPlatformLabel(type)}
+                          </Badge>
+                          <Badge variant={getStatusBadgeVariant(task.status)}>
+                            {getStatusLabel(task.status)}
+                          </Badge>
                         </div>
                       </div>
-                      
-                      <TaskActions
-                        task={task}
-                        onTaskUpdate={handleTaskUpdate}
-                        onEdit={handleTaskEdit}
-                      />
                     </div>
+                    
+                    <TaskActions
+                      task={task}
+                      onTaskUpdate={handleTaskUpdate}
+                      onEdit={handleTaskEdit}
+                    />
+                  </div>
 
-                    <ScrollArea className="flex-1 pr-4">
-                      <TaskContent
-                        task={task}
-                        onRetryGeneration={() => {}}
-                        retryingGeneration={false}
-                      />
-                    </ScrollArea>
-                  </TabsContent>
-                );
-              })}
-            </div>
+                  <ScrollArea className="flex-1 pr-4">
+                    <TaskContent
+                      task={task}
+                      onRetryGeneration={() => {}}
+                      retryingGeneration={false}
+                    />
+                  </ScrollArea>
+                </TabsContent>
+              );
+            })}
           </Tabs>
         )}
       </DialogContent>
