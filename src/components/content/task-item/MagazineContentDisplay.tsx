@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
-import { parseNewsletterJson } from '@/utils/contentUtils';
+import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -48,97 +47,118 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
   const { text, hashtags } = formatContent(content);
 
   if (postType === 'newsletter') {
-    // Try to parse as JSON newsletter first
-    const parsedNewsletter = parseNewsletterJson(content);
+    // Check if this is a structured YAML newsletter
+    const isStructuredNewsletter = content.includes('newsletter_md:') || content.includes('blocks:');
     
-    if (parsedNewsletter) {
-      // Structured newsletter with subject and content
-      return (
-        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            {getPostTypeIcon()}
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-              Newsletter
-            </Badge>
-          </div>
-
-          {/* Featured Image */}
-          <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
-            <div className="text-center text-purple-600">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Newsletter header image</p>
+    if (isStructuredNewsletter) {
+      // Try to parse as YAML newsletter
+      const parsedNewsletter = parseNewsletterYAML(content);
+      
+      if (parsedNewsletter) {
+        // Structured newsletter - show simplified preview since full display is in sidebar
+        return (
+          <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+              {getPostTypeIcon()}
+              <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+                Structured Newsletter
+              </Badge>
             </div>
-          </div>
 
-          {/* Newsletter Content */}
-          <div className="space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-                {parsedNewsletter.subject}
-              </h2>
-              <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
+            {/* Featured Image */}
+            <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
+              <div className="text-center text-purple-600">
+                <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm">Magazine-style newsletter</p>
+              </div>
             </div>
-            
-            <div className="prose prose-sm max-w-none">
-              {parsedNewsletter.content.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="text-gray-700 leading-relaxed mb-4">
-                  {paragraph}
+
+            {/* Content Preview */}
+            <div className="space-y-4">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
+                  {parsedNewsletter.meta.theme || 'Newsletter'}
+                </h2>
+                <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
+              </div>
+              
+              <div className="prose prose-sm max-w-none">
+                <p className="text-gray-600 italic mb-4">
+                  {parsedNewsletter.blocks.length}-section magazine-style newsletter with engaging headlines and content blocks. Click to view full layout.
                 </p>
-              ))}
+                
+                {parsedNewsletter.blocks.slice(0, 2).map((block, index) => (
+                  <div key={index} className="mb-3">
+                    <h4 className="font-semibold text-gray-800 text-sm mb-1">
+                      {block.title}
+                    </h4>
+                    <p className="text-gray-600 text-xs">
+                      {block.body.length > 100 ? `${block.body.substring(0, 100)}...` : block.body}
+                    </p>
+                  </div>
+                ))}
+                
+                {parsedNewsletter.blocks.length > 2 && (
+                  <p className="text-gray-500 text-xs italic">
+                    +{parsedNewsletter.blocks.length - 2} more sections...
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Newsletter Footer */}
+            <div className="mt-6 pt-4 border-t border-purple-200">
+              <p className="text-center text-sm text-purple-600 italic">
+                ≈{parsedNewsletter.meta.reading_time} • {parsedNewsletter.blocks.length} sections
+              </p>
             </div>
           </div>
-
-          {/* Newsletter Footer */}
-          <div className="mt-6 pt-4 border-t border-purple-200">
-            <p className="text-center text-sm text-purple-600 italic">
-              Thanks for reading! 📧
-            </p>
-          </div>
-        </div>
-      );
-    } else {
-      // Plain text newsletter
-      return (
-        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            {getPostTypeIcon()}
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-              Newsletter
-            </Badge>
-          </div>
-
-          {/* Featured Image */}
-          <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
-            <div className="text-center text-purple-600">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Newsletter header image</p>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="space-y-4">
-            <div className="prose prose-sm max-w-none">
-              {text.split('\n\n').map((paragraph, index) => (
-                <p key={index} className="text-gray-700 leading-relaxed mb-4">
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </div>
-
-          {/* Newsletter Footer */}
-          <div className="mt-6 pt-4 border-t border-purple-200">
-            <p className="text-center text-sm text-purple-600 italic">
-              Thanks for reading! 📧
-            </p>
-          </div>
-        </div>
-      );
+        );
+      }
     }
+
+    // Fallback for plain text newsletter
+    return (
+      <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-6">
+          {getPostTypeIcon()}
+          <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+            Newsletter
+          </Badge>
+        </div>
+
+        {/* Featured Image */}
+        <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
+          <div className="text-center text-purple-600">
+            <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+            <p className="text-sm">Newsletter content</p>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="space-y-4">
+          <div className="prose prose-sm max-w-none">
+            {text.split('\n\n').map((paragraph, index) => (
+              <p key={index} className="text-gray-700 leading-relaxed mb-4">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        </div>
+
+        {/* Newsletter Footer */}
+        <div className="mt-6 pt-4 border-t border-purple-200">
+          <p className="text-center text-sm text-purple-600 italic">
+            Thanks for reading! 📧
+          </p>
+        </div>
+      </div>
+    );
   }
 
+  
   if (postType === 'instagram') {
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
