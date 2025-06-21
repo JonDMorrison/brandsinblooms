@@ -31,6 +31,19 @@ export const HolidayItem = ({
     onViewContent(holiday.id, holiday.holiday_name);
   };
 
+  // Format date safely with validation
+  const formatHolidayDate = (dateString: string) => {
+    if (!dateString) return "Date not available";
+    
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Date not available";
+      return format(date, "MMMM dd, yyyy");
+    } catch (error) {
+      return "Date not available";
+    }
+  };
+
   return (
     <Card className="mb-4 hover:shadow-md transition-shadow">
       <CardHeader>
@@ -40,7 +53,7 @@ export const HolidayItem = ({
         </CardTitle>
         <p className="text-sm text-gray-500">
           <Calendar className="w-4 h-4 mr-1 inline-block" />
-          {format(new Date(holiday.date), "MMMM dd, yyyy")}
+          {formatHolidayDate(holiday.holiday_date)}
         </p>
       </CardHeader>
       <CardContent>
