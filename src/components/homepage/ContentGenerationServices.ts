@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
 import { toast } from "sonner";
@@ -146,30 +145,37 @@ export const generateCampaignContent = async (
     // Log content generation attempt
     await logContentGenerationAttempt(campaignId, userId, 'started', tenantId);
     
-    console.log('🔧 Using individual content generation instead of batch generation due to edge function issues');
+    console.log('🔧 Using individual content generation with enhanced error handling');
     
     // Try to spend tokens but don't fail if it doesn't work
     await spendTokensWithFallback(userId, campaignId);
 
     // Use individual content generation for each type for better reliability
-    const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
+    const contentTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
     const results = [];
 
-    console.log('🔧 Creating content tasks with hybrid ownership model using individual generation');
+    console.log('🔧 Creating content tasks with enhanced error handling');
 
-    // Handle regular content types with individual generation
     for (const type of contentTypes) {
       try {
-        console.log(`🔧 Individual generation for ${type} content`);
+        console.log(`🔧 Starting ${type} content generation`);
 
         let content = '';
         if (type === 'video') {
           content = await generateVideoScript(theme, userId, description);
+        } else if (type === 'newsletter') {
+          content = await generateNewsletterContent(
+            campaignId,
+            theme,
+            weekNumber || 1,
+            userId,
+            description
+          );
         } else {
           content = await generatePersonalizedContent(type, theme, userId, description);
         }
 
-        if (!content) {
+        if (!content || content.trim() === '') {
           console.warn(`⚠️ No content generated for type: ${type}`);
           continue;
         }
@@ -222,57 +228,10 @@ export const generateCampaignContent = async (
           contentType: type, 
           error: error.message 
         });
+        
+        // Continue with other content types even if one fails
+        console.log(`⚠️ Continuing with other content types despite ${type} failure`);
       }
-    }
-
-    // Handle newsletter separately with STRUCTURED format for consistent 4-section layout
-    try {
-      console.log('📰 Generating structured newsletter content with 4 sections using generateStructuredNewsletter');
-      const newsletterContent = await generateStructuredNewsletter(
-        campaignId,
-        theme,
-        weekNumber || 1,
-        userId,
-        description
-      );
-
-      const newsletterTaskData: any = {
-        campaign_id: campaignId,
-        post_type: 'newsletter',
-        ai_output: newsletterContent,
-        status: 'review',
-        scheduled_date: new Date().toISOString().split('T')[0],
-        notes: `Structured 4-section newsletter generated from theme: ${theme}`
-      };
-
-      // Set ownership based on tenant availability
-      if (tenantId) {
-        newsletterTaskData.tenant_id = tenantId;
-        newsletterTaskData.created_by_user_id = userId;
-      } else {
-        newsletterTaskData.user_id = userId;
-      }
-
-      const { data: newsletterTask, error: newsletterError } = await supabase
-        .from('content_tasks')
-        .insert(newsletterTaskData)
-        .select()
-        .single();
-
-      if (newsletterError) {
-        console.error('❌ Error creating newsletter task:', newsletterError);
-        await logContentGenerationAttempt(campaignId, userId, 'newsletter_creation_failed', tenantId, { 
-          error: newsletterError.message 
-        });
-      } else {
-        results.push(newsletterTask);
-        console.log('✅ Created structured 4-section newsletter content task with hybrid ownership');
-      }
-    } catch (error) {
-      console.error('❌ Error generating structured newsletter:', error);
-      await logContentGenerationAttempt(campaignId, userId, 'newsletter_generation_failed', tenantId, { 
-        error: error.message 
-      });
     }
 
     // Log successful completion
@@ -280,7 +239,7 @@ export const generateCampaignContent = async (
       tasksCreated: results.length 
     });
 
-    console.log(`🎉 Content generation completed: ${results.length} tasks created with individual generation approach`);
+    console.log(`🎉 Content generation completed: ${results.length} tasks created`);
     
     // Enhanced success logging
     results.forEach(task => {
@@ -288,11 +247,17 @@ export const generateCampaignContent = async (
     });
 
     // Show success toast to user
-    toast.success(`Generated ${results.length} content pieces for review!`);
+    if (results.length > 0) {
+      toast.success(`Generated ${results.length} content pieces for review!`);
+    } else {
+      toast.error('No content was generated. Please try again.');
+    }
 
     return {
-      success: true,
-      message: `Generated ${results.length} content pieces for review and approval`,
+      success: results.length > 0,
+      message: results.length > 0 
+        ? `Generated ${results.length} content pieces for review and approval`
+        : 'No content was generated. Please check your settings and try again.',
       tasks: results
     };
   } catch (error) {
@@ -318,7 +283,8 @@ export const generateCampaignContent = async (
     return {
       success: false,
       message: error.message || 'Failed to generate content',
-      error: error
+      error: error,
+      tasks: []
     };
   }
 };
@@ -414,7 +380,7 @@ const extractImageKeywords = (theme: string, description: string, contentType: s
     facebook: 'community educational informative people landscape wide garden',
     newsletter: 'professional seasonal informative clean organized landscape header garden',
     blog: 'featured image professional educational informative landscape header garden',
-    video: 'action process tutorial hands-on behind scenes landscape cinematic garden'
+    video: 'action process tutorial hands-on behind scenes cinematic garden'
   };
   
   const finalQuery = cleanText || theme || 'garden';

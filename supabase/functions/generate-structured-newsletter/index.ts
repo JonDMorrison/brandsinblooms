@@ -5,7 +5,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name',
 };
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -30,6 +30,7 @@ serve(async (req) => {
     console.log('Generating 4-section magazine newsletter:', { business_name, theme, week_focus, promo_items: promo_items.length });
 
     if (!openAIApiKey) {
+      console.error('OpenAI API key not configured');
       throw new Error('OpenAI API key not configured');
     }
 
@@ -38,109 +39,90 @@ serve(async (req) => {
     // Get company profile for additional context
     let companyProfile = null;
     if (userId) {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('company_profiles')
         .select('*')
         .eq('user_id', userId)
         .single();
-      companyProfile = profile;
+      
+      if (!profileError && profile) {
+        companyProfile = profile;
+        console.log('Retrieved company profile:', companyProfile.company_name);
+      }
     }
 
-    const contentIdeas = [
-      "Quick Gardening Tip", "Seasonal Plant Care", "Local Weather Advisory", "Featured Plant Variety", 
-      "Garden Problem Solution", "Customer Success Story", "Expert Plant Advice", 
-      `Spotlight on ${theme}`, "Tool Recommendation", "Pest & Disease Alert"
-    ];
+    const businessName = business_name || companyProfile?.company_name || 'Your Garden Center';
+    
+    // Simplified content generation for reliability
+    const systemPrompt = `You are a professional newsletter creator for garden centers. Create exactly 4 distinct sections for a weekly newsletter.
 
-    const systemPrompt = `You are a professional newsletter creator for garden centers, specializing in magazine-style layouts with EXACTLY 4 distinct sections.
+BUSINESS: ${businessName}
+THEME: ${theme}
+FOCUS: ${week_focus}
 
-CRITICAL REQUIREMENT: You MUST create exactly 4 content sections - no more, no less.
-
-MAGAZINE FORMAT REQUIREMENTS:
-- Main headline: Compelling, benefit-focused ≤ 50 characters
-- Intro paragraph: Engaging hook ≤ 100 characters  
-- Section headlines: Bold, specific ≤ 45 characters
-- Body paragraphs: Exactly 2-3 concise sentences ≤ 180 characters
-- Call-to-action: Clear, actionable ≤ 50 characters
-- Professional, scannable format
-- Grade 7-8 reading level
-
-BUSINESS CONTEXT:
-- Business: ${business_name || companyProfile?.company_name || 'Your Garden Center'}
-- Weekly Theme: ${theme}
-- Week Focus: ${week_focus}
-- Promotional Items: ${JSON.stringify(promo_items)}
-- Tone: ${tone_note || 'friendly-expert'}
-
-SECTION CREATION STRATEGY:
-1. Use promotional items from promo_items array for 1-2 sections if available
-2. Fill remaining sections with valuable gardening content from: ${contentIdeas.join(', ')}
-3. Ensure each section directly relates to the weekly theme: "${theme}"
-4. Make each section actionable and valuable to garden center customers
-
-Each section MUST have a specific, detailed image_prompt for garden-related photography that matches the section content.
+Create a structured newsletter with exactly 4 sections. Each section should be relevant to gardening and the weekly theme.
 
 Return ONLY valid YAML in this exact format:
 \`\`\`yaml
 newsletter_md: |
-  # [Compelling headline about ${theme} ≤50 chars]
-  *[Engaging intro about ${theme} benefits ≤100 chars]*
+  # ${theme} - Weekly Garden Newsletter
+  *Welcome to this week's gardening insights focused on ${theme}*
 
-  ## [Section 1 headline relating to ${theme} ≤45 chars]
-  [Exactly 2-3 sentences about gardening topic related to ${theme}. Keep under 180 characters total.]
+  ## Section 1: Seasonal Tips
+  [2-3 sentences about current seasonal gardening advice related to ${theme}]
 
-  ## [Section 2 headline relating to ${theme} ≤45 chars] 
-  [Exactly 2-3 sentences about gardening topic related to ${theme}. Keep under 180 characters total.]
+  ## Section 2: Plant Spotlight  
+  [2-3 sentences featuring a specific plant or technique related to ${theme}]
 
-  ## [Section 3 headline relating to ${theme} ≤45 chars]
-  [Exactly 2-3 sentences about gardening topic related to ${theme}. Keep under 180 characters total.]
+  ## Section 3: Problem Solving
+  [2-3 sentences about common gardening challenges and solutions for ${theme}]
 
-  ## [Section 4 headline relating to ${theme} ≤45 chars]
-  [Exactly 2-3 sentences about gardening topic related to ${theme}. Keep under 180 characters total.]
+  ## Section 4: Looking Ahead
+  [2-3 sentences about upcoming gardening tasks or preparation related to ${theme}]
 
   ---
-  Thanks for reading **${business_name || companyProfile?.company_name || 'Your Garden Center'}** 🌿
+  Thanks for reading **${businessName}** 🌿
 blocks:
-  - title: "[Section 1 headline relating to ${theme}]"
-    body: "[2-3 sentences about ${theme} ≤180 chars]"
-    cta: "[Clear action related to ${theme} ≤50 chars]"
-    link: "[relevant link]"
-    image_prompt: "[Detailed garden/plant photography prompt for ${theme} content]"
-    alt_text: "[Descriptive alt text for ${theme} image ≤60 chars]"
-  - title: "[Section 2 headline relating to ${theme}]"
-    body: "[2-3 sentences about ${theme} ≤180 chars]"
-    cta: "[Clear action related to ${theme} ≤50 chars]"
-    link: "[relevant link]"
-    image_prompt: "[Detailed garden/plant photography prompt for ${theme} content]"
-    alt_text: "[Descriptive alt text for ${theme} image ≤60 chars]"
-  - title: "[Section 3 headline relating to ${theme}]"
-    body: "[2-3 sentences about ${theme} ≤180 chars]"
-    cta: "[Clear action related to ${theme} ≤50 chars]"
-    link: "[relevant link]"
-    image_prompt: "[Detailed garden/plant photography prompt for ${theme} content]"
-    alt_text: "[Descriptive alt text for ${theme} image ≤60 chars]"
-  - title: "[Section 4 headline relating to ${theme}]"
-    body: "[2-3 sentences about ${theme} ≤180 chars]"
-    cta: "[Clear action related to ${theme} ≤50 chars]"
-    link: "[relevant link]"
-    image_prompt: "[Detailed garden/plant photography prompt for ${theme} content]"
-    alt_text: "[Descriptive alt text for ${theme} image ≤60 chars]"
+  - title: "Seasonal Tips"
+    body: "[Content for seasonal tips section]"
+    cta: "Visit us for seasonal supplies"
+    link: "#"
+    image_prompt: "seasonal gardening ${theme} tips advice"
+    alt_text: "Seasonal gardening tips"
+  - title: "Plant Spotlight"
+    body: "[Content for plant spotlight section]"
+    cta: "Shop featured plants"
+    link: "#"
+    image_prompt: "featured plant ${theme} garden center"
+    alt_text: "Featured plant display"
+  - title: "Problem Solving"
+    body: "[Content for problem solving section]"
+    cta: "Get expert advice"
+    link: "#"
+    image_prompt: "garden problem solution ${theme}"
+    alt_text: "Garden problem solution"
+  - title: "Looking Ahead"
+    body: "[Content for looking ahead section]"
+    cta: "Plan your garden"
+    link: "#"
+    image_prompt: "future garden planning ${theme}"
+    alt_text: "Garden planning"
 extra_content_ideas:
-  - title: "[Future idea related to ${theme} ≤35 chars]"
-    quick_desc: "[Brief description ≤35 chars]"
-  - title: "[Future idea related to ${theme} ≤35 chars]"
-    quick_desc: "[Brief description ≤35 chars]"
-  - title: "[Future idea related to ${theme} ≤35 chars]"
-    quick_desc: "[Brief description ≤35 chars]"
-  - title: "[Future idea related to ${theme} ≤35 chars]"
-    quick_desc: "[Brief description ≤35 chars]"
+  - title: "Watering Tips"
+    quick_desc: "Efficient watering techniques"
+  - title: "Soil Health"
+    quick_desc: "Maintaining healthy soil"
+  - title: "Pest Management"
+    quick_desc: "Natural pest control methods"
+  - title: "Seasonal Planting"
+    quick_desc: "What to plant this season"
 meta:
   reading_time: "≈3 min"
   theme: "${theme}"
   week_focus: "${week_focus}"
-\`\`\`
+\`\`\``;
 
-REMEMBER: You must create exactly 4 sections that all relate to the weekly theme "${theme}". Each section should provide unique value while staying connected to the overall theme.`;
+    console.log('Calling OpenAI API for newsletter generation...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -155,13 +137,15 @@ REMEMBER: You must create exactly 4 sections that all relate to the weekly theme
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Generate a 4-section magazine-style newsletter for the weekly theme "${theme}" with focus "${week_focus}". Create exactly 4 distinct sections that all relate to this theme. Each section should have compelling headlines, concise 2-3 sentence bodies, and specific image prompts for garden photography that match the content.` 
+            content: `Generate a 4-section newsletter for the theme "${theme}" with focus "${week_focus}". Make it practical and useful for garden center customers.` 
           }
         ]
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error:', response.status, errorText);
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
@@ -172,7 +156,7 @@ REMEMBER: You must create exactly 4 sections that all relate to the weekly theme
     const yamlMatch = content.match(/```yaml\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
     const yamlContent = yamlMatch ? yamlMatch[1] : content;
 
-    console.log('Generated 4-section magazine newsletter YAML');
+    console.log('Generated 4-section newsletter successfully');
 
     return new Response(JSON.stringify({
       success: true,

@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/contexts/AuthContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { useCurrentCampaignSection } from "./current-campaign/useCurrentCampaignSection";
@@ -6,7 +5,7 @@ import { NoUserState } from "./current-campaign/NoUserState";
 import { NoCampaignStateCard } from "./current-campaign/NoCampaignStateCard";
 import { CampaignLoadingState } from "./current-campaign/CampaignLoadingState";
 import { CampaignContent } from "./current-campaign/CampaignContent";
-import { generatePersonalizedContent, generateVideoScript, generateNewsletterContent } from "@/components/homepage/ContentGenerationServices";
+import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -68,73 +67,21 @@ export const CurrentCampaignSection = ({
 
       toast.loading('Generating fresh content...', { id: 'refresh-content' });
 
-      // Use individual content generation instead of batch function
-      const contentTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
-      const results = [];
+      // Use the comprehensive content generation function
+      const result = await generateCampaignContent(
+        activeCampaign.id,
+        activeCampaign.theme || activeCampaign.title,
+        activeCampaign.description || '',
+        user.id,
+        activeCampaign.week_number,
+        tenant?.id
+      );
 
-      for (const type of contentTypes) {
-        try {
-          console.log(`🔧 Generating ${type} content individually`);
-
-          let content = '';
-          if (type === 'video') {
-            content = await generateVideoScript(activeCampaign.theme || activeCampaign.title, user.id, activeCampaign.description);
-          } else if (type === 'newsletter') {
-            content = await generateNewsletterContent(
-              activeCampaign.id,
-              activeCampaign.theme || activeCampaign.title,
-              activeCampaign.week_number || 1,
-              user.id,
-              activeCampaign.description
-            );
-          } else {
-            content = await generatePersonalizedContent(type, activeCampaign.theme || activeCampaign.title, user.id, activeCampaign.description);
-          }
-
-          if (!content) {
-            console.warn(`⚠️ No content generated for type: ${type}`);
-            continue;
-          }
-
-          const taskData: any = {
-            campaign_id: activeCampaign.id,
-            post_type: type,
-            ai_output: content,
-            status: 'review',
-            scheduled_date: new Date().toISOString().split('T')[0],
-            notes: `Generated from theme: ${activeCampaign.theme || activeCampaign.title}`
-          };
-
-          // Set ownership based on tenant availability
-          if (tenant?.id) {
-            taskData.tenant_id = tenant.id;
-            taskData.created_by_user_id = user.id;
-          } else {
-            taskData.user_id = user.id;
-          }
-
-          const { data: task, error: taskError } = await supabase
-            .from('content_tasks')
-            .insert(taskData)
-            .select()
-            .single();
-
-          if (taskError) {
-            console.error(`❌ Error creating ${type} task:`, taskError);
-          } else {
-            results.push(task);
-            console.log(`✅ Created ${type} content task successfully`);
-          }
-        } catch (error) {
-          console.error(`❌ Error generating ${type} content:`, error);
-        }
-      }
-
-      if (results.length > 0) {
-        toast.success(`Generated ${results.length} fresh content pieces!`, { id: 'refresh-content' });
+      if (result.success && result.tasks && result.tasks.length > 0) {
+        toast.success(`Generated ${result.tasks.length} fresh content pieces!`, { id: 'refresh-content' });
         onTaskUpdate(); // Refresh the task list
       } else {
-        toast.error('Failed to generate any content', { id: 'refresh-content' });
+        toast.error(`Failed to generate content: ${result.message || 'Unknown error'}`, { id: 'refresh-content' });
       }
     } catch (error) {
       console.error('Error refreshing content:', error);
