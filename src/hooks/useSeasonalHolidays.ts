@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from './useTenant';
 import { generateHolidayContent } from '@/components/homepage/HolidayGenerationService';
 import { toast } from 'sonner';
+import { filterExpiredHolidays, hasExpiredHolidays } from '@/utils/dateUtils';
 
 interface Holiday {
   id: string;
@@ -28,7 +29,7 @@ export const useSeasonalHolidays = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch holidays
+  // Fetch holidays with client-side expired filtering
   const fetchHolidays = useCallback(async () => {
     try {
       console.log('Fetching seasonal holidays...');
@@ -52,14 +53,36 @@ export const useSeasonalHolidays = () => {
         return;
       }
 
-      console.log(`Found ${data?.length || 0} upcoming holidays`);
-      setHolidays(data || []);
+      // Apply client-side filtering to remove any expired holidays
+      const filteredHolidays = filterExpiredHolidays(data || []);
+      
+      console.log(`Found ${data?.length || 0} holidays from database, ${filteredHolidays.length} after filtering expired ones`);
+      setHolidays(filteredHolidays);
       setError(null);
     } catch (err) {
       console.error('Exception fetching holidays:', err);
       setError('An unexpected error occurred while loading holidays');
     }
   }, []);
+
+  // Check for expired holidays and refresh if needed
+  const checkAndRemoveExpiredHolidays = useCallback(() => {
+    if (holidays.length > 0 && hasExpiredHolidays(holidays)) {
+      console.log('Found expired holidays, refreshing list...');
+      const filteredHolidays = filterExpiredHolidays(holidays);
+      setHolidays(filteredHolidays);
+      
+      // Also update content state to remove expired holiday references
+      const updatedContentState = { ...holidayContentState };
+      Object.keys(updatedContentState).forEach(holidayId => {
+        const stillExists = filteredHolidays.some(h => h.id === holidayId);
+        if (!stillExists) {
+          delete updatedContentState[holidayId];
+        }
+      });
+      setHolidayContentState(updatedContentState);
+    }
+  }, [holidays, holidayContentState]);
 
   // Fetch content state for holidays with improved fallback logic
   const fetchHolidayContentState = useCallback(async () => {
@@ -203,6 +226,22 @@ export const useSeasonalHolidays = () => {
       fetchHolidayContentState();
     }
   }, [fetchHolidayContentState, holidays.length]);
+
+  // Set up periodic check for expired holidays (every hour and on page focus)
+  useEffect(() => {
+    const checkInterval = setInterval(checkAndRemoveExpiredHolidays, 60 * 60 * 1000); // Check every hour
+    
+    const handleFocus = () => {
+      checkAndRemoveExpiredHolidays();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      clearInterval(checkInterval);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [checkAndRemoveExpiredHolidays]);
 
   return {
     holidays,

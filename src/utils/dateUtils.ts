@@ -1,4 +1,3 @@
-
 // Get ISO week number (Week 1 is the first week with at least 4 days in January)
 export const getCurrentWeekNumber = () => {
   const today = new Date();
@@ -51,5 +50,31 @@ export const formatDate = (dateString: string) => {
     month: 'short',
     day: 'numeric',
     year: 'numeric'
+  });
+};
+
+// Filter out expired holidays based on current date
+export const filterExpiredHolidays = (holidays: Array<{ holiday_date: string; id: string; holiday_name: string }>) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+  
+  return holidays.filter(holiday => {
+    const holidayDate = new Date(holiday.holiday_date);
+    holidayDate.setHours(0, 0, 0, 0); // Reset time to start of day
+    
+    // Keep holidays that are today or in the future
+    return holidayDate >= today;
+  });
+};
+
+// Check if any holidays have expired since last check
+export const hasExpiredHolidays = (holidays: Array<{ holiday_date: string }>) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return holidays.some(holiday => {
+    const holidayDate = new Date(holiday.holiday_date);
+    holidayDate.setHours(0, 0, 0, 0);
+    return holidayDate < today;
   });
 };
