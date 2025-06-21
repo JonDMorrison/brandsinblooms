@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { parseNewsletterYAML, StructuredNewsletter } from '@/utils/newsletterUtils';
 import { Badge } from '@/components/ui/badge';
@@ -98,7 +97,7 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
     };
 
     fetchImages();
-  }, [content]); // Re-run when content changes
+  }, [content]);
 
   // Extract main headline from newsletter_md
   const headlineMatch = processedNewsletter.newsletter_md.match(/^# (.+)$/m);
@@ -200,11 +199,6 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                       <p className="text-sm">Image unavailable</p>
                     </div>
                   </div>
-                  {images[index].photographer && (
-                    <p className="text-xs text-gray-500 mt-2 text-center">
-                      Photo by {images[index].photographer}
-                    </p>
-                  )}
                 </div>
               ) : (
                 <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
