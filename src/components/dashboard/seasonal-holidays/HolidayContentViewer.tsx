@@ -87,14 +87,16 @@ export const HolidayContentViewer = ({
     }
   };
 
-  const handleTaskUpdate = (taskId: string, updates: Partial<ContentTask>) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId ? { ...task, ...updates } : task
-    ));
-    
+  const handleTaskUpdate = () => {
+    fetchHolidayTasks();
     if (onTaskUpdate) {
       onTaskUpdate();
     }
+  };
+
+  const handleTaskEdit = () => {
+    // Placeholder for edit functionality
+    toast.info('Edit functionality coming soon');
   };
 
   useEffect(() => {
@@ -220,15 +222,16 @@ export const HolidayContentViewer = ({
                       
                       <TaskActions
                         task={task}
-                        onTaskUpdate={(updates) => handleTaskUpdate(task.id, updates)}
-                        compact={true}
+                        onTaskUpdate={handleTaskUpdate}
+                        onEdit={handleTaskEdit}
                       />
                     </div>
 
                     <ScrollArea className="flex-1 pr-4">
                       <TaskContent
                         task={task}
-                        onTaskUpdate={(updates) => handleTaskUpdate(task.id, updates)}
+                        onRetryGeneration={() => {}}
+                        retryingGeneration={false}
                       />
                     </ScrollArea>
                   </TabsContent>

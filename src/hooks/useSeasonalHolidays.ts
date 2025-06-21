@@ -90,12 +90,14 @@ export const useSeasonalHolidays = () => {
         const hasAllFiveTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter']
           .every(type => holidayTasks.some(task => task.post_type === type));
         
+        const latestTimestamp = holidayTasks.length > 0 
+          ? Math.max(...holidayTasks.map(t => new Date(t.created_at).getTime()))
+          : undefined;
+        
         contentState[holiday.id] = {
           hasContent: hasAllFiveTypes,
           contentCount: holidayTasks.length,
-          lastGenerated: holidayTasks.length > 0 
-            ? Math.max(...holidayTasks.map(t => new Date(t.created_at).getTime()))
-            : undefined
+          lastGenerated: latestTimestamp ? new Date(latestTimestamp).toISOString() : undefined
         };
       });
 
@@ -106,7 +108,7 @@ export const useSeasonalHolidays = () => {
   }, [user, tenant, holidays]);
 
   // Generate content for a holiday
-  const generateHolidayContent = useCallback(async (holidayId: string) => {
+  const generateHolidayContentForHoliday = useCallback(async (holidayId: string) => {
     if (!user || !tenant) {
       throw new Error('User authentication required');
     }
@@ -124,7 +126,7 @@ export const useSeasonalHolidays = () => {
         id: `holiday-gen-${holidayId}`
       });
 
-      const results = await generateHolidayContent(user, holiday, tenant, fetchHolidayContentState);
+      const results = await generateHolidayContent(user, holiday, tenant);
       
       // Check results
       const successCount = results.filter(r => r.success).length;
@@ -178,7 +180,7 @@ export const useSeasonalHolidays = () => {
     holidayContentState,
     loading,
     error,
-    generateHolidayContent,
+    generateHolidayContent: generateHolidayContentForHoliday,
     refreshHolidayContent,
     refetch: fetchHolidays
   };
