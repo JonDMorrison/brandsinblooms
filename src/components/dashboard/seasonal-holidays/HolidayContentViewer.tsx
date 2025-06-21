@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,12 +7,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
-import { Loader2, Calendar, Sparkles, X } from 'lucide-react';
+import { Loader2, Calendar, Sparkles } from 'lucide-react';
 import { getPostTypeIcon } from '@/components/content/ContentViewerUtils';
 import { getStatusBadgeVariant, getPlatformBadgeVariant, getStatusLabel, getPlatformLabel } from '@/utils/badgeUtils';
 import { TaskContent } from '@/components/content/task-item/TaskContent';
 import { TaskActions } from '@/components/content/task-item/TaskActions';
 import { toast } from 'sonner';
+import { X } from 'lucide-react';
 
 interface HolidayContentViewerProps {
   holidayId: string;
@@ -147,28 +147,18 @@ export const HolidayContentViewer = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl max-h-[90vh] p-0">
         <DialogHeader className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-green-100 to-blue-100 rounded-lg">
-                <Calendar className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-semibold">
-                  {holidayName} Content Pack
-                </DialogTitle>
-                <p className="text-sm text-gray-500 mt-1">
-                  {availableTypes.length} of 5 content pieces ready
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-green-100 to-blue-100 rounded-lg">
+              <Calendar className="w-5 h-5 text-green-600" />
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="rounded-full"
-            >
-              <X className="w-4 h-4" />
-            </Button>
+            <div>
+              <DialogTitle className="text-xl font-semibold">
+                {holidayName} Content Pack
+              </DialogTitle>
+              <p className="text-sm text-gray-500 mt-1">
+                {availableTypes.length} of 5 content pieces ready
+              </p>
+            </div>
           </div>
         </DialogHeader>
 
