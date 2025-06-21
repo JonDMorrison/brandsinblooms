@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -84,10 +85,11 @@ export const UnifiedDashboardGrid = ({
 
   // Enhanced ready tasks filtering with preview content
   const readyStatusFilter = ['ready', 'approved', 'posted', 'review'];
-  if (isDevelopment) {
+  if (isDevelopment || isPreviewMode) {
     readyStatusFilter.push('preview');
   }
 
+  // Combine real tasks with sample tasks when in preview mode
   let combinedTasks = tasks.filter(task => {
     const hasValidStatus = readyStatusFilter.includes(task.status);
     const hasContent = task.ai_output && task.ai_output.trim() !== '';
@@ -100,9 +102,9 @@ export const UnifiedDashboardGrid = ({
       hasAccess = task.campaigns?.user_id === user?.id || task.user_id === user?.id;
     }
     
-    // Only exclude PREVIEW campaigns for production users
+    // Only exclude PREVIEW campaigns for production users when not in preview mode
     const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
-    if (!isDevelopment && isPreviewCampaign && !isPreviewMode) {
+    if (!isDevelopment && !isPreviewMode && isPreviewCampaign) {
       return false;
     }
     
@@ -111,13 +113,25 @@ export const UnifiedDashboardGrid = ({
 
   // Add sample tasks when preview mode is enabled
   if (isPreviewMode) {
+    console.log('🔍 PREVIEW MODE: Adding sample tasks to dashboard');
     combinedTasks = [...combinedTasks, ...sampleTasks];
   }
 
   const readyTasks = combinedTasks;
 
   // Enhanced active campaign with preview support
-  const displayCampaign = isPreviewMode && !activeCampaign ? sampleCampaign : activeCampaign;
+  let displayCampaign = activeCampaign;
+  let displayTasks = tasks;
+
+  if (isPreviewMode) {
+    console.log('🔍 PREVIEW MODE: Using sample campaign and tasks');
+    // In preview mode, show sample campaign if no active campaign or if user wants to see preview
+    if (!activeCampaign) {
+      displayCampaign = sampleCampaign as Campaign;
+    }
+    // Always include sample tasks in preview mode
+    displayTasks = [...tasks, ...sampleTasks];
+  }
 
   console.log('UnifiedDashboardGrid: Ready tasks after filtering:', readyTasks.length, 'out of', tasks.length, '(isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ', previewMode:', isPreviewMode, ')');
 
@@ -130,7 +144,7 @@ export const UnifiedDashboardGrid = ({
         {/* Current Campaign Section */}
         <CurrentCampaignSection 
           activeCampaign={displayCampaign}
-          tasks={isPreviewMode ? [...tasks, ...sampleTasks] : tasks}
+          tasks={displayTasks}
           onTaskUpdate={onTaskUpdate}
           onCreateCampaign={onCreateCampaign || (() => {})}
           onCampaignCreated={onCampaignCreated || (() => {})}
