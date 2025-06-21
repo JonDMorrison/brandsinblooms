@@ -5,7 +5,7 @@ import { AppleCardHeader, AppleCardContent } from '@/components/ui/apple-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { HeadlineLarge, BodyMedium, CaptionMedium } from '@/components/ui/typography';
-import { Calendar, Sparkles, Eye, Loader2, Instagram, Facebook, FileText, Video, Mail } from 'lucide-react';
+import { Sparkles, Eye, Loader2, Instagram, Facebook, FileText, Video, Mail } from 'lucide-react';
 import { format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 
 interface Holiday {
@@ -65,6 +65,10 @@ export const HolidayItem = ({
   const hasAnyContent = contentState && contentState.contentCount > 0;
   const contentProgress = contentState ? `${contentState.contentCount} of 5` : '0 of 5';
 
+  // Extract month and day for custom calendar icon
+  const monthAbbr = format(holidayDate, 'MMM').toUpperCase();
+  const dayNumber = format(holidayDate, 'd');
+
   return (
     <EnhancedAppleCard
       variant="elevated"
@@ -76,8 +80,13 @@ export const HolidayItem = ({
       <AppleCardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-green-100 to-blue-100 rounded-xl">
-              <Calendar className="w-6 h-6 text-green-600" />
+            <div className="flex flex-col items-center justify-center w-12 h-12 bg-gradient-to-br from-green-100 to-blue-100 rounded-xl border border-green-200">
+              <div className="text-[9px] font-semibold text-green-700 leading-none mb-0.5">
+                {monthAbbr}
+              </div>
+              <div className="text-sm font-bold text-green-800 leading-none">
+                {dayNumber}
+              </div>
             </div>
             <div>
               <HeadlineLarge className="text-gray-900 text-lg font-semibold">
