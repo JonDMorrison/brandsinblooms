@@ -65,7 +65,7 @@ export const verifyNewsletterGeneration = async (
     const missingTypes = expectedTypes.filter(type => !beforeCounts[type] || beforeCounts[type] === 0);
     const hasNewsletter = beforeCounts['newsletter'] > 0;
 
-    const result = {
+    const result: NewsletterVerificationResult = {
       success: missingTypes.length === 0 && hasNewsletter,
       message: hasNewsletter 
         ? `✅ Newsletter found! All content types present: ${expectedTypes.join(', ')}`
