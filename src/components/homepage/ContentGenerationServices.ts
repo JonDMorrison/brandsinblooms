@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
 import { toast } from "sonner";
@@ -6,9 +5,9 @@ import { toast } from "sonner";
 export const generatePersonalizedContent = async (postType: string, campaignTitle: string, userId?: string, weekDescription?: string) => {
   console.log(`🎯 Generating validated ${postType} content for: ${campaignTitle} with description: ${weekDescription}`);
   
-  // Route newsletter requests to structured generator
+  // ALWAYS route newsletter requests to structured generator for consistent 4-section format
   if (postType === 'newsletter') {
-    console.log('📰 Routing newsletter request to structured generator');
+    console.log('📰 Routing newsletter request to structured generator for 4-section format');
     return await generateStructuredNewsletter(
       'temp-campaign-id', // This will be replaced with actual campaign ID when available
       campaignTitle,
@@ -296,9 +295,9 @@ export const generateCampaignContent = async (
       }
     }
 
-    // Handle newsletter separately with structured format
+    // Handle newsletter separately with STRUCTURED format for consistent 4-section layout
     try {
-      console.log('📰 Generating structured newsletter content');
+      console.log('📰 Generating structured newsletter content with 4 sections');
       const newsletterContent = await generateStructuredNewsletter(
         campaignId,
         theme,
@@ -313,7 +312,7 @@ export const generateCampaignContent = async (
         ai_output: newsletterContent,
         status: 'review',
         scheduled_date: new Date().toISOString().split('T')[0],
-        notes: `Structured newsletter generated from theme: ${theme}`
+        notes: `Structured 4-section newsletter generated from theme: ${theme}`
       };
 
       // Set ownership based on tenant availability
@@ -337,7 +336,7 @@ export const generateCampaignContent = async (
         });
       } else {
         results.push(newsletterTask);
-        console.log('✅ Created structured newsletter content task with hybrid ownership');
+        console.log('✅ Created structured 4-section newsletter content task with hybrid ownership');
       }
     } catch (error) {
       console.error('❌ Error generating structured newsletter:', error);

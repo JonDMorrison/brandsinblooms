@@ -27,7 +27,7 @@ serve(async (req) => {
       userId 
     } = await req.json();
 
-    console.log('Generating magazine-style newsletter:', { business_name, theme, week_focus, promo_items: promo_items.length });
+    console.log('Generating 4-section magazine newsletter:', { business_name, theme, week_focus, promo_items: promo_items.length });
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
@@ -49,10 +49,12 @@ serve(async (req) => {
     const contentIdeas = [
       "Quick Gardening Tip", "Seasonal Plant Care", "Local Weather Advisory", "Featured Plant Variety", 
       "Garden Problem Solution", "Customer Success Story", "Expert Plant Advice", 
-      `Spotlight on ${theme}`
+      `Spotlight on ${theme}`, "Tool Recommendation", "Pest & Disease Alert"
     ];
 
-    const systemPrompt = `You are a professional newsletter creator for garden centers, specializing in magazine-style layouts.
+    const systemPrompt = `You are a professional newsletter creator for garden centers, specializing in magazine-style layouts with EXACTLY 4 distinct sections.
+
+CRITICAL REQUIREMENT: You MUST create exactly 4 content sections - no more, no less.
 
 MAGAZINE FORMAT REQUIREMENTS:
 - Main headline: Compelling, benefit-focused ≤ 50 characters
@@ -65,74 +67,80 @@ MAGAZINE FORMAT REQUIREMENTS:
 
 BUSINESS CONTEXT:
 - Business: ${business_name || companyProfile?.company_name || 'Your Garden Center'}
-- Theme: ${theme}
+- Weekly Theme: ${theme}
 - Week Focus: ${week_focus}
 - Promotional Items: ${JSON.stringify(promo_items)}
 - Tone: ${tone_note || 'friendly-expert'}
 
-Create exactly 4 content sections. Use promo_items for promotional sections, fill remaining with valuable gardening content from: ${contentIdeas.join(', ')}.
+SECTION CREATION STRATEGY:
+1. Use promotional items from promo_items array for 1-2 sections if available
+2. Fill remaining sections with valuable gardening content from: ${contentIdeas.join(', ')}
+3. Ensure each section directly relates to the weekly theme: "${theme}"
+4. Make each section actionable and valuable to garden center customers
 
-Each section needs a specific, detailed image_prompt for garden-related photography.
+Each section MUST have a specific, detailed image_prompt for garden-related photography that matches the section content.
 
 Return ONLY valid YAML in this exact format:
 \`\`\`yaml
 newsletter_md: |
-  # [Compelling headline ≤50 chars]
-  *[Engaging intro hook ≤100 chars]*
+  # [Compelling headline about ${theme} ≤50 chars]
+  *[Engaging intro about ${theme} benefits ≤100 chars]*
 
-  ## [Section 1 headline ≤45 chars]
-  [Exactly 2-3 sentences about gardening topic. Keep under 180 characters total.]
+  ## [Section 1 headline relating to ${theme} ≤45 chars]
+  [Exactly 2-3 sentences about gardening topic related to ${theme}. Keep under 180 characters total.]
 
-  ## [Section 2 headline ≤45 chars] 
-  [Exactly 2-3 sentences about gardening topic. Keep under 180 characters total.]
+  ## [Section 2 headline relating to ${theme} ≤45 chars] 
+  [Exactly 2-3 sentences about gardening topic related to ${theme}. Keep under 180 characters total.]
 
-  ## [Section 3 headline ≤45 chars]
-  [Exactly 2-3 sentences about gardening topic. Keep under 180 characters total.]
+  ## [Section 3 headline relating to ${theme} ≤45 chars]
+  [Exactly 2-3 sentences about gardening topic related to ${theme}. Keep under 180 characters total.]
 
-  ## [Section 4 headline ≤45 chars]
-  [Exactly 2-3 sentences about gardening topic. Keep under 180 characters total.]
+  ## [Section 4 headline relating to ${theme} ≤45 chars]
+  [Exactly 2-3 sentences about gardening topic related to ${theme}. Keep under 180 characters total.]
 
   ---
   Thanks for reading **${business_name || companyProfile?.company_name || 'Your Garden Center'}** 🌿
 blocks:
-  - title: "[Section 1 headline]"
-    body: "[2-3 sentences ≤180 chars]"
-    cta: "[Clear action ≤50 chars]"
+  - title: "[Section 1 headline relating to ${theme}]"
+    body: "[2-3 sentences about ${theme} ≤180 chars]"
+    cta: "[Clear action related to ${theme} ≤50 chars]"
     link: "[relevant link]"
-    image_prompt: "[Detailed garden/plant photography prompt]"
-    alt_text: "[Descriptive alt text ≤60 chars]"
-  - title: "[Section 2 headline]"
-    body: "[2-3 sentences ≤180 chars]"
-    cta: "[Clear action ≤50 chars]"
+    image_prompt: "[Detailed garden/plant photography prompt for ${theme} content]"
+    alt_text: "[Descriptive alt text for ${theme} image ≤60 chars]"
+  - title: "[Section 2 headline relating to ${theme}]"
+    body: "[2-3 sentences about ${theme} ≤180 chars]"
+    cta: "[Clear action related to ${theme} ≤50 chars]"
     link: "[relevant link]"
-    image_prompt: "[Detailed garden/plant photography prompt]"
-    alt_text: "[Descriptive alt text ≤60 chars]"
-  - title: "[Section 3 headline]"
-    body: "[2-3 sentences ≤180 chars]"
-    cta: "[Clear action ≤50 chars]"
+    image_prompt: "[Detailed garden/plant photography prompt for ${theme} content]"
+    alt_text: "[Descriptive alt text for ${theme} image ≤60 chars]"
+  - title: "[Section 3 headline relating to ${theme}]"
+    body: "[2-3 sentences about ${theme} ≤180 chars]"
+    cta: "[Clear action related to ${theme} ≤50 chars]"
     link: "[relevant link]"
-    image_prompt: "[Detailed garden/plant photography prompt]"
-    alt_text: "[Descriptive alt text ≤60 chars]"
-  - title: "[Section 4 headline]"
-    body: "[2-3 sentences ≤180 chars]"
-    cta: "[Clear action ≤50 chars]"
+    image_prompt: "[Detailed garden/plant photography prompt for ${theme} content]"
+    alt_text: "[Descriptive alt text for ${theme} image ≤60 chars]"
+  - title: "[Section 4 headline relating to ${theme}]"
+    body: "[2-3 sentences about ${theme} ≤180 chars]"
+    cta: "[Clear action related to ${theme} ≤50 chars]"
     link: "[relevant link]"
-    image_prompt: "[Detailed garden/plant photography prompt]"
-    alt_text: "[Descriptive alt text ≤60 chars]"
+    image_prompt: "[Detailed garden/plant photography prompt for ${theme} content]"
+    alt_text: "[Descriptive alt text for ${theme} image ≤60 chars]"
 extra_content_ideas:
-  - title: "[Future idea ≤35 chars]"
+  - title: "[Future idea related to ${theme} ≤35 chars]"
     quick_desc: "[Brief description ≤35 chars]"
-  - title: "[Future idea ≤35 chars]"
+  - title: "[Future idea related to ${theme} ≤35 chars]"
     quick_desc: "[Brief description ≤35 chars]"
-  - title: "[Future idea ≤35 chars]"
+  - title: "[Future idea related to ${theme} ≤35 chars]"
     quick_desc: "[Brief description ≤35 chars]"
-  - title: "[Future idea ≤35 chars]"
+  - title: "[Future idea related to ${theme} ≤35 chars]"
     quick_desc: "[Brief description ≤35 chars]"
 meta:
   reading_time: "≈3 min"
   theme: "${theme}"
   week_focus: "${week_focus}"
-\`\`\``;
+\`\`\`
+
+REMEMBER: You must create exactly 4 sections that all relate to the weekly theme "${theme}". Each section should provide unique value while staying connected to the overall theme.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -147,7 +155,7 @@ meta:
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Generate a magazine-style structured newsletter for theme "${theme}" with focus "${week_focus}". Create exactly 4 sections with compelling headlines, concise 2-3 sentence bodies, and specific image prompts for garden photography.` 
+            content: `Generate a 4-section magazine-style newsletter for the weekly theme "${theme}" with focus "${week_focus}". Create exactly 4 distinct sections that all relate to this theme. Each section should have compelling headlines, concise 2-3 sentence bodies, and specific image prompts for garden photography that match the content.` 
           }
         ]
       }),
@@ -164,7 +172,7 @@ meta:
     const yamlMatch = content.match(/```yaml\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
     const yamlContent = yamlMatch ? yamlMatch[1] : content;
 
-    console.log('Generated magazine-style newsletter YAML');
+    console.log('Generated 4-section magazine newsletter YAML');
 
     return new Response(JSON.stringify({
       success: true,

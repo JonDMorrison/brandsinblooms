@@ -16,10 +16,10 @@ export const generateStructuredNewsletter = async (
   promoItems: PromoItem[] = [],
   toneNote?: string
 ) => {
-  console.log(`🎯 Generating structured newsletter for campaign: ${campaignTitle} (Week ${weekNumber})`);
+  console.log(`🎯 Generating 4-section structured newsletter for campaign: ${campaignTitle} (Week ${weekNumber})`);
   
   try {
-    console.log('📡 Calling generate-structured-newsletter function');
+    console.log('📡 Calling generate-structured-newsletter function for 4-section format');
 
     const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {
       body: {
@@ -35,7 +35,7 @@ export const generateStructuredNewsletter = async (
     console.log('📨 Response from generate-structured-newsletter function:', { data, error });
 
     if (error) {
-      console.error('❌ Error generating structured newsletter:', error);
+      console.error('❌ Error generating 4-section structured newsletter:', error);
       throw new Error(`Structured newsletter generation failed: ${error.message || 'Unknown error'}`);
     }
 
@@ -44,7 +44,16 @@ export const generateStructuredNewsletter = async (
       throw new Error('No structured newsletter content returned');
     }
 
-    console.log(`✅ Generated structured newsletter successfully`);
+    // Validate that the content has the expected 4-section structure
+    const blockMatches = content.match(/- title:/g);
+    const blockCount = blockMatches ? blockMatches.length : 0;
+    
+    if (blockCount !== 4) {
+      console.warn(`⚠️ Generated newsletter has ${blockCount} sections instead of 4. Content may need regeneration.`);
+    } else {
+      console.log(`✅ Generated 4-section structured newsletter successfully`);
+    }
+
     return content;
   } catch (error) {
     console.error('❌ Error in generateStructuredNewsletter:', error);
