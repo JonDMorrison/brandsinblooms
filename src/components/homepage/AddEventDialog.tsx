@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2, Calendar as CalendarIcon, CheckCircle } from "lucide-react";
@@ -25,6 +25,7 @@ interface AddEventDialogProps {
 
 export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventDialogProps) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [eventName, setEventName] = useState("");
   const [eventDescription, setEventDescription] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -72,18 +73,25 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
       const eventPrompt = `Promote the event "${eventName}" ${eventDescription ? `- ${eventDescription}` : ''} ${eventDate ? `scheduled for ${eventDate}` : ''}${eventInstructions ? `. Important instructions: ${eventInstructions}` : ''}. Create engaging promotional content that encourages attendance and builds excitement.`;
 
-      const { data: campaignData, error: insertError } = await supabase
+      // 🔧 FIXED: Ensure proper user and tenant assignment
+      const campaignData = {
+        title: eventName.trim(),
+        description: eventDescription.trim() || null,
+        theme: `${eventName} Promotion`,
+        prompt: eventPrompt,
+        start_date: new Date().toISOString().split('T')[0],
+        week_number: getCurrentWeekNumber(),
+        source: 'quick_action',
+        user_id: user.id, // Always set user_id
+        created_by_user_id: user.id, // Track who created it
+        ...(tenant?.id && { tenant_id: tenant.id }) // Only add tenant_id if tenant exists
+      };
+
+      console.log('AddEventDialog: Creating event with data:', campaignData);
+
+      const { data: campaignData: insertedCampaign, error: insertError } = await supabase
         .from('campaigns')
-        .insert({
-          title: eventName.trim(),
-          description: eventDescription.trim() || null,
-          theme: `${eventName} Promotion`,
-          prompt: eventPrompt,
-          start_date: new Date().toISOString().split('T')[0],
-          week_number: getCurrentWeekNumber(),
-          source: 'quick_action',
-          user_id: user.id
-        })
+        .insert(campaignData)
         .select()
         .single();
 
@@ -92,20 +100,21 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         throw new Error(insertError.message);
       }
 
-      console.log('AddEventDialog: Campaign created successfully:', campaignData);
+      console.log('AddEventDialog: Campaign created successfully:', insertedCampaign);
 
       // Now automatically generate content for the event
       setGeneratingContent(true);
       toast.loading('Generating content for your event...', { id: 'content-generation' });
 
       try {
-        console.log('AddEventDialog: Starting content generation for event:', campaignData.id);
+        console.log('AddEventDialog: Starting content generation for event:', insertedCampaign.id);
         
         const result = await generateRequiredTasks(
-          campaignData.id,
-          [campaignData], // Pass campaign as array since generateRequiredTasks expects campaigns array
+          insertedCampaign.id,
+          [insertedCampaign], // Pass campaign as array since generateRequiredTasks expects campaigns array
           user.id,
-          onEventCreated // This will refresh the dashboard
+          onEventCreated, // This will refresh the dashboard
+          tenant?.id // Pass tenant_id if available
         );
 
         if (result.success) {

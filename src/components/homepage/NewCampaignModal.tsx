@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
@@ -22,6 +22,7 @@ interface NewCampaignModalProps {
 
 export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewCampaignModalProps) => {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
@@ -95,18 +96,25 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       const weekNumber = parseInt(selectedWeek);
       const startDate = calculateStartDate(weekNumber);
 
-      const { data: campaignData, error: insertError } = await supabase
+      // 🔧 FIXED: Ensure proper user and tenant assignment
+      const campaignData = {
+        title: title.trim(),
+        description: description.trim() || null,
+        theme: theme.trim() || null,
+        prompt: campaignPrompt,
+        start_date: startDate,
+        week_number: weekNumber,
+        source: 'quick_action',
+        user_id: user.id, // Always set user_id
+        created_by_user_id: user.id, // Track who created it
+        ...(tenant?.id && { tenant_id: tenant.id }) // Only add tenant_id if tenant exists
+      };
+
+      console.log('NewCampaignModal: Creating campaign with data:', campaignData);
+
+      const { data: insertedCampaign, error: insertError } = await supabase
         .from('campaigns')
-        .insert({
-          title: title.trim(),
-          description: description.trim() || null,
-          theme: theme.trim() || null,
-          prompt: campaignPrompt,
-          start_date: startDate,
-          week_number: weekNumber,
-          source: 'quick_action',
-          user_id: user.id
-        })
+        .insert(campaignData)
         .select()
         .single();
 
@@ -115,20 +123,21 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
         throw new Error(insertError.message);
       }
 
-      console.log('NewCampaignModal: Campaign created successfully:', campaignData);
+      console.log('NewCampaignModal: Campaign created successfully:', insertedCampaign);
       
       // Now automatically generate content for the campaign
       setGeneratingContent(true);
       toast.loading('Generating content for your campaign...', { id: 'content-generation' });
 
       try {
-        console.log('NewCampaignModal: Starting content generation for campaign:', campaignData.id);
+        console.log('NewCampaignModal: Starting content generation for campaign:', insertedCampaign.id);
         
         const result = await generateRequiredTasks(
-          campaignData.id,
-          [campaignData], // Pass campaign as array since generateRequiredTasks expects campaigns array
+          insertedCampaign.id,
+          [insertedCampaign], // Pass campaign as array since generateRequiredTasks expects campaigns array
           user.id,
-          onCampaignCreated // This will refresh the dashboard
+          onCampaignCreated, // This will refresh the dashboard
+          tenant?.id // Pass tenant_id if available
         );
 
         if (result.success) {

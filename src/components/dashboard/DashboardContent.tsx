@@ -108,7 +108,37 @@ export const DashboardContent = ({
 
       // Separate system campaigns from user-created campaigns
       const systemCampaigns = allCampaigns.filter(c => c.source !== 'quick_action');
-      const customCampaigns = allCampaigns.filter(c => c.source === 'quick_action');
+      
+      // 🔧 FIXED: More inclusive filtering for custom campaigns
+      let customCampaigns = allCampaigns.filter(c => c.source === 'quick_action');
+      
+      // If no custom campaigns found with strict filtering, try more inclusive approach
+      if (customCampaigns.length === 0) {
+        console.log('🔍 DashboardContent: No custom campaigns found with strict filtering, trying inclusive approach...');
+        
+        // Fetch all quick_action campaigns and filter more inclusively
+        const { data: allQuickActionCampaigns } = await supabase
+          .from('campaigns')
+          .select('*')
+          .eq('source', 'quick_action');
+          
+        if (allQuickActionCampaigns) {
+          // Include campaigns that:
+          // 1. Match current user_id, OR
+          // 2. Match tenant_id (if user has tenant), OR  
+          // 3. Have null user_id but were created recently (likely by current user)
+          customCampaigns = allQuickActionCampaigns.filter(c => {
+            const matchesUser = c.user_id === user.id;
+            const matchesTenant = tenant?.id && c.tenant_id === tenant.id;
+            const isOrphanedRecent = !c.user_id && !c.tenant_id && 
+              new Date(c.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000); // Created within 24 hours
+            
+            return matchesUser || matchesTenant || isOrphanedRecent;
+          });
+          
+          console.log('🔍 DashboardContent: Found custom campaigns with inclusive filtering:', customCampaigns.length);
+        }
+      }
       
       console.log('🔍 DashboardContent: System campaigns:', systemCampaigns.length, 'Custom campaigns:', customCampaigns.length);
       setUserCreatedCampaigns(customCampaigns);
