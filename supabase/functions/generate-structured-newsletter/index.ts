@@ -53,69 +53,83 @@ serve(async (req) => {
 
     const businessName = business_name || companyProfile?.company_name || 'Your Garden Center';
     
-    // Simplified content generation for reliability
-    const systemPrompt = `You are a professional newsletter creator for garden centers. Create exactly 4 distinct sections for a weekly newsletter.
+    // Enhanced system prompt with engaging headlines
+    const systemPrompt = `You are a professional newsletter creator for garden centers who uses proven copywriting principles to create engaging content.
 
 BUSINESS: ${businessName}
 THEME: ${theme}
 FOCUS: ${week_focus}
 
-Create a structured newsletter with exactly 4 sections. Each section should be relevant to gardening and the weekly theme.
+CRITICAL HEADLINE REQUIREMENTS:
+- NEVER use "Weekly" or mention week numbers anywhere
+- ALL headlines must be engaging and benefit-driven using copywriting best practices
+- Use power words: save, transform, discover, secret, proven, rescue, boost
+- Create curiosity and emotional appeal
+- Focus on customer outcomes and benefits
+- NO generic titles like "Seasonal Tips" or "Problem Solving"
+
+Create a structured newsletter with exactly 4 sections using engaging, magazine-style headlines.
+
+HEADLINE EXAMPLES TO FOLLOW:
+- Instead of "Seasonal Tips" → "Beat the Heat: Your Garden's Summer Survival Guide"
+- Instead of "Problem Solving" → "SOS: Save Your Plants Before It's Too Late"  
+- Instead of "Plant Spotlight" → "This Month's Garden Game-Changer"
+- Instead of "Looking Ahead" → "Get Ready: Your Garden's Next Power Move"
 
 Return ONLY valid YAML in this exact format:
 \`\`\`yaml
 newsletter_md: |
-  # ${theme} - Weekly Garden Newsletter
-  *Welcome to this week's gardening insights focused on ${theme}*
+  # ${theme} Garden Newsletter
+  *Discover the secrets to garden success with expert insights tailored for ${theme}*
 
-  ## Section 1: Seasonal Tips
-  [2-3 sentences about current seasonal gardening advice related to ${theme}]
+  ## Beat the Heat: Your Garden's Summer Survival Guide
+  [2-3 sentences with actionable seasonal gardening advice that helps plants thrive during challenging conditions]
 
-  ## Section 2: Plant Spotlight  
-  [2-3 sentences featuring a specific plant or technique related to ${theme}]
+  ## This Month's Garden Game-Changer  
+  [2-3 sentences featuring a specific plant, technique, or product that will transform their gardening results]
 
-  ## Section 3: Problem Solving
-  [2-3 sentences about common gardening challenges and solutions for ${theme}]
+  ## SOS: Save Your Plants Before It's Too Late
+  [2-3 sentences about preventing or solving common gardening problems with specific solutions they can implement immediately]
 
-  ## Section 4: Looking Ahead
-  [2-3 sentences about upcoming gardening tasks or preparation related to ${theme}]
+  ## Get Ready: Your Garden's Next Power Move
+  [2-3 sentences about upcoming gardening opportunities, planning, or preparation that sets them up for success]
 
   ---
-  Thanks for reading **${businessName}** 🌿
+  Transform your garden with **${businessName}** 🌿
 blocks:
-  - title: "Seasonal Tips"
-    body: "[Content for seasonal tips section]"
-    cta: "Visit us for seasonal supplies"
+  - title: "Beat the Heat: Your Garden's Summer Survival Guide"
+    body: "[Actionable seasonal advice with specific techniques and timing]"
+    cta: "Get seasonal garden supplies"
     link: "#"
-    image_prompt: "seasonal gardening ${theme} tips advice"
-    alt_text: "Seasonal gardening tips"
-  - title: "Plant Spotlight"
-    body: "[Content for plant spotlight section]"
-    cta: "Shop featured plants"
+    image_prompt: "thriving garden summer heat protection ${theme}"
+    alt_text: "Garden thriving in summer heat"
+  - title: "This Month's Garden Game-Changer"
+    body: "[Featured plant or technique with transformation benefits]"
+    cta: "Discover game-changing plants"
     link: "#"
-    image_prompt: "featured plant ${theme} garden center"
-    alt_text: "Featured plant display"
-  - title: "Problem Solving"
-    body: "[Content for problem solving section]"
-    cta: "Get expert advice"
+    image_prompt: "featured plant transformation ${theme} garden center"
+    alt_text: "Garden transformation with featured plant"
+  - title: "SOS: Save Your Plants Before It's Too Late"
+    body: "[Problem prevention and solution with step-by-step guidance]"
+    cta: "Get plant rescue solutions"
     link: "#"
-    image_prompt: "garden problem solution ${theme}"
-    alt_text: "Garden problem solution"
-  - title: "Looking Ahead"
-    body: "[Content for looking ahead section]"
-    cta: "Plan your garden"
+    image_prompt: "plant rescue recovery solution ${theme}"
+    alt_text: "Successful plant rescue and recovery"
+  - title: "Get Ready: Your Garden's Next Power Move"
+    body: "[Forward-looking preparation and planning advice]"
+    cta: "Plan your garden success"
     link: "#"
-    image_prompt: "future garden planning ${theme}"
-    alt_text: "Garden planning"
+    image_prompt: "garden planning preparation ${theme} success"
+    alt_text: "Garden planning for success"
 extra_content_ideas:
-  - title: "Watering Tips"
-    quick_desc: "Efficient watering techniques"
-  - title: "Soil Health"
-    quick_desc: "Maintaining healthy soil"
-  - title: "Pest Management"
-    quick_desc: "Natural pest control methods"
-  - title: "Seasonal Planting"
-    quick_desc: "What to plant this season"
+  - title: "The Watering Secret Pros Use"
+    quick_desc: "Advanced watering techniques for maximum plant health"
+  - title: "Soil Transformation Magic"
+    quick_desc: "Turn poor soil into plant paradise"
+  - title: "Natural Pest Defense System"
+    quick_desc: "Protect plants without harmful chemicals"
+  - title: "Seasonal Planting Power Strategy"
+    quick_desc: "Time plantings for maximum success"
 meta:
   reading_time: "≈3 min"
   theme: "${theme}"
@@ -137,7 +151,7 @@ meta:
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Generate a 4-section newsletter for the theme "${theme}" with focus "${week_focus}". Make it practical and useful for garden center customers.` 
+            content: `Generate a 4-section newsletter for the theme "${theme}" with focus "${week_focus}". Use engaging, benefit-driven headlines that follow copywriting best practices. Make it practical and valuable for garden center customers. NO week numbers or "weekly" language anywhere.` 
           }
         ]
       }),
@@ -156,7 +170,7 @@ meta:
     const yamlMatch = content.match(/```yaml\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
     const yamlContent = yamlMatch ? yamlMatch[1] : content;
 
-    console.log('Generated 4-section newsletter successfully');
+    console.log('Generated 4-section newsletter with engaging headlines successfully');
 
     return new Response(JSON.stringify({
       success: true,
