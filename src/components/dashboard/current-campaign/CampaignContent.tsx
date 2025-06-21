@@ -2,9 +2,9 @@
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardHeader, AppleCardContent } from "@/components/ui/apple-card";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
-import { Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sparkles, RefreshCw } from "lucide-react";
 import { TaskItem } from "./TaskItem";
-import { WeeklyContentExplanation } from "./WeeklyContentExplanation";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -14,13 +14,17 @@ interface CampaignContentProps {
   tasks: any[];
   onTaskClick: (task: any) => void;
   onTaskUpdate: () => void;
+  onRefreshContent?: () => void;
+  isRefreshing?: boolean;
 }
 
 export const CampaignContent = ({ 
   activeCampaign, 
   tasks, 
   onTaskClick, 
-  onTaskUpdate 
+  onTaskUpdate,
+  onRefreshContent,
+  isRefreshing = false
 }: CampaignContentProps) => {
   const { user } = useAuth();
   
@@ -40,8 +44,22 @@ export const CampaignContent = ({
     >
       <AppleCardHeader className="pb-4">
         <div className="space-y-4">
-          {/* Main Section Title */}
-          <h2 className="text-2xl font-semibold text-text-primary">Your Weekly Content</h2>
+          {/* Header with Title and Refresh Button */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold text-text-primary">Your Weekly Content</h2>
+            {onRefreshContent && (
+              <Button
+                onClick={onRefreshContent}
+                disabled={isRefreshing}
+                size="sm"
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                {isRefreshing ? 'Refreshing...' : 'Refresh Content'}
+              </Button>
+            )}
+          </div>
           
           {/* Campaign Info */}
           <div className="flex items-center gap-3 apple-slide-up">

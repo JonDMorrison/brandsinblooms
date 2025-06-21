@@ -153,11 +153,6 @@ export const CurrentCampaignSection = ({
         </CardHeader>
         
         <CardContent className="space-y-6">
-          <WeeklyContentExplanation 
-            onRefreshContent={handleRefreshContent}
-            isRefreshing={refreshing}
-          />
-          
           {tasksCount === 0 ? (
             <div className="space-y-4">
               <div className="text-center py-8">
@@ -184,6 +179,8 @@ export const CurrentCampaignSection = ({
               tasks={tasks}
               onTaskUpdate={onTaskUpdate}
               onTaskClick={onTaskClick || handleTaskClick}
+              onRefreshContent={handleRefreshContent}
+              isRefreshing={refreshing}
             />
           )}
         </CardContent>
