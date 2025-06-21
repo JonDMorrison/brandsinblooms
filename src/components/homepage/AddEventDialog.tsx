@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,11 +11,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Loader2, Clock, Calendar as CalendarIcon } from "lucide-react";
+import { AlertTriangle, Loader2, Calendar as CalendarIcon, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
-import { ContentViewer } from "@/components/content/ContentViewer";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { generateRequiredTasks } from "./RequiredTasksGenerator";
 
 interface AddEventDialogProps {
   open: boolean;
@@ -29,13 +30,9 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
   const [eventDate, setEventDate] = useState("");
   const [eventInstructions, setEventInstructions] = useState("");
   const [loading, setLoading] = useState(false);
+  const [generatingContent, setGeneratingContent] = useState(false);
+  const [contentGenerated, setContentGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // State for content viewer
-  const [showContentViewer, setShowContentViewer] = useState(false);
-  const [createdCampaignId, setCreatedCampaignId] = useState<string>("");
-  const [createdCampaignTitle, setCreatedCampaignTitle] = useState<string>("");
-  const [showGenerationNote, setShowGenerationNote] = useState(false);
 
   // State for calendar
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -45,7 +42,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
     if (date) {
       setEventDate(format(date, "PPP"));
       setSelectedDate(date);
-      setIsCalendarOpen(false); // Close the popover when date is selected
+      setIsCalendarOpen(false);
     }
   };
 
@@ -62,6 +59,11 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
       return;
     }
 
+    if (eventName.trim().length < 3) {
+      setError("Event name must be at least 3 characters");
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -70,16 +72,17 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
       const eventPrompt = `Promote the event "${eventName}" ${eventDescription ? `- ${eventDescription}` : ''} ${eventDate ? `scheduled for ${eventDate}` : ''}${eventInstructions ? `. Important instructions: ${eventInstructions}` : ''}. Create engaging promotional content that encourages attendance and builds excitement.`;
 
-      const { data, error: insertError } = await supabase
+      const { data: campaignData, error: insertError } = await supabase
         .from('campaigns')
         .insert({
-          title: eventName,
-          description: eventDescription || null,
+          title: eventName.trim(),
+          description: eventDescription.trim() || null,
           theme: `${eventName} Promotion`,
           prompt: eventPrompt,
           start_date: new Date().toISOString().split('T')[0],
           week_number: getCurrentWeekNumber(),
-          source: 'quick_action'
+          source: 'quick_action',
+          user_id: user.id
         })
         .select()
         .single();
@@ -89,26 +92,49 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         throw new Error(insertError.message);
       }
 
-      console.log('AddEventDialog: Campaign created successfully:', data);
+      console.log('AddEventDialog: Campaign created successfully:', campaignData);
 
-      // Store campaign details for content viewer
-      setCreatedCampaignId(data.id);
-      setCreatedCampaignTitle(data.title);
+      // Now automatically generate content for the event
+      setGeneratingContent(true);
+      toast.loading('Generating content for your event...', { id: 'content-generation' });
+
+      try {
+        console.log('AddEventDialog: Starting content generation for event:', campaignData.id);
+        
+        const result = await generateRequiredTasks(
+          campaignData.id,
+          [campaignData], // Pass campaign as array since generateRequiredTasks expects campaigns array
+          user.id,
+          onEventCreated // This will refresh the dashboard
+        );
+
+        if (result.success) {
+          console.log('AddEventDialog: Content generated successfully');
+          setContentGenerated(true);
+          toast.success(`Event created with ${result.tasks?.length || 5} content pieces!`, { id: 'content-generation' });
+        } else {
+          console.warn('AddEventDialog: Content generation had issues:', result.message);
+          toast.warning(`Event created, but content generation had issues: ${result.message}`, { id: 'content-generation' });
+        }
+      } catch (contentError) {
+        console.error('AddEventDialog: Content generation failed:', contentError);
+        toast.error('Event created, but content generation failed. You can generate content manually.', { id: 'content-generation' });
+      }
 
       // Reset form
       setEventName("");
       setEventDescription("");
       setEventDate("");
       setEventInstructions("");
+      setSelectedDate(undefined);
       setError(null);
 
-      // Close the event dialog and show content viewer with generation note
-      onOpenChange(false);
-      setShowGenerationNote(true);
-      setShowContentViewer(true);
-      
-      // Trigger refresh of campaigns list
-      onEventCreated();
+      // Close modal after short delay to show success state
+      setTimeout(() => {
+        onOpenChange(false);
+        setContentGenerated(false);
+        setGeneratingContent(false);
+      }, 2000);
       
     } catch (error: any) {
       console.error('AddEventDialog: Error creating event:', error);
@@ -120,180 +146,164 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
   };
 
   const handleClose = () => {
-    if (!loading) {
+    if (!loading && !generatingContent) {
       setEventName("");
       setEventDescription("");
       setEventDate("");
       setEventInstructions("");
+      setSelectedDate(undefined);
       setError(null);
+      setContentGenerated(false);
       onOpenChange(false);
     }
   };
 
-  const handleContentViewerClose = () => {
-    setShowContentViewer(false);
-    setShowGenerationNote(false);
-    setCreatedCampaignId("");
-    setCreatedCampaignTitle("");
-  };
-
-  const handleTaskUpdate = () => {
-    // Refresh the parent component's data
-    onEventCreated();
-  };
-
   return (
-    <>
-      <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-[425px] bg-white z-[100] border border-gray-200 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-garden-green-dark">Add Event to Promote</DialogTitle>
-          </DialogHeader>
-          
-          {error && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="eventName" className="text-garden-green-dark">
-                Event Name *
-              </Label>
-              <Input
-                id="eventName"
-                value={eventName}
-                onChange={(e) => {
-                  setEventName(e.target.value);
-                  setError(null);
-                }}
-                placeholder="Enter event name"
-                required
-                className="border-black focus:border-black"
-                disabled={loading}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="eventDescription" className="text-garden-green-dark">
-                Event Description
-              </Label>
-              <Textarea
-                id="eventDescription"
-                value={eventDescription}
-                onChange={(e) => setEventDescription(e.target.value)}
-                placeholder="Describe your event"
-                className="border-black focus:border-black"
-                disabled={loading}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="eventDate" className="text-garden-green-dark">
-                Event Date
-              </Label>
-              <div className="relative">
-                <Input
-                  id="eventDate"
-                  type="text"
-                  value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
-                  placeholder="e.g., March 15, 2024 or Next Friday at 7pm"
-                  className="border-black focus:border-black pr-10"
-                  disabled={loading}
-                />
-                <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-gray-100 z-10"
-                      disabled={loading}
-                    >
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-[110]" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={selectedDate}
-                      onSelect={handleDateSelect}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="eventInstructions" className="text-garden-green-dark">
-                Instructions & Deadlines
-              </Label>
-              <Textarea
-                id="eventInstructions"
-                value={eventInstructions}
-                onChange={(e) => setEventInstructions(e.target.value)}
-                placeholder="Add sign up deadlines, registration info, reply requirements, etc."
-                className="border-black focus:border-black"
-                disabled={loading}
-              />
-            </div>
-            
-            <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                className="border-garden-green-light text-garden-green-dark"
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={!eventName.trim() || loading}
-                className="bg-garden-green hover:bg-garden-green-dark text-white"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  'Create & Generate Content'
-                )}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[425px] bg-white z-[100] border border-gray-200 shadow-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-garden-green-dark">Add Event to Promote</DialogTitle>
+        </DialogHeader>
+        
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-      {/* Content Viewer Modal - automatically opens after event creation */}
-      {createdCampaignId && (
-        <>
-          {/* Generation timing note */}
-          {showGenerationNote && (
-            <Alert className="fixed top-4 right-4 z-[120] max-w-sm border-blue-200 bg-blue-50">
-              <Clock className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800">
-                <strong>Content is generating...</strong> This usually takes 1-2 minutes. You can close this window and the content will be saved to your campaigns.
-              </AlertDescription>
-            </Alert>
-          )}
+        {contentGenerated && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Event created successfully with 5 content pieces! Check your dashboard to review and approve the content.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="eventName" className="text-garden-green-dark">
+              Event Name *
+            </Label>
+            <Input
+              id="eventName"
+              value={eventName}
+              onChange={(e) => {
+                setEventName(e.target.value);
+                setError(null);
+              }}
+              placeholder="Enter event name"
+              required
+              className="border-black focus:border-black"
+              disabled={loading || generatingContent}
+            />
+          </div>
           
-          <ContentViewer
-            campaignId={createdCampaignId}
-            campaignTitle={createdCampaignTitle}
-            isOpen={showContentViewer}
-            onClose={handleContentViewerClose}
-            onTaskUpdate={handleTaskUpdate}
-          />
-        </>
-      )}
-    </>
+          <div>
+            <Label htmlFor="eventDescription" className="text-garden-green-dark">
+              Event Description
+            </Label>
+            <Textarea
+              id="eventDescription"
+              value={eventDescription}
+              onChange={(e) => setEventDescription(e.target.value)}
+              placeholder="Describe your event"
+              className="border-black focus:border-black"
+              disabled={loading || generatingContent}
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="eventDate" className="text-garden-green-dark">
+              Event Date
+            </Label>
+            <div className="relative">
+              <Input
+                id="eventDate"
+                type="text"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+                placeholder="e.g., March 15, 2024 or Next Friday at 7pm"
+                className="border-black focus:border-black pr-10"
+                disabled={loading || generatingContent}
+              />
+              <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-gray-100 z-10"
+                    disabled={loading || generatingContent}
+                  >
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-[110]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={handleDateSelect}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          
+          <div>
+            <Label htmlFor="eventInstructions" className="text-garden-green-dark">
+              Instructions & Deadlines
+            </Label>
+            <Textarea
+              id="eventInstructions"
+              value={eventInstructions}
+              onChange={(e) => setEventInstructions(e.target.value)}
+              placeholder="Add sign up deadlines, registration info, reply requirements, etc."
+              className="border-black focus:border-black"
+              disabled={loading || generatingContent}
+            />
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              className="border-garden-green-light text-garden-green-dark"
+              disabled={loading || generatingContent}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={!eventName.trim() || loading || generatingContent}
+              className="bg-garden-green hover:bg-garden-green-dark text-white"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : generatingContent ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating Content...
+                </>
+              ) : contentGenerated ? (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Complete!
+                </>
+              ) : (
+                'Create & Generate Content'
+              )}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
