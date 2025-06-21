@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -10,9 +11,10 @@ import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Clock, Sparkles, Leaf } from "lucide-react";
+import { Calendar, Clock, Sparkles, Leaf, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface SeasonalHolidaysCardProps {
   onContentGenerated?: () => void;
@@ -25,10 +27,11 @@ export const SeasonalHolidaysCard = ({
 }: SeasonalHolidaysCardProps) => {
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const { holidays, holidayContentState, loading, error, generateHolidayContent, refreshHolidayContent } = useSeasonalHolidays();
+  const { allHolidays, holidayContentState, loading, error, generateHolidayContent, refreshHolidayContent } = useSeasonalHolidays();
   const [generatingHolidays, setGeneratingHolidays] = React.useState<Set<string>>(new Set());
   const [showProfileSetup, setShowProfileSetup] = React.useState(false);
   const [hasCompanyProfile, setHasCompanyProfile] = React.useState<boolean | null>(null);
+  const [displayLimit, setDisplayLimit] = React.useState(6);
   const [contentViewerState, setContentViewerState] = React.useState<{
     isOpen: boolean;
     holidayId: string | null;
@@ -38,6 +41,20 @@ export const SeasonalHolidaysCard = ({
     holidayId: null,
     holidayName: ''
   });
+
+  // Get the holidays to display based on the current limit
+  const displayedHolidays = React.useMemo(() => {
+    return allHolidays.slice(0, displayLimit);
+  }, [allHolidays, displayLimit]);
+
+  // Calculate if there are more holidays to show
+  const hasMoreHolidays = allHolidays.length > displayLimit;
+  const remainingCount = allHolidays.length - displayLimit;
+
+  // Handle load more
+  const handleLoadMore = () => {
+    setDisplayLimit(prev => Math.min(prev + 6, allHolidays.length));
+  };
 
   // Check if user has company profile
   React.useEffect(() => {
@@ -74,7 +91,7 @@ export const SeasonalHolidaysCard = ({
       return;
     }
 
-    const holiday = holidays.find(h => h.id === holidayId);
+    const holiday = allHolidays.find(h => h.id === holidayId);
     if (!holiday) return;
 
     setGeneratingHolidays(prev => new Set(prev).add(holidayId));
@@ -182,7 +199,7 @@ export const SeasonalHolidaysCard = ({
     );
   }
 
-  if (holidays.length === 0) {
+  if (allHolidays.length === 0) {
     return (
       <div className={cn('space-y-6', className)}>
         <div className="text-center py-16 px-6 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border border-green-200">
@@ -217,7 +234,7 @@ export const SeasonalHolidaysCard = ({
 
         {/* Holiday Cards Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {holidays.map((holiday, index) => (
+          {displayedHolidays.map((holiday, index) => (
             <div 
               key={holiday.id}
               className="transform transition-all duration-300 hover:scale-[1.02]"
@@ -236,6 +253,20 @@ export const SeasonalHolidaysCard = ({
             </div>
           ))}
         </div>
+
+        {/* Load More Button */}
+        {hasMoreHolidays && (
+          <div className="flex justify-center pt-4">
+            <Button
+              onClick={handleLoadMore}
+              variant="outline"
+              className="flex items-center gap-2 px-6 py-3 text-sm font-medium border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 transition-colors"
+            >
+              <ChevronDown className="w-4 h-4" />
+              Load More ({remainingCount} remaining)
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Holiday Content Viewer Modal */}

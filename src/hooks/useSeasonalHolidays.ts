@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,12 +25,12 @@ interface HolidayContentState {
 export const useSeasonalHolidays = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [allHolidays, setAllHolidays] = useState<Holiday[]>([]);
   const [holidayContentState, setHolidayContentState] = useState<Record<string, HolidayContentState>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch holidays with client-side expired filtering
+  // Fetch holidays with client-side expired filtering - fetch up to 20 for pagination
   const fetchHolidays = useCallback(async () => {
     try {
       console.log('Fetching seasonal holidays...');
@@ -45,7 +46,7 @@ export const useSeasonalHolidays = () => {
         .gte('holiday_date', today.toISOString().split('T')[0])
         .lte('holiday_date', threeMonthsFromNow.toISOString().split('T')[0])
         .order('holiday_date', { ascending: true })
-        .limit(12);
+        .limit(20); // Fetch up to 20 for pagination
 
       if (error) {
         console.error('Error fetching holidays:', error);
@@ -57,7 +58,7 @@ export const useSeasonalHolidays = () => {
       const filteredHolidays = filterExpiredHolidays(data || []);
       
       console.log(`Found ${data?.length || 0} holidays from database, ${filteredHolidays.length} after filtering expired ones`);
-      setHolidays(filteredHolidays);
+      setAllHolidays(filteredHolidays);
       setError(null);
     } catch (err) {
       console.error('Exception fetching holidays:', err);
@@ -67,10 +68,10 @@ export const useSeasonalHolidays = () => {
 
   // Check for expired holidays and refresh if needed
   const checkAndRemoveExpiredHolidays = useCallback(() => {
-    if (holidays.length > 0 && hasExpiredHolidays(holidays)) {
+    if (allHolidays.length > 0 && hasExpiredHolidays(allHolidays)) {
       console.log('Found expired holidays, refreshing list...');
-      const filteredHolidays = filterExpiredHolidays(holidays);
-      setHolidays(filteredHolidays);
+      const filteredHolidays = filterExpiredHolidays(allHolidays);
+      setAllHolidays(filteredHolidays);
       
       // Also update content state to remove expired holiday references
       const updatedContentState = { ...holidayContentState };
@@ -82,16 +83,16 @@ export const useSeasonalHolidays = () => {
       });
       setHolidayContentState(updatedContentState);
     }
-  }, [holidays, holidayContentState]);
+  }, [allHolidays, holidayContentState]);
 
   // Fetch content state for holidays with improved fallback logic
   const fetchHolidayContentState = useCallback(async () => {
-    if (!user || holidays.length === 0) return;
+    if (!user || allHolidays.length === 0) return;
 
     try {
       console.log('Fetching holiday content state...');
       
-      const holidayIds = holidays.map(h => h.id);
+      const holidayIds = allHolidays.map(h => h.id);
       
       // Try tenant-based query first, then fallback to user-based
       let tasks = null;
@@ -135,7 +136,7 @@ export const useSeasonalHolidays = () => {
       // Build content state map with improved logic
       const contentState: Record<string, HolidayContentState> = {};
       
-      holidays.forEach(holiday => {
+      allHolidays.forEach(holiday => {
         const holidayTasks = tasks?.filter(task => task.holiday_id === holiday.id) || [];
         const uniquePostTypes = [...new Set(holidayTasks.map(task => task.post_type))];
         const hasAllFiveTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter']
@@ -157,7 +158,7 @@ export const useSeasonalHolidays = () => {
     } catch (err) {
       console.error('Exception fetching holiday content state:', err);
     }
-  }, [user, tenant, holidays]);
+  }, [user, tenant, allHolidays]);
 
   // Generate content for a holiday
   const generateHolidayContentForHoliday = useCallback(async (holidayId: string) => {
@@ -165,7 +166,7 @@ export const useSeasonalHolidays = () => {
       throw new Error('User authentication required');
     }
 
-    const holiday = holidays.find(h => h.id === holidayId);
+    const holiday = allHolidays.find(h => h.id === holidayId);
     if (!holiday) {
       throw new Error('Holiday not found');
     }
@@ -208,7 +209,7 @@ export const useSeasonalHolidays = () => {
       });
       throw error;
     }
-  }, [user, tenant, holidays, fetchHolidayContentState]);
+  }, [user, tenant, allHolidays, fetchHolidayContentState]);
 
   // Refresh content state
   const refreshHolidayContent = useCallback(async () => {
@@ -222,10 +223,10 @@ export const useSeasonalHolidays = () => {
   }, [fetchHolidays]);
 
   useEffect(() => {
-    if (holidays.length > 0) {
+    if (allHolidays.length > 0) {
       fetchHolidayContentState();
     }
-  }, [fetchHolidayContentState, holidays.length]);
+  }, [fetchHolidayContentState, allHolidays.length]);
 
   // Set up periodic check for expired holidays (every hour and on page focus)
   useEffect(() => {
@@ -244,7 +245,7 @@ export const useSeasonalHolidays = () => {
   }, [checkAndRemoveExpiredHolidays]);
 
   return {
-    holidays,
+    allHolidays,
     holidayContentState,
     loading,
     error,
