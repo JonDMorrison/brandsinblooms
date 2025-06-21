@@ -1,13 +1,20 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MagazineContentDisplayProps {
   content: string;
   postType: string;
   className?: string;
+}
+
+interface ImageData {
+  url: string;
+  alt: string;
+  photographer?: string;
 }
 
 // Utility function to convert markdown to HTML
@@ -52,7 +59,81 @@ const parseMarkdownToHtml = (content: string): string => {
     .replace(/(<\/[h1-6]>)<\/p>/g, '$1');
 };
 
+// Function to generate image prompt based on content
+const generateImagePrompt = (content: string, postType: string): string => {
+  // Extract title or first meaningful line
+  const lines = content.split('\n').filter(line => line.trim());
+  let basePrompt = '';
+  
+  // Try to find a title (line starting with #)
+  const titleLine = lines.find(line => line.startsWith('#'));
+  if (titleLine) {
+    basePrompt = titleLine.replace(/^#+\s*/, '').trim();
+  } else if (lines.length > 0) {
+    // Use first substantial line
+    basePrompt = lines[0].substring(0, 100).trim();
+  }
+  
+  // Clean up the prompt and add context
+  basePrompt = basePrompt.replace(/[^\w\s]/g, ' ').trim();
+  
+  if (postType === 'blog') {
+    return `${basePrompt} gardening blog article professional`;
+  } else if (postType === 'video') {
+    return `${basePrompt} gardening video tutorial educational`;
+  }
+  
+  return `${basePrompt} gardening professional`;
+};
+
 export const MagazineContentDisplay = ({ content, postType, className }: MagazineContentDisplayProps) => {
+  const [image, setImage] = useState<ImageData | null>(null);
+  const [loadingImage, setLoadingImage] = useState(false);
+
+  // Fetch image for blog and video content
+  useEffect(() => {
+    const fetchImage = async () => {
+      if (postType !== 'blog' && postType !== 'video') return;
+      
+      setLoadingImage(true);
+      console.log(`[MAGAZINE_DISPLAY] Fetching image for ${postType} content`);
+      
+      try {
+        const imagePrompt = generateImagePrompt(content, postType);
+        console.log(`[MAGAZINE_DISPLAY] Generated prompt: ${imagePrompt}`);
+        
+        const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
+          body: { 
+            query: imagePrompt,
+            contentType: postType
+          }
+        });
+        
+        if (error) {
+          console.log(`[MAGAZINE_DISPLAY] Unsplash API error for ${postType}:`, error.message);
+          setImage(null);
+          return;
+        }
+        
+        if (data?.images?.[0]) {
+          console.log(`[MAGAZINE_DISPLAY] Successfully fetched image for ${postType}`);
+          setImage({
+            url: data.images[0].thumb_url,
+            alt: data.images[0].alt || `${postType} content image`,
+            photographer: data.images[0].photographer
+          });
+        }
+      } catch (error) {
+        console.error(`[MAGAZINE_DISPLAY] Error fetching image for ${postType}:`, error);
+        setImage(null);
+      } finally {
+        setLoadingImage(false);
+      }
+    };
+
+    fetchImage();
+  }, [content, postType]);
+
   const getPostTypeIcon = () => {
     switch (postType) {
       case 'instagram': return <Instagram className="w-5 h-5 text-pink-500" />;
@@ -299,10 +380,33 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
 
         {/* Featured Image */}
         <div className="aspect-video bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg mb-6 flex items-center justify-center border border-green-200">
-          <div className="text-center text-green-600">
-            <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-            <p className="text-sm">Featured image</p>
-          </div>
+          {loadingImage ? (
+            <div className="flex items-center justify-center">
+              <div className="animate-spin h-6 w-6 border-2 border-green-600 border-t-transparent rounded-full"></div>
+            </div>
+          ) : image ? (
+            <img
+              src={image.url}
+              alt={image.alt}
+              className="w-full h-full object-cover rounded-lg"
+              onError={(e) => {
+                console.error('[BLOG] Image failed to load:', image.url);
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : (
+            <div className="text-center text-green-600">
+              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+              <p className="text-sm">Featured image</p>
+            </div>
+          )}
+          {image && (
+            <div className="hidden text-center text-green-600">
+              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+              <p className="text-sm">Image unavailable</p>
+            </div>
+          )}
         </div>
 
         {/* Article Content - Now with proper markdown parsing */}
@@ -331,10 +435,33 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
 
         {/* Video Thumbnail */}
         <div className="aspect-video bg-gradient-to-br from-red-100 to-orange-100 rounded-lg mb-6 flex items-center justify-center border border-red-200">
-          <div className="text-center text-red-600">
-            <Video className="w-12 h-12 mx-auto mb-2" />
-            <p className="text-sm">Video preview</p>
-          </div>
+          {loadingImage ? (
+            <div className="flex items-center justify-center">
+              <div className="animate-spin h-6 w-6 border-2 border-red-600 border-t-transparent rounded-full"></div>
+            </div>
+          ) : image ? (
+            <img
+              src={image.url}
+              alt={image.alt}
+              className="w-full h-full object-cover rounded-lg"
+              onError={(e) => {
+                console.error('[VIDEO] Image failed to load:', image.url);
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : (
+            <div className="text-center text-red-600">
+              <Video className="w-12 h-12 mx-auto mb-2" />
+              <p className="text-sm">Video preview</p>
+            </div>
+          )}
+          {image && (
+            <div className="hidden text-center text-red-600">
+              <Video className="w-12 h-12 mx-auto mb-2" />
+              <p className="text-sm">Video unavailable</p>
+            </div>
+          )}
         </div>
 
         {/* Script Content */}
