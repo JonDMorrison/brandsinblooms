@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
 import { toast } from "sonner";
@@ -160,6 +161,12 @@ export const generateCampaignContent = async (
       try {
         console.log(`🔧 Starting ${type} content generation`);
 
+        // 🔍 SAFEGUARD: Validate content type
+        if (!['instagram', 'facebook', 'blog', 'video', 'newsletter'].includes(type)) {
+          console.warn('Unknown post_type skipped:', type);
+          continue;
+        }
+
         let content = '';
         if (type === 'video') {
           content = await generateVideoScript(theme, userId, description);
@@ -184,7 +191,7 @@ export const generateCampaignContent = async (
 
         const taskData: any = {
           campaign_id: campaignId,
-          post_type: type,
+          post_type: type, // 🔧 FIX: Ensure we use the loop variable 'type', not any other variable
           ai_output: content,
           status: 'review',
           scheduled_date: new Date().toISOString().split('T')[0],
@@ -200,6 +207,14 @@ export const generateCampaignContent = async (
           taskData.user_id = userId;
           console.log(`🔧 Using user model: user_id=${userId}`);
         }
+
+        // 🔍 DEBUG: Log the exact data being inserted
+        console.log(`🔧 Inserting task data for ${type}:`, {
+          post_type: taskData.post_type,
+          campaign_id: taskData.campaign_id,
+          content_length: taskData.ai_output?.length || 0,
+          status: taskData.status
+        });
 
         const { data: task, error: taskError } = await supabase
           .from('content_tasks')

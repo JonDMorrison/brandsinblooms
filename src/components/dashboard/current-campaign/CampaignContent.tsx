@@ -31,6 +31,20 @@ export const CampaignContent = ({
   console.log('CampaignContent: Rendering with campaign:', activeCampaign?.title);
   console.log('CampaignContent: Tasks count:', tasks.length);
   
+  // 🔍 ENHANCED LOGGING: Track newsletter tasks specifically
+  const newsletterTasks = tasks.filter(task => task.post_type === 'newsletter');
+  const tasksByType = tasks.reduce((acc, task) => {
+    acc[task.post_type] = (acc[task.post_type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  console.log('📰 Newsletter tasks found:', newsletterTasks.length);
+  console.log('📊 Tasks by type:', tasksByType);
+  
+  if (newsletterTasks.length === 0) {
+    console.warn('⚠️ No newsletter tasks found in current campaign');
+  }
+  
   // Calculate progress metrics
   const tasksWithContent = tasks.filter(task => task.ai_output && task.ai_output.trim() !== '');
 
@@ -77,6 +91,21 @@ export const CampaignContent = ({
               )}
             </div>
           </div>
+          
+          {/* 🔍 DEV PREVIEW: Newsletter Debug Info */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm">
+              <div className="font-medium text-blue-800 mb-1">🔍 DEV: Newsletter Debug</div>
+              <div className="text-blue-700 space-y-1">
+                <div>Total tasks: {tasks.length}</div>
+                <div>Newsletter tasks: {newsletterTasks.length}</div>
+                <div>Task types: {Object.keys(tasksByType).join(', ')}</div>
+                {newsletterTasks.length > 0 && (
+                  <div>Newsletter IDs: {newsletterTasks.map(t => t.id.slice(0, 8)).join(', ')}</div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </AppleCardHeader>
 
@@ -109,12 +138,23 @@ export const CampaignContent = ({
           <div className="space-y-3">
             {tasks.map((task, index) => {
               console.log('CampaignContent: Rendering task', index + 1, ':', task.id, task.post_type);
+              
+              // 🔍 Special logging for newsletter tasks
+              if (task.post_type === 'newsletter') {
+                console.log('📰 Rendering newsletter task:', {
+                  id: task.id,
+                  content_length: task.ai_output?.length || 0,
+                  status: task.status,
+                  created_at: task.created_at
+                });
+              }
+              
               return (
                 <TaskItem
                   key={task.id}
                   task={task}
                   onClick={() => {
-                    console.log('CampaignContent: Task clicked:', task.id);
+                    console.log('CampaignContent: Task clicked:', task.id, task.post_type);
                     onTaskClick(task);
                   }}
                   onTaskUpdate={onTaskUpdate}
