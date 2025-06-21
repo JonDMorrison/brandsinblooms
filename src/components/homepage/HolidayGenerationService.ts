@@ -35,34 +35,36 @@ export async function generateHolidayContent(
       } else if (type === 'video') {
         console.log(`🎬 VIDEO DEBUG: About to generate video script for holiday: ${holiday.holiday_name}`);
         console.log(`🎬 VIDEO DEBUG: User ID: ${user.id}`);
-        console.log(`🎬 VIDEO DEBUG: Holiday description: ${holiday.description || holiday.garden_relevance}`);
         
-        // Generate video content using existing service with enhanced logging
-        const campaignTitle = holiday.holiday_name;
-        const weekDescription = holiday.garden_relevance || holiday.description || `Special ${holiday.holiday_name} content for garden centers`;
+        // Enhanced holiday context for video generation
+        const holidayContext = `${holiday.holiday_name} - ${holiday.garden_relevance || holiday.description || 'Holiday gardening opportunity'}. Focus specifically on ${holiday.holiday_name} gardening activities, seasonal care, and holiday-specific plant care or garden preparation.`;
         
-        console.log(`🎬 VIDEO DEBUG: Campaign title: ${campaignTitle}`);
-        console.log(`🎬 VIDEO DEBUG: Week description: ${weekDescription}`);
+        console.log(`🎬 VIDEO DEBUG: Holiday context: ${holidayContext}`);
         
+        // Generate video content using existing service with enhanced holiday-specific logging
         output = await generatePersonalizedContent(
           type,
-          campaignTitle,
+          holiday.holiday_name, // Use holiday name as campaign title
           user.id,
-          weekDescription
+          holidayContext // Pass enhanced holiday context
         );
         
         console.log(`🎬 VIDEO DEBUG: Generated output length: ${output?.length || 0}`);
         console.log(`🎬 VIDEO DEBUG: Generated output preview: ${output?.substring(0, 200)}...`);
+        
+        // Validate that the video script mentions the holiday
+        if (output && !output.toLowerCase().includes(holiday.holiday_name.toLowerCase())) {
+          console.warn(`🎬 VIDEO WARNING: Generated script may not be about ${holiday.holiday_name}`);
+        }
       } else {
-        // Generate other content types using existing service
-        const campaignTitle = holiday.holiday_name;
-        const weekDescription = holiday.garden_relevance || holiday.description || `Special ${holiday.holiday_name} content for garden centers`;
+        // Generate other content types using existing service with holiday context
+        const holidayContext = `${holiday.holiday_name} - ${holiday.garden_relevance || holiday.description || `Special ${holiday.holiday_name} content for garden centers`}`;
         
         output = await generatePersonalizedContent(
           type,
-          campaignTitle,
+          holiday.holiday_name,
           user.id,
-          weekDescription
+          holidayContext
         );
       }
 

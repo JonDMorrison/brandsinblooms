@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
@@ -90,10 +89,10 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
   const [image, setImage] = useState<ImageData | null>(null);
   const [loadingImage, setLoadingImage] = useState(false);
 
-  // Fetch image for blog and video content
+  // Fetch image for blog content only (removed video from image fetching)
   useEffect(() => {
     const fetchImage = async () => {
-      if (postType !== 'blog' && postType !== 'video') return;
+      if (postType !== 'blog') return; // Only fetch images for blog content
       
       setLoadingImage(true);
       console.log(`[MAGAZINE_DISPLAY] Fetching image for ${postType} content`);
@@ -429,39 +428,17 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
         <div className="flex items-center gap-3 mb-6">
           {getPostTypeIcon()}
           <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
-            Video Script
+            Video Script (90s Max)
           </Badge>
         </div>
 
-        {/* Video Thumbnail */}
+        {/* Video Script Display - No image needed */}
         <div className="aspect-video bg-gradient-to-br from-red-100 to-orange-100 rounded-lg mb-6 flex items-center justify-center border border-red-200">
-          {loadingImage ? (
-            <div className="flex items-center justify-center">
-              <div className="animate-spin h-6 w-6 border-2 border-red-600 border-t-transparent rounded-full"></div>
-            </div>
-          ) : image ? (
-            <img
-              src={image.url}
-              alt={image.alt}
-              className="w-full h-full object-cover rounded-lg"
-              onError={(e) => {
-                console.error('[VIDEO] Image failed to load:', image.url);
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-          ) : (
-            <div className="text-center text-red-600">
-              <Video className="w-12 h-12 mx-auto mb-2" />
-              <p className="text-sm">Video preview</p>
-            </div>
-          )}
-          {image && (
-            <div className="hidden text-center text-red-600">
-              <Video className="w-12 h-12 mx-auto mb-2" />
-              <p className="text-sm">Video unavailable</p>
-            </div>
-          )}
+          <div className="text-center text-red-600">
+            <Video className="w-12 h-12 mx-auto mb-2" />
+            <p className="text-sm font-medium">90-Second Teaching Video</p>
+            <p className="text-xs">Single-person filming format</p>
+          </div>
         </div>
 
         {/* Script Content */}
