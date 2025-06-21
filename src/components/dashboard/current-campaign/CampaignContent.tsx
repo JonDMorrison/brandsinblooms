@@ -1,4 +1,3 @@
-
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardHeader, AppleCardContent } from "@/components/ui/apple-card";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
