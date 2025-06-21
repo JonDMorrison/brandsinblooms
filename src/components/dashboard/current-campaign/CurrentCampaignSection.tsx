@@ -2,8 +2,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CampaignContent } from "./CampaignContent";
 import { WeeklyContentUpdater } from "./WeeklyContentUpdater";
+import { WeeklyContentExplanation } from "./WeeklyContentExplanation";
 import { ManualContentGenerator } from "@/components/content/ManualContentGenerator";
 import { useCurrentCampaignSection } from "./useCurrentCampaignSection";
+import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/hooks/useTenant";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useState } from "react";
 
 interface CurrentCampaignSectionProps {
   activeCampaign: any;
@@ -18,6 +25,10 @@ export const CurrentCampaignSection = ({
   onTaskUpdate,
   onTaskClick 
 }: CurrentCampaignSectionProps) => {
+  const { user } = useAuth();
+  const { tenant } = useTenant();
+  const [refreshing, setRefreshing] = useState(false);
+  
   const { 
     tasksCount, 
     loading, 
@@ -28,6 +39,53 @@ export const CurrentCampaignSection = ({
     handleTaskClick,
     handleContentViewerClose
   } = useCurrentCampaignSection(activeCampaign, tasks);
+
+  const handleRefreshContent = async () => {
+    if (!activeCampaign || !user) {
+      toast.error('Unable to refresh content at this time');
+      return;
+    }
+
+    setRefreshing(true);
+    
+    try {
+      // Delete existing tasks for this campaign
+      const { error: deleteError } = await supabase
+        .from('content_tasks')
+        .delete()
+        .eq('campaign_id', activeCampaign.id);
+
+      if (deleteError) {
+        console.error('Error deleting existing tasks:', deleteError);
+        toast.error('Failed to clear existing content');
+        return;
+      }
+
+      toast.loading('Generating fresh content...', { id: 'refresh-content' });
+
+      // Generate new content
+      const result = await generateCampaignContent(
+        activeCampaign.id,
+        activeCampaign.theme || activeCampaign.title,
+        activeCampaign.description || '',
+        user.id,
+        activeCampaign.week_number,
+        tenant?.id
+      );
+
+      if (result.success) {
+        toast.success(`Generated ${result.tasks?.length || 0} fresh content pieces!`, { id: 'refresh-content' });
+        onTaskUpdate(); // Refresh the task list
+      } else {
+        toast.error(`Failed to refresh content: ${result.message}`, { id: 'refresh-content' });
+      }
+    } catch (error) {
+      console.error('Error refreshing content:', error);
+      toast.error('Failed to refresh content', { id: 'refresh-content' });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   console.log('🔍 CurrentCampaignSection: Rendering with:', {
     hasUser: !!activeCampaign,
@@ -95,6 +153,11 @@ export const CurrentCampaignSection = ({
         </CardHeader>
         
         <CardContent className="space-y-6">
+          <WeeklyContentExplanation 
+            onRefreshContent={handleRefreshContent}
+            isRefreshing={refreshing}
+          />
+          
           {tasksCount === 0 ? (
             <div className="space-y-4">
               <div className="text-center py-8">
