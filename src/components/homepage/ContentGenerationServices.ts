@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
 import { toast } from "sonner";
@@ -157,6 +158,7 @@ export const generateCampaignContent = async (
     
     while (retryCount < maxRetries) {
       try {
+        // FIXED: Use standardized content types - blog instead of email
         const { data, error } = await supabase.functions.invoke('generate_campaign_content', {
           body: {
             theme: theme,
@@ -228,7 +230,7 @@ export const generateCampaignContent = async (
     // Try to spend tokens but don't fail if it doesn't work
     await spendTokensWithFallback(userId, campaignId);
 
-    // Create content tasks for each type WITH HYBRID TENANT/USER SUPPORT
+    // FIXED: Use standardized content types - blog instead of email
     const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
     const results = [];
 

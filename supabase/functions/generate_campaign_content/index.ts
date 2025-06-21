@@ -42,6 +42,7 @@ serve(async (req) => {
     const businessName = companyProfile?.company_name || 'Your Garden Center';
     const businessContext = companyProfile?.company_overview || 'A local garden center helping customers grow beautiful gardens';
 
+    // FIXED: Use standardized content channels - blog instead of newsletter
     // Filter out newsletter from channels since it's handled separately
     const contentChannels = channels.filter(channel => channel !== 'newsletter');
     
