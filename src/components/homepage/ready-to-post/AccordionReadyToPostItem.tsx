@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,7 @@ import { useTaskImages } from "@/hooks/useTaskImages";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "./CompactImageCarousel";
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
-import { StructuredNewsletterDisplay } from "@/components/content-sidebar/StructuredNewsletterDisplay";
+import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
 import { cleanContentForDisplay, extractBlogMetadata } from "@/utils/contentUtils";
 
 interface AccordionReadyToPostItemProps {
@@ -154,7 +153,7 @@ export const AccordionReadyToPostItem = ({ task, onViewFull, onTaskUpdate }: Acc
                   />
                 ) : isStructuredNewsletter ? (
                   <div className="p-6">
-                    <StructuredNewsletterDisplay content={task.ai_output} />
+                    <MagazineNewsletterDisplay content={task.ai_output} />
                   </div>
                 ) : (task.post_type === 'newsletter') ? (
                   <div className="p-6">
