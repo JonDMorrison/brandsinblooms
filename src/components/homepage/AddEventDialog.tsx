@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -84,7 +85,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         source: 'quick_action',
         user_id: user.id, // Always set user_id
         created_by_user_id: user.id, // Track who created it
-        ...(tenant?.id && { tenant_id: tenant.id }) // Only add tenant_id if tenant exists
+        ...(tenant?.id && { tenant_id: tenant.id }), // Only add tenant_id if tenant exists
       };
 
       console.log('AddEventDialog: Creating event with data:', campaignData);
