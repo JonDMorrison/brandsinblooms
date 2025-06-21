@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -133,28 +132,57 @@ const getPlatformPlaceholderImages = (query: string, postType: string): ImageSug
   }));
 };
 
-// Generate platform-specific image search queries
+// Improved platform-specific image search queries that prioritize content relevance
 const generatePlatformQuery = (baseQuery: string, postType: string): string => {
-  const platformModifiers = {
-    instagram: 'aesthetic lifestyle beautiful vibrant colorful trendy',
-    facebook: 'community educational informative people landscape wide',
-    newsletter: 'professional seasonal informative clean organized',
-    email: 'simple clean product focused before after',
-    video: 'action process tutorial hands-on behind scenes'
-  };
+  // Don't modify the base query if it's already content-specific
+  if (!baseQuery || baseQuery.length < 3) {
+    // Only use platform modifiers as fallback when we have no content
+    const fallbackQueries = {
+      instagram: 'aesthetic lifestyle beautiful',
+      facebook: 'community social people',
+      newsletter: 'professional business',
+      email: 'simple clean modern',
+      video: 'cinematic lifestyle'
+    };
+    return fallbackQueries[postType] || fallbackQueries.instagram;
+  }
 
-  const orientationModifiers = {
-    instagram: 'square portrait',
-    facebook: 'landscape wide',
-    newsletter: 'landscape header',
-    email: 'landscape clean',
-    video: 'landscape cinematic'
-  };
-
-  const modifier = platformModifiers[postType] || platformModifiers.instagram;
-  const orientation = orientationModifiers[postType] || orientationModifiers.instagram;
+  // For content-rich queries, only add subtle platform enhancement
+  const contentKeywords = baseQuery.toLowerCase();
   
-  return `${baseQuery} ${modifier} ${orientation} garden`.trim();
+  // Check if the query already contains food/product terms - don't dilute with garden terms
+  const isFoodRelated = /\b(ice cream|cream|food|dessert|treat|sweet|flavor|taste|eat|drink|recipe|cooking|baking)\b/i.test(contentKeywords);
+  const isProductRelated = /\b(product|brand|business|service|sale|shop|store|buy|purchase)\b/i.test(contentKeywords);
+  const isEventRelated = /\b(event|party|celebration|holiday|festival|gathering)\b/i.test(contentKeywords);
+  
+  // Only add garden context if it's clearly garden-related content
+  const isGardenRelated = /\b(plant|garden|flower|tree|seed|soil|grow|bloom|harvest|outdoor|nature)\b/i.test(contentKeywords);
+  
+  let enhancedQuery = baseQuery;
+  
+  // Add platform-specific style hints without overwhelming the content
+  if (postType === 'instagram') {
+    // For Instagram, prioritize visual appeal
+    if (isFoodRelated) {
+      enhancedQuery += ' beautiful photography';
+    } else if (isGardenRelated) {
+      enhancedQuery += ' aesthetic garden';
+    }
+  } else if (postType === 'facebook') {
+    // For Facebook, prioritize community and sharing
+    if (isEventRelated) {
+      enhancedQuery += ' community celebration';
+    } else if (isGardenRelated) {
+      enhancedQuery += ' garden community';
+    }
+  }
+  
+  // Only add garden context if content is actually garden-related
+  if (isGardenRelated && !enhancedQuery.includes('garden')) {
+    enhancedQuery += ' garden';
+  }
+
+  return enhancedQuery.trim();
 };
 
 export const useImageSuggestions = (contentTaskId?: string, postType?: string) => {
@@ -197,9 +225,9 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
     console.log('[IMAGE_HOOK] Fetching new images for query:', searchQuery, 'type:', contentType);
     
     try {
-      // Generate platform-specific query
+      // Generate platform-specific query with improved logic
       const platformQuery = contentType ? generatePlatformQuery(searchQuery, contentType) : searchQuery;
-      console.log('[IMAGE_HOOK] Platform query:', platformQuery);
+      console.log('[IMAGE_HOOK] Enhanced platform query:', platformQuery);
       
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
@@ -224,7 +252,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         setImages(data.images);
         setQuery(searchQuery);
         setUsingPlaceholders(false);
-        toast.success(`Found ${data.images.length} ${contentType || 'images'}`);
+        toast.success(`Found ${data.images.length} images for "${searchQuery}"`);
       } else {
         console.log('[IMAGE_HOOK] No images returned, using placeholders');
         // Fallback to placeholders if no images returned
@@ -255,15 +283,15 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         // Shuffle placeholder images with platform-specific variations
         const variations = postType ? [
           `${query} ${postType}`,
-          `${query} garden ${postType}`,
-          `${query} plants ${postType}`,
-          `${query} nature ${postType}`,
+          `${query} beautiful`,
+          `${query} aesthetic`,
+          `${query} professional`,
           query
         ] : [
-          `${query} garden`,
-          `${query} plants`,
-          `${query} nature`,
-          `${query} seasonal`,
+          `${query} beautiful`,
+          `${query} aesthetic`,
+          `${query} professional`,
+          `${query} lifestyle`,
           query
         ];
         const randomVariation = variations[Math.floor(Math.random() * variations.length)];
@@ -275,15 +303,15 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         // Try variations of the current query for shuffle with platform context
         const variations = postType ? [
           `${query} ${postType}`,
-          `${query} garden ${postType}`,
-          `${query} plants ${postType}`,
-          `${query} nature ${postType}`,
+          `${query} beautiful`,
+          `${query} aesthetic`,
+          `${query} professional`,
           query
         ] : [
-          `${query} garden`,
-          `${query} plants`,
-          `${query} nature`,
-          `${query} seasonal`,
+          `${query} beautiful`,
+          `${query} aesthetic`,
+          `${query} professional`,
+          `${query} lifestyle`,
           query
         ];
         

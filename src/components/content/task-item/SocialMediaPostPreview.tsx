@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
@@ -20,28 +19,55 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
   const hashtags = content.match(hashtagRegex) || [];
   const textWithoutHashtags = content.replace(hashtagRegex, '').trim();
 
-  // Extract keywords for image search
+  // Improved keyword extraction that focuses on content relevance
   const extractKeywords = (text: string): string => {
-    // Remove hashtags and common words, extract meaningful keywords
+    // First, try to extract from hashtags (remove # symbol)
+    const hashtagKeywords = hashtags.map(tag => tag.replace('#', '').toLowerCase());
+    
+    // Extract meaningful nouns and phrases from the main text
     const cleanText = text
       .toLowerCase()
-      .replace(hashtagRegex, '')
-      .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|a|an|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might)\b/g, '')
+      .replace(hashtagRegex, '') // Remove hashtags
+      .replace(/[^\w\s]/g, ' ') // Remove punctuation
+      .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|a|an|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|get|make|take|go|come|see|know|think|say|want|use|work|try|ask|need|feel|become|leave|put|mean|keep|let|begin|seem|help|talk|turn|start|show|hear|play|run|move|live|believe|hold|bring|happen|write|provide|sit|stand|lose|pay|meet|include|continue|set|learn|change|lead|understand|watch|follow|stop|create|speak|read|allow|add|spend|grow|open|walk|win|offer|remember|love|consider|appear|buy|wait|serve|die|send|expect|build|stay|fall|cut|reach|kill|remain)\b/g, '') // Remove common words
       .trim();
     
-    // Take first few meaningful words
-    const words = cleanText.split(/\s+/).filter(word => word.length > 3);
-    const keywords = words.slice(0, 3).join(' ');
+    // Extract key phrases and meaningful words
+    const words = cleanText.split(/\s+/).filter(word => word.length > 2);
+    const meaningfulWords = words.filter(word => 
+      // Keep words that are likely to be nouns or descriptive terms
+      !/^\d+$/.test(word) && // Not just numbers
+      word.length > 2 && // Longer than 2 characters
+      !['your', 'this', 'that', 'they', 'them', 'their', 'here', 'there', 'when', 'what', 'where', 'how', 'why', 'who'].includes(word)
+    );
+
+    // Combine hashtag keywords with meaningful words from text
+    const allKeywords = [...hashtagKeywords, ...meaningfulWords.slice(0, 3)];
     
-    return keywords || postType;
+    // Build the search query
+    let searchQuery = '';
+    
+    if (allKeywords.length > 0) {
+      // Use the most relevant keywords
+      searchQuery = allKeywords.slice(0, 4).join(' ');
+    } else if (meaningfulWords.length > 0) {
+      // Fallback to meaningful words from text
+      searchQuery = meaningfulWords.slice(0, 3).join(' ');
+    } else {
+      // Final fallback to post type
+      searchQuery = postType === 'instagram' ? 'lifestyle aesthetic' : 'community social';
+    }
+
+    return searchQuery.trim();
   };
 
-  const searchQuery = extractKeywords(content) + ' garden';
+  const searchQuery = extractKeywords(content);
   const { images, loading, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
 
   // Auto-fetch images when component mounts
   useEffect(() => {
     if (images.length === 0 && !loading && searchQuery) {
+      console.log('SocialMediaPostPreview: Auto-fetching images with query:', searchQuery);
       fetchNewImages(searchQuery, contentTaskId, postType);
     }
   }, [searchQuery, contentTaskId, postType]);
@@ -166,7 +192,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                   <span className="text-xl">🖼️</span>
                 </div>
                 <p className="text-sm font-medium">Featured Image</p>
-                <p className="text-xs">{currentImage ? 'Loading...' : 'Will be generated'}</p>
+                <p className="text-xs">{searchQuery ? `Searching: ${searchQuery}` : 'Will be generated'}</p>
               </div>
             </div>
           </div>
