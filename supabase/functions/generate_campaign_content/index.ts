@@ -12,15 +12,18 @@ const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
+// Define all 5 required content types
+const REQUIRED_CONTENT_TYPES = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { theme, month, tone, channels, campaignId, userId } = await req.json();
+    const { campaign_id, campaign_title, description, user_id, week_number, tenant_id } = await req.json();
     
-    console.log('🎯 Generating campaign content for:', { theme, month, tone, channels });
+    console.log('🎯 Generating campaign content for:', { campaign_id, campaign_title, user_id, tenant_id });
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
@@ -30,11 +33,11 @@ serve(async (req) => {
 
     // Get company profile for context
     let companyProfile = null;
-    if (userId) {
+    if (user_id) {
       const { data: profile } = await supabase
         .from('company_profiles')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', user_id)
         .single();
       companyProfile = profile;
     }
@@ -42,24 +45,21 @@ serve(async (req) => {
     const businessName = companyProfile?.company_name || 'Your Garden Center';
     const businessContext = companyProfile?.company_overview || 'A local garden center helping customers grow beautiful gardens';
 
-    // FIXED: Use standardized content channels - blog instead of newsletter
-    // Filter out newsletter from channels since it's handled separately
-    const contentChannels = channels.filter(channel => channel !== 'newsletter');
-    
-    console.log('📝 Generating content for channels (excluding newsletter):', contentChannels);
+    console.log('📝 Generating content for all 5 required types:', REQUIRED_CONTENT_TYPES);
 
-    const content = {};
+    const generatedTasks = [];
 
-    // Generate content for each channel (excluding newsletter)
-    for (const channel of contentChannels) {
+    // Generate content for each of the 5 required types
+    for (const contentType of REQUIRED_CONTENT_TYPES) {
       try {
-        console.log(`📝 Generating ${channel} content...`);
+        console.log(`📝 Generating ${contentType} content...`);
         
-        const channelPrompts = {
-          instagram: `Create an engaging Instagram post about ${theme} for ${businessName}. Include relevant hashtags and a call-to-action. Keep it concise and visually appealing. Make it feel authentic and personal.`,
-          facebook: `Write a Facebook post about ${theme} for ${businessName}. Make it conversational and community-focused. Include tips or advice that would be valuable to garden center customers.`,
-          blog: `Write a comprehensive blog post about ${theme} for ${businessName}. Include an engaging title, introduction, main content with helpful tips, and a conclusion. Make it SEO-friendly and informative for garden center customers.`,
-          video: `Create a video script about ${theme} for ${businessName}. Include scene descriptions, dialogue, and key points to cover. Make it engaging and educational for garden center customers.`
+        const contentPrompts = {
+          instagram: `Create an engaging Instagram post about ${campaign_title} for ${businessName}. Include relevant hashtags and a call-to-action. Keep it concise and visually appealing. Make it feel authentic and personal. Focus on gardening advice and tips.`,
+          facebook: `Write a Facebook post about ${campaign_title} for ${businessName}. Make it conversational and community-focused. Include tips or advice that would be valuable to garden center customers. Share practical gardening knowledge.`,
+          blog: `Write a comprehensive blog post about ${campaign_title} for ${businessName}. Include an engaging title, introduction, main content with helpful tips, and a conclusion. Make it SEO-friendly and informative for garden center customers. Focus on detailed gardening advice.`,
+          video: `Create a 90-second video script about ${campaign_title} for ${businessName}. Include scene descriptions, dialogue, and key points to cover. Make it engaging and educational for garden center customers. Focus on one clear teaching point about ${campaign_title}.`,
+          newsletter: `Create a structured newsletter about ${campaign_title} for ${businessName}. Include multiple sections with gardening tips, seasonal advice, and practical information. Make it valuable for garden center customers with actionable insights.`
         };
 
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -74,40 +74,72 @@ serve(async (req) => {
             messages: [
               {
                 role: 'system',
-                content: `You are a professional content creator for garden centers. Create engaging, helpful content that reflects the business context: ${businessContext}. Current month: ${month}. Tone: ${tone}.`
+                content: `You are a professional content creator for garden centers. Create engaging, helpful content that reflects the business context: ${businessContext}. Current focus: ${campaign_title}. ${description ? `Additional context: ${description}` : ''} Always focus on practical gardening advice and tips.`
               },
               {
                 role: 'user',
-                content: channelPrompts[channel]
+                content: contentPrompts[contentType]
               }
             ]
           }),
         });
 
         if (!response.ok) {
-          throw new Error(`OpenAI API error for ${channel}: ${response.status}`);
+          throw new Error(`OpenAI API error for ${contentType}: ${response.status}`);
         }
 
         const data = await response.json();
-        content[channel] = data.choices[0].message.content;
+        const content = data.choices[0].message.content;
         
-        console.log(`✅ Generated ${channel} content (${content[channel].length} chars)`);
+        console.log(`✅ Generated ${contentType} content (${content.length} chars)`);
+
+        // Create content task in database
+        const taskData = {
+          campaign_id,
+          post_type: contentType,
+          ai_output: content,
+          status: 'review',
+          scheduled_date: new Date().toISOString().split('T')[0],
+          user_id,
+          tenant_id,
+          created_by_user_id: user_id,
+          notes: `Generated for ${campaign_title} campaign`
+        };
+
+        const { data: task, error: taskError } = await supabase
+          .from('content_tasks')
+          .insert(taskData)
+          .select()
+          .single();
+
+        if (taskError) {
+          console.error(`❌ Error creating ${contentType} task:`, taskError);
+          throw new Error(`Failed to save ${contentType} content: ${taskError.message}`);
+        }
+
+        console.log(`✅ Created ${contentType} task with ID:`, task.id);
+        generatedTasks.push(task);
         
       } catch (error) {
-        console.error(`❌ Error generating ${channel} content:`, error);
-        content[channel] = `Error generating ${channel} content: ${error.message}`;
+        console.error(`❌ Error generating ${contentType} content:`, error);
+        // Continue with other content types even if one fails
+        generatedTasks.push({
+          post_type: contentType,
+          error: error.message,
+          status: 'failed'
+        });
       }
     }
 
-    // NOTE: Newsletter content is NOT generated here - it's handled separately 
-    // by the generate-structured-newsletter function to ensure proper 4-section format
+    console.log('✅ Content generation completed for all types');
 
-    console.log('✅ Content generation completed for:', Object.keys(content));
+    const successfulTasks = generatedTasks.filter(task => !task.error);
+    const failedTasks = generatedTasks.filter(task => task.error);
 
     return new Response(JSON.stringify({
-      success: true,
-      content: content,
-      message: `Generated content for ${Object.keys(content).length} channels (newsletter handled separately)`
+      success: failedTasks.length < REQUIRED_CONTENT_TYPES.length, // Success if at least some content was generated
+      tasks: generatedTasks,
+      message: `Generated ${successfulTasks.length}/${REQUIRED_CONTENT_TYPES.length} content pieces${failedTasks.length > 0 ? `. Failed: ${failedTasks.map(t => t.post_type).join(', ')}` : ''}`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -116,7 +148,8 @@ serve(async (req) => {
     console.error('❌ Error in generate_campaign_content:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error.message,
+      tasks: []
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

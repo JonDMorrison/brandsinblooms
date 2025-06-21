@@ -12,6 +12,8 @@ interface Campaign {
   tenant_id?: string;
 }
 
+const REQUIRED_CONTENT_TYPES = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
+
 export const generateRequiredTasks = async (
   campaignId: string,
   campaigns: Campaign[],
@@ -47,27 +49,35 @@ export const generateRequiredTasks = async (
     if (existingTasks && existingTasks.length > 0) {
       console.log('RequiredTasksGenerator: Found existing tasks:', existingTasks.length);
       
-      // Check if any tasks have content
-      const tasksWithContent = existingTasks.filter(task => 
-        task.ai_output && 
-        task.ai_output.trim() !== '' && 
-        task.status !== 'generating'
-      );
+      // Check if we have all 5 required content types
+      const existingTypes = existingTasks.map(task => task.post_type);
+      const missingTypes = REQUIRED_CONTENT_TYPES.filter(type => !existingTypes.includes(type));
       
-      if (tasksWithContent.length > 0) {
-        console.log('RequiredTasksGenerator: Tasks already exist with content, skipping generation');
-        return {
-          success: true,
-          message: 'Tasks already exist for this campaign',
-          tasks: existingTasks
-        };
+      if (missingTypes.length === 0) {
+        // Check if any tasks have content
+        const tasksWithContent = existingTasks.filter(task => 
+          task.ai_output && 
+          task.ai_output.trim() !== '' && 
+          task.status !== 'generating'
+        );
+        
+        if (tasksWithContent.length === REQUIRED_CONTENT_TYPES.length) {
+          console.log('RequiredTasksGenerator: All 5 content types exist with content, skipping generation');
+          return {
+            success: true,
+            message: 'All content already exists for this campaign',
+            tasks: existingTasks
+          };
+        } else {
+          console.log('RequiredTasksGenerator: Some tasks exist but missing content, proceeding with generation');
+        }
       } else {
-        console.log('RequiredTasksGenerator: Tasks exist but no content, proceeding with generation');
+        console.log('RequiredTasksGenerator: Missing content types:', missingTypes, 'proceeding with generation');
       }
     }
 
     // Show progress feedback
-    toast.loading('Generating campaign content...', { id: 'task-generation' });
+    toast.loading('Generating 5 content pieces...', { id: 'task-generation' });
 
     // Generate campaign content using the enhanced service
     const result = await generateCampaignContent(
@@ -84,15 +94,32 @@ export const generateRequiredTasks = async (
       throw new Error(result.message || 'Failed to generate content');
     }
 
-    console.log('✅ RequiredTasksGenerator: Content generation completed successfully with tenant support');
+    console.log('✅ RequiredTasksGenerator: Content generation completed successfully');
     
-    // Success feedback
-    toast.success(`Generated ${result.tasks?.length || 0} content pieces!`, { id: 'task-generation' });
+    // Verify we got all 5 content types
+    const { data: finalTasks } = await supabase
+      .from('content_tasks')
+      .select('post_type, status')
+      .eq('campaign_id', campaignId);
+
+    const finalTypes = finalTasks?.map(task => task.post_type) || [];
+    const stillMissingTypes = REQUIRED_CONTENT_TYPES.filter(type => !finalTypes.includes(type));
+    
+    if (stillMissingTypes.length > 0) {
+      console.warn('RequiredTasksGenerator: Still missing content types after generation:', stillMissingTypes);
+      toast.warning(`Generated content, but missing: ${stillMissingTypes.join(', ')}`, { id: 'task-generation' });
+    } else {
+      // Success feedback
+      toast.success(`Generated all 5 content pieces! Check your dashboard to review.`, { id: 'task-generation' });
+    }
     
     // Trigger task update callback
     onTaskUpdate();
     
-    return result;
+    return {
+      ...result,
+      tasks: finalTasks || result.tasks
+    };
   } catch (error) {
     console.error('🚨 RequiredTasksGenerator: Error generating required tasks:', error);
     

@@ -10,8 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { generateRequiredTasks } from "./RequiredTasksGenerator";
 
 interface NewCampaignModalProps {
   open: boolean;
@@ -26,6 +27,8 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
   const [theme, setTheme] = useState("");
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [generatingContent, setGeneratingContent] = useState(false);
+  const [contentGenerated, setContentGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const currentWeekNumber = getCurrentWeekNumber();
@@ -92,7 +95,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       const weekNumber = parseInt(selectedWeek);
       const startDate = calculateStartDate(weekNumber);
 
-      const { data, error: insertError } = await supabase
+      const { data: campaignData, error: insertError } = await supabase
         .from('campaigns')
         .insert({
           title: title.trim(),
@@ -112,7 +115,34 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
         throw new Error(insertError.message);
       }
 
-      console.log('NewCampaignModal: Campaign created successfully:', data);
+      console.log('NewCampaignModal: Campaign created successfully:', campaignData);
+      
+      // Now automatically generate content for the campaign
+      setGeneratingContent(true);
+      toast.loading('Generating content for your campaign...', { id: 'content-generation' });
+
+      try {
+        console.log('NewCampaignModal: Starting content generation for campaign:', campaignData.id);
+        
+        const result = await generateRequiredTasks(
+          campaignData.id,
+          [campaignData], // Pass campaign as array since generateRequiredTasks expects campaigns array
+          user.id,
+          onCampaignCreated // This will refresh the dashboard
+        );
+
+        if (result.success) {
+          console.log('NewCampaignModal: Content generated successfully');
+          setContentGenerated(true);
+          toast.success(`Campaign created with ${result.tasks?.length || 5} content pieces!`, { id: 'content-generation' });
+        } else {
+          console.warn('NewCampaignModal: Content generation had issues:', result.message);
+          toast.warning(`Campaign created, but content generation had issues: ${result.message}`, { id: 'content-generation' });
+        }
+      } catch (contentError) {
+        console.error('NewCampaignModal: Content generation failed:', contentError);
+        toast.error('Campaign created, but content generation failed. You can generate content manually.', { id: 'content-generation' });
+      }
 
       // Reset form
       setTitle("");
@@ -121,8 +151,12 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       setSelectedWeek("");
       setError(null);
 
-      onCampaignCreated();
-      onOpenChange(false);
+      // Close modal after short delay to show success state
+      setTimeout(() => {
+        onOpenChange(false);
+        setContentGenerated(false);
+        setGeneratingContent(false);
+      }, 2000);
       
     } catch (error: any) {
       console.error('NewCampaignModal: Error creating campaign:', error);
@@ -134,12 +168,13 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
   };
 
   const handleClose = () => {
-    if (!loading) {
+    if (!loading && !generatingContent) {
       setTitle("");
       setDescription("");
       setTheme("");
       setSelectedWeek("");
       setError(null);
+      setContentGenerated(false);
       onOpenChange(false);
     }
   };
@@ -155,6 +190,15 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {contentGenerated && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Campaign created successfully with 5 content pieces! Check your dashboard to review and approve the content.
+            </AlertDescription>
           </Alert>
         )}
         
@@ -173,7 +217,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               placeholder="Enter campaign title"
               required
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading}
+              disabled={loading || generatingContent}
             />
           </div>
 
@@ -181,7 +225,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
             <Label htmlFor="week" className="text-garden-green-dark">
               Schedule for Week *
             </Label>
-            <Select value={selectedWeek} onValueChange={setSelectedWeek} disabled={loading}>
+            <Select value={selectedWeek} onValueChange={setSelectedWeek} disabled={loading || generatingContent}>
               <SelectTrigger className="border-garden-green-light focus:border-garden-green">
                 <SelectValue placeholder="Select a week for the campaign" />
               </SelectTrigger>
@@ -205,7 +249,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               onChange={(e) => setTheme(e.target.value)}
               placeholder="Campaign theme (e.g., Spring Sale, Product Launch)"
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading}
+              disabled={loading || generatingContent}
             />
           </div>
           
@@ -219,7 +263,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe your campaign goals and key messages"
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading}
+              disabled={loading || generatingContent}
             />
           </div>
           
@@ -229,19 +273,29 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               variant="outline"
               onClick={handleClose}
               className="border-garden-green-light text-garden-green-dark"
-              disabled={loading}
+              disabled={loading || generatingContent}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim() || !selectedWeek || loading}
+              disabled={!title.trim() || !selectedWeek || loading || generatingContent}
               className="bg-garden-green hover:bg-garden-green-dark text-white"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Creating...
+                </>
+              ) : generatingContent ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating Content...
+                </>
+              ) : contentGenerated ? (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Complete!
                 </>
               ) : (
                 'Create Campaign'
