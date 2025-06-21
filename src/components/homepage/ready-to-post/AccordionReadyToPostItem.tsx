@@ -151,16 +151,9 @@ export const AccordionReadyToPostItem = ({ task, onViewFull, onTaskUpdate }: Acc
                     content={cleanContent}
                     className="bg-white min-h-0"
                   />
-                ) : isStructuredNewsletter ? (
+                ) : task.post_type === 'newsletter' ? (
                   <div className="p-6">
                     <MagazineNewsletterDisplay content={task.ai_output} />
-                  </div>
-                ) : (task.post_type === 'newsletter') ? (
-                  <div className="p-6">
-                    <div 
-                      className="prose prose-lg prose-headings:font-display prose-a:text-primary prose-strong:text-slate-900 prose-li:marker:text-primary max-w-none"
-                      dangerouslySetInnerHTML={{ __html: cleanContent }}
-                    />
                   </div>
                 ) : (
                   <div className="p-4 bg-gray-50">

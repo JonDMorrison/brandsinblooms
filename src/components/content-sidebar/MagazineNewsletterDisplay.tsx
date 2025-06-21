@@ -22,10 +22,73 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
 
   const newsletter = parseNewsletterYAML(content);
   
+  // If not structured YAML, treat as plain text newsletter
   if (!newsletter) {
+    // Create a simple single-block structure for plain text newsletters
+    const plainTextNewsletter = {
+      newsletter_md: content,
+      blocks: [{
+        title: 'Newsletter Content',
+        body: content.substring(0, 300) + (content.length > 300 ? '...' : ''),
+        cta: '',
+        link: '',
+        image_prompt: 'newsletter professional clean informative',
+        alt_text: 'Newsletter content image'
+      }],
+      extra_content_ideas: [],
+      meta: {
+        reading_time: '≈3 min',
+        theme: 'Newsletter',
+        week_focus: 'General'
+      }
+    };
+
     return (
-      <div className={`prose prose-lg max-w-none ${className || ''}`}>
-        <div dangerouslySetInnerHTML={{ __html: content }} />
+      <div className={`max-w-4xl mx-auto ${className || ''}`}>
+        {/* Header Section */}
+        <div className="mb-8 pb-6 border-b border-gray-200">
+          <div className="flex items-center gap-3 mb-4">
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              ≈3 min
+            </Badge>
+            <Badge variant="secondary">
+              Newsletter
+            </Badge>
+          </div>
+          
+          <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">
+            Newsletter
+          </h1>
+        </div>
+
+        {/* Content Block */}
+        <div className="grid lg:grid-cols-3 gap-8 items-start">
+          <div className="lg:col-span-2">
+            <div className="prose prose-slate max-w-none">
+              <div className="text-lg text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {content}
+              </div>
+            </div>
+          </div>
+
+          {/* Image placeholder */}
+          <div className="lg:col-span-1">
+            <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
+              <div className="text-center text-gray-500">
+                <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm">Newsletter Image</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-16 pt-8 border-t border-gray-200 text-center">
+          <p className="text-gray-600">
+            Thanks for reading! 🌿
+          </p>
+        </div>
       </div>
     );
   }
