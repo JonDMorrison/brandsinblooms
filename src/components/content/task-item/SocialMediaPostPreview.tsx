@@ -14,7 +14,6 @@ interface SocialMediaPostPreviewProps {
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId }: SocialMediaPostPreviewProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   
-  // Extract hashtags from content
   const hashtagRegex = /#[\w]+/g;
   const hashtags = content.match(hashtagRegex) || [];
   const textWithoutHashtags = content.replace(hashtagRegex, '').trim();
@@ -198,12 +197,17 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
               </div>
             ) : currentImage ? (
               <img
-                src={currentImage.thumb_url}
+                src={currentImage.download_url || currentImage.thumb_url}
                 alt={currentImage.alt}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                  e.currentTarget.parentElement?.querySelector('.fallback-placeholder')?.classList.remove('hidden');
+                  // Fallback to thumb_url if download_url fails
+                  if (e.currentTarget.src === currentImage.download_url && currentImage.thumb_url) {
+                    e.currentTarget.src = currentImage.thumb_url;
+                  } else {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement?.querySelector('.fallback-placeholder')?.classList.remove('hidden');
+                  }
                 }}
               />
             ) : null}
