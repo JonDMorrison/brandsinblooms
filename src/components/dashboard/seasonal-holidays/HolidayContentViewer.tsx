@@ -66,13 +66,14 @@ export const HolidayContentViewer = ({
 
     setLoading(true);
     try {
-      console.log('Fetching tasks for holiday:', holidayId);
+      console.log('🔍 HOLIDAY_VIEWER DEBUG: Fetching tasks for holiday:', holidayId);
       
       let data = null;
       let error = null;
 
       // Try tenant-based query first if tenant exists
       if (tenant) {
+        console.log('🔍 HOLIDAY_VIEWER DEBUG: Trying tenant-based query with tenant:', tenant.id);
         const { data: tenantData, error: tenantError } = await supabase
           .from('content_tasks')
           .select('*')
@@ -81,14 +82,16 @@ export const HolidayContentViewer = ({
           .order('created_at', { ascending: false });
 
         if (tenantError) {
-          console.warn('Tenant-based task query failed, trying user-based:', tenantError);
+          console.warn('🔍 HOLIDAY_VIEWER DEBUG: Tenant-based task query failed, trying user-based:', tenantError);
         } else {
           data = tenantData;
+          console.log('🔍 HOLIDAY_VIEWER DEBUG: Tenant query successful, found tasks:', data?.length || 0);
         }
       }
 
       // Fallback to user-based query if tenant query failed or no tenant
       if (!data) {
+        console.log('🔍 HOLIDAY_VIEWER DEBUG: Trying user-based query with user:', user.id);
         const { data: userData, error: userError } = await supabase
           .from('content_tasks')
           .select('*')
@@ -97,23 +100,50 @@ export const HolidayContentViewer = ({
           .order('created_at', { ascending: false });
 
         if (userError) {
-          console.error('User-based task query also failed:', userError);
+          console.error('🔍 HOLIDAY_VIEWER ERROR: User-based task query also failed:', userError);
           error = userError;
         } else {
           data = userData;
+          console.log('🔍 HOLIDAY_VIEWER DEBUG: User query successful, found tasks:', data?.length || 0);
         }
       }
 
       if (error) {
-        console.error('Error fetching holiday tasks:', error);
+        console.error('🔍 HOLIDAY_VIEWER ERROR: Error fetching holiday tasks:', error);
         toast.error('Failed to load holiday content');
         return;
       }
 
-      console.log(`Found ${data?.length || 0} tasks for holiday`);
+      console.log(`🔍 HOLIDAY_VIEWER DEBUG: Found ${data?.length || 0} tasks for holiday`);
+      
+      // Enhanced task logging
+      if (data && data.length > 0) {
+        data.forEach((task, index) => {
+          console.log(`🔍 TASK_${index} DEBUG:`, {
+            id: task.id,
+            post_type: task.post_type,
+            status: task.status,
+            ai_output_length: task.ai_output?.length || 0,
+            ai_output_preview: task.ai_output?.substring(0, 100) || 'No content',
+            created_at: task.created_at
+          });
+          
+          if (task.post_type === 'video') {
+            console.log(`🎬 VIDEO_TASK DEBUG: Video task found with content length: ${task.ai_output?.length || 0}`);
+            if (task.ai_output) {
+              console.log(`🎬 VIDEO_TASK DEBUG: Video content preview: ${task.ai_output.substring(0, 300)}...`);
+            } else {
+              console.log(`🎬 VIDEO_TASK ERROR: Video task has no ai_output content!`);
+            }
+          }
+        });
+      } else {
+        console.log('🔍 HOLIDAY_VIEWER DEBUG: No tasks found for this holiday');
+      }
+      
       setTasks(data || []);
     } catch (error) {
-      console.error('Exception fetching holiday tasks:', error);
+      console.error('🔍 HOLIDAY_VIEWER ERROR: Exception fetching holiday tasks:', error);
       toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -150,6 +180,18 @@ export const HolidayContentViewer = ({
     acc[task.post_type] = task;
     return acc;
   }, {} as Record<string, ContentTask>);
+
+  // Enhanced logging for tasksByType
+  console.log('🔍 HOLIDAY_VIEWER DEBUG: Tasks by type:', Object.keys(tasksByType));
+  if (tasksByType.video) {
+    console.log('🎬 VIDEO_DISPLAY DEBUG: Video task found in tasksByType:', {
+      id: tasksByType.video.id,
+      content_length: tasksByType.video.ai_output?.length || 0,
+      status: tasksByType.video.status
+    });
+  } else {
+    console.log('🎬 VIDEO_DISPLAY DEBUG: No video task found in tasksByType');
+  }
 
   // Expected content types in preferred order
   const contentTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
