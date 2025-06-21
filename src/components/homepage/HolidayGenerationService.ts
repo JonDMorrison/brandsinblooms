@@ -56,12 +56,23 @@ Transform your holiday garden with expert guidance 🌿`;
         }
       } else {
         // Generate other content types using existing service
+        // Map holiday data to the expected parameters for generatePersonalizedContent
+        const campaignTitle = holiday.holiday_name;
+        const weekDescription = holiday.garden_relevance || holiday.description || `Special ${holiday.holiday_name} content for garden centers`;
+        
         output = await generatePersonalizedContent(
           type,
-          user,
-          holiday,
-          tenant
+          campaignTitle,
+          user.id,
+          weekDescription
         );
+      }
+
+      // Validate that content was generated
+      if (!output || output.trim() === '') {
+        console.warn(`⚠️ No content generated for ${type}`);
+        results.push({ type, success: false, error: 'Empty content returned' });
+        continue;
       }
 
       // Insert content task with proper tenant handling
