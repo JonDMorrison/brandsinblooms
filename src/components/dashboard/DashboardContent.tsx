@@ -384,33 +384,35 @@ export const DashboardContent = ({
   console.log('🎨 DashboardContent: Final render - activeCampaign:', activeCampaign?.title, 'tasks:', tasks.length);
 
   return (
-    <div className="space-y-8 mobile-dashboard-spacing bg-garden-background">
-      {/* Development Preview Badge */}
-      {isDevelopment && activeCampaign?.title?.startsWith('PREVIEW') && (
-        <div className="flex justify-center">
-          <DevPreviewBadge show={true} />
-        </div>
-      )}
+    <div className="w-full overflow-x-hidden bg-garden-background">
+      <div className="space-y-6 mobile-dashboard-spacing w-full">
+        {/* Development Preview Badge */}
+        {isDevelopment && activeCampaign?.title?.startsWith('PREVIEW') && (
+          <div className="flex justify-center w-full">
+            <DevPreviewBadge show={true} />
+          </div>
+        )}
 
-      {/* Weekly Content Updater - runs automatically to maintain campaigns and generate content */}
-      <WeeklyContentUpdater />
-      
-      {/* First Time User Welcome */}
-      <FirstTimeUserWelcome 
-        onGetStarted={handleGetStarted}
-        tasksCount={tasks.length}
-      />
+        {/* Weekly Content Updater - runs automatically to maintain campaigns and generate content */}
+        <WeeklyContentUpdater />
+        
+        {/* First Time User Welcome */}
+        <FirstTimeUserWelcome 
+          onGetStarted={handleGetStarted}
+          tasksCount={tasks.length}
+        />
 
-      {/* Unified Dashboard Grid - Main dashboard sections */}
-      <UnifiedDashboardGrid
-        activeCampaign={activeCampaign}
-        userCreatedCampaigns={userCreatedCampaigns}
-        tasks={tasks}
-        onTaskUpdate={handleTaskUpdate}
-        onCampaignCreated={fetchCampaignData}
-        onCampaignUpdate={fetchCampaignData}
-        onCreateCampaign={onCampaignCreated}
-      />
+        {/* Unified Dashboard Grid - Main dashboard sections */}
+        <UnifiedDashboardGrid
+          activeCampaign={activeCampaign}
+          userCreatedCampaigns={userCreatedCampaigns}
+          tasks={tasks}
+          onTaskUpdate={handleTaskUpdate}
+          onCampaignCreated={fetchCampaignData}
+          onCampaignUpdate={fetchCampaignData}
+          onCreateCampaign={onCampaignCreated}
+        />
+      </div>
     </div>
   );
 };

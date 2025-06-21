@@ -35,7 +35,7 @@ export const DashboardLayout = ({
         onboardingData={onboardingData}
         onBusinessNameChange={onBusinessNameChange}
       />
-      <main className="flex-1 overflow-auto relative">
+      <main className="flex-1 overflow-hidden relative w-full">
         {/* UserMenu for non-home pages */}
         {!isHomePage && (
           <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
@@ -44,19 +44,20 @@ export const DashboardLayout = ({
         )}
         
         <div className={`
-          max-w-7xl mx-auto 
-          ${isMobile ? 'mobile-safe-area dashboard-container' : 'p-6'}
+          w-full max-w-4xl mx-auto overflow-x-hidden
+          ${isMobile ? 'mobile-safe-area dashboard-container' : 'p-4'}
         `}>
           <AppleCard 
             variant="default" 
             surface="primary" 
             className={`
-              min-h-screen border-0 shadow-none
+              w-full border-0 shadow-none overflow-hidden
               ${isMobile ? 'apple-card-mobile-optimized' : ''}
             `}
           >
             <AppleCardContent className={`
-              ${isMobile ? 'apple-card-content-mobile' : 'p-6'}
+              w-full overflow-x-hidden
+              ${isMobile ? 'apple-card-content-mobile' : 'p-4'}
             `}>
               {children}
             </AppleCardContent>

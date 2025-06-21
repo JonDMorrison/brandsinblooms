@@ -1,35 +1,80 @@
 
-/* Mobile-optimized layout styles */
+/* Mobile-optimized layout styles with overflow prevention */
 @media (max-width: 768px) {
-  .container, .max-w-5xl, .max-w-4xl, .max-w-3xl {
-    padding-left: 16px;
-    padding-right: 16px;
+  /* Global mobile container constraints - Prevent horizontal overflow */
+  .container, .max-w-5xl, .max-w-4xl, .max-w-3xl, .max-w-7xl {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
   }
   
   /* Stack grid layouts vertically on mobile */
   .grid-cols-2, .grid-cols-3, .grid-cols-4, .lg\\:grid-cols-2, .lg\\:grid-cols-3 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
   }
   
-  /* Responsive spacing */
+  /* Responsive spacing - Tighter for mobile */
   .space-y-8 > * + * {
-    margin-top: 1.5rem;
+    margin-top: 1rem !important;
   }
   
   .space-y-6 > * + * {
-    margin-top: 1rem;
+    margin-top: 0.75rem !important;
   }
   
   /* Mobile-friendly card spacing */
   .card, .rounded-lg, .rounded-xl {
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem !important;
+    max-width: 100% !important;
   }
   
   /* Full-width modals on mobile */
   .modal, .dialog {
-    margin: 0;
-    max-width: 100vw;
-    max-height: 100vh;
-    border-radius: 0;
+    margin: 0 !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
   }
+
+  /* Prevent any content from exceeding viewport width */
+  * {
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Specific dashboard constraints */
+  .dashboard-container {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  /* Mobile safe area optimizations */
+  .mobile-safe-area {
+    padding-left: max(12px, env(safe-area-inset-left)) !important;
+    padding-right: max(12px, env(safe-area-inset-right)) !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+}
+
+/* Global overflow prevention for all screen sizes */
+html, body {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
+.main, main {
+  overflow-x: hidden !important;
+  max-width: 100% !important;
+}
+
+/* Ensure no horizontal scrolling on any screen size */
+* {
+  box-sizing: border-box;
+}
+
+.w-full {
+  max-width: 100% !important;
 }
