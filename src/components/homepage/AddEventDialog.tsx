@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -69,11 +70,11 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
     setError(null);
 
     try {
-      console.log('AddEventDialog: Creating event campaign:', eventName);
+      console.log('🔒 SECURITY: Creating event campaign for user:', user.id, 'tenant:', tenant?.id || 'none');
 
       const eventPrompt = `Promote the event "${eventName}" ${eventDescription ? `- ${eventDescription}` : ''} ${eventDate ? `scheduled for ${eventDate}` : ''}${eventInstructions ? `. Important instructions: ${eventInstructions}` : ''}. Create engaging promotional content that encourages attendance and builds excitement.`;
 
-      // 🔧 FIXED: Ensure proper user and tenant assignment
+      // 🔒 SECURITY: Always set user_id and tenant_id for proper isolation
       const campaignData = {
         title: eventName.trim(),
         description: eventDescription.trim() || null,
@@ -82,12 +83,16 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         start_date: new Date().toISOString().split('T')[0],
         week_number: getCurrentWeekNumber(),
         source: 'quick_action',
-        user_id: user.id, // Always set user_id
-        created_by_user_id: user.id, // Track who created it
-        ...(tenant?.id && { tenant_id: tenant.id })
+        user_id: user.id, // 🔒 CRITICAL: Always set user_id for RLS
+        created_by_user_id: user.id, // 🔒 Track who created it
+        ...(tenant?.id && { tenant_id: tenant.id }) // 🔒 Set tenant_id if available
       };
 
-      console.log('AddEventDialog: Creating event with data:', campaignData);
+      console.log('🔒 SECURITY: Creating event with proper user isolation:', {
+        user_id: campaignData.user_id,
+        tenant_id: campaignData.tenant_id || 'none',
+        title: campaignData.title
+      });
 
       const { data: insertedCampaign, error: insertError } = await supabase
         .from('campaigns')
@@ -96,37 +101,37 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         .single();
 
       if (insertError) {
-        console.error('AddEventDialog: Error creating campaign:', insertError);
+        console.error('❌ AddEventDialog: Error creating campaign:', insertError);
         throw new Error(insertError.message);
       }
 
-      console.log('AddEventDialog: Campaign created successfully:', insertedCampaign);
+      console.log('✅ AddEventDialog: Campaign created with proper isolation:', insertedCampaign);
 
       // Now automatically generate content for the event
       setGeneratingContent(true);
       toast.loading('Generating content for your event...', { id: 'content-generation' });
 
       try {
-        console.log('AddEventDialog: Starting content generation for event:', insertedCampaign.id);
+        console.log('🔒 SECURITY: Starting content generation with proper user isolation');
         
         const result = await generateRequiredTasks(
           insertedCampaign.id,
-          [insertedCampaign], // Pass campaign as array since generateRequiredTasks expects campaigns array
-          user.id,
-          onEventCreated, // This will refresh the dashboard
-          tenant?.id // Pass tenant_id if available
+          [insertedCampaign],
+          user.id, // 🔒 CRITICAL: Pass user_id for RLS
+          onEventCreated,
+          tenant?.id // 🔒 Pass tenant_id if available
         );
 
         if (result.success) {
-          console.log('AddEventDialog: Content generated successfully');
+          console.log('✅ AddEventDialog: Content generated successfully with user isolation');
           setContentGenerated(true);
           toast.success(`Event created with ${result.tasks?.length || 5} content pieces!`, { id: 'content-generation' });
         } else {
-          console.warn('AddEventDialog: Content generation had issues:', result.message);
+          console.warn('⚠️ AddEventDialog: Content generation had issues:', result.message);
           toast.warning(`Event created, but content generation had issues: ${result.message}`, { id: 'content-generation' });
         }
       } catch (contentError) {
-        console.error('AddEventDialog: Content generation failed:', contentError);
+        console.error('❌ AddEventDialog: Content generation failed:', contentError);
         toast.error('Event created, but content generation failed. You can generate content manually.', { id: 'content-generation' });
       }
 
@@ -146,7 +151,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
       }, 2000);
       
     } catch (error: any) {
-      console.error('AddEventDialog: Error creating event:', error);
+      console.error('❌ AddEventDialog: Error creating event:', error);
       setError(error.message || 'Failed to create event');
       toast.error(error.message || 'Failed to create event');
     } finally {

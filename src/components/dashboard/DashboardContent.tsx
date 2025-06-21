@@ -68,11 +68,11 @@ export const DashboardContent = ({
       if (tenant?.id) {
         // If user has tenant, use tenant-based filtering
         campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
-        console.log('🔍 DashboardContent: Using tenant-based campaign filtering for tenant:', tenant.id);
+        console.log('🔒 SECURITY: Using tenant-based campaign filtering for tenant:', tenant.id);
       } else {
         // If no tenant, fall back to user-based filtering
         campaignQuery = campaignQuery.eq('user_id', user.id);
-        console.log('🔍 DashboardContent: Using user-based campaign filtering for user:', user.id);
+        console.log('🔒 SECURITY: Using user-based campaign filtering for user:', user.id);
       }
 
       // 🔧 FIXED: Only exclude PREVIEW campaigns for production users, not development
@@ -109,38 +109,43 @@ export const DashboardContent = ({
       // Separate system campaigns from user-created campaigns
       const systemCampaigns = allCampaigns.filter(c => c.source !== 'quick_action');
       
-      // 🔧 FIXED: More inclusive filtering for custom campaigns
-      let customCampaigns = allCampaigns.filter(c => c.source === 'quick_action');
-      
-      // If no custom campaigns found with strict filtering, try more inclusive approach
-      if (customCampaigns.length === 0) {
-        console.log('🔍 DashboardContent: No custom campaigns found with strict filtering, trying inclusive approach...');
+      // 🔒 SECURITY: Enhanced filtering for custom campaigns with strict user isolation
+      let customCampaigns = allCampaigns.filter(c => {
+        if (c.source !== 'quick_action') return false;
         
-        // Fetch all quick_action campaigns and filter more inclusively
-        const { data: allQuickActionCampaigns } = await supabase
-          .from('campaigns')
-          .select('*')
-          .eq('source', 'quick_action');
-          
-        if (allQuickActionCampaigns) {
-          // Include campaigns that:
-          // 1. Match current user_id, OR
-          // 2. Match tenant_id (if user has tenant), OR  
-          // 3. Have null user_id but were created recently (likely by current user)
-          customCampaigns = allQuickActionCampaigns.filter(c => {
-            const matchesUser = c.user_id === user.id;
-            const matchesTenant = tenant?.id && c.tenant_id === tenant.id;
-            const isOrphanedRecent = !c.user_id && !c.tenant_id && 
-              new Date(c.created_at) > new Date(Date.now() - 24 * 60 * 60 * 1000); // Created within 24 hours
-            
-            return matchesUser || matchesTenant || isOrphanedRecent;
-          });
-          
-          console.log('🔍 DashboardContent: Found custom campaigns with inclusive filtering:', customCampaigns.length);
+        // Apply strict user/tenant isolation
+        if (tenant?.id) {
+          // Must belong to current tenant
+          const belongsToTenant = c.tenant_id === tenant.id;
+          console.log('🔒 SECURITY: Custom campaign tenant check:', c.title, 'belongs to tenant:', belongsToTenant);
+          return belongsToTenant;
+        } else {
+          // Must belong to current user
+          const belongsToUser = c.user_id === user.id;
+          console.log('🔒 SECURITY: Custom campaign user check:', c.title, 'belongs to user:', belongsToUser);
+          return belongsToUser;
         }
+      });
+      
+      console.log('🔒 SECURITY: After strict filtering - System campaigns:', systemCampaigns.length, 'Custom campaigns:', customCampaigns.length);
+      
+      // Double-check security: log any potential security issues
+      const potentialLeaks = allCampaigns.filter(c => 
+        c.source === 'quick_action' && 
+        (!tenant?.id ? c.user_id !== user.id : c.tenant_id !== tenant.id)
+      );
+      
+      if (potentialLeaks.length > 0) {
+        console.warn('🚨 SECURITY ALERT: Found campaigns that should not be visible to current user:', potentialLeaks.map(c => ({
+          id: c.id,
+          title: c.title,
+          user_id: c.user_id,
+          tenant_id: c.tenant_id,
+          current_user: user.id,
+          current_tenant: tenant?.id
+        })));
       }
       
-      console.log('🔍 DashboardContent: System campaigns:', systemCampaigns.length, 'Custom campaigns:', customCampaigns.length);
       setUserCreatedCampaigns(customCampaigns);
 
       // 🔧 FIXED: Updated campaign selection logic to prioritize preview campaigns in development
@@ -208,15 +213,15 @@ export const DashboardContent = ({
         .in('status', statusFilter)
         .order('created_at', { ascending: false });
 
-      // 🔧 HYBRID: Apply appropriate filtering based on available data
+      // 🔒 SECURITY: Apply strict filtering based on available data
       if (tenant?.id) {
-        // If user has tenant, use tenant-based filtering
+        // If user has tenant-based filtering
         taskQuery = taskQuery.eq('tenant_id', tenant.id);
-        console.log('🔍 DashboardContent: Using tenant-based task filtering for tenant:', tenant.id);
+        console.log('🔒 SECURITY: Using tenant-based task filtering for tenant:', tenant.id);
       } else {
         // If no tenant, fall back to user-based filtering
         taskQuery = taskQuery.eq('user_id', user.id);
-        console.log('🔍 DashboardContent: Using user-based task filtering for user:', user.id);
+        console.log('🔒 SECURITY: Using user-based task filtering for user:', user.id);
       }
 
       const { data: allTasks, error: allTasksError } = await taskQuery;
@@ -227,34 +232,44 @@ export const DashboardContent = ({
       } else {
         console.log('✅ DashboardContent: Successfully fetched', allTasks?.length || 0, 'tasks');
         
-        // 🔧 HYBRID: Security verification and PREVIEW filtering
+        // 🔒 SECURITY: Enhanced security verification and PREVIEW filtering
         const securityCheckedTasks = allTasks?.filter(task => {
           if (tenant?.id) {
             // Tenant-based security
             const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
             const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
             
+            if (!belongsToTenant) {
+              console.warn('🚨 SECURITY: Task does not belong to current tenant:', task.id);
+              return false;
+            }
+            
             // Only exclude PREVIEW campaigns for production users
             if (!isDevelopment && isPreviewCampaign) {
               return false;
             }
             
-            return belongsToTenant;
+            return true;
           } else {
             // User-based security
             const belongsToUser = task.campaigns && (task.campaigns.user_id === user.id || task.user_id === user.id);
             const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
             
+            if (!belongsToUser) {
+              console.warn('🚨 SECURITY: Task does not belong to current user:', task.id);
+              return false;
+            }
+            
             // Only exclude PREVIEW campaigns for production users
             if (!isDevelopment && isPreviewCampaign) {
               return false;
             }
             
-            return belongsToUser;
+            return true;
           }
         }) || [];
         
-        console.log('✅ DashboardContent: After filtering:', securityCheckedTasks.length, 'tasks (isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ')');
+        console.log('🔒 SECURITY: After security filtering:', securityCheckedTasks.length, 'tasks (isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ')');
         setTasks(securityCheckedTasks);
 
         // 🔧 NEW: Check if we have tasks with stuck "generating" status and log it

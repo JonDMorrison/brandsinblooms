@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -89,14 +90,14 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
     setError(null);
 
     try {
-      console.log('NewCampaignModal: Creating campaign:', title, 'for week:', selectedWeek);
+      console.log('🔒 SECURITY: Creating campaign for user:', user.id, 'tenant:', tenant?.id || 'none');
 
       const campaignPrompt = `Create a marketing campaign for "${title}" ${theme ? `with theme: ${theme}` : ''} ${description ? `- ${description}` : ''}. Generate engaging content that promotes this campaign effectively.`;
 
       const weekNumber = parseInt(selectedWeek);
       const startDate = calculateStartDate(weekNumber);
 
-      // 🔧 FIXED: Ensure proper user and tenant assignment
+      // 🔒 SECURITY: Always set user_id and tenant_id for proper isolation
       const campaignData = {
         title: title.trim(),
         description: description.trim() || null,
@@ -105,12 +106,16 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
         start_date: startDate,
         week_number: weekNumber,
         source: 'quick_action',
-        user_id: user.id, // Always set user_id
-        created_by_user_id: user.id, // Track who created it
-        ...(tenant?.id && { tenant_id: tenant.id }) // Only add tenant_id if tenant exists
+        user_id: user.id, // 🔒 CRITICAL: Always set user_id for RLS
+        created_by_user_id: user.id, // 🔒 Track who created it
+        ...(tenant?.id && { tenant_id: tenant.id }) // 🔒 Set tenant_id if available
       };
 
-      console.log('NewCampaignModal: Creating campaign with data:', campaignData);
+      console.log('🔒 SECURITY: Creating campaign with proper user isolation:', {
+        user_id: campaignData.user_id,
+        tenant_id: campaignData.tenant_id || 'none',
+        title: campaignData.title
+      });
 
       const { data: insertedCampaign, error: insertError } = await supabase
         .from('campaigns')
@@ -119,37 +124,37 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
         .single();
 
       if (insertError) {
-        console.error('NewCampaignModal: Error creating campaign:', insertError);
+        console.error('❌ NewCampaignModal: Error creating campaign:', insertError);
         throw new Error(insertError.message);
       }
 
-      console.log('NewCampaignModal: Campaign created successfully:', insertedCampaign);
+      console.log('✅ NewCampaignModal: Campaign created with proper isolation:', insertedCampaign);
       
       // Now automatically generate content for the campaign
       setGeneratingContent(true);
       toast.loading('Generating content for your campaign...', { id: 'content-generation' });
 
       try {
-        console.log('NewCampaignModal: Starting content generation for campaign:', insertedCampaign.id);
+        console.log('🔒 SECURITY: Starting content generation with proper user isolation');
         
         const result = await generateRequiredTasks(
           insertedCampaign.id,
-          [insertedCampaign], // Pass campaign as array since generateRequiredTasks expects campaigns array
-          user.id,
-          onCampaignCreated, // This will refresh the dashboard
-          tenant?.id // Pass tenant_id if available
+          [insertedCampaign],
+          user.id, // 🔒 CRITICAL: Pass user_id for RLS
+          onCampaignCreated,
+          tenant?.id // 🔒 Pass tenant_id if available
         );
 
         if (result.success) {
-          console.log('NewCampaignModal: Content generated successfully');
+          console.log('✅ NewCampaignModal: Content generated successfully with user isolation');
           setContentGenerated(true);
           toast.success(`Campaign created with ${result.tasks?.length || 5} content pieces!`, { id: 'content-generation' });
         } else {
-          console.warn('NewCampaignModal: Content generation had issues:', result.message);
+          console.warn('⚠️ NewCampaignModal: Content generation had issues:', result.message);
           toast.warning(`Campaign created, but content generation had issues: ${result.message}`, { id: 'content-generation' });
         }
       } catch (contentError) {
-        console.error('NewCampaignModal: Content generation failed:', contentError);
+        console.error('❌ NewCampaignModal: Content generation failed:', contentError);
         toast.error('Campaign created, but content generation failed. You can generate content manually.', { id: 'content-generation' });
       }
 
@@ -168,7 +173,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       }, 2000);
       
     } catch (error: any) {
-      console.error('NewCampaignModal: Error creating campaign:', error);
+      console.error('❌ NewCampaignModal: Error creating campaign:', error);
       setError(error.message || 'Failed to create campaign');
       toast.error(error.message || 'Failed to create campaign');
     } finally {
