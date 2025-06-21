@@ -1,7 +1,7 @@
 
 import { validateContent } from './validation.ts';
 
-export async function generateContentWithValidation(prompt: string, openAIApiKey: string, contentType?: string, maxAttempts: number = 3) {
+export async function generateContentWithValidation(prompt: string, openAIApiKey: string, contentType?: string, maxAttempts: number = 5) {
   let attempts = 0;
   let lastIssues: string[] = [];
   
@@ -19,6 +19,7 @@ CRITICAL: The previous attempt had issues. You MUST:
 - NEVER use square brackets like [Company Name] or [Location] - use actual names or "we"/"our"
 - Write like a professional garden center expert speaking to customers
 - Use formatting that improves readability and engagement
+- Create valuable, shareable content that customers will find genuinely helpful
       
 IMMEDIATE REJECTION if content contains:
 - Any text in square brackets [like this]
@@ -32,26 +33,32 @@ IMMEDIATE REJECTION if content contains:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',  // Upgraded from gpt-4o-mini for better quality
         messages: [
           { 
             role: 'system', 
-            content: `You are a professional garden center content writer who creates engaging, well-formatted content. You use natural formatting including paragraphs, bullet points, numbered lists, and emojis to improve readability and engagement. You NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business.
+            content: `You are a professional garden center content creator who specializes in creating engaging, valuable social media content that customers love to read and share. 
 
-CONTENT FORMATTING GUIDELINES:
-1. Use short, readable paragraphs (2-3 sentences)
-2. Use bullet points or numbered lists when they improve clarity
-3. Include emojis for social media content when appropriate and engaging
-4. Use proper spacing and formatting for the content type
-5. Write conversationally but professionally
-6. Format content to maximize engagement and readability for the platform
+Your content is known for being:
+- Genuinely helpful with practical plant care advice
+- Engaging with natural storytelling and seasonal relevance  
+- Well-formatted with proper paragraphs, lists, and emojis where appropriate
+- Shareable and conversation-starting
+- Educational while being accessible to all gardening skill levels
 
-You write content that real garden center customers would want to read, share, and engage with.` 
+You NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business. You write content that real garden center customers would want to read, share, and engage with because it provides genuine value and expertise.
+
+CONTENT QUALITY STANDARDS:
+- Every post must include at least one practical, actionable plant care tip
+- Address seasonal gardening challenges and opportunities
+- Use storytelling elements to make plant care relatable and engaging
+- Include engagement elements like questions or calls-to-action
+- Write with the expertise of a professional horticulturist but the accessibility of a friendly neighbor` 
           },
           { role: 'user', content: enhancedPrompt }
         ],
-        temperature: 0.3,
-        max_tokens: 800,
+        temperature: 0.7,  // Increased from 0.3 for more creative content
+        max_tokens: 1200,  // Increased from 800 to accommodate longer content
       }),
     });
 

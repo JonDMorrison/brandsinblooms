@@ -4,7 +4,7 @@ import { ValidationResult } from './types.ts';
 export function validateContent(content: string, contentType?: string): ValidationResult {
   const issues: string[] = [];
   
-  // Focus on critical issues only - allow formatting elements
+  // Focus ONLY on critical placeholder issues - allow all creative formatting and content
   const criticalPatterns = [
     /\[Company Name\]/gi,           // Company name placeholder
     /\[Business Name\]/gi,          // Business name placeholder  
@@ -16,7 +16,7 @@ export function validateContent(content: string, contentType?: string): Validati
     /```[\s\S]*?```/g,              // Code blocks
   ];
   
-  // Check critical patterns only
+  // Check critical patterns only - be very specific about what's actually problematic
   criticalPatterns.forEach((pattern, index) => {
     if (pattern.test(content)) {
       switch (index) {
@@ -32,10 +32,10 @@ export function validateContent(content: string, contentType?: string): Validati
     }
   });
   
-  // Additional specific checks for problematic content
+  // Additional specific checks for problematic placeholder content only
   const lowerContent = content.toLowerCase();
   
-  // Check for any remaining placeholder patterns
+  // Only flag actual placeholder patterns, not creative content
   if (lowerContent.includes('garden center name') || 
       lowerContent.includes('company name') || 
       lowerContent.includes('business name')) {

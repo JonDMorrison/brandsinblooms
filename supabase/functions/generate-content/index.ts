@@ -63,13 +63,13 @@ serve(async (req) => {
     // Build content-type specific prompt with company name enforcement
     const prompt = buildContentPrompt(postType, campaignTitle, companyProfile, weekDescription, enforceCompanyName);
     
-    console.log(`Generating validated ${postType} content for: ${campaignTitle}${companyProfile?.company_name ? ` (${companyProfile.company_name})` : ''}`);
+    console.log(`Generating high-quality ${postType} content for: ${campaignTitle}${companyProfile?.company_name ? ` (${companyProfile.company_name})` : ''}`);
 
-    // Generate content with validation - use fewer attempts for faster generation
-    const maxAttempts = postType === 'instagram' ? 2 : 3; // Instagram gets relaxed validation
+    // Generate content with validation - use more attempts for higher quality
+    const maxAttempts = postType === 'instagram' || postType === 'facebook' ? 5 : 4; // More attempts for social media
     const result = await generateContentWithValidation(prompt, openAIApiKey, postType, maxAttempts);
 
-    console.log(`Generated content successfully after ${result.attempts} attempts`);
+    console.log(`Generated high-quality content successfully after ${result.attempts} attempts`);
 
     return new Response(JSON.stringify({ 
       content: result.content,
