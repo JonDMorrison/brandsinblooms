@@ -48,18 +48,47 @@ export const HolidayContentViewer = ({
   const [selectedTab, setSelectedTab] = useState('instagram');
 
   const fetchHolidayTasks = async () => {
-    if (!user || !tenant || !holidayId) return;
+    if (!user || !holidayId) return;
 
     setLoading(true);
     try {
       console.log('Fetching tasks for holiday:', holidayId);
       
-      const { data, error } = await supabase
-        .from('content_tasks')
-        .select('*')
-        .eq('holiday_id', holidayId)
-        .eq('tenant_id', tenant.id)
-        .order('created_at', { ascending: false });
+      let data = null;
+      let error = null;
+
+      // Try tenant-based query first if tenant exists
+      if (tenant) {
+        const { data: tenantData, error: tenantError } = await supabase
+          .from('content_tasks')
+          .select('*')
+          .eq('holiday_id', holidayId)
+          .eq('tenant_id', tenant.id)
+          .order('created_at', { ascending: false });
+
+        if (tenantError) {
+          console.warn('Tenant-based task query failed, trying user-based:', tenantError);
+        } else {
+          data = tenantData;
+        }
+      }
+
+      // Fallback to user-based query if tenant query failed or no tenant
+      if (!data) {
+        const { data: userData, error: userError } = await supabase
+          .from('content_tasks')
+          .select('*')
+          .eq('holiday_id', holidayId)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (userError) {
+          console.error('User-based task query also failed:', userError);
+          error = userError;
+        } else {
+          data = userData;
+        }
+      }
 
       if (error) {
         console.error('Error fetching holiday tasks:', error);

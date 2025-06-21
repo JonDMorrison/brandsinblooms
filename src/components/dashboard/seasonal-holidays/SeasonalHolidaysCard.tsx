@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -106,7 +105,7 @@ export const SeasonalHolidaysCard = ({
 
   const handleViewContent = (holidayId: string, holidayName: string) => {
     const contentState = holidayContentState[holidayId];
-    if (!contentState || !contentState.hasContent) {
+    if (!contentState || contentState.contentCount === 0) {
       toast.error('No content available for this holiday');
       return;
     }
@@ -232,7 +231,7 @@ export const SeasonalHolidaysCard = ({
                 onGenerateContent={handleGenerateContent}
                 onViewContent={handleViewContent}
                 isGenerating={generatingHolidays.has(holiday.id)}
-                hasContent={holidayContentState[holiday.id]?.hasContent || false}
+                contentState={holidayContentState[holiday.id]}
               />
             </div>
           ))}

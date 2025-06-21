@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -62,33 +61,62 @@ export const useSeasonalHolidays = () => {
     }
   }, []);
 
-  // Fetch content state for holidays
+  // Fetch content state for holidays with improved fallback logic
   const fetchHolidayContentState = useCallback(async () => {
-    if (!user || !tenant || holidays.length === 0) return;
+    if (!user || holidays.length === 0) return;
 
     try {
       console.log('Fetching holiday content state...');
       
       const holidayIds = holidays.map(h => h.id);
       
-      const { data: tasks, error } = await supabase
-        .from('content_tasks')
-        .select('holiday_id, post_type, created_at')
-        .in('holiday_id', holidayIds)
-        .eq('tenant_id', tenant.id);
+      // Try tenant-based query first, then fallback to user-based
+      let tasks = null;
+      let error = null;
+
+      if (tenant) {
+        const { data: tenantTasks, error: tenantError } = await supabase
+          .from('content_tasks')
+          .select('holiday_id, post_type, created_at')
+          .in('holiday_id', holidayIds)
+          .eq('tenant_id', tenant.id);
+
+        if (tenantError) {
+          console.warn('Tenant-based query failed, trying user-based:', tenantError);
+        } else {
+          tasks = tenantTasks;
+        }
+      }
+
+      // Fallback to user-based query if tenant query failed or no tenant
+      if (!tasks) {
+        const { data: userTasks, error: userError } = await supabase
+          .from('content_tasks')
+          .select('holiday_id, post_type, created_at')
+          .in('holiday_id', holidayIds)
+          .eq('user_id', user.id);
+
+        if (userError) {
+          console.error('User-based query also failed:', userError);
+          error = userError;
+        } else {
+          tasks = userTasks;
+        }
+      }
 
       if (error) {
         console.error('Error fetching holiday content state:', error);
         return;
       }
 
-      // Build content state map
+      // Build content state map with improved logic
       const contentState: Record<string, HolidayContentState> = {};
       
       holidays.forEach(holiday => {
         const holidayTasks = tasks?.filter(task => task.holiday_id === holiday.id) || [];
+        const uniquePostTypes = [...new Set(holidayTasks.map(task => task.post_type))];
         const hasAllFiveTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter']
-          .every(type => holidayTasks.some(task => task.post_type === type));
+          .every(type => uniquePostTypes.includes(type));
         
         const latestTimestamp = holidayTasks.length > 0 
           ? Math.max(...holidayTasks.map(t => new Date(t.created_at).getTime()))
@@ -96,11 +124,12 @@ export const useSeasonalHolidays = () => {
         
         contentState[holiday.id] = {
           hasContent: hasAllFiveTypes,
-          contentCount: holidayTasks.length,
+          contentCount: uniquePostTypes.length,
           lastGenerated: latestTimestamp ? new Date(latestTimestamp).toISOString() : undefined
         };
       });
 
+      console.log('Holiday content state updated:', contentState);
       setHolidayContentState(contentState);
     } catch (err) {
       console.error('Exception fetching holiday content state:', err);
@@ -173,7 +202,7 @@ export const useSeasonalHolidays = () => {
     if (holidays.length > 0) {
       fetchHolidayContentState();
     }
-  }, [fetchHolidayContentState]);
+  }, [fetchHolidayContentState, holidays.length]);
 
   return {
     holidays,

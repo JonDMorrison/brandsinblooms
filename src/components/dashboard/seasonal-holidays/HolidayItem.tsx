@@ -17,12 +17,18 @@ interface Holiday {
   category?: string;
 }
 
+interface HolidayContentState {
+  hasContent: boolean;
+  contentCount: number;
+  lastGenerated?: string;
+}
+
 interface HolidayItemProps {
   holiday: Holiday;
   onGenerateContent: (holidayId: string) => void;
   onViewContent: (holidayId: string, holidayName: string) => void;
   isGenerating: boolean;
-  hasContent: boolean;
+  contentState?: HolidayContentState;
 }
 
 export const HolidayItem = ({
@@ -30,7 +36,7 @@ export const HolidayItem = ({
   onGenerateContent,
   onViewContent,
   isGenerating,
-  hasContent
+  contentState
 }: HolidayItemProps) => {
   const holidayDate = new Date(holiday.holiday_date);
   const daysUntil = differenceInDays(holidayDate, new Date());
@@ -55,6 +61,9 @@ export const HolidayItem = ({
     { icon: Video, label: 'Video', color: 'text-red-500' },
     { icon: Mail, label: 'Newsletter', color: 'text-purple-600' }
   ];
+
+  const hasAnyContent = contentState && contentState.contentCount > 0;
+  const contentProgress = contentState ? `${contentState.contentCount} of 5` : '0 of 5';
 
   return (
     <EnhancedAppleCard
@@ -90,11 +99,11 @@ export const HolidayItem = ({
             </div>
           </div>
           
-          {hasContent && (
+          {hasAnyContent && (
             <div className="flex items-center gap-1 px-2 py-1 bg-green-50 rounded-full">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <CaptionMedium className="text-green-700 text-xs font-medium">
-                Ready
+                {contentProgress} Ready
               </CaptionMedium>
             </div>
           )}
@@ -137,14 +146,14 @@ export const HolidayItem = ({
 
         {/* Actions */}
         <div className="flex gap-2 pt-2">
-          {hasContent ? (
+          {hasAnyContent ? (
             <Button
               onClick={() => onViewContent(holiday.id, holiday.holiday_name)}
               className="flex-1 bg-green-600 hover:bg-green-700 text-white"
               size="sm"
             >
               <Eye className="w-4 h-4 mr-2" />
-              View Content
+              View Your Content
             </Button>
           ) : (
             <Button
