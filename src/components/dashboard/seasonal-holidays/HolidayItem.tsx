@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
 import { AppleCardHeader, AppleCardContent } from '@/components/ui/apple-card';
