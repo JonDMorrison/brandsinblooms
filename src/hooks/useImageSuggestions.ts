@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -134,9 +135,10 @@ const getPlatformPlaceholderImages = (query: string, postType: string): ImageSug
 
 // Improved platform-specific image search queries that prioritize content relevance
 const generatePlatformQuery = (baseQuery: string, postType: string): string => {
-  // Don't modify the base query if it's already content-specific
+  console.log('[IMAGE_HOOK] Generating platform query for:', baseQuery, 'type:', postType);
+  
+  // Don't modify content-rich queries - preserve the content meaning
   if (!baseQuery || baseQuery.length < 3) {
-    // Only use platform modifiers as fallback when we have no content
     const fallbackQueries = {
       instagram: 'aesthetic lifestyle beautiful',
       facebook: 'community social people',
@@ -144,32 +146,33 @@ const generatePlatformQuery = (baseQuery: string, postType: string): string => {
       email: 'simple clean modern',
       video: 'cinematic lifestyle'
     };
-    return fallbackQueries[postType] || fallbackQueries.instagram;
+    const fallback = fallbackQueries[postType] || fallbackQueries.instagram;
+    console.log('[IMAGE_HOOK] Using fallback query:', fallback);
+    return fallback;
   }
 
-  // For content-rich queries, only add subtle platform enhancement
   const contentKeywords = baseQuery.toLowerCase();
   
-  // Check if the query already contains food/product terms - don't dilute with garden terms
-  const isFoodRelated = /\b(ice cream|cream|food|dessert|treat|sweet|flavor|taste|eat|drink|recipe|cooking|baking)\b/i.test(contentKeywords);
+  // Detect specific content types for better matching
+  const isFoodRelated = /\b(ice cream|cream|food|dessert|treat|sweet|flavor|taste|eat|drink|recipe|cooking|baking|chocolate|vanilla|strawberry|frozen|dairy|milkshake|sundae|cone|scoop|gelato|sorbet)\b/i.test(contentKeywords);
   const isProductRelated = /\b(product|brand|business|service|sale|shop|store|buy|purchase)\b/i.test(contentKeywords);
-  const isEventRelated = /\b(event|party|celebration|holiday|festival|gathering)\b/i.test(contentKeywords);
+  const isEventRelated = /\b(event|party|celebration|holiday|festival|gathering|month|day|national)\b/i.test(contentKeywords);
+  const isGardenRelated = /\b(plant|garden|flower|tree|seed|soil|grow|bloom|harvest|outdoor|nature|herb|vegetable|farming|agriculture)\b/i.test(contentKeywords);
   
-  // Only add garden context if it's clearly garden-related content
-  const isGardenRelated = /\b(plant|garden|flower|tree|seed|soil|grow|bloom|harvest|outdoor|nature)\b/i.test(contentKeywords);
+  console.log('[IMAGE_HOOK] Content analysis - Food:', isFoodRelated, 'Product:', isProductRelated, 'Event:', isEventRelated, 'Garden:', isGardenRelated);
   
   let enhancedQuery = baseQuery;
   
-  // Add platform-specific style hints without overwhelming the content
-  if (postType === 'instagram') {
-    // For Instagram, prioritize visual appeal
-    if (isFoodRelated) {
-      enhancedQuery += ' beautiful photography';
-    } else if (isGardenRelated) {
+  // Only add platform-specific enhancements if they won't dilute the content meaning
+  if (postType === 'instagram' && !isFoodRelated) {
+    // For Instagram, only add aesthetic terms for non-food content
+    if (isGardenRelated) {
       enhancedQuery += ' aesthetic garden';
+    } else if (!isProductRelated && !isEventRelated) {
+      enhancedQuery += ' beautiful photography';
     }
-  } else if (postType === 'facebook') {
-    // For Facebook, prioritize community and sharing
+  } else if (postType === 'facebook' && !isFoodRelated) {
+    // For Facebook, only add community terms for non-food content
     if (isEventRelated) {
       enhancedQuery += ' community celebration';
     } else if (isGardenRelated) {
@@ -177,12 +180,12 @@ const generatePlatformQuery = (baseQuery: string, postType: string): string => {
     }
   }
   
-  // Only add garden context if content is actually garden-related
-  if (isGardenRelated && !enhancedQuery.includes('garden')) {
-    enhancedQuery += ' garden';
-  }
-
-  return enhancedQuery.trim();
+  // REMOVED: Automatic garden context addition - only add if explicitly garden-related
+  // This was the main cause of ice cream content showing garden images
+  
+  const finalQuery = enhancedQuery.trim();
+  console.log('[IMAGE_HOOK] Final enhanced query:', finalQuery);
+  return finalQuery;
 };
 
 export const useImageSuggestions = (contentTaskId?: string, postType?: string) => {
@@ -238,7 +241,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
 
       if (error) {
         console.log('[IMAGE_HOOK] Unsplash API error, using placeholders:', error.message);
-        // Always use placeholders when API fails
         const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
         setImages(placeholders);
         setQuery(searchQuery);
@@ -255,7 +257,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         toast.success(`Found ${data.images.length} images for "${searchQuery}"`);
       } else {
         console.log('[IMAGE_HOOK] No images returned, using placeholders');
-        // Fallback to placeholders if no images returned
         const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
         setImages(placeholders);
         setQuery(searchQuery);
@@ -265,7 +266,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
     } catch (error) {
       console.error('[IMAGE_HOOK] Error fetching images:', error);
       
-      // Fallback to platform-specific placeholder images on any error
       const placeholders = getPlatformPlaceholderImages(searchQuery, postType || 'instagram');
       setImages(placeholders);
       setQuery(searchQuery);
@@ -280,7 +280,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
     if (query) {
       console.log('[IMAGE_HOOK] Shuffling images for query:', query);
       if (usingPlaceholders) {
-        // Shuffle placeholder images with platform-specific variations
         const variations = postType ? [
           `${query} ${postType}`,
           `${query} beautiful`,
@@ -300,7 +299,6 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         setQuery(randomVariation);
         toast.info('Shuffled sample images');
       } else {
-        // Try variations of the current query for shuffle with platform context
         const variations = postType ? [
           `${query} ${postType}`,
           `${query} beautiful`,

@@ -19,25 +19,55 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
   const hashtags = content.match(hashtagRegex) || [];
   const textWithoutHashtags = content.replace(hashtagRegex, '').trim();
 
-  // Improved keyword extraction that focuses on content relevance
+  // Enhanced keyword extraction that prioritizes content relevance
   const extractKeywords = (text: string): string => {
-    // First, try to extract from hashtags (remove # symbol)
+    console.log('[PREVIEW] Original content:', text);
+    
+    // First, check for specific food/dessert terms and preserve exact phrases
+    const foodPhrases = [
+      'ice cream', 'ice-cream', 'frozen yogurt', 'gelato', 'sorbet',
+      'chocolate', 'vanilla', 'strawberry', 'mint chip',
+      'dessert', 'sweet treat', 'frozen treat', 'dairy',
+      'milkshake', 'sundae', 'cone', 'scoop'
+    ];
+    
+    const holidayPhrases = [
+      'ice cream month', 'national ice cream month', 'ice cream day',
+      'summer treats', 'july celebration', 'frozen desserts'
+    ];
+    
+    const lowerText = text.toLowerCase();
+    
+    // Look for exact food/holiday phrases first
+    const foundFoodPhrases = foodPhrases.filter(phrase => lowerText.includes(phrase));
+    const foundHolidayPhrases = holidayPhrases.filter(phrase => lowerText.includes(phrase));
+    
+    console.log('[PREVIEW] Found food phrases:', foundFoodPhrases);
+    console.log('[PREVIEW] Found holiday phrases:', foundHolidayPhrases);
+    
+    // If we found specific food/holiday content, prioritize it
+    if (foundFoodPhrases.length > 0 || foundHolidayPhrases.length > 0) {
+      const priorityTerms = [...foundHolidayPhrases, ...foundFoodPhrases];
+      const searchQuery = priorityTerms.slice(0, 3).join(' ');
+      console.log('[PREVIEW] Using food/holiday priority query:', searchQuery);
+      return searchQuery;
+    }
+    
+    // Extract hashtags without # symbol for secondary keywords
     const hashtagKeywords = hashtags.map(tag => tag.replace('#', '').toLowerCase());
     
-    // Extract meaningful nouns and phrases from the main text
+    // Extract meaningful words from the main text
     const cleanText = text
       .toLowerCase()
-      .replace(hashtagRegex, '') // Remove hashtags
-      .replace(/[^\w\s]/g, ' ') // Remove punctuation
-      .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|a|an|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|get|make|take|go|come|see|know|think|say|want|use|work|try|ask|need|feel|become|leave|put|mean|keep|let|begin|seem|help|talk|turn|start|show|hear|play|run|move|live|believe|hold|bring|happen|write|provide|sit|stand|lose|pay|meet|include|continue|set|learn|change|lead|understand|watch|follow|stop|create|speak|read|allow|add|spend|grow|open|walk|win|offer|remember|love|consider|appear|buy|wait|serve|die|send|expect|build|stay|fall|cut|reach|kill|remain)\b/g, '') // Remove common words
+      .replace(hashtagRegex, '') 
+      .replace(/[^\w\s]/g, ' ') 
+      .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|a|an|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|get|make|take|go|come|see|know|think|say|want|use|work|try|ask|need|feel|become|leave|put|mean|keep|let|begin|seem|help|talk|turn|start|show|hear|play|run|move|live|believe|hold|bring|happen|write|provide|sit|stand|lose|pay|meet|include|continue|set|learn|change|lead|understand|watch|follow|stop|create|speak|read|allow|add|spend|grow|open|walk|win|offer|remember|love|consider|appear|buy|wait|serve|die|send|expect|build|stay|fall|cut|reach|kill|remain)\b/g, '')
       .trim();
     
-    // Extract key phrases and meaningful words
     const words = cleanText.split(/\s+/).filter(word => word.length > 2);
     const meaningfulWords = words.filter(word => 
-      // Keep words that are likely to be nouns or descriptive terms
-      !/^\d+$/.test(word) && // Not just numbers
-      word.length > 2 && // Longer than 2 characters
+      !/^\d+$/.test(word) && 
+      word.length > 2 && 
       !['your', 'this', 'that', 'they', 'them', 'their', 'here', 'there', 'when', 'what', 'where', 'how', 'why', 'who'].includes(word)
     );
 
@@ -48,16 +78,13 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
     let searchQuery = '';
     
     if (allKeywords.length > 0) {
-      // Use the most relevant keywords
-      searchQuery = allKeywords.slice(0, 4).join(' ');
-    } else if (meaningfulWords.length > 0) {
-      // Fallback to meaningful words from text
-      searchQuery = meaningfulWords.slice(0, 3).join(' ');
+      searchQuery = allKeywords.slice(0, 3).join(' ');
     } else {
-      // Final fallback to post type
+      // Final fallback to post type only
       searchQuery = postType === 'instagram' ? 'lifestyle aesthetic' : 'community social';
     }
 
+    console.log('[PREVIEW] Final extracted query:', searchQuery);
     return searchQuery.trim();
   };
 
@@ -67,7 +94,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
   // Auto-fetch images when component mounts
   useEffect(() => {
     if (images.length === 0 && !loading && searchQuery) {
-      console.log('SocialMediaPostPreview: Auto-fetching images with query:', searchQuery);
+      console.log('[PREVIEW] Auto-fetching images with query:', searchQuery);
       fetchNewImages(searchQuery, contentTaskId, postType);
     }
   }, [searchQuery, contentTaskId, postType]);
@@ -175,7 +202,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                 alt={currentImage.alt}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  // Fallback to placeholder on image error
                   e.currentTarget.style.display = 'none';
                   e.currentTarget.parentElement?.querySelector('.fallback-placeholder')?.classList.remove('hidden');
                 }}
@@ -217,7 +243,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                     alt={image.alt}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      // Fallback to placeholder on thumbnail error
                       e.currentTarget.style.display = 'none';
                       e.currentTarget.parentElement?.querySelector('.thumb-fallback')?.classList.remove('hidden');
                     }}
