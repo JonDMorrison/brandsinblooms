@@ -4,8 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
-import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
-import { toast } from "sonner";
 
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
@@ -13,9 +11,9 @@ export const WeeklyContentUpdater = () => {
   const currentWeekNumber = getCurrentWeekNumber();
 
   useEffect(() => {
-    const updateWeeklyContent = async () => {
+    const checkForCampaign = async () => {
       if (!user) {
-        console.log('WeeklyContentUpdater: No user available, skipping update');
+        console.log('WeeklyContentUpdater: No user available, skipping check');
         return;
       }
 
@@ -25,9 +23,9 @@ export const WeeklyContentUpdater = () => {
       }
 
       try {
-        console.log('WeeklyContentUpdater: Starting for user:', user.id, 'tenant:', tenant?.id || 'none', 'week:', currentWeekNumber);
+        console.log('WeeklyContentUpdater: Checking for existing campaign for user:', user.id, 'tenant:', tenant?.id || 'none', 'week:', currentWeekNumber);
 
-        // Check for existing campaign - don't be aggressive
+        // Only check if a campaign exists - don't create one automatically
         let campaignQuery = supabase
           .from('campaigns')
           .select('*')
@@ -49,7 +47,7 @@ export const WeeklyContentUpdater = () => {
 
         console.log('WeeklyContentUpdater: Found campaigns for current week:', existingCampaigns?.length || 0);
 
-        // Only clean up if we have multiple empty campaigns
+        // Only clean up if we have multiple empty campaigns - but don't generate content
         if (existingCampaigns && existingCampaigns.length > 1) {
           console.log('WeeklyContentUpdater: Multiple campaigns found - checking for empty duplicates');
           
@@ -94,142 +92,16 @@ export const WeeklyContentUpdater = () => {
           }
         }
 
-        // Get the remaining campaign
-        let finalQuery = supabase
-          .from('campaigns')
-          .select('*')
-          .eq('week_number', currentWeekNumber);
-
-        if (tenant?.id) {
-          finalQuery = finalQuery.eq('tenant_id', tenant.id);
-        } else {
-          finalQuery = finalQuery.eq('user_id', user.id);
-        }
-
-        const { data: finalCampaigns } = await finalQuery;
-        let targetCampaign = finalCampaigns?.[0];
-
-        // Create campaign only if none exists
-        if (!targetCampaign) {
-          console.log('WeeklyContentUpdater: No campaign found, creating one for week', currentWeekNumber);
-          
-          try {
-            const { data: themeData, error: themeError } = await supabase.functions.invoke('generate-weekly-themes', {
-              body: { 
-                userId: user.id, 
-                weekNumber: currentWeekNumber 
-              }
-            });
-
-            if (themeError) {
-              console.error('WeeklyContentUpdater: Error generating theme:', themeError);
-              return;
-            }
-
-            const theme = themeData?.themes?.[0];
-            if (!theme) {
-              console.error('WeeklyContentUpdater: No theme generated');
-              return;
-            }
-
-            const campaignData: any = {
-              week_number: currentWeekNumber,
-              title: theme.title,
-              description: theme.description,
-              theme: theme.title,
-              prompt: theme.description,
-              start_date: new Date().toISOString().split('T')[0],
-              source: 'auto_generated'
-            };
-
-            if (tenant?.id) {
-              campaignData.tenant_id = tenant.id;
-              campaignData.created_by_user_id = user.id;
-            } else {
-              campaignData.user_id = user.id;
-            }
-
-            const { data: newCampaign, error: campaignError } = await supabase
-              .from('campaigns')
-              .insert(campaignData)
-              .select()
-              .single();
-
-            if (campaignError) {
-              console.error('WeeklyContentUpdater: Error creating campaign:', campaignError);
-              return;
-            }
-
-            console.log('WeeklyContentUpdater: Created new campaign:', newCampaign.title);
-            targetCampaign = newCampaign;
-          } catch (error) {
-            console.error('WeeklyContentUpdater: Error in campaign creation:', error);
-            return;
-          }
-        }
-
-        // Check existing content - RESPECT what's already there
-        if (targetCampaign) {
-          console.log(`WeeklyContentUpdater: Checking existing content for campaign: ${targetCampaign.title}`);
-          
-          const { data: existingTasks } = await supabase
-            .from('content_tasks')
-            .select('id, ai_output, status, post_type')
-            .eq('campaign_id', targetCampaign.id);
-
-          console.log(`WeeklyContentUpdater: Found ${existingTasks?.length || 0} existing tasks`);
-
-          const hasAnyContent = existingTasks?.some(task => 
-            task.ai_output && 
-            task.ai_output.trim() !== ''
-          );
-
-          const hasStuckTasks = existingTasks?.some(task => task.status === 'generating');
-
-          // Only generate if there's truly no content OR there are stuck tasks
-          if ((!hasAnyContent && existingTasks?.length === 0) || hasStuckTasks) {
-            console.log('WeeklyContentUpdater: No existing content found - generating initial content');
-            
-            try {
-              // Clean up stuck tasks only
-              if (hasStuckTasks) {
-                console.log('WeeklyContentUpdater: Cleaning up stuck generating tasks');
-                await supabase
-                  .from('content_tasks')
-                  .delete()
-                  .eq('campaign_id', targetCampaign.id)
-                  .eq('status', 'generating');
-              }
-
-              const result = await generateCampaignContent(
-                targetCampaign.id,
-                targetCampaign.theme || targetCampaign.title,
-                targetCampaign.description || '',
-                user.id,
-                targetCampaign.week_number,
-                tenant?.id
-              );
-              
-              if (result.success) {
-                console.log('WeeklyContentUpdater: ✅ Initial content generated successfully');
-              } else {
-                console.error('WeeklyContentUpdater: ❌ Content generation failed:', result.message);
-              }
-            } catch (error) {
-              console.error('WeeklyContentUpdater: ❌ Error during content generation:', error);
-            }
-          } else {
-            console.log('WeeklyContentUpdater: ✅ Campaign already has content - preserving existing content');
-          }
-        }
+        // NO AUTOMATIC CAMPAIGN CREATION OR CONTENT GENERATION
+        console.log('WeeklyContentUpdater: ✅ Check completed - no automatic actions taken');
 
       } catch (error) {
         console.error('WeeklyContentUpdater: ❌ Unexpected error:', error);
       }
     };
 
-    // Run the update with a delay to ensure initialization
-    const timeoutId = setTimeout(updateWeeklyContent, 1000);
+    // Run the check with a delay to ensure initialization
+    const timeoutId = setTimeout(checkForCampaign, 1000);
     
     return () => clearTimeout(timeoutId);
   }, [user, tenant, tenantLoading, currentWeekNumber]);

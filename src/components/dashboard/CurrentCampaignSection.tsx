@@ -1,3 +1,4 @@
+
 import { useAuth } from "@/contexts/AuthContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
 import { useCurrentCampaignSection } from "./current-campaign/useCurrentCampaignSection";
@@ -5,6 +6,7 @@ import { NoUserState } from "./current-campaign/NoUserState";
 import { NoCampaignStateCard } from "./current-campaign/NoCampaignStateCard";
 import { CampaignLoadingState } from "./current-campaign/CampaignLoadingState";
 import { CampaignContent } from "./current-campaign/CampaignContent";
+import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,8 +40,6 @@ export const CurrentCampaignSection = ({
     loading,
     selectedTask,
     showContentViewer,
-    isDevelopment,
-    usesTenantModel,
     handleTaskClick,
     handleContentViewerClose
   } = useCurrentCampaignSection(activeCampaign, tasks);
@@ -104,15 +104,6 @@ export const CurrentCampaignSection = ({
     }
   };
 
-  console.log('🔍 CurrentCampaignSection: Rendering with:', {
-    hasUser: !!user,
-    hasActiveCampaign: !!activeCampaign,
-    activeCampaignTitle: activeCampaign?.title,
-    activeCampaignId: activeCampaign?.id,
-    tasksCount,
-    loading
-  });
-
   const handleTaskClickInternal = (task: any) => {
     if (onTaskClick) {
       onTaskClick(task);
@@ -130,25 +121,22 @@ export const CurrentCampaignSection = ({
 
   // Early return if no authenticated user
   if (!user) {
-    console.log('🔍 CurrentCampaignSection: No user, showing NoUserState');
     return <NoUserState />;
   }
 
   // Check for active campaign more carefully
   if (!activeCampaign || !activeCampaign.id) {
-    console.log('🔍 CurrentCampaignSection: No active campaign, showing NoCampaignStateCard');
     return <NoCampaignStateCard onCreateCampaign={onCreateCampaign} />;
   }
 
   if (loading) {
-    console.log('🔍 CurrentCampaignSection: Loading tasks, showing CampaignLoadingState');
     return <CampaignLoadingState />;
   }
 
-  console.log('🔍 CurrentCampaignSection: Showing CampaignContent with campaign:', activeCampaign.title);
-
   return (
     <>
+      <WeeklyContentUpdater />
+      
       <CampaignContent
         activeCampaign={activeCampaign}
         tasks={hookTasks}
