@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,6 @@ import { getStatusBadgeVariant, getPlatformBadgeVariant, getStatusLabel, getPlat
 import { TaskContent } from '@/components/content/task-item/TaskContent';
 import { TaskActions } from '@/components/content/task-item/TaskActions';
 import { toast } from 'sonner';
-import { X } from 'lucide-react';
 
 interface HolidayContentViewerProps {
   holidayId: string;
@@ -145,8 +145,8 @@ export const HolidayContentViewer = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] p-0">
-        <DialogHeader className="px-6 py-4 border-b">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
+        <DialogHeader className="flex-shrink-0 px-6 py-4 border-b">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-green-100 to-blue-100 rounded-lg">
               <Calendar className="w-5 h-5 text-green-600" />
@@ -162,101 +162,107 @@ export const HolidayContentViewer = ({
           </div>
         </DialogHeader>
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-green-600" />
-              <p className="text-gray-500">Loading holiday content...</p>
+        <div className="flex-1 flex flex-col min-h-0">
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-green-600" />
+                <p className="text-gray-500">Loading holiday content...</p>
+              </div>
             </div>
-          </div>
-        ) : availableTypes.length === 0 ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <Sparkles className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-              <p className="text-gray-500 text-lg font-medium">No content available yet</p>
-              <p className="text-gray-400 text-sm">Generate content for this holiday to see it here</p>
+          ) : availableTypes.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <Sparkles className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+                <p className="text-gray-500 text-lg font-medium">No content available yet</p>
+                <p className="text-gray-400 text-sm">Generate content for this holiday to see it here</p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col min-h-0">
-            <div className="px-6 py-2 border-b bg-gray-50">
-              <TabsList className="grid w-full grid-cols-5 bg-white">
-                {contentTypes.map(type => {
-                  const task = tasksByType[type];
-                  const isAvailable = !!task;
-                  
-                  return (
-                    <TabsTrigger 
-                      key={type} 
-                      value={type}
-                      disabled={!isAvailable}
-                      className="flex items-center gap-2 data-[state=active]:bg-green-50 data-[state=active]:text-green-700"
-                    >
-                      {getPostTypeIcon(type)}
-                      <span className="hidden sm:inline capitalize">
-                        {getPlatformLabel(type)}
-                      </span>
-                      {isAvailable && (
-                        <Badge 
-                          variant={getStatusBadgeVariant(task.status)}
-                          className="ml-1 text-xs"
-                        >
-                          {getStatusLabel(task.status)}
-                        </Badge>
-                      )}
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-            </div>
-
-            {contentTypes.map(type => {
-              const task = tasksByType[type];
-              if (!task) return null;
-
-              return (
-                <TabsContent 
-                  key={type} 
-                  value={type} 
-                  className="h-full m-0 p-6 data-[state=active]:flex data-[state=active]:flex-col"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      {getPostTypeIcon(type)}
-                      <div>
-                        <h3 className="font-semibold capitalize text-lg">
-                          {getPlatformLabel(type)} Content
-                        </h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant={getPlatformBadgeVariant(type)}>
-                            {getPlatformLabel(type)}
-                          </Badge>
-                          <Badge variant={getStatusBadgeVariant(task.status)}>
+          ) : (
+            <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col min-h-0">
+              <div className="flex-shrink-0 px-6 py-2 border-b bg-gray-50">
+                <TabsList className="grid w-full grid-cols-5 bg-white">
+                  {contentTypes.map(type => {
+                    const task = tasksByType[type];
+                    const isAvailable = !!task;
+                    
+                    return (
+                      <TabsTrigger 
+                        key={type} 
+                        value={type}
+                        disabled={!isAvailable}
+                        className="flex items-center gap-2 data-[state=active]:bg-green-50 data-[state=active]:text-green-700"
+                      >
+                        {getPostTypeIcon(type)}
+                        <span className="hidden sm:inline capitalize">
+                          {getPlatformLabel(type)}
+                        </span>
+                        {isAvailable && (
+                          <Badge 
+                            variant={getStatusBadgeVariant(task.status)}
+                            className="ml-1 text-xs"
+                          >
                             {getStatusLabel(task.status)}
                           </Badge>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <TaskActions
-                      task={task}
-                      onTaskUpdate={handleTaskUpdate}
-                      onEdit={handleTaskEdit}
-                    />
-                  </div>
+                        )}
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
 
-                  <ScrollArea className="flex-1 pr-4">
-                    <TaskContent
-                      task={task}
-                      onRetryGeneration={() => {}}
-                      retryingGeneration={false}
-                    />
-                  </ScrollArea>
-                </TabsContent>
-              );
-            })}
-          </Tabs>
-        )}
+              <div className="flex-1 min-h-0">
+                {contentTypes.map(type => {
+                  const task = tasksByType[type];
+                  if (!task) return null;
+
+                  return (
+                    <TabsContent 
+                      key={type} 
+                      value={type} 
+                      className="h-full m-0 data-[state=active]:flex data-[state=active]:flex-col"
+                    >
+                      <div className="flex-shrink-0 flex items-center justify-between p-6 border-b">
+                        <div className="flex items-center gap-3">
+                          {getPostTypeIcon(type)}
+                          <div>
+                            <h3 className="font-semibold capitalize text-lg">
+                              {getPlatformLabel(type)} Content
+                            </h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge variant={getPlatformBadgeVariant(type)}>
+                                {getPlatformLabel(type)}
+                              </Badge>
+                              <Badge variant={getStatusBadgeVariant(task.status)}>
+                                {getStatusLabel(task.status)}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <TaskActions
+                          task={task}
+                          onTaskUpdate={handleTaskUpdate}
+                          onEdit={handleTaskEdit}
+                        />
+                      </div>
+
+                      <ScrollArea className="flex-1 px-6 pb-6">
+                        <div className="py-4">
+                          <TaskContent
+                            task={task}
+                            onRetryGeneration={() => {}}
+                            retryingGeneration={false}
+                          />
+                        </div>
+                      </ScrollArea>
+                    </TabsContent>
+                  );
+                })}
+              </div>
+            </Tabs>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
