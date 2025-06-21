@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -16,8 +17,6 @@ import type { Campaign } from "@/types/content";
 import { toast } from "sonner";
 import { EnhancedSeasonalHolidaysCard } from "./seasonal-holidays/EnhancedSeasonalHolidaysCard";
 import { sampleTasks, sampleCampaign } from "@/data/sampleContent";
-import { usePreviewMode } from "@/contexts/PreviewModeContext";
-import { PreviewModeToggle } from "@/components/ui/preview-mode-toggle";
 import { CustomContentSection } from "./custom-content/CustomContentSection";
 
 interface UnifiedDashboardGridProps {
@@ -42,7 +41,6 @@ export const UnifiedDashboardGrid = ({
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { isNewUser, loading } = useUser();
-  const { isPreviewMode } = usePreviewMode();
   const navigate = useNavigate();
 
   // Use environment-based detection instead of hardcoded email
@@ -83,13 +81,13 @@ export const UnifiedDashboardGrid = ({
     return <div className="text-center py-12">Loading dashboard...</div>;
   }
 
-  // Enhanced ready tasks filtering with preview content
+  // Enhanced ready tasks filtering - only use development mode check
   const readyStatusFilter = ['ready', 'approved', 'posted', 'review'];
-  if (isDevelopment || isPreviewMode) {
+  if (isDevelopment) {
     readyStatusFilter.push('preview');
   }
 
-  // Combine real tasks with sample tasks when in preview mode
+  // Filter tasks based on development mode only
   let combinedTasks = tasks.filter(task => {
     const hasValidStatus = readyStatusFilter.includes(task.status);
     const hasContent = task.ai_output && task.ai_output.trim() !== '';
@@ -102,45 +100,42 @@ export const UnifiedDashboardGrid = ({
       hasAccess = task.campaigns?.user_id === user?.id || task.user_id === user?.id;
     }
     
-    // Only exclude PREVIEW campaigns for production users when not in preview mode
+    // Only exclude PREVIEW campaigns for production users
     const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
-    if (!isDevelopment && !isPreviewMode && isPreviewCampaign) {
+    if (!isDevelopment && isPreviewCampaign) {
       return false;
     }
     
     return hasValidStatus && hasContent && hasAccess;
   });
 
-  // Add sample tasks when preview mode is enabled
-  if (isPreviewMode) {
-    console.log('🔍 PREVIEW MODE: Adding sample tasks to dashboard');
+  // Add sample tasks only in development mode
+  if (isDevelopment) {
+    console.log('🔍 DEVELOPMENT MODE: Adding sample tasks to dashboard');
     combinedTasks = [...combinedTasks, ...sampleTasks];
   }
 
   const readyTasks = combinedTasks;
 
-  // Enhanced active campaign with preview support
+  // Enhanced active campaign with development support
   let displayCampaign = activeCampaign;
   let displayTasks = tasks;
 
-  if (isPreviewMode) {
-    console.log('🔍 PREVIEW MODE: Using sample campaign and tasks');
-    // In preview mode, show sample campaign if no active campaign or if user wants to see preview
+  if (isDevelopment) {
+    console.log('🔍 DEVELOPMENT MODE: Can show sample campaign and tasks');
+    // In development mode, show sample campaign if no active campaign
     if (!activeCampaign) {
       displayCampaign = sampleCampaign as Campaign;
     }
-    // Always include sample tasks in preview mode
+    // Include sample tasks in development mode
     displayTasks = [...tasks, ...sampleTasks];
   }
 
-  console.log('UnifiedDashboardGrid: Ready tasks after filtering:', readyTasks.length, 'out of', tasks.length, '(isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ', previewMode:', isPreviewMode, ')');
+  console.log('UnifiedDashboardGrid: Ready tasks after filtering:', readyTasks.length, 'out of', tasks.length, '(isDevelopment:', isDevelopment, ', tenant:', !!tenant?.id, ')');
 
   return (
     <>
       <div className="space-y-8">
-        {/* Preview Mode Toggle */}
-        <PreviewModeToggle />
-
         {/* Current Campaign Section */}
         <CurrentCampaignSection 
           activeCampaign={displayCampaign}
@@ -191,25 +186,19 @@ export const UnifiedDashboardGrid = ({
         />
 
         {/* Ready to Post Section */}
-        {user && (readyTasks.length > 0 || isDevelopment || isPreviewMode) && (
+        {user && (readyTasks.length > 0 || isDevelopment) && (
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <HeadlineLarge className="text-text-primary">
                 Ready to Post
               </HeadlineLarge>
-              {isPreviewMode && (
-                <DevPreviewBadge show={true} size="sm" />
-              )}
-              {isDevelopment && readyTasks.length === 0 && !isPreviewMode && (
+              {isDevelopment && readyTasks.length === 0 && (
                 <DevPreviewBadge show={true} size="sm" />
               )}
             </div>
             <BodyMedium className="text-text-secondary mt-1">
               Your content is ready to share with your audience
-              {isPreviewMode && (
-                <span className="text-blue-600 ml-2">(Preview mode - showing sample content)</span>
-              )}
-              {isDevelopment && readyTasks.length === 0 && !isPreviewMode && (
+              {isDevelopment && readyTasks.length === 0 && (
                 <span className="text-blue-600 ml-2">(No content available in development preview)</span>
               )}
             </BodyMedium>

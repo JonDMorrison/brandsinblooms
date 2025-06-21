@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
@@ -10,7 +11,6 @@ import { ContentViewer } from "@/components/content/ContentViewer";
 import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostItem";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
-import { usePreviewMode } from "@/contexts/PreviewModeContext";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -21,7 +21,6 @@ interface ReadyToPostCardProps {
 export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }: ReadyToPostCardProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const { isPreviewMode } = usePreviewMode();
   const isMobile = useIsMobile();
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -40,9 +39,9 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       try {
         console.log('ReadyToPostCard: Fetching tasks for tenant:', tenant.id);
         
-        // Include preview status for development or preview mode
+        // Include preview status for development
         const statusFilter = ['ready', 'approved', 'posted'];
-        if (isDevelopment || isPreviewMode) {
+        if (isDevelopment) {
           statusFilter.push('preview');
         }
 
@@ -71,14 +70,14 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
             const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
             const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
             
-            if (!isDevelopment && !isPreviewMode && isPreviewCampaign) {
+            if (!isDevelopment && isPreviewCampaign) {
               return false;
             }
             
             return belongsToTenant;
           }) || [];
           
-          console.log('ReadyToPostCard: Final filtered tasks:', tenantTasks.length, '(isDevelopment:', isDevelopment, ', previewMode:', isPreviewMode, ')');
+          console.log('ReadyToPostCard: Final filtered tasks:', tenantTasks.length, '(isDevelopment:', isDevelopment, ')');
           setTasks(tenantTasks);
         }
       } catch (error) {
@@ -95,7 +94,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
       }
       
       const statusFilter = ['ready', 'approved', 'posted'];
-      if (isDevelopment || isPreviewMode) {
+      if (isDevelopment) {
         statusFilter.push('preview');
       }
       
@@ -112,7 +111,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           }
           
           const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
-          if (!isDevelopment && !isPreviewMode && isPreviewCampaign) {
+          if (!isDevelopment && isPreviewCampaign) {
             return false;
           }
           
@@ -120,12 +119,12 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         })
         .slice(0, 12);
       
-      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned ready tasks (isDevelopment:', isDevelopment, ', previewMode:', isPreviewMode, ')');
+      console.log('ReadyToPostCard: Using prop tasks, filtered to', readyTasks.length, 'tenant-owned ready tasks (isDevelopment:', isDevelopment, ')');
       setTasks(readyTasks);
     } else {
       fetchReadyTasks();
     }
-  }, [user, tenant, propTasks, isDevelopment, isPreviewMode]);
+  }, [user, tenant, propTasks, isDevelopment]);
 
   const handleTaskViewFull = (task: any) => {
     // Skip tenant validation for preview tasks
@@ -183,13 +182,8 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           </div>
           <BodyMedium className={`apple-body-enhanced text-gray-500 max-w-md mx-auto ${isMobile ? 'text-sm' : ''}`}>
             Your approved marketing content will appear here once ready to post. Create and approve campaigns to start growing your content garden!
-            {isPreviewMode && (
-              <span className="block mt-2 text-blue-600 text-sm">
-                Enable preview mode to see sample content
-              </span>
-            )}
           </BodyMedium>
-          {(isDevelopment || isPreviewMode) && (
+          {isDevelopment && (
             <div className="mt-4 flex justify-center">
               <DevPreviewBadge show={true} size="sm" />
             </div>
@@ -217,7 +211,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         data-ready-to-post-section="true"
       >
         <AppleCardContent className="apple-card-spacing">
-          {(isDevelopment || isPreviewMode) && hasPreviewContent && (
+          {isDevelopment && hasPreviewContent && (
             <div className="mb-4 flex justify-center">
               <DevPreviewBadge show={true} />
             </div>
