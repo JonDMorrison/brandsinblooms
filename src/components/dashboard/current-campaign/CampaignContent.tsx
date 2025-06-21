@@ -1,3 +1,4 @@
+
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardHeader, AppleCardContent } from "@/components/ui/apple-card";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
@@ -7,7 +8,7 @@ import { TaskItem } from "./TaskItem";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { verifyNewsletterGeneration, runNewsletterDiagnostics, forceCreateNewsletterTask } from "../../../scripts/dev/verifyNewsletter";
+import { verifyNewsletterGeneration, runNewsletterDiagnostics, forceCreateNewsletterTask } from "../../../../scripts/dev/verifyNewsletter";
 import { useState } from "react";
 
 interface CampaignContentProps {
