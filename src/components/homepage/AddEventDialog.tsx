@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -90,7 +89,7 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
       console.log('AddEventDialog: Creating event with data:', campaignData);
 
-      const { data: campaignData: insertedCampaign, error: insertError } = await supabase
+      const { data: insertedCampaign, error: insertError } = await supabase
         .from('campaigns')
         .insert(campaignData)
         .select()
