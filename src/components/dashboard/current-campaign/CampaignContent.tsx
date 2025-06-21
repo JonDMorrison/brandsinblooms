@@ -80,7 +80,7 @@ export const CampaignContent = ({
     
     try {
       const result = await forceCreateNewsletterTask(
-        activ eCampaign.id, 
+        activeCampaign.id, 
         user.id, 
         activeCampaign.tenant_id
       );
