@@ -146,100 +146,28 @@ export const generateCampaignContent = async (
     // Log content generation attempt
     await logContentGenerationAttempt(campaignId, userId, 'started', tenantId);
     
-    // Get current month for the new edge function
-    const currentMonth = new Date().toLocaleString('default', { month: 'long' });
+    console.log('🔧 Using individual content generation instead of batch generation due to edge function issues');
     
-    console.log('📡 Calling generate_campaign_content function with theme:', theme);
-    
-    // Retry mechanism for edge function calls
-    let retryCount = 0;
-    const maxRetries = 3;
-    let lastError: any;
-    
-    while (retryCount < maxRetries) {
-      try {
-        // FIXED: Use standardized content types - blog instead of email
-        const { data, error } = await supabase.functions.invoke('generate_campaign_content', {
-          body: {
-            theme: theme,
-            month: currentMonth,
-            tone: 'professional',
-            channels: ['facebook', 'instagram', 'blog', 'video'],
-            campaignId: campaignId,
-            userId: userId
-          }
-        });
-
-        if (error) {
-          console.error(`❌ Error from generate_campaign_content function (attempt ${retryCount + 1}):`, error);
-          lastError = error;
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            console.log(`⏳ Retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            continue;
-          }
-          throw new Error(`Campaign content generation failed after ${maxRetries} attempts: ${error.message || 'Unknown error'}`);
-        }
-
-        if (!data || !data.success) {
-          console.error('❌ Function returned unsuccessful result:', data);
-          lastError = new Error('Failed to generate campaign content');
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            console.log(`⏳ Retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            continue;
-          }
-          throw new Error('Failed to generate campaign content');
-        }
-
-        // Success - break out of retry loop
-        const generatedContent = data.content;
-        console.log('📋 Generated campaign content keys:', Object.keys(generatedContent || {}));
-        break;
-        
-      } catch (error) {
-        console.error(`❌ Edge function call failed (attempt ${retryCount + 1}):`, error);
-        lastError = error;
-        retryCount++;
-        
-        if (retryCount < maxRetries) {
-          console.log(`⏳ Retrying in 2 seconds... (attempt ${retryCount + 1}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    // If we get here, we have successfully generated content
-    const generatedContent = (await supabase.functions.invoke('generate_campaign_content', {
-      body: {
-        theme: theme,
-        month: currentMonth,
-        tone: 'professional',
-        channels: ['facebook', 'instagram', 'blog', 'video'],
-        campaignId: campaignId,
-        userId: userId
-      }
-    })).data.content;
-
     // Try to spend tokens but don't fail if it doesn't work
     await spendTokensWithFallback(userId, campaignId);
 
-    // FIXED: Use standardized content types - blog instead of email
+    // Use individual content generation for each type for better reliability
     const contentTypes = ['instagram', 'facebook', 'blog', 'video'];
     const results = [];
 
-    console.log('🔧 Creating content tasks with hybrid ownership model');
+    console.log('🔧 Creating content tasks with hybrid ownership model using individual generation');
 
-    // Handle regular content types
+    // Handle regular content types with individual generation
     for (const type of contentTypes) {
       try {
-        const content = generatedContent[type] || '';
+        console.log(`🔧 Individual generation for ${type} content`);
+
+        let content = '';
+        if (type === 'video') {
+          content = await generateVideoScript(theme, userId, description);
+        } else {
+          content = await generatePersonalizedContent(type, theme, userId, description);
+        }
 
         if (!content) {
           console.warn(`⚠️ No content generated for type: ${type}`);
@@ -352,7 +280,7 @@ export const generateCampaignContent = async (
       tasksCreated: results.length 
     });
 
-    console.log(`🎉 Content generation completed: ${results.length} tasks created with hybrid tenant/user support`);
+    console.log(`🎉 Content generation completed: ${results.length} tasks created with individual generation approach`);
     
     // Enhanced success logging
     results.forEach(task => {
