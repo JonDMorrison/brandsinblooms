@@ -162,7 +162,7 @@ export const generateCampaignContent = async (
             theme: theme,
             month: currentMonth,
             tone: 'professional',
-            channels: ['facebook', 'instagram', 'newsletter', 'blog', 'video'],
+            channels: ['facebook', 'instagram', 'blog', 'video'],
             campaignId: campaignId,
             userId: userId
           }
@@ -219,7 +219,7 @@ export const generateCampaignContent = async (
         theme: theme,
         month: currentMonth,
         tone: 'professional',
-        channels: ['facebook', 'instagram', 'newsletter', 'blog', 'video'],
+        channels: ['facebook', 'instagram', 'blog', 'video'],
         campaignId: campaignId,
         userId: userId
       }
@@ -297,11 +297,11 @@ export const generateCampaignContent = async (
 
     // Handle newsletter separately with STRUCTURED format for consistent 4-section layout
     try {
-      console.log('📰 Generating structured newsletter content with 4 sections');
+      console.log('📰 Generating structured newsletter content with 4 sections using generateStructuredNewsletter');
       const newsletterContent = await generateStructuredNewsletter(
         campaignId,
         theme,
-        1,
+        weekNumber || 1,
         userId,
         description
       );
