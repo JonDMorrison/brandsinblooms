@@ -50,9 +50,23 @@ export const CurrentCampaignSection = ({
       return;
     }
 
+    // Confirm with user before overwriting content
+    const hasExistingContent = hookTasks.some(task => task.ai_output && task.ai_output.trim() !== '');
+    
+    if (hasExistingContent) {
+      const confirmed = window.confirm(
+        'This will replace all existing content with new generated content. Are you sure you want to continue?'
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+
     setRefreshing(true);
     
     try {
+      toast.loading('Regenerating all campaign content...', { id: 'refresh-content' });
+      
       // Delete existing tasks for this campaign
       const { error: deleteError } = await supabase
         .from('content_tasks')
@@ -61,13 +75,11 @@ export const CurrentCampaignSection = ({
 
       if (deleteError) {
         console.error('Error deleting existing tasks:', deleteError);
-        toast.error('Failed to clear existing content');
+        toast.error('Failed to clear existing content', { id: 'refresh-content' });
         return;
       }
 
-      toast.loading('Generating fresh content...', { id: 'refresh-content' });
-
-      // Use the comprehensive content generation function
+      // Generate fresh content
       const result = await generateCampaignContent(
         activeCampaign.id,
         activeCampaign.theme || activeCampaign.title,
@@ -77,11 +89,12 @@ export const CurrentCampaignSection = ({
         tenant?.id
       );
 
-      if (result.success && result.tasks && result.tasks.length > 0) {
-        toast.success(`Generated ${result.tasks.length} fresh content pieces!`, { id: 'refresh-content' });
-        onTaskUpdate(); // Refresh the task list
+      if (result.success) {
+        toast.success('All content regenerated successfully!', { id: 'refresh-content' });
+        onTaskUpdate();
+        onCampaignCreated();
       } else {
-        toast.error(`Failed to generate content: ${result.message || 'Unknown error'}`, { id: 'refresh-content' });
+        toast.error(`Failed to regenerate content: ${result.message}`, { id: 'refresh-content' });
       }
     } catch (error) {
       console.error('Error refreshing content:', error);

@@ -180,9 +180,6 @@ const generatePlatformQuery = (baseQuery: string, postType: string): string => {
     }
   }
   
-  // REMOVED: Automatic garden context addition - only add if explicitly garden-related
-  // This was the main cause of ice cream content showing garden images
-  
   const finalQuery = enhancedQuery.trim();
   console.log('[IMAGE_HOOK] Final enhanced query:', finalQuery);
   return finalQuery;
@@ -193,10 +190,11 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [usingPlaceholders, setUsingPlaceholders] = useState(false);
+  const [hasStoredImages, setHasStoredImages] = useState(false);
 
   const fetchStoredImages = async (taskId: string) => {
     try {
-      console.log('[IMAGE_HOOK] Fetching stored images for task:', taskId);
+      console.log('[IMAGE_HOOK] Checking for stored images for task:', taskId);
       const { data, error } = await supabase
         .from('image_suggestions')
         .select('*')
@@ -209,13 +207,16 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       }
 
       if (data && data.length > 0) {
-        console.log('[IMAGE_HOOK] Found', data.length, 'stored images');
+        console.log('[IMAGE_HOOK] Found', data.length, 'stored images - using cached images');
         setImages(data);
         setQuery(data[0].query);
         setUsingPlaceholders(false);
+        setHasStoredImages(true);
         return true;
       }
+      
       console.log('[IMAGE_HOOK] No stored images found');
+      setHasStoredImages(false);
       return false;
     } catch (error) {
       console.error('[IMAGE_HOOK] Exception fetching stored images:', error);
@@ -225,7 +226,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
 
   const fetchNewImages = async (searchQuery: string, taskId?: string, contentType?: string) => {
     setLoading(true);
-    console.log('[IMAGE_HOOK] Fetching new images for query:', searchQuery, 'type:', contentType);
+    console.log('[IMAGE_HOOK] Fetching NEW images for query:', searchQuery, 'type:', contentType);
     
     try {
       // Generate platform-specific query with improved logic
@@ -245,6 +246,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         setImages(placeholders);
         setQuery(searchQuery);
         setUsingPlaceholders(true);
+        setHasStoredImages(false);
         toast.info(`Using sample images - Unsplash API unavailable`);
         return;
       }
@@ -254,13 +256,15 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         setImages(data.images);
         setQuery(searchQuery);
         setUsingPlaceholders(false);
-        toast.success(`Found ${data.images.length} images for "${searchQuery}"`);
+        setHasStoredImages(true);
+        toast.success(`Found ${data.images.length} new images for "${searchQuery}"`);
       } else {
         console.log('[IMAGE_HOOK] No images returned, using placeholders');
         const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
         setImages(placeholders);
         setQuery(searchQuery);
         setUsingPlaceholders(true);
+        setHasStoredImages(false);
         toast.info(`No images found for "${searchQuery}", using sample images`);
       }
     } catch (error) {
@@ -270,6 +274,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       setImages(placeholders);
       setQuery(searchQuery);
       setUsingPlaceholders(true);
+      setHasStoredImages(false);
       toast.info(`Using sample images - connection error`);
     } finally {
       setLoading(false);
@@ -278,50 +283,30 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
 
   const shuffleImages = async () => {
     if (query) {
-      console.log('[IMAGE_HOOK] Shuffling images for query:', query);
-      if (usingPlaceholders) {
-        const variations = postType ? [
-          `${query} ${postType}`,
-          `${query} beautiful`,
-          `${query} aesthetic`,
-          `${query} professional`,
-          query
-        ] : [
-          `${query} beautiful`,
-          `${query} aesthetic`,
-          `${query} professional`,
-          `${query} lifestyle`,
-          query
-        ];
-        const randomVariation = variations[Math.floor(Math.random() * variations.length)];
-        const shuffledPlaceholders = getPlatformPlaceholderImages(randomVariation, postType || 'instagram');
-        setImages(shuffledPlaceholders);
-        setQuery(randomVariation);
-        toast.info('Shuffled sample images');
-      } else {
-        const variations = postType ? [
-          `${query} ${postType}`,
-          `${query} beautiful`,
-          `${query} aesthetic`,
-          `${query} professional`,
-          query
-        ] : [
-          `${query} beautiful`,
-          `${query} aesthetic`,
-          `${query} professional`,
-          `${query} lifestyle`,
-          query
-        ];
-        
-        const randomVariation = variations[Math.floor(Math.random() * variations.length)];
-        await fetchNewImages(randomVariation, contentTaskId, postType);
-      }
+      console.log('[IMAGE_HOOK] User requested to shuffle/refresh images for query:', query);
+      const variations = postType ? [
+        `${query} ${postType}`,
+        `${query} beautiful`,
+        `${query} aesthetic`,
+        `${query} professional`,
+        query
+      ] : [
+        `${query} beautiful`,
+        `${query} aesthetic`,
+        `${query} professional`,
+        `${query} lifestyle`,
+        query
+      ];
+      
+      const randomVariation = variations[Math.floor(Math.random() * variations.length)];
+      await fetchNewImages(randomVariation, contentTaskId, postType);
     }
   };
 
+  // Only load stored images on mount - don't auto-generate
   useEffect(() => {
     if (contentTaskId) {
-      console.log('[IMAGE_HOOK] Component mounted with task ID:', contentTaskId);
+      console.log('[IMAGE_HOOK] Component mounted with task ID:', contentTaskId, '- checking for stored images only');
       fetchStoredImages(contentTaskId);
     }
   }, [contentTaskId]);
@@ -330,6 +315,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
     images,
     loading,
     query,
+    hasStoredImages,
     fetchNewImages,
     shuffleImages,
     fetchStoredImages,
