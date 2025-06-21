@@ -29,6 +29,7 @@ export const DashboardContent = ({
   const { tenant, loading: tenantLoading } = useTenant();
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
   const [tasks, setTasks] = useState([]);
+  const [userCreatedCampaigns, setUserCreatedCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingContent, setGeneratingContent] = useState(false);
 
@@ -89,6 +90,7 @@ export const DashboardContent = ({
         console.error('❌ DashboardContent: Error fetching campaigns:', campaignError);
         setActiveCampaign(undefined);
         setTasks([]);
+        setUserCreatedCampaigns([]);
         setLoading(false);
         return;
       }
@@ -99,16 +101,24 @@ export const DashboardContent = ({
         console.log('❌ DashboardContent: No campaigns found - WeeklyContentUpdater should create one');
         setActiveCampaign(undefined);
         setTasks([]);
+        setUserCreatedCampaigns([]);
         setLoading(false);
         return;
       }
+
+      // Separate system campaigns from user-created campaigns
+      const systemCampaigns = allCampaigns.filter(c => c.source !== 'quick_action');
+      const customCampaigns = allCampaigns.filter(c => c.source === 'quick_action');
+      
+      console.log('🔍 DashboardContent: System campaigns:', systemCampaigns.length, 'Custom campaigns:', customCampaigns.length);
+      setUserCreatedCampaigns(customCampaigns);
 
       // 🔧 FIXED: Updated campaign selection logic to prioritize preview campaigns in development
       let selectedCampaign: Campaign | undefined;
       
       if (isDevelopment) {
         // In development, prioritize PREVIEW campaigns first
-        selectedCampaign = allCampaigns.find(c => 
+        selectedCampaign = systemCampaigns.find(c => 
           c.title?.includes('PREVIEW') || c.title?.includes('DEV PREVIEW')
         );
         
@@ -117,16 +127,16 @@ export const DashboardContent = ({
         } else {
           console.log('🔍 DashboardContent: No PREVIEW campaign found, falling back to current week');
           // Fall back to current week campaign
-          selectedCampaign = allCampaigns.find(c => c.week_number === currentWeekNumber);
+          selectedCampaign = systemCampaigns.find(c => c.week_number === currentWeekNumber);
         }
       } else {
         // In production, use current week campaign
-        selectedCampaign = allCampaigns.find(c => c.week_number === currentWeekNumber);
+        selectedCampaign = systemCampaigns.find(c => c.week_number === currentWeekNumber);
       }
       
       if (!selectedCampaign) {
         // If no current week campaign, use the most recent one
-        selectedCampaign = allCampaigns[allCampaigns.length - 1];
+        selectedCampaign = systemCampaigns[systemCampaigns.length - 1];
         console.log('🔍 DashboardContent: No current week campaign, using most recent:', selectedCampaign?.title);
       }
 
@@ -255,6 +265,7 @@ export const DashboardContent = ({
       console.error('❌ DashboardContent: Error in fetchCampaignData:', error);
       setActiveCampaign(undefined);
       setTasks([]);
+      setUserCreatedCampaigns([]);
     } finally {
       setLoading(false);
     }
@@ -363,7 +374,7 @@ export const DashboardContent = ({
       {/* Unified Dashboard Grid - Main dashboard sections */}
       <UnifiedDashboardGrid
         activeCampaign={activeCampaign}
-        userCreatedCampaigns={[]}
+        userCreatedCampaigns={userCreatedCampaigns}
         tasks={tasks}
         onTaskUpdate={handleTaskUpdate}
         onCampaignCreated={fetchCampaignData}

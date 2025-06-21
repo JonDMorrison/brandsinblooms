@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -19,6 +18,7 @@ import { EnhancedSeasonalHolidaysCard } from "./seasonal-holidays/EnhancedSeason
 import { sampleTasks, sampleCampaign } from "@/data/sampleContent";
 import { usePreviewMode } from "@/contexts/PreviewModeContext";
 import { PreviewModeToggle } from "@/components/ui/preview-mode-toggle";
+import { CustomContentSection } from "./custom-content/CustomContentSection";
 
 interface UnifiedDashboardGridProps {
   activeCampaign?: Campaign | null;
@@ -162,6 +162,24 @@ export const UnifiedDashboardGrid = ({
               </BodyMedium>
             </div>
             <EnhancedSeasonalHolidaysCard onContentGenerated={onTaskUpdate} />
+          </div>
+        )}
+
+        {/* Custom Content Section - Only show when user has created campaigns/events */}
+        {user && userCreatedCampaigns.length > 0 && (
+          <div className="space-y-6">
+            <div>
+              <HeadlineLarge className="text-text-primary">
+                Your Custom Content
+              </HeadlineLarge>
+              <BodyMedium className="text-text-secondary mt-1">
+                Content for your custom campaigns and events
+              </BodyMedium>
+            </div>
+            <CustomContentSection 
+              userCreatedCampaigns={userCreatedCampaigns}
+              onContentGenerated={onTaskUpdate}
+            />
           </div>
         )}
 
