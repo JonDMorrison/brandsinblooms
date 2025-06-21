@@ -16,19 +16,27 @@ export const generateStructuredNewsletter = async (
   promoItems: PromoItem[] = [],
   toneNote?: string
 ) => {
-  console.log(`🎯 Generating 4-section structured newsletter for campaign: ${campaignTitle} (Week ${weekNumber})`);
+  console.log(`🎯 Generating 4-section structured newsletter for campaign: ${campaignTitle}`);
   
   try {
     console.log('📡 Calling generate-structured-newsletter function for 4-section format');
+
+    // Determine if this is a holiday or weekly theme based on week number
+    const isHoliday = weekNumber === 0;
+    const focusDescription = isHoliday 
+      ? weekDescription || `Special ${campaignTitle} content for garden centers`
+      : weekDescription || `Week ${weekNumber} focus`;
 
     const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {
       body: {
         business_name: '', // Will be filled from company profile
         theme: campaignTitle,
-        week_focus: weekDescription || `Week ${weekNumber} focus`,
+        week_focus: focusDescription,
         promo_items: promoItems,
         tone_note: toneNote || '',
-        userId: userId
+        userId: userId,
+        is_holiday: isHoliday,
+        holiday_context: isHoliday ? campaignTitle : undefined
       }
     });
 

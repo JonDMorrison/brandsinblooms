@@ -22,38 +22,16 @@ export async function generateHolidayContent(
       let output = '';
 
       if (type === 'newsletter') {
-        // DEV-preview seeding for designers
-        if (['jon@getclear.ca'].includes(user.email)) {
-          output = `# 🌟 DEV PREVIEW HOLIDAY NEWSLETTER
-
-**${holiday.holiday_name} Special Edition**
-
-## Beat the Season: Your Garden's Holiday Survival Guide
-Make the most of ${holiday.holiday_name} with expert gardening tips that transform your outdoor space into a seasonal showcase.
-
-## This Holiday's Garden Game-Changer  
-Discover the secret techniques that professional gardeners use during ${holiday.holiday_name} to create stunning results.
-
-## SOS: Save Your Plants Before the Season Changes
-Don't let seasonal transitions damage your garden - learn the critical steps to protect your plants during ${holiday.holiday_name}.
-
-## Get Ready: Your Garden's Next Power Move
-Plan ahead for post-${holiday.holiday_name} success with strategic preparation that sets your garden up for the coming season.
-
----
-Transform your holiday garden with expert guidance 🌿`;
-        } else {
-          // Generate real newsletter content using the structured newsletter service
-          output = await generateStructuredNewsletter(
-            holiday.id, // Use holiday ID as campaign ID equivalent
-            holiday.holiday_name,
-            0, // No week number for holidays
-            user.id,
-            holiday.description || `${holiday.holiday_name} gardening opportunities`,
-            [], // No promo items for holidays
-            `Holiday-focused content for ${holiday.holiday_name}`
-          );
-        }
+        // Always use structured newsletter service for all users to ensure consistency
+        output = await generateStructuredNewsletter(
+          holiday.id, // Use holiday ID as campaign ID equivalent
+          holiday.holiday_name,
+          0, // No week number for holidays
+          user.id,
+          holiday.description || `${holiday.holiday_name} gardening opportunities`,
+          [], // No promo items for holidays
+          `Holiday-focused content for ${holiday.holiday_name}`
+        );
       } else {
         // Generate other content types using existing service
         // Map holiday data to the expected parameters for generatePersonalizedContent

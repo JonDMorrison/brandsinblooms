@@ -24,10 +24,19 @@ serve(async (req) => {
       week_focus, 
       promo_items = [], 
       tone_note = '',
-      userId 
+      userId,
+      is_holiday = false,
+      holiday_context = ''
     } = await req.json();
 
-    console.log('Generating 4-section magazine newsletter:', { business_name, theme, week_focus, promo_items: promo_items.length });
+    console.log('Generating 4-section magazine newsletter:', { 
+      business_name, 
+      theme, 
+      week_focus, 
+      promo_items: promo_items.length,
+      is_holiday,
+      holiday_context
+    });
 
     if (!openAIApiKey) {
       console.error('OpenAI API key not configured');
@@ -53,58 +62,63 @@ serve(async (req) => {
 
     const businessName = business_name || companyProfile?.company_name || 'Your Garden Center';
     
-    // Enhanced system prompt with engaging headlines
+    // Enhanced system prompt with holiday-specific context
+    const contentType = is_holiday ? 'holiday celebration' : 'weekly theme';
+    const contextualFocus = is_holiday ? `celebrating ${holiday_context || theme}` : week_focus;
+    
     const systemPrompt = `You are a professional newsletter creator for garden centers who uses proven copywriting principles to create engaging content.
 
 BUSINESS: ${businessName}
-THEME: ${theme}
-FOCUS: ${week_focus}
+${is_holiday ? 'HOLIDAY' : 'THEME'}: ${theme}
+FOCUS: ${contextualFocus}
 
 CRITICAL HEADLINE REQUIREMENTS:
-- NEVER use "Weekly" or mention week numbers anywhere
+- NEVER use "Weekly" or mention week numbers anywhere (especially important for holiday content)
 - ALL headlines must be engaging and benefit-driven using copywriting best practices
 - Use power words: save, transform, discover, secret, proven, rescue, boost
 - Create curiosity and emotional appeal
 - Focus on customer outcomes and benefits
 - NO generic titles like "Seasonal Tips" or "Problem Solving"
+${is_holiday ? `- Incorporate holiday themes naturally without being forced` : ''}
 
-Create a structured newsletter with exactly 4 sections using engaging, magazine-style headlines.
+Create a structured newsletter with exactly 4 sections using engaging, magazine-style headlines${is_holiday ? ` that celebrate ${holiday_context || theme}` : ''}.
 
 HEADLINE EXAMPLES TO FOLLOW:
 - Instead of "Seasonal Tips" → "Beat the Heat: Your Garden's Summer Survival Guide"
 - Instead of "Problem Solving" → "SOS: Save Your Plants Before It's Too Late"  
 - Instead of "Plant Spotlight" → "This Month's Garden Game-Changer"
 - Instead of "Looking Ahead" → "Get Ready: Your Garden's Next Power Move"
+${is_holiday ? `- For holidays: "Celebrate ${theme}: Transform Your Garden Into a [Holiday Theme] Paradise"` : ''}
 
 Return ONLY valid YAML in this exact format:
 \`\`\`yaml
 newsletter_md: |
   # ${theme} Garden Newsletter
-  *Discover the secrets to garden success with expert insights tailored for ${theme}*
+  *Discover the secrets to garden success with expert insights${is_holiday ? ` for ${holiday_context || theme}` : ` tailored for ${theme}`}*
 
   ## Beat the Heat: Your Garden's Summer Survival Guide
-  [2-3 sentences with actionable seasonal gardening advice that helps plants thrive during challenging conditions]
+  [2-3 sentences with actionable seasonal gardening advice that helps plants thrive during challenging conditions${is_holiday ? ` and celebrates ${holiday_context || theme}` : ''}]
 
   ## This Month's Garden Game-Changer  
-  [2-3 sentences featuring a specific plant, technique, or product that will transform their gardening results]
+  [2-3 sentences featuring a specific plant, technique, or product that will transform their gardening results${is_holiday ? ` perfect for ${holiday_context || theme}` : ''}]
 
   ## SOS: Save Your Plants Before It's Too Late
   [2-3 sentences about preventing or solving common gardening problems with specific solutions they can implement immediately]
 
   ## Get Ready: Your Garden's Next Power Move
-  [2-3 sentences about upcoming gardening opportunities, planning, or preparation that sets them up for success]
+  [2-3 sentences about upcoming gardening opportunities, planning, or preparation that sets them up for success${is_holiday ? ` beyond ${holiday_context || theme}` : ''}]
 
   ---
   Transform your garden with **${businessName}** 🌿
 blocks:
   - title: "Beat the Heat: Your Garden's Summer Survival Guide"
-    body: "[Actionable seasonal advice with specific techniques and timing]"
+    body: "[Actionable seasonal advice with specific techniques and timing${is_holiday ? ` celebrating ${holiday_context || theme}` : ''}]"
     cta: "Get seasonal garden supplies"
     link: "#"
     image_prompt: "thriving garden summer heat protection ${theme}"
     alt_text: "Garden thriving in summer heat"
   - title: "This Month's Garden Game-Changer"
-    body: "[Featured plant or technique with transformation benefits]"
+    body: "[Featured plant or technique with transformation benefits${is_holiday ? ` perfect for ${holiday_context || theme}` : ''}]"
     cta: "Discover game-changing plants"
     link: "#"
     image_prompt: "featured plant transformation ${theme} garden center"
@@ -133,7 +147,7 @@ extra_content_ideas:
 meta:
   reading_time: "≈3 min"
   theme: "${theme}"
-  week_focus: "${week_focus}"
+  week_focus: "${contextualFocus}"
 \`\`\``;
 
     console.log('Calling OpenAI API for newsletter generation...');
@@ -151,7 +165,7 @@ meta:
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Generate a 4-section newsletter for the theme "${theme}" with focus "${week_focus}". Use engaging, benefit-driven headlines that follow copywriting best practices. Make it practical and valuable for garden center customers. NO week numbers or "weekly" language anywhere.` 
+            content: `Generate a 4-section newsletter for the ${contentType} "${theme}" with focus "${contextualFocus}". Use engaging, benefit-driven headlines that follow copywriting best practices. Make it practical and valuable for garden center customers. NO week numbers or "weekly" language anywhere.${is_holiday ? ` Incorporate ${holiday_context || theme} themes naturally.` : ''}` 
           }
         ]
       }),
@@ -170,7 +184,7 @@ meta:
     const yamlMatch = content.match(/```yaml\n([\s\S]*?)\n```/) || content.match(/```\n([\s\S]*?)\n```/);
     const yamlContent = yamlMatch ? yamlMatch[1] : content;
 
-    console.log('Generated 4-section newsletter with engaging headlines successfully');
+    console.log(`Generated 4-section newsletter with engaging headlines successfully for ${contentType}`);
 
     return new Response(JSON.stringify({
       success: true,
