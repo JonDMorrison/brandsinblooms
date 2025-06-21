@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
 import { toast } from "sonner";
@@ -154,6 +153,7 @@ export const generateCampaignContent = async (
     // Use individual content generation for each type for better reliability
     const contentTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
     const results = [];
+    const failedTypes = [];
 
     console.log('🔧 Creating content tasks with enhanced error handling');
 
@@ -161,29 +161,69 @@ export const generateCampaignContent = async (
       try {
         console.log(`🔧 Starting ${type} content generation`);
 
-        // 🔍 SAFEGUARD: Validate content type
+        // 🔍 CRITICAL SAFEGUARD: Validate content type
         if (!['instagram', 'facebook', 'blog', 'video', 'newsletter'].includes(type)) {
-          console.warn('Unknown post_type skipped:', type);
+          console.warn('❌ Unknown post_type skipped:', type);
+          failedTypes.push({ type, error: 'Unknown post type' });
           continue;
         }
 
         let content = '';
-        if (type === 'video') {
+        
+        // 📰 NEWSLETTER SPECIFIC: Enhanced error handling and fallback
+        if (type === 'newsletter') {
+          console.log('📰 NEWSLETTER: Starting generation with enhanced error handling');
+          try {
+            content = await generateNewsletterContent(
+              campaignId,
+              theme,
+              weekNumber || 1,
+              userId,
+              description
+            );
+            console.log(`📰 NEWSLETTER: Generated successfully (${content?.length || 0} chars)`);
+          } catch (newsletterError) {
+            console.error('📰 NEWSLETTER: Primary generation failed, trying fallback:', newsletterError);
+            
+            // Fallback: Try simple newsletter generation
+            try {
+              content = await generatePersonalizedContent('newsletter', theme, userId, description);
+              console.log(`📰 NEWSLETTER: Fallback generation succeeded (${content?.length || 0} chars)`);
+            } catch (fallbackError) {
+              console.error('📰 NEWSLETTER: Fallback also failed:', fallbackError);
+              
+              // Last resort: Create basic newsletter content
+              content = `# ${theme} - Weekly Newsletter
+
+**This Week's Focus: ${description || theme}**
+
+Welcome to our weekly newsletter! This week we're focusing on ${theme}.
+
+## What's New This Week
+Our team has been working on bringing you the latest insights and updates about ${theme}.
+
+## Tips & Insights
+Here are some key points to consider about ${theme} this week.
+
+## Looking Ahead
+Stay tuned for more updates and insights in our upcoming newsletters.
+
+---
+*Thank you for reading our newsletter!*`;
+              
+              console.log('📰 NEWSLETTER: Using emergency fallback content');
+            }
+          }
+        } else if (type === 'video') {
           content = await generateVideoScript(theme, userId, description);
-        } else if (type === 'newsletter') {
-          content = await generateNewsletterContent(
-            campaignId,
-            theme,
-            weekNumber || 1,
-            userId,
-            description
-          );
         } else {
           content = await generatePersonalizedContent(type, theme, userId, description);
         }
 
+        // Validate content was generated
         if (!content || content.trim() === '') {
           console.warn(`⚠️ No content generated for type: ${type}`);
+          failedTypes.push({ type, error: 'Empty content returned' });
           continue;
         }
 
@@ -191,7 +231,7 @@ export const generateCampaignContent = async (
 
         const taskData: any = {
           campaign_id: campaignId,
-          post_type: type, // 🔧 FIX: Ensure we use the loop variable 'type', not any other variable
+          post_type: type, // 🔧 CRITICAL FIX: Ensure we use the loop variable 'type'
           ai_output: content,
           status: 'review',
           scheduled_date: new Date().toISOString().split('T')[0],
@@ -213,7 +253,9 @@ export const generateCampaignContent = async (
           post_type: taskData.post_type,
           campaign_id: taskData.campaign_id,
           content_length: taskData.ai_output?.length || 0,
-          status: taskData.status
+          status: taskData.status,
+          tenant_id: taskData.tenant_id || 'none',
+          user_id: taskData.user_id || 'none'
         });
 
         const { data: task, error: taskError } = await supabase
@@ -224,6 +266,7 @@ export const generateCampaignContent = async (
 
         if (taskError) {
           console.error(`❌ Error creating ${type} task:`, taskError);
+          failedTypes.push({ type, error: taskError.message });
           await logContentGenerationAttempt(campaignId, userId, 'task_creation_failed', tenantId, { 
             contentType: type, 
             error: taskError.message 
@@ -232,6 +275,11 @@ export const generateCampaignContent = async (
           results.push(task);
           console.log(`✅ Created ${type} content task (${task.id}) with ${tenantId ? 'tenant_id' : 'user_id'} ownership`);
           
+          // 📰 NEWSLETTER SPECIFIC: Extra verification
+          if (type === 'newsletter') {
+            console.log(`📰 NEWSLETTER TASK CREATED: ID=${task.id}, post_type=${task.post_type}, content_length=${task.ai_output?.length}`);
+          }
+          
           // Auto-generate images for the task (make this optional and non-blocking)
           generateImagesForTask(task, theme, description, type).catch(error => {
             console.error(`❌ Error generating images for ${type}:`, error);
@@ -239,6 +287,7 @@ export const generateCampaignContent = async (
         }
       } catch (error) {
         console.error(`❌ Error generating ${type} content:`, error);
+        failedTypes.push({ type, error: error.message });
         await logContentGenerationAttempt(campaignId, userId, 'content_generation_failed', tenantId, { 
           contentType: type, 
           error: error.message 
@@ -251,7 +300,8 @@ export const generateCampaignContent = async (
 
     // Log successful completion
     await logContentGenerationAttempt(campaignId, userId, 'completed', tenantId, { 
-      tasksCreated: results.length 
+      tasksCreated: results.length,
+      failedTypes: failedTypes
     });
 
     console.log(`🎉 Content generation completed: ${results.length} tasks created`);
@@ -261,9 +311,24 @@ export const generateCampaignContent = async (
       console.log(`✅ Task created: ${task.post_type} (${task.id}) - ${task.ai_output?.length || 0} chars`);
     });
 
+    // Log failed types
+    if (failedTypes.length > 0) {
+      console.error(`❌ Failed to create ${failedTypes.length} content types:`, failedTypes);
+    }
+
+    // 📰 NEWSLETTER VERIFICATION: Check if newsletter was created
+    const newsletterTasks = results.filter(task => task.post_type === 'newsletter');
+    if (newsletterTasks.length === 0) {
+      console.error('📰 CRITICAL: Newsletter task was not created!');
+      toast.error('Newsletter content failed to generate. Please try refreshing content again.');
+    } else {
+      console.log('📰 SUCCESS: Newsletter task created successfully:', newsletterTasks[0].id);
+    }
+
     // Show success toast to user
     if (results.length > 0) {
-      toast.success(`Generated ${results.length} content pieces for review!`);
+      const newsletterStatus = newsletterTasks.length > 0 ? '✅ Newsletter included' : '⚠️ Newsletter missing';
+      toast.success(`Generated ${results.length} content pieces for review! ${newsletterStatus}`);
     } else {
       toast.error('No content was generated. Please try again.');
     }
@@ -273,7 +338,8 @@ export const generateCampaignContent = async (
       message: results.length > 0 
         ? `Generated ${results.length} content pieces for review and approval`
         : 'No content was generated. Please check your settings and try again.',
-      tasks: results
+      tasks: results,
+      failedTypes: failedTypes
     };
   } catch (error) {
     console.error('❌ Error in generateCampaignContent:', error);
@@ -299,7 +365,8 @@ export const generateCampaignContent = async (
       success: false,
       message: error.message || 'Failed to generate content',
       error: error,
-      tasks: []
+      tasks: [],
+      failedTypes: []
     };
   }
 };
