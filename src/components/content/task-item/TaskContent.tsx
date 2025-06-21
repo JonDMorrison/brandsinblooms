@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { MagazineContentDisplay } from "./MagazineContentDisplay";
 import { SocialMediaPostPreview } from "./SocialMediaPostPreview";
+import { NewsletterDisplay } from "@/components/newsletter/NewsletterDisplay";
 import { generatePersonalizedContent } from "@/components/homepage/ContentGenerationServices";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -86,21 +87,11 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       );
     }
 
-    // Check if this is a structured newsletter for special handling
-    const isStructuredNewsletter = task.post_type === 'newsletter' && task.ai_output.includes('newsletter_md:');
-    
-    if (isStructuredNewsletter) {
+    // Use NewsletterDisplay for all newsletter content
+    if (task.post_type === 'newsletter') {
       return (
         <div className="space-y-3">
-          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span className="text-sm font-medium text-blue-700">Structured Newsletter</span>
-            </div>
-            <p className="text-sm text-gray-600 italic">
-              Magazine-style newsletter with multiple sections and content blocks. Click to view full layout.
-            </p>
-          </div>
+          <NewsletterDisplay task={task} />
           <div className="flex justify-end">
             <Button
               size="sm"
@@ -117,7 +108,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       );
     }
 
-    // Use magazine-style display for all other content types (blog, video, newsletter)
+    // Use magazine-style display for all other content types (blog, video)
     return (
       <div className="space-y-3">
         <MagazineContentDisplay 
