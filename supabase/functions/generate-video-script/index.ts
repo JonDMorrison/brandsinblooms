@@ -19,7 +19,7 @@ serve(async (req) => {
   }
 
   try {
-    const { campaignTitle, userId } = await req.json();
+    const { campaignTitle, userId, weekDescription } = await req.json();
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
@@ -42,124 +42,107 @@ serve(async (req) => {
       }
     }
 
-    // Build company context for AI with enhanced regional focus
+    // Build enhanced company context for 2-minute teaching videos
     let companyContext = '';
     if (companyProfile) {
       companyContext = `
-COMPANY PROFILE:
+COMPANY PROFILE FOR 2-MINUTE TEACHING VIDEO:
 Company Name: ${companyProfile.company_name || 'Garden Center'}
 Overview: ${companyProfile.company_overview || ''}
 Brand Voice: ${companyProfile.brand_voice || ''}
 Target Audience: ${companyProfile.target_audience || ''}
-Ideal Customer: ${companyProfile.ideal_customer || ''}
-Unique Selling Points: ${companyProfile.unique_selling_points || ''}
-Company Values: ${companyProfile.company_values || ''}
-Specializations: ${companyProfile.specializations || ''}
 Location Info: ${companyProfile.location_info || ''}
+Specializations: ${companyProfile.specializations || ''}
 
-REGIONAL VIDEO SCRIPT FOCUS:
-- Use the Location Info to create content that's highly specific to their geographic region and local climate
-- Reference local growing seasons, weather patterns, and regional gardening calendars
-- Include region-appropriate plant recommendations and gardening techniques
-- Consider local hardiness zones, frost dates, and seasonal timing specific to their location
-- Address regional gardening challenges and local growing conditions
-- Reference local gardening culture, community practices, and regional preferences
-- Use timing and seasonal advice that's accurate for their specific climate zone
-- Include locally-relevant tips that would resonate with gardeners in their area
-- Make references to local weather patterns, soil conditions, and environmental factors
-
-IMPORTANT: Use this company information to create a personalized video script that sounds authentic to this specific garden center owner or expert speaking to their local community about region-specific gardening advice.
-
-ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
-1. ALWAYS START WITH A HOOK: Begin with a powerful opening that sparks curiosity, urgency, or seasonal awareness. Never open with "Welcome to," "This week," or generic greetings. Hooks should be strong, specific, and emotionally engaging.
-
-2. AGITATE BEFORE YOU EDUCATE: After the hook, highlight a common challenge or seasonal mistake before giving advice. Make the viewer feel the problem before introducing the solution.
-
-3. KEEP SEGMENTS SHORT: Use short segments that flow naturally when spoken. Break ideas into digestible chunks.
-
-4. MAKE IT VISUALLY SUGGESTIVE: Use words that help viewers picture what you're talking about (e.g. "lush beds," "cracked soil," "overflowing baskets"). Avoid dry, abstract phrasing. Create scenes with your words.
-
-5. USE A CONVERSATIONAL TONE: Sound like a local garden center owner or expert talking directly to familiar customers. Avoid corporate, robotic, or overly polished language. Use friendly contractions, plain language, and warm phrasing.
-
-6. INCLUDE A CLEAR, ALIGNED CTA: End with a single clear call-to-action that ties directly to the video's topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
-
-7. ANCHOR TIME WITHOUT WEEK NUMBERS: Avoid using week numbers entirely. Instead, reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…"
+ENHANCED 2-MINUTE TEACHING VIDEO REQUIREMENTS:
+- Duration: EXACTLY 2 minutes (120 seconds) with timing breakdown for each segment
+- Structure: Hook (15-20s) → Problem/Challenge (20-30s) → Solution/Teaching (60-70s) → Recap/CTA (15-20s)
+- Include [VISUAL CUES] for single-person filming throughout
+- Add [PROPS NEEDED] suggestions for demonstrations
+- Specify [HAND GESTURES] and [BODY LANGUAGE] directions
+- Include [CAMERA FOCUS] instructions (close-ups, wide shots)
+- Focus on ONE specific teaching point with step-by-step instruction
+- Include "why" explanations, not just "how"
+- Add common mistake warnings and before/after scenarios
+- Make it region-specific using their location information
+- Use natural pause indicators and transition phrases
+- Add emphasis markers for key teaching points
+- Sound like a knowledgeable garden center owner teaching their local community
 
 CRITICAL CONTENT RESTRICTIONS: 
-- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
-- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
+- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation
+- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) 
 - ABSOLUTELY NEVER use dashes (-) to create lists
-- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form
-- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
-- ALWAYS start with a powerful, attention-grabbing hook that immediately draws viewers in
-- Write ONLY in flowing paragraphs and natural sentences
-- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
-- Make all advice regionally appropriate and climate-specific
-- If you need to present multiple points, weave them into natural paragraph flow
+- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
+- ABSOLUTELY NEVER use emojis anywhere in the content
+- Write ONLY in flowing paragraphs with natural speaking rhythm
+- Use regional timing references instead of week numbers
+- Include timing markers like [0:00-0:15] for each segment
 `;
     } else {
       companyContext = `
-ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
-1. ALWAYS START WITH A HOOK: Begin with a powerful opening that sparks curiosity, urgency, or seasonal awareness. Never open with "Welcome to," "This week," or generic greetings. Hooks should be strong, specific, and emotionally engaging.
-
-2. AGITATE BEFORE YOU EDUCATE: After the hook, highlight a common challenge or seasonal mistake before giving advice. Make the viewer feel the problem before introducing the solution.
-
-3. KEEP SEGMENTS SHORT: Use short segments that flow naturally when spoken. Break ideas into digestible chunks.
-
-4. MAKE IT VISUALLY SUGGESTIVE: Use words that help viewers picture what you're talking about (e.g. "lush beds," "cracked soil," "overflowing baskets"). Avoid dry, abstract phrasing. Create scenes with your words.
-
-5. USE A CONVERSATIONAL TONE: Sound like a local garden center owner or expert talking directly to familiar customers. Avoid corporate, robotic, or overly polished language. Use friendly contractions, plain language, and warm phrasing.
-
-6. INCLUDE A CLEAR, ALIGNED CTA: End with a single clear call-to-action that ties directly to the video's topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
-
-7. ANCHOR TIME WITHOUT WEEK NUMBERS: Avoid using week numbers entirely. Instead, reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…"
+ENHANCED 2-MINUTE TEACHING VIDEO REQUIREMENTS:
+- Duration: EXACTLY 2 minutes (120 seconds) with timing breakdown
+- Structure: Hook (15-20s) → Problem/Challenge (20-30s) → Solution/Teaching (60-70s) → Recap/CTA (15-20s)
+- Include [VISUAL CUES] for single-person filming
+- Add [PROPS NEEDED] and [HAND GESTURES] directions
+- Include [CAMERA FOCUS] instructions
+- Focus on ONE specific teaching point with step-by-step instruction
+- Include "why" explanations and common mistake warnings
+- Use natural pause indicators and transition phrases
+- Sound like a knowledgeable garden center owner teaching
 
 CRITICAL CONTENT RESTRICTIONS: 
-- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
-- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
-- ABSOLUTELY NEVER use dashes (-) to create lists
-- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form
-- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
-- ALWAYS start with a powerful, attention-grabbing hook that immediately draws viewers in
-- Write ONLY in flowing paragraphs and natural sentences
-- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
-- Since no location is specified, keep advice general but mention the importance of knowing your local climate zone
-- If you need to present multiple points, weave them into natural paragraph flow
+- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or variations
+- ABSOLUTELY NEVER use bullet points, numbered lists, or dashes
+- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
+- ABSOLUTELY NEVER use emojis
+- Write in flowing paragraphs with natural speaking rhythm
+- Include timing markers like [0:00-0:15] for each segment
 `;
     }
 
-    const prompt = `Create a video script about ${campaignTitle} for a garden center owner/expert speaking to their local community. ${companyContext}
+    const prompt = `Create a 2-minute teaching video script about "${campaignTitle}" for a garden center owner/expert. ${companyContext}
 
-Requirements:
-- START WITH A POWERFUL HOOK that immediately grabs attention - NO "Welcome to" language or week mentions
-- AGITATE BEFORE EDUCATING: Present a common gardening challenge or seasonal mistake related to the topic before offering solutions
-- Use SHORT SEGMENTS that flow naturally when spoken (60-90 seconds total)
-- Make it VISUALLY SUGGESTIVE with descriptive language that helps viewers picture scenarios
-- Sound CONVERSATIONAL like a friendly local expert talking directly to regular customers
-- Write as if the garden center owner/expert is speaking directly to their local customers
-- Use the company's brand voice and speak to their target audience
-- Keep it conversational and natural (60-90 seconds when spoken)
-- Include practical tips that align with their specializations and values and are appropriate for their specific region
-- Reference their expertise and unique selling points naturally
-- End with a strong, SPECIFIC call-to-action that provides clear next steps
-- Make it feel authentic and personal, not generic
-- Structure it with clear sections: Hook, Main Content, Call-to-Action
-- Provide region-specific gardening advice based on their location and local climate conditions
-- Reference local growing seasons, weather patterns, and regional gardening challenges
-- Include plant recommendations and techniques that work well in their specific geographic area
-- Use timing and seasonal advice that's accurate for their local hardiness zone
-- Consider local soil conditions, weather patterns, and regional gardening culture
-- Make it sound like a local expert giving advice to their community
-- Use natural seasonal timing references instead of week numbers
-- Write in flowing paragraphs and natural sentences, NOT bullet points, numbered lists, or dashes
-- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase
-- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
-- ABSOLUTELY NEVER use emojis anywhere in the content
-- If you need to present multiple points, weave them naturally into conversational paragraph form
+SCRIPT STRUCTURE (EXACTLY 2 MINUTES / 120 SECONDS):
 
-Format the response as a natural speaking script, not bullet points or lists.`;
+[0:00-0:15] HOOK (15-20 seconds):
+- Start with a compelling seasonal problem or curiosity gap
+- Make viewers feel the urgency or importance
+- [VISUAL CUE] and [CAMERA FOCUS] instructions
 
-    console.log('Generating personalized, region-specific video script with enhanced writing style');
+[0:15-0:45] PROBLEM/CHALLENGE (20-30 seconds): 
+- Explain the specific gardening challenge in detail
+- Share why this matters for their garden's success
+- Mention common mistakes people make
+- [VISUAL CUE] Show the problem or demonstrate what goes wrong
+
+[0:45-1:45] SOLUTION/TEACHING (60-70 seconds):
+- Provide step-by-step instruction on the solution
+- Explain the "why" behind each step
+- Include region-specific timing and techniques
+- [PROPS NEEDED] List what to have ready for demonstration
+- [HAND GESTURES] Describe specific movements
+- [VISUAL CUE] Close-ups, demonstrations, before/after comparisons
+- Add natural pause points and emphasis markers
+
+[1:45-2:00] RECAP/CALL-TO-ACTION (15-20 seconds):
+- Summarize the key teaching point
+- Provide clear next steps for viewers
+- Connect to their business naturally
+- [CAMERA FOCUS] Return to speaking directly to camera
+
+FILMING REQUIREMENTS:
+- All content must be filmable by ONE PERSON in front of camera
+- Include specific [VISUAL CUE], [PROPS NEEDED], [HAND GESTURES], and [CAMERA FOCUS] directions throughout
+- Use conversational, teaching tone like explaining to a neighbor
+- Add natural pause indicators with [PAUSE] markers
+- Include emphasis markers like [EMPHASIZE] for key points
+- Make timing realistic for actual speaking pace
+
+Make this educational, practical, and region-specific. Focus on ONE clear teaching point that viewers can immediately apply. Sound like a trusted local expert sharing valuable knowledge.`;
+
+    console.log('Generating enhanced 2-minute teaching video script with comprehensive filming directions');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -170,11 +153,11 @@ Format the response as a natural speaking script, not bullet points or lists.`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a professional video script writer specializing in garden center content with deep knowledge of regional gardening differences across various climate zones. Create authentic, conversational scripts that sound natural when spoken by the garden center owner or expert to their local community. Focus on region-specific advice that considers local climate, growing conditions, seasonal timing, and regional gardening challenges. ENHANCED WRITING REQUIREMENTS: Always start with a powerful hook that creates curiosity or urgency, never "Welcome to" or generic openings. Agitate before you educate by highlighting common challenges first. Use short, flowing segments. Make language visually suggestive. Sound conversational like a local expert. End with clear, specific call-to-actions. Use natural seasonal timing references instead of week numbers. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers in any form. ABSOLUTELY NEVER use emojis anywhere in the content - keep all text completely emoji-free. If you need to present multiple points, weave them naturally into conversational paragraph form.' },
+          { role: 'system', content: 'You are a professional video script writer specializing in 2-minute educational content for garden centers. Create teaching scripts that are perfectly timed, include comprehensive filming directions for single-person production, and focus on one clear educational objective. CRITICAL RULES: ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) for lists. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers. ABSOLUTELY NEVER use emojis. Write only in flowing paragraphs with natural speaking rhythm. Include detailed timing breakdowns, visual cues, props needed, hand gestures, and camera focus instructions throughout the script.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 1000,
+        max_tokens: 1500,
       }),
     });
 
@@ -185,7 +168,7 @@ Format the response as a natural speaking script, not bullet points or lists.`;
     const data = await response.json();
     const videoScript = data.choices[0].message.content;
 
-    console.log('Generated enhanced video script with improved writing style:', videoScript);
+    console.log('Generated 2-minute teaching video script with filming directions:', videoScript);
 
     return new Response(JSON.stringify({ script: videoScript }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
