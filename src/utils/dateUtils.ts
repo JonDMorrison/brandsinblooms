@@ -43,3 +43,13 @@ export const getDateForWeek = (weekNumber: number, year = new Date().getFullYear
 export const dateToWeekNumber = (date: Date) => {
   return getISOWeekNumber(date);
 };
+
+// Format a date string for display
+export const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
+};
