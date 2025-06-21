@@ -1,234 +1,173 @@
-import * as React from "react";
-import { useState } from "react";
-import { PremiumButton } from "@/components/ui/premium-button";
-import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Sparkles, TrendingUp, Target, Eye } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+import React from 'react';
+import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
+import { AppleCardHeader, AppleCardContent } from '@/components/ui/apple-card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { HeadlineLarge, BodyMedium, CaptionMedium } from '@/components/ui/typography';
+import { Calendar, Sparkles, Eye, Loader2, Instagram, Facebook, FileText, Video, Mail } from 'lucide-react';
+import { format, isToday, isTomorrow, differenceInDays } from 'date-fns';
 
 interface Holiday {
   id: string;
   holiday_name: string;
-  category: string;
   holiday_date: string;
-  description: string;
-  garden_relevance: string;
+  description?: string;
+  garden_relevance?: string;
+  category?: string;
 }
 
 interface HolidayItemProps {
   holiday: Holiday;
-  onGenerateContent: (holidayId: string) => Promise<void>;
-  onViewContent?: (holidayId: string, holidayName: string) => void;
-  isGenerating?: boolean;
-  hasContent?: boolean;
-  className?: string;
+  onGenerateContent: (holidayId: string) => void;
+  onViewContent: (holidayId: string, holidayName: string) => void;
+  isGenerating: boolean;
+  hasContent: boolean;
 }
 
 export const HolidayItem = ({
   holiday,
   onGenerateContent,
   onViewContent,
-  isGenerating = false,
-  hasContent = false,
-  className
+  isGenerating,
+  hasContent
 }: HolidayItemProps) => {
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case 'Month':
-        return {
-          bg: 'bg-gradient-to-r from-blue-500 to-purple-500',
-          text: 'text-white'
-        };
-      case 'Week':
-        return {
-          bg: 'bg-gradient-to-r from-green-500 to-teal-500',
-          text: 'text-white'
-        };
-      case 'Day':
-        return {
-          bg: 'bg-gradient-to-r from-orange-500 to-red-500',
-          text: 'text-white'
-        };
-      default:
-        return {
-          bg: 'bg-gradient-to-r from-gray-500 to-gray-600',
-          text: 'text-white'
-        };
-    }
+  const holidayDate = new Date(holiday.holiday_date);
+  const daysUntil = differenceInDays(holidayDate, new Date());
+  
+  const getDateDisplay = () => {
+    if (isToday(holidayDate)) return 'Today';
+    if (isTomorrow(holidayDate)) return 'Tomorrow';
+    if (daysUntil > 0) return `${daysUntil} days away`;
+    return format(holidayDate, 'MMM d, yyyy');
   };
 
-  const getSeasonalTheme = (holidayName: string, date: string) => {
-    const month = new Date(date).getMonth();
-    const lowerName = holidayName.toLowerCase();
-    
-    // Seasonal color schemes
-    if (month >= 2 && month <= 4 || lowerName.includes('spring') || lowerName.includes('earth') || lowerName.includes('arbor')) {
-      return {
-        gradient: 'from-green-400 via-emerald-400 to-teal-400',
-        accent: 'from-green-100 to-emerald-100'
-      };
-    } else if (month >= 5 && month <= 7 || lowerName.includes('summer') || lowerName.includes('rose') || lowerName.includes('garden')) {
-      return {
-        gradient: 'from-yellow-400 via-orange-400 to-red-400',
-        accent: 'from-yellow-100 to-orange-100'
-      };
-    } else if (month >= 8 && month <= 10 || lowerName.includes('fall') || lowerName.includes('harvest')) {
-      return {
-        gradient: 'from-orange-400 via-red-400 to-yellow-400',
-        accent: 'from-orange-100 to-red-100'
-      };
-    } else {
-      return {
-        gradient: 'from-blue-400 via-indigo-400 to-purple-400',
-        accent: 'from-blue-100 to-indigo-100'
-      };
-    }
+  const getUrgencyColor = () => {
+    if (daysUntil <= 3) return 'text-red-600 bg-red-50 border-red-200';
+    if (daysUntil <= 7) return 'text-orange-600 bg-orange-50 border-orange-200';
+    return 'text-blue-600 bg-blue-50 border-blue-200';
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const month = date.toLocaleDateString('en-US', { month: 'short' });
-    const day = date.getDate();
-    const year = date.getFullYear();
-    
-    return { month, day, year };
-  };
-
-  const getDaysUntil = (dateString: string) => {
-    const today = new Date();
-    const holidayDate = new Date(dateString);
-    const diffTime = holidayDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) return 'Past';
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays <= 7) return `${diffDays} days`;
-    if (diffDays <= 30) return `${Math.ceil(diffDays / 7)} weeks`;
-    return `${Math.ceil(diffDays / 30)} months`;
-  };
-
-  const handleButtonClick = async () => {
-    if (hasContent && onViewContent) {
-      onViewContent(holiday.id, holiday.holiday_name);
-    } else {
-      try {
-        await onGenerateContent(holiday.id);
-      } catch (error) {
-        console.error('Failed to generate content:', error);
-      }
-    }
-  };
-
-  const categoryInfo = getCategoryColor(holiday.category);
-  const seasonalTheme = getSeasonalTheme(holiday.holiday_name, holiday.holiday_date);
-  const dateInfo = formatDate(holiday.holiday_date);
-  const daysUntil = getDaysUntil(holiday.holiday_date);
+  const contentIcons = [
+    { icon: Instagram, label: 'Instagram', color: 'text-pink-500' },
+    { icon: Facebook, label: 'Facebook', color: 'text-blue-600' },
+    { icon: FileText, label: 'Blog', color: 'text-green-600' },
+    { icon: Video, label: 'Video', color: 'text-red-500' },
+    { icon: Mail, label: 'Newsletter', color: 'text-purple-600' }
+  ];
 
   return (
-    <div className={cn(
-      'group relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all duration-300',
-      'hover:shadow-xl hover:border-gray-300 hover:-translate-y-1',
-      isGenerating && 'opacity-75 pointer-events-none',
-      className
-    )}>
-      <div className={cn(
-        'h-3 bg-gradient-to-r',
-        seasonalTheme.gradient
-      )} />
-      
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <div className="bg-gray-50 rounded-xl p-3 border border-gray-200 text-center min-w-[64px]">
-              <div className="text-xs font-medium text-gray-500 uppercase">
-                {dateInfo.month}
-              </div>
-              <div className="text-xl font-bold text-gray-800">
-                {dateInfo.day}
-              </div>
+    <EnhancedAppleCard
+      variant="elevated"
+      surface="primary"
+      hoverEffect="subtle"
+      animated={true}
+      className="h-full"
+    >
+      <AppleCardHeader className="pb-4">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-green-100 to-blue-100 rounded-xl">
+              <Calendar className="w-6 h-6 text-green-600" />
             </div>
-            
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <HeadlineLarge className="text-gray-900 font-semibold line-clamp-1">
-                  {holiday.holiday_name}
-                </HeadlineLarge>
-                {hasContent && (
-                  <Badge className="text-xs bg-green-100 text-green-700 border-green-200">
-                    Content Ready
+            <div>
+              <HeadlineLarge className="text-gray-900 text-lg font-semibold">
+                {holiday.holiday_name}
+              </HeadlineLarge>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs font-medium border ${getUrgencyColor()}`}
+                >
+                  {getDateDisplay()}
+                </Badge>
+                {holiday.category && (
+                  <Badge variant="secondary" className="text-xs">
+                    {holiday.category}
                   </Badge>
                 )}
               </div>
-              
-              <div className="flex items-center gap-3">
-                <Badge className={cn(
-                  'text-xs font-medium px-2 py-1 rounded-full',
-                  categoryInfo.bg,
-                  categoryInfo.text
-                )}>
-                  {holiday.category}
-                </Badge>
-                
-                <CaptionMedium className="text-gray-500 font-medium">
-                  {daysUntil === 'Past' ? 'Past' : `In ${daysUntil}`}
+            </div>
+          </div>
+          
+          {hasContent && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-green-50 rounded-full">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <CaptionMedium className="text-green-700 text-xs font-medium">
+                Ready
+              </CaptionMedium>
+            </div>
+          )}
+        </div>
+      </AppleCardHeader>
+
+      <AppleCardContent className="space-y-4">
+        {/* Description */}
+        {(holiday.description || holiday.garden_relevance) && (
+          <div className="space-y-2">
+            <BodyMedium className="text-gray-700 text-sm leading-relaxed">
+              {holiday.garden_relevance || holiday.description}
+            </BodyMedium>
+          </div>
+        )}
+
+        {/* Content Types Preview */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-yellow-500" />
+            <CaptionMedium className="text-gray-600 font-medium">
+              5-Piece Content Pack
+            </CaptionMedium>
+          </div>
+          
+          <div className="grid grid-cols-5 gap-2">
+            {contentIcons.map(({ icon: Icon, label, color }, index) => (
+              <div 
+                key={label}
+                className="flex flex-col items-center gap-1 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
+              >
+                <Icon className={`w-4 h-4 ${color}`} />
+                <CaptionMedium className="text-xs text-gray-600 text-center">
+                  {label}
                 </CaptionMedium>
               </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        <BodyMedium className="text-gray-700 mb-4 line-clamp-2">
-          {holiday.description}
-        </BodyMedium>
-
-        <div className={cn(
-          'rounded-xl p-4 mb-5 border-2 border-dashed bg-gradient-to-r',
-          seasonalTheme.accent
-        )}>
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
-              <CaptionMedium className="font-semibold text-gray-800 mb-1">
-                <Target className="w-4 h-4 text-green-600 inline mr-2" />
-              </CaptionMedium>
-              <CaptionMedium className="text-gray-700 leading-relaxed">
-                {holiday.garden_relevance}
-              </CaptionMedium>
-            </div>
-          </div>
+        {/* Actions */}
+        <div className="flex gap-2 pt-2">
+          {hasContent ? (
+            <Button
+              onClick={() => onViewContent(holiday.id, holiday.holiday_name)}
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              size="sm"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              View Content
+            </Button>
+          ) : (
+            <Button
+              onClick={() => onGenerateContent(holiday.id)}
+              disabled={isGenerating}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              size="sm"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Pack
+                </>
+              )}
+            </Button>
+          )}
         </div>
-
-        <div className="flex justify-center">
-          <PremiumButton
-            variant={hasContent ? "secondary" : "primary"}
-            size="default"
-            leadingIcon={hasContent ? "view" : "sparkles"}
-            premium={!hasContent}
-            disabled={isGenerating}
-            onClick={handleButtonClick}
-            className={cn(
-              "w-full max-w-xs",
-              !hasContent && "text-white" // Ensure white text for primary Generate Content button
-            )}
-          >
-            {isGenerating ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                <span className="text-white">Generating...</span>
-              </>
-            ) : hasContent ? (
-              'View Your Content'
-            ) : (
-              <span className="text-white">Generate Content</span>
-            )}
-          </PremiumButton>
-        </div>
-      </div>
-
-      <div className={cn(
-        'absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none',
-        seasonalTheme.gradient
-      )} />
-    </div>
+      </AppleCardContent>
+    </EnhancedAppleCard>
   );
 };

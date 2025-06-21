@@ -1,12 +1,19 @@
 
-import React, { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { ContentTaskItem } from "@/components/content/ContentTaskItem";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useTenant } from "@/hooks/useTenant";
-import { toast } from "sonner";
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTenant } from '@/hooks/useTenant';
+import { Loader2, Calendar, Sparkles, X } from 'lucide-react';
+import { getPostTypeIcon } from '@/components/content/ContentViewerUtils';
+import { getStatusBadgeVariant, getPlatformBadgeVariant, getStatusLabel, getPlatformLabel } from '@/utils/badgeUtils';
+import { TaskContent } from '@/components/content/task-item/TaskContent';
+import { TaskActions } from '@/components/content/task-item/TaskActions';
+import { toast } from 'sonner';
 
 interface HolidayContentViewerProps {
   holidayId: string;
@@ -16,142 +23,219 @@ interface HolidayContentViewerProps {
   onTaskUpdate?: () => void;
 }
 
-export const HolidayContentViewer = ({ 
-  holidayId, 
-  holidayName, 
-  isOpen, 
-  onClose, 
-  onTaskUpdate 
+interface ContentTask {
+  id: string;
+  post_type: string;
+  ai_output: string;
+  status: string;
+  created_at: string;
+  notes?: string;
+  image_idea?: string;
+  hashtags?: string;
+}
+
+export const HolidayContentViewer = ({
+  holidayId,
+  holidayName,
+  isOpen,
+  onClose,
+  onTaskUpdate
 }: HolidayContentViewerProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [tasks, setTasks] = useState<ContentTask[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTab, setSelectedTab] = useState('instagram');
 
   const fetchHolidayTasks = async () => {
-    if (!holidayId || !isOpen || !user) {
-      console.log('HolidayContentViewer: Skipping fetch - holidayId:', holidayId, 'isOpen:', isOpen, 'user:', !!user);
-      return;
-    }
-    
-    console.log('HolidayContentViewer: Starting fetch for holidayId:', holidayId, 'user:', user.id, 'tenant:', tenant?.id || 'none');
+    if (!user || !tenant || !holidayId) return;
+
     setLoading(true);
-    
     try {
-      // Build query based on tenant vs user model (same logic as useSeasonalHolidays)
-      let query = supabase
+      console.log('Fetching tasks for holiday:', holidayId);
+      
+      const { data, error } = await supabase
         .from('content_tasks')
         .select('*')
         .eq('holiday_id', holidayId)
-        .order('created_at', { ascending: true });
-
-      if (tenant?.id) {
-        // Tenant-based access control
-        query = query.eq('tenant_id', tenant.id);
-        console.log('HolidayContentViewer: Using tenant-based query for tenant:', tenant.id);
-      } else {
-        // User-based access control
-        query = query.eq('user_id', user.id);
-        console.log('HolidayContentViewer: Using user-based query for user:', user.id);
-      }
-
-      const { data, error } = await query;
-
-      console.log('HolidayContentViewer: Fetch result - data:', data?.length || 0, 'tasks, error:', error);
+        .eq('tenant_id', tenant.id)
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('HolidayContentViewer: Error fetching tasks:', error);
-        toast.error(`Failed to load holiday content: ${error.message}`);
-        setTasks([]);
-      } else {
-        console.log('HolidayContentViewer: Successfully fetched', data?.length || 0, 'tasks for holiday', holidayId);
-        console.log('HolidayContentViewer: Task details:', data?.map(t => ({
-          id: t.id,
-          post_type: t.post_type,
-          status: t.status,
-          user_id: t.user_id,
-          tenant_id: t.tenant_id,
-          holiday_id: t.holiday_id
-        })));
-        setTasks(data || []);
+        console.error('Error fetching holiday tasks:', error);
+        toast.error('Failed to load holiday content');
+        return;
+      }
+
+      console.log(`Found ${data?.length || 0} tasks for holiday`);
+      setTasks(data || []);
+      
+      // Set first available tab as selected
+      if (data && data.length > 0) {
+        const availableTypes = data.map(task => task.post_type);
+        const preferredOrder = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
+        const firstAvailable = preferredOrder.find(type => availableTypes.includes(type));
+        if (firstAvailable) {
+          setSelectedTab(firstAvailable);
+        }
       }
     } catch (error) {
-      console.error('HolidayContentViewer: Exception in fetchHolidayTasks:', error);
-      toast.error('An unexpected error occurred loading holiday content');
-      setTasks([]);
+      console.error('Exception fetching holiday tasks:', error);
+      toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    console.log('HolidayContentViewer: useEffect triggered - holidayId:', holidayId, 'isOpen:', isOpen, 'user:', !!user, 'tenant:', !!tenant);
-    if (isOpen && holidayId && user) {
-      fetchHolidayTasks();
-    } else if (!isOpen) {
-      // Reset state when dialog closes
-      setTasks([]);
+  const handleTaskUpdate = (taskId: string, updates: Partial<ContentTask>) => {
+    setTasks(prev => prev.map(task => 
+      task.id === taskId ? { ...task, ...updates } : task
+    ));
+    
+    if (onTaskUpdate) {
+      onTaskUpdate();
     }
-  }, [holidayId, isOpen, user, tenant]);
-
-  const handleTaskUpdate = () => {
-    console.log('HolidayContentViewer: Task update requested');
-    fetchHolidayTasks();
-    if (onTaskUpdate) onTaskUpdate();
   };
 
-  // Don't render if no authenticated user
-  if (!user) {
-    return null;
-  }
+  useEffect(() => {
+    if (isOpen && holidayId) {
+      fetchHolidayTasks();
+    }
+  }, [isOpen, holidayId, user, tenant]);
+
+  const tasksByType = tasks.reduce((acc, task) => {
+    acc[task.post_type] = task;
+    return acc;
+  }, {} as Record<string, ContentTask>);
+
+  // Expected content types in preferred order
+  const contentTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
+  const availableTypes = contentTypes.filter(type => tasksByType[type]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-2xl font-bold">
-            {holidayName} Content
-          </DialogTitle>
-          <DialogDescription>
-            Review and manage your generated content for {holidayName}
-          </DialogDescription>
+      <DialogContent className="max-w-6xl max-h-[90vh] p-0">
+        <DialogHeader className="px-6 py-4 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-green-100 to-blue-100 rounded-lg">
+                <Calendar className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold">
+                  {holidayName} Content Pack
+                </DialogTitle>
+                <p className="text-sm text-gray-500 mt-1">
+                  {availableTypes.length} of 5 content pieces ready
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="rounded-full"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
         </DialogHeader>
 
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <LoadingSpinner size="lg" text="Loading holiday content..." />
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-green-600" />
+              <p className="text-gray-500">Loading holiday content...</p>
+            </div>
+          </div>
+        ) : availableTypes.length === 0 ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Sparkles className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+              <p className="text-gray-500 text-lg font-medium">No content available yet</p>
+              <p className="text-gray-400 text-sm">Generate content for this holiday to see it here</p>
+            </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto">
-            {tasks.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="text-6xl mb-4">🎉</div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No content found</h3>
-                <p className="text-gray-500">
-                  Holiday content may still be generating or there was an issue creating it.
-                </p>
-                <div className="text-xs text-gray-400 mt-2">
-                  Searching with: {tenant?.id ? `tenant_id: ${tenant.id}` : `user_id: ${user.id}`}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="text-sm text-gray-600 mb-4">
-                  Found {tasks.length} content pieces for {holidayName}
-                </div>
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="flex-1 flex flex-col min-h-0">
+            <div className="px-6 py-2 border-b bg-gray-50">
+              <TabsList className="grid w-full grid-cols-5 bg-white">
+                {contentTypes.map(type => {
+                  const task = tasksByType[type];
+                  const isAvailable = !!task;
+                  
+                  return (
+                    <TabsTrigger 
+                      key={type} 
+                      value={type}
+                      disabled={!isAvailable}
+                      className="flex items-center gap-2 data-[state=active]:bg-green-50 data-[state=active]:text-green-700"
+                    >
+                      {getPostTypeIcon(type)}
+                      <span className="hidden sm:inline capitalize">
+                        {getPlatformLabel(type)}
+                      </span>
+                      {isAvailable && (
+                        <Badge 
+                          variant={getStatusBadgeVariant(task.status)}
+                          className="ml-1 text-xs"
+                        >
+                          {getStatusLabel(task.status)}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </div>
 
-                <div className="grid gap-4">
-                  {tasks.map((task) => (
-                    <ContentTaskItem 
-                      key={task.id} 
-                      task={task} 
-                      onTaskUpdate={handleTaskUpdate}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+            <div className="flex-1 min-h-0">
+              {contentTypes.map(type => {
+                const task = tasksByType[type];
+                if (!task) return null;
+
+                return (
+                  <TabsContent 
+                    key={type} 
+                    value={type} 
+                    className="h-full m-0 p-6 data-[state=active]:flex data-[state=active]:flex-col"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        {getPostTypeIcon(type)}
+                        <div>
+                          <h3 className="font-semibold capitalize text-lg">
+                            {getPlatformLabel(type)} Content
+                          </h3>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant={getPlatformBadgeVariant(type)}>
+                              {getPlatformLabel(type)}
+                            </Badge>
+                            <Badge variant={getStatusBadgeVariant(task.status)}>
+                              {getStatusLabel(task.status)}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <TaskActions
+                        task={task}
+                        onTaskUpdate={(updates) => handleTaskUpdate(task.id, updates)}
+                        compact={true}
+                      />
+                    </div>
+
+                    <ScrollArea className="flex-1 pr-4">
+                      <TaskContent
+                        task={task}
+                        onTaskUpdate={(updates) => handleTaskUpdate(task.id, updates)}
+                      />
+                    </ScrollArea>
+                  </TabsContent>
+                );
+              })}
+            </div>
+          </Tabs>
         )}
       </DialogContent>
     </Dialog>
