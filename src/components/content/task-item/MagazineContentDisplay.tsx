@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
@@ -8,6 +9,48 @@ interface MagazineContentDisplayProps {
   postType: string;
   className?: string;
 }
+
+// Utility function to convert markdown to HTML
+const parseMarkdownToHtml = (content: string): string => {
+  if (!content) return '';
+  
+  return content
+    // Convert headers
+    .replace(/^### (.+)$/gm, '<h3 class="text-xl font-semibold text-gray-900 mt-6 mb-3">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-8 mb-4">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-6 mb-4">$1</h1>')
+    // Convert bold and italic
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em class="italic text-gray-700">$1</em>')
+    // Convert unordered lists
+    .replace(/^- (.+)$/gm, '<li class="text-gray-700 mb-1">$1</li>')
+    // Convert numbered lists
+    .replace(/^\d+\. (.+)$/gm, '<li class="text-gray-700 mb-1">$1</li>')
+    // Convert paragraphs (split by double newlines)
+    .split('\n\n')
+    .map(paragraph => {
+      paragraph = paragraph.trim();
+      if (!paragraph) return '';
+      
+      // Skip if already wrapped in HTML tags
+      if (paragraph.match(/^<(h[1-6]|li|ul|ol)/)) {
+        return paragraph;
+      }
+      
+      // Check if this paragraph contains list items
+      if (paragraph.includes('<li class="text-gray-700 mb-1">')) {
+        return `<ul class="list-disc list-inside space-y-1 my-4 ml-4">${paragraph}</ul>`;
+      }
+      
+      // Wrap plain text in paragraph tags
+      return `<p class="text-gray-700 leading-relaxed mb-4">${paragraph}</p>`;
+    })
+    .join('\n')
+    // Clean up empty paragraphs
+    .replace(/<p[^>]*><\/p>/g, '')
+    .replace(/<p[^>]*>(<[h1-6])/g, '$1')
+    .replace(/(<\/[h1-6]>)<\/p>/g, '$1');
+};
 
 export const MagazineContentDisplay = ({ content, postType, className }: MagazineContentDisplayProps) => {
   const getPostTypeIcon = () => {
@@ -244,10 +287,6 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
   }
 
   if (postType === 'blog') {
-    const paragraphs = text.split('\n\n').filter(p => p.trim());
-    const title = paragraphs[0] || 'Blog Post';
-    const bodyParagraphs = paragraphs.slice(1);
-
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
         {/* Header */}
@@ -266,17 +305,12 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </div>
         </div>
 
-        {/* Article Content */}
+        {/* Article Content - Now with proper markdown parsing */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-900 leading-tight">
-            {title}
-          </h2>
-          
-          {bodyParagraphs.map((paragraph, index) => (
-            <p key={index} className="text-gray-700 leading-relaxed">
-              {paragraph}
-            </p>
-          ))}
+          <div 
+            className="prose prose-sm max-w-none text-gray-700"
+            dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(content) }}
+          />
         </div>
       </div>
     );
