@@ -113,13 +113,27 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
   const searchQuery = extractKeywords(text);
   const { images, loading, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
 
-  // Auto-fetch images when component mounts
+  // Auto-fetch images when component mounts or content changes
   useEffect(() => {
-    if (images.length === 0 && !loading && searchQuery) {
+    if (searchQuery && contentTaskId) {
       console.log('[PREVIEW] Auto-fetching images with query:', searchQuery);
+      console.log('[PREVIEW] Current image state - count:', images.length, 'loading:', loading);
+      
+      // Always fetch new images if we have a search query
       fetchNewImages(searchQuery, contentTaskId, postType);
     }
   }, [searchQuery, contentTaskId, postType]);
+
+  // Debug image state changes
+  useEffect(() => {
+    console.log('[PREVIEW] Image state changed:', {
+      imageCount: images.length,
+      loading,
+      searchQuery,
+      selectedIndex: selectedImageIndex,
+      currentImage: images[selectedImageIndex]?.id || 'none'
+    });
+  }, [images, loading, selectedImageIndex, searchQuery]);
 
   const getPlatformIcon = () => {
     return postType === 'instagram' ? (
@@ -232,22 +246,32 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
               <div className="text-center text-gray-500">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-2"></div>
                 <p className="text-sm">Loading image...</p>
+                <p className="text-xs mt-1">Query: {searchQuery}</p>
               </div>
             ) : currentImage ? (
-              <img
-                src={currentImage.download_url || currentImage.thumb_url}
-                alt={currentImage.alt}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // Fallback to thumb_url if download_url fails
-                  if (e.currentTarget.src === currentImage.download_url && currentImage.thumb_url) {
-                    e.currentTarget.src = currentImage.thumb_url;
-                  } else {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement?.querySelector('.fallback-placeholder')?.classList.remove('hidden');
-                  }
-                }}
-              />
+              <>
+                <img
+                  src={currentImage.download_url || currentImage.thumb_url}
+                  alt={currentImage.alt}
+                  className="w-full h-full object-cover"
+                  onLoad={() => console.log('[PREVIEW] Image loaded successfully:', currentImage.id)}
+                  onError={(e) => {
+                    console.error('[PREVIEW] Image failed to load:', currentImage.id, e);
+                    // Fallback to thumb_url if download_url fails
+                    if (e.currentTarget.src === currentImage.download_url && currentImage.thumb_url) {
+                      console.log('[PREVIEW] Attempting fallback to thumb_url');
+                      e.currentTarget.src = currentImage.thumb_url;
+                    } else {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement?.querySelector('.fallback-placeholder')?.classList.remove('hidden');
+                    }
+                  }}
+                />
+                {/* Debug overlay */}
+                <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                  {selectedImageIndex + 1}/{images.length}
+                </div>
+              </>
             ) : null}
             
             {/* Fallback placeholder */}
@@ -260,14 +284,17 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                   <span className="text-xl">🖼️</span>
                 </div>
                 <p className="text-sm font-medium">Featured Image</p>
-                <p className="text-xs">{searchQuery ? `Searching: ${searchQuery}` : 'Will be generated'}</p>
+                <p className="text-xs">{searchQuery ? `Query: ${searchQuery}` : 'Generating...'}</p>
+                <p className="text-xs mt-1">Images: {images.length} | Loading: {loading ? 'Yes' : 'No'}</p>
               </div>
             </div>
           </div>
 
           {/* Thumbnail Gallery */}
           <div className="p-3 bg-gray-50 border-t">
-            <p className="text-xs text-gray-600 mb-2 font-medium">Additional Images</p>
+            <p className="text-xs text-gray-600 mb-2 font-medium">
+              Additional Images ({images.length} available)
+            </p>
             <div className="grid grid-cols-4 gap-2">
               {thumbnailImages.map((image, index) => (
                 <div 
@@ -278,19 +305,24 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                       ? "ring-2 ring-blue-500 border-blue-300" 
                       : "hover:border-gray-400"
                   )}
-                  onClick={() => setSelectedImageIndex(index)}
+                  onClick={() => {
+                    console.log('[PREVIEW] Selected thumbnail index:', index);
+                    setSelectedImageIndex(index);
+                  }}
                 >
                   <img
                     src={image.thumb_url}
                     alt={image.alt}
                     className="w-full h-full object-cover"
+                    onLoad={() => console.log('[PREVIEW] Thumbnail loaded:', image.id)}
                     onError={(e) => {
+                      console.error('[PREVIEW] Thumbnail failed to load:', image.id);
                       e.currentTarget.style.display = 'none';
                       e.currentTarget.parentElement?.querySelector('.thumb-fallback')?.classList.remove('hidden');
                     }}
                   />
                   <div className="hidden thumb-fallback text-xs text-gray-500 bg-gray-200 w-full h-full flex items-center justify-center">
-                    <span>+</span>
+                    <span>?</span>
                   </div>
                 </div>
               ))}
