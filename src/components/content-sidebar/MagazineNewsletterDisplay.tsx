@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { parseNewsletterYAML, StructuredNewsletter } from '@/utils/newsletterUtils';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ interface ImageData {
 export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsletterDisplayProps) => {
   const [images, setImages] = useState<Record<number, ImageData>>({});
   const [loadingImages, setLoadingImages] = useState(false);
+  const [imageErrors, setImageErrors] = useState<Record<number, string>>({});
 
   const newsletter = parseNewsletterYAML(content);
   
@@ -26,7 +28,7 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
     newsletter_md: content,
     blocks: [{
       title: 'Newsletter Content',
-      body: content, // Use full content, not truncated
+      body: content,
       cta: '',
       link: '',
       image_prompt: 'newsletter professional clean informative gardening seasonal',
@@ -43,16 +45,37 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
   // Fetch images for all newsletters (both structured and plain text)
   useEffect(() => {
     const fetchImages = async () => {
-      if (!processedNewsletter.blocks.length) return;
+      if (!processedNewsletter.blocks.length) {
+        console.log('[NEWSLETTER] No blocks found, skipping image fetch');
+        return;
+      }
       
       setLoadingImages(true);
-      console.log('[NEWSLETTER] Fetching images for newsletter blocks:', processedNewsletter.blocks.length);
+      setImageErrors({});
+      console.log('[NEWSLETTER] Starting image fetch for', processedNewsletter.blocks.length, 'blocks');
+      console.log('[NEWSLETTER] Newsletter structure:', {
+        isStructured: !!newsletter,
+        blockCount: processedNewsletter.blocks.length,
+        firstBlockPrompt: processedNewsletter.blocks[0]?.image_prompt
+      });
       
       const imagePromises = processedNewsletter.blocks.map(async (block, index) => {
-        if (!block.image_prompt) return null;
+        if (!block.image_prompt) {
+          console.log('[NEWSLETTER] Block', index, 'has no image prompt, skipping');
+          return null;
+        }
         
         try {
-          console.log('[NEWSLETTER] Fetching image for block', index, 'with prompt:', block.image_prompt);
+          console.log('[NEWSLETTER] Fetching image for block', index);
+          console.log('[NEWSLETTER] Image prompt:', block.image_prompt);
+          console.log('[NEWSLETTER] Calling supabase.functions.invoke with:', {
+            functionName: 'fetch-unsplash-images',
+            body: { 
+              query: block.image_prompt,
+              contentType: 'newsletter'
+            }
+          });
+          
           const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
             body: { 
               query: block.image_prompt,
@@ -60,13 +83,28 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
             }
           });
           
+          console.log('[NEWSLETTER] Function response for block', index, ':', { data, error });
+          
           if (error) {
-            console.log('[NEWSLETTER] Unsplash API error for block', index, ':', error.message);
+            console.error('[NEWSLETTER] Supabase function error for block', index, ':', error);
+            setImageErrors(prev => ({ ...prev, [index]: error.message || 'Function call failed' }));
+            return null;
+          }
+          
+          if (!data) {
+            console.warn('[NEWSLETTER] No data returned for block', index);
+            setImageErrors(prev => ({ ...prev, [index]: 'No data returned from function' }));
+            return null;
+          }
+          
+          if (data.error) {
+            console.error('[NEWSLETTER] API error for block', index, ':', data.error);
+            setImageErrors(prev => ({ ...prev, [index]: data.error }));
             return null;
           }
           
           if (data?.images?.[0]) {
-            console.log('[NEWSLETTER] Successfully fetched image for block', index);
+            console.log('[NEWSLETTER] Successfully fetched image for block', index, ':', data.images[0]);
             return {
               index,
               image: {
@@ -75,25 +113,36 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                 photographer: data.images[0].photographer
               }
             };
+          } else {
+            console.warn('[NEWSLETTER] No images in response for block', index, 'Response:', data);
+            setImageErrors(prev => ({ ...prev, [index]: 'No images found for query' }));
+            return null;
           }
         } catch (error) {
-          console.error('[NEWSLETTER] Error fetching image for block', index, ':', error);
+          console.error('[NEWSLETTER] Exception fetching image for block', index, ':', error);
+          setImageErrors(prev => ({ ...prev, [index]: error.message || 'Network error' }));
+          return null;
         }
-        return null;
       });
 
-      const results = await Promise.all(imagePromises);
-      const imageMap: Record<number, ImageData> = {};
-      
-      results.forEach(result => {
-        if (result) {
-          imageMap[result.index] = result.image;
-        }
-      });
-      
-      console.log('[NEWSLETTER] Final image map:', imageMap);
-      setImages(imageMap);
-      setLoadingImages(false);
+      try {
+        const results = await Promise.all(imagePromises);
+        const imageMap: Record<number, ImageData> = {};
+        
+        results.forEach(result => {
+          if (result) {
+            imageMap[result.index] = result.image;
+          }
+        });
+        
+        console.log('[NEWSLETTER] Final image map:', imageMap);
+        console.log('[NEWSLETTER] Image errors:', imageErrors);
+        setImages(imageMap);
+      } catch (error) {
+        console.error('[NEWSLETTER] Error in Promise.all:', error);
+      } finally {
+        setLoadingImages(false);
+      }
     };
 
     fetchImages();
@@ -133,6 +182,22 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
           </p>
         )}
       </div>
+
+      {/* Debug Info in Development */}
+      {import.meta.env.DEV && (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="font-semibold text-blue-900 mb-2">Debug Info</h3>
+          <div className="text-sm text-blue-800 space-y-1">
+            <div>Newsletter type: {newsletter ? 'Structured YAML' : 'Plain text'}</div>
+            <div>Blocks: {processedNewsletter.blocks.length}</div>
+            <div>Images loaded: {Object.keys(images).length}</div>
+            <div>Loading: {loadingImages ? 'Yes' : 'No'}</div>
+            {Object.keys(imageErrors).length > 0 && (
+              <div>Errors: {JSON.stringify(imageErrors)}</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Content Blocks */}
       <div className="space-y-12">
@@ -178,7 +243,10 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
             <div className="lg:col-span-1">
               {loadingImages ? (
                 <div className="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center animate-pulse">
-                  <ImageIcon className="w-8 h-8 text-gray-400" />
+                  <div className="text-center text-gray-500">
+                    <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                    <p className="text-sm">Loading image...</p>
+                  </div>
                 </div>
               ) : images[index] ? (
                 <div className="aspect-[4/3] rounded-lg overflow-hidden shadow-sm">
@@ -190,7 +258,10 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                       console.error('[NEWSLETTER] Image failed to load:', images[index].url);
                       // Hide broken image and show placeholder
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (placeholder) {
+                        placeholder.classList.remove('hidden');
+                      }
                     }}
                   />
                   <div className="hidden aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
@@ -201,10 +272,18 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
                   </div>
                 </div>
               ) : (
-                <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
-                  <div className="text-center text-gray-500">
+                <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
+                  <div className="text-center text-gray-500 p-4">
                     <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm">{block.image_prompt}</p>
+                    <p className="text-sm mb-1">No image loaded</p>
+                    {imageErrors[index] && (
+                      <p className="text-xs text-red-500">{imageErrors[index]}</p>
+                    )}
+                    {import.meta.env.DEV && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Prompt: {block.image_prompt}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
