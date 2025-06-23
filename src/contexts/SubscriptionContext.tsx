@@ -1,7 +1,7 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTenant } from "@/hooks/useTenant";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { isSuperAdmin } from "@/utils/adminUtils";
@@ -42,13 +42,74 @@ export const useSubscription = () => {
 
 export const SubscriptionProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
-  const { tenant } = useTenant();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tenant, setTenant] = useState<any>(null);
+  const [tenantLoading, setTenantLoading] = useState(true);
 
   // Check if current user is a developer with super admin access
   const isDeveloper = user?.email ? isSuperAdmin(user.email) : false;
+
+  // Fetch tenant data directly in this component instead of using useTenant hook
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchTenant = async () => {
+      if (!user) {
+        if (isMounted) {
+          setTenantLoading(false);
+        }
+        return;
+      }
+
+      try {
+        // First get the user's tenant_id from the users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('tenant_id')
+          .eq('id', user.id)
+          .single();
+
+        if (!isMounted) return;
+
+        if (userError || !userData?.tenant_id) {
+          console.log('User not assigned to a tenant yet');
+          setTenantLoading(false);
+          return;
+        }
+
+        // Then fetch the tenant details
+        const { data: tenantData, error: tenantError } = await supabase
+          .from('tenants')
+          .select('*')
+          .eq('id', userData.tenant_id)
+          .single();
+
+        if (!isMounted) return;
+
+        if (tenantError) {
+          console.error('Error fetching tenant:', tenantError);
+        } else {
+          setTenant(tenantData);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error('Error in fetchTenant:', error);
+        }
+      } finally {
+        if (isMounted) {
+          setTenantLoading(false);
+        }
+      }
+    };
+
+    fetchTenant();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const createDefaultSubscription = async () => {
     if (!user) return null;
@@ -274,12 +335,12 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   })();
 
   useEffect(() => {
-    if (user) {
+    if (user && !tenantLoading) {
       fetchSubscription();
       // Also check with Stripe on load
       checkStripeSubscription();
     }
-  }, [user, tenant]);
+  }, [user, tenant, tenantLoading]);
 
   // Enhanced trial expiration handling - skip for developers
   useEffect(() => {
