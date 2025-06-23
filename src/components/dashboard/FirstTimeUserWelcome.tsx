@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -148,7 +149,7 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
           </div>
         </div>
 
-        <div className="flex justify-center">
+        <div className="flex justify-start">
           <Button 
             onClick={onGetStarted}
             className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 px-8 py-3 text-lg"
