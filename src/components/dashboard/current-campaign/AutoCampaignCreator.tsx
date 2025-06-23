@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,98 +22,101 @@ export const AutoCampaignCreator = ({
   const [isAutoCreating, setIsAutoCreating] = useState(false);
   const { user } = useAuth();
 
-  const getSeasonalGardenTheme = (weekNumber: number) => {
+  const getEngagingSeasonalTheme = (weekNumber: number) => {
     const month = new Date().getMonth() + 1;
+    const seasonName = month >= 3 && month <= 5 ? 'Spring' : 
+                     month >= 6 && month <= 8 ? 'Summer' : 
+                     month >= 9 && month <= 11 ? 'Fall' : 'Winter';
     
     if (month >= 3 && month <= 5) {
-      // Spring themes with enhanced plant care focus
+      // Spring themes - engaging and benefit-driven
       const springThemes = [
         {
-          title: "Spring Plant Care Revival",
-          description: "Master spring plant care essentials including soil preparation, proper watering schedules, and fertilizing timing. Address common spring plant health issues like root rot prevention, transplant shock recovery, and early pest management for thriving gardens.",
-          theme: "Spring Plant Health & Care",
-          prompt: "Create expert spring plant care content focused on soil preparation techniques, watering schedules, fertilizing timing, transplant care, pest prevention, and solving common spring plant health challenges for garden center customers."
+          title: "Spring Plant Revival Mastery",
+          description: "Transform your garden from winter survivor to spring showstopper with expert plant revival techniques, soil recovery secrets, and timing strategies that guarantee lush, healthy growth all season long.",
+          theme: "Spring Plant Health Revolution",
+          prompt: "Create expert spring plant revival content focusing on transforming winter-damaged plants, soil rehabilitation techniques, perfect timing for fertilizing and watering, pest prevention strategies, and seasonal plant care secrets that create Instagram-worthy garden transformations."
         },
         {
-          title: "Early Season Plant Health Mastery",
-          description: "Guide customers through critical spring plant care decisions including proper planting techniques, soil amendment, watering systems, and preventive plant health measures that ensure strong, healthy growth all season.",
-          theme: "Spring Plant Care Excellence", 
-          prompt: "Create detailed plant care content about spring planting timing, soil health improvement, watering system setup, fertilizing schedules, and preventive plant health care for garden center expertise."
+          title: "Beat Spring Plant Problems Before They Start",
+          description: "Master the art of preventive spring plant care with early intervention strategies, soil preparation secrets, and expert timing that keeps your plants thriving while your neighbors struggle with common spring issues.",
+          theme: "Spring Plant Problem Prevention", 
+          prompt: "Create problem-prevention focused spring content about stopping plant issues before they start, soil health optimization, watering wisdom, fertilizer timing, pest management, and expert care strategies that create confident, successful gardeners."
         },
         {
-          title: "Spring Plant Problem Prevention",
-          description: "Focus on preventing common spring plant issues through proper care techniques, timing, and maintenance. Cover transplant care, watering wisdom, soil health, and early intervention strategies for optimal plant health.",
-          theme: "Spring Plant Health Solutions",
-          prompt: "Create preventive plant care content about spring plant health maintenance, common problem prevention, proper watering techniques, soil care, and early season plant health management."
+          title: "Spring Growth Explosion Secrets",
+          description: "Unlock explosive spring plant growth with professional techniques for soil preparation, strategic fertilizing, optimal watering schedules, and plant care timing that creates dramatic before-and-after garden transformations.",
+          theme: "Spring Growth Maximization",
+          prompt: "Create growth-focused spring content about maximizing plant growth potential, soil amendment strategies, fertilizing for explosive growth, watering techniques, plant nutrition timing, and care methods that create dramatic garden improvements."
         }
       ];
       return springThemes[weekNumber % springThemes.length];
     } else if (month >= 6 && month <= 8) {
-      // Summer themes with enhanced plant care focus
+      // Summer themes - heat and stress focused
       const summerThemes = [
         {
-          title: "Summer Plant Stress Management",
-          description: "Master summer plant care challenges with heat stress prevention, efficient watering techniques, and nutrition management. Address common summer plant problems like wilting, nutrient deficiency, and pest pressure with expert care solutions.",
-          theme: "Summer Plant Health & Stress Management",
-          prompt: "Create expert summer plant care content focused on heat stress prevention, efficient watering techniques, summer fertilizing schedules, pest management, and maintaining optimal plant health in hot weather conditions."
+          title: "Save Plants from Summer Heat Stress",
+          description: "Rescue your plants from brutal summer heat with expert stress management techniques, efficient watering systems, and heat protection strategies that keep gardens thriving when temperatures soar.",
+          theme: "Summer Heat Stress Rescue",
+          prompt: "Create heat-stress focused summer content about saving plants from extreme temperatures, efficient watering techniques, heat protection strategies, cooling methods, plant nutrition during stress, and expert care that prevents summer plant casualties."
         },
         {
-          title: "Peak Season Plant Care Excellence",
-          description: "Optimize summer plant health with proper watering schedules, nutrition timing, and pest management strategies. Cover heat-tolerant plant selection, maintenance techniques, and troubleshooting common summer plant health issues.",
-          theme: "Summer Plant Care Mastery",
-          prompt: "Create comprehensive summer plant care content about watering schedules, plant nutrition, heat stress management, pest control timing, and maintaining healthy plants through peak summer conditions."
+          title: "Summer Watering Wisdom That Works",
+          description: "Master efficient summer watering with professional techniques that conserve water while keeping plants perfectly hydrated, including timing secrets, system optimization, and troubleshooting common watering mistakes.",
+          theme: "Summer Watering Mastery",
+          prompt: "Create water-focused summer content about efficient watering techniques, timing strategies, water conservation methods, irrigation optimization, moisture management, and expert watering wisdom that keeps plants thriving in heat."
         },
         {
-          title: "Midsummer Plant Health Solutions",
-          description: "Address midsummer plant care challenges with targeted health solutions, proper maintenance timing, and expert problem-solving. Focus on plant hydration, nutrition balance, and preventing common summer plant health issues.",
-          theme: "Summer Plant Health Management",
-          prompt: "Create problem-solving plant care content about midsummer plant health maintenance, watering wisdom, nutrition management, pest prevention, and expert solutions for summer plant care challenges."
+          title: "Drought-Proof Your Garden This Summer",
+          description: "Transform your garden into a drought-resistant paradise with plant selection strategies, water-wise landscaping techniques, and maintenance methods that create beautiful, resilient gardens that thrive with minimal water.",
+          theme: "Summer Drought Resistance",
+          prompt: "Create drought-resistance focused content about water-wise plant selection, xeriscaping techniques, mulching strategies, drought-tolerant gardening, water conservation methods, and creating resilient summer gardens."
         }
       ];
       return summerThemes[weekNumber % summerThemes.length];
     } else if (month >= 9 && month <= 11) {
-      // Fall themes with enhanced plant care focus
+      // Fall themes - preparation and transition focused
       const fallThemes = [
         {
-          title: "Fall Plant Care Transitions",
-          description: "Navigate fall plant care transitions with proper timing for pruning, fertilizing, and winterization. Address seasonal plant health needs, transition care techniques, and preparation strategies for healthy plant dormancy and spring recovery.",
-          theme: "Fall Plant Care & Transition",
-          prompt: "Create expert fall plant care content about seasonal transition timing, pruning techniques, winterization schedules, plant health preparation, and caring for plants through seasonal changes."
+          title: "Fall Plant Prep for Spring Success",
+          description: "Set your garden up for spectacular spring results with expert fall preparation techniques, strategic planting timing, winterization methods, and care schedules that guarantee healthy plant recovery and explosive spring growth.",
+          theme: "Fall Preparation Excellence",
+          prompt: "Create fall preparation content about setting plants up for spring success, winterization techniques, fall planting strategies, preparation timing, protection methods, and expert care that ensures healthy plant dormancy and spring recovery."
         },
         {
-          title: "Fall Plant Health & Winter Prep",
-          description: "Prepare plants for winter success with proper fall care techniques, nutrition timing, and protection strategies. Cover plant health assessment, winter preparation, and care schedules that ensure strong plant recovery next spring.",
-          theme: "Fall Plant Preparation & Health",
-          prompt: "Create comprehensive fall plant care content about winter preparation techniques, plant health assessment, protection strategies, nutrition timing, and care schedules for optimal plant health."
+          title: "Fall Color Explosion Strategies",
+          description: "Maximize stunning fall colors with expert plant selection, care timing, and maintenance techniques that create breathtaking autumn displays while preparing plants for healthy winter rest and spring comeback.",
+          theme: "Fall Color Maximization",
+          prompt: "Create fall color-focused content about maximizing autumn plant displays, color-enhancing care techniques, fall maintenance timing, leaf care strategies, and creating spectacular fall garden beauty."
         },
         {
-          title: "Seasonal Plant Care Mastery",
-          description: "Master the art of seasonal plant care transitions with expert timing, proper techniques, and health-focused maintenance. Address fall plant nutrition, pruning wisdom, and protection strategies for thriving plants.",
-          theme: "Seasonal Plant Care Excellence",
-          prompt: "Create expert seasonal plant care content about fall maintenance timing, plant health optimization, protection techniques, and mastering seasonal plant care transitions for garden center customers."
+          title: "Winter Protection That Actually Works",
+          description: "Protect your plant investments with proven winterization techniques, timing strategies, and care methods that ensure plant survival through harsh winter conditions and guarantee strong spring recovery.",
+          theme: "Winter Protection Mastery",
+          prompt: "Create winter protection content about proven plant winterization techniques, protection timing, covering strategies, care methods, and expert techniques that ensure plant survival and spring recovery."
         }
       ];
       return fallThemes[weekNumber % fallThemes.length];
     } else {
-      // Winter themes with enhanced plant care focus
+      // Winter themes - indoor and planning focused
       const winterThemes = [
         {
-          title: "Winter Plant Care & Indoor Growing",
-          description: "Master winter plant care with indoor growing techniques, houseplant health management, and plant care scheduling. Address winter plant health challenges, indoor air quality effects, and maintaining plant health during dormant seasons.",
-          theme: "Winter Plant Care & Indoor Health",
-          prompt: "Create expert winter plant care content about indoor growing techniques, houseplant health management, winter plant care schedules, and maintaining optimal plant health during winter months."
+          title: "Indoor Plant Paradise Creation",
+          description: "Transform your home into a thriving indoor plant paradise with expert houseplant care techniques, problem-solving strategies, and maintenance schedules that create healthy, beautiful indoor gardens all winter long.",
+          theme: "Indoor Plant Mastery",
+          prompt: "Create indoor plant content about houseplant care excellence, problem diagnosis and solutions, indoor growing techniques, plant health maintenance, and creating thriving indoor plant environments during winter months."
         },
         {
-          title: "Indoor Plant Health & Care",
-          description: "Focus on indoor plant health with proper care techniques, problem diagnosis, and maintenance schedules. Cover houseplant nutrition, watering wisdom, pest prevention, and creating optimal growing conditions indoors.",
-          theme: "Indoor Plant Health Mastery",
-          prompt: "Create comprehensive indoor plant care content about houseplant health management, proper care techniques, problem solving, nutrition schedules, and optimizing indoor growing conditions."
+          title: "Winter Garden Planning for Spring Success",
+          description: "Plan your best garden ever with strategic winter planning techniques, plant selection strategies, design optimization, and preparation methods that set you up for spectacular spring and summer garden results.",
+          theme: "Winter Garden Planning",
+          prompt: "Create winter planning content about strategic garden planning, plant selection for next season, garden design optimization, preparation strategies, and planning techniques that create garden success."
         },
         {
-          title: "Winter Plant Health Planning",
-          description: "Plan for plant health success with winter care strategies, indoor growing projects, and preparation for spring growing. Address plant health assessment, care planning, and maintaining plant wellness through winter.",
-          theme: "Winter Plant Health & Planning",
-          prompt: "Create strategic plant care content about winter plant health planning, care assessment, indoor growing projects, and preparing plants for optimal health and spring recovery."
+          title: "Houseplant Health Emergency Kit",
+          description: "Rescue struggling houseplants with expert diagnostic techniques, treatment methods, and maintenance strategies that revive dying plants and create thriving indoor plant health all winter long.",
+          theme: "Houseplant Health Rescue",
+          prompt: "Create houseplant rescue content about diagnosing plant problems, treatment techniques, recovery methods, health maintenance, and expert care that saves struggling indoor plants and creates plant health success."
         }
       ];
       return winterThemes[weekNumber % winterThemes.length];
@@ -125,7 +127,7 @@ export const AutoCampaignCreator = ({
     const autoCreateWeeklyContent = async () => {
       if (!user || activeCampaign || isAutoCreating) return;
 
-      console.log('🌱 No campaign found for current week, creating seasonal garden center theme...');
+      console.log('🌱 No campaign found for current week, creating engaging garden center theme...');
       setIsAutoCreating(true);
 
       try {
@@ -154,29 +156,29 @@ export const AutoCampaignCreator = ({
             source: 'master_templates'
           };
         } else {
-          // Use enhanced seasonal garden center themes
-          console.log('🌿 Generating seasonal garden center theme...');
-          const seasonalTheme = getSeasonalGardenTheme(currentWeekNumber);
+          // Use engaging seasonal garden center themes
+          console.log('🌿 Generating engaging seasonal garden center theme...');
+          const engagingTheme = getEngagingSeasonalTheme(currentWeekNumber);
           
           campaignData = {
-            title: seasonalTheme.title,
-            description: seasonalTheme.description,
-            theme: seasonalTheme.theme,
-            prompt: seasonalTheme.prompt,
-            source: 'seasonal_garden_themes'
+            title: engagingTheme.title,
+            description: engagingTheme.description,
+            theme: engagingTheme.theme,
+            prompt: engagingTheme.prompt,
+            source: 'engaging_seasonal_themes'
           };
           
-          console.log('✅ Created seasonal garden theme:', campaignData.title);
+          console.log('✅ Created engaging seasonal theme:', campaignData.title);
         }
 
-        // Create the campaign with rich seasonal garden center data
+        // Create the campaign with engaging seasonal garden center data
         const startDate = new Date();
         const dayOfWeek = startDate.getDay();
         const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
         const weekStartDate = new Date(startDate);
         weekStartDate.setDate(startDate.getDate() + mondayOffset);
 
-        console.log('🏗️ Creating campaign with garden center data:', campaignData.title);
+        console.log('🏗️ Creating campaign with engaging garden center data:', campaignData.title);
 
         const { data: newCampaign, error: campaignError } = await supabase
           .from('campaigns')
@@ -199,16 +201,16 @@ export const AutoCampaignCreator = ({
           return;
         }
 
-        console.log('✅ Auto-created seasonal garden center campaign:', newCampaign);
+        console.log('✅ Auto-created engaging seasonal garden center campaign:', newCampaign);
 
         if (newCampaign) {
           await generateRequiredTasks(newCampaign.id, [newCampaign], user.id, onTaskUpdate);
           
-          toast.success(`🌱 Created "${campaignData.title}" with seasonal garden center content!`);
+          toast.success(`🌱 Created "${campaignData.title}" with engaging seasonal content!`);
           onCampaignCreated();
         }
       } catch (error) {
-        console.error('❌ Error auto-creating seasonal garden content:', error);
+        console.error('❌ Error auto-creating engaging seasonal content:', error);
         toast.error('Failed to create seasonal campaign. Please try creating one manually.');
       } finally {
         setIsAutoCreating(false);

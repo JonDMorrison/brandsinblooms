@@ -33,19 +33,21 @@ CONTENT VALUE REQUIREMENTS (CRITICAL for quality):
 - Include "why" explanations to help customers understand plant care principles
 `;
 
-  // CRITICAL: Headline and content restrictions
+  // CRITICAL: Enhanced headline and engagement restrictions
   const headlineRestrictions = `
-HEADLINE & CONTENT RESTRICTIONS (MANDATORY):
+HEADLINE & ENGAGEMENT REQUIREMENTS (MANDATORY):
 - NEVER mention week numbers (Week 1, Week 25, etc.) anywhere in content
 - NEVER use generic terms like "Weekly Newsletter" or "This Week"
 - NO boring, generic headlines like "Problem Solving", "Plant Spotlight", "Seasonal Tips"
-- Headlines must be ENGAGING and benefit-driven using copywriting principles
-- Use power words: save, transform, discover, secret, proven, instant, rescue, boost
+- Headlines must be SCROLL-STOPPING and benefit-driven using proven copywriting principles
+- Use power words: save, transform, discover, secret, proven, instant, rescue, boost, master, unlock
 - Create curiosity: "The Secret Your Tomatoes Don't Want You to Know"
 - Focus on outcomes: "Turn Brown Leaves Green Again" vs "Plant Care Tips"
 - Use urgency: "Before Your Garden Suffers This Month"
 - Ask compelling questions: "Is This Pest Destroying Your Vegetables?"
 - Promise transformations: "How to Save Dying Plants in 24 Hours"
+- Create emotional hooks: "Don't Let Your Garden Dreams Die This Season"
+- Use numbers and specifics: "5 Signs Your Soil is Crying for Help"
 - Avoid industry jargon in headlines - use customer language that creates emotion
 `;
 
@@ -65,37 +67,50 @@ Create professional ${postType} content for this garden center campaign. Content
 - Mention ${companyName} naturally when appropriate (${enforceCompanyName ? 'REQUIRED' : 'preferred'})
 - Formatted for maximum readability and engagement on the platform
 - Shareable content that customers will want to save and share with others
-- ALL headlines and subheadlines must follow copywriting best practices for engagement`;
+- ALL headlines and subheadlines must follow copywriting best practices for engagement
+- Create SCROLL-STOPPING content that makes people stop and read`;
 
   switch (postType.toLowerCase()) {
     case 'instagram':
       return `${basePrompt}
 
-INSTAGRAM POST REQUIREMENTS:
-- 250-350 words for comprehensive plant care storytelling
+INSTAGRAM POST REQUIREMENTS - CREATE SCROLL-STOPPING CONTENT:
+- 250-350 words for comprehensive plant care storytelling that creates engagement
+- HEADLINE MUST be scroll-stopping using these proven formulas:
+  * "The [Number] [Plant Care Secret] That [Transforms Gardens/Saves Plants]"
+  * "Why Your [Plants] Keep [Dying/Struggling] (And How to Fix It)"
+  * "This [Time Period] Mistake is Killing Your [Plant Type]"
+  * "Stop! Don't [Common Action] Until You Read This"
+  * "The [Plant Care Secret] That Changed Everything"
+  * "[Shocking Truth] About [Common Plant Care Belief]"
 - Include 2-3 specific, actionable plant care tips customers can implement today
-- Address a common plant problem or seasonal gardening opportunity
+- Address a common plant problem with expert solutions that create "aha moments"
 - Use engaging visual storytelling that connects emotionally with plant lovers
 - Include 8-12 relevant gardening hashtags (#plantcare #gardening #seasonal #planttips #gardenlife)
 - Use natural formatting: short paragraphs, bullet points, emojis where engaging
-- Include an engaging question or call-to-action that encourages comments
+- Include an engaging question or call-to-action that encourages saves and comments
 - Share seasonal plant care timing or variety recommendations
-- Make it save-worthy content that customers will reference later
-- Format: Engaging caption with story + practical tips + community question + hashtags
+- Make it SAVE-WORTHY content that customers will reference later
+- Create curiosity gaps that make people want to read the entire post
+- Format: Scroll-stopping hook + story + practical tips + community question + hashtags
 
-HEADLINE REQUIREMENTS FOR INSTAGRAM:
-- Create scroll-stopping hooks that grab attention immediately
-- Use benefit-driven openings: "Save Your Plants from..." or "Discover the Secret to..."
-- Ask compelling questions: "Tired of watching your plants struggle?"
-- Use emotional triggers: "Don't let your garden dreams die this season"
-- Promise quick results: "Transform your garden in one weekend"
-- Create urgency: "Before summer heat kills your plants"`;
+EXAMPLE SCROLL-STOPPING INSTAGRAM OPENINGS:
+- "STOP watering your plants like this (you're slowly killing them) 🚨"
+- "Your plant is screaming for help - here are the 3 signs you missed 👀"
+- "This $2 trick saved my dying garden (gardeners hate this secret) 🤫"
+- "POV: You've been fertilizing wrong your entire life (don't panic, here's the fix) 😱"
+- "That moment when you realize you've been [doing X wrong] for years... 🤯"`;
 
     case 'facebook':
       return `${basePrompt}
 
-FACEBOOK POST REQUIREMENTS:
-- 400-500 words for comprehensive educational content
+FACEBOOK POST REQUIREMENTS - CREATE ENGAGING CONVERSATIONS:
+- 400-500 words for comprehensive educational content that sparks discussion
+- HEADLINE must be conversation-starting and benefit-driven:
+  * "The Truth About [Plant Care Topic] That Will Change Your Garden"
+  * "Here's Why Your [Plants] Are [Problem] (And the Simple Fix)"
+  * "I've Been [Gardening Action] for 20 Years - Here's What I Learned"
+  * "This Changed My Garden Forever (And It'll Change Yours Too)"
 - Include 3-4 detailed plant care instructions with step-by-step guidance
 - Address seasonal plant health challenges with practical solutions
 - Share specific plant varieties, care schedules, and timing recommendations
@@ -106,21 +121,18 @@ FACEBOOK POST REQUIREMENTS:
 - Reference unique plant care expertise and specialized services available
 - Use natural formatting with bullet points or numbered lists for clarity
 - Make it shareable content that provides genuine educational value
-- Include seasonal timing advice and regional plant care considerations
-
-HEADLINE REQUIREMENTS FOR FACEBOOK:
-- Create conversation-starting headlines that encourage engagement
-- Use problem-solution format: "Struggling with Yellow Leaves? Here's Why..."
-- Promise valuable insights: "3 Signs Your Soil is Crying for Help"
-- Use curiosity gaps: "This Common Mistake is Killing Your Houseplants"
-- Appeal to emotions: "Rescue Your Dying Garden Before It's Too Late"
-- Focus on transformations: "From Wilted to Wonderful: A Plant Recovery Story"`;
+- Include seasonal timing advice and regional plant care considerations`;
 
     case 'blog':
       return `${basePrompt}
 
-BLOG POST REQUIREMENTS:
+BLOG POST REQUIREMENTS - CREATE COMPREHENSIVE PLANT CARE GUIDES:
 - Create an engaging, benefit-focused headline that captures the plant care value (NO company name in headline)
+- Use proven blog headline formulas:
+  * "The Complete Guide to [Plant Care Topic] (Step-by-Step)"
+  * "How to [Achieve Result] Without [Common Problem]"
+  * "[Number] Signs Your [Plants] Need [Care Action] (Don't Ignore #3)"
+  * "The Ultimate [Plant Care] Guide: From [Problem] to [Success]"
 - 600-800 words of comprehensive, educational plant care content
 - Structure with clear H2 and H3 headings for plant care topics (NO H1 tags in content)
 - Include detailed plant care instructions with seasonal timing
@@ -133,23 +145,23 @@ BLOG POST REQUIREMENTS:
 - Include calls-to-action for expert consultation and garden center resources
 - Make it comprehensive enough to be bookmarked as a plant care reference
 
-HEADLINE & SUBHEADLINE REQUIREMENTS FOR BLOG:
-- Main headline must be benefit-driven and SEO-friendly without being generic
-- Use proven formulas: "How to [Achieve Benefit] Without [Common Problem]"
-- Promise solutions: "The Complete Guide to Saving Overwatered Plants"
-- Create urgency: "Don't Wait: Early Signs Your Garden Needs Emergency Care"
-- H2 subheadlines should follow copywriting principles:
-  * "The Hidden Reason Your Plants Keep Dying"
-  * "What Professional Gardeners Know (That You Don't)"
-  * "The 5-Minute Fix That Saves Struggling Plants"
-  * "Before You Give Up: Try This Simple Solution"
-- Each subheadline should promise value and create anticipation`;
+BLOG SUBHEADLINE REQUIREMENTS (use copywriting principles):
+- "The Hidden Reason Your Plants Keep Dying"
+- "What Professional Gardeners Know (That You Don't)"
+- "The 5-Minute Fix That Saves Struggling Plants"
+- "Before You Give Up: Try This Simple Solution"
+- "The Mistake 90% of Gardeners Make (And How to Avoid It)"`;
 
     case 'newsletter':
       return `${basePrompt}
 
-NEWSLETTER SECTION REQUIREMENTS:
-- 400-500 words of valuable plant care education
+NEWSLETTER REQUIREMENTS - CREATE VALUABLE PLANT CARE EDUCATION:
+- 400-500 words of valuable plant care education across multiple topics
+- MAIN NEWSLETTER TITLE must be engaging and theme-focused (NO "Weekly" or week numbers):
+  * "Garden Rescue Guide: [Seasonal Focus]"
+  * "Plant Health Emergency Kit: [Problem Solutions]"
+  * "[Season] Garden Mastery: [Specific Benefits]"
+  * "Your [Season] Success Blueprint: [Plant Care Focus]"
 - Include comprehensive plant care schedules and seasonal techniques
 - Address multiple plant care topics: featured plants, care instructions, problem solutions
 - Cover specific plant varieties with detailed maintenance guidance
@@ -160,22 +172,22 @@ NEWSLETTER SECTION REQUIREMENTS:
 - Organize content around practical plant care themes customers can use immediately
 - Include regional plant care timing and climate-specific recommendations
 
-NEWSLETTER HEADLINE REQUIREMENTS:
-- Main newsletter title must be engaging and theme-focused (NO "Weekly" or week numbers)
-- Use magazine-style headlines: "Garden Rescue Guide" or "Plant Health Emergency Kit"
-- Section headlines must follow copywriting principles:
-  * Instead of "Seasonal Tips" → "Beat the Heat: Your Plant's Summer Survival Guide"
-  * Instead of "Problem Solving" → "SOS: Save Your Plants Before It's Too Late"
-  * Instead of "Plant Spotlight" → "This Month's Garden Game-Changer"
-  * Instead of "Looking Ahead" → "Get Ready: Your Garden's Next Power Move"
-- Each section should promise specific benefits and create anticipation
-- Use emotional triggers and urgency where appropriate`;
+NEWSLETTER SECTION HEADLINES (use engaging copywriting):
+- Instead of "Seasonal Tips" → "Beat the Heat: Your Plant's Summer Survival Guide"
+- Instead of "Problem Solving" → "SOS: Save Your Plants Before It's Too Late"
+- Instead of "Plant Spotlight" → "This Month's Garden Game-Changer"
+- Instead of "Looking Ahead" → "Get Ready: Your Garden's Next Power Move"`;
 
     case 'video':
       return `${basePrompt}
 
-VIDEO SCRIPT REQUIREMENTS:
+VIDEO SCRIPT REQUIREMENTS - CREATE ENGAGING PLANT CARE DEMONSTRATIONS:
 - 2-3 minute script for hands-on plant care demonstration
+- VIDEO TITLE must grab attention immediately:
+  * "Save Dying Plants in Under 5 Minutes"
+  * "The Plant Care Mistake Everyone Makes"
+  * "Transform Your Garden With This Secret"
+  * "Why Your Plants Are Dying (The Shocking Truth)"
 - Focus on practical plant care techniques customers can see and replicate
 - Include visual cues for plant care demonstrations and problem identification
 - Natural speaking rhythm with clear plant care instruction and timing
@@ -187,16 +199,11 @@ VIDEO SCRIPT REQUIREMENTS:
 - Format: [VISUAL: Detailed plant care demonstration] NARRATION: "Clear instruction"
 - Make it educational content customers will want to save and reference
 
-VIDEO HEADLINE & SEGMENT REQUIREMENTS:
-- Video title must grab attention: "Save Dying Plants in Under 5 Minutes"
-- Opening hook should create immediate interest: "If your plants look like this, don't panic..."
-- Segment titles should build anticipation:
-  * "The #1 Mistake Everyone Makes"
-  * "The Secret Professional Gardeners Use"
-  * "What Happens Next Will Surprise You"
-  * "The Results That Changed Everything"
-- Use curiosity gaps and benefit-driven language throughout
-- Promise quick, visible results to maintain engagement`;
+VIDEO SEGMENT TITLES (build anticipation):
+- "The #1 Mistake Everyone Makes"
+- "The Secret Professional Gardeners Use"
+- "What Happens Next Will Surprise You"
+- "The Results That Changed Everything"`;
 
     default:
       return `${basePrompt}

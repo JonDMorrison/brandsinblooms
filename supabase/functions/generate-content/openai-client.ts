@@ -8,7 +8,7 @@ export async function generateContentWithValidation(prompt: string, openAIApiKey
   while (attempts < maxAttempts) {
     attempts++;
     
-    // Add progressively stricter instructions with each attempt, but allow formatting
+    // Add progressively stricter instructions with each attempt
     let enhancedPrompt = prompt;
     if (attempts > 1) {
       enhancedPrompt += `\n\n🚨 REGENERATION ATTEMPT ${attempts} - PREVIOUS ISSUES: ${lastIssues.join(', ')}
@@ -20,10 +20,18 @@ CRITICAL: The previous attempt had issues. You MUST:
 - Write like a professional garden center expert speaking to customers
 - Use formatting that improves readability and engagement
 - Create valuable, shareable content that customers will find genuinely helpful
+${contentType?.toLowerCase() === 'instagram' ? `
+- START with a scroll-stopping hook that makes people stop scrolling
+- Use power words and emotional triggers in the opening
+- Create curiosity gaps and promise specific benefits
+- Include emojis and visual elements for engagement
+- End with a question that encourages comments and saves` : ''}
       
 IMMEDIATE REJECTION if content contains:
 - Any text in square brackets [like this]
-- Generic placeholders instead of specific names or "we"/"our" references`;
+- Generic placeholders instead of specific names or "we"/"our" references
+- Boring, generic headlines that don't create engagement
+${contentType?.toLowerCase() === 'instagram' ? '- Weak opening that doesn\'t stop the scroll' : ''}`;
     }
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -33,11 +41,12 @@ IMMEDIATE REJECTION if content contains:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',  // Upgraded from gpt-4o-mini for better quality
+        model: 'gpt-4o',  // Use upgraded model for better quality
+        temperature: contentType?.toLowerCase() === 'instagram' ? 0.8 : 0.7, // Higher creativity for Instagram
         messages: [
           { 
             role: 'system', 
-            content: `You are a professional garden center content creator who specializes in creating engaging, valuable social media content that customers love to read and share. 
+            content: `You are a professional garden center content creator who specializes in creating engaging, scroll-stopping social media content that customers love to read and share. 
 
 Your content is known for being:
 - Genuinely helpful with practical plant care advice
@@ -45,20 +54,19 @@ Your content is known for being:
 - Well-formatted with proper paragraphs, lists, and emojis where appropriate
 - Shareable and conversation-starting
 - Educational while being accessible to all gardening skill levels
+${contentType?.toLowerCase() === 'instagram' ? `
+- SCROLL-STOPPING with hooks that make people stop and read
+- Visual and engaging with emojis and formatting that works on mobile
+- Save-worthy content that customers reference again and again
+- Question-ending to encourage comments and engagement` : ''}
 
-You NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business. You write content that real garden center customers would want to read, share, and engage with because it provides genuine value and expertise.
-
-CONTENT QUALITY STANDARDS:
-- Every post must include at least one practical, actionable plant care tip
-- Address seasonal gardening challenges and opportunities
-- Use storytelling elements to make plant care relatable and engaging
-- Include engagement elements like questions or calls-to-action
-- Write with the expertise of a professional horticulturist but the accessibility of a friendly neighbor` 
+You NEVER use placeholders like [Company Name] - instead use specific names when provided or "we"/"our" for the business. You write content that creates genuine engagement and provides real value to garden center customers.` 
           },
-          { role: 'user', content: enhancedPrompt }
+          { 
+            role: 'user', 
+            content: enhancedPrompt 
+          }
         ],
-        temperature: 0.7,  // Increased from 0.3 for more creative content
-        max_tokens: 1200,  // Increased from 800 to accommodate longer content
       }),
     });
 
@@ -67,20 +75,26 @@ CONTENT QUALITY STANDARDS:
     }
 
     const data = await response.json();
-    const generatedContent = data.choices[0].message.content;
+    const content = data.choices[0].message.content;
     
-    // Validate content with relaxed rules focused on real issues
-    const validation = validateContent(generatedContent, contentType);
+    console.log(`Generated content attempt ${attempts} for ${contentType}:`, content.substring(0, 200) + '...');
     
-    if (validation.isValid) {
-      console.log(`Content generated successfully on attempt ${attempts}`);
-      return { content: generatedContent, attempts, issues: [] };
+    // Validate the generated content
+    const validation = validateContent(content, contentType);
+    
+    if (validation.isValid || attempts === maxAttempts) {
+      console.log(`Content generation completed after ${attempts} attempts`, validation.issues);
+      return {
+        content,
+        attempts,
+        issues: validation.issues
+      };
     }
     
     lastIssues = validation.issues;
-    console.log(`Content validation failed (attempt ${attempts}):`, validation.issues);
+    console.log(`Attempt ${attempts} failed validation:`, validation.issues);
   }
   
-  console.log(`Content generation failed after ${attempts} attempts. Last issues:`, lastIssues);
-  throw new Error(`Content generation failed validation after ${attempts} attempts. Issues: ${lastIssues.join(', ')}`);
+  // This shouldn't be reached, but just in case
+  throw new Error('Failed to generate valid content after maximum attempts');
 }
