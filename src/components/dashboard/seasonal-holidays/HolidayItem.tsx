@@ -79,41 +79,27 @@ export const HolidayItem = ({
           </p>
         )}
         
-        <div className="flex items-center gap-2">
-          {!hasContent ? (
-            <Button
-              onClick={handleGenerateClick}
-              disabled={isGenerating}
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              {isGenerating ? 'Generating...' : 'Generate Content'}
-            </Button>
-          ) : (
-            <div className="flex gap-2">
-              <Button
-                onClick={handleViewClick}
-                variant="default"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Eye className="w-4 h-4" />
-                View Content
-              </Button>
-              <Button
-                onClick={handleGenerateClick}
-                disabled={isGenerating}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                {isGenerating ? 'Regenerating...' : 'Regenerate'}
-              </Button>
-            </div>
-          )}
-        </div>
+        {!hasContent ? (
+          <Button
+            onClick={handleGenerateClick}
+            disabled={isGenerating}
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            {isGenerating ? 'Generating...' : 'Generate Content'}
+          </Button>
+        ) : (
+          <Button
+            onClick={handleViewClick}
+            variant="default"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Eye className="w-4 h-4" />
+            View Content
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
