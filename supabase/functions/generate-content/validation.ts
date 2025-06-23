@@ -78,7 +78,7 @@ export function validateContent(content: string, contentType?: string): Validati
   const lowerContent = content.toLowerCase();
   const hasContractions = /\b(you'll|we're|don't|can't|won't|it's|that's|here's|what's)\b/i.test(content);
   if (!hasContractions) {
-    issues.push('Missing conversational contractions - add "you'll", "we're", etc. for natural tone');
+    issues.push('Missing conversational contractions - add "you\'ll", "we\'re", etc. for natural tone');
   }
   
   // Enhanced validation for Instagram content quality
