@@ -1,7 +1,8 @@
+
 import { CurrentCampaignSection } from "./current-campaign/CurrentCampaignSection";
-import { CustomContentSection } from "./CustomContentSection";
+import { CustomContentSection } from "./custom-content/CustomContentSection";
 import { QuickActionsSection } from "./QuickActionsSection";
-import { EnhancedSeasonalHolidaysCard } from "./SeasonalMarketingGrid";
+import { EnhancedSeasonalHolidaysCard } from "./seasonal-holidays/EnhancedSeasonalHolidaysCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface UnifiedDashboardGridProps {
@@ -33,7 +34,6 @@ export const UnifiedDashboardGrid = ({
           activeCampaign={activeCampaign}
           tasks={tasks}
           onTaskUpdate={onTaskUpdate}
-          onCreateCampaign={onCreateCampaign}
           onCampaignCreated={onCampaignCreated}
         />
       </div>
@@ -41,19 +41,15 @@ export const UnifiedDashboardGrid = ({
       {/* Custom Campaigns Section */}
       {userCreatedCampaigns.length > 0 && (
         <CustomContentSection
-          campaigns={userCreatedCampaigns}
-          tasks={tasks}
-          onCampaignUpdate={onCampaignUpdate}
-          onTaskUpdate={onTaskUpdate}
+          userCreatedCampaigns={userCreatedCampaigns}
+          onContentGenerated={onTaskUpdate}
         />
       )}
 
       {/* Seasonal Marketing Section with improved styling */}
       <section className="seasonal-section card-shadow">
         <EnhancedSeasonalHolidaysCard
-          onHolidayGenerate={(holiday) => {
-            console.log('Holiday content generation requested for:', holiday);
-          }}
+          onContentGenerated={onCampaignCreated}
         />
       </section>
 
