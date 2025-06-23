@@ -34,7 +34,6 @@ export const UnifiedDashboardGrid = ({
           activeCampaign={activeCampaign}
           tasks={tasks}
           onTaskUpdate={onTaskUpdate}
-          onCreateCampaign={onCreateCampaign}
           onCampaignCreated={onCampaignCreated}
         />
       </div>
