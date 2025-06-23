@@ -59,7 +59,6 @@ export const QuickActionsSection = ({
 
   return (
     <div>
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
