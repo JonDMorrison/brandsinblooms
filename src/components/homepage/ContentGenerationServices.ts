@@ -1,5 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { attachImagesToTask } from "@/services/contentGenerationHelpers";
 
 export const generatePersonalizedContent = async (
   postType: string,
@@ -148,7 +148,7 @@ export const generateNewsletterContent = async (
   }
 };
 
-// Campaign content generation function
+// Campaign content generation function with image attachment
 export const generateCampaignContent = async (
   campaignId: string,
   campaignTitle: string,
@@ -178,6 +178,20 @@ export const generateCampaignContent = async (
     if (error) {
       console.error(`🚀 CAMPAIGN_GEN ERROR: Generation failed:`, error);
       return { success: false, message: error.message };
+    }
+
+    // Attach images to generated tasks
+    if (data?.tasks && Array.isArray(data.tasks)) {
+      console.log(`🖼️ CAMPAIGN_GEN DEBUG: Attaching images to ${data.tasks.length} tasks`);
+      
+      for (const task of data.tasks) {
+        try {
+          await attachImagesToTask(task);
+        } catch (imageError) {
+          console.warn(`🖼️ CAMPAIGN_GEN WARN: Failed to attach image to task ${task.id}:`, imageError);
+          // Continue without failing the entire process
+        }
+      }
     }
 
     console.log(`🚀 CAMPAIGN_GEN DEBUG: Campaign content generated successfully`);

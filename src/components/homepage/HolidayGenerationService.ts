@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
 import { buildHolidayContentPrompt, validateHolidayContent } from "./HolidayPromptBuilder";
+import { attachImagesToTask } from "@/services/contentGenerationHelpers";
 
 const contentTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
 
@@ -109,15 +110,20 @@ export async function generateHolidayContent(
 
       console.log(`✅ ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}, attempts: ${attempts}`);
 
-      // Insert content task with proper tenant handling - CRITICAL FIX
+      // Create task data structure
       const taskData: any = {
         holiday_id: holiday.id,
         post_type: type,
         ai_output: output,
         status: 'review',
         scheduled_date: holiday.holiday_date,
-        notes: `Generated for ${holiday.holiday_name} (${attempts} attempts)`
+        notes: `Generated for ${holiday.holiday_name} (${attempts} attempts)`,
+        holidays: holiday // Include holiday data for image attachment
       };
+
+      // Attach smart images to the task
+      console.log(`🖼️ ${type.toUpperCase()} DEBUG: Attaching smart images`);
+      await attachImagesToTask(taskData);
 
       // CRITICAL: Always set tenant_id for holiday tasks to ensure they appear in Ready to Post
       if (tenant?.id) {
@@ -142,7 +148,11 @@ export async function generateHolidayContent(
         }
       }
 
-      console.log(`📊 ${type.toUpperCase()} DEBUG: Task data before insert:`, taskData);
+      console.log(`📊 ${type.toUpperCase()} DEBUG: Task data before insert:`, {
+        ...taskData,
+        ai_output_length: taskData.ai_output?.length,
+        has_image: !!taskData.image
+      });
 
       const { data: task, error } = await supabase
         .from('content_tasks')
@@ -162,6 +172,7 @@ export async function generateHolidayContent(
           status: task.status,
           tenant_id: task.tenant_id,
           ai_output_length: task.ai_output?.length,
+          has_image: !!task.image,
           ai_output_preview: task.ai_output?.substring(0, 100)
         });
         results.push({ type, success: true, taskId: task.id });
