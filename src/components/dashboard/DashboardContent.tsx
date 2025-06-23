@@ -354,10 +354,26 @@ export const DashboardContent = ({
   };
 
   const handleGetStarted = () => {
-    const campaignSection = document.querySelector('[data-campaign-section]');
-    if (campaignSection) {
-      campaignSection.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Add a small delay to ensure DOM is fully rendered
+    setTimeout(() => {
+      const campaignSection = document.querySelector('[data-campaign-section]');
+      if (campaignSection) {
+        campaignSection.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'start'
+        });
+        
+        // Add visual feedback by briefly highlighting the section
+        campaignSection.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        setTimeout(() => {
+          campaignSection.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        }, 2000);
+      } else {
+        console.warn('Campaign section not found for scrolling');
+        // Fallback: scroll to top of page
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 100);
   };
 
   // Early return if no authenticated user or tenant is loading

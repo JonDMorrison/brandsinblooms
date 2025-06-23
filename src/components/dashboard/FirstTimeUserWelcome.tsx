@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -149,21 +148,13 @@ export const FirstTimeUserWelcome = ({ onGetStarted, tasksCount }: FirstTimeUser
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex justify-center">
           <Button 
             onClick={onGetStarted}
-            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+            className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2 px-8 py-3 text-lg"
           >
             Review Your Garden Center Content
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-          
-          <Button 
-            onClick={handleDismiss}
-            variant="outline"
-            className="border-green-300 text-green-700 hover:bg-green-50 bg-white"
-          >
-            I'll Check Later
+            <ArrowRight className="w-5 h-5" />
           </Button>
         </div>
       </CardContent>
