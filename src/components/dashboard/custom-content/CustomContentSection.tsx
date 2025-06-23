@@ -170,8 +170,11 @@ export const CustomContentSection = ({
       <div className={cn('space-y-6', className)}>
         {/* Header Section */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Header content if needed */}
+          <div className="flex flex-col gap-2">
+            <HeadlineLarge>Your Custom Content</HeadlineLarge>
+            <BodyMedium className="text-muted-foreground">
+              Your custom campaigns and promotional content
+            </BodyMedium>
           </div>
         </div>
 
