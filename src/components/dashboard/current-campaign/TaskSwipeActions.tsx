@@ -1,9 +1,24 @@
 
 import React from 'react';
-import { TrailingActions, SwipeAction } from 'react-swipeable-list';
 import { Edit, Copy, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+
+// Conditional imports for swipeable list
+let TrailingActions: any = null;
+let SwipeAction: any = null;
+
+try {
+  const swipeableModule = require('react-swipeable-list');
+  TrailingActions = swipeableModule.TrailingActions;
+  SwipeAction = swipeableModule.SwipeAction;
+} catch (e) {
+  // Fallback components if react-swipeable-list is not available
+  TrailingActions = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+  SwipeAction = ({ children, onClick }: { children: React.ReactNode; onClick: () => void }) => (
+    <button onClick={onClick}>{children}</button>
+  );
+}
 
 interface TaskSwipeActionsProps {
   task: any;

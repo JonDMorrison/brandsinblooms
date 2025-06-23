@@ -1,7 +1,6 @@
 
 import React from "react";
 import { Disclosure } from '@headlessui/react';
-import { SwipeableListItem } from 'react-swipeable-list';
 import { ChevronDown } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { getThumbnail } from '@/utils/getThumbnail';
@@ -11,6 +10,19 @@ import { TaskItemActions } from './TaskItemActions';
 import { isSupportedPostType, truncateText } from "@/utils/contentUtils";
 import { normalizeTask } from "@/utils/normalizeTask";
 import { useAuth } from "@/contexts/AuthContext";
+
+// Conditional import for SwipeableListItem
+let SwipeableListItem: any = null;
+
+try {
+  const swipeableModule = require('react-swipeable-list');
+  SwipeableListItem = swipeableModule.SwipeableListItem;
+} catch (e) {
+  // Fallback component if react-swipeable-list is not available
+  SwipeableListItem = ({ children, trailingActions }: { children: React.ReactNode; trailingActions?: React.ReactNode }) => (
+    <div className="relative">{children}</div>
+  );
+}
 
 interface EnhancedAccordionTaskItemProps {
   task: any;

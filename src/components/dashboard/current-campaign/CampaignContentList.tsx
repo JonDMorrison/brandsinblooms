@@ -1,8 +1,19 @@
 
 import React from 'react';
-import { SwipeableList } from 'react-swipeable-list';
 import { TaskItem } from './TaskItem';
-import 'react-swipeable-list/dist/styles.css';
+
+// Conditional import for SwipeableList
+let SwipeableList: any = null;
+
+try {
+  const swipeableModule = require('react-swipeable-list');
+  SwipeableList = swipeableModule.SwipeableList;
+  // Import styles if available
+  require('react-swipeable-list/dist/styles.css');
+} catch (e) {
+  // Fallback component if react-swipeable-list is not available
+  SwipeableList = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+}
 
 interface CampaignContentListProps {
   tasks: any[];
