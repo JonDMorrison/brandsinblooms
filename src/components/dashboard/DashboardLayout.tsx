@@ -35,7 +35,7 @@ export const DashboardLayout = ({
         onboardingData={onboardingData}
         onBusinessNameChange={onBusinessNameChange}
       />
-      <main className="flex-1 overflow-hidden relative w-full">
+      <main className={`flex-1 overflow-hidden relative w-full ${isMobile ? '' : 'dashboard-container'}`}>
         {/* UserMenu for non-home pages */}
         {!isHomePage && (
           <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
@@ -44,8 +44,8 @@ export const DashboardLayout = ({
         )}
         
         <div className={`
-          w-full max-w-4xl mx-auto overflow-x-hidden
-          ${isMobile ? 'mobile-safe-area dashboard-container' : 'p-4'}
+          w-full mx-auto overflow-x-hidden
+          ${isMobile ? 'mobile-safe-area dashboard-container px-3' : 'py-4'}
         `}>
           <AppleCard 
             variant="default" 

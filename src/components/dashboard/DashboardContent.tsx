@@ -400,7 +400,7 @@ export const DashboardContent = ({
 
   return (
     <div className="w-full overflow-x-hidden bg-garden-background">
-      <div className="space-y-6 mobile-dashboard-spacing w-full">
+      <div className="space-y-4 mobile-dashboard-spacing w-full">
         {/* Development Preview Badge */}
         {isDevelopment && activeCampaign?.title?.startsWith('PREVIEW') && (
           <div className="flex justify-center w-full">
@@ -427,6 +427,14 @@ export const DashboardContent = ({
           onCampaignUpdate={fetchCampaignData}
           onCreateCampaign={onCampaignCreated}
         />
+
+        {/* Empty state hint for long screens */}
+        {tasks.length === 0 && !activeCampaign && (
+          <div className="text-center py-8 text-gray-500">
+            <h3 className="text-lg font-medium mb-2">Need inspiration?</h3>
+            <p className="text-sm">Generate your first posts ↑ to see them here.</p>
+          </div>
+        )}
       </div>
     </div>
   );

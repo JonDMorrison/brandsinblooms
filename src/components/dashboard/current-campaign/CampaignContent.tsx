@@ -39,9 +39,11 @@ export const CampaignContent = ({
     (new Date().getTime() - new Date(task.created_at).getTime()) < 120000 // Less than 2 minutes old
   );
 
+  const isEmpty = tasksWithContent.length === 0 && !isActuallyGenerating;
+
   return (
-    <Card>
-      <CardHeader>
+    <Card className={`weekly-card ${isEmpty ? 'weekly-card--empty' : ''}`}>
+      <CardHeader className="relative">
         <div className="flex justify-between items-start">
           <div>
             <CardTitle>Your Weekly Content</CardTitle>
@@ -59,7 +61,7 @@ export const CampaignContent = ({
             disabled={isRefreshing}
             variant="outline"
             size="sm"
-            className="shrink-0"
+            className="weekly-card__refresh shrink-0"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isRefreshing ? 'Refreshing...' : 'Refresh All'}
@@ -81,8 +83,8 @@ export const CampaignContent = ({
         )}
 
         {tasksWithContent.length === 0 && !isActuallyGenerating ? (
-          <div className="space-y-4">
-            <div className="text-center py-8">
+          <div className="empty-state space-y-4">
+            <div className="text-center py-4">
               <div className="text-gray-600 mb-4">
                 <p className="mb-2">No content generated yet for this campaign.</p>
                 <p className="text-sm text-gray-500">
@@ -92,10 +94,23 @@ export const CampaignContent = ({
             </div>
             
             <div className="border-t pt-4">
-              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Generate Content
-              </h4>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Generate Content
+                </h4>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="generate-manual-btn"
+                  onClick={() => {
+                    // This will be handled by ManualContentGenerator
+                  }}
+                >
+                  <RefreshCw className="mr-1 h-3 w-3" />
+                  Generate Manually
+                </Button>
+              </div>
               <ManualContentGenerator 
                 campaign={activeCampaign}
                 onContentGenerated={onTaskUpdate}
@@ -119,7 +134,20 @@ export const CampaignContent = ({
             
             {tasksWithContent.length > 0 && tasksWithContent.length < 5 && (
               <div className="border-t pt-4">
-                <h4 className="text-sm font-medium mb-3">Need more content?</h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-sm font-medium">Need more content?</h4>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="generate-manual-btn"
+                    onClick={() => {
+                      // This will be handled by ManualContentGenerator
+                    }}
+                  >
+                    <RefreshCw className="mr-1 h-3 w-3" />
+                    Generate Manually
+                  </Button>
+                </div>
                 <ManualContentGenerator 
                   campaign={activeCampaign}
                   onContentGenerated={onTaskUpdate}

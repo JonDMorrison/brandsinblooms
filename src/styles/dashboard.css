@@ -1,0 +1,74 @@
+
+/* Dashboard Layout Improvements */
+.dashboard-container {
+  max-width: 1100px;
+  margin-left: 240px;
+  margin-right: 40px;
+  padding: 0 24px;
+}
+
+@media (min-width: 1440px) {
+  .dashboard-container {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: 24px;
+  }
+}
+
+/* Weekly Content Card Improvements */
+.weekly-card {
+  padding: 24px 32px;
+}
+
+.weekly-card--empty .empty-state {
+  margin: 16px 0 24px;
+}
+
+.weekly-card__refresh {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+}
+
+/* Generate Manual Button - Hidden by default, shown when accordion open */
+.generate-manual-btn {
+  display: none;
+}
+
+.accordion-item[aria-expanded="true"] .generate-manual-btn {
+  display: inline-flex;
+}
+
+/* Seasonal Marketing Section Improvements */
+.seasonal-section {
+  margin-top: 48px;
+  padding-top: 8px;
+}
+
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .dashboard-container {
+    margin-left: 0;
+    margin-right: 0;
+    padding: 0 12px;
+    max-width: 100%;
+  }
+
+  .weekly-card {
+    padding: 16px 20px;
+  }
+
+  .weekly-card__refresh {
+    position: static;
+    margin-top: 12px;
+  }
+
+  .seasonal-section {
+    margin-top: 32px;
+  }
+}
