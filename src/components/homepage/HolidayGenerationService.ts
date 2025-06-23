@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { generateStructuredNewsletter } from "./StructuredNewsletterService";
-import { generatePersonalizedContent } from "./ContentGenerationServices";
+import { buildHolidayContentPrompt, validateHolidayContent } from "./HolidayPromptBuilder";
 
 const contentTypes = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
 
@@ -15,11 +15,24 @@ export async function generateHolidayContent(
   
   const results = [];
   
+  // Get company profile for enhanced context
+  let companyProfile = null;
+  if (user?.id) {
+    const { data: profileData } = await supabase
+      .from('company_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    companyProfile = profileData;
+  }
+  
   for (const type of contentTypes) {
     try {
       console.log(`📝 Starting ${type} content generation for holiday: ${holiday.holiday_name}`);
       
       let output = '';
+      let attempts = 0;
+      const maxAttempts = type === 'instagram' ? 3 : 2; // More attempts for Instagram to ensure quality
 
       if (type === 'newsletter') {
         // Always use structured newsletter service for all users to ensure consistency
@@ -32,40 +45,58 @@ export async function generateHolidayContent(
           [], // No promo items for holidays
           `Holiday-focused content for ${holiday.holiday_name}`
         );
-      } else if (type === 'video') {
-        console.log(`🎬 VIDEO DEBUG: About to generate video script for holiday: ${holiday.holiday_name}`);
-        console.log(`🎬 VIDEO DEBUG: User ID: ${user.id}`);
-        
-        // Enhanced holiday context for video generation
-        const holidayContext = `${holiday.holiday_name} - ${holiday.garden_relevance || holiday.description || 'Holiday gardening opportunity'}. Focus specifically on ${holiday.holiday_name} gardening activities, seasonal care, and holiday-specific plant care or garden preparation.`;
-        
-        console.log(`🎬 VIDEO DEBUG: Holiday context: ${holidayContext}`);
-        
-        // Generate video content using existing service with enhanced holiday-specific logging
-        output = await generatePersonalizedContent(
-          type,
-          holiday.holiday_name, // Use holiday name as campaign title
-          user.id,
-          holidayContext // Pass enhanced holiday context
-        );
-        
-        console.log(`🎬 VIDEO DEBUG: Generated output length: ${output?.length || 0}`);
-        console.log(`🎬 VIDEO DEBUG: Generated output preview: ${output?.substring(0, 200)}...`);
-        
-        // Validate that the video script mentions the holiday
-        if (output && !output.toLowerCase().includes(holiday.holiday_name.toLowerCase())) {
-          console.warn(`🎬 VIDEO WARNING: Generated script may not be about ${holiday.holiday_name}`);
-        }
       } else {
-        // Generate other content types using existing service with holiday context
-        const holidayContext = `${holiday.holiday_name} - ${holiday.garden_relevance || holiday.description || `Special ${holiday.holiday_name} content for garden centers`}`;
-        
-        output = await generatePersonalizedContent(
-          type,
-          holiday.holiday_name,
-          user.id,
-          holidayContext
-        );
+        // Use enhanced holiday-specific prompts for all other content types
+        do {
+          attempts++;
+          console.log(`🎯 ${type.toUpperCase()} DEBUG: Attempt ${attempts} for ${holiday.holiday_name}`);
+          
+          if (type === 'video') {
+            console.log(`🎬 VIDEO DEBUG: About to generate video script for holiday: ${holiday.holiday_name}`);
+            
+            // Build holiday-specific context for video
+            const holidayContext = buildHolidayContentPrompt('video', holiday, companyProfile);
+            
+            console.log(`🎬 VIDEO DEBUG: Holiday context built`);
+            
+            // Generate video content using existing service with enhanced holiday context
+            output = await generatePersonalizedContentWithHolidayPrompt(
+              type,
+              holiday.holiday_name,
+              user.id,
+              holidayContext,
+              companyProfile
+            );
+            
+            console.log(`🎬 VIDEO DEBUG: Generated output length: ${output?.length || 0}`);
+          } else {
+            // Generate content using holiday-specific prompts
+            output = await generatePersonalizedContentWithHolidayPrompt(
+              type,
+              holiday.holiday_name,
+              user.id,
+              buildHolidayContentPrompt(type, holiday, companyProfile),
+              companyProfile
+            );
+          }
+
+          // Validate holiday content quality (especially for Instagram)
+          if (type === 'instagram' && output) {
+            const validation = validateHolidayContent(output, holiday);
+            console.log(`📸 INSTAGRAM VALIDATION: Quality: ${validation.quality}, Issues: ${validation.issues.length}`);
+            
+            if (validation.quality === 'weak' && attempts < maxAttempts) {
+              console.log(`📸 INSTAGRAM DEBUG: Regenerating due to weak quality - attempt ${attempts + 1}`);
+              continue; // Try again
+            }
+            
+            if (validation.issues.length > 0) {
+              console.warn(`📸 INSTAGRAM DEBUG: Content issues:`, validation.issues);
+            }
+          }
+          
+          break; // Content is acceptable
+        } while (attempts < maxAttempts);
       }
 
       // Enhanced validation that content was generated
@@ -76,7 +107,7 @@ export async function generateHolidayContent(
         continue;
       }
 
-      console.log(`✅ ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}`);
+      console.log(`✅ ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}, attempts: ${attempts}`);
 
       // Insert content task with proper tenant handling - CRITICAL FIX
       const taskData: any = {
@@ -85,7 +116,7 @@ export async function generateHolidayContent(
         ai_output: output,
         status: 'review',
         scheduled_date: holiday.holiday_date,
-        notes: `Generated for ${holiday.holiday_name}`
+        notes: `Generated for ${holiday.holiday_name} (${attempts} attempts)`
       };
 
       // CRITICAL: Always set tenant_id for holiday tasks to ensure they appear in Ready to Post
@@ -163,5 +194,45 @@ export async function generateHolidayContent(
   return results;
 }
 
+// New function for holiday-specific content generation
+async function generatePersonalizedContentWithHolidayPrompt(
+  postType: string,
+  campaignTitle: string,
+  userId: string,
+  holidayPrompt: string,
+  companyProfile: any
+): Promise<string> {
+  console.log(`🔧 HOLIDAY_CONTENT DEBUG: Generating ${postType} with holiday-specific prompt`);
+  
+  try {
+    const { data, error } = await supabase.functions.invoke('generate-content', {
+      body: {
+        postType,
+        campaignTitle,
+        userId,
+        campaignDescription: '', // Not used since we're providing a complete prompt
+        customPrompt: holidayPrompt, // Pass the holiday-specific prompt
+        enforceCompanyName: true
+      }
+    });
+
+    if (error) {
+      console.error(`🔧 HOLIDAY_CONTENT ERROR: Supabase function error:`, error);
+      throw new Error(`Holiday content generation failed: ${error.message}`);
+    }
+
+    if (!data?.content) {
+      console.error(`🔧 HOLIDAY_CONTENT ERROR: No content returned`);
+      throw new Error('No holiday content generated');
+    }
+
+    console.log(`🔧 HOLIDAY_CONTENT DEBUG: Generated successfully, length: ${data.content.length}`);
+    return data.content;
+  } catch (error) {
+    console.error(`🔧 HOLIDAY_CONTENT ERROR: Exception:`, error);
+    throw error;
+  }
+}
+
 // Export individual content generation for backwards compatibility
-export { generatePersonalizedContent };
+export { generatePersonalizedContent } from "./ContentGenerationServices";

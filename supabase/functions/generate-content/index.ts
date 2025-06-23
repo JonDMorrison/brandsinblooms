@@ -17,7 +17,7 @@ serve(async (req) => {
   }
 
   try {
-    const { postType, campaignTitle, userId, weekDescription, enforceCompanyName } = await req.json();
+    const { postType, campaignTitle, userId, weekDescription, enforceCompanyName, customPrompt } = await req.json();
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
@@ -26,44 +26,52 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch company profile for personalization with enhanced business name handling
-    let companyProfile = null;
-    if (userId) {
-      const { data: profileData, error: profileError } = await supabase
-        .from('company_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .maybeSingle();
+    let prompt = '';
 
-      if (!profileError && profileData) {
-        companyProfile = profileData;
-        
-        // Ensure company_name is prioritized and consistent
-        if (!companyProfile.company_name && companyProfile.company_overview) {
-          // Try to extract business name from company overview if not explicitly set
-          const overviewText = companyProfile.company_overview;
-          const nameMatch = overviewText.match(/^([^,\.!?]+?)(?:\s+(?:has been|is|provides|offers|specializes|located))/i);
-          if (nameMatch) {
-            companyProfile.company_name = nameMatch[1].trim();
-            
-            // Update the database with extracted name for future consistency
-            await supabase
-              .from('company_profiles')
-              .update({ company_name: companyProfile.company_name })
-              .eq('user_id', userId);
+    // Use custom prompt if provided (for holiday content), otherwise build standard prompt
+    if (customPrompt) {
+      console.log(`Using custom holiday prompt for ${postType} content`);
+      prompt = customPrompt;
+    } else {
+      // Fetch company profile for personalization with enhanced business name handling
+      let companyProfile = null;
+      if (userId) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('company_profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+        if (!profileError && profileData) {
+          companyProfile = profileData;
+          
+          // Ensure company_name is prioritized and consistent
+          if (!companyProfile.company_name && companyProfile.company_overview) {
+            // Try to extract business name from company overview if not explicitly set
+            const overviewText = companyProfile.company_overview;
+            const nameMatch = overviewText.match(/^([^,\.!?]+?)(?:\s+(?:has been|is|provides|offers|specializes|located))/i);
+            if (nameMatch) {
+              companyProfile.company_name = nameMatch[1].trim();
+              
+              // Update the database with extracted name for future consistency
+              await supabase
+                .from('company_profiles')
+                .update({ company_name: companyProfile.company_name })
+                .eq('user_id', userId);
+            }
           }
+          
+          console.log(`Content generation for: ${companyProfile.company_name || 'Unknown Business'} (User: ${userId})`);
+        } else {
+          console.warn(`No company profile found for user: ${userId}`);
         }
-        
-        console.log(`Content generation for: ${companyProfile.company_name || 'Unknown Business'} (User: ${userId})`);
-      } else {
-        console.warn(`No company profile found for user: ${userId}`);
       }
-    }
 
-    // Build content-type specific prompt with company name enforcement
-    const prompt = buildContentPrompt(postType, campaignTitle, companyProfile, weekDescription, enforceCompanyName);
+      // Build content-type specific prompt with company name enforcement
+      prompt = buildContentPrompt(postType, campaignTitle, companyProfile, weekDescription, enforceCompanyName);
+    }
     
-    console.log(`Generating high-quality ${postType} content for: ${campaignTitle}${companyProfile?.company_name ? ` (${companyProfile.company_name})` : ''}`);
+    console.log(`Generating high-quality ${postType} content for: ${campaignTitle}${customPrompt ? ' (holiday-specific)' : ''}`);
 
     // Generate content with validation - use more attempts for higher quality
     const maxAttempts = postType === 'instagram' || postType === 'facebook' ? 5 : 4; // More attempts for social media
