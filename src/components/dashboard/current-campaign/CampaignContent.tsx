@@ -43,32 +43,6 @@ export const CampaignContent = ({
 
   return (
     <Card className={`weekly-card ${isEmpty ? 'weekly-card--empty' : ''}`}>
-      <CardHeader className="relative">
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle>Your Weekly Content</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              This week we are talking about{' '}
-              <span className="font-medium">{activeCampaign.theme || activeCampaign.title}</span>
-            </p>
-            <div className="text-sm text-muted-foreground mt-1">
-              <span className="font-medium text-garden-green">{tasksWithContent.length}/5</span> content pieces ready for review
-            </div>
-          </div>
-          
-          <Button
-            onClick={onRefreshContent}
-            disabled={isRefreshing}
-            variant="outline"
-            size="sm"
-            className="weekly-card__refresh shrink-0"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh All'}
-          </Button>
-        </div>
-      </CardHeader>
-      
       <CardContent className="space-y-6">
         {isActuallyGenerating && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
