@@ -26,20 +26,12 @@
 @import "./styles/overrides/admin-table-fixes.css";
 @import "./styles/overrides/chat-widget-removal.css";
 
-/* Import mobile styles */
+/* Import mobile styles from correct paths */
 @import "./styles/mobile/mobile-layout.css";
 @import "./styles/mobile/mobile-components.css";
 @import "./styles/mobile/mobile-typography.css";
 @import "./styles/mobile/mobile-buttons.css";
 @import "./styles/mobile/mobile-interactions.css";
-
-/* Additional mobile overrides */
-@import "./styles/mobile-layout.css";
-@import "./styles/mobile-components.css";
-@import "./styles/mobile-typography.css";
-@import "./styles/mobile-buttons.css";
-@import "./styles/mobile-interactions.css";
-@import "./styles/mobile-overrides.css";
 
 /* Dev debug styles */
 @import "./styles/dev-debug.css";
