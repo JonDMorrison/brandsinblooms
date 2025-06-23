@@ -124,8 +124,8 @@ export const EnhancedAccordionTaskItem = ({ task, onClick, onTaskUpdate }: Enhan
               
               {/* Meta Info */}
               <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 dark:text-gray-500 mr-3">
-                <span className="flex items-center gap-1">
-                  📝 {wordCount > 0 ? `${wordCount} words` : '—'}
+                <span>
+                  {wordCount > 0 ? `${wordCount} words` : '—'}
                 </span>
                 <span>
                   {formatDistanceToNowStrict(new Date(normalizedTask.created_at), { addSuffix: true })}
