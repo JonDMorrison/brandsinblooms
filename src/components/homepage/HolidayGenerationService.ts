@@ -78,7 +78,7 @@ export async function generateHolidayContent(
 
       console.log(`✅ ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}`);
 
-      // Insert content task with proper tenant handling
+      // Insert content task with proper tenant handling - CRITICAL FIX
       const taskData: any = {
         holiday_id: holiday.id,
         post_type: type,
@@ -88,14 +88,27 @@ export async function generateHolidayContent(
         notes: `Generated for ${holiday.holiday_name}`
       };
 
-      // Handle tenant vs user-based task creation
+      // CRITICAL: Always set tenant_id for holiday tasks to ensure they appear in Ready to Post
       if (tenant?.id) {
         taskData.tenant_id = tenant.id;
         taskData.created_by_user_id = user.id;
         console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with tenant_id: ${tenant.id}`);
       } else {
-        taskData.user_id = user.id;
-        console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with user_id: ${user.id}`);
+        // Fallback: try to get tenant from user if not provided
+        const { data: userTenant } = await supabase
+          .from('tenants')
+          .select('id')
+          .limit(1)
+          .single();
+        
+        if (userTenant) {
+          taskData.tenant_id = userTenant.id;
+          taskData.created_by_user_id = user.id;
+          console.log(`📊 ${type.toUpperCase()} DEBUG: Using fallback tenant_id: ${userTenant.id}`);
+        } else {
+          taskData.user_id = user.id;
+          console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with user_id: ${user.id}`);
+        }
       }
 
       console.log(`📊 ${type.toUpperCase()} DEBUG: Task data before insert:`, taskData);
@@ -116,6 +129,7 @@ export async function generateHolidayContent(
           id: task.id,
           post_type: task.post_type,
           status: task.status,
+          tenant_id: task.tenant_id,
           ai_output_length: task.ai_output?.length,
           ai_output_preview: task.ai_output?.substring(0, 100)
         });

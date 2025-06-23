@@ -19,6 +19,12 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
     setIsApproving(true);
     try {
       console.log('Approving task with status change to: posted');
+      console.log('Task details:', {
+        id: task.id,
+        tenant_id: task.tenant_id,
+        holiday_id: task.holiday_id,
+        campaign_id: task.campaign_id
+      });
       
       const { error } = await supabase
         .from('content_tasks')
@@ -33,6 +39,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
           variant: "destructive",
         });
       } else {
+        console.log('Task approved successfully, should now appear in Ready to Post');
         toast({
           title: "Content Approved! ✅",
           description: "Content has been approved and is ready to post.",

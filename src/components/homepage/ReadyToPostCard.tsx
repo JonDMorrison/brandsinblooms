@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
@@ -45,13 +44,18 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           statusFilter.push('preview');
         }
 
+        // Updated query to include holiday content without requiring campaigns
         const { data, error } = await supabase
           .from('content_tasks')
           .select(`
             *,
-            campaigns!inner (
+            campaigns (
               title,
               tenant_id
+            ),
+            holidays (
+              holiday_name,
+              holiday_date
             )
           `)
           .eq('tenant_id', tenant.id)
@@ -67,14 +71,25 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           console.log('ReadyToPostCard: Successfully fetched', data?.length || 0, 'ready tasks for tenant', tenant.id);
           
           const tenantTasks = data?.filter(task => {
-            const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
-            const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
+            // For preview tasks, skip tenant validation
+            if (task.campaigns?.tenant_id === 'preview') {
+              return statusFilter.includes(task.status) && task.ai_output;
+            }
             
+            // Allow tasks with holiday_id even if they don't have campaigns
+            const belongsToTenant = task.tenant_id === tenant.id;
+            
+            if (!belongsToTenant) {
+              console.warn('ReadyToPostCard: Filtering out task that does not belong to current tenant:', task.id);
+              return false;
+            }
+            
+            const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
             if (!isDevelopment && isPreviewCampaign) {
               return false;
             }
             
-            return belongsToTenant;
+            return statusFilter.includes(task.status) && task.ai_output;
           }) || [];
           
           console.log('ReadyToPostCard: Final filtered tasks:', tenantTasks.length, '(isDevelopment:', isDevelopment, ')');
@@ -139,7 +154,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     }
     
     // SECURITY CHECK: Verify task belongs to current tenant before opening
-    if (!user || !tenant || !task.campaigns || task.campaigns.tenant_id !== tenant.id) {
+    if (!user || !tenant || task.tenant_id !== tenant.id) {
       console.error('ReadyToPostCard: Attempted to access task not owned by current tenant');
       return;
     }
@@ -235,8 +250,8 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
 
       {selectedTask && (
         <ContentViewer
-          campaignId={selectedTask.campaign_id}
-          campaignTitle={selectedTask.campaigns?.title || 'Campaign'}
+          campaignId={selectedTask.campaign_id || `holiday-${selectedTask.holiday_id}`}
+          campaignTitle={selectedTask.campaigns?.title || selectedTask.holidays?.holiday_name || 'Holiday Content'}
           isOpen={showContentViewer}
           onClose={handleContentViewerClose}
           onTaskUpdate={onTaskUpdate}
