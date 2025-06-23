@@ -101,13 +101,13 @@ export const TaskItemActions = ({
 
   return (
     <TooltipProvider>
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
+      <div className="flex items-center gap-2">
         {hasContent && (
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={handleCopyContent}
-            className="flex-1 min-w-[80px]"
+            className="text-slate-600 hover:text-slate-800 hover:bg-slate-100"
           >
             <Copy className="w-3 h-3 mr-1" />
             Copy
@@ -116,9 +116,9 @@ export const TaskItemActions = ({
 
         <Button
           size="sm"
-          variant="outline"
+          variant="ghost"
           onClick={handleEdit}
-          className="flex-1 min-w-[80px] border-blue-300 text-blue-600 hover:bg-blue-50"
+          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
         >
           <Edit className="w-3 h-3 mr-1" />
           Edit
@@ -129,19 +129,19 @@ export const TaskItemActions = ({
             isApproved={isApproved}
             onApprove={handleApprove}
             disabled={approvingTask}
-            className="flex-1 min-w-[80px]"
+            className="text-sm"
           />
         )}
 
         {task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={(e) => {
               e.stopPropagation();
               toast.info('Publishing integration coming soon');
             }}
-            className="flex-1 min-w-[80px]"
+            className="text-slate-600 hover:text-slate-800 hover:bg-slate-100"
           >
             <ExternalLink className="w-3 h-3 mr-1" />
             Publish
@@ -152,10 +152,10 @@ export const TaskItemActions = ({
           <TooltipTrigger asChild>
             <Button
               size="sm"
-              variant="outline"
+              variant="ghost"
               onClick={handleDelete}
               disabled={deletingTask}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 min-w-[40px]"
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
               <Trash2 className="w-3 h-3" />
             </Button>

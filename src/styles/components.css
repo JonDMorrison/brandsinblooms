@@ -1,49 +1,104 @@
-@import 'tailwindcss/components';
-
-/* General component styles */
-.input {
-  @apply rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+/* General Component Styles */
+.container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
 }
 
-.button {
-  @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+.section {
+  @apply py-12 md:py-20;
 }
 
-.button-primary {
+.card {
+  @apply bg-white dark:bg-gray-800 rounded-lg shadow-md p-6;
+}
+
+/* Button Styles */
+.btn {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+}
+
+.btn-primary {
   @apply bg-primary text-primary-foreground hover:bg-primary/90;
 }
 
-.button-secondary {
+.btn-secondary {
   @apply bg-secondary text-secondary-foreground hover:bg-secondary/80;
 }
 
-.button-outline {
+.btn-outline {
   @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground;
 }
 
-.button-destructive {
-  @apply bg-destructive text-destructive-foreground hover:bg-destructive/90;
-}
-
-.button-ghost {
+.btn-ghost {
   @apply hover:bg-accent hover:text-accent-foreground;
 }
 
-.button-link {
-  @apply underline-offset-4 hover:underline;
+/* Input Styles */
+.input {
+  @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
 }
 
-/* Card component styles */
+/* Label Styles */
+.label {
+  @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+}
+
+/* Textarea Styles */
+.textarea {
+  @apply flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Select Styles */
+.select {
+  @apply flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Checkbox Styles */
+.checkbox {
+  @apply peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground;
+}
+
+/* Radio Styles */
+.radio {
+  @apply peer h-4 w-4 shrink-0 rounded-full border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground;
+}
+
+/* Switch Styles */
+.switch {
+  @apply peer relative h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input;
+}
+
+.switch-thumb {
+  @apply pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0;
+}
+
+/* Table Styles */
+.table {
+  @apply w-full text-sm;
+}
+
+.table-header {
+  @apply text-left font-medium text-muted-foreground py-2;
+}
+
+.table-row {
+  @apply border-b;
+}
+
+.table-cell {
+  @apply py-3;
+}
+
+/* Card Styles */
 .card {
-  @apply rounded-lg border bg-card text-card-foreground shadow-sm;
+  @apply rounded-lg border bg-card text-card-foreground shadow-sm data-[state=open]:bg-accent data-[state=open]:text-accent-foreground;
 }
 
 .card-header {
-  @apply flex flex-col space-y-1.5 p-6;
+  @apply flex flex-row items-center justify-between space-y-0 pb-2;
 }
 
 .card-title {
-  @apply text-lg font-semibold leading-none tracking-tight;
+  @apply text-sm font-semibold leading-none tracking-tight;
 }
 
 .card-description {
@@ -51,95 +106,188 @@
 }
 
 .card-content {
-  @apply p-6 pt-0;
+  @apply p-4 pt-0;
 }
 
-.card-footer {
-  @apply flex items-center p-6 pt-0;
-}
-
-/* Popover component styles */
+/* Popover Styles */
 .popover {
-  @apply rounded-lg border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-100 data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-2;
+  @apply rounded-lg border bg-popover text-popover-foreground shadow-md outline-none;
 }
 
 .popover-content {
   @apply p-6;
 }
 
-.popover-arrow {
-  @apply fill-popover;
+/* Alert Styles */
+.alert {
+  @apply relative w-full rounded-lg border p-4 [&>[svg]]:h-4 [&>[svg]]:w-4;
 }
 
-/* Prose styles for content rendering */
-.prose {
-  @apply max-w-none; /* Removes max-width from prose */
+.alert-title {
+  @apply text-sm font-semibold leading-none tracking-tight;
 }
 
-.prose h1 {
-  @apply text-3xl font-semibold mb-4 mt-8;
+.alert-description {
+  @apply text-sm text-muted-foreground;
 }
 
-.prose h2 {
-  @apply text-2xl font-semibold mb-3 mt-6;
+/* Dialog Styles */
+.dialog {
+  @apply rounded-lg border bg-card text-card-foreground shadow-sm outline-none;
 }
 
-.prose h3 {
-  @apply text-xl font-semibold mb-2 mt-4;
+.dialog-header {
+  @apply flex flex-col space-y-1.5 p-6;
 }
 
-.prose p {
-  @apply text-gray-700 mb-4;
+.dialog-title {
+  @apply text-sm font-semibold leading-none tracking-tight;
 }
 
-.prose ul {
-  @apply list-disc pl-5 mb-4;
+.dialog-description {
+  @apply text-sm text-muted-foreground;
 }
 
-.prose ol {
-  @apply list-decimal pl-5 mb-4;
+.dialog-content {
+  @apply p-6 pt-0;
 }
 
-.prose li {
-  @apply text-gray-700;
+.dialog-footer {
+  @apply flex justify-end space-x-2 py-6;
 }
 
-.prose a {
-  @apply text-blue-500 hover:text-blue-700;
+/* Hover-card Styles */
+.hover-card {
+  @apply rounded-md border bg-card text-card-foreground shadow-sm outline-none;
 }
 
-.prose strong {
-  @apply font-semibold;
+.hover-card-content {
+  @apply p-6;
 }
 
-.prose em {
-  @apply italic;
+/* Tooltip Styles */
+.tooltip {
+  @apply rounded-md border bg-popover text-popover-foreground shadow-md outline-none;
 }
 
-/* images inside newsletters float right at ≥md */
-@media (min-width: 768px) {
-  .prose img {
-    @apply float-right ml-4 mb-4 w-48 rounded-lg object-cover;
+.tooltip-content {
+  @apply p-2 text-xs;
+}
+
+/* Command Styles */
+.command {
+  @apply rounded-md border bg-popover text-popover-foreground shadow-md outline-none;
+}
+
+.command-input {
+  @apply h-11 flex items-center justify-center rounded-t-md border-b bg-secondary text-sm outline-none placeholder:opacity-50 disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.command-list {
+  @apply max-h-[300px] overflow-y-auto overflow-x-hidden;
+}
+
+.command-empty {
+  @apply py-6 text-center text-sm;
+}
+
+.command-group {
+  @apply overflow-hidden p-1.5;
+}
+
+.command-group-heading {
+  @apply px-2 py-1.5 text-sm font-semibold;
+}
+
+.command-item {
+  @apply flex cursor-default select-none items-center rounded-md px-2 py-1.5 text-sm outline-none aria-selected:bg-accent aria-selected:text-accent-foreground data-[disabled=true]:opacity-50;
+}
+
+/* Calendar Styles */
+.calendar {
+  @apply rounded-md border bg-card text-card-foreground shadow-sm outline-none;
+}
+
+.calendar-header {
+  @apply flex items-center justify-between p-4;
+}
+
+.calendar-title {
+  @apply text-sm font-semibold leading-none tracking-tight;
+}
+
+.calendar-caption {
+  @apply text-sm text-muted-foreground;
+}
+
+.calendar-days {
+  @apply grid grid-cols-7 gap-px p-1;
+}
+
+.calendar-day {
+  @apply flex h-9 w-9 items-center justify-center rounded-md text-sm font-medium p-0 focus:outline-none aria-selected:opacity-100 data-[disabled=true]:opacity-50 data-[today=true]:font-bold;
+}
+
+/* Scrollarea Styles */
+.scrollarea {
+  @apply overflow-hidden rounded-md border;
+}
+
+.scrollarea-viewport {
+  @apply h-full w-full rounded-[inherit];
+}
+
+.scrollarea-scrollbar {
+  @apply flex select-none flex-col touch-none p-[2px] transition-colors data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:h-2.5;
+}
+
+.scrollarea-thumb {
+  @apply relative flex-1 rounded-full bg-border;
+}
+
+/* Separator Styles */
+.separator {
+  @apply shrink-0 bg-border;
+}
+
+/* Skeleton Styles */
+.skeleton {
+  @apply animate-pulse rounded-md bg-muted;
+}
+
+/* Apple-style Accordion Components */
+.accordion-row {
+  @apply transition-all duration-200 ease-in-out;
+}
+
+.accordion-row-button {
+  @apply focus:outline-none focus:ring-2 focus:ring-garden-green/20 focus:ring-offset-2;
+}
+
+.accordion-row--open {
+  @apply ring-1 ring-garden-green/20;
+}
+
+.accordion-content {
+  @apply will-change-transform;
+}
+
+/* Enhanced status badge overflow handling */
+.badge-stack {
+  @apply flex items-center gap-1.5 max-w-32 overflow-hidden;
+}
+
+.badge-stack .status-badge:nth-child(n+3) {
+  @apply hidden;
+}
+
+/* Responsive accordion adjustments */
+@media (max-width: 640px) {
+  .accordion-row-button {
+    @apply py-2 px-3;
   }
-}
-
-/* Clear floats after prose content to prevent layout issues */
-.prose::after {
-  content: "";
-  display: table;
-  clear: both;
-}
-
-/* Newsletter image styling - images float right at medium screens and up */
-@media (min-width: 768px) {
-  .prose img {
-    @apply float-right ml-4 mb-4 w-48 rounded-lg object-cover;
+  
+  .accordion-row-button img {
+    @apply w-8 h-8;
   }
-}
-
-/* Clear floats after prose content to prevent layout issues */
-.prose::after {
-  content: "";
-  display: table;
-  clear: both;
 }

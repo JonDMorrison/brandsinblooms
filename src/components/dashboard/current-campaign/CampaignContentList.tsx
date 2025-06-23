@@ -41,7 +41,7 @@ export const CampaignContentList = ({ tasks, onTaskClick, onTaskUpdate }: Campai
               onTaskUpdate={onTaskUpdate}
             />
             {index < tasks.length - 1 && (
-              <div className="h-px bg-gray-200 dark:bg-gray-700 mx-5" />
+              <div className="border-t border-slate-100 dark:border-gray-700" />
             )}
           </div>
         ))}
