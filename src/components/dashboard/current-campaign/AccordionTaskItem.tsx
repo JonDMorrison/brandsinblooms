@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,6 @@ import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
-import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
 
 interface AccordionTaskItemProps {
   task: any;
@@ -202,8 +202,10 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
                     className="bg-white min-h-0"
                   />
                 ) : task.post_type === 'newsletter' ? (
-                  <div className="p-6">
-                    <MagazineNewsletterDisplay content={task.ai_output} />
+                  <div className="p-4 bg-gray-50">
+                    <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
+                      {cleanContent.replace(/<[^>]*>/g, '')}
+                    </div>
                   </div>
                 ) : (
                   <div className="p-4 bg-gray-50">
