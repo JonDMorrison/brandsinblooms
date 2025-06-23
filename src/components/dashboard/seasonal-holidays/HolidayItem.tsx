@@ -51,7 +51,7 @@ export const HolidayItem = ({
           <img 
             src="/lovable-uploads/d9c172a4-01fd-413e-9000-3a0ff4aec72a.png" 
             alt="Calendar icon" 
-            className="w-10 h-10"
+            className="w-40 h-40"
           />
           {holiday.holiday_name || holiday.theme}
         </CardTitle>
