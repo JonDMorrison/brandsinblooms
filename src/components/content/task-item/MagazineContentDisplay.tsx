@@ -58,6 +58,25 @@ const parseMarkdownToHtml = (content: string): string => {
     .replace(/(<\/[h1-6]>)<\/p>/g, '$1');
 };
 
+// Function to extract headline from HTML content
+const extractHeadline = (htmlContent: string): string => {
+  const h1Match = htmlContent.match(/<h1[^>]*>([^<]+)<\/h1>/);
+  if (h1Match) return h1Match[1];
+  
+  const h2Match = htmlContent.match(/<h2[^>]*>([^<]+)<\/h2>/);
+  if (h2Match) return h2Match[1];
+  
+  return '';
+};
+
+// Function to remove headline from content
+const removeHeadlineFromContent = (htmlContent: string): string => {
+  return htmlContent
+    .replace(/<h1[^>]*>[^<]+<\/h1>/i, '')
+    .replace(/<h2[^>]*>[^<]+<\/h2>/i, '')
+    .trim();
+};
+
 // Function to generate image prompt based on content
 const generateImagePrompt = (content: string, postType: string): string => {
   // Extract title or first meaningful line
@@ -367,6 +386,10 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
   }
 
   if (postType === 'blog') {
+    const parsedHtml = parseMarkdownToHtml(content);
+    const headline = extractHeadline(parsedHtml);
+    const contentWithoutHeadline = removeHeadlineFromContent(parsedHtml);
+
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
         {/* Header */}
@@ -377,43 +400,58 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </Badge>
         </div>
 
-        {/* Featured Image */}
-        <div className="aspect-video bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg mb-6 flex items-center justify-center border border-green-200">
-          {loadingImage ? (
-            <div className="flex items-center justify-center">
-              <div className="animate-spin h-6 w-6 border-2 border-green-600 border-t-transparent rounded-full"></div>
-            </div>
-          ) : image ? (
-            <img
-              src={image.url}
-              alt={image.alt}
-              className="w-full h-full object-cover rounded-lg"
-              onError={(e) => {
-                console.error('[BLOG] Image failed to load:', image.url);
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.nextElementSibling?.classList.remove('hidden');
-              }}
-            />
-          ) : (
-            <div className="text-center text-green-600">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Featured image</p>
-            </div>
-          )}
-          {image && (
-            <div className="hidden text-center text-green-600">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Image unavailable</p>
-            </div>
-          )}
-        </div>
+        {/* Blog Headline */}
+        {headline && (
+          <h1 className="text-3xl font-bold text-gray-900 mb-6 leading-tight">
+            {headline}
+          </h1>
+        )}
 
-        {/* Article Content - Now with proper markdown parsing */}
-        <div className="space-y-4">
-          <div 
-            className="prose prose-sm max-w-none text-gray-700"
-            dangerouslySetInnerHTML={{ __html: parseMarkdownToHtml(content) }}
-          />
+        {/* Article Content with Floating Image */}
+        <div className="relative">
+          {/* Floating Image - Top Right */}
+          <div className="w-1/4 float-right ml-6 mb-4">
+            <div className="aspect-square bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
+              {loadingImage ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin h-6 w-6 border-2 border-green-600 border-t-transparent rounded-full"></div>
+                </div>
+              ) : image ? (
+                <img
+                  src={image.url}
+                  alt={image.alt}
+                  className="w-full h-full object-cover rounded-lg"
+                  onError={(e) => {
+                    console.error('[BLOG] Image failed to load:', image.url);
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+              ) : (
+                <div className="text-center text-green-600 p-2">
+                  <ImageIcon className="w-6 h-6 mx-auto mb-1" />
+                  <p className="text-xs">Featured image</p>
+                </div>
+              )}
+              {image && (
+                <div className="hidden text-center text-green-600 p-2">
+                  <ImageIcon className="w-6 h-6 mx-auto mb-1" />
+                  <p className="text-xs">Image unavailable</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Article Content - Now with proper markdown parsing and text wrapping */}
+          <div className="space-y-4">
+            <div 
+              className="prose prose-sm max-w-none text-gray-700 [&>*]:text-justify"
+              dangerouslySetInnerHTML={{ __html: contentWithoutHeadline }}
+            />
+          </div>
+          
+          {/* Clear float */}
+          <div className="clear-both"></div>
         </div>
       </div>
     );
