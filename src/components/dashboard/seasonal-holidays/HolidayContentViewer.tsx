@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -116,7 +117,7 @@ export const HolidayContentViewer = ({
 
       console.log(`🔍 HOLIDAY_VIEWER DEBUG: Found ${data?.length || 0} tasks for holiday`);
       
-      // Enhanced task logging
+      // Enhanced task logging with video content validation
       if (data && data.length > 0) {
         data.forEach((task, index) => {
           console.log(`🔍 TASK_${index} DEBUG:`, {
@@ -130,8 +131,15 @@ export const HolidayContentViewer = ({
           
           if (task.post_type === 'video') {
             console.log(`🎬 VIDEO_TASK DEBUG: Video task found with content length: ${task.ai_output?.length || 0}`);
-            if (task.ai_output) {
+            if (task.ai_output && task.ai_output.trim()) {
               console.log(`🎬 VIDEO_TASK DEBUG: Video content preview: ${task.ai_output.substring(0, 300)}...`);
+              // Check if video content looks valid
+              const hasTimingMarkers = task.ai_output.includes('[0:');
+              const hasVideoKeywords = task.ai_output.toLowerCase().includes('video') || 
+                                     task.ai_output.toLowerCase().includes('script') ||
+                                     task.ai_output.includes('[GESTURE]') ||
+                                     task.ai_output.includes('[PROP]');
+              console.log(`🎬 VIDEO_VALIDATION DEBUG: Has timing markers: ${hasTimingMarkers}, Has video keywords: ${hasVideoKeywords}`);
             } else {
               console.log(`🎬 VIDEO_TASK ERROR: Video task has no ai_output content!`);
             }
@@ -181,13 +189,16 @@ export const HolidayContentViewer = ({
     return acc;
   }, {} as Record<string, ContentTask>);
 
-  // Enhanced logging for tasksByType
+  // Enhanced logging for tasksByType with video content validation
   console.log('🔍 HOLIDAY_VIEWER DEBUG: Tasks by type:', Object.keys(tasksByType));
   if (tasksByType.video) {
+    const videoTask = tasksByType.video;
     console.log('🎬 VIDEO_DISPLAY DEBUG: Video task found in tasksByType:', {
-      id: tasksByType.video.id,
-      content_length: tasksByType.video.ai_output?.length || 0,
-      status: tasksByType.video.status
+      id: videoTask.id,
+      content_length: videoTask.ai_output?.length || 0,
+      status: videoTask.status,
+      has_content: !!(videoTask.ai_output && videoTask.ai_output.trim()),
+      content_preview: videoTask.ai_output?.substring(0, 200) || 'No content'
     });
   } else {
     console.log('🎬 VIDEO_DISPLAY DEBUG: No video task found in tasksByType');
@@ -200,6 +211,16 @@ export const HolidayContentViewer = ({
   const renderContentSection = (type: string) => {
     const task = tasksByType[type];
     const isAvailable = !!task;
+
+    // Special handling for video content to debug display issues
+    if (type === 'video' && task) {
+      console.log(`🎬 RENDER_VIDEO DEBUG: Rendering video section for task:`, {
+        id: task.id,
+        has_ai_output: !!(task.ai_output && task.ai_output.trim()),
+        content_length: task.ai_output?.length || 0,
+        status: task.status
+      });
+    }
 
     return (
       <div 

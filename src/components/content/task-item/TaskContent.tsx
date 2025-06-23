@@ -1,5 +1,4 @@
 
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -26,9 +25,22 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   const isGenerating = normalizedTask.status === 'generating';
   const isStuckGenerating = normalizedTask.status === 'generating' && !normalizedTask.ai_output;
 
+  // Enhanced content validation for video tasks
+  const hasValidContent = normalizedTask.ai_output && normalizedTask.ai_output.trim() !== '';
+  
+  // Special validation for video content
+  if (normalizedTask.post_type === 'video' && normalizedTask.ai_output) {
+    console.log(`🎬 TASK_CONTENT DEBUG: Video task validation:`, {
+      id: normalizedTask.id,
+      has_content: hasValidContent,
+      content_length: normalizedTask.ai_output?.length || 0,
+      content_preview: normalizedTask.ai_output?.substring(0, 200)
+    });
+  }
+
   const handleRegenerateContent = async () => {
-    if (!normalizedTask.campaigns?.title) {
-      toast.error('Unable to regenerate - campaign information missing');
+    if (!normalizedTask.campaigns?.title && !normalizedTask.holiday_id) {
+      toast.error('Unable to regenerate - campaign or holiday information missing');
       return;
     }
 
@@ -36,11 +48,20 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
     try {
       toast.loading('Regenerating content...', { id: 'regenerate' });
       
+      // Use holiday name for holiday content or campaign title for regular content
+      const contentTitle = normalizedTask.holiday_id ? 
+        normalizedTask.notes?.replace('Generated for ', '') || 'Holiday Content' :
+        normalizedTask.campaigns.title;
+      
+      const contentDescription = normalizedTask.holiday_id ?
+        `Holiday content for ${contentTitle}` :
+        normalizedTask.campaigns.description;
+      
       const newContent = await generatePersonalizedContent(
         normalizedTask.post_type,
-        normalizedTask.campaigns.title,
+        contentTitle,
         normalizedTask.user_id,
-        normalizedTask.campaigns.description
+        contentDescription
       );
 
       const { error } = await supabase
@@ -65,7 +86,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
     }
   };
 
-  if (normalizedTask.ai_output) {
+  if (hasValidContent) {
     // Check if this is a social media post for special preview handling
     const isSocialMediaPost = normalizedTask.post_type === 'instagram' || normalizedTask.post_type === 'facebook';
     
