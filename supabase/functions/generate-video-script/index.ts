@@ -46,7 +46,7 @@ serve(async (req) => {
     let companyContext = '';
     if (companyProfile) {
       companyContext = `
-COMPANY PROFILE FOR 90-SECOND HOLIDAY TEACHING VIDEO:
+COMPANY PROFILE FOR SINGLE-PERSON TEACHING VIDEO:
 Company Name: ${companyProfile.company_name || 'Garden Center'}
 Overview: ${companyProfile.company_overview || ''}
 Brand Voice: ${companyProfile.brand_voice || ''}
@@ -54,99 +54,103 @@ Target Audience: ${companyProfile.target_audience || ''}
 Location Info: ${companyProfile.location_info || ''}
 Specializations: ${companyProfile.specializations || ''}
 
-ENHANCED 90-SECOND HOLIDAY TEACHING VIDEO REQUIREMENTS:
-- Duration: EXACTLY 90 seconds MAXIMUM (NOT 2 minutes)
-- Structure: Hook (10-15s) → Problem/Challenge (15-20s) → Solution/Teaching (45-50s) → Recap/CTA (10-15s)
-- Include [VISUAL CUES] for single-person filming throughout
-- Add [PROPS NEEDED] suggestions for demonstrations
-- Specify [HAND GESTURES] and [BODY LANGUAGE] directions
-- Include [CAMERA FOCUS] instructions (close-ups, wide shots)
+STRICT SINGLE-PERSON TEACHING VIDEO REQUIREMENTS:
+- Duration: EXACTLY 90 seconds MAXIMUM
+- Format: ONE PERSON standing/sitting in front of ONE STATIC CAMERA
+- Structure: Opening Hook (10-15s) → Problem Explanation (15-20s) → Teaching Solution (45-50s) → Summary/Action (10-15s)
+- Include [GESTURE] and [PROP] suggestions for demonstrations
 - Focus on ONE specific holiday gardening topic with step-by-step instruction
 - Include "why" explanations, not just "how"
-- Add common mistake warnings and before/after scenarios
+- Add common mistake warnings and tips
 - Make it region-specific using their location information
-- Use natural pause indicators and transition phrases
-- Add emphasis markers for key teaching points
-- Sound like a knowledgeable garden center owner teaching their local community about holiday gardening
+- Use natural speaking rhythm with pause indicators
+- Sound like a knowledgeable garden center owner teaching their community about holiday gardening
 
-CRITICAL CONTENT RESTRICTIONS: 
-- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation
-- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) 
-- ABSOLUTELY NEVER use dashes (-) to create lists
-- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
-- ABSOLUTELY NEVER use emojis anywhere in the content
+ABSOLUTE PROHIBITIONS:
+- NEVER write "SCENE 1", "SCENE 2", or any scene divisions
+- NEVER suggest camera movements, pans, or position changes
+- NEVER include text overlays, graphics, or end screens
+- NEVER require multiple locations or setups
+- NEVER use "Green Thumbs", "green thumb", or variations
+- NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) for lists
+- NEVER start with "Welcome to" or mention week numbers
+- NEVER use emojis anywhere in the content
 - Write ONLY in flowing paragraphs with natural speaking rhythm
-- Use regional timing references instead of week numbers
 - Include timing markers like [0:00-0:15] for each segment
 - MUST be directly related to the holiday/seasonal topic provided
 `;
     } else {
       companyContext = `
-ENHANCED 90-SECOND HOLIDAY TEACHING VIDEO REQUIREMENTS:
-- Duration: EXACTLY 90 seconds MAXIMUM (NOT 2 minutes)
-- Structure: Hook (10-15s) → Problem/Challenge (15-20s) → Solution/Teaching (45-50s) → Recap/CTA (10-15s)
-- Include [VISUAL CUES] for single-person filming
-- Add [PROPS NEEDED] and [HAND GESTURES] directions
-- Include [CAMERA FOCUS] instructions
+STRICT SINGLE-PERSON TEACHING VIDEO REQUIREMENTS:
+- Duration: EXACTLY 90 seconds MAXIMUM
+- Format: ONE PERSON standing/sitting in front of ONE STATIC CAMERA
+- Structure: Opening Hook (10-15s) → Problem Explanation (15-20s) → Teaching Solution (45-50s) → Summary/Action (10-15s)
+- Include [GESTURE] and [PROP] suggestions for demonstrations
 - Focus on ONE specific holiday gardening topic with step-by-step instruction
 - Include "why" explanations and common mistake warnings
-- Use natural pause indicators and transition phrases
+- Use natural speaking rhythm with pause indicators
 - Sound like a knowledgeable garden center owner teaching about holiday gardening
 - MUST be directly related to the holiday/seasonal topic provided
 
-CRITICAL CONTENT RESTRICTIONS: 
-- ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or variations
-- ABSOLUTELY NEVER use bullet points, numbered lists, or dashes
-- ABSOLUTELY NEVER start with "Welcome to" or mention week numbers
-- ABSOLUTELY NEVER use emojis
+ABSOLUTE PROHIBITIONS:
+- NEVER write "SCENE 1", "SCENE 2", or any scene divisions
+- NEVER suggest camera movements, pans, or position changes
+- NEVER include text overlays, graphics, or end screens
+- NEVER require multiple locations or setups
+- NEVER use "Green Thumbs", "green thumb", or variations
+- NEVER use bullet points, numbered lists, or dashes
+- NEVER start with "Welcome to" or mention week numbers
+- NEVER use emojis
 - Write in flowing paragraphs with natural speaking rhythm
 - Include timing markers like [0:00-0:15] for each segment
 `;
     }
 
-    const prompt = `Create a 90-second maximum teaching video script about "${campaignTitle}" for a garden center owner/expert. This MUST be specifically about ${campaignTitle} and holiday/seasonal gardening topics. ${companyContext}
+    const prompt = `Create a 90-second maximum single-person teaching video script about "${campaignTitle}" for a garden center owner/expert. This MUST be specifically about ${campaignTitle} and holiday/seasonal gardening topics. ${companyContext}
 
-SCRIPT STRUCTURE (EXACTLY 90 SECONDS MAXIMUM):
+SINGLE-PERSON TEACHING SCRIPT FORMAT (EXACTLY 90 SECONDS MAXIMUM):
 
-[0:00-0:15] HOOK (10-15 seconds):
-- Start with a compelling seasonal problem or curiosity gap related to ${campaignTitle}
-- Make viewers feel the urgency or importance of this holiday gardening topic
-- [VISUAL CUE] and [CAMERA FOCUS] instructions
+[0:00-0:15] OPENING HOOK (10-15 seconds):
+- Start with a compelling seasonal problem related to ${campaignTitle}
+- Create curiosity or urgency about this holiday gardening topic
+- [GESTURE] Simple hand movements to emphasize points
+- Speaker looks directly at camera, no movement required
 
-[0:15-0:35] PROBLEM/CHALLENGE (15-20 seconds): 
+[0:15-0:35] PROBLEM EXPLANATION (15-20 seconds): 
 - Explain the specific ${campaignTitle} gardening challenge in detail
-- Share why this matters for their holiday garden's success
-- Mention common mistakes people make during this holiday season
-- [VISUAL CUE] Show the problem or demonstrate what goes wrong
+- Share why this matters for holiday garden success
+- Mention common mistakes people make during this season
+- [PROP] Hold up or point to relevant item if needed
 
-[0:35-1:25] SOLUTION/TEACHING (45-50 seconds):
-- Provide step-by-step instruction on the holiday gardening solution
+[0:35-1:25] TEACHING SOLUTION (45-50 seconds):
+- Provide clear step-by-step instruction for the holiday gardening solution
 - Explain the "why" behind each step related to ${campaignTitle}
-- Include season-specific timing and techniques for this holiday
-- [PROPS NEEDED] List what to have ready for demonstration
-- [HAND GESTURES] Describe specific movements
-- [VISUAL CUE] Close-ups, demonstrations, before/after comparisons
-- Add natural pause points and emphasis markers
+- Include season-specific timing and techniques
+- [PROP] Demonstrate with simple props within arm's reach
+- [GESTURE] Use hands to show sizes, directions, techniques
+- Add natural [PAUSE] points for emphasis
+- Mark key teaching points with [EMPHASIZE]
 
-[1:25-1:30] RECAP/CALL-TO-ACTION (10-15 seconds):
+[1:25-1:30] SUMMARY AND ACTION (10-15 seconds):
 - Summarize the key ${campaignTitle} teaching point
 - Provide clear next steps for viewers regarding this holiday
-- Connect to their business naturally
-- [CAMERA FOCUS] Return to speaking directly to camera
+- Connect naturally to their garden center business
+- End with direct eye contact to camera
 
 FILMING REQUIREMENTS:
-- All content must be filmable by ONE PERSON in front of camera
-- Include specific [VISUAL CUE], [PROPS NEEDED], [HAND GESTURES], and [CAMERA FOCUS] directions throughout
-- Use conversational, teaching tone like explaining to a neighbor
-- Add natural pause indicators with [PAUSE] markers
-- Include emphasis markers like [EMPHASIZE] for key points
-- Make timing realistic for actual speaking pace
+- Everything must be achievable by ONE PERSON in front of ONE CAMERA
+- No camera movement or position changes
+- All props must be within easy reach of the speaker
+- Use conversational tone like explaining to a neighbor
+- Include [PAUSE] markers for natural speaking rhythm
+- Include [EMPHASIZE] markers for key points
+- Realistic timing for actual speaking pace
 
-CRITICAL: This video MUST be specifically about ${campaignTitle} and related holiday gardening topics. Do not create generic gardening content. Focus on what makes this holiday special for gardeners and garden centers. The entire script should revolve around the holiday theme provided.
+CRITICAL: This video MUST be specifically about ${campaignTitle} and related holiday gardening topics. Do not create generic gardening content. Focus on what makes this holiday special for gardeners. The entire script should revolve around the holiday theme provided and be achievable with one person, one camera, and simple props.
 
 Make this educational, practical, and holiday-specific. Focus on ONE clear teaching point that viewers can immediately apply for ${campaignTitle}. Sound like a trusted local expert sharing valuable knowledge about this specific holiday gardening opportunity.`;
 
-    console.log('Generating enhanced 90-second holiday teaching video script with comprehensive filming directions');
+    console.log('Generating single-person holiday teaching video script');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -157,7 +161,26 @@ Make this educational, practical, and holiday-specific. Focus on ONE clear teach
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: `You are a professional video script writer specializing in 90-second maximum educational content for garden centers. Create teaching scripts that are perfectly timed, include comprehensive filming directions for single-person production, and focus on one clear educational objective related to the specific holiday provided. CRITICAL RULES: ABSOLUTELY NEVER use "Green Thumbs", "green thumb", or any variation of this phrase. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) for lists. ABSOLUTELY NEVER start with "Welcome to" or mention week numbers. ABSOLUTELY NEVER use emojis. Write only in flowing paragraphs with natural speaking rhythm. Include detailed timing breakdowns, visual cues, props needed, hand gestures, and camera focus instructions throughout the script. MOST IMPORTANTLY: The script MUST be specifically about the holiday topic provided - not generic gardening content.` },
+          { role: 'system', content: `You are a professional video script writer specializing in 90-second maximum single-person educational content for garden centers. Create teaching scripts that are perfectly timed for one person standing or sitting in front of one static camera. 
+
+ABSOLUTE RULES YOU MUST NEVER BREAK:
+- NEVER write "SCENE 1", "SCENE 2", or any scene divisions
+- NEVER suggest camera movements, pans, zooms, or position changes  
+- NEVER include text overlays, graphics, end screens, or visual effects
+- NEVER require multiple locations, setups, or complex production
+- NEVER use "Green Thumbs", "green thumb", or any variation
+- NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) for lists
+- NEVER start with "Welcome to" or mention week numbers
+- NEVER use emojis anywhere
+
+WHAT YOU MUST DO:
+- Write for ONE PERSON teaching in front of ONE STATIC CAMERA
+- Include detailed timing breakdowns [0:00-0:15] format
+- Add simple [GESTURE] and [PROP] suggestions only
+- Write in flowing paragraphs with natural speaking rhythm
+- Focus on the specific holiday topic provided
+- Sound like a knowledgeable garden center owner teaching their community
+- Keep everything achievable with minimal equipment and setup` },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -172,7 +195,7 @@ Make this educational, practical, and holiday-specific. Focus on ONE clear teach
     const data = await response.json();
     const videoScript = data.choices[0].message.content;
 
-    console.log('Generated 90-second holiday teaching video script with filming directions:', videoScript);
+    console.log('Generated single-person holiday teaching video script:', videoScript);
 
     return new Response(JSON.stringify({ script: videoScript }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
