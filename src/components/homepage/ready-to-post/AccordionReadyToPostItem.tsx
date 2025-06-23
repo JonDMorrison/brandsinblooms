@@ -1,29 +1,37 @@
-import React, { useState } from "react";
+
+import React from "react";
+import { Disclosure } from '@headlessui/react';
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { formatDistanceToNowStrict } from 'date-fns';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Copy, ExternalLink, Eye, Image } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { PlatformChip } from "@/components/ui/platform-chip";
-import { stripMarkdown, truncateText, getStatusConfig } from "@/utils/contentUtils";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { PostTypeAvatar } from "@/components/ui/post-type-avatar";
+import { MetaBadges } from "@/components/ui/meta-badges";
 import { useTaskImages } from "@/hooks/useTaskImages";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "./CompactImageCarousel";
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 import { MagazineNewsletterDisplay } from "@/components/content-sidebar/MagazineNewsletterDisplay";
-import { cleanContentForDisplay, extractBlogMetadata } from "@/utils/contentUtils";
+import { cleanContentForDisplay, extractBlogMetadata, getStatusConfig, truncateText } from "@/utils/contentUtils";
 
 interface AccordionReadyToPostItemProps {
   task: any;
   onViewFull: (task: any) => void;
   onTaskUpdate?: () => void;
+  isFirst?: boolean;
 }
 
-export const AccordionReadyToPostItem = ({ task, onViewFull, onTaskUpdate }: AccordionReadyToPostItemProps) => {
+export const AccordionReadyToPostItem = ({ 
+  task, 
+  onViewFull, 
+  onTaskUpdate, 
+  isFirst = false 
+}: AccordionReadyToPostItemProps) => {
   const { images, imageCount } = useTaskImages(task?.id);
-  const [publishing, setPublishing] = useState(false);
 
   const statusConfig = getStatusConfig(task.status);
   const hasContent = task.ai_output && task.ai_output.trim() !== '';
@@ -56,6 +64,20 @@ export const AccordionReadyToPostItem = ({ task, onViewFull, onTaskUpdate }: Acc
   // Extract blog metadata for enhanced display
   const blogMetadata = task.post_type === 'blog' && hasContent ? extractBlogMetadata(cleanContent) : null;
 
+  // Get word count estimate
+  const wordCount = hasContent ? task.ai_output.split(/\s+/).length : 0;
+
+  // Prepare badges (max 2 visible)
+  const badges = [];
+  if (task.status === 'ready' || task.status === 'approved' || task.status === 'posted') {
+    badges.push({ label: 'Ready to post', variant: 'success' });
+  }
+  if (isStructuredNewsletter) {
+    badges.push({ label: 'Structured', variant: 'structured' });
+  }
+
+  const timeAgo = formatDistanceToNowStrict(new Date(task.created_at), { addSuffix: true });
+
   const handleViewFull = (e: React.MouseEvent) => {
     e.stopPropagation();
     onViewFull(task);
@@ -73,151 +95,188 @@ export const AccordionReadyToPostItem = ({ task, onViewFull, onTaskUpdate }: Acc
 
   const handlePublish = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setPublishing(true);
-    
-    try {
-      // For now, just show a toast - actual publishing integration would go here
-      toast.info('Publishing integration coming soon');
-    } catch (error) {
-      console.error('Error publishing:', error);
-      toast.error('Failed to publish content');
-    } finally {
-      setPublishing(false);
-    }
+    // For now, just show a toast - actual publishing integration would go here
+    toast.info('Publishing integration coming soon');
   };
 
   return (
-    <Accordion type="multiple" className="w-full">
-      <AccordionItem value={task.id} className="border-gray-200 rounded-lg">
-        <AccordionTrigger className="px-4 py-3 hover:no-underline">
-          <div className="flex flex-col w-full space-y-2">
-            {/* First row - Platform chip and status */}
-            <div className="flex items-center justify-between w-full">
-              {/* Left cluster - Platform chip with enhanced title */}
-              <div className="flex items-center gap-3">
-                <PlatformChip postType={task.post_type} />
-                {task.post_type === 'blog' && blogMetadata?.title && (
-                  <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
-                    {blogMetadata.title}
-                  </span>
-                )}
-                {isStructuredNewsletter && (
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                    Structured
-                  </span>
-                )}
+    <Disclosure as="div" className="w-full accordion-row">
+      {({ open }) => (
+        <>
+          <Disclosure.Button className={`
+            relative flex items-center w-full py-3 px-4 
+            hover:bg-slate-50/70 dark:hover:bg-slate-800/50
+            transition-colors duration-200
+            focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-500/60 rounded-md
+            ${!isFirst ? 'before:border-t before:border-slate-100 dark:before:border-slate-700 before:absolute before:inset-x-0 before:top-0' : ''}
+          `}>
+            {/* Post Type Avatar */}
+            <div className="flex-shrink-0 mr-3">
+              <PostTypeAvatar type={task.post_type} />
+            </div>
+            
+            {/* Title + Preview */}
+            <div className="flex-1 min-w-0 text-left md:w-[45%]">
+              <div className="flex flex-col">
+                <span className="font-medium text-slate-900 dark:text-slate-100 capitalize mb-0.5">
+                  {task.post_type}
+                  {blogMetadata?.title && (
+                    <span className="ml-2 text-sm font-normal text-slate-600 dark:text-slate-400">
+                      {blogMetadata.title}
+                    </span>
+                  )}
+                </span>
+                <span className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                  {previewText}
+                </span>
               </div>
-
-              {/* Right cluster - Status and metadata */}
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-green-500" title="Ready to post" />
-                {blogMetadata?.readingTime && (
-                  <span className="text-xs text-gray-500">
-                    {blogMetadata.readingTime} min read
-                  </span>
-                )}
-                {imageCount > 0 && (
-                  <div className="flex items-center gap-1 text-sm text-gray-500">
-                    <Image className="w-3 h-3" />
-                    <span>{imageCount}</span>
-                  </div>
-                )}
-                {task.scheduled_date && (
-                  <span className="text-xs text-gray-400">
-                    {new Date(task.scheduled_date).toLocaleDateString()}
-                  </span>
+            </div>
+            
+            {/* Meta Cluster */}
+            <MetaBadges 
+              badges={badges}
+              wordCount={wordCount}
+              timeAgo={timeAgo}
+              className="mr-3"
+            />
+            
+            {/* Mobile badges (below title) - only show when needed */}
+            <div className="md:hidden absolute left-16 top-14">
+              <div className="flex items-center gap-1.5">
+                {badges.slice(0, 2).map((badge, index) => (
+                  <StatusBadge key={index} variant={badge.variant as any}>
+                    {badge.label}
+                  </StatusBadge>
+                ))}
+                {badges.length > 2 && (
+                  <span className="text-xs text-slate-400">+{badges.length - 2}</span>
                 )}
               </div>
             </div>
+            
+            {/* Chevron */}
+            <ChevronDownIcon 
+              className={`w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform duration-200 ${
+                open ? 'rotate-180' : ''
+              }`} 
+            />
+          </Disclosure.Button>
 
-            {/* Second row - Preview text */}
-            <div className="flex items-center justify-between w-full">
-              <p className="text-sm text-gray-600 italic flex-1 text-left">
-                {previewText}
-              </p>
-            </div>
-          </div>
-        </AccordionTrigger>
-
-        <AccordionContent className="px-4 pb-4">
-          <div className="space-y-4">
-            {/* Enhanced content display */}
-            {hasContent && (
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                {task.post_type === 'blog' ? (
-                  <BlogPostLayout
-                    title={blogMetadata?.title}
-                    companyName={task.campaigns?.company_profiles?.business_name}
-                    content={cleanContent}
-                    className="bg-white min-h-0"
-                  />
-                ) : task.post_type === 'newsletter' ? (
-                  <div className="p-6">
-                    <MagazineNewsletterDisplay content={task.ai_output} />
+          <Disclosure.Panel className="accordion-content transition-all duration-300 ease-in-out overflow-hidden">
+            <div className={`mx-4 mb-4 rounded-xl border border-garden-green/30 bg-gradient-to-t from-[#F9FFFA] to-white dark:from-gray-800 dark:to-gray-900 shadow-sm px-5 py-4 ${open ? 'accordion-row--open' : ''}`}>
+              {/* Header with badges and meta */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-gray-100 capitalize mb-2">
+                    {task.post_type}
+                    {blogMetadata?.title && (
+                      <span className="ml-2 text-base font-normal text-slate-600 dark:text-slate-400">
+                        {blogMetadata.title}
+                      </span>
+                    )}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {badges.map((badge, index) => (
+                      <StatusBadge key={index} variant={badge.variant as any}>
+                        {badge.label}
+                      </StatusBadge>
+                    ))}
+                    {imageCount > 0 && (
+                      <div className="flex items-center gap-1 text-sm text-gray-500">
+                        <Image className="w-3 h-3" />
+                        <span>{imageCount}</span>
+                      </div>
+                    )}
+                    {blogMetadata?.readingTime && (
+                      <span className="text-xs text-gray-500">
+                        {blogMetadata.readingTime} min read
+                      </span>
+                    )}
                   </div>
-                ) : (
-                  <div className="p-4 bg-gray-50">
-                    <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
-                      {cleanContent.replace(/<[^>]*>/g, '')}
+                </div>
+                <div className="text-right text-xs text-slate-400 dark:text-gray-500">
+                  <div>{wordCount > 0 ? `${wordCount} words` : '—'}</div>
+                  <div>{timeAgo}</div>
+                </div>
+              </div>
+              
+              {/* Enhanced content display */}
+              {hasContent && (
+                <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden mb-4">
+                  {task.post_type === 'blog' ? (
+                    <BlogPostLayout
+                      title={blogMetadata?.title}
+                      companyName={task.campaigns?.company_profiles?.business_name}
+                      content={cleanContent}
+                      className="bg-white dark:bg-gray-800 min-h-0"
+                    />
+                  ) : task.post_type === 'newsletter' ? (
+                    <div className="p-6">
+                      <MagazineNewsletterDisplay content={task.ai_output} />
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  ) : (
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700">
+                      <div className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                        {cleanContent.replace(/<[^>]*>/g, '')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
-            {/* Image thumbnails */}
-            {hasContent && (
-              <div>
-                <CompactImageCarousel 
-                  task={task}
-                  campaignTheme={task.campaigns?.theme}
-                  onShowAll={() => onViewFull(task)}
-                />
-              </div>
-            )}
+              {/* Image thumbnails */}
+              {hasContent && (
+                <div className="mb-4">
+                  <CompactImageCarousel 
+                    task={task}
+                    campaignTheme={task.campaigns?.theme}
+                    onShowAll={() => onViewFull(task)}
+                  />
+                </div>
+              )}
 
-            {/* Action bar - focused on publishing actions */}
-            <TooltipProvider>
-              <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-200">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleViewFull}
-                  className="flex-1 min-w-[80px] border-blue-300 text-blue-600 hover:bg-blue-50"
-                >
-                  <Eye className="w-3 h-3 mr-1" />
-                  View Full
-                </Button>
-
-                {hasContent && (
+              {/* Actions */}
+              <TooltipProvider>
+                <div className="flex justify-end gap-2">
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={handleCopyContent}
-                    className="flex-1 min-w-[80px]"
+                    variant="ghost"
+                    onClick={handleViewFull}
+                    className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/30"
                   >
-                    <Copy className="w-3 h-3 mr-1" />
-                    Copy
+                    <Eye className="w-3 h-3 mr-1" />
+                    View Full
                   </Button>
-                )}
 
-                {task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={handlePublish}
-                    disabled={publishing}
-                    className="flex-1 min-w-[80px] bg-green-600 hover:bg-green-700"
-                  >
-                    <ExternalLink className="w-3 h-3 mr-1" />
-                    Publish
-                  </Button>
-                )}
-              </div>
-            </TooltipProvider>
-          </div>
-        </AccordionContent>
-      </AccordionItem>
-    </Accordion>
+                  {hasContent && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handleCopyContent}
+                      className="text-slate-600 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+                    >
+                      <Copy className="w-3 h-3 mr-1" />
+                      Copy
+                    </Button>
+                  )}
+
+                  {task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={handlePublish}
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30"
+                    >
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      Publish
+                    </Button>
+                  )}
+                </div>
+              </TooltipProvider>
+            </div>
+          </Disclosure.Panel>
+        </>
+      )}
+    </Disclosure>
   );
 };

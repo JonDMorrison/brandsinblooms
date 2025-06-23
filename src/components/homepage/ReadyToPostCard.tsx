@@ -231,7 +231,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
               <DevPreviewBadge show={true} />
             </div>
           )}
-          <div className="space-y-2">
+          <div className="space-y-0">
             {tasks.map((task, index) => (
               <div 
                 key={task.id}
@@ -241,6 +241,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
                   task={task}
                   onViewFull={handleTaskViewFull}
                   onTaskUpdate={onTaskUpdate}
+                  isFirst={index === 0}
                 />
               </div>
             ))}

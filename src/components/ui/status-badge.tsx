@@ -15,6 +15,7 @@ const statusBadgeVariants = cva(
         approved: "bg-emerald-50 text-emerald-600 border border-emerald-200",
         scheduled: "bg-amber-50 text-amber-600 border border-amber-200",
         posted: "bg-violet-50 text-violet-600 border border-violet-200",
+        success: "bg-green-50 text-green-600 border border-green-200",
       },
     },
     defaultVariants: {
