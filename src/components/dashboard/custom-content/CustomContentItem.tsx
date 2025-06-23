@@ -82,7 +82,7 @@ export const CustomContentItem = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 opacity-30 hover:opacity-100 transition-all duration-200"
                 disabled={isDeleting}
               >
                 <Trash2 className="w-4 h-4" />
