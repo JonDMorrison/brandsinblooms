@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Mail, Instagram, Facebook, Video, FileText, Sparkles, Eye } from "lucide-react";
 import { format } from "date-fns";
+import { DateCalendarIcon } from "./DateCalendarIcon";
 
 interface HolidayItemProps {
   holiday: any;
@@ -48,9 +49,8 @@ export const HolidayItem = ({
     <Card className="mb-4 hover:shadow-md transition-shadow">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <img 
-            src="/lovable-uploads/d9c172a4-01fd-413e-9000-3a0ff4aec72a.png" 
-            alt="Calendar icon" 
+          <DateCalendarIcon 
+            dateString={holiday.holiday_date} 
             className="w-10 h-10"
           />
           {holiday.holiday_name || holiday.theme}
