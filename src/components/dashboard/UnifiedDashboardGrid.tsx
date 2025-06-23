@@ -1,9 +1,9 @@
 
-
 import { CurrentCampaignSection } from "./current-campaign/CurrentCampaignSection";
 import { CustomContentSection } from "./custom-content/CustomContentSection";
 import { QuickActionsSection } from "./QuickActionsSection";
 import { EnhancedSeasonalHolidaysCard } from "./seasonal-holidays/EnhancedSeasonalHolidaysCard";
+import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface UnifiedDashboardGridProps {
@@ -38,6 +38,18 @@ export const UnifiedDashboardGrid = ({
         />
       </div>
 
+      {/* Ready to Post Section */}
+      <section className="ready-to-post-section">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Ready to Post</h2>
+          <p className="text-sm text-gray-600 mt-1">Approved content ready for publishing</p>
+        </div>
+        <ReadyToPostCard 
+          tasks={tasks}
+          onTaskUpdate={onTaskUpdate}
+        />
+      </section>
+
       {/* Custom Campaigns Section */}
       {userCreatedCampaigns.length > 0 && (
         <CustomContentSection
@@ -58,4 +70,3 @@ export const UnifiedDashboardGrid = ({
     </div>
   );
 };
-
