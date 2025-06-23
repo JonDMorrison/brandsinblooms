@@ -167,6 +167,7 @@ export type Database = {
           company_overview: string | null
           company_values: string | null
           created_at: string
+          feature_flags: Json | null
           first_content_generated: boolean | null
           first_welcome_dismissed: boolean | null
           id: string
@@ -189,6 +190,7 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
           id?: string
@@ -211,6 +213,7 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
           id?: string
@@ -693,6 +696,7 @@ export type Database = {
           expires_at: string | null
           id: string
           is_active: boolean
+          page_id: string | null
           platform: string
           platform_account_id: string
           platform_account_name: string | null
@@ -706,6 +710,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_active?: boolean
+          page_id?: string | null
           platform: string
           platform_account_id: string
           platform_account_name?: string | null
@@ -719,6 +724,7 @@ export type Database = {
           expires_at?: string | null
           id?: string
           is_active?: boolean
+          page_id?: string | null
           platform?: string
           platform_account_id?: string
           platform_account_name?: string | null
@@ -727,6 +733,53 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      social_posts: {
+        Row: {
+          api_response: Json | null
+          content: string
+          created_at: string
+          id: string
+          media_url: string | null
+          publish_at: string | null
+          social_connection_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_response?: Json | null
+          content: string
+          created_at?: string
+          id?: string
+          media_url?: string | null
+          publish_at?: string | null
+          social_connection_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_response?: Json | null
+          content?: string
+          created_at?: string
+          id?: string
+          media_url?: string | null
+          publish_at?: string | null
+          social_connection_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_social_connection_id_fkey"
+            columns: ["social_connection_id"]
+            isOneToOne: false
+            referencedRelation: "social_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscriptions: {
         Row: {
@@ -737,6 +790,8 @@ export type Database = {
           created_at: string
           end_date: string
           id: string
+          max_connections: number | null
+          max_posts_per_month: number | null
           overage_token_price: number | null
           plan: Database["public"]["Enums"]["subscription_plan"]
           start_date: string
@@ -752,6 +807,8 @@ export type Database = {
           created_at?: string
           end_date: string
           id?: string
+          max_connections?: number | null
+          max_posts_per_month?: number | null
           overage_token_price?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
           start_date?: string
@@ -767,6 +824,8 @@ export type Database = {
           created_at?: string
           end_date?: string
           id?: string
+          max_connections?: number | null
+          max_posts_per_month?: number | null
           overage_token_price?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
           start_date?: string
@@ -1007,6 +1066,10 @@ export type Database = {
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
         Returns: number
+      }
+      feature_enabled: {
+        Args: { feature_name: string }
+        Returns: boolean
       }
       get_admin_user_data: {
         Args: Record<PropertyKey, never>
