@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
@@ -14,13 +15,36 @@ interface SocialMediaPostPreviewProps {
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId }: SocialMediaPostPreviewProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   
-  const hashtagRegex = /#[\w]+/g;
-  const hashtags = content.match(hashtagRegex) || [];
-  const textWithoutHashtags = content.replace(hashtagRegex, '').trim();
+  // Improved content processing to handle various content formats
+  const formatContent = (rawContent: string) => {
+    if (!rawContent || rawContent.trim() === '') {
+      return { text: '', hashtags: [] };
+    }
+
+    // Clean any HTML tags first
+    const cleanContent = rawContent.replace(/<[^>]*>/g, '').trim();
+    
+    // Extract hashtags
+    const hashtagRegex = /#[\w]+/g;
+    const hashtags = cleanContent.match(hashtagRegex) || [];
+    
+    // Remove hashtags from main text but preserve line breaks and formatting
+    let textWithoutHashtags = cleanContent.replace(hashtagRegex, '').trim();
+    
+    // Clean up extra whitespace and line breaks
+    textWithoutHashtags = textWithoutHashtags
+      .replace(/\n\s*\n/g, '\n\n') // Normalize double line breaks
+      .replace(/\s+/g, ' ') // Normalize spaces
+      .trim();
+
+    return { text: textWithoutHashtags, hashtags };
+  };
+
+  const { text, hashtags } = formatContent(content);
 
   // Enhanced keyword extraction that prioritizes content relevance
   const extractKeywords = (text: string): string => {
-    console.log('[PREVIEW] Original content:', text);
+    console.log('[PREVIEW] Processing content for images:', text.substring(0, 100));
     
     // First, check for specific food/dessert terms and preserve exact phrases
     const foodPhrases = [
@@ -58,7 +82,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
     // Extract meaningful words from the main text
     const cleanText = text
       .toLowerCase()
-      .replace(hashtagRegex, '') 
       .replace(/[^\w\s]/g, ' ') 
       .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|a|an|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|get|make|take|go|come|see|know|think|say|want|use|work|try|ask|need|feel|become|leave|put|mean|keep|let|begin|seem|help|talk|turn|start|show|hear|play|run|move|live|believe|hold|bring|happen|write|provide|sit|stand|lose|pay|meet|include|continue|set|learn|change|lead|understand|watch|follow|stop|create|speak|read|allow|add|spend|grow|open|walk|win|offer|remember|love|consider|appear|buy|wait|serve|die|send|expect|build|stay|fall|cut|reach|kill|remain)\b/g, '')
       .trim();
@@ -87,7 +110,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
     return searchQuery.trim();
   };
 
-  const searchQuery = extractKeywords(content);
+  const searchQuery = extractKeywords(text);
   const { images, loading, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
 
   // Auto-fetch images when component mounts
@@ -115,6 +138,14 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
   const currentImage = images[selectedImageIndex];
   const thumbnailImages = images.slice(0, 4);
 
+  // Debug content state
+  console.log('[PREVIEW_DEBUG] Content state:', {
+    rawContent: content,
+    processedText: text,
+    hashtags: hashtags,
+    isEmpty: !text || text.trim() === ''
+  });
+
   return (
     <div className={cn('rounded-lg border-2 overflow-hidden shadow-sm', getPlatformStyle(), className)}>
       {/* Platform Header */}
@@ -141,9 +172,16 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
         {/* Text Content - Left 50% */}
         <div className="flex-1 p-4 space-y-3">
           <div className="prose prose-sm max-w-none">
-            <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-              {textWithoutHashtags}
-            </p>
+            {text && text.trim() !== '' ? (
+              <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                {text}
+              </p>
+            ) : (
+              <div className="text-gray-400 italic text-sm">
+                <p>Content is being generated...</p>
+                <p className="text-xs mt-1">Raw content: {content ? content.substring(0, 50) + '...' : 'No content'}</p>
+              </div>
+            )}
           </div>
 
           {/* Hashtags */}
