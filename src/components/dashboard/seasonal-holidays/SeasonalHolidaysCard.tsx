@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -225,10 +224,13 @@ export const SeasonalHolidaysCard = ({
   return (
     <>
       <div className={cn('space-y-6', className)}>
-        {/* Modern Header Section */}
+        {/* Header Section */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {/* Header content if needed */}
+          <div className="flex flex-col gap-2">
+            <HeadlineLarge>Seasonal Marketing Opportunities</HeadlineLarge>
+            <BodyMedium className="text-muted-foreground">
+              Upcoming holidays and seasonal events for your marketing calendar
+            </BodyMedium>
           </div>
         </div>
 
