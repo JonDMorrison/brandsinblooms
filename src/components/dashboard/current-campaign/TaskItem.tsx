@@ -1,5 +1,5 @@
 
-import { AccordionTaskItem } from "./AccordionTaskItem";
+import { EnhancedAccordionTaskItem } from "./EnhancedAccordionTaskItem";
 
 interface TaskItemProps {
   task: any;
@@ -9,7 +9,7 @@ interface TaskItemProps {
 
 export const TaskItem = ({ task, onClick, onTaskUpdate }: TaskItemProps) => {
   return (
-    <AccordionTaskItem
+    <EnhancedAccordionTaskItem
       task={task}
       onClick={onClick}
       onTaskUpdate={onTaskUpdate}

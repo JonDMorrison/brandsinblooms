@@ -1,0 +1,27 @@
+
+/* Swipeable List Styles */
+.swipeable-list-item {
+  @apply relative overflow-hidden;
+}
+
+.swipeable-list-item__content {
+  @apply bg-white dark:bg-gray-900 transition-transform duration-200;
+}
+
+.swipeable-list-item__trailing-actions {
+  @apply flex items-stretch;
+}
+
+.swipeable-list-item__trailing-actions > div {
+  @apply min-w-[60px] flex items-center justify-center;
+}
+
+/* Smooth transitions for swipe actions */
+.swipeable-list-item--swiped .swipeable-list-item__content {
+  @apply shadow-lg;
+}
+
+/* Ensure proper layering */
+.swipeable-list-item {
+  isolation: isolate;
+}

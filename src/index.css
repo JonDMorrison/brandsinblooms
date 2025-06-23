@@ -1,14 +1,68 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
-@import './styles/design-system.css';
-@import './styles/base.css';
-@import './styles/components.css';
-@import './styles/animations.css';
-@import './styles/apple-polish.css';
-@import './styles/responsive.css';
-@import './styles/mobile-overrides.css';
-@import './styles/global-overrides.css';
-@import './styles/dashboard.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+/* Import all style modules */
+@import "./styles/base.css";
+@import "./styles/components.css";
+@import "./styles/dashboard.css";
+@import "./styles/mobile-responsive.css";
+@import "./styles/animations.css";
+@import "./styles/apple-polish.css";
+@import "./styles/design-system.css";
+@import "./styles/responsive.css";
+@import "./styles/swipeable-list.css";
+
+/* Import all override modules */
+@import "./styles/overrides/yellow-amber-elimination.css";
+@import "./styles/overrides/component-overrides.css";
+@import "./styles/overrides/background-fixes.css";
+@import "./styles/overrides/css-variables-overrides.css";
+@import "./styles/overrides/svg-overrides.css";
+@import "./styles/overrides/inline-style-overrides.css";
+@import "./styles/overrides/fallback-overrides.css";
+@import "./styles/overrides/admin-table-fixes.css";
+@import "./styles/overrides/chat-widget-removal.css";
+
+/* Import mobile styles */
+@import "./styles/mobile/mobile-layout.css";
+@import "./styles/mobile/mobile-components.css";
+@import "./styles/mobile/mobile-typography.css";
+@import "./styles/mobile/mobile-buttons.css";
+@import "./styles/mobile/mobile-interactions.css";
+
+/* Additional mobile overrides */
+@import "./styles/mobile-layout.css";
+@import "./styles/mobile-components.css";
+@import "./styles/mobile-typography.css";
+@import "./styles/mobile-buttons.css";
+@import "./styles/mobile-interactions.css";
+@import "./styles/mobile-overrides.css";
+
+/* Dev debug styles */
+@import "./styles/dev-debug.css";
+
+/* Global overrides */
+@import "./styles/global-overrides.css";
+
+/* CSS Variables */
+:root {
+  /* Brand Colors */
+  --brand-green: 34 197 94;
+  --brand-blue: 37 99 235;
+  
+  /* Gray Scale */
+  --gray-50: 249 250 251;
+  --gray-100: 243 244 246;
+  --gray-200: 229 231 235;
+  --gray-700: 55 65 81;
+  
+  /* Status Chip Colors */
+  --chip-draft: 156 163 175;
+  --chip-generated: 34 197 94;
+  --chip-approved: 59 130 246;
+  --chip-scheduled: 168 85 247;
+  --chip-posted: 16 185 129;
+}
