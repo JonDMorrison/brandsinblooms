@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -432,16 +432,7 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </Badge>
         </div>
 
-        {/* Video Script Display - No image needed */}
-        <div className="aspect-video bg-gradient-to-br from-red-100 to-orange-100 rounded-lg mb-6 flex items-center justify-center border border-red-200">
-          <div className="text-center text-red-600">
-            <Video className="w-12 h-12 mx-auto mb-2" />
-            <p className="text-sm font-medium">90-Second Teaching Video</p>
-            <p className="text-xs">Single-person filming format</p>
-          </div>
-        </div>
-
-        {/* Script Content */}
+        {/* Script Content - No placeholder, directly show content */}
         <div className="space-y-3">
           {lines.map((line, index) => (
             <div key={index} className="flex gap-3">
