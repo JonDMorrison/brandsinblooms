@@ -105,13 +105,13 @@ ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
 
 6. INCLUDE A CLEAR, ALIGNED CTA: End with a single clear call-to-action that ties directly to the newsletter's main topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
 
-7. ANCHOR TIME WITHOUT WEEK NUMBERS: Avoid using week numbers entirely. Instead, reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…"
+7. ANCHOR TIME WITHOUT NUMBERED REFERENCES: Reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…" NEVER use any numbered week references.
 
 CRITICAL CONTENT RESTRICTIONS: 
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
-- ABSOLUTELY NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
+- ABSOLUTELY NEVER mention numbered weeks in the content (e.g., "Happy Week 23", "This is week 15", "Week 26", etc.)
 - ABSOLUTELY NEVER start with "Welcome to" language or similar generic openings
 - ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
 - ALWAYS start with a powerful, attention-grabbing hook that immediately engages the reader
@@ -135,13 +135,13 @@ ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
 
 6. INCLUDE A CLEAR, ALIGNED CTA: End with a single clear call-to-action that ties directly to the newsletter's main topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
 
-7. ANCHOR TIME WITHOUT WEEK NUMBERS: Avoid using week numbers entirely. Instead, reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…"
+7. ANCHOR TIME WITHOUT NUMBERED REFERENCES: Reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…" NEVER use any numbered week references.
 
 CRITICAL CONTENT RESTRICTIONS: 
 - ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
 - ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
 - ABSOLUTELY NEVER use dashes (-) to create lists
-- ABSOLUTELY NEVER mention week numbers in the content (e.g., "Happy Week 23", "This is week 15", etc.)
+- ABSOLUTELY NEVER mention numbered weeks in the content (e.g., "Happy Week 23", "This is week 15", "Week 26", etc.)
 - ABSOLUTELY NEVER start with "Welcome to" language or similar generic openings
 - ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
 - ALWAYS start with a powerful, attention-grabbing hook that immediately engages the reader
@@ -152,13 +152,13 @@ CRITICAL CONTENT RESTRICTIONS:
 `;
     }
 
-    const prompt = `You are a professional newsletter writer for a garden center with deep expertise in regional gardening differences across various climate zones and geographic areas. Create an engaging weekly newsletter that reflects the specific company's brand, personality, and most importantly their local region and climate conditions.
+    const prompt = `You are a professional newsletter writer for a garden center with deep expertise in regional gardening differences across various climate zones and geographic areas. Create an engaging newsletter that reflects the specific company's brand, personality, and most importantly their local region and climate conditions.
 
 ${companyContext}
 
 Campaign: ${campaignTitle}
 
-Content created this week:
+Content created for this campaign:
 ${contentSummary.map(item => `
 ${item.type.toUpperCase()}:
 Content: ${item.content}
@@ -166,8 +166,8 @@ Hashtags: ${item.hashtags}
 Image idea: ${item.imageIdea}
 `).join('\n')}
 
-Create a comprehensive weekly newsletter that:
-1. STARTS WITH A POWERFUL HOOK in both subject line and opening - NO "Welcome to" language or week number mentions
+Create a comprehensive newsletter that:
+1. STARTS WITH A POWERFUL HOOK in both subject line and opening - NO "Welcome to" language or numbered week mentions
 2. AGITATES BEFORE EDUCATING: Highlights common seasonal challenges or mistakes before providing solutions
 3. Uses SHORT PARAGRAPHS (2-3 sentences max) throughout for mobile readability
 4. Makes content VISUALLY SUGGESTIVE with descriptive language that creates mental pictures
@@ -178,17 +178,17 @@ Create a comprehensive weekly newsletter that:
 9. Incorporates their company values naturally
 10. References their location and seasonal focus with high specificity to their region
 11. Maintains their preferred tone of writing
-12. Highlights the week's main theme from the content
+12. Highlights the campaign's main theme from the content
 13. Includes practical gardening tips that are specifically relevant to their geographic location and climate zone
 14. Mentions seasonal activities and timing that's accurate for their specific region
 15. Addresses local gardening challenges and regional growing conditions
 16. References plants, techniques, and timing appropriate for their local hardiness zone
 17. Considers local weather patterns, soil conditions, and regional gardening culture
-18. Uses natural seasonal timing references instead of week numbers
+18. Uses natural seasonal timing references instead of any numbered references
 19. Ends with a personalized, SPECIFIC call-to-action that reflects their local community and provides clear next steps
 20. ABSOLUTELY NEVER uses "Green Thumbs", "green thumb", or any variation of this phrase
 21. ABSOLUTELY NEVER uses bullet points, numbered lists, or dashes - write in flowing paragraphs only
-22. ABSOLUTELY NEVER mentions week numbers in any form
+22. ABSOLUTELY NEVER mentions numbered weeks in any form (including "Week 26", "Week 15", etc.)
 23. ABSOLUTELY NEVER starts with "Welcome to" or similar generic openings
 24. ABSOLUTELY NEVER uses emojis anywhere in the content - keep all text completely emoji-free
 
@@ -199,7 +199,7 @@ Format the response as a JSON object with:
 
 The newsletter should be 400-600 words and feel personal, authentic, and highly relevant to this specific garden center and their local region/climate.`;
 
-    console.log('Generating personalized, region-specific newsletter with enhanced writing style');
+    console.log('Generating personalized, region-specific newsletter with enhanced writing style and NO week number references');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -210,7 +210,7 @@ The newsletter should be 400-600 words and feel personal, authentic, and highly 
       body: JSON.stringify({
         model: 'gpt-4o',
         messages: [
-          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. ENHANCED WRITING REQUIREMENTS: Always start with powerful hooks that create curiosity or urgency, never "Welcome to" or generic openings. Agitate before you educate by highlighting common challenges first. Use short paragraphs for mobile readability. Make language visually suggestive. Sound conversational like a local expert. End with clear, specific call-to-actions. Use natural seasonal timing references instead of week numbers. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention week numbers in any form in the content. ABSOLUTELY NEVER start with "Welcome to" or similar generic openings. ABSOLUTELY NEVER use emojis anywhere in the content - keep all text completely emoji-free. If you need to present multiple points, weave them naturally into paragraph form.' },
+          { role: 'system', content: 'You are a professional newsletter writer specializing in garden center communications with extensive knowledge of regional gardening differences across climate zones. Always respond with valid JSON and personalize content based on the company profile and location provided. Create region-specific content that reflects local growing conditions, seasonal timing, weather patterns, and gardening challenges specific to their geographic area. ENHANCED WRITING REQUIREMENTS: Always start with powerful hooks that create curiosity or urgency, never "Welcome to" or generic openings. Agitate before you educate by highlighting common challenges first. Use short paragraphs for mobile readability. Make language visually suggestive. Sound conversational like a local expert. End with clear, specific call-to-actions. Use natural seasonal timing references instead of any numbered references. CRITICAL RULES: ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase - this is completely forbidden. ABSOLUTELY NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) to create lists - write only in flowing paragraphs and natural sentences. ABSOLUTELY NEVER mention numbered weeks in any form in the content (including "Week 26", "Week 15", etc.). ABSOLUTELY NEVER start with "Welcome to" or similar generic openings. ABSOLUTELY NEVER use emojis anywhere in the content - keep all text completely emoji-free. If you need to present multiple points, weave them naturally into paragraph form.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -239,7 +239,7 @@ The newsletter should be 400-600 words and feel personal, authentic, and highly 
       };
     }
 
-    console.log('Generated enhanced newsletter with improved writing style:', newsletterData);
+    console.log('Generated enhanced newsletter with improved writing style and NO week number references:', newsletterData);
 
     return new Response(JSON.stringify(newsletterData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
