@@ -1,6 +1,5 @@
 
 import { ReactNode } from "react";
-import { AppleCard, AppleCardContent } from "@/components/ui/apple-card";
 import { AppSidebar } from "@/components/AppSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserMenu } from "@/components/UserMenu";
@@ -35,7 +34,7 @@ export const DashboardLayout = ({
         onboardingData={onboardingData}
         onBusinessNameChange={onBusinessNameChange}
       />
-      <main className={`flex-1 overflow-hidden relative w-full ${isMobile ? '' : 'dashboard-container'}`}>
+      <main className="flex-1 w-full h-full overflow-x-hidden">
         {/* UserMenu for non-home pages */}
         {!isHomePage && (
           <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
@@ -43,25 +42,8 @@ export const DashboardLayout = ({
           </div>
         )}
         
-        <div className={`
-          w-full mx-auto overflow-x-hidden
-          ${isMobile ? 'mobile-safe-area dashboard-container px-3' : 'py-4'}
-        `}>
-          <AppleCard 
-            variant="default" 
-            surface="primary" 
-            className={`
-              w-full border-0 shadow-none overflow-hidden
-              ${isMobile ? 'apple-card-mobile-optimized' : ''}
-            `}
-          >
-            <AppleCardContent className={`
-              w-full overflow-x-hidden
-              ${isMobile ? 'apple-card-content-mobile' : 'p-4'}
-            `}>
-              {children}
-            </AppleCardContent>
-          </AppleCard>
+        <div className="w-full h-full">
+          {children}
         </div>
       </main>
     </>

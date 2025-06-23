@@ -1,4 +1,3 @@
-
 import { ReactNode, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "react-router-dom";
@@ -105,11 +104,11 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full flex-col">
-        {/* Trial Banner - positioned to respect sidebar */}
+      <div className="min-h-screen w-full flex flex-col">
+        {/* Trial Banner */}
         <TrialBanner />
         
-        <div className="flex flex-1 min-h-0">
+        <div className="flex flex-1 w-full min-h-0 overflow-hidden">
           <DashboardLayout
             currentView={currentView}
             onViewChange={handleViewChange}
@@ -118,15 +117,12 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
             onCampaignCreated={handleCampaignCreated}
           >
             {isHomePage ? (
-              <div className="space-y-6 bg-white">
+              <div className="w-full h-full bg-garden-background">
                 <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
                   <UserMenu />
                 </div>
                 
-                <div className={`
-                  bg-white
-                  ${isMobile ? 'mobile-safe-area mobile-container-constraint' : 'responsive-padding'}
-                `}>
+                <div className="w-full h-full p-6">
                   {children}
                 </div>
               </div>

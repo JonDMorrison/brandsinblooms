@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -95,13 +94,11 @@ const Index = () => {
   }
 
   return (
-    <div className="w-full max-w-full overflow-x-hidden">
-      <DashboardContent
-        onboardingData={onboardingData}
-        onBusinessNameChange={handleBusinessNameChange}
-        onCampaignCreated={handleCampaignCreated}
-      />
-    </div>
+    <DashboardContent
+      onboardingData={onboardingData}
+      onBusinessNameChange={handleBusinessNameChange}
+      onCampaignCreated={handleCampaignCreated}
+    />
   );
 };
 
