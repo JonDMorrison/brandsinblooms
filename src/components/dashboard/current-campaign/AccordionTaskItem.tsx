@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
+import { normalizeTask } from "@/utils/normalizeTask";
 
 interface AccordionTaskItemProps {
   task: any;
@@ -30,45 +30,51 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
     return null;
   }
   
-  const { images, imageCount, loading: imagesLoading } = useTaskImages(task?.id);
+  // Normalize the task for consistent display
+  const normalizedTask = normalizeTask(task);
+  console.log('AccordionTaskItem: Normalized task:', normalizedTask.id, 'needs normalization:', JSON.stringify({
+    hasImagePrompts: !!normalizedTask.image_prompts?.length,
+    hasNormalized: !!normalizedTask.normalized,
+    hasTeaserHtml: !!normalizedTask.teaser_html
+  }));
+  
+  const { images, imageCount, loading: imagesLoading } = useTaskImages(normalizedTask?.id);
   const [approvingTask, setApprovingTask] = useState(false);
   const [deletingTask, setDeletingTask] = useState(false);
   const [retryingGeneration, setRetryingGeneration] = useState(false);
 
-  const statusConfig = getStatusConfig(task.status);
-  const hasContent = task.ai_output && task.ai_output.trim() !== '';
+  const statusConfig = getStatusConfig(normalizedTask.status);
+  const hasContent = normalizedTask.ai_output && normalizedTask.ai_output.trim() !== '';
   
-  // Check if this is a structured newsletter
-  const isStructuredNewsletter = task.post_type === 'newsletter' && hasContent && task.ai_output.includes('newsletter_md:');
+  // Check if this is a structured newsletter using normalized data
+  const isStructuredNewsletter = normalizedTask.post_type === 'newsletter' && 
+                                 hasContent && 
+                                 normalizedTask.normalized;
   
   let cleanContent = '';
   let previewText = '';
   
   if (hasContent) {
-    if (isStructuredNewsletter) {
-      // For structured newsletters, extract the markdown content for preview
-      const yamlMatch = task.ai_output.match(/newsletter_md:\s*\|\s*\n([\s\S]*?)(?=\nblocks:|$)/);
-      if (yamlMatch) {
-        cleanContent = yamlMatch[1].trim();
-        previewText = truncateText(cleanContent.replace(/[#*]/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
-      } else {
-        previewText = 'Structured newsletter content available...';
-      }
+    if (isStructuredNewsletter && normalizedTask.normalized) {
+      // For structured newsletters, use the newsletter_md content for preview
+      cleanContent = normalizedTask.normalized.newsletter_md || normalizedTask.ai_output;
+      previewText = truncateText(cleanContent.replace(/[#*]/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
     } else {
-      // Process content through the appropriate formatter
-      cleanContent = cleanContentForDisplay(task.ai_output, task.post_type);
+      // Use the normalized display content or fall back to processing
+      cleanContent = normalizedTask.display_content || cleanContentForDisplay(normalizedTask.ai_output, normalizedTask.post_type);
       previewText = truncateText(cleanContent.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(), 110, '…');
     }
   } else {
     previewText = 'Content will be generated soon...';
   }
   
-  // Extract blog metadata for enhanced display
-  const blogMetadata = task.post_type === 'blog' && hasContent ? extractBlogMetadata(cleanContent) : null;
+  // Extract blog metadata for enhanced display using normalized data
+  const blogMetadata = normalizedTask.post_type === 'blog' && hasContent ? 
+    extractBlogMetadata(cleanContent) : null;
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onClick(task);
+    onClick(normalizedTask);
   };
 
   const handleApprove = async (e: React.MouseEvent) => {
@@ -79,7 +85,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
       const { error } = await supabase
         .from('content_tasks')
         .update({ status: 'posted' })
-        .eq('id', task.id);
+        .eq('id', normalizedTask.id);
 
       if (error) {
         console.error('Error approving task:', error);
@@ -109,7 +115,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
       const { error } = await supabase
         .from('content_tasks')
         .delete()
-        .eq('id', task.id);
+        .eq('id', normalizedTask.id);
 
       if (error) {
         console.error('Error deleting task:', error);
@@ -136,20 +142,20 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
     }
   };
 
-  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review', 'posted'].includes(task.status) && task.ai_output;
-  const isApproved = task.status === 'posted';
+  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review', 'posted'].includes(normalizedTask.status) && normalizedTask.ai_output;
+  const isApproved = normalizedTask.status === 'posted';
 
   return (
     <Accordion type="multiple" className="w-full">
-      <AccordionItem value={task.id} className="border-gray-200 rounded-lg">
+      <AccordionItem value={normalizedTask.id} className="border-gray-200 rounded-lg">
         <AccordionTrigger className="px-4 py-3 hover:no-underline">
           <div className="flex flex-col w-full space-y-2">
             {/* First row - Platform chip and badges */}
             <div className="flex items-center justify-between w-full">
               {/* Left cluster - Platform chip with enhanced title */}
               <div className="flex items-center gap-3">
-                <PlatformChip postType={task.post_type} />
-                {task.post_type === 'blog' && blogMetadata?.title && (
+                <PlatformChip postType={normalizedTask.post_type} />
+                {normalizedTask.post_type === 'blog' && blogMetadata?.title && (
                   <span className="text-sm font-medium text-slate-700 truncate max-w-xs">
                     {blogMetadata.title}
                   </span>
@@ -191,17 +197,17 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
 
         <AccordionContent className="px-4 pb-4">
           <div className="space-y-4">
-            {/* Enhanced content display */}
+            {/* Enhanced content display using normalized data */}
             {hasContent && (
               <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                {task.post_type === 'blog' ? (
+                {normalizedTask.post_type === 'blog' ? (
                   <BlogPostLayout
                     title={blogMetadata?.title}
-                    companyName={task.campaigns?.company_profiles?.business_name}
+                    companyName={normalizedTask.campaigns?.company_profiles?.business_name}
                     content={cleanContent}
                     className="bg-white min-h-0"
                   />
-                ) : task.post_type === 'newsletter' ? (
+                ) : normalizedTask.post_type === 'newsletter' ? (
                   <div className="p-4 bg-gray-50">
                     <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
                       {cleanContent.replace(/<[^>]*>/g, '')}
@@ -217,13 +223,13 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
               </div>
             )}
 
-            {/* Image thumbnails */}
+            {/* Image thumbnails using normalized image prompts */}
             {hasContent && (
               <div>
                 <CompactImageCarousel 
-                  task={task}
-                  campaignTheme={task.campaigns?.theme}
-                  onShowAll={() => onClick(task)}
+                  task={normalizedTask}
+                  campaignTheme={normalizedTask.campaigns?.theme}
+                  onShowAll={() => onClick(normalizedTask)}
                 />
               </div>
             )}
@@ -262,7 +268,7 @@ export const AccordionTaskItem = ({ task, onClick, onTaskUpdate }: AccordionTask
                   />
                 )}
 
-                {task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
+                {normalizedTask.status === 'posted' && normalizedTask.post_type !== 'facebook' && normalizedTask.post_type !== 'instagram' && (
                   <Button
                     size="sm"
                     variant="outline"

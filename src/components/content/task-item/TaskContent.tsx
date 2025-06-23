@@ -1,4 +1,5 @@
 
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -8,6 +9,7 @@ import { NewsletterDisplay } from "@/components/newsletter/NewsletterDisplay";
 import { generatePersonalizedContent } from "@/components/homepage/ContentGenerationServices";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { normalizeTask } from "@/utils/normalizeTask";
 
 interface TaskContentProps {
   task: any;
@@ -17,11 +19,15 @@ interface TaskContentProps {
 
 export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: TaskContentProps) => {
   const [regenerating, setRegenerating] = useState(false);
-  const isGenerating = task.status === 'generating';
-  const isStuckGenerating = task.status === 'generating' && !task.ai_output;
+  
+  // Normalize the task for consistent display
+  const normalizedTask = normalizeTask(task);
+  
+  const isGenerating = normalizedTask.status === 'generating';
+  const isStuckGenerating = normalizedTask.status === 'generating' && !normalizedTask.ai_output;
 
   const handleRegenerateContent = async () => {
-    if (!task.campaigns?.title) {
+    if (!normalizedTask.campaigns?.title) {
       toast.error('Unable to regenerate - campaign information missing');
       return;
     }
@@ -31,10 +37,10 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       toast.loading('Regenerating content...', { id: 'regenerate' });
       
       const newContent = await generatePersonalizedContent(
-        task.post_type,
-        task.campaigns.title,
-        task.user_id,
-        task.campaigns.description
+        normalizedTask.post_type,
+        normalizedTask.campaigns.title,
+        normalizedTask.user_id,
+        normalizedTask.campaigns.description
       );
 
       const { error } = await supabase
@@ -43,7 +49,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
           ai_output: newContent,
           status: 'review'
         })
-        .eq('id', task.id);
+        .eq('id', normalizedTask.id);
 
       if (error) {
         throw error;
@@ -59,17 +65,17 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
     }
   };
 
-  if (task.ai_output) {
+  if (normalizedTask.ai_output) {
     // Check if this is a social media post for special preview handling
-    const isSocialMediaPost = task.post_type === 'instagram' || task.post_type === 'facebook';
+    const isSocialMediaPost = normalizedTask.post_type === 'instagram' || normalizedTask.post_type === 'facebook';
     
     if (isSocialMediaPost) {
       return (
         <div className="space-y-3">
           <SocialMediaPostPreview 
-            content={task.ai_output}
-            postType={task.post_type as 'instagram' | 'facebook'}
-            contentTaskId={task.id}
+            content={normalizedTask.ai_output}
+            postType={normalizedTask.post_type as 'instagram' | 'facebook'}
+            contentTaskId={normalizedTask.id}
           />
           <div className="flex justify-end">
             <Button
@@ -87,11 +93,11 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       );
     }
 
-    // Use NewsletterDisplay for all newsletter content
-    if (task.post_type === 'newsletter') {
+    // Use NewsletterDisplay for all newsletter content (now handles normalized data)
+    if (normalizedTask.post_type === 'newsletter') {
       return (
         <div className="space-y-3">
-          <NewsletterDisplay task={task} />
+          <NewsletterDisplay task={normalizedTask} />
           <div className="flex justify-end">
             <Button
               size="sm"
@@ -112,8 +118,8 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
     return (
       <div className="space-y-3">
         <MagazineContentDisplay 
-          content={task.ai_output}
-          postType={task.post_type}
+          content={normalizedTask.display_content || normalizedTask.ai_output}
+          postType={normalizedTask.post_type}
         />
         <div className="flex justify-end">
           <Button
@@ -137,7 +143,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-blue-800">
             <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-            <span className="text-sm">Generating {task.post_type} content...</span>
+            <span className="text-sm">Generating {normalizedTask.post_type} content...</span>
           </div>
           {isStuckGenerating && (
             <Button
