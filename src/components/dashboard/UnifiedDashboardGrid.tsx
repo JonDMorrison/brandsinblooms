@@ -38,18 +38,6 @@ export const UnifiedDashboardGrid = ({
         />
       </div>
 
-      {/* Ready to Post Section */}
-      <section className="ready-to-post-section">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Ready to Post</h2>
-          <p className="text-sm text-gray-600 mt-1">Approved content ready for publishing</p>
-        </div>
-        <ReadyToPostCard 
-          tasks={tasks}
-          onTaskUpdate={onTaskUpdate}
-        />
-      </section>
-
       {/* Custom Campaigns Section */}
       {userCreatedCampaigns.length > 0 && (
         <CustomContentSection
@@ -65,6 +53,18 @@ export const UnifiedDashboardGrid = ({
       <section className="seasonal-section card-shadow">
         <EnhancedSeasonalHolidaysCard
           onContentGenerated={onCampaignCreated}
+        />
+      </section>
+
+      {/* Ready to Post Section - Moved to bottom */}
+      <section className="ready-to-post-section">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Ready to Post</h2>
+          <p className="text-sm text-gray-600 mt-1">Approved content ready for publishing</p>
+        </div>
+        <ReadyToPostCard 
+          tasks={tasks}
+          onTaskUpdate={onTaskUpdate}
         />
       </section>
     </div>
