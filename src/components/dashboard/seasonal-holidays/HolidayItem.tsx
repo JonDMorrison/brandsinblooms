@@ -55,10 +55,6 @@ export const HolidayItem = ({
           />
           {holiday.holiday_name || holiday.theme}
         </CardTitle>
-        <p className="text-sm text-gray-500">
-          <Calendar className="w-4 h-4 mr-1 inline-block" />
-          {formatHolidayDate(holiday.holiday_date)}
-        </p>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
