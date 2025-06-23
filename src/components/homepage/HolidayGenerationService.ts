@@ -123,12 +123,12 @@ export async function generateHolidayContent(
 
       // Attach smart images to the task
       console.log(`🖼️ ${type.toUpperCase()} DEBUG: Attaching smart images`);
-      await attachImagesToTask(taskData);
+      const taskWithImage = await attachImagesToTask(taskData);
 
       // CRITICAL: Always set tenant_id for holiday tasks to ensure they appear in Ready to Post
       if (tenant?.id) {
-        taskData.tenant_id = tenant.id;
-        taskData.created_by_user_id = user.id;
+        taskWithImage.tenant_id = tenant.id;
+        taskWithImage.created_by_user_id = user.id;
         console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with tenant_id: ${tenant.id}`);
       } else {
         // Fallback: try to get tenant from user if not provided
@@ -139,30 +139,30 @@ export async function generateHolidayContent(
           .single();
         
         if (userTenant) {
-          taskData.tenant_id = userTenant.id;
-          taskData.created_by_user_id = user.id;
+          taskWithImage.tenant_id = userTenant.id;
+          taskWithImage.created_by_user_id = user.id;
           console.log(`📊 ${type.toUpperCase()} DEBUG: Using fallback tenant_id: ${userTenant.id}`);
         } else {
-          taskData.user_id = user.id;
+          taskWithImage.user_id = user.id;
           console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with user_id: ${user.id}`);
         }
       }
 
       console.log(`📊 ${type.toUpperCase()} DEBUG: Task data before insert:`, {
-        ...taskData,
-        ai_output_length: taskData.ai_output?.length,
-        has_image: !!taskData.image
+        ...taskWithImage,
+        ai_output_length: taskWithImage.ai_output?.length,
+        has_image: !!(taskWithImage as any).image
       });
 
       const { data: task, error } = await supabase
         .from('content_tasks')
-        .insert(taskData)
+        .insert(taskWithImage)
         .select()
         .single();
 
       if (error) {
         console.error(`❌ ${type.toUpperCase()} DEBUG: Database error creating task:`, error);
-        console.error(`❌ ${type.toUpperCase()} DEBUG: Failed task data:`, taskData);
+        console.error(`❌ ${type.toUpperCase()} DEBUG: Failed task data:`, taskWithImage);
         results.push({ type, success: false, error: error.message });
       } else {
         console.log(`✅ ${type.toUpperCase()} DEBUG: Created task successfully:`, task.id);
@@ -172,7 +172,7 @@ export async function generateHolidayContent(
           status: task.status,
           tenant_id: task.tenant_id,
           ai_output_length: task.ai_output?.length,
-          has_image: !!task.image,
+          has_image: !!(task as any).image,
           ai_output_preview: task.ai_output?.substring(0, 100)
         });
         results.push({ type, success: true, taskId: task.id });
