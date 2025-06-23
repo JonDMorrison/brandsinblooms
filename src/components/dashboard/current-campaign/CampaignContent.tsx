@@ -106,13 +106,12 @@ export const CampaignContent = ({
           <div className="space-y-4">
             {tasksWithContent.length > 0 && (
               <div className="space-y-3">
-                {campaignTasks.map((task, index) => (
+                {campaignTasks.map((task) => (
                   <TaskItem
                     key={task.id}
                     task={task}
                     onClick={() => onTaskClick(task)}
                     onTaskUpdate={onTaskUpdate}
-                    animationDelay={index * 100}
                   />
                 ))}
               </div>
