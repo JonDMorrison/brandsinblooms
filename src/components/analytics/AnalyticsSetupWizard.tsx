@@ -44,7 +44,7 @@ export const AnalyticsSetupWizard = () => {
       if (error) throw error;
 
       setSaved(true);
-      toast.success('Analytics settings saved successfully!');
+      toast.success('Analytics setup completed successfully!');
       
       // Reset saved state after 2 seconds
       setTimeout(() => setSaved(false), 2000);

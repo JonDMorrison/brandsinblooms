@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,7 +96,6 @@ export const AdminSettings = () => {
       }
 
       if (data && data[0]) {
-        toast.success(`Successfully uploaded ${file.name}`);
         setResources(prev => [data[0], ...prev]);
       }
       
@@ -120,7 +120,6 @@ export const AdminSettings = () => {
         throw error;
       }
 
-      toast.success(`Deleted ${name}`);
       setResources(prev => prev.filter(r => r.id !== id));
     } catch (error: any) {
       console.error('Delete error:', error);

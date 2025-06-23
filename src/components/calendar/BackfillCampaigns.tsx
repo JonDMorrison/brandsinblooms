@@ -173,7 +173,7 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
 
   const handleBackfillCampaigns = async () => {
     if (!user) {
-      toast.error('Please log in to generate campaigns');
+      toast.error('Please log in to continue');
       return;
     }
 
@@ -196,12 +196,7 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
           console.log('❌ Edge function failed, using fallback themes:', edgeError);
           const appError = handleError(edgeError, 'campaign generation');
           
-          if (appError.isNetworkError) {
-            toast.warning('Connection issue detected. Using built-in seasonal themes instead.');
-          } else {
-            toast.warning('Generation service unavailable. Using built-in seasonal themes instead.');
-          }
-          
+          // No toast notifications for connection issues per new requirements
           themes = generateFallbackThemes();
           usingFallback = true;
         }
@@ -217,12 +212,6 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
       console.log(`✅ Successfully saved ${savedCount} campaigns`);
       setCompleted(true);
       
-      const successMessage = usingFallback 
-        ? `🎉 Generated complete 52-week garden center marketing calendar using seasonal themes!`
-        : `🎉 Generated complete 52-week garden center marketing calendar!`;
-      
-      toast.success(successMessage);
-      
       // Call the completion callback after a short delay
       setTimeout(() => {
         onBackfillComplete();
@@ -230,9 +219,9 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
       
     } catch (error: any) {
       console.error('Error in backfill process:', error);
-      const errorMessage = error.message || 'Failed to generate campaigns';
+      const errorMessage = error.message || 'Failed to complete operation';
       setError(errorMessage);
-      toast.error(`Generation failed: ${errorMessage}`);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

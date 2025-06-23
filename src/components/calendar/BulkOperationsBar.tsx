@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Copy, Trash2, Calendar, Archive, X, CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface Campaign {
   id: number;
@@ -46,12 +45,10 @@ export const BulkOperationsBar = ({
 
       if (error) throw error;
 
-      toast.success(`✨ Duplicated ${selectedCampaigns.length} campaigns for next year`);
       onOperationComplete();
       onClearSelection();
     } catch (error) {
       console.error('Error duplicating campaigns:', error);
-      toast.error('Failed to duplicate campaigns');
     } finally {
       setIsLoading(false);
     }
@@ -71,12 +68,10 @@ export const BulkOperationsBar = ({
 
       if (error) throw error;
 
-      toast.success(`🗑️ Deleted ${selectedCampaigns.length} campaigns`);
       onOperationComplete();
       onClearSelection();
     } catch (error) {
       console.error('Error deleting campaigns:', error);
-      toast.error('Failed to delete campaigns');
     } finally {
       setIsLoading(false);
     }
@@ -88,7 +83,7 @@ export const BulkOperationsBar = ({
 
     const shiftAmount = parseInt(weeks);
     if (isNaN(shiftAmount)) {
-      toast.error('Please enter a valid number');
+      alert('Please enter a valid number');
       return;
     }
 
@@ -117,12 +112,10 @@ export const BulkOperationsBar = ({
         if (error) throw error;
       }
 
-      toast.success(`📅 Shifted ${selectedCampaigns.length} campaigns by ${shiftAmount} weeks`);
       onOperationComplete();
       onClearSelection();
     } catch (error) {
       console.error('Error shifting campaigns:', error);
-      toast.error('Failed to shift campaigns');
     } finally {
       setIsLoading(false);
     }

@@ -24,13 +24,12 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
   const generateFallbackThemes = () => {
     const fallbackThemes = getFallbackThemes();
     setGeneratedThemes(fallbackThemes);
-    toast.success(`Generated ${fallbackThemes.length} starter themes! You can customize these and generate more later.`);
     onThemesGenerated?.(fallbackThemes);
   };
 
   const generateWeeklyThemes = async (generateAll52Weeks: boolean = true) => {
     if (!user) {
-      toast.error('Please log in to generate themes');
+      toast.error('Please log in to continue');
       return;
     }
 
@@ -43,7 +42,6 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
       // If offline or previous network error, use fallback immediately
       if (!isOnline) {
         console.log('Offline detected, using fallback themes');
-        toast.info('You\'re offline. Using built-in seasonal themes.');
         generateFallbackThemes();
         return;
       }
@@ -63,7 +61,6 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
         
         if (appError.isNetworkError) {
           setNetworkError(true);
-          toast.warning('Network connection issue. Using starter themes while we resolve this.');
           if (generateAll52Weeks) {
             generateFallbackThemes();
           }
@@ -78,11 +75,10 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
         onThemesGenerated?.(data.themes);
         
         const themeCount = data.themes.length;
-        const message = generateAll52Weeks 
-          ? `Generated complete 52-week garden center theme collection!`
-          : `Generated ${themeCount} unique weekly themes!`;
-        
-        toast.success(message);
+        if (generateAll52Weeks) {
+          // Only show success toast for major generations - this is approved
+          toast.success(`Generated ${themeCount} unique weekly themes!`);
+        }
       } else {
         throw new Error('Invalid response format from theme generator');
       }
@@ -93,12 +89,11 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
       
       if (appError.isNetworkError) {
         setNetworkError(true);
-        toast.warning('Connection issue detected. Using starter themes instead.');
         if (generateAll52Weeks) {
           generateFallbackThemes();
         }
       } else {
-        toast.error(error.message || 'Failed to generate weekly themes');
+        toast.error('An unexpected error occurred');
       }
     } finally {
       setLoading(false);
@@ -134,11 +129,10 @@ export const useThemeGeneration = (onThemesGenerated?: (themes: WeeklyTheme[]) =
         throw new Error(error.message);
       }
 
-      toast.success(`${generatedThemes.length}-week campaign calendar created successfully!`);
       setGeneratedThemes([]);
     } catch (error: any) {
       console.error('Error saving campaigns:', error);
-      toast.error(error.message || 'Failed to save campaigns');
+      toast.error('An unexpected error occurred');
     } finally {
       setLoading(false);
     }
