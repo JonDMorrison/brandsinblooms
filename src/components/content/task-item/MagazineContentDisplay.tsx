@@ -11,9 +11,10 @@ interface MagazineContentDisplayProps {
 }
 
 interface ImageData {
-  url: string;
+  thumb_url: string;
   alt: string;
   photographer?: string;
+  id?: string;
 }
 
 // Utility function to convert markdown to HTML
@@ -107,13 +108,15 @@ const generateImagePrompt = (content: string, postType: string): string => {
 export const MagazineContentDisplay = ({ content, postType, className }: MagazineContentDisplayProps) => {
   const [image, setImage] = useState<ImageData | null>(null);
   const [loadingImage, setLoadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
-  // Fetch image for blog content only (removed video from image fetching)
+  // Fetch image for blog content only
   useEffect(() => {
     const fetchImage = async () => {
-      if (postType !== 'blog') return; // Only fetch images for blog content
+      if (postType !== 'blog') return;
       
       setLoadingImage(true);
+      setImageError(null);
       console.log(`[MAGAZINE_DISPLAY] Fetching image for ${postType} content`);
       
       try {
@@ -127,22 +130,55 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           }
         });
         
+        console.log(`[MAGAZINE_DISPLAY] Function response:`, { data, error });
+        
         if (error) {
-          console.log(`[MAGAZINE_DISPLAY] Unsplash API error for ${postType}:`, error.message);
+          console.log(`[MAGAZINE_DISPLAY] Supabase function error for ${postType}:`, error.message);
+          setImageError(error.message || 'Function call failed');
+          setImage(null);
+          return;
+        }
+        
+        if (!data) {
+          console.warn(`[MAGAZINE_DISPLAY] No data returned for ${postType}`);
+          setImageError('No data returned from function');
+          setImage(null);
+          return;
+        }
+        
+        if (data.error) {
+          console.error(`[MAGAZINE_DISPLAY] API error for ${postType}:`, data.error);
+          setImageError(data.error);
           setImage(null);
           return;
         }
         
         if (data?.images?.[0]) {
-          console.log(`[MAGAZINE_DISPLAY] Successfully fetched image for ${postType}`);
-          setImage({
-            url: data.images[0].thumb_url,
-            alt: data.images[0].alt || `${postType} content image`,
-            photographer: data.images[0].photographer
-          });
+          const imageData = data.images[0];
+          console.log(`[MAGAZINE_DISPLAY] Successfully fetched image for ${postType}:`, imageData);
+          
+          // Validate the image URL before setting
+          if (imageData.thumb_url && typeof imageData.thumb_url === 'string') {
+            setImage({
+              thumb_url: imageData.thumb_url,
+              alt: imageData.alt || `${postType} content image`,
+              photographer: imageData.photographer,
+              id: imageData.id || imageData.unsplash_id
+            });
+            console.log(`[MAGAZINE_DISPLAY] Image URL set to:`, imageData.thumb_url);
+          } else {
+            console.warn(`[MAGAZINE_DISPLAY] Invalid image URL for ${postType}:`, imageData);
+            setImageError('Invalid image URL received');
+            setImage(null);
+          }
+        } else {
+          console.warn(`[MAGAZINE_DISPLAY] No images in response for ${postType}. Response:`, data);
+          setImageError('No images found for query');
+          setImage(null);
         }
       } catch (error) {
-        console.error(`[MAGAZINE_DISPLAY] Error fetching image for ${postType}:`, error);
+        console.error(`[MAGAZINE_DISPLAY] Exception fetching image for ${postType}:`, error);
+        setImageError(error.message || 'Network error');
         setImage(null);
       } finally {
         setLoadingImage(false);
@@ -411,32 +447,42 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
         <div className="relative">
           {/* Floating Image - Top Right */}
           <div className="w-1/4 float-right ml-6 mb-4">
-            <div className="aspect-square bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200">
+            <div className="aspect-square bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200 overflow-hidden">
               {loadingImage ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin h-6 w-6 border-2 border-green-600 border-t-transparent rounded-full"></div>
                 </div>
-              ) : image ? (
-                <img
-                  src={image.url}
-                  alt={image.alt}
-                  className="w-full h-full object-cover rounded-lg"
-                  onError={(e) => {
-                    console.error('[BLOG] Image failed to load:', image.url);
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                  }}
-                />
+              ) : image?.thumb_url ? (
+                <>
+                  <img
+                    src={image.thumb_url}
+                    alt={image.alt}
+                    className="w-full h-full object-cover rounded-lg"
+                    onError={(e) => {
+                      console.error('[MAGAZINE_DISPLAY] Image failed to load:', image.thumb_url);
+                      console.error('[MAGAZINE_DISPLAY] Image error event:', e);
+                      setImageError('Image failed to load');
+                      setImage(null);
+                    }}
+                    onLoad={() => {
+                      console.log('[MAGAZINE_DISPLAY] Image loaded successfully:', image.thumb_url);
+                    }}
+                  />
+                  {image.photographer && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-2 py-1 opacity-0 hover:opacity-100 transition-opacity">
+                      Photo by {image.photographer}
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center text-green-600 p-2">
                   <ImageIcon className="w-6 h-6 mx-auto mb-1" />
-                  <p className="text-xs">Featured image</p>
-                </div>
-              )}
-              {image && (
-                <div className="hidden text-center text-green-600 p-2">
-                  <ImageIcon className="w-6 h-6 mx-auto mb-1" />
-                  <p className="text-xs">Image unavailable</p>
+                  <p className="text-xs">
+                    {imageError ? 'Image unavailable' : 'Featured image'}
+                  </p>
+                  {imageError && import.meta.env.DEV && (
+                    <p className="text-xs text-red-500 mt-1">{imageError}</p>
+                  )}
                 </div>
               )}
             </div>
