@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Home,
@@ -84,6 +85,11 @@ const AppSidebar: React.FC = () => {
       icon: LayoutDashboard,
     },
     {
+      title: "Social Media",
+      url: "/social",
+      icon: Share2,
+    },
+    {
       title: "Campaigns",
       url: "/campaigns",
       icon: ListChecks,
@@ -107,11 +113,6 @@ const AppSidebar: React.FC = () => {
       title: "Hashtag Generator",
       url: "/hashtag-generator",
       icon: BadgeCheck,
-    },
-    {
-      title: "Social Media",
-      url: "/social",
-      icon: Share2,
     },
     {
       title: "AI Tools",

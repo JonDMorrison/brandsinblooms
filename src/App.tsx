@@ -1,9 +1,9 @@
+
 import React, { useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import Auth from './pages/Auth';
-import Homepage from './pages/Homepage';
-import LandingPage from './pages/LandingPage';
+import { LandingPage } from './components/LandingPage';
 import PricingPage from './pages/PricingPage';
 import OnboardingPage from './pages/OnboardingPage';
 import SubscriptionSuccessPage from './pages/SubscriptionSuccessPage';
@@ -12,8 +12,7 @@ import { PublicRoute } from './components/PublicRoute';
 import { useSubscription } from './hooks/useSubscription';
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Analytics } from '@vercel/analytics/react';
-import { SocialPage } from './pages/SocialPage';
+import SocialPage from './pages/SocialPage';
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -44,19 +43,16 @@ function App() {
           <Route path="/subscription/success" element={<ProtectedRoute><SubscriptionSuccessPage /></ProtectedRoute>} />
           <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
           <Route path="/" element={
-            <Route>
-              {isAuthenticated ? (
-                <ProtectedRoute>
-                  <Homepage />
-                </ProtectedRoute>
-              ) : (
-                <LandingPage />
-              )}
-            </Route>
+            isAuthenticated ? (
+              <ProtectedRoute>
+                <div>Dashboard coming soon</div>
+              </ProtectedRoute>
+            ) : (
+              <LandingPage />
+            )
           } />
           <Route path="*" element={<div>Page not found</div>} />
         </Routes>
-      <Analytics />
     </ThemeProvider>
   );
 }

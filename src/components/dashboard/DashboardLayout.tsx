@@ -1,6 +1,6 @@
 
 import { ReactNode } from "react";
-import { AppSidebar } from "@/components/AppSidebar";
+import AppSidebar from "@/components/AppSidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserMenu } from "@/components/UserMenu";
 import { useLocation } from "react-router-dom";
@@ -28,12 +28,7 @@ export const DashboardLayout = ({
 
   return (
     <>
-      <AppSidebar
-        currentView={currentView}
-        onViewChange={onViewChange}
-        onboardingData={onboardingData}
-        onBusinessNameChange={onBusinessNameChange}
-      />
+      <AppSidebar />
       <main className="flex-1 w-full h-full overflow-x-hidden">
         {/* UserMenu for non-home pages */}
         {!isHomePage && (
