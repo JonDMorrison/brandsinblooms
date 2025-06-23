@@ -34,16 +34,13 @@ export const CampaignContentList = ({ tasks, onTaskClick, onTaskUpdate }: Campai
     <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
       <SwipeableList>
         {tasks.map((task, index) => (
-          <div key={task.id}>
-            <TaskItem
-              task={task}
-              onClick={onTaskClick}
-              onTaskUpdate={onTaskUpdate}
-            />
-            {index < tasks.length - 1 && (
-              <div className="border-t border-slate-100 dark:border-gray-700" />
-            )}
-          </div>
+          <TaskItem
+            key={task.id}
+            task={task}
+            onClick={onTaskClick}
+            onTaskUpdate={onTaskUpdate}
+            isFirst={index === 0}
+          />
         ))}
       </SwipeableList>
     </div>

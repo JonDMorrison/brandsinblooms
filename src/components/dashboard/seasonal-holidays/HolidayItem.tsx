@@ -3,9 +3,10 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Mail, Instagram, Facebook, Video, FileText, Sparkles, Eye } from "lucide-react";
+import { Sparkles, Eye, ChevronDownIcon } from "lucide-react";
 import { format } from "date-fns";
 import { DateCalendarIcon } from "./DateCalendarIcon";
+import { PostTypeAvatar } from "@/components/ui/post-type-avatar";
 
 interface HolidayItemProps {
   holiday: any;
@@ -13,6 +14,7 @@ interface HolidayItemProps {
   onViewContent: (holidayId: string, holidayName: string) => void;
   isGenerating: boolean;
   contentState?: any;
+  isFirst?: boolean;
 }
 
 export const HolidayItem = ({ 
@@ -20,7 +22,8 @@ export const HolidayItem = ({
   onGenerateContent, 
   onViewContent, 
   isGenerating, 
-  contentState 
+  contentState,
+  isFirst = false
 }: HolidayItemProps) => {
   const hasContent = contentState && contentState.contentCount > 0;
 
@@ -46,65 +49,87 @@ export const HolidayItem = ({
   };
 
   return (
-    <Card className="mb-4 hover:shadow-md transition-shadow">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <DateCalendarIcon 
-            dateString={holiday.holiday_date} 
-            className="w-10 h-10"
-          />
-          {holiday.holiday_name || holiday.theme}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
+    <div className={`
+      relative flex items-center w-full py-3 px-4 
+      hover:bg-slate-50/70 dark:hover:bg-slate-800/50
+      transition-colors duration-200
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-500/60 rounded-md
+      ${!isFirst ? 'before:border-t before:border-slate-100 dark:before:border-slate-700 before:absolute before:inset-x-0 before:top-0' : ''}
+    `}>
+      {/* Holiday Icon/Avatar */}
+      <div className="flex-shrink-0 mr-3">
+        <DateCalendarIcon 
+          dateString={holiday.holiday_date} 
+          className="w-9 h-9 sm:w-8 sm:h-8"
+        />
+      </div>
+      
+      {/* Holiday Name + Description */}
+      <div className="flex-1 min-w-0 text-left md:w-[45%]">
+        <div className="flex flex-col">
+          <span className="font-medium text-slate-900 dark:text-slate-100 mb-0.5">
+            {holiday.holiday_name || holiday.theme}
+          </span>
           {holiday.description && (
-            <p className="text-sm text-gray-600">{holiday.description}</p>
-          )}
-          
-          <div className="flex gap-2">
-            {!hasContent ? (
-              <Button
-                onClick={handleGenerateClick}
-                disabled={isGenerating}
-                className="flex items-center gap-2"
-                size="sm"
-              >
-                <Sparkles className="w-4 h-4" />
-                {isGenerating ? 'Generating...' : 'Generate Content'}
-              </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleViewClick}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Eye className="w-4 h-4" />
-                  View Content ({contentState.contentCount})
-                </Button>
-                <Button
-                  onClick={handleGenerateClick}
-                  disabled={isGenerating}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {isGenerating ? 'Regenerating...' : 'Regenerate'}
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {hasContent && (
-            <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-              ✓ Content ready for {contentState.contentCount} post{contentState.contentCount !== 1 ? 's' : ''}
-            </div>
+            <span className="text-sm text-slate-500 dark:text-slate-400 truncate">
+              {holiday.description}
+            </span>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+      
+      {/* Meta Cluster - Status and Date */}
+      <div className="hidden md:flex items-center gap-2 text-xs mr-3">
+        {hasContent && (
+          <Badge variant="success" className="text-xs">
+            {contentState.contentCount} post{contentState.contentCount !== 1 ? 's' : ''}
+          </Badge>
+        )}
+        
+        <span className="text-slate-300 dark:text-slate-600">•</span>
+        
+        <span className="text-slate-400 dark:text-slate-500">
+          {formatHolidayDate(holiday.holiday_date)}
+        </span>
+      </div>
+      
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        {!hasContent ? (
+          <Button
+            onClick={handleGenerateClick}
+            disabled={isGenerating}
+            size="sm"
+            variant="ghost"
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          >
+            <Sparkles className="w-3 h-3" />
+            {isGenerating ? 'Generating...' : 'Generate'}
+          </Button>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              onClick={handleViewClick}
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              <Eye className="w-3 h-3" />
+              View ({contentState.contentCount})
+            </Button>
+            <Button
+              onClick={handleGenerateClick}
+              disabled={isGenerating}
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+            >
+              <Sparkles className="w-3 h-3" />
+              {isGenerating ? 'Regenerating...' : 'Regenerate'}
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };

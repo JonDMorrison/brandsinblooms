@@ -1,13 +1,14 @@
 
 import React from "react";
 import { Disclosure } from '@headlessui/react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { getThumbnail } from '@/utils/getThumbnail';
 import { TaskSwipeActions } from './TaskSwipeActions';
 import { TaskItemContent } from './TaskItemContent';
 import { TaskItemActions } from './TaskItemActions';
 import { StatusBadge } from '@/components/ui/status-badge';
+import { PostTypeAvatar } from '@/components/ui/post-type-avatar';
+import { MetaBadges } from '@/components/ui/meta-badges';
 import { isSupportedPostType, truncateText } from "@/utils/contentUtils";
 import { normalizeTask } from "@/utils/normalizeTask";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,9 +30,10 @@ interface EnhancedAccordionTaskItemProps {
   task: any;
   onClick: (task: any) => void;
   onTaskUpdate?: () => void;
+  isFirst?: boolean;
 }
 
-export const EnhancedAccordionTaskItem = ({ task, onClick, onTaskUpdate }: EnhancedAccordionTaskItemProps) => {
+export const EnhancedAccordionTaskItem = ({ task, onClick, onTaskUpdate, isFirst = false }: EnhancedAccordionTaskItemProps) => {
   const { user } = useAuth();
   
   // Don't render unsupported post types
@@ -65,14 +67,13 @@ export const EnhancedAccordionTaskItem = ({ task, onClick, onTaskUpdate }: Enhan
   // Prepare badges (max 2 visible)
   const badges = [];
   if (isPreview && isDeveloper) {
-    badges.push({ label: 'DEV preview', variant: 'preview' as const });
+    badges.push({ label: 'DEV preview', variant: 'preview' });
   }
   if (isStructuredNewsletter) {
-    badges.push({ label: 'Structured', variant: 'structured' as const });
+    badges.push({ label: 'Structured', variant: 'structured' });
   }
-  
-  const visibleBadges = badges.slice(0, 2);
-  const hasMoreBadges = badges.length > 2;
+
+  const timeAgo = formatDistanceToNowStrict(new Date(normalizedTask.created_at), { addSuffix: true });
 
   return (
     <SwipeableListItem 
@@ -87,72 +88,59 @@ export const EnhancedAccordionTaskItem = ({ task, onClick, onTaskUpdate }: Enhan
       <Disclosure as="div" className="w-full accordion-row">
         {({ open }) => (
           <>
-            <Disclosure.Button className="flex items-center w-full py-3 px-4 hover:bg-slate-50 dark:hover:bg-gray-800 transition-all duration-200 accordion-row-button">
-              {/* Avatar/Thumbnail - 40x40 */}
+            <Disclosure.Button className={`
+              relative flex items-center w-full py-3 px-4 
+              hover:bg-slate-50/70 dark:hover:bg-slate-800/50
+              transition-colors duration-200
+              focus-visible:outline focus-visible:outline-2 focus-visible:outline-green-500/60 rounded-md
+              ${!isFirst ? 'before:border-t before:border-slate-100 dark:before:border-slate-700 before:absolute before:inset-x-0 before:top-0' : ''}
+            `}>
+              {/* Post Type Avatar */}
               <div className="flex-shrink-0 mr-3">
-                <img 
-                  src={getThumbnail(normalizedTask)} 
-                  alt={`${normalizedTask.post_type} thumbnail`}
-                  className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-gray-700 ring-1 ring-slate-200 dark:ring-gray-600"
-                  onError={(e) => {
-                    e.currentTarget.src = getThumbnail({ post_type: normalizedTask.post_type });
-                  }}
-                />
+                <PostTypeAvatar type={normalizedTask.post_type} />
               </div>
               
-              {/* Title + Preview (flex-1) */}
-              <div className="flex-1 min-w-0 text-left">
-                <h3 className="text-sm font-medium text-slate-900 dark:text-gray-100 capitalize mb-0.5">
-                  {normalizedTask.post_type}
-                </h3>
-                <p className="text-sm text-slate-500 dark:text-gray-400 line-clamp-1">
-                  {previewText}
-                </p>
+              {/* Title + Preview */}
+              <div className="flex-1 min-w-0 text-left md:w-[45%]">
+                <div className="flex flex-col">
+                  <span className="font-medium text-slate-900 dark:text-slate-100 capitalize mb-0.5">
+                    {normalizedTask.post_type}
+                  </span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                    {previewText}
+                  </span>
+                </div>
               </div>
               
-              {/* Badge Stack - Desktop */}
-              <div className="hidden md:flex items-center gap-1.5 mx-3">
-                {visibleBadges.map((badge, index) => (
-                  <StatusBadge key={index} variant={badge.variant}>
-                    {badge.label}
-                  </StatusBadge>
-                ))}
-                {hasMoreBadges && (
-                  <span className="text-xs text-slate-400">+{badges.length - 2}</span>
-                )}
-              </div>
+              {/* Meta Cluster */}
+              <MetaBadges 
+                badges={badges}
+                wordCount={wordCount}
+                timeAgo={timeAgo}
+                className="mr-3"
+              />
               
-              {/* Meta Info */}
-              <div className="hidden sm:flex items-center gap-3 text-xs text-slate-400 dark:text-gray-500 mr-3">
-                <span>
-                  {wordCount > 0 ? `${wordCount} words` : '—'}
-                </span>
-                <span>
-                  {formatDistanceToNowStrict(new Date(normalizedTask.created_at), { addSuffix: true })}
-                </span>
+              {/* Mobile badges (below title) - only show when needed */}
+              <div className="md:hidden absolute left-16 top-14">
+                <div className="flex items-center gap-1.5">
+                  {badges.slice(0, 2).map((badge, index) => (
+                    <StatusBadge key={index} variant={badge.variant as any}>
+                      {badge.label}
+                    </StatusBadge>
+                  ))}
+                  {badges.length > 2 && (
+                    <span className="text-xs text-slate-400">+{badges.length - 2}</span>
+                  )}
+                </div>
               </div>
               
               {/* Chevron */}
-              <ChevronDown 
-                className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${
+              <ChevronDownIcon 
+                className={`w-5 h-5 text-slate-400 dark:text-slate-500 transition-transform duration-200 ${
                   open ? 'rotate-180' : ''
                 }`} 
               />
             </Disclosure.Button>
-
-            {/* Badge Stack - Mobile (below title) */}
-            <div className="md:hidden px-4 pb-2">
-              <div className="flex items-center gap-1.5">
-                {visibleBadges.map((badge, index) => (
-                  <StatusBadge key={index} variant={badge.variant}>
-                    {badge.label}
-                  </StatusBadge>
-                ))}
-                {hasMoreBadges && (
-                  <span className="text-xs text-slate-400">+{badges.length - 2}</span>
-                )}
-              </div>
-            </div>
 
             <Disclosure.Panel className="accordion-content transition-all duration-300 ease-in-out overflow-hidden">
               <div className={`mx-4 mb-4 rounded-xl border border-garden-green/30 bg-gradient-to-t from-[#F9FFFA] to-white dark:from-gray-800 dark:to-gray-900 shadow-sm px-5 py-4 ${open ? 'accordion-row--open' : ''}`}>
@@ -164,7 +152,7 @@ export const EnhancedAccordionTaskItem = ({ task, onClick, onTaskUpdate }: Enhan
                     </h3>
                     <div className="flex flex-wrap items-center gap-2">
                       {badges.map((badge, index) => (
-                        <StatusBadge key={index} variant={badge.variant}>
+                        <StatusBadge key={index} variant={badge.variant as any}>
                           {badge.label}
                         </StatusBadge>
                       ))}
@@ -172,7 +160,7 @@ export const EnhancedAccordionTaskItem = ({ task, onClick, onTaskUpdate }: Enhan
                   </div>
                   <div className="text-right text-xs text-slate-400 dark:text-gray-500">
                     <div>{wordCount > 0 ? `${wordCount} words` : '—'}</div>
-                    <div>{formatDistanceToNowStrict(new Date(normalizedTask.created_at), { addSuffix: true })}</div>
+                    <div>{timeAgo}</div>
                   </div>
                 </div>
                 

@@ -1,4 +1,3 @@
-
 /* General Component Styles */
 .container {
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
@@ -262,7 +261,7 @@
 }
 
 .accordion-row-button {
-  @apply focus:outline-none focus:ring-2 focus:ring-garden-green/20 focus:ring-offset-2;
+  @apply focus:outline-none;
 }
 
 .accordion-row--open {
@@ -273,22 +272,9 @@
   @apply will-change-transform;
 }
 
-/* Enhanced status badge overflow handling */
-.badge-stack {
-  @apply flex items-center gap-1.5 max-w-32 overflow-hidden;
-}
-
-.badge-stack .status-badge:nth-child(n+3) {
-  @apply hidden;
-}
-
 /* Responsive accordion adjustments */
 @media (max-width: 640px) {
   .accordion-row-button {
     @apply py-2 px-3;
-  }
-  
-  .accordion-row-button img {
-    @apply w-8 h-8;
   }
 }
