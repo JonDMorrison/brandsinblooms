@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Leaf, Mail, Instagram, Facebook, Video, FileText, Sparkles, Eye } from "lucide-react";
+import { Calendar, Mail, Instagram, Facebook, Video, FileText, Sparkles, Eye } from "lucide-react";
 import { format } from "date-fns";
 
 interface HolidayItemProps {
@@ -48,7 +48,11 @@ export const HolidayItem = ({
     <Card className="mb-4 hover:shadow-md transition-shadow">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Leaf className="w-5 h-5 text-green-500" />
+          <img 
+            src="/lovable-uploads/d9c172a4-01fd-413e-9000-3a0ff4aec72a.png" 
+            alt="Calendar icon" 
+            className="w-5 h-5"
+          />
           {holiday.holiday_name || holiday.theme}
         </CardTitle>
         <p className="text-sm text-gray-500">
