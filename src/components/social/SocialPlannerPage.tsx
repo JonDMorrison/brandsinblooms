@@ -187,14 +187,6 @@ export const SocialPlannerPage = () => {
     <SocialErrorBoundary>
       <div className="container mx-auto px-4 py-8">
         <div className="space-y-12">
-          {/* Show cleanup utility if needed */}
-          {showCleanup && (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-orange-700">Account Cleanup Required</h2>
-              <ProfileCleanupUtility />
-            </div>
-          )}
-
           {/* Connections Section */}
           <SocialConnectionsSection 
             connections={connections}
@@ -219,8 +211,16 @@ export const SocialPlannerPage = () => {
             </div>
           )}
 
-          {/* Token Meter - Moved to bottom */}
+          {/* Token Meter */}
           <TokenMeter />
+
+          {/* Profile Cleanup Utility - Moved to bottom */}
+          {showCleanup && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-orange-700">Account Cleanup Required</h2>
+              <ProfileCleanupUtility />
+            </div>
+          )}
 
           {/* New Post Modal */}
           <NewPostModal
