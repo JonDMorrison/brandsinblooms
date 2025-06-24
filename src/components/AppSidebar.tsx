@@ -88,7 +88,12 @@ const AppSidebar: React.FC = () => {
   return (
     <div className="w-64 flex-shrink-0 border-r bg-secondary">
       <div className="flex h-16 items-center px-4">
-        <NavLink to="/" className="font-semibold">
+        <NavLink to="/" className="font-semibold flex items-center gap-2">
+          <img 
+            src="/lovable-uploads/d9c172a4-01fd-413e-9000-3a0ff4aec72a.png" 
+            alt="BloomSuite Logo" 
+            className="h-6 w-6" 
+          />
           BloomSuite
         </NavLink>
       </div>
