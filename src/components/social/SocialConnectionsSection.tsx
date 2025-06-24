@@ -2,7 +2,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SocialConnectionCard } from './SocialConnectionCard';
-import { ConnectMetaButton } from './ConnectMetaButton';
 import { AlertCircle, Wifi } from 'lucide-react';
 
 interface SocialConnectionsSectionProps {
@@ -50,11 +49,6 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
             isConnected={false}
             onConnect={handleConnect}
           />
-        </div>
-
-        {/* Connect Button */}
-        <div className="flex justify-center">
-          <ConnectMetaButton onSuccess={onConnectionSuccess} />
         </div>
 
         {/* Help Text */}
@@ -106,16 +100,6 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
           onConnect={handleConnect}
         />
       </div>
-
-      {/* Add More Connections */}
-      {connections.length > 0 && (
-        <div className="text-center">
-          <ConnectMetaButton onSuccess={onConnectionSuccess} />
-          <p className="text-sm text-gray-500 mt-2">
-            Connect additional Facebook Pages or Instagram accounts
-          </p>
-        </div>
-      )}
     </div>
   );
 };
