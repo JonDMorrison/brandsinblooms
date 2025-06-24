@@ -1,5 +1,7 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { attachImagesToTask } from "@/services/contentGenerationHelpers";
+import { transformCampaignTitle, cleanContentFromWeekReferences } from "@/utils/campaignTitleUtils";
 
 export const generatePersonalizedContent = async (
   postType: string,
@@ -8,17 +10,18 @@ export const generatePersonalizedContent = async (
   campaignDescription?: string
 ): Promise<string> => {
   console.log(`🔧 CONTENT_GEN DEBUG: Starting generation for ${postType.toUpperCase()}`);
-  console.log(`🔧 CONTENT_GEN DEBUG: Campaign: "${campaignTitle}"`);
-  console.log(`🔧 CONTENT_GEN DEBUG: User ID: ${userId}`);
-  console.log(`🔧 CONTENT_GEN DEBUG: Description: "${campaignDescription}"`);
+  
+  // Transform campaign title to remove week references
+  const cleanTitle = transformCampaignTitle(campaignTitle);
+  console.log(`🔧 CONTENT_GEN DEBUG: Transformed title from "${campaignTitle}" to "${cleanTitle}"`);
 
   if (postType === 'video') {
     console.log(`🎬 CONTENT_GEN DEBUG: Detected video type, calling generateVideoScript`);
     try {
-      const result = await generateVideoScript(campaignTitle, userId, campaignDescription);
-      console.log(`🎬 CONTENT_GEN DEBUG: Video script generated, length: ${result?.length || 0}`);
-      console.log(`🎬 CONTENT_GEN DEBUG: Video script preview: ${result?.substring(0, 150)}...`);
-      return result;
+      const result = await generateVideoScript(cleanTitle, userId, campaignDescription);
+      const cleanedResult = cleanContentFromWeekReferences(result);
+      console.log(`🎬 CONTENT_GEN DEBUG: Video script generated and cleaned, length: ${cleanedResult?.length || 0}`);
+      return cleanedResult;
     } catch (error) {
       console.error(`🎬 CONTENT_GEN ERROR: Video script generation failed:`, error);
       throw error;
@@ -27,7 +30,8 @@ export const generatePersonalizedContent = async (
 
   if (postType === 'newsletter') {
     console.log(`📧 CONTENT_GEN DEBUG: Detected newsletter type, calling generateNewsletterContent`);
-    return generateNewsletterContent('', campaignTitle, 0, userId, campaignDescription);
+    const result = await generateNewsletterContent('', cleanTitle, 0, userId, campaignDescription);
+    return cleanContentFromWeekReferences(result);
   }
 
   console.log(`📝 CONTENT_GEN DEBUG: Using standard content generation for ${postType}`);
@@ -36,7 +40,7 @@ export const generatePersonalizedContent = async (
     const { data, error } = await supabase.functions.invoke('generate-content', {
       body: {
         postType,
-        campaignTitle,
+        campaignTitle: cleanTitle,
         userId,
         campaignDescription
       }
@@ -52,8 +56,9 @@ export const generatePersonalizedContent = async (
       throw new Error('No content generated');
     }
 
-    console.log(`📝 CONTENT_GEN DEBUG: ${postType} content generated successfully, length: ${data.content.length}`);
-    return data.content;
+    const cleanedContent = cleanContentFromWeekReferences(data.content);
+    console.log(`📝 CONTENT_GEN DEBUG: ${postType} content generated and cleaned successfully, length: ${cleanedContent.length}`);
+    return cleanedContent;
   } catch (error) {
     console.error(`📝 CONTENT_GEN ERROR: Exception in generatePersonalizedContent for ${postType}:`, error);
     throw error;
@@ -66,14 +71,15 @@ export const generateVideoScript = async (
   weekDescription?: string
 ): Promise<string> => {
   console.log(`🎬 VIDEO_SCRIPT DEBUG: Starting video script generation`);
-  console.log(`🎬 VIDEO_SCRIPT DEBUG: Campaign: "${campaignTitle}"`);
-  console.log(`🎬 VIDEO_SCRIPT DEBUG: User ID: ${userId}`);
-  console.log(`🎬 VIDEO_SCRIPT DEBUG: Week description: "${weekDescription}"`);
+  
+  // Transform title to remove week references
+  const cleanTitle = transformCampaignTitle(campaignTitle);
+  console.log(`🎬 VIDEO_SCRIPT DEBUG: Using cleaned title: "${cleanTitle}"`);
 
   try {
     const { data, error } = await supabase.functions.invoke('generate-video-script', {
       body: {
-        campaignTitle,
+        campaignTitle: cleanTitle,
         userId,
         weekDescription
       }
@@ -86,22 +92,14 @@ export const generateVideoScript = async (
 
     if (!data?.script) {
       console.error(`🎬 VIDEO_SCRIPT ERROR: No script returned from function`);
-      console.error(`🎬 VIDEO_SCRIPT ERROR: Function response data:`, data);
       throw new Error('No video script generated');
     }
 
-    console.log(`🎬 VIDEO_SCRIPT DEBUG: Script generated successfully`);
-    console.log(`🎬 VIDEO_SCRIPT DEBUG: Script length: ${data.script.length}`);
-    console.log(`🎬 VIDEO_SCRIPT DEBUG: Script preview: ${data.script.substring(0, 200)}...`);
-
-    return data.script;
+    const cleanedScript = cleanContentFromWeekReferences(data.script);
+    console.log(`🎬 VIDEO_SCRIPT DEBUG: Script generated and cleaned successfully`);
+    return cleanedScript;
   } catch (error) {
     console.error(`🎬 VIDEO_SCRIPT ERROR: Exception in generateVideoScript:`, error);
-    console.error(`🎬 VIDEO_SCRIPT ERROR: Error details:`, {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
     throw error;
   }
 };
@@ -115,16 +113,17 @@ export const generateNewsletterContent = async (
   description?: string
 ): Promise<string> => {
   console.log(`📧 NEWSLETTER DEBUG: Generating newsletter content`);
-  console.log(`📧 NEWSLETTER DEBUG: Campaign: "${campaignTitle}"`);
-  console.log(`📧 NEWSLETTER DEBUG: Week: ${weekNumber}`);
-  console.log(`📧 NEWSLETTER DEBUG: User ID: ${userId}`);
+  
+  // Transform title to remove week references
+  const cleanTitle = transformCampaignTitle(campaignTitle);
+  console.log(`📧 NEWSLETTER DEBUG: Using cleaned title: "${cleanTitle}"`);
 
   try {
     const { data, error } = await supabase.functions.invoke('generate-newsletter', {
       body: {
         newsletterType,
-        campaignTitle,
-        weekNumber,
+        campaignTitle: cleanTitle,
+        weekNumber: 0, // Always use 0 to avoid week number references
         userId,
         description
       }
@@ -140,8 +139,9 @@ export const generateNewsletterContent = async (
       throw new Error('No newsletter content generated');
     }
 
-    console.log(`📧 NEWSLETTER DEBUG: Newsletter generated successfully, length: ${data.content.length}`);
-    return data.content;
+    const cleanedContent = cleanContentFromWeekReferences(data.content);
+    console.log(`📧 NEWSLETTER DEBUG: Newsletter generated and cleaned successfully, length: ${cleanedContent.length}`);
+    return cleanedContent;
   } catch (error) {
     console.error(`📧 NEWSLETTER ERROR: Exception in generateNewsletterContent:`, error);
     throw error;
@@ -158,16 +158,16 @@ export const generateCampaignContent = async (
   tenantId?: string
 ): Promise<{ success: boolean; message?: string; tasks?: any[] }> => {
   console.log(`🚀 CAMPAIGN_GEN DEBUG: Starting campaign content generation`);
-  console.log(`🚀 CAMPAIGN_GEN DEBUG: Campaign ID: ${campaignId}`);
-  console.log(`🚀 CAMPAIGN_GEN DEBUG: Title: "${campaignTitle}"`);
-  console.log(`🚀 CAMPAIGN_GEN DEBUG: User ID: ${userId}`);
-  console.log(`🚀 CAMPAIGN_GEN DEBUG: Tenant ID: ${tenantId}`);
+  
+  // Transform title to remove week references
+  const cleanTitle = transformCampaignTitle(campaignTitle);
+  console.log(`🚀 CAMPAIGN_GEN DEBUG: Using cleaned title: "${cleanTitle}"`);
 
   try {
     const { data, error } = await supabase.functions.invoke('generate_campaign_content', {
       body: {
         campaign_id: campaignId,
-        campaign_title: campaignTitle,
+        campaign_title: cleanTitle,
         description,
         user_id: userId,
         week_number: weekNumber,
@@ -180,21 +180,25 @@ export const generateCampaignContent = async (
       return { success: false, message: error.message };
     }
 
-    // Attach images to generated tasks
+    // Attach images to generated tasks and clean content
     if (data?.tasks && Array.isArray(data.tasks)) {
-      console.log(`🖼️ CAMPAIGN_GEN DEBUG: Attaching images to ${data.tasks.length} tasks`);
+      console.log(`🖼️ CAMPAIGN_GEN DEBUG: Processing ${data.tasks.length} tasks`);
       
       for (const task of data.tasks) {
         try {
+          // Clean any week references from generated content
+          if (task.ai_output) {
+            task.ai_output = cleanContentFromWeekReferences(task.ai_output);
+          }
+          
           await attachImagesToTask(task);
         } catch (imageError) {
-          console.warn(`🖼️ CAMPAIGN_GEN WARN: Failed to attach image to task ${task.id}:`, imageError);
-          // Continue without failing the entire process
+          console.warn(`🖼️ CAMPAIGN_GEN WARN: Failed to process task ${task.id}:`, imageError);
         }
       }
     }
 
-    console.log(`🚀 CAMPAIGN_GEN DEBUG: Campaign content generated successfully`);
+    console.log(`🚀 CAMPAIGN_GEN DEBUG: Campaign content generated and cleaned successfully`);
     return { success: true, tasks: data?.tasks || [] };
   } catch (error) {
     console.error(`🚀 CAMPAIGN_GEN ERROR: Exception in generateCampaignContent:`, error);

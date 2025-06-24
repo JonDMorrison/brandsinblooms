@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { transformCampaignTitle, cleanContentFromWeekReferences } from "@/utils/campaignTitleUtils";
 
 export interface PromoItem {
   name: string;
@@ -18,25 +19,29 @@ export const generateStructuredNewsletter = async (
 ) => {
   console.log(`🎯 Generating 4-section structured newsletter for campaign: ${campaignTitle}`);
   
+  // Transform title to remove week references
+  const cleanTitle = transformCampaignTitle(campaignTitle);
+  console.log(`🎯 Using cleaned title: "${cleanTitle}"`);
+  
   try {
     console.log('📡 Calling generate-structured-newsletter function for 4-section format');
 
-    // Determine if this is a holiday or weekly theme based on week number
+    // Determine if this is a holiday or seasonal theme
     const isHoliday = weekNumber === 0;
     const focusDescription = isHoliday 
-      ? weekDescription || `Special ${campaignTitle} content for garden centers`
-      : weekDescription || `Week ${weekNumber} focus`;
+      ? weekDescription || `Special ${cleanTitle} content for garden centers`
+      : weekDescription || `Seasonal focus on ${cleanTitle}`;
 
     const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {
       body: {
         business_name: '', // Will be filled from company profile
-        theme: campaignTitle,
+        theme: cleanTitle,
         week_focus: focusDescription,
         promo_items: promoItems,
         tone_note: toneNote || '',
         userId: userId,
         is_holiday: isHoliday,
-        holiday_context: isHoliday ? campaignTitle : undefined
+        holiday_context: isHoliday ? cleanTitle : undefined
       }
     });
 
@@ -52,8 +57,11 @@ export const generateStructuredNewsletter = async (
       throw new Error('No structured newsletter content returned');
     }
 
+    // Clean any remaining week references from the content
+    const cleanedContent = cleanContentFromWeekReferences(content);
+
     // Validate that the content has the expected 4-section structure
-    const blockMatches = content.match(/- title:/g);
+    const blockMatches = cleanedContent.match(/- title:/g);
     const blockCount = blockMatches ? blockMatches.length : 0;
     
     if (blockCount !== 4) {
@@ -62,7 +70,7 @@ export const generateStructuredNewsletter = async (
       console.log(`✅ Generated 4-section structured newsletter successfully`);
     }
 
-    return content;
+    return cleanedContent;
   } catch (error) {
     console.error('❌ Error in generateStructuredNewsletter:', error);
     throw error;
