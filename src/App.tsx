@@ -8,6 +8,7 @@ import PricingPage from './pages/PricingPage';
 import OnboardingPage from './pages/OnboardingPage';
 import SubscriptionSuccessPage from './pages/SubscriptionSuccessPage';
 import Index from './pages/Index';
+import CalendarPage from './pages/CalendarPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
 import { OnboardingGuard } from './components/OnboardingGuard';
@@ -56,6 +57,15 @@ function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
           <Route path="/subscription/success" element={<ProtectedRoute><SubscriptionSuccessPage /></ProtectedRoute>} />
+          <Route path="/calendar" element={
+            <ProtectedRoute>
+              <OnboardingGuard>
+                <SidebarLayout>
+                  <CalendarPage />
+                </SidebarLayout>
+              </OnboardingGuard>
+            </ProtectedRoute>
+          } />
           <Route path="/social" element={
             <ProtectedRoute>
               <OnboardingGuard>
