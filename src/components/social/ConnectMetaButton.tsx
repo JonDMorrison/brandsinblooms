@@ -40,8 +40,15 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
       const redirectUri = `${window.location.origin}/auth/callback`;
       
-      // Use the Facebook App ID from the environment
-      const clientId = '1051205399952993'; // Your Facebook App ID
+      // Use a test Facebook App ID - in production this should come from environment
+      const clientId = '1234567890123456'; // This needs to be replaced with actual Facebook App ID
+      
+      console.log('Initiating OAuth with:', {
+        clientId,
+        redirectUri,
+        scopes,
+        state
+      });
       
       const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
       authUrl.searchParams.set('client_id', clientId);
@@ -49,6 +56,8 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       authUrl.searchParams.set('scope', scopes);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('state', state);
+      
+      console.log('Redirecting to:', authUrl.toString());
       
       // Redirect to Facebook OAuth
       window.location.href = authUrl.toString();

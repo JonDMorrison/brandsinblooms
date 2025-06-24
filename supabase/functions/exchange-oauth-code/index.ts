@@ -14,6 +14,8 @@ serve(async (req) => {
   try {
     const { code, state, redirect_uri } = await req.json()
     
+    console.log('OAuth exchange request:', { code: code ? 'present' : 'missing', state, redirect_uri })
+    
     // Get user from auth header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -39,26 +41,41 @@ serve(async (req) => {
     const clientSecret = Deno.env.get('FB_CLIENT_SECRET')
 
     if (!clientId || !clientSecret) {
-      throw new Error('Facebook/Instagram app credentials not configured')
+      console.error('Missing Facebook credentials:', { 
+        clientId: clientId ? 'present' : 'missing', 
+        clientSecret: clientSecret ? 'present' : 'missing' 
+      })
+      throw new Error('Facebook/Instagram app credentials not configured. Please check your environment variables.')
     }
 
     console.log('Starting OAuth token exchange for user:', user.id)
+    console.log('Using client ID:', clientId)
 
     // Exchange authorization code for access token
+    const tokenParams = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirect_uri,
+      code: code,
+    })
+
+    console.log('Token exchange parameters:', {
+      client_id: clientId,
+      redirect_uri: redirect_uri,
+      code: code ? 'present' : 'missing'
+    })
+
     const tokenResponse = await fetch('https://graph.facebook.com/v19.0/oauth/access_token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirect_uri,
-        code: code,
-      })
+      body: tokenParams
     })
 
     const tokenData = await tokenResponse.json()
+    console.log('Token response status:', tokenResponse.status)
+    console.log('Token response:', tokenData)
 
     if (!tokenResponse.ok) {
       console.error('Token exchange failed:', tokenData)
@@ -66,6 +83,10 @@ serve(async (req) => {
     }
 
     const accessToken = tokenData.access_token
+    if (!accessToken) {
+      throw new Error('No access token received from Facebook')
+    }
+
     console.log('Successfully obtained access token')
 
     // Get user info and pages/accounts
