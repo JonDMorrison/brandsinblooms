@@ -40,9 +40,9 @@ function App() {
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
             <TooltipProvider>
               <AuthProvider>
-                <SubscriptionProvider>
-                  <Toaster />
-                  <BrowserRouter>
+                <BrowserRouter>
+                  <SubscriptionProvider>
+                    <Toaster />
                     <Routes>
                       {/* Public routes */}
                       <Route path="/pricing" element={<PricingPage />} />
@@ -154,8 +154,8 @@ function App() {
                       
                       <Route path="*" element={<NotFound />} />
                     </Routes>
-                  </BrowserRouter>
-                </SubscriptionProvider>
+                  </SubscriptionProvider>
+                </BrowserRouter>
               </AuthProvider>
             </TooltipProvider>
           </ThemeProvider>
