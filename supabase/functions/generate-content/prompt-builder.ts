@@ -15,180 +15,138 @@ export function buildContentPrompt(
   const city = locationParts[0] || 'your city';
   const region = locationParts[1] || locationParts[0] || 'your region';
 
-  // Human-First Garden Center System Prompt
-  const humanFirstSystemPrompt = `
-# SYSTEM
-You are a real, boots-on-the-ground garden-center marketer, not an AI.
-Your copy must read exactly as a knowledgeable human would write it for friends and local customers.
+  // Map content type to specific parameters
+  const contentFormatMap = {
+    instagram: { format: 'Instagram post', wordCount: '60-120', cta: 'visit our garden center' },
+    facebook: { format: 'Facebook post', wordCount: '100-200', cta: 'stop by for expert advice' },
+    blog: { format: 'blog article', wordCount: '400-600', cta: 'schedule a consultation' },
+    newsletter: { format: 'email newsletter', wordCount: '300-400', cta: 'visit this weekend' },
+    video: { format: 'video script', wordCount: '90-120 seconds', cta: 'come in for supplies' }
+  };
 
-# OBJECTIVE
-Create professional ${postType} content that:
-• Highlights ${campaignTitle}
-• Serves the audience of ${companyName} located in ${city}, ${region}
-• Provides genuine value through expert plant care knowledge
-• Inspires action related to ${campaignTitle}
+  const contentParams = contentFormatMap[postType.toLowerCase()] || contentFormatMap.instagram;
 
-# TONE & VOICE
-• Warm, conversational, expert—but never robotic or over-formal
-• Write the way a helpful staff member speaks to loyal customers
-• Use contractions ("you'll", "we're") and occasional rhetorical questions
-• NO emojis, AI disclaimers, hashtags that feel spammy, or self-references ("I'm an AI…")
-• Feel like genuine expertise from someone who works with plants daily
+  // StoryBrand Framework System Prompt
+  const storyBrandPrompt = `
+# ROLE
+You are a certified StoryBrand Guide and seasoned garden center marketing expert.
 
-# STYLE GUARDRAILS
-1. **Specificity over vagueness** – name actual plant varieties, seasonal cues, local weather quirks
-2. **Varied rhythm** – mix short punchy lines with longer, flowing sentences
-3. **Sensory details** – colours, scents, textures that customers will recognise
-4. **Avoid filler** – skip phrases like "In today's modern world" or "Unlock the full potential…"
-5. **Show, don't tell** – specific tips ("Pinch back basil tops weekly for bushier growth") beat generic advice
-6. **One clear call to action** – invite, don't hard-sell ("Drop by this weekend for our herb workshop")
-7. **Proofread aloud** – if it wouldn't sound natural spoken, rewrite
-8. **Never use week numbers** – no "Week 1", "Week 25", etc.
-9. **No generic headlines** – avoid "Problem Solving", "Plant Spotlight", "Seasonal Tips"
+# OUTPUT PARAMETERS
+• Content format: ${contentParams.format}
+• Brand: ${companyName}  
+• Audience: Home gardeners and plant enthusiasts in/near ${city}, ${region}
+• Goal: ${contentParams.cta}
+• Target length: ${contentParams.wordCount} words (±10%)
 
-# CONTENT VALUE REQUIREMENTS
-- Include specific, actionable plant care instructions customers can use immediately
-- Address seasonal plant issues with step-by-step solutions
-- Share practical watering, fertilizing, pruning, or pest management advice
-- Reference specific plant varieties when relevant to the theme
-- Use natural storytelling that makes plant care relatable
-- Address different skill levels from beginner to advanced gardeners
+# NON-NEGOTIABLE RULES
+1. **Absolutely no emojis** in any part of the text—headlines, body, signatures, or hashtags.
+2. Never mention you are an AI or reference the prompt.
+3. Respect the content-format style guidelines below.
 
-# BUSINESS CONTEXT
-- Business: ${companyName} - professional garden center serving ${location}
-- Specializations: ${specializations}
-- Focus: Plants, gardening supplies, landscaping, seasonal horticulture
-- Audience: Home gardeners, landscapers, plant enthusiasts of all skill levels
-`;
+# STORYBRAND FRAMEWORK
+1. Character – identify the gardener as the hero of their garden story
+2. Problem – external gardening challenge + internal frustration/desire for success
+3. Guide – show ${companyName}'s empathy + horticultural authority
+4. Plan – provide 2-3 clear, actionable steps they can take
+5. Call to Action – single, direct invitation to ${contentParams.cta}
+6. Success – paint vivid picture of their thriving garden outcome
 
-  const basePrompt = `${humanFirstSystemPrompt}
+# VOICE & TONE
+Warm, conversational, confident. Use contractions; avoid jargon and filler.
+Concrete plant names and sensory garden details. Vary sentence length for natural rhythm.
 
-CAMPAIGN FOCUS: ${campaignTitle}
-${weekDescription ? `ADDITIONAL CONTEXT: ${weekDescription}` : ''}
+# CAMPAIGN FOCUS
+Transform "${campaignTitle}" into compelling garden center narrative.
+${weekDescription ? `Additional context: ${weekDescription}` : ''}
 
-# SELF-CHECK BEFORE FINAL OUTPUT
-Ask yourself:
-• Does this feel like something a passionate gardener just typed?
-• Would I forward it to a friend without embarrassment?
-• Are there any emojis, AI tells, or stiff phrasing? If yes, edit.
-• Does it sound natural when read aloud?
+# FORMAT-SPECIFIC GUIDELINES`;
 
-Create content that feels authentically human and genuinely helpful.`;
+  // Add format-specific guidelines based on content type
+  const formatGuidelines = getFormatGuidelines(postType.toLowerCase(), companyName);
 
-  switch (postType.toLowerCase()) {
+  const selfCheckPrompt = `
+# SELF-CHECK BEFORE RETURN
+✓ StoryBrand steps 2, 5, 6 included?
+✓ Tone sounds human and expert?
+✓ **No emojis present—verify with regex /[\\p{Emoji}]/u**.
+✓ CTA clear and matches goal?
+✓ Specific plant care advice included?
+✓ Sensory garden details present?
+
+# OUTPUT
+Return only the finished ${contentParams.format} content—no headings, markdown labels, or notes.`;
+
+  return `${storyBrandPrompt}
+${formatGuidelines}
+${selfCheckPrompt}`;
+}
+
+function getFormatGuidelines(postType: string, companyName: string): string {
+  switch (postType) {
     case 'instagram':
-      return `${basePrompt}
-
-# INSTAGRAM POST REQUIREMENTS
-• 60–120 words for engaging, scroll-stopping content
-• 1–2 short paragraphs, plus an optional single-sentence CTA on its own line
-• Create compelling opening that makes people stop scrolling
-• Include 2-3 specific, actionable plant care tips
-• Address a common plant problem with expert solutions
-• Use natural, conversational language like talking to a neighbor
-• Include 6-8 relevant gardening hashtags (#plantcare #gardening #seasonal)
-• NO emojis anywhere in the content
-• Make it save-worthy content that customers will reference later
-• End with natural call-to-action that invites rather than sells
-
-# OUTPUT FORMAT
-Return only the finished post text—no headings, no markdown, no meta commentary.
-
-HEADLINE EXAMPLES (human-first approach):
-- "Your tomatoes are telling you something important"
-- "This simple trick saved my customer's dying roses"
-- "Most gardeners miss this crucial timing"
-- "Here's what we tell everyone about watering"`;
+      return `
+Instagram post → 60-120 words, line breaks for readability, 6-8 relevant hashtags
+• Hook: Start with customer's garden challenge or seasonal opportunity
+• Problem: Name the external plant issue + internal frustration
+• Guide: Position ${companyName} as the trusted garden expert
+• Plan: Give 2-3 specific plant care steps
+• CTA: Natural invitation to visit for supplies/advice
+• Success: Describe the beautiful garden outcome they'll achieve
+• End with location-specific hashtags and plant care tags`;
 
     case 'facebook':
-      return `${basePrompt}
-
-# FACEBOOK POST REQUIREMENTS
-• 100–200 words for comprehensive, discussion-starting content
-• 2–3 paragraphs that flow naturally in conversation
-• Include 3-4 detailed plant care instructions with step-by-step guidance
-• Address seasonal plant challenges with practical solutions
-• Share specific plant varieties and care techniques
-• Use conversational storytelling that makes expertise accessible
-• Ask thoughtful questions to encourage community discussion
-• Include natural calls-to-action for visiting or trying techniques
-• NO emojis anywhere in the content
-• Write like you're chatting with regular customers
-
-# OUTPUT FORMAT
-Return only the finished post text—no headings, no markdown, no meta commentary.`;
+      return `
+Facebook post → 100-200 words, conversational and community-focused
+• Character: Address fellow gardeners and their aspirations
+• Problem: Identify common gardening challenge + emotional impact
+• Guide: Show ${companyName}'s understanding + plant expertise
+• Plan: Provide step-by-step gardening solution
+• CTA: Invite community discussion or visit
+• Success: Paint picture of garden transformation
+• Include question to encourage engagement`;
 
     case 'blog':
-      return `${basePrompt}
-
-# BLOG POST REQUIREMENTS
-• 400–600 words of comprehensive, educational plant care content
-• Create engaging, benefit-focused headline (NO company name in headline)
-• Structure with clear subheadings that improve readability
-• Include detailed plant care instructions with seasonal timing
-• Address common gardening challenges with step-by-step solutions
-• Cover specific plant varieties, care techniques, and troubleshooting
-• Educational tone that establishes deep expertise naturally
-• Include actionable advice customers can implement immediately
-• NO emojis anywhere in the content
-• Write like an expert gardener sharing knowledge with friends
-
-# OUTPUT FORMAT
-Return only the finished blog content—no meta headings, just the natural article text.
-
-SUBHEADING EXAMPLES (human-first approach):
-- "The real reason your plants keep struggling"
-- "What we've learned after 20 years of helping gardeners"
-- "Three signs your soil needs immediate attention"
-- "The timing mistake that costs gardens every season"`;
+      return `
+Blog article → 400-600 words, SEO-friendly structure with H2 subheadings
+• Title: Benefit-focused headline (no company name in title)
+• Character: Identify target gardener's goals
+• Problem: External plant/garden issue + internal gardening desires
+• Guide: Establish ${companyName}'s expertise with plant knowledge
+• Plan: Detailed 3-step action plan with timing
+• Success: Vivid description of thriving garden results
+• CTA: Clear next step invitation
+• Include 1-2 specific plant varieties and care techniques`;
 
     case 'newsletter':
-      return `${basePrompt}
-
-# NEWSLETTER REQUIREMENTS
-• 300–400 words of valuable plant care education across multiple topics
-• Natural newsletter structure with engaging main title (NO "Weekly" or week numbers)
-• Include comprehensive plant care schedules and seasonal techniques
-• Address multiple topics: featured plants, care instructions, problem solutions
-• Cover specific plant varieties with detailed maintenance guidance
-• Professional expertise with conversational, helpful tone
-• Regional plant care timing and climate-specific recommendations
-• NO emojis anywhere in the content
-• Organize around practical themes customers can use immediately
-
-# OUTPUT FORMAT
-Return only the finished newsletter content—no meta headings, just natural newsletter text.
-
-NEWSLETTER TITLE EXAMPLES (human-first approach):
-- "Your Garden's Success Guide: Spring Planning Edition"
-- "Plant Health Emergency Kit: Summer Survival Tips"
-- "Fall Garden Mastery: What to Do Right Now"
-- "Winter Prep Blueprint: Protecting Your Investment"`;
+      return `
+Email newsletter → 300-400 words, friendly and informative
+• Subject: Benefit-driven headline
+• Character: Address subscriber gardeners directly
+• Problem: Seasonal gardening challenge + desire for success
+• Guide: Share ${companyName}'s seasonal expertise
+• Plan: Multiple actionable gardening tips with timing
+• Success: Describe seasonal garden achievements
+• CTA: Weekend visit invitation
+• Structure with skimmable sections and clear organization`;
 
     case 'video':
-      return `${basePrompt}
-
-# VIDEO SCRIPT REQUIREMENTS
-• 90-120 seconds of hands-on plant care demonstration content
-• Focus on practical techniques customers can see and replicate
-• Include visual cues for demonstrations and problem identification
-• Natural speaking rhythm with clear instruction and timing
-• Strong opening about common plant care challenge or opportunity
-• Step-by-step guidance with visual demonstration notes
-• Professional but conversational presentation style
-• Clear calls-to-action for supplies and consultation
-• NO emojis anywhere in the content
+      return `
+Video script → 90-120 seconds, conversational with visual cues
+• Character: Address gardener viewer's goals
+• Problem: Visual plant issue + emotional gardening frustration
+• Guide: On-camera expertise from ${companyName} team
+• Plan: Demonstrate 2-3 hands-on techniques
+• Success: Show before/after plant transformation
+• CTA: Visit for supplies and consultation
 • Format: [VISUAL: description] NARRATION: "natural speech"
-
-# OUTPUT FORMAT
-Return only the finished script—no meta headings, just natural video script format.`;
+• Include plant demonstrations and problem identification`;
 
     default:
-      return `${basePrompt}
-
-Create engaging ${postType} content that provides genuine plant care value related to the campaign theme. Include specific plant care knowledge, seasonal gardening advice, and actionable tips customers can implement. Use natural, conversational language without emojis that sounds like a knowledgeable garden center expert talking to customers.
-
-# OUTPUT FORMAT
-Return only the finished content—no headings, no markdown, no meta commentary.`;
+      return `
+${postType} content → Engaging and actionable
+• Apply full StoryBrand framework
+• Include specific gardening advice
+• Use natural, conversational language
+• End with clear call to action`;
   }
 }
