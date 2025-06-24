@@ -126,9 +126,6 @@ export const SocialPlannerPage = () => {
           </p>
         </div>
 
-        {/* Token Meter */}
-        <TokenMeter />
-
         {/* Connections Section */}
         <SocialConnectionsSection 
           connections={connections}
@@ -152,6 +149,9 @@ export const SocialPlannerPage = () => {
             <PostList posts={posts} onRefresh={loadData} />
           </div>
         )}
+
+        {/* Token Meter - Moved to bottom */}
+        <TokenMeter />
 
         {/* New Post Modal */}
         <NewPostModal
