@@ -91,7 +91,11 @@ export const AuthCallbackPage = () => {
           const successMessage = data.message || 'Successfully connected to Meta platform!';
           setMessage(successMessage);
           toast.success(successMessage);
-          setTimeout(() => navigate('/social'), 2000);
+          
+          // SET FLAG FOR POST-CONNECTION FLOW
+          sessionStorage.setItem('oauth_just_completed', 'true');
+          
+          setTimeout(() => navigate('/'), 2000);
         } else {
           throw new Error(data?.error || 'Failed to connect - no success response');
         }

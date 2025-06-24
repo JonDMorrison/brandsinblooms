@@ -10,6 +10,8 @@ import { ContentViewer } from "@/components/content/ContentViewer";
 import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostItem";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
+import { FirstTimeConnectionCallout } from "./ready-to-post/FirstTimeConnectionCallout";
+import { PostNowButton } from "./ready-to-post/PostNowButton";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -24,9 +26,56 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
   const [tasks, setTasks] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
+  const [showFirstTimeCallout, setShowFirstTimeCallout] = useState(false);
+  const [socialConnections, setSocialConnections] = useState<any[]>([]);
 
   // Use environment-based detection instead of hardcoded email
   const isDevelopment = import.meta.env.DEV;
+
+  // Check for first-time connection callout
+  useEffect(() => {
+    const checkFirstTimeConnection = () => {
+      const oauthCompleted = sessionStorage.getItem('oauth_just_completed');
+      const hasSeenCallout = localStorage.getItem(`first_time_callout_seen_${user?.id}`);
+      
+      if (oauthCompleted === 'true' && !hasSeenCallout && tasks.length > 0) {
+        setShowFirstTimeCallout(true);
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+          setShowFirstTimeCallout(false);
+          if (user) {
+            localStorage.setItem(`first_time_callout_seen_${user.id}`, 'true');
+          }
+        }, 10000);
+      }
+    };
+
+    checkFirstTimeConnection();
+  }, [tasks, user]);
+
+  // Fetch social connections
+  useEffect(() => {
+    const fetchSocialConnections = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('social_connections')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Error fetching social connections:', error);
+        } else {
+          setSocialConnections(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching social connections:', error);
+      }
+    };
+
+    fetchSocialConnections();
+  }, [user]);
 
   useEffect(() => {
     const fetchReadyTasks = async () => {
@@ -183,7 +232,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         className="apple-empty-state apple-hover-premium"
         hoverEffect="none"
         animated={true}
-        data-ready-to-post-section="true"
+        data-section="ready-to-post-section"
       >
         <AppleCardContent className={`
           text-center apple-section-spacing
@@ -215,6 +264,9 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     task.status === 'preview' || task.campaigns?.title?.startsWith('PREVIEW')
   );
 
+  const facebookConnection = socialConnections.find(conn => conn.platform === 'facebook');
+  const instagramConnection = socialConnections.find(conn => conn.platform === 'instagram');
+
   return (
     <>
       <EnhancedAppleCard 
@@ -223,9 +275,12 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         hoverEffect="subtle"
         animated={true}
         className={`shadow-lg ${isMobile ? 'mobile-constrained' : ''}`}
-        data-ready-to-post-section="true"
+        data-section="ready-to-post-section"
       >
         <AppleCardContent className="apple-card-spacing">
+          {/* First Time Connection Callout */}
+          <FirstTimeConnectionCallout isVisible={showFirstTimeCallout} />
+          
           {isDevelopment && hasPreviewContent && (
             <div className="mb-4 flex justify-center">
               <DevPreviewBadge show={true} />
@@ -236,6 +291,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
               <div 
                 key={task.id}
                 style={{ animationDelay: `${index * 75}ms` }}
+                className="relative"
               >
                 <AccordionReadyToPostItem
                   task={task}
@@ -243,6 +299,32 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
                   onTaskUpdate={onTaskUpdate}
                   isFirst={index === 0}
                 />
+                
+                {/* Post Now Buttons for first item when showing callout */}
+                {index === 0 && showFirstTimeCallout && (
+                  <div className="mt-3 flex gap-2 justify-end">
+                    {facebookConnection && (
+                      <PostNowButton
+                        task={task}
+                        platform="facebook"
+                        onSuccess={() => {
+                          setShowFirstTimeCallout(false);
+                          if (onTaskUpdate) onTaskUpdate();
+                        }}
+                      />
+                    )}
+                    {instagramConnection && (
+                      <PostNowButton
+                        task={task}
+                        platform="instagram"
+                        onSuccess={() => {
+                          setShowFirstTimeCallout(false);
+                          if (onTaskUpdate) onTaskUpdate();
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

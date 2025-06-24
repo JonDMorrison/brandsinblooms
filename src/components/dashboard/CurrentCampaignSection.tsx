@@ -1,17 +1,16 @@
-
-import { useAuth } from "@/contexts/AuthContext";
-import { ContentViewer } from "@/components/content/ContentViewer";
-import { useCurrentCampaignSection } from "./current-campaign/useCurrentCampaignSection";
-import { NoUserState } from "./current-campaign/NoUserState";
-import { NoCampaignStateCard } from "./current-campaign/NoCampaignStateCard";
-import { CampaignLoadingState } from "./current-campaign/CampaignLoadingState";
-import { CampaignContent } from "./current-campaign/CampaignContent";
-import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CampaignContent } from "./CampaignContent";
+import { WeeklyContentUpdater } from "./WeeklyContentUpdater";
+import { WeeklyContentExplanation } from "./WeeklyContentExplanation";
+import { ManualContentGenerator } from "@/components/content/ManualContentGenerator";
+import { useCurrentCampaignSection } from "./useCurrentCampaignSection";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
+import { WeeklyContentBanner } from "./current-campaign/WeeklyContentBanner";
 
 interface CurrentCampaignSectionProps {
   activeCampaign: any;
@@ -34,15 +33,30 @@ export const CurrentCampaignSection = ({
   const { tenant } = useTenant();
   const [refreshing, setRefreshing] = useState(false);
   
-  const {
+  const { 
     tasks: hookTasks,
-    tasksCount,
-    loading,
-    selectedTask,
-    showContentViewer,
+    tasksCount, 
+    loading, 
+    selectedTask, 
+    showContentViewer, 
+    isDevelopment, 
+    usesTenantModel,
     handleTaskClick,
     handleContentViewerClose
   } = useCurrentCampaignSection(activeCampaign, tasks);
+
+  const showWeeklyBanner = activeCampaign && (
+    sessionStorage.getItem('oauth_just_completed') === 'true' || 
+    tasks.some(task => task.status === 'review')
+  );
+
+  const handleReviewApprove = () => {
+    // Scroll to review section or open review modal
+    const firstReviewTask = tasks.find(task => task.status === 'review');
+    if (firstReviewTask && onTaskClick) {
+      onTaskClick(firstReviewTask);
+    }
+  };
 
   const handleRefreshContent = async () => {
     if (!activeCampaign || !user) {
@@ -50,23 +64,9 @@ export const CurrentCampaignSection = ({
       return;
     }
 
-    // Confirm with user before overwriting content
-    const hasExistingContent = hookTasks.some(task => task.ai_output && task.ai_output.trim() !== '');
-    
-    if (hasExistingContent) {
-      const confirmed = window.confirm(
-        'This will replace all existing content with new generated content. Are you sure you want to continue?'
-      );
-      if (!confirmed) {
-        return;
-      }
-    }
-
     setRefreshing(true);
     
     try {
-      toast.loading('Regenerating all campaign content...', { id: 'refresh-content' });
-      
       // Delete existing tasks for this campaign
       const { error: deleteError } = await supabase
         .from('content_tasks')
@@ -75,11 +75,13 @@ export const CurrentCampaignSection = ({
 
       if (deleteError) {
         console.error('Error deleting existing tasks:', deleteError);
-        toast.error('Failed to clear existing content', { id: 'refresh-content' });
+        toast.error('Failed to clear existing content');
         return;
       }
 
-      // Generate fresh content
+      toast.loading('Generating fresh content...', { id: 'refresh-content' });
+
+      // Generate new content
       const result = await generateCampaignContent(
         activeCampaign.id,
         activeCampaign.theme || activeCampaign.title,
@@ -90,11 +92,10 @@ export const CurrentCampaignSection = ({
       );
 
       if (result.success) {
-        toast.success('All content regenerated successfully!', { id: 'refresh-content' });
-        onTaskUpdate();
-        onCampaignCreated();
+        toast.success(`Generated ${result.tasks?.length || 0} fresh content pieces!`, { id: 'refresh-content' });
+        onTaskUpdate(); // Refresh the task list
       } else {
-        toast.error(`Failed to regenerate content: ${result.message}`, { id: 'refresh-content' });
+        toast.error(`Failed to refresh content: ${result.message}`, { id: 'refresh-content' });
       }
     } catch (error) {
       console.error('Error refreshing content:', error);
@@ -119,23 +120,65 @@ export const CurrentCampaignSection = ({
     }
   };
 
-  // Early return if no authenticated user
-  if (!user) {
-    return <NoUserState />;
-  }
-
-  // Check for active campaign more carefully
-  if (!activeCampaign || !activeCampaign.id) {
-    return <NoCampaignStateCard onCreateCampaign={onCreateCampaign} />;
-  }
+  console.log('🔍 CurrentCampaignSection: Rendering with:', {
+    hasUser: !!activeCampaign,
+    hasActiveCampaign: !!activeCampaign,
+    activeCampaignTitle: activeCampaign?.title,
+    activeCampaignId: activeCampaign?.id,
+    tasksCount,
+    loading
+  });
 
   if (loading) {
-    return <CampaignLoadingState />;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Weekly Content</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <div className="animate-spin w-8 h-8 border-2 border-garden-green border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your campaign content...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
+  if (!activeCampaign) {
+    console.log('🔍 CurrentCampaignSection: No active campaign available');
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Weekly Content</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <p className="text-gray-600 mb-4">No active campaign found for this week.</p>
+            <p className="text-sm text-gray-500">
+              Create a new campaign to start generating content.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  console.log('🔍 CurrentCampaignSection: Showing CampaignContent with campaign:', activeCampaign.title);
+
   return (
-    <>
+    <div data-section="weekly-content-section">
       <WeeklyContentUpdater />
+      
+      {/* Weekly Content Banner */}
+      {showWeeklyBanner && activeCampaign && (
+        <WeeklyContentBanner
+          currentTheme={activeCampaign.theme || activeCampaign.title || 'Seasonal Content'}
+          weekNumber={activeCampaign.week_number || getCurrentWeekNumber()}
+          onReviewApprove={handleReviewApprove}
+          showCallout={sessionStorage.getItem('oauth_just_completed') === 'true'}
+        />
+      )}
       
       <CampaignContent
         activeCampaign={activeCampaign}
@@ -155,6 +198,6 @@ export const CurrentCampaignSection = ({
           onTaskUpdate={onTaskUpdate}
         />
       )}
-    </>
+    </div>
   );
 };

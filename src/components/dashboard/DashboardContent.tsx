@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +12,9 @@ import { UnifiedDashboardGrid } from "./UnifiedDashboardGrid";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
 import type { Campaign } from "@/types/content";
+import { QuickstartChecklist } from "@/components/onboarding/QuickstartChecklist";
+import { MicroWalkthroughTour } from "@/components/onboarding/MicroWalkthroughTour";
+import { usePostConnectionFlow } from "@/hooks/usePostConnectionFlow";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -32,6 +34,10 @@ export const DashboardContent = ({
   const [userCreatedCampaigns, setUserCreatedCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [generatingContent, setGeneratingContent] = useState(false);
+  const [showQuickstartChecklist, setShowQuickstartChecklist] = useState(false);
+
+  // Post-connection flow
+  const { flowState, navigateToTargetSection, completeOnboarding } = usePostConnectionFlow();
 
   const currentWeekNumber = getCurrentWeekNumber();
   
@@ -376,6 +382,49 @@ export const DashboardContent = ({
     }, 100);
   };
 
+  // Check if should show quickstart checklist
+  useEffect(() => {
+    if (user && !tenantLoading) {
+      const hasSeenChecklist = localStorage.getItem(`quickstart_dismissed_${user.id}`);
+      setShowQuickstartChecklist(!hasSeenChecklist);
+    }
+  }, [user, tenantLoading]);
+
+  // Handle post-connection navigation
+  useEffect(() => {
+    if (flowState.isFirstTimeConnection && !loading) {
+      navigateToTargetSection();
+    }
+  }, [flowState.isFirstTimeConnection, loading, navigateToTargetSection]);
+
+  const handleDismissQuickstart = () => {
+    setShowQuickstartChecklist(false);
+    if (user) {
+      localStorage.setItem(`quickstart_dismissed_${user.id}`, 'true');
+    }
+  };
+
+  const handleNavigateToSection = (section: string) => {
+    switch (section) {
+      case 'social':
+        // Navigate to social page or scroll to social section
+        window.location.href = '/social';
+        break;
+      case 'weekly-content':
+        const weeklyElement = document.querySelector('[data-section="weekly-content-section"]');
+        if (weeklyElement) {
+          weeklyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        break;
+      case 'ready-to-post':
+        const readyElement = document.querySelector('[data-section="ready-to-post-section"]');
+        if (readyElement) {
+          readyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        break;
+    }
+  };
+
   // Early return if no authenticated user or tenant is loading
   if (!user || tenantLoading) {
     return (
@@ -417,6 +466,14 @@ export const DashboardContent = ({
   return (
     <div className="w-full overflow-x-hidden bg-gray-50">
       <div className="space-y-4 p-4 md:p-6 w-full">
+        {/* Quickstart Checklist - only show after social connection */}
+        {showQuickstartChecklist && (
+          <QuickstartChecklist
+            onDismiss={handleDismissQuickstart}
+            onNavigateToSection={handleNavigateToSection}
+          />
+        )}
+
         {/* Development Preview Badge */}
         {isDevelopment && activeCampaign?.title?.startsWith('PREVIEW') && (
           <div className="flex justify-center w-full">
@@ -452,6 +509,13 @@ export const DashboardContent = ({
           </div>
         )}
       </div>
+
+      {/* Micro Walkthrough Tour */}
+      <MicroWalkthroughTour
+        isVisible={flowState.shouldShowOnboarding}
+        onComplete={completeOnboarding}
+        onSkip={completeOnboarding}
+      />
     </div>
   );
 };

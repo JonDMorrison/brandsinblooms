@@ -138,7 +138,7 @@ export const CalendarView = ({ campaigns = [], tasks = [], onDataUpdate }: Calen
   };
 
   return (
-    <div className="w-full max-w-none space-y-6 bg-white overflow-hidden">
+    <div className="w-full max-w-none space-y-6 bg-white overflow-hidden" data-calendar-section="true">
       {/* View Tabs */}
       <Tabs value={activeView} onValueChange={(value) => setActiveView(value as "calendar" | "schedule")}>
         <TabsList className="grid w-full grid-cols-2">
