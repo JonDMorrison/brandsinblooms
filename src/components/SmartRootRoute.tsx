@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { LandingPage } from '@/components/LandingPage';
+import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
 import Index from '@/pages/Index';
 import { Loader2 } from 'lucide-react';
 
@@ -20,6 +20,6 @@ export const SmartRootRoute = () => {
     );
   }
 
-  // Show dashboard for authenticated users, landing page for guests
-  return user ? <Index /> : <LandingPage />;
+  // Show dashboard for authenticated users, comprehensive landing page for guests
+  return user ? <Index /> : <CompleteLandingPage />;
 };
