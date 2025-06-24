@@ -48,42 +48,67 @@ REGIONAL NEWSLETTER FOCUS:
 
 IMPORTANT: Use this company information to personalize the newsletter with highly location-specific content that reflects their specific geographic region, local climate, and regional gardening conditions.
 
-${getWritingStyleDirectives()}
+${getStoryBrandDirectives()}
 `;
   } else {
-    return getWritingStyleDirectives();
+    return getStoryBrandDirectives();
   }
 };
 
-export const getWritingStyleDirectives = (): string => {
+export const getStoryBrandDirectives = (): string => {
   return `
-ENHANCED WRITING STYLE DIRECTIVES (CRITICAL - APPLY TO ALL CONTENT):
-1. ALWAYS START WITH A HOOK: Begin with a powerful opening that sparks curiosity, urgency, or seasonal awareness. Never open with "Welcome to," "This week," or generic greetings. Subject lines and openings should be strong, specific, and emotionally engaging.
+# ROLE
+You are a certified StoryBrand Guide and seasoned garden center marketing expert.
 
-2. AGITATE BEFORE YOU EDUCATE: After the hook, highlight common challenges or seasonal mistakes before giving advice. Make the reader feel the problem before introducing solutions.
+# OUTPUT PARAMETERS
+• Content format: email newsletter
+• Brand: {company_name}
+• Audience: Home gardeners and plant enthusiasts in/near {location}
+• Goal: visit garden center for expert advice and supplies
+• Target length: 400-600 words (±10%)
 
-3. KEEP PARAGRAPHS SHORT: Use paragraphs no longer than 2-3 sentences. Break long ideas into multiple short, readable chunks for mobile-friendliness.
+# NON-NEGOTIABLE RULES
+1. **Absolutely no emojis** in any part of the text—headlines, body, signatures, or hashtags.
+2. Never mention you are an AI or reference the prompt.
+3. **NEVER use numbered weeks** (Week 1, Week 26, etc.) or "weekly" language anywhere.
+4. **NEVER start with "Welcome to"** or generic greetings.
+5. **NEVER use bullet points (•) or numbered lists (1., 2., 3.)** - write in flowing paragraphs only.
+6. **NEVER use the phrase "Green Thumbs"** or any variation.
 
-4. MAKE IT VISUALLY SUGGESTIVE: Use words that help readers picture what you're talking about (e.g. "lush beds," "cracked soil," "overflowing baskets"). Avoid dry, abstract phrasing. Create scenes with your words.
+# STORYBRAND FRAMEWORK (REQUIRED)
+1. Character – identify the home gardener as the hero of their garden story
+2. Problem – external gardening challenge + internal frustration/desire for success  
+3. Guide – show garden center's empathy + horticultural authority
+4. Plan – provide 2-3 clear, actionable steps they can take
+5. Call to Action – single, direct invitation to visit garden center
+6. Success – paint vivid picture of their thriving garden outcome
 
-5. USE A CONVERSATIONAL TONE: Sound like a local garden center owner writing to familiar customers. Avoid corporate, robotic, or overly polished language. Use friendly contractions, plain language, and warm phrasing.
+# VOICE & TONE
+Warm, conversational, confident. Use contractions; avoid jargon and filler.
+Concrete plant names and sensory garden details. Vary sentence length for natural rhythm.
 
-6. INCLUDE A CLEAR, ALIGNED CTA: End with a single clear call-to-action that ties directly to the newsletter's main topic. Avoid vague CTAs like "Check it out" — use concrete, helpful instructions.
+# CONTENT STRUCTURE REQUIREMENTS
+- Start with compelling hook that creates curiosity or urgency
+- Write ONLY in flowing paragraphs - no lists, bullets, or numbered items
+- Agitate the problem before providing solutions
+- Keep paragraphs short (2-3 sentences) for mobile readability
+- Use visually suggestive language that helps readers picture garden scenes
+- Sound like a knowledgeable local expert talking to familiar customers
+- End with clear, specific call-to-action tied to the newsletter's main topic
 
-7. ANCHOR TIME WITHOUT NUMBERED REFERENCES: Reference seasonal timing in natural, relatable ways like "Now that the evenings are warmer…" or "This is the last cool stretch before summer hits…" NEVER use any numbered week references.
+# SEASONAL TIMING
+- Reference natural seasonal cues instead of numbered references
+- Use phrases like "Now that evenings are getting cooler..." or "As spring warmth arrives..."
+- Avoid any mention of specific week numbers or weekly schedules
 
-CRITICAL CONTENT RESTRICTIONS: 
-- ABSOLUTELY NEVER use the phrase "Green Thumbs", "green thumb", "Green Thumb", or any variation of this phrase in any content
-- ABSOLUTELY NEVER use bullet points (•) or numbered lists (1., 2., 3.) in the content
-- ABSOLUTELY NEVER use dashes (-) to create lists
-- ABSOLUTELY NEVER mention numbered weeks in the content (e.g., "Happy Week 23", "This is week 15", "Week 26", etc.)
-- ABSOLUTELY NEVER start with "Welcome to" language or similar generic openings
-- ABSOLUTELY NEVER use emojis in any content - keep all text completely emoji-free
-- ALWAYS start with a powerful, attention-grabbing hook that immediately engages the reader
-- Write ONLY in flowing paragraphs and natural sentences
-- Avoid ALL cliché gardening phrases and focus on fresh, authentic language
-- Make all advice regionally appropriate and climate-specific
-- If you need to present multiple points, weave them into natural paragraph flow
+# SELF-CHECK BEFORE RETURN
+✓ StoryBrand steps 2, 5, 6 included?
+✓ Tone sounds human and expert?
+✓ **No emojis present—verify with regex /[\\p{Emoji}]/u**.
+✓ CTA clear and matches goal?
+✓ No week numbers or bullet points anywhere?
+✓ Compelling hook opening instead of generic greeting?
+✓ Written in flowing paragraphs only?
 `;
 };
 
@@ -92,11 +117,11 @@ export const buildNewsletterPrompt = (
   campaignTitle: string,
   contentSummary: any[]
 ): string => {
-  return `You are a professional newsletter writer for a garden center with deep expertise in regional gardening differences across various climate zones and geographic areas. Create an engaging newsletter that reflects the specific company's brand, personality, and most importantly their local region and climate conditions.
+  return `You are a certified StoryBrand Guide and professional newsletter writer for garden centers. Create an engaging newsletter that follows the StoryBrand framework precisely and reflects the company's brand personality and local expertise.
 
 ${companyContext}
 
-Campaign: ${campaignTitle}
+Campaign Focus: ${campaignTitle}
 
 Content created for this campaign:
 ${contentSummary.map(item => `
@@ -106,36 +131,44 @@ Hashtags: ${item.hashtags}
 Image idea: ${item.imageIdea}
 `).join('\n')}
 
-Create a comprehensive newsletter that:
-1. STARTS WITH A POWERFUL HOOK in both subject line and opening - NO "Welcome to" language or numbered week mentions
-2. AGITATES BEFORE EDUCATING: Highlights common seasonal challenges or mistakes before providing solutions
-3. Uses SHORT PARAGRAPHS (2-3 sentences max) throughout for mobile readability
-4. Makes content VISUALLY SUGGESTIVE with descriptive language that creates mental pictures
-5. Sounds CONVERSATIONAL like a trusted local expert writing to familiar customers
-6. Uses the company's specific name and brand voice throughout
-7. Reflects their unique selling points and specializations
-8. Speaks directly to their target audience and ideal customer
-9. Incorporates their company values naturally
-10. References their location and seasonal focus with high specificity to their region
-11. Maintains their preferred tone of writing
-12. Highlights the campaign's main theme from the content
-13. Includes practical gardening tips that are specifically relevant to their geographic location and climate zone
-14. Mentions seasonal activities and timing that's accurate for their specific region
-15. Addresses local gardening challenges and regional growing conditions
-16. References plants, techniques, and timing appropriate for their local hardiness zone
-17. Considers local weather patterns, soil conditions, and regional gardening culture
-18. Uses natural seasonal timing references instead of any numbered references
-19. Ends with a personalized, SPECIFIC call-to-action that reflects their local community and provides clear next steps
-20. ABSOLUTELY NEVER uses "Green Thumbs", "green thumb", or any variation of this phrase
-21. ABSOLUTELY NEVER uses bullet points, numbered lists, or dashes - write in flowing paragraphs only
-22. ABSOLUTELY NEVER mentions numbered weeks in any form (including "Week 26", "Week 15", etc.)
-23. ABSOLUTELY NEVER starts with "Welcome to" or similar generic openings
-24. ABSOLUTELY NEVER uses emojis anywhere in the content - keep all text completely emoji-free
+CRITICAL STORYBRAND NEWSLETTER REQUIREMENTS:
+
+1. CHARACTER: Position the home gardener as the hero facing seasonal challenges
+2. PROBLEM: Identify both external gardening issues and internal desires for garden success
+3. GUIDE: Show the garden center's empathy and establish horticultural authority
+4. PLAN: Provide 2-3 actionable steps in flowing paragraph format (NO lists or bullets)
+5. CALL TO ACTION: Clear invitation to visit the garden center for specific help
+6. SUCCESS: Paint a vivid picture of their thriving garden transformation
+
+CONTENT STRUCTURE:
+- Subject line: Compelling hook that creates curiosity (no "Weekly" or company name)
+- Opening: Start with seasonal challenge or opportunity (never "Welcome to")
+- Problem: Highlight common gardening frustrations and seasonal mistakes
+- Solution: Weave advice naturally into conversational paragraphs
+- Authority: Reference specific plant knowledge and local growing conditions
+- CTA: Single, clear invitation tied to the newsletter's main topic
+- Success: Describe the beautiful garden outcome they'll achieve
+
+WRITING STYLE:
+- Use natural, conversational language with contractions
+- Write in flowing paragraphs only - absolutely no bullet points or numbered lists
+- Keep paragraphs short (2-3 sentences) for mobile readability
+- Include specific plant names and sensory garden details
+- Reference local climate conditions and seasonal timing naturally
+- Sound like a trusted local garden expert writing to familiar customers
+
+FORBIDDEN ELEMENTS:
+- Week numbers (Week 1, Week 26, "weekly", etc.)
+- Generic openings ("Welcome to", "This week", etc.)
+- Bullet points (•) or numbered lists (1., 2., 3.)
+- The phrase "Green Thumbs" or variations
+- Emojis anywhere in the content
+- Corporate buzzwords or AI-like language
 
 Format the response as a JSON object with:
-- subject: The email subject line (incorporating company name and regional relevance, starting with a hook)
-- content: The full newsletter content in HTML format
-- summary: A brief plain text summary
+- subject: Compelling subject line with seasonal hook (no week numbers)
+- content: Full newsletter content in HTML format following StoryBrand framework
+- summary: Brief plain text summary of the main gardening advice
 
-The newsletter should be 400-600 words and feel personal, authentic, and highly relevant to this specific garden center and their local region/climate.`;
+The newsletter should be 400-600 words, highly personalized to the company's location and expertise, and follow the StoryBrand narrative arc to position customers as heroes on their gardening journey.`;
 };
