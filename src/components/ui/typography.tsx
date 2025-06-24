@@ -6,6 +6,14 @@ interface TypographyProps extends React.HTMLAttributes<HTMLElement> {
   children: React.ReactNode;
 }
 
+export function DisplayMedium({ children, className, ...props }: TypographyProps) {
+  return (
+    <h1 className={cn("text-4xl font-bold tracking-tight", className)} {...props}>
+      {children}
+    </h1>
+  );
+}
+
 export function HeadlineLarge({ children, className, ...props }: TypographyProps) {
   return (
     <h1 className={cn("text-3xl font-bold tracking-tight", className)} {...props}>
@@ -57,6 +65,14 @@ export function BodySmall({ children, className, ...props }: TypographyProps) {
 export function Caption({ children, className, ...props }: TypographyProps) {
   return (
     <span className={cn("text-xs text-muted-foreground", className)} {...props}>
+      {children}
+    </span>
+  );
+}
+
+export function CaptionMedium({ children, className, ...props }: TypographyProps) {
+  return (
+    <span className={cn("text-sm text-muted-foreground", className)} {...props}>
       {children}
     </span>
   );
