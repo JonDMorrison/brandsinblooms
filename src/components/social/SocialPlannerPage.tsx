@@ -6,7 +6,7 @@ import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { ConnectMetaButton } from './ConnectMetaButton';
+import { SocialConnectionsSection } from './SocialConnectionsSection';
 import { NewPostModal } from './NewPostModal';
 import { PostList } from './PostList';
 import { TokenMeter } from './TokenMeter';
@@ -117,56 +117,41 @@ export const SocialPlannerPage = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="grid gap-6">
+      <div className="space-y-12">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Social Media Planner</h1>
-            <p className="text-muted-foreground">
-              Manage your Facebook and Instagram posts
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <ConnectMetaButton onSuccess={handleConnectionSuccess} />
-            <Button onClick={() => setIsNewPostModalOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Post
-            </Button>
-          </div>
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold text-gray-900">Social Media Planner</h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Connect your Facebook and Instagram accounts to schedule posts, manage content, and grow your audience
+          </p>
         </div>
 
         {/* Token Meter */}
         <TokenMeter />
 
-        {/* Connections Status */}
-        {connections.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Connected Accounts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {connections.map((connection) => (
-                  <div
-                    key={connection.id}
-                    className="flex items-center gap-3 p-3 border rounded-lg"
-                  >
-                    <div className="w-2 h-2 bg-green-500 rounded-full" />
-                    <div>
-                      <p className="font-medium capitalize">{connection.platform}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {connection.platform_account_name}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Connections Section */}
+        <SocialConnectionsSection 
+          connections={connections}
+          onConnectionSuccess={handleConnectionSuccess}
+        />
 
-        {/* Posts List */}
-        <PostList posts={posts} onRefresh={loadData} />
+        {/* Posts Section - Only show if there are connections */}
+        {connections.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Your Content</h2>
+                <p className="text-gray-600">Create, schedule, and manage your social media posts</p>
+              </div>
+              <Button onClick={() => setIsNewPostModalOpen(true)} size="lg">
+                <Plus className="h-5 w-5 mr-2" />
+                Create Post
+              </Button>
+            </div>
+
+            <PostList posts={posts} onRefresh={loadData} />
+          </div>
+        )}
 
         {/* New Post Modal */}
         <NewPostModal
