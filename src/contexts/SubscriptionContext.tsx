@@ -1,10 +1,10 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { isSuperAdmin } from "@/utils/adminUtils";
+import { isTestAccount, ensureTestAccountHasProAccess } from "@/utils/testAccountUtils";
 
 type SubscriptionPlan = 'free_trial' | 'sprout' | 'bloom' | 'expired';
 type BillingInterval = 'monthly' | 'annual';
@@ -48,8 +48,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const [tenant, setTenant] = useState<any>(null);
   const [tenantLoading, setTenantLoading] = useState(true);
 
-  // Check if current user is a developer with super admin access
+  // Check if current user is a developer with super admin access OR a test account
   const isDeveloper = user?.email ? isSuperAdmin(user.email) : false;
+  const isTestUser = user?.email ? isTestAccount(user.email) : false;
+  const hasPrivilegedAccess = isDeveloper || isTestUser;
 
   // Fetch tenant data directly in this component instead of using useTenant hook
   useEffect(() => {
@@ -117,6 +119,34 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     try {
       console.log('Creating default subscription for user:', user.id, 'tenant:', tenant?.id || 'none');
       
+      // For test accounts, create PRO subscription instead of trial
+      if (isTestUser) {
+        const startDate = new Date();
+        const endDate = new Date();
+        endDate.setFullYear(startDate.getFullYear() + 10); // 10 years
+
+        const { data, error } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: user.id,
+            plan: 'bloom', // Highest tier for test accounts
+            start_date: startDate.toISOString().split('T')[0],
+            end_date: endDate.toISOString().split('T')[0],
+            billing_interval: 'annual'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Error creating test account subscription:', error);
+          return null;
+        }
+
+        console.log('Created PRO subscription for test account:', data);
+        return data;
+      }
+
+      // Regular trial subscription for non-test accounts
       const startDate = new Date();
       const endDate = new Date();
       endDate.setDate(startDate.getDate() + 14); // 14-day trial
@@ -200,6 +230,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     try {
       console.log('Fetching subscription for user:', user.id, 'tenant:', tenant?.id || 'none');
       
+      // Ensure test accounts have PRO access
+      if (isTestUser) {
+        await ensureTestAccountHasProAccess(user.id, user.email!);
+      }
+
       // In tenant model, subscription is still tied to the user who created the tenant
       // So we always query by user_id, not tenant_id
       const { data, error } = await supabase
@@ -218,11 +253,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         console.log('Found existing subscription:', data.plan, 'for user:', user.id);
         setSubscription(data);
         
-        // Check if trial has expired and update if needed
+        // Check if trial has expired and update if needed (skip for privileged users)
         const endDate = new Date(data.end_date);
         const now = new Date();
         
-        if (data.plan === 'free_trial' && now > endDate && !isDeveloper) {
+        if (data.plan === 'free_trial' && now > endDate && !hasPrivilegedAccess) {
           await updateSubscriptionPlan('expired', data.billing_interval);
         }
       } else {
@@ -277,9 +312,9 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   };
 
   const checkAccess = (requiredPlan: SubscriptionPlan): boolean => {
-    // Developer bypass: super admins have access to everything
-    if (isDeveloper) {
-      console.log('Developer bypass: granting access to', user?.email);
+    // Privileged access: super admins and test accounts have access to everything
+    if (hasPrivilegedAccess) {
+      console.log('Privileged access granted to:', user?.email);
       return true;
     }
 
@@ -295,21 +330,21 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     return planHierarchy[subscription.plan] >= planHierarchy[requiredPlan];
   };
 
-  // Modified to account for developer bypass
-  const isTrialExpired = subscription?.plan === 'expired' && !isDeveloper;
+  // Modified to account for privileged access
+  const isTrialExpired = subscription?.plan === 'expired' && !hasPrivilegedAccess;
 
   const trialDaysLeft = (() => {
     console.log('SubscriptionContext: Calculating trialDaysLeft', {
       subscription: subscription,
       plan: subscription?.plan,
       endDate: subscription?.end_date,
-      isDeveloper
+      hasPrivilegedAccess
     });
     
-    // Developer bypass: show as if they have unlimited time
-    if (isDeveloper) {
-      console.log('SubscriptionContext: Developer bypass, showing unlimited trial');
-      return 999; // Show a high number for developers
+    // Privileged access: show as if they have unlimited time
+    if (hasPrivilegedAccess) {
+      console.log('SubscriptionContext: Privileged access, showing unlimited trial');
+      return 999; // Show a high number for privileged users
     }
     
     if (!subscription || subscription.plan !== 'free_trial') {
@@ -342,16 +377,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
   }, [user, tenant, tenantLoading]);
 
-  // Enhanced trial expiration handling - skip for developers
+  // Enhanced trial expiration handling - skip for privileged users
   useEffect(() => {
-    if (subscription && subscription.plan === 'expired' && !isDeveloper) {
+    if (subscription && subscription.plan === 'expired' && !hasPrivilegedAccess) {
       const currentPath = window.location.pathname;
       if (currentPath !== '/pricing' && currentPath !== '/auth' && !currentPath.startsWith('/subscription')) {
         navigate('/pricing');
         toast.error('Your free trial has ended. Choose a plan to continue accessing premium features.');
       }
     }
-  }, [subscription, navigate, isDeveloper]);
+  }, [subscription, navigate, hasPrivilegedAccess]);
 
   // Auto-refresh subscription status periodically when user is active
   useEffect(() => {
@@ -382,7 +417,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     loading,
     isTrialExpired,
     trialDaysLeft,
-    isDeveloper
+    hasPrivilegedAccess
   });
 
   return (
