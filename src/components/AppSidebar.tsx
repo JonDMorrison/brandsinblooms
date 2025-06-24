@@ -21,8 +21,6 @@ import {
   Activity,
   CreditCard,
   ClipboardList,
-  FileSearch2,
-  FileSliders,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -74,23 +72,6 @@ const AppSidebar: React.FC = () => {
       title: "Content Tasks",
       url: "/content-tasks",
       icon: ClipboardList,
-    },
-    {
-      title: "AI Tools",
-      url: "/ai-tools",
-      icon: Lightbulb,
-      items: [
-        {
-          title: "Image Upscaler",
-          url: "/ai-tools/image-upscaler",
-          icon: FileSliders,
-        },
-        {
-          title: "Image Generator",
-          url: "/ai-tools/image-generator",
-          icon: FileSearch2,
-        },
-      ],
     },
     {
       title: "Account",
