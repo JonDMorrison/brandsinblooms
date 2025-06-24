@@ -4,7 +4,6 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import CalendarPage from './pages/CalendarPage';
 import SocialPage from './pages/SocialPage';
-import BillingPage from './pages/BillingPage';
 import { CompanyProfilePage } from './components/CompanyProfilePage';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -29,7 +28,6 @@ function App() {
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/social" element={<SocialPage />} />
               <Route path="/account" element={<ProfilePage />} />
-              <Route path="/billing" element={<BillingPage />} />
               
               {/* Legal pages */}
               <Route path="/legal/user-data-deletion" element={<UserDataDeletionPage />} />
