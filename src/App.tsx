@@ -1,4 +1,3 @@
-
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -30,8 +29,15 @@ function App() {
       <BrowserRouter>
         <ThemeProvider defaultTheme="light" storageKey="ui-theme">
           <Routes>
-            {/* Public auth route - no AuthProvider wrapper needed here */}
-            <Route path="/auth" element={<Auth />} />
+            {/* Public auth route - needs AuthProvider to check if user is already logged in */}
+            <Route 
+              path="/auth" 
+              element={
+                <AuthProvider>
+                  <Auth />
+                </AuthProvider>
+              } 
+            />
             
             {/* Protected routes */}
             <Route
