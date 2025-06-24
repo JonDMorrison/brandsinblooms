@@ -111,6 +111,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by_user_id: string | null
+          deleted_at: string | null
           description: string | null
           id: string
           prompt: string | null
@@ -125,6 +126,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           description?: string | null
           id?: string
           prompt?: string | null
@@ -139,6 +141,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           description?: string | null
           id?: string
           prompt?: string | null
@@ -167,6 +170,7 @@ export type Database = {
           company_overview: string | null
           company_values: string | null
           created_at: string
+          deleted_at: string | null
           feature_flags: Json | null
           first_content_generated: boolean | null
           first_welcome_dismissed: boolean | null
@@ -190,6 +194,7 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          deleted_at?: string | null
           feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
@@ -213,6 +218,7 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          deleted_at?: string | null
           feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
@@ -287,6 +293,7 @@ export type Database = {
           campaign_id: string | null
           created_at: string
           created_by_user_id: string | null
+          deleted_at: string | null
           hashtags: string | null
           holiday_id: string | null
           id: string
@@ -304,6 +311,7 @@ export type Database = {
           campaign_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           hashtags?: string | null
           holiday_id?: string | null
           id?: string
@@ -321,6 +329,7 @@ export type Database = {
           campaign_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
+          deleted_at?: string | null
           hashtags?: string | null
           holiday_id?: string | null
           id?: string
@@ -405,6 +414,45 @@ export type Database = {
           usage_count?: number | null
           user_id?: string
           variables?: string[] | null
+        }
+        Relationships: []
+      }
+      deletion_requests: {
+        Row: {
+          cancellation_requested_at: string | null
+          created_at: string
+          email_sent: boolean | null
+          hard_delete_completed_at: string | null
+          id: string
+          requested_at: string
+          scheduled_hard_delete_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancellation_requested_at?: string | null
+          created_at?: string
+          email_sent?: boolean | null
+          hard_delete_completed_at?: string | null
+          id?: string
+          requested_at?: string
+          scheduled_hard_delete_at: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancellation_requested_at?: string | null
+          created_at?: string
+          email_sent?: boolean | null
+          hard_delete_completed_at?: string | null
+          id?: string
+          requested_at?: string
+          scheduled_hard_delete_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -693,6 +741,7 @@ export type Database = {
         Row: {
           access_token: string
           created_at: string
+          deleted_at: string | null
           expires_at: string | null
           id: string
           is_active: boolean
@@ -707,6 +756,7 @@ export type Database = {
         Insert: {
           access_token: string
           created_at?: string
+          deleted_at?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
@@ -721,6 +771,7 @@ export type Database = {
         Update: {
           access_token?: string
           created_at?: string
+          deleted_at?: string | null
           expires_at?: string | null
           id?: string
           is_active?: boolean
@@ -739,6 +790,7 @@ export type Database = {
           api_response: Json | null
           content: string
           created_at: string
+          deleted_at: string | null
           id: string
           media_url: string | null
           publish_at: string | null
@@ -751,6 +803,7 @@ export type Database = {
           api_response?: Json | null
           content: string
           created_at?: string
+          deleted_at?: string | null
           id?: string
           media_url?: string | null
           publish_at?: string | null
@@ -763,6 +816,7 @@ export type Database = {
           api_response?: Json | null
           content?: string
           created_at?: string
+          deleted_at?: string | null
           id?: string
           media_url?: string | null
           publish_at?: string | null
@@ -788,6 +842,7 @@ export type Database = {
             | Database["public"]["Enums"]["billing_interval"]
             | null
           created_at: string
+          deleted_at: string | null
           end_date: string
           id: string
           max_connections: number | null
@@ -805,6 +860,7 @@ export type Database = {
             | Database["public"]["Enums"]["billing_interval"]
             | null
           created_at?: string
+          deleted_at?: string | null
           end_date: string
           id?: string
           max_connections?: number | null
@@ -822,6 +878,7 @@ export type Database = {
             | Database["public"]["Enums"]["billing_interval"]
             | null
           created_at?: string
+          deleted_at?: string | null
           end_date?: string
           id?: string
           max_connections?: number | null
@@ -1114,6 +1171,14 @@ export type Database = {
       }
       refill_tokens: {
         Args: { p_user_id: string; p_tokens?: number }
+        Returns: boolean
+      }
+      restore_user_data: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
+      soft_delete_user_data: {
+        Args: { target_user_id: string }
         Returns: boolean
       }
       spend_tokens: {

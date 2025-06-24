@@ -1,167 +1,45 @@
-
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
-import { ThemeProvider } from "next-themes";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { PublicRoute } from "@/components/PublicRoute";
-import { OnboardingGuard } from "@/components/OnboardingGuard";
-import { SidebarLayout } from "@/components/SidebarLayout";
-import { NetworkErrorBoundary } from "@/components/NetworkErrorBoundary";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-// Pages
-import Index from "./pages/Index";
-import Auth from "./pages/Auth";
-import OnboardingPage from "./pages/OnboardingPage";
-import CalendarPage from "./pages/CalendarPage";
-import AnalyticsPage from "./pages/AnalyticsPage";
-import ContentLibraryPage from "./pages/ContentLibraryPage";
-import ProfilePage from "./pages/ProfilePage";
-import TeamPage from "./pages/TeamPage";
-import SubscriptionPage from "./pages/SubscriptionPage";
-import SubscriptionSuccessPage from "./pages/SubscriptionSuccessPage";
-import PricingPage from "./pages/PricingPage";
-import AdminPage from "./pages/AdminPage";
-import SocialPage from "./pages/SocialPage";
-import AuthCallbackPage from "./pages/AuthCallbackPage";
-import NotFound from "./pages/NotFound";
-
-const queryClient = new QueryClient();
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import DashboardPage from './pages/DashboardPage';
+import CalendarPage from './pages/CalendarPage';
+import SocialPage from './pages/SocialPage';
+import AccountPage from './pages/AccountPage';
+import BillingPage from './pages/BillingPage';
+import ContentTasksPage from './pages/ContentTasksPage';
+import CompanyProfilePage from './components/CompanyProfilePage';
+import { QueryClient, QueryClientProvider } from 'react-query';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
+import AuthPage from './pages/AuthPage';
+import OnboardingPage from './pages/OnboardingPage';
+import ProfilePage from './pages/ProfilePage';
+import UserDataDeletionPage from '@/pages/UserDataDeletionPage';
 
 function App() {
+  const queryClient = new QueryClient();
+
   return (
-    <ErrorBoundary>
-      <NetworkErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
-            <TooltipProvider>
-              <AuthProvider>
-                <BrowserRouter>
-                  <SubscriptionProvider>
-                    <Toaster />
-                    <Routes>
-                      {/* Public routes */}
-                      <Route path="/pricing" element={<PricingPage />} />
-                      <Route path="/auth" element={
-                        <PublicRoute>
-                          <Auth />
-                        </PublicRoute>
-                      } />
-                      <Route path="/auth/callback" element={<AuthCallbackPage />} />
-                      <Route path="/subscription-success" element={<SubscriptionSuccessPage />} />
-                      
-                      {/* Protected routes */}
-                      <Route path="/onboarding" element={
-                        <ProtectedRoute>
-                          <OnboardingPage />
-                        </ProtectedRoute>
-                      } />
-                      
-                      {/* Main app routes (require onboarding completion) */}
-                      <Route path="/" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <Index />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/calendar" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <CalendarPage />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/analytics" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <AnalyticsPage />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/content-library" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <ContentLibraryPage />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/profile" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <ProfilePage />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/team" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <TeamPage />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/subscription" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <SubscriptionPage />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/social" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <SocialPage />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="/admin" element={
-                        <ProtectedRoute>
-                          <OnboardingGuard>
-                            <SidebarLayout>
-                              <AdminPage />
-                            </SidebarLayout>
-                          </OnboardingGuard>
-                        </ProtectedRoute>
-                      } />
-                      
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </SubscriptionProvider>
-                </BrowserRouter>
-              </AuthProvider>
-            </TooltipProvider>
-          </ThemeProvider>
-        </QueryClientProvider>
-      </NetworkErrorBoundary>
-    </ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <SubscriptionProvider>
+            <Routes>
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/onboarding" element={<OnboardingPage />} />
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/social" element={<SocialPage />} />
+              <Route path="/content-tasks" element={<ContentTasksPage />} />
+              <Route path="/account" element={<ProfilePage />} />
+              <Route path="/billing" element={<BillingPage />} />
+              
+              {/* Legal pages */}
+              <Route path="/legal/user-data-deletion" element={<UserDataDeletionPage />} />
+            </Routes>
+          </SubscriptionProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 
