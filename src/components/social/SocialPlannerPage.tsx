@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -118,14 +117,6 @@ export const SocialPlannerPage = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-12">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold text-gray-900">Social Media Planner</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Connect your Facebook and Instagram accounts to schedule posts, manage content, and grow your audience
-          </p>
-        </div>
-
         {/* Connections Section */}
         <SocialConnectionsSection 
           connections={connections}
