@@ -25,10 +25,13 @@ const OnboardingPage = () => {
     if (user) {
       // Store the onboarding data in localStorage for the main app to pick up
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
-      console.log('📱 OnboardingPage: Data stored in localStorage, navigating to app');
+      console.log('📱 OnboardingPage: Data stored in localStorage');
       
-      // Navigate to the main app
-      navigate('/app', { replace: true });
+      // Add a small delay to ensure all database operations complete
+      setTimeout(() => {
+        console.log('🎯 OnboardingPage: Navigating to app after completion');
+        navigate('/app', { replace: true });
+      }, 200);
     } else {
       console.error('❌ OnboardingPage: No user found during onboarding completion');
       navigate('/auth', { replace: true });

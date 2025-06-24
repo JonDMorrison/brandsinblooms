@@ -202,8 +202,12 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       
       toast.success("🎉 Setup complete! Your first week's content is ready to review!");
       
-      // Navigate to the app - OnboardingGuard will now allow access
-      navigate('/app');
+      console.log('🎯 Onboarding completed successfully, navigating to app...');
+      
+      // Add a small delay to ensure all state updates complete
+      setTimeout(() => {
+        navigate('/app', { replace: true });
+      }, 100);
       
     } catch (error) {
       console.error('🚨 Critical error in onboarding completion:', error);

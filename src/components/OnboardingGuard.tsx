@@ -15,8 +15,18 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { loading: subscriptionLoading } = useSubscription();
   const { isCompleted, isLoading: onboardingLoading } = useOnboardingStatus();
 
+  console.log('🛡️ OnboardingGuard: State check', {
+    user: user?.id,
+    authLoading,
+    subscriptionLoading, 
+    onboardingLoading,
+    isCompleted,
+    currentPath: window.location.pathname
+  });
+
   // Show loading while checking auth, subscription, or onboarding status
   if (authLoading || subscriptionLoading || onboardingLoading) {
+    console.log('⏳ OnboardingGuard: Showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -29,9 +39,11 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
 
   // If user is authenticated but hasn't completed onboarding, redirect to onboarding
   if (user && !isCompleted) {
+    console.log('🔄 OnboardingGuard: User needs onboarding, redirecting');
     return <Navigate to="/onboarding" replace />;
   }
 
   // If onboarding is completed, show the protected content
+  console.log('✅ OnboardingGuard: Onboarding completed, showing protected content');
   return <>{children}</>;
 };
