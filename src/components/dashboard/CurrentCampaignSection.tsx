@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CampaignContent } from "./CampaignContent";
-import { WeeklyContentUpdater } from "./WeeklyContentUpdater";
-import { WeeklyContentExplanation } from "./WeeklyContentExplanation";
+import { CampaignContent } from "./current-campaign/CampaignContent";
+import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
+import { WeeklyContentExplanation } from "./current-campaign/WeeklyContentExplanation";
 import { ManualContentGenerator } from "@/components/content/ManualContentGenerator";
-import { useCurrentCampaignSection } from "./useCurrentCampaignSection";
+import { useCurrentCampaignSection } from "./current-campaign/useCurrentCampaignSection";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useState } from "react";
 import { WeeklyContentBanner } from "./current-campaign/WeeklyContentBanner";
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { ContentViewer } from "@/components/content/ContentViewer";
 
 interface CurrentCampaignSectionProps {
   activeCampaign: any;
