@@ -40,16 +40,8 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
       const redirectUri = `${window.location.origin}/auth/callback`;
       
-      // Use a placeholder Facebook App ID - this needs to be configured properly
-      // In production, this should come from environment variables
-      const clientId = '1234567890123456'; // TODO: Replace with actual Facebook App ID
-      
-      // Check if we have a valid client ID (not the placeholder)
-      if (clientId === '1234567890123456') {
-        toast.error('Facebook app not configured. Please contact support to set up Meta integration.');
-        setLoading(false);
-        return;
-      }
+      // Use the actual Facebook App ID
+      const clientId = '2527232767625484';
       
       console.log('Initiating OAuth with:', {
         clientId,
