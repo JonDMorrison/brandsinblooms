@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { SocialConnectionsSection } from './SocialConnectionsSection';
 import { NewPostModal } from './NewPostModal';
 import { PostList } from './PostList';
 import { TokenMeter } from './TokenMeter';
+import { SocialErrorBoundary } from './SocialErrorBoundary';
 
 export const SocialPlannerPage = () => {
   const { user } = useAuth();
@@ -17,10 +19,13 @@ export const SocialPlannerPage = () => {
   const [posts, setPosts] = useState([]);
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    checkFeatureFlag();
-    loadData();
+    if (user) {
+      checkFeatureFlag();
+      loadData();
+    }
   }, [user]);
 
   const checkFeatureFlag = async () => {
@@ -31,10 +36,16 @@ export const SocialPlannerPage = () => {
         feature_name: 'social_posting_v1'
       });
       
-      if (error) throw error;
-      setFeatureEnabled(data);
+      if (error) {
+        console.error('Error checking feature flag:', error);
+        // Default to true if we can't check the flag
+        setFeatureEnabled(true);
+      } else {
+        setFeatureEnabled(data);
+      }
     } catch (error) {
       console.error('Error checking feature flag:', error);
+      setFeatureEnabled(true); // Default to enabled
     }
   };
 
@@ -43,6 +54,7 @@ export const SocialPlannerPage = () => {
     
     try {
       setLoading(true);
+      setError(null);
       
       // Load connections
       const { data: connectionsData, error: connectionsError } = await supabase
@@ -51,7 +63,11 @@ export const SocialPlannerPage = () => {
         .eq('user_id', user.id)
         .eq('is_active', true);
       
-      if (connectionsError) throw connectionsError;
+      if (connectionsError) {
+        console.error('Error loading connections:', connectionsError);
+        throw connectionsError;
+      }
+      
       setConnections(connectionsData || []);
 
       // Load posts
@@ -64,10 +80,15 @@ export const SocialPlannerPage = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
-      if (postsError) throw postsError;
+      if (postsError) {
+        console.error('Error loading posts:', postsError);
+        throw postsError;
+      }
+      
       setPosts(postsData || []);
     } catch (error) {
       console.error('Error loading data:', error);
+      setError('Failed to load social media data. Please try refreshing the page.');
       toast.error('Failed to load social media data');
     } finally {
       setLoading(false);
@@ -84,6 +105,23 @@ export const SocialPlannerPage = () => {
     setIsNewPostModalOpen(false);
     toast.success('Post created successfully!');
   };
+
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold mb-2">Authentication Required</h2>
+              <p className="text-muted-foreground">
+                Please log in to access your social media settings.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!featureEnabled) {
     return (
@@ -114,44 +152,62 @@ export const SocialPlannerPage = () => {
     );
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="space-y-12">
-        {/* Connections Section */}
-        <SocialConnectionsSection 
-          connections={connections}
-          onConnectionSuccess={handleConnectionSuccess}
-        />
-
-        {/* Posts Section - Only show if there are connections */}
-        {connections.length > 0 && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Your Content</h2>
-                <p className="text-gray-600">Create, schedule, and manage your social media posts</p>
-              </div>
-              <Button onClick={() => setIsNewPostModalOpen(true)} size="lg">
-                <Plus className="h-5 w-5 mr-2" />
-                Create Post
-              </Button>
-            </div>
-
-            <PostList posts={posts} onRefresh={loadData} />
-          </div>
-        )}
-
-        {/* Token Meter - Moved to bottom */}
-        <TokenMeter />
-
-        {/* New Post Modal */}
-        <NewPostModal
-          isOpen={isNewPostModalOpen}
-          onClose={() => setIsNewPostModalOpen(false)}
-          onSuccess={handlePostCreated}
-          connections={connections}
-        />
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold text-red-700 mb-2">Error Loading Social Media</h2>
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={loadData} variant="outline">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <SocialErrorBoundary>
+      <div className="container mx-auto px-4 py-8">
+        <div className="space-y-12">
+          {/* Connections Section */}
+          <SocialConnectionsSection 
+            connections={connections}
+            onConnectionSuccess={handleConnectionSuccess}
+          />
+
+          {/* Posts Section - Only show if there are connections */}
+          {connections.length > 0 && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Your Content</h2>
+                  <p className="text-gray-600">Create, schedule, and manage your social media posts</p>
+                </div>
+                <Button onClick={() => setIsNewPostModalOpen(true)} size="lg">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Post
+                </Button>
+              </div>
+
+              <PostList posts={posts} onRefresh={loadData} />
+            </div>
+          )}
+
+          {/* Token Meter - Moved to bottom */}
+          <TokenMeter />
+
+          {/* New Post Modal */}
+          <NewPostModal
+            isOpen={isNewPostModalOpen}
+            onClose={() => setIsNewPostModalOpen(false)}
+            onSuccess={handlePostCreated}
+            connections={connections}
+          />
+        </div>
+      </div>
+    </SocialErrorBoundary>
   );
 };

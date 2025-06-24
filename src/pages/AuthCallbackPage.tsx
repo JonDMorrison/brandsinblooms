@@ -21,6 +21,13 @@ export const AuthCallbackPage = () => {
       const error = searchParams.get('error');
       const errorDescription = searchParams.get('error_description');
 
+      console.log('Auth callback received:', { 
+        hasCode: !!code, 
+        hasState: !!state, 
+        error, 
+        errorDescription 
+      });
+
       if (error) {
         console.error('OAuth error:', error, errorDescription);
         setStatus('error');
@@ -41,6 +48,7 @@ export const AuthCallbackPage = () => {
       // Verify state parameter to prevent CSRF attacks
       const storedState = sessionStorage.getItem('oauth_state');
       if (state !== storedState) {
+        console.error('State mismatch:', { received: state, stored: storedState });
         setStatus('error');
         setMessage('State parameter mismatch - possible security issue');
         toast.error('Security verification failed');
@@ -73,25 +81,26 @@ export const AuthCallbackPage = () => {
 
         if (exchangeError) {
           console.error('Edge function error:', exchangeError);
-          throw new Error(exchangeError.message);
+          throw new Error(exchangeError.message || 'Failed to exchange OAuth code');
         }
 
         console.log('OAuth exchange response:', data);
 
-        if (data.success) {
+        if (data?.success) {
           setStatus('success');
           const successMessage = data.message || 'Successfully connected to Meta platform!';
           setMessage(successMessage);
           toast.success(successMessage);
           setTimeout(() => navigate('/social'), 2000);
         } else {
-          throw new Error(data.error || 'Failed to connect');
+          throw new Error(data?.error || 'Failed to connect - no success response');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('OAuth callback error:', error);
         setStatus('error');
-        setMessage(`Connection failed: ${error.message}`);
-        toast.error('Failed to connect Meta platform');
+        const errorMessage = error?.message || 'Unknown error occurred';
+        setMessage(`Connection failed: ${errorMessage}`);
+        toast.error(`Failed to connect Meta platform: ${errorMessage}`);
         setTimeout(() => navigate('/social'), 3000);
       }
     };
@@ -100,7 +109,7 @@ export const AuthCallbackPage = () => {
     if (searchParams.get('code') || searchParams.get('error')) {
       handleCallback();
     } else {
-      // If no OAuth parameters, redirect back to social page
+      console.log('No OAuth parameters found, redirecting to social page');
       navigate('/social');
     }
   }, [searchParams, navigate, user]);

@@ -14,32 +14,44 @@ export const TokenMeter = () => {
     maxTokens: 200
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadTokenData();
   }, [user]);
 
   const loadTokenData = async () => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
+      setError(null);
+      
       // Get token balance from company profile
       const { data: profile, error: profileError } = await supabase
         .from('company_profiles')
         .select('tokens_balance, tokens_reset_at')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Error loading profile:', profileError);
+        throw profileError;
+      }
 
-      // Get max tokens from subscription
+      // Get max tokens from subscription - use maybeSingle to avoid errors if no subscription exists
       const { data: subscription, error: subError } = await supabase
         .from('subscriptions')
         .select('max_posts_per_month')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (subError) throw subError;
+      if (subError) {
+        console.error('Error loading subscription:', subError);
+        // Don't throw here - subscription might not exist yet
+      }
 
       setTokenData({
         balance: profile?.tokens_balance || 0,
@@ -48,6 +60,7 @@ export const TokenMeter = () => {
       });
     } catch (error) {
       console.error('Error loading token data:', error);
+      setError('Failed to load token information');
     } finally {
       setLoading(false);
     }
@@ -58,6 +71,18 @@ export const TokenMeter = () => {
       <Card>
         <CardContent className="p-4">
           <div className="h-16 bg-gray-200 rounded animate-pulse" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent className="p-4">
+          <div className="text-center text-red-600">
+            <p className="text-sm">{error}</p>
+          </div>
         </CardContent>
       </Card>
     );
