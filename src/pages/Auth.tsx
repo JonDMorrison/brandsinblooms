@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,8 +26,8 @@ const Auth = () => {
   // Redirect authenticated users
   useEffect(() => {
     if (!authLoading && user) {
-      console.log('🔄 Auth: User already authenticated, redirecting to app');
-      navigate('/app', { replace: true });
+      console.log('🔄 Auth: User already authenticated, redirecting to home');
+      navigate('/', { replace: true });
     }
   }, [user, authLoading, navigate]);
 
@@ -43,22 +44,22 @@ const Auth = () => {
 
       if (error) {
         console.error('❌ Auth: Error checking profile:', error);
-        // Default to onboarding for safety
-        navigate('/onboarding', { replace: true });
+        // Default to home for safety
+        navigate('/', { replace: true });
         return;
       }
 
       if (profile) {
-        console.log('✅ Auth: User has completed onboarding, going to app');
-        navigate('/app', { replace: true });
+        console.log('✅ Auth: User has completed onboarding, going to home');
+        navigate('/', { replace: true });
       } else {
-        console.log('⏳ Auth: New user, needs onboarding');
-        navigate('/onboarding', { replace: true });
+        console.log('⏳ Auth: New user, needs onboarding - going to home for now');
+        navigate('/', { replace: true });
       }
     } catch (error) {
       console.error('❌ Auth: Error in checkOnboardingAndRedirect:', error);
-      // Default to onboarding for safety
-      navigate('/onboarding', { replace: true });
+      // Default to home for safety
+      navigate('/', { replace: true });
     }
   };
 
@@ -125,9 +126,9 @@ const Auth = () => {
         console.log('✅ Auth: Sign up successful for user:', data.user.id);
         
         if (data.user.email_confirmed_at) {
-          console.log('📧 Auth: Email already confirmed, redirecting to onboarding');
-          toast.success('Account created! Setting up your profile...');
-          navigate('/onboarding', { replace: true });
+          console.log('📧 Auth: Email already confirmed, redirecting to home');
+          toast.success('Account created! Welcome to BloomSuite!');
+          navigate('/', { replace: true });
         } else {
           console.log('📧 Auth: Email confirmation required');
           setMessage("Please check your email for a confirmation link, then return to sign in.");
@@ -153,7 +154,7 @@ const Auth = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/onboarding`
+          redirectTo: `${window.location.origin}/`
         }
       });
 

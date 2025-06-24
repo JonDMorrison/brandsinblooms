@@ -15,6 +15,7 @@ import CalendarPage from "./pages/CalendarPage";
 import BillingPage from "./pages/BillingPage";
 import SocialPage from "./pages/SocialPage";
 import ContentTasksPage from "./pages/ContentTasksPage";
+import Auth from "./pages/Auth";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -29,6 +30,10 @@ function App() {
       <BrowserRouter>
         <ThemeProvider defaultTheme="light" storageKey="ui-theme">
           <Routes>
+            {/* Public auth route - no AuthProvider wrapper needed here */}
+            <Route path="/auth" element={<Auth />} />
+            
+            {/* Protected routes */}
             <Route
               path="/"
               element={
