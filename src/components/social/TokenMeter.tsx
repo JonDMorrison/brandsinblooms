@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Zap } from 'lucide-react';
+import { Zap, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const TokenMeter = () => {
   const { user } = useAuth();
@@ -28,17 +29,43 @@ export const TokenMeter = () => {
 
     try {
       setError(null);
+      console.log('Loading token data for user:', user.id);
       
-      // Get token balance from company profile
-      const { data: profile, error: profileError } = await supabase
+      // First, check for duplicate profiles and clean them up
+      const { data: profiles, error: profilesError } = await supabase
         .from('company_profiles')
-        .select('tokens_balance, tokens_reset_at')
+        .select('id, tokens_balance, tokens_reset_at, created_at')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
-      if (profileError) {
-        console.error('Error loading profile:', profileError);
-        throw profileError;
+      if (profilesError) {
+        console.error('Error loading profiles:', profilesError);
+        throw profilesError;
+      }
+
+      console.log(`Found ${profiles?.length || 0} profiles for user`);
+
+      let profile;
+      if (profiles && profiles.length > 1) {
+        // Multiple profiles found - use the most recent one and log the issue
+        console.warn(`Found ${profiles.length} profiles for user ${user.id}, using most recent`);
+        toast.warning('Multiple profiles detected. Using most recent data.');
+        profile = profiles[0]; // Most recent due to ordering
+        
+        // Optionally, you could trigger cleanup here
+        // For now, we'll just use the most recent profile
+      } else if (profiles && profiles.length === 1) {
+        profile = profiles[0];
+      } else {
+        // No profile found - this might be a new user
+        console.log('No company profile found for user');
+        setTokenData({
+          balance: 0,
+          resetAt: null,
+          maxTokens: 200
+        });
+        setLoading(false);
+        return;
       }
 
       // Get max tokens from subscription - use maybeSingle to avoid errors if no subscription exists
@@ -61,6 +88,7 @@ export const TokenMeter = () => {
     } catch (error) {
       console.error('Error loading token data:', error);
       setError('Failed to load token information');
+      toast.error('Failed to load token information');
     } finally {
       setLoading(false);
     }
@@ -81,7 +109,14 @@ export const TokenMeter = () => {
       <Card>
         <CardContent className="p-4">
           <div className="text-center text-red-600">
+            <AlertTriangle className="h-5 w-5 mx-auto mb-2" />
             <p className="text-sm">{error}</p>
+            <button 
+              onClick={loadTokenData}
+              className="text-xs text-blue-600 hover:underline mt-2"
+            >
+              Try again
+            </button>
           </div>
         </CardContent>
       </Card>

@@ -11,6 +11,7 @@ import { NewPostModal } from './NewPostModal';
 import { PostList } from './PostList';
 import { TokenMeter } from './TokenMeter';
 import { SocialErrorBoundary } from './SocialErrorBoundary';
+import { ProfileCleanupUtility } from '@/components/admin/ProfileCleanupUtility';
 
 export const SocialPlannerPage = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ export const SocialPlannerPage = () => {
   const [isNewPostModalOpen, setIsNewPostModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showCleanup, setShowCleanup] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -55,6 +57,19 @@ export const SocialPlannerPage = () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Check for duplicate profiles first
+      const { data: profiles, error: profilesError } = await supabase
+        .from('company_profiles')
+        .select('id')
+        .eq('user_id', user.id);
+      
+      if (profilesError) {
+        console.error('Error checking profiles:', profilesError);
+      } else if (profiles && profiles.length > 1) {
+        console.warn(`Found ${profiles.length} profiles for user - showing cleanup utility`);
+        setShowCleanup(true);
+      }
       
       // Load connections
       const { data: connectionsData, error: connectionsError } = await supabase
@@ -172,6 +187,14 @@ export const SocialPlannerPage = () => {
     <SocialErrorBoundary>
       <div className="container mx-auto px-4 py-8">
         <div className="space-y-12">
+          {/* Show cleanup utility if needed */}
+          {showCleanup && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold text-orange-700">Account Cleanup Required</h2>
+              <ProfileCleanupUtility />
+            </div>
+          )}
+
           {/* Connections Section */}
           <SocialConnectionsSection 
             connections={connections}
