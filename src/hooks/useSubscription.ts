@@ -7,6 +7,7 @@ interface Subscription {
   plan: string;
   max_posts_per_month: number;
   max_connections: number;
+  end_date: string;
 }
 
 export const useSubscription = () => {
@@ -24,7 +25,7 @@ export const useSubscription = () => {
       try {
         const { data, error } = await supabase
           .from('subscriptions')
-          .select('plan, max_posts_per_month, max_connections')
+          .select('plan, max_posts_per_month, max_connections, end_date')
           .eq('user_id', user.id)
           .single();
 
@@ -36,7 +37,8 @@ export const useSubscription = () => {
         setSubscription({
           plan: 'free',
           max_posts_per_month: 200,
-          max_connections: 4
+          max_connections: 4,
+          end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 days from now
         });
       } finally {
         setLoading(false);

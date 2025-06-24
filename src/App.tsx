@@ -1,19 +1,18 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import DashboardPage from './pages/DashboardPage';
 import CalendarPage from './pages/CalendarPage';
 import SocialPage from './pages/SocialPage';
-import AccountPage from './pages/AccountPage';
 import BillingPage from './pages/BillingPage';
-import ContentTasksPage from './pages/ContentTasksPage';
-import CompanyProfilePage from './components/CompanyProfilePage';
-import { QueryClient, QueryClientProvider } from 'react-query';
+import { CompanyProfilePage } from './components/CompanyProfilePage';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
-import AuthPage from './pages/AuthPage';
+import AuthPage from './pages/Auth';
 import OnboardingPage from './pages/OnboardingPage';
 import ProfilePage from './pages/ProfilePage';
 import UserDataDeletionPage from '@/pages/UserDataDeletionPage';
+import Index from './pages/Index';
 
 function App() {
   const queryClient = new QueryClient();
@@ -26,10 +25,9 @@ function App() {
             <Routes>
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/onboarding" element={<OnboardingPage />} />
-              <Route path="/" element={<DashboardPage />} />
+              <Route path="/" element={<Index />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/social" element={<SocialPage />} />
-              <Route path="/content-tasks" element={<ContentTasksPage />} />
               <Route path="/account" element={<ProfilePage />} />
               <Route path="/billing" element={<BillingPage />} />
               
