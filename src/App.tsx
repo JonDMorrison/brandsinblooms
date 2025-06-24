@@ -10,6 +10,7 @@ import SubscriptionSuccessPage from './pages/SubscriptionSuccessPage';
 import Index from './pages/Index';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
+import { OnboardingGuard } from './components/OnboardingGuard';
 import { useSubscription } from './contexts/SubscriptionContext';
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -17,23 +18,24 @@ import SocialPage from './pages/SocialPage';
 import { SidebarLayout } from './components/SidebarLayout';
 
 function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { subscription } = useSubscription();
+  const { subscription, loading: subscriptionLoading } = useSubscription();
 
+  // Only handle specific redirects after both auth and subscription are loaded
   useEffect(() => {
-    // Redirect to onboarding if authenticated and no subscription
-    if (isAuthenticated && !subscription && location.pathname !== '/onboarding' && location.pathname !== '/auth' && location.pathname !== '/subscription/success') {
-      navigate('/onboarding');
+    // Don't do any redirects while still loading
+    if (authLoading || subscriptionLoading) {
+      return;
     }
 
-    // Redirect to pricing if subscription is free_trial and attempting to access a paid feature
-    const paidFeaturesRoutes = ['/campaigns', '/templates']; // Example routes
-    if (subscription?.plan === 'free_trial' && paidFeaturesRoutes.includes(location.pathname)) {
+    // Only redirect to pricing if subscription is expired and user is trying to access paid features
+    const paidFeaturesRoutes = ['/campaigns', '/templates'];
+    if (isAuthenticated && subscription?.plan === 'expired' && paidFeaturesRoutes.includes(location.pathname)) {
       navigate('/pricing');
     }
-  }, [isAuthenticated, subscription, navigate, location]);
+  }, [isAuthenticated, subscription, navigate, location, authLoading, subscriptionLoading]);
 
   return (
     <ThemeProvider defaultTheme="system" storageKey="vite-react-theme">
@@ -45,17 +47,21 @@ function App() {
           <Route path="/subscription/success" element={<ProtectedRoute><SubscriptionSuccessPage /></ProtectedRoute>} />
           <Route path="/social" element={
             <ProtectedRoute>
-              <SidebarLayout>
-                <SocialPage />
-              </SidebarLayout>
+              <OnboardingGuard>
+                <SidebarLayout>
+                  <SocialPage />
+                </SidebarLayout>
+              </OnboardingGuard>
             </ProtectedRoute>
           } />
           <Route path="/" element={
             isAuthenticated ? (
               <ProtectedRoute>
-                <SidebarLayout>
-                  <Index />
-                </SidebarLayout>
+                <OnboardingGuard>
+                  <SidebarLayout>
+                    <Index />
+                  </SidebarLayout>
+                </OnboardingGuard>
               </ProtectedRoute>
             ) : (
               <LandingPage />
@@ -63,9 +69,11 @@ function App() {
           } />
           <Route path="/app" element={
             <ProtectedRoute>
-              <SidebarLayout>
-                <Index />
-              </SidebarLayout>
+              <OnboardingGuard>
+                <SidebarLayout>
+                  <Index />
+                </SidebarLayout>
+              </OnboardingGuard>
             </ProtectedRoute>
           } />
           <Route path="*" element={<div>Page not found</div>} />
