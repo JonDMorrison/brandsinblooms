@@ -28,9 +28,9 @@ function App() {
       navigate('/onboarding');
     }
 
-    // Redirect to pricing if subscription is free and attempting to access a paid feature
+    // Redirect to pricing if subscription is free_trial and attempting to access a paid feature
     const paidFeaturesRoutes = ['/campaigns', '/templates']; // Example routes
-    if (subscription?.plan === 'free' && paidFeaturesRoutes.includes(location.pathname)) {
+    if (subscription?.plan === 'free_trial' && paidFeaturesRoutes.includes(location.pathname)) {
       navigate('/pricing');
     }
   }, [isAuthenticated, subscription, navigate, location]);
