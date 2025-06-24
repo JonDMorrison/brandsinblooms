@@ -1,112 +1,167 @@
 
-import React, { useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from './contexts/AuthContext';
-import Auth from './pages/Auth';
-import { LandingPage } from './components/LandingPage';
-import PricingPage from './pages/PricingPage';
-import OnboardingPage from './pages/OnboardingPage';
-import SubscriptionSuccessPage from './pages/SubscriptionSuccessPage';
-import Index from './pages/Index';
-import CalendarPage from './pages/CalendarPage';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { PublicRoute } from './components/PublicRoute';
-import { OnboardingGuard } from './components/OnboardingGuard';
-import { useSubscription } from './contexts/SubscriptionContext';
-import { Toaster } from "sonner"
-import { ThemeProvider } from "@/components/theme-provider"
-import SocialPage from './pages/SocialPage';
-import { SidebarLayout } from './components/SidebarLayout';
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
+import { ThemeProvider } from "next-themes";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { PublicRoute } from "@/components/PublicRoute";
+import { OnboardingGuard } from "@/components/OnboardingGuard";
+import { SidebarLayout } from "@/components/SidebarLayout";
+import { NetworkErrorBoundary } from "@/components/NetworkErrorBoundary";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+// Pages
+import Index from "./pages/Index";
+import Auth from "./pages/Auth";
+import OnboardingPage from "./pages/OnboardingPage";
+import CalendarPage from "./pages/CalendarPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import ContentLibraryPage from "./pages/ContentLibraryPage";
+import ProfilePage from "./pages/ProfilePage";
+import TeamPage from "./pages/TeamPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
+import SubscriptionSuccessPage from "./pages/SubscriptionSuccessPage";
+import PricingPage from "./pages/PricingPage";
+import AdminPage from "./pages/AdminPage";
+import SocialPage from "./pages/SocialPage";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
+import NotFound from "./pages/NotFound";
+
+const queryClient = new QueryClient();
 
 function App() {
-  const { isAuthenticated, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { subscription, loading: subscriptionLoading } = useSubscription();
-
-  // Debug logging for routing issues
-  useEffect(() => {
-    console.log('🔍 App: Route state', {
-      isAuthenticated,
-      authLoading,
-      subscriptionLoading,
-      currentPath: location.pathname,
-      timestamp: new Date().toISOString()
-    });
-  }, [isAuthenticated, authLoading, subscriptionLoading, location.pathname]);
-
-  // Only handle specific redirects after both auth and subscription are loaded
-  useEffect(() => {
-    // Don't do any redirects while still loading
-    if (authLoading || subscriptionLoading) {
-      return;
-    }
-
-    // Only redirect to pricing if subscription is expired and user is trying to access paid features
-    const paidFeaturesRoutes = ['/campaigns', '/templates'];
-    if (isAuthenticated && subscription?.plan === 'expired' && paidFeaturesRoutes.includes(location.pathname)) {
-      navigate('/pricing');
-    }
-  }, [isAuthenticated, subscription, navigate, location, authLoading, subscriptionLoading]);
-
   return (
-    <ThemeProvider defaultTheme="system" storageKey="vite-react-theme">
-      <Toaster />
-        <Routes>
-          <Route path="/auth" element={<PublicRoute><Auth /></PublicRoute>} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
-          <Route path="/subscription/success" element={<ProtectedRoute><SubscriptionSuccessPage /></ProtectedRoute>} />
-          <Route path="/calendar" element={
-            <ProtectedRoute>
-              <OnboardingGuard>
-                <SidebarLayout>
-                  <CalendarPage />
-                </SidebarLayout>
-              </OnboardingGuard>
-            </ProtectedRoute>
-          } />
-          <Route path="/social" element={
-            <ProtectedRoute>
-              <OnboardingGuard>
-                <SidebarLayout>
-                  <SocialPage />
-                </SidebarLayout>
-              </OnboardingGuard>
-            </ProtectedRoute>
-          } />
-          <Route path="/debug-dashboard" element={
-            <ProtectedRoute>
-              <SidebarLayout>
-                <Index />
-              </SidebarLayout>
-            </ProtectedRoute>
-          } />
-          <Route path="/" element={
-            isAuthenticated ? (
-              <ProtectedRoute>
-                <OnboardingGuard>
-                  <SidebarLayout>
-                    <Index />
-                  </SidebarLayout>
-                </OnboardingGuard>
-              </ProtectedRoute>
-            ) : (
-              <LandingPage />
-            )
-          } />
-          <Route path="/app" element={
-            <ProtectedRoute>
-              <OnboardingGuard>
-                <SidebarLayout>
-                  <Index />
-                </SidebarLayout>
-              </OnboardingGuard>
-            </ProtectedRoute>
-          } />
-          <Route path="*" element={<div>Page not found</div>} />
-        </Routes>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <NetworkErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+            <TooltipProvider>
+              <AuthProvider>
+                <SubscriptionProvider>
+                  <Toaster />
+                  <BrowserRouter>
+                    <Routes>
+                      {/* Public routes */}
+                      <Route path="/pricing" element={<PricingPage />} />
+                      <Route path="/auth" element={
+                        <PublicRoute>
+                          <Auth />
+                        </PublicRoute>
+                      } />
+                      <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                      <Route path="/subscription-success" element={<SubscriptionSuccessPage />} />
+                      
+                      {/* Protected routes */}
+                      <Route path="/onboarding" element={
+                        <ProtectedRoute>
+                          <OnboardingPage />
+                        </ProtectedRoute>
+                      } />
+                      
+                      {/* Main app routes (require onboarding completion) */}
+                      <Route path="/" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <Index />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/calendar" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <CalendarPage />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/analytics" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <AnalyticsPage />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/content-library" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <ContentLibraryPage />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/profile" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <ProfilePage />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/team" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <TeamPage />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/subscription" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <SubscriptionPage />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/social" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <SocialPage />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="/admin" element={
+                        <ProtectedRoute>
+                          <OnboardingGuard>
+                            <SidebarLayout>
+                              <AdminPage />
+                            </SidebarLayout>
+                          </OnboardingGuard>
+                        </ProtectedRoute>
+                      } />
+                      
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </BrowserRouter>
+                </SubscriptionProvider>
+              </AuthProvider>
+            </TooltipProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </NetworkErrorBoundary>
+    </ErrorBoundary>
   );
 }
 

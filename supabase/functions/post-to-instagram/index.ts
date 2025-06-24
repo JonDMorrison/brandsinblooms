@@ -109,19 +109,33 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any) {
     return // Token is still valid
   }
 
-  const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${Deno.env.get('FB_CLIENT_ID')}&client_secret=${Deno.env.get('FB_CLIENT_SECRET')}&fb_exchange_token=${connection.access_token}`
+  const clientId = Deno.env.get('FB_CLIENT_ID')
+  const clientSecret = Deno.env.get('FB_CLIENT_SECRET')
   
-  const response = await fetch(refreshUrl)
-  const data = await response.json()
-  
-  if (data.access_token) {
-    const newExpiresAt = new Date(Date.now() + data.expires_in * 1000)
-    await supabaseAdmin
-      .from('social_connections')
-      .update({
-        access_token: data.access_token,
-        expires_at: newExpiresAt.toISOString()
-      })
-      .eq('id', connection.id)
+  if (!clientId || !clientSecret) {
+    console.error('Facebook credentials not configured for token refresh')
+    return
+  }
+
+  try {
+    const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${clientId}&client_secret=${clientSecret}&fb_exchange_token=${connection.access_token}`
+    
+    const response = await fetch(refreshUrl)
+    const data = await response.json()
+    
+    if (data.access_token) {
+      const newExpiresAt = new Date(Date.now() + (data.expires_in || 5184000) * 1000) // Default to 60 days if not provided
+      await supabaseAdmin
+        .from('social_connections')
+        .update({
+          access_token: data.access_token,
+          expires_at: newExpiresAt.toISOString()
+        })
+        .eq('id', connection.id)
+      
+      console.log('Token refreshed successfully for connection:', connection.id)
+    }
+  } catch (error) {
+    console.error('Token refresh failed:', error)
   }
 }
