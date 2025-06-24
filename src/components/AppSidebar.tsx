@@ -89,7 +89,7 @@ const AppSidebar: React.FC = () => {
     <div className="w-64 flex-shrink-0 border-r bg-secondary">
       <div className="flex h-16 items-center px-4">
         <NavLink to="/" className="font-semibold">
-          BloomBoost
+          BloomSuite
         </NavLink>
       </div>
       <nav className="h-[calc(100vh-4rem)] overflow-y-auto py-6 text-sm">
