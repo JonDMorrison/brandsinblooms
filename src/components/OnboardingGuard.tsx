@@ -21,7 +21,8 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     subscriptionLoading, 
     onboardingLoading,
     isCompleted,
-    currentPath: window.location.pathname
+    currentPath: window.location.pathname,
+    timestamp: new Date().toISOString()
   });
 
   // Show loading while checking auth, subscription, or onboarding status
@@ -37,13 +38,26 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     );
   }
 
+  // If no user, let the ProtectedRoute handle the redirect
+  if (!user) {
+    console.log('🛡️ OnboardingGuard: No user, letting ProtectedRoute handle redirect');
+    return <>{children}</>;
+  }
+
+  // TEMPORARY DEBUG: Skip onboarding check if we're in a loop
+  const hasOnboardingData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
+  if (hasOnboardingData && !isCompleted) {
+    console.log('🔧 OnboardingGuard: Found onboarding data in localStorage but DB shows incomplete, allowing access');
+    return <>{children}</>;
+  }
+
   // If user is authenticated but hasn't completed onboarding, redirect to onboarding
-  if (user && !isCompleted) {
+  if (user && !isCompleted && !hasOnboardingData) {
     console.log('🔄 OnboardingGuard: User needs onboarding, redirecting');
     return <Navigate to="/onboarding" replace />;
   }
 
   // If onboarding is completed, show the protected content
-  console.log('✅ OnboardingGuard: Onboarding completed, showing protected content');
+  console.log('✅ OnboardingGuard: Onboarding completed or bypassed, showing protected content');
   return <>{children}</>;
 };

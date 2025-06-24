@@ -23,6 +23,17 @@ function App() {
   const location = useLocation();
   const { subscription, loading: subscriptionLoading } = useSubscription();
 
+  // Debug logging for routing issues
+  useEffect(() => {
+    console.log('🔍 App: Route state', {
+      isAuthenticated,
+      authLoading,
+      subscriptionLoading,
+      currentPath: location.pathname,
+      timestamp: new Date().toISOString()
+    });
+  }, [isAuthenticated, authLoading, subscriptionLoading, location.pathname]);
+
   // Only handle specific redirects after both auth and subscription are loaded
   useEffect(() => {
     // Don't do any redirects while still loading
@@ -52,6 +63,13 @@ function App() {
                   <SocialPage />
                 </SidebarLayout>
               </OnboardingGuard>
+            </ProtectedRoute>
+          } />
+          <Route path="/debug-dashboard" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <Index />
+              </SidebarLayout>
             </ProtectedRoute>
           } />
           <Route path="/" element={
