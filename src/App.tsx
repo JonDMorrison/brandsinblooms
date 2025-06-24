@@ -1,3 +1,4 @@
+
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -7,7 +8,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import Index from "./pages/Index";
+import { SmartRootRoute } from "@/components/SmartRootRoute";
 import PricingPage from "./pages/PricingPage";
 import AccountPage from "./pages/AccountPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -28,112 +29,64 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider defaultTheme="light" storageKey="ui-theme">
-          <Routes>
-            {/* Public auth route - needs AuthProvider to check if user is already logged in */}
-            <Route 
-              path="/auth" 
-              element={
-                <AuthProvider>
-                  <Auth />
-                </AuthProvider>
-              } 
-            />
-            
-            {/* Protected routes */}
-            <Route
-              path="/"
-              element={
-                <AuthProvider>
-                  <SubscriptionProvider>
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  </SubscriptionProvider>
-                </AuthProvider>
-              }
-            />
-            <Route
-              path="/pricing"
-              element={
-                <AuthProvider>
-                  <SubscriptionProvider>
-                    <PricingPage />
-                  </SubscriptionProvider>
-                </AuthProvider>
-              }
-            />
-            <Route
-              path="/account"
-              element={
-                <AuthProvider>
-                  <SubscriptionProvider>
+          <AuthProvider>
+            <SubscriptionProvider>
+              <Routes>
+                {/* Smart root route - shows landing page for guests, dashboard for users */}
+                <Route path="/" element={<SmartRootRoute />} />
+                
+                {/* Public auth route */}
+                <Route path="/auth" element={<Auth />} />
+                
+                {/* Public pricing route */}
+                <Route path="/pricing" element={<PricingPage />} />
+                
+                {/* Protected routes */}
+                <Route
+                  path="/account"
+                  element={
                     <ProtectedRoute>
                       <AccountPage />
                     </ProtectedRoute>
-                  </SubscriptionProvider>
-                </AuthProvider>
-              }
-            />
-            <Route
-              path="/calendar"
-              element={
-                <AuthProvider>
-                  <SubscriptionProvider>
+                  }
+                />
+                <Route
+                  path="/calendar"
+                  element={
                     <ProtectedRoute>
                       <CalendarPage />
                     </ProtectedRoute>
-                  </SubscriptionProvider>
-                </AuthProvider>
-              }
-            />
-            <Route
-              path="/billing"
-              element={
-                <AuthProvider>
-                  <SubscriptionProvider>
+                  }
+                />
+                <Route
+                  path="/billing"
+                  element={
                     <ProtectedRoute>
                       <BillingPage />
                     </ProtectedRoute>
-                  </SubscriptionProvider>
-                </AuthProvider>
-              }
-            />
-            <Route
-              path="/social"
-              element={
-                <AuthProvider>
-                  <SubscriptionProvider>
+                  }
+                />
+                <Route
+                  path="/social"
+                  element={
                     <ProtectedRoute>
                       <SocialPage />
                     </ProtectedRoute>
-                  </SubscriptionProvider>
-                </AuthProvider>
-              }
-            />
-            <Route
-              path="/content-tasks"
-              element={
-                <AuthProvider>
-                  <SubscriptionProvider>
+                  }
+                />
+                <Route
+                  path="/content-tasks"
+                  element={
                     <ProtectedRoute>
                       <ContentTasksPage />
                     </ProtectedRoute>
-                  </SubscriptionProvider>
-                </AuthProvider>
-              }
-            />
-            <Route 
-              path="/auth/callback" 
-              element={
-                <AuthProvider>
-                  <SubscriptionProvider>
-                    <AuthCallbackPage />
-                  </SubscriptionProvider>
-                </AuthProvider>
-              } 
-            />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
+                  }
+                />
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </SubscriptionProvider>
+          </AuthProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
