@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Facebook, Instagram } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
@@ -10,8 +11,14 @@ interface ConnectMetaButtonProps {
 
 export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const { user } = useAuth();
 
   const handleConnect = async () => {
+    if (!user) {
+      toast.error('Please log in to connect your social media accounts');
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -33,8 +40,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
       const redirectUri = `${window.location.origin}/auth/callback`;
       
-      // Use environment variable or hardcoded client ID for OAuth
-      // The client ID is safe to expose in frontend code
+      // Use the Facebook App ID from the environment
       const clientId = '1051205399952993'; // Your Facebook App ID
       
       const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
@@ -57,8 +63,9 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   return (
     <Button 
       onClick={handleConnect} 
-      disabled={loading}
-      className="flex items-center gap-2"
+      disabled={loading || !user}
+      className="w-full bg-garden-green hover:bg-garden-green-dark text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 flex items-center justify-center gap-2"
+      size="lg"
     >
       <Facebook className="h-4 w-4" />
       <Instagram className="h-4 w-4" />

@@ -11,6 +11,8 @@ interface SocialConnectionCardProps {
   accountName?: string;
   onConnect: () => void;
   onDisconnect?: () => void;
+  connectButton?: React.ReactNode;
+  disabled?: boolean;
 }
 
 export const SocialConnectionCard: React.FC<SocialConnectionCardProps> = ({
@@ -18,7 +20,9 @@ export const SocialConnectionCard: React.FC<SocialConnectionCardProps> = ({
   isConnected,
   accountName,
   onConnect,
-  onDisconnect
+  onDisconnect,
+  connectButton,
+  disabled = false
 }) => {
   const platformConfig = {
     facebook: {
@@ -45,7 +49,8 @@ export const SocialConnectionCard: React.FC<SocialConnectionCardProps> = ({
       "h-full transition-all duration-300 hover:shadow-lg border-2",
       isConnected 
         ? "border-green-200 bg-green-50/50" 
-        : "border-gray-200 hover:border-gray-300"
+        : "border-gray-200 hover:border-gray-300",
+      disabled && "opacity-50 cursor-not-allowed"
     )}>
       <CardContent className="p-8">
         <div className="flex flex-col items-center text-center space-y-6">
@@ -115,13 +120,20 @@ export const SocialConnectionCard: React.FC<SocialConnectionCardProps> = ({
                 )}
               </div>
             ) : (
-              <Button 
-                onClick={onConnect}
-                className="w-full bg-garden-green hover:bg-garden-green-dark text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
-                size="lg"
-              >
-                Connect {config.name}
-              </Button>
+              <div className="w-full">
+                {connectButton ? (
+                  connectButton
+                ) : (
+                  <Button 
+                    onClick={onConnect}
+                    className="w-full bg-garden-green hover:bg-garden-green-dark text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
+                    size="lg"
+                    disabled={disabled}
+                  >
+                    Connect {config.name}
+                  </Button>
+                )}
+              </div>
             )}
           </div>
         </div>

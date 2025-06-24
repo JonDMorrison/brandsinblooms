@@ -4,11 +4,13 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Processing your connection...');
 
@@ -17,10 +19,13 @@ export const AuthCallbackPage = () => {
       const code = searchParams.get('code');
       const state = searchParams.get('state');
       const error = searchParams.get('error');
+      const errorDescription = searchParams.get('error_description');
 
       if (error) {
+        console.error('OAuth error:', error, errorDescription);
         setStatus('error');
-        setMessage(`Authorization failed: ${error}`);
+        setMessage(`Authorization failed: ${errorDescription || error}`);
+        toast.error(`Connection failed: ${errorDescription || error}`);
         setTimeout(() => navigate('/social'), 3000);
         return;
       }
@@ -28,11 +33,35 @@ export const AuthCallbackPage = () => {
       if (!code || !state) {
         setStatus('error');
         setMessage('Missing authorization code or state parameter');
+        toast.error('Invalid authorization response');
         setTimeout(() => navigate('/social'), 3000);
         return;
       }
 
+      // Verify state parameter to prevent CSRF attacks
+      const storedState = sessionStorage.getItem('oauth_state');
+      if (state !== storedState) {
+        setStatus('error');
+        setMessage('State parameter mismatch - possible security issue');
+        toast.error('Security verification failed');
+        setTimeout(() => navigate('/social'), 3000);
+        return;
+      }
+
+      // Clear the stored state
+      sessionStorage.removeItem('oauth_state');
+
+      if (!user) {
+        setStatus('error');
+        setMessage('You must be logged in to connect social media accounts');
+        toast.error('Please log in first');
+        setTimeout(() => navigate('/auth'), 3000);
+        return;
+      }
+
       try {
+        console.log('Exchanging OAuth code for tokens...');
+        
         // Exchange the authorization code for access token
         const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
           body: {
@@ -43,13 +72,17 @@ export const AuthCallbackPage = () => {
         });
 
         if (exchangeError) {
+          console.error('Edge function error:', exchangeError);
           throw new Error(exchangeError.message);
         }
 
+        console.log('OAuth exchange response:', data);
+
         if (data.success) {
           setStatus('success');
-          setMessage('Successfully connected to Meta platform!');
-          toast.success('Meta platform connected successfully!');
+          const successMessage = data.message || 'Successfully connected to Meta platform!';
+          setMessage(successMessage);
+          toast.success(successMessage);
           setTimeout(() => navigate('/social'), 2000);
         } else {
           throw new Error(data.error || 'Failed to connect');
@@ -63,8 +96,14 @@ export const AuthCallbackPage = () => {
       }
     };
 
-    handleCallback();
-  }, [searchParams, navigate]);
+    // Only run the callback handling if we have the necessary URL parameters
+    if (searchParams.get('code') || searchParams.get('error')) {
+      handleCallback();
+    } else {
+      // If no OAuth parameters, redirect back to social page
+      navigate('/social');
+    }
+  }, [searchParams, navigate, user]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -83,6 +122,7 @@ export const AuthCallbackPage = () => {
               <CheckCircle className="h-12 w-12 text-green-600 mb-4" />
               <h2 className="text-xl font-semibold mb-2">Success!</h2>
               <p className="text-gray-600 text-center">{message}</p>
+              <p className="text-sm text-gray-500 mt-2">Redirecting you back...</p>
             </>
           )}
           
@@ -91,6 +131,7 @@ export const AuthCallbackPage = () => {
               <AlertCircle className="h-12 w-12 text-red-600 mb-4" />
               <h2 className="text-xl font-semibold mb-2">Connection Failed</h2>
               <p className="text-gray-600 text-center">{message}</p>
+              <p className="text-sm text-gray-500 mt-2">Redirecting you back...</p>
             </>
           )}
         </CardContent>
