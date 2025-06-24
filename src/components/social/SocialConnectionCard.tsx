@@ -117,7 +117,7 @@ export const SocialConnectionCard: React.FC<SocialConnectionCardProps> = ({
             ) : (
               <Button 
                 onClick={onConnect}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg"
+                className="w-full bg-garden-green hover:bg-garden-green-dark text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200"
                 size="lg"
               >
                 Connect {config.name}
