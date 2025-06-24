@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -16,6 +16,8 @@ interface WebsiteOnboardingFlowProps {
   onComplete: (data: any) => void;
 }
 
+const ONBOARDING_STORAGE_KEY = 'garden-center-onboarding-progress';
+
 export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -25,6 +27,79 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   const [useManualEntry, setUseManualEntry] = useState(false);
   
   const { isAnalyzing, extractedData, analyzeWebsite, updateExtractedData } = useWebsiteAnalysis();
+
+  // Save progress to localStorage
+  const saveProgress = (data: any) => {
+    if (!user) return;
+    
+    const progressData = {
+      userId: user.id,
+      websiteUrl,
+      currentStep,
+      extractedData,
+      timestamp: Date.now()
+    };
+    
+    localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(progressData));
+  };
+
+  // Load progress from localStorage
+  const loadProgress = () => {
+    if (!user) return false;
+    
+    try {
+      const saved = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+      if (!saved) return false;
+      
+      const progressData = JSON.parse(saved);
+      
+      // Check if this is for the current user and not too old (24 hours)
+      if (progressData.userId === user.id && 
+          Date.now() - progressData.timestamp < 24 * 60 * 60 * 1000) {
+        
+        setWebsiteUrl(progressData.websiteUrl || "");
+        setCurrentStep(progressData.currentStep || 1);
+        
+        // If we have extracted data, restore it
+        if (progressData.extractedData && Object.keys(progressData.extractedData).length > 0) {
+          Object.keys(progressData.extractedData).forEach(key => {
+            if (progressData.extractedData[key]) {
+              updateExtractedData(key, progressData.extractedData[key]);
+            }
+          });
+        }
+        
+        console.log('🔄 Restored onboarding progress:', progressData);
+        return true;
+      }
+    } catch (error) {
+      console.error('Error loading onboarding progress:', error);
+    }
+    
+    return false;
+  };
+
+  // Clear progress from localStorage
+  const clearProgress = () => {
+    localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+  };
+
+  // Load saved progress on component mount
+  useEffect(() => {
+    if (user) {
+      const restored = loadProgress();
+      if (restored) {
+        toast.success("Restored your previous onboarding progress!");
+      }
+    }
+  }, [user]);
+
+  // Save progress whenever key data changes
+  useEffect(() => {
+    if (user && (websiteUrl || currentStep > 1)) {
+      saveProgress({ websiteUrl, currentStep, extractedData });
+    }
+  }, [websiteUrl, currentStep, extractedData, user]);
 
   const steps = [
     {
@@ -40,6 +115,11 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   ];
 
   const handleAnalyze = async () => {
+    // Save the website URL immediately
+    if (websiteUrl.trim()) {
+      saveProgress({ websiteUrl, currentStep: 1, extractedData: {} });
+    }
+    
     const success = await analyzeWebsite(websiteUrl);
     if (success) {
       setTimeout(() => {
@@ -50,6 +130,8 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
 
   const handleManualEntry = () => {
     setUseManualEntry(true);
+    // Clear any saved progress since we're switching to manual entry
+    clearProgress();
   };
 
   const handleNext = async () => {
@@ -112,6 +194,9 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       // Store the onboarding data in localStorage as backup
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(finalData));
       
+      // Clear the progress since onboarding is complete
+      clearProgress();
+      
       // Call the onComplete callback with the data
       onComplete(finalData);
       
@@ -140,6 +225,19 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
 
   const handleManualEntryBack = () => {
     setUseManualEntry(false);
+    // Restore progress when coming back from manual entry
+    if (user) {
+      loadProgress();
+    }
+  };
+
+  // Update website URL and save progress
+  const handleWebsiteUrlChange = (url: string) => {
+    setWebsiteUrl(url);
+    // Save immediately when URL changes
+    if (user && url.trim()) {
+      saveProgress({ websiteUrl: url, currentStep, extractedData });
+    }
   };
 
   // If user chose manual entry, show the original onboarding flow
@@ -172,7 +270,7 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
               {currentStep === 1 ? (
                 <UrlInputStep
                   websiteUrl={websiteUrl}
-                  setWebsiteUrl={setWebsiteUrl}
+                  setWebsiteUrl={handleWebsiteUrlChange}
                   onAnalyze={handleAnalyze}
                   onManualEntry={handleManualEntry}
                   isAnalyzing={isAnalyzing}
