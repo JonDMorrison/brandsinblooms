@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,7 +8,6 @@ import { FirstTimeUserWelcome } from "./FirstTimeUserWelcome";
 import { WeeklyContentUpdater } from "./current-campaign/WeeklyContentUpdater";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
-import { BodyMedium } from "@/components/ui/typography";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { UnifiedDashboardGrid } from "./UnifiedDashboardGrid";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
@@ -386,9 +386,9 @@ export const DashboardContent = ({
         animated={true}
       >
         <AppleCardContent className="flex flex-col items-center justify-center py-12">
-          <BodyMedium className="text-text-secondary">
+          <p className="text-gray-600">
             {!user ? 'Please log in to access your dashboard' : 'Loading your workspace...'}
-          </BodyMedium>
+          </p>
         </AppleCardContent>
       </EnhancedAppleCard>
     );
@@ -404,9 +404,9 @@ export const DashboardContent = ({
       >
         <AppleCardContent className="flex flex-col items-center justify-center py-12">
           <LoadingSpinner size="lg" />
-          <BodyMedium className="text-text-secondary mt-4">
+          <p className="text-gray-600 mt-4">
             {generatingContent ? 'Generating your content...' : 'Loading your content...'}
-          </BodyMedium>
+          </p>
         </AppleCardContent>
       </EnhancedAppleCard>
     );
@@ -415,8 +415,8 @@ export const DashboardContent = ({
   console.log('🎨 DashboardContent: Final render - activeCampaign:', activeCampaign?.title, 'tasks:', tasks.length);
 
   return (
-    <div className="w-full overflow-x-hidden bg-garden-background">
-      <div className="space-y-4 mobile-dashboard-spacing w-full">
+    <div className="w-full overflow-x-hidden bg-gray-50">
+      <div className="space-y-4 p-4 md:p-6 w-full">
         {/* Development Preview Badge */}
         {isDevelopment && activeCampaign?.title?.startsWith('PREVIEW') && (
           <div className="flex justify-center w-full">

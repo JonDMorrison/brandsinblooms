@@ -1,5 +1,5 @@
 
-import { CurrentCampaignSection } from "./current-campaign/CurrentCampaignSection";
+import { CurrentCampaignSection } from "./CurrentCampaignSection";
 import { CustomContentSection } from "./custom-content/CustomContentSection";
 import { QuickActionsSection } from "./QuickActionsSection";
 import { EnhancedSeasonalHolidaysCard } from "./seasonal-holidays/EnhancedSeasonalHolidaysCard";
@@ -35,6 +35,8 @@ export const UnifiedDashboardGrid = ({
           activeCampaign={activeCampaign}
           tasks={tasks}
           onTaskUpdate={onTaskUpdate}
+          onCreateCampaign={onCreateCampaign}
+          onCampaignCreated={onCampaignCreated}
         />
       </div>
 
@@ -50,7 +52,7 @@ export const UnifiedDashboardGrid = ({
       <QuickActionsSection onCampaignCreated={onCampaignCreated} />
 
       {/* Seasonal Marketing Section with improved styling */}
-      <section className="seasonal-section card-shadow">
+      <section className="seasonal-section shadow-sm">
         <EnhancedSeasonalHolidaysCard
           onContentGenerated={onCampaignCreated}
         />
