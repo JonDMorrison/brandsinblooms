@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
   Home,
@@ -90,13 +89,14 @@ const AppSidebar: React.FC = () => {
       <div className="flex h-16 items-center px-4">
         <NavLink to="/" className="font-semibold flex items-center gap-2">
           <img 
-            src="/lovable-uploads/4ec3d248-4d9c-40f3-805f-fd2915a6b040.png" 
+            src="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png" 
             alt="BloomSuite Logo" 
             className="h-6 w-6" 
           />
           BloomSuite
         </NavLink>
       </div>
+      
       <nav className="h-[calc(100vh-4rem)] overflow-y-auto py-6 text-sm">
         {sidebarItems.map((item) =>
           item.items ? (
