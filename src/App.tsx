@@ -10,7 +10,7 @@ import SubscriptionSuccessPage from './pages/SubscriptionSuccessPage';
 import Index from './pages/Index';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
-import { useSubscription } from './hooks/useSubscription';
+import { useSubscription } from './contexts/SubscriptionContext';
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import SocialPage from './pages/SocialPage';

@@ -1,62 +1,37 @@
 
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
-import { LandingPageHeader } from "./landing/LandingPageHeader";
-import { HeroSection } from "./landing/HeroSection";
-import { HowItWorksSection } from "./landing/HowItWorksSection";
-import { BenefitsSection } from "./landing/BenefitsSection";
-import { TestimonialsSection } from "./landing/TestimonialsSection";
-import { PricingPreviewSection } from "./landing/PricingPreviewSection";
-import { FinalCTASection } from "./landing/FinalCTASection";
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { useNavigate } from 'react-router-dom';
 
-interface LandingPageProps {
-  onGetStarted?: () => void;
-}
-
-export const LandingPage = ({ onGetStarted }: LandingPageProps) => {
+export const LandingPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  const handleGetStarted = () => {
-    if (user) {
-      // User is already authenticated, redirect to dashboard
-      navigate('/app');
-    } else if (onGetStarted) {
-      // Use the provided onGetStarted callback if user is not authenticated
-      onGetStarted();
-    } else {
-      // User is not authenticated, redirect to auth page
-      navigate('/auth');
-    }
-  };
-
-  const handleSeePricing = () => {
-    if (user) {
-      // If user is authenticated, redirect to dashboard instead of pricing
-      navigate('/app');
-    } else {
-      navigate('/pricing');
-    }
-  };
-
-  const handleLogin = () => {
-    if (user) {
-      // If user is already authenticated, redirect to dashboard
-      navigate('/app');
-    } else {
-      navigate('/auth');
-    }
-  };
 
   return (
-    <div className="min-h-screen bg-garden-background">
-      <LandingPageHeader onLogin={handleLogin} />
-      <HeroSection onGetStarted={handleGetStarted} />
-      <HowItWorksSection />
-      <BenefitsSection />
-      <TestimonialsSection />
-      <PricingPreviewSection onSeePricing={handleSeePricing} />
-      <FinalCTASection onGetStarted={handleGetStarted} />
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
+      <div className="max-w-4xl mx-auto px-6 text-center">
+        <h1 className="text-5xl font-bold text-gray-900 mb-6">
+          Welcome to BloomBoost
+        </h1>
+        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          Your AI-powered content marketing assistant for garden centers. 
+          Create engaging social media content, manage campaigns, and grow your business.
+        </p>
+        <div className="space-x-4">
+          <Button 
+            onClick={() => navigate('/auth')}
+            className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg"
+          >
+            Get Started
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={() => navigate('/pricing')}
+            className="border-green-600 text-green-600 hover:bg-green-50 px-8 py-3 text-lg"
+          >
+            View Pricing
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

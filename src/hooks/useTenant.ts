@@ -1,14 +1,16 @@
 
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Tenant {
   id: string;
   name: string;
-  slug: string;
+  slug: string | null;
   settings: any;
   is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export const useTenant = () => {
@@ -17,13 +19,9 @@ export const useTenant = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-
     const fetchTenant = async () => {
       if (!user) {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
         return;
       }
 
@@ -34,8 +32,6 @@ export const useTenant = () => {
           .select('tenant_id')
           .eq('id', user.id)
           .single();
-
-        if (!isMounted) return;
 
         if (userError || !userData?.tenant_id) {
           console.log('User not assigned to a tenant yet');
@@ -50,29 +46,19 @@ export const useTenant = () => {
           .eq('id', userData.tenant_id)
           .single();
 
-        if (!isMounted) return;
-
         if (tenantError) {
           console.error('Error fetching tenant:', tenantError);
         } else {
           setTenant(tenantData);
         }
       } catch (error) {
-        if (isMounted) {
-          console.error('Error in useTenant:', error);
-        }
+        console.error('Error in fetchTenant:', error);
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     };
 
     fetchTenant();
-
-    return () => {
-      isMounted = false;
-    };
   }, [user]);
 
   return { tenant, loading };
