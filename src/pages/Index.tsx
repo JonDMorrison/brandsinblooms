@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
 import { UserMenu } from "@/components/UserMenu";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { SidebarLayout } from "@/components/SidebarLayout";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -96,21 +97,23 @@ const Index = () => {
   }
 
   return (
-    <div className="w-full h-full bg-garden-background">
-      {/* UserMenu positioned in top right */}
-      <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
-        <UserMenu />
+    <SidebarLayout>
+      <div className="w-full h-full bg-garden-background">
+        {/* UserMenu positioned in top right */}
+        <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
+          <UserMenu />
+        </div>
+        
+        {/* Dashboard Content */}
+        <div className="w-full h-full p-6">
+          <DashboardContent
+            onboardingData={onboardingData}
+            onBusinessNameChange={handleBusinessNameChange}
+            onCampaignCreated={handleCampaignCreated}
+          />
+        </div>
       </div>
-      
-      {/* Dashboard Content */}
-      <div className="w-full h-full p-6">
-        <DashboardContent
-          onboardingData={onboardingData}
-          onBusinessNameChange={handleBusinessNameChange}
-          onCampaignCreated={handleCampaignCreated}
-        />
-      </div>
-    </div>
+    </SidebarLayout>
   );
 };
 
