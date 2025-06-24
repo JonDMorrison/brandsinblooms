@@ -7,12 +7,14 @@ import { LandingPage } from './components/LandingPage';
 import PricingPage from './pages/PricingPage';
 import OnboardingPage from './pages/OnboardingPage';
 import SubscriptionSuccessPage from './pages/SubscriptionSuccessPage';
+import Index from './pages/Index';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PublicRoute } from './components/PublicRoute';
 import { useSubscription } from './hooks/useSubscription';
 import { Toaster } from "sonner"
 import { ThemeProvider } from "@/components/theme-provider"
 import SocialPage from './pages/SocialPage';
+import { SidebarLayout } from './components/SidebarLayout';
 
 function App() {
   const { isAuthenticated } = useAuth();
@@ -41,15 +43,30 @@ function App() {
           <Route path="/pricing" element={<PricingPage />} />
           <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
           <Route path="/subscription/success" element={<ProtectedRoute><SubscriptionSuccessPage /></ProtectedRoute>} />
-          <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
+          <Route path="/social" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <SocialPage />
+              </SidebarLayout>
+            </ProtectedRoute>
+          } />
           <Route path="/" element={
             isAuthenticated ? (
               <ProtectedRoute>
-                <div>Dashboard coming soon</div>
+                <SidebarLayout>
+                  <Index />
+                </SidebarLayout>
               </ProtectedRoute>
             ) : (
               <LandingPage />
             )
+          } />
+          <Route path="/app" element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <Index />
+              </SidebarLayout>
+            </ProtectedRoute>
           } />
           <Route path="*" element={<div>Page not found</div>} />
         </Routes>

@@ -1,11 +1,14 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
-import { Navigate } from "react-router-dom";
+import { UserMenu } from "@/components/UserMenu";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const Index = () => {
   const { user, loading } = useAuth();
+  const isMobile = useIsMobile();
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
@@ -88,17 +91,26 @@ const Index = () => {
     );
   }
 
-  // Redirect to auth if not logged in
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <div>Please log in to access the dashboard</div>;
   }
 
   return (
-    <DashboardContent
-      onboardingData={onboardingData}
-      onBusinessNameChange={handleBusinessNameChange}
-      onCampaignCreated={handleCampaignCreated}
-    />
+    <div className="w-full h-full bg-garden-background">
+      {/* UserMenu positioned in top right */}
+      <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
+        <UserMenu />
+      </div>
+      
+      {/* Dashboard Content */}
+      <div className="w-full h-full p-6">
+        <DashboardContent
+          onboardingData={onboardingData}
+          onBusinessNameChange={handleBusinessNameChange}
+          onCampaignCreated={handleCampaignCreated}
+        />
+      </div>
+    </div>
   );
 };
 
