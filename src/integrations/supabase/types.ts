@@ -1244,6 +1244,10 @@ export type Database = {
         Args: { p_user_id: string; p_tokens?: number }
         Returns: boolean
       }
+      reset_master_admin_account: {
+        Args: { target_user_id: string }
+        Returns: boolean
+      }
       restore_user_data: {
         Args: { target_user_id: string }
         Returns: boolean
