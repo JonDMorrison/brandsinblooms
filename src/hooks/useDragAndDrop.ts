@@ -40,15 +40,6 @@ export const useDragAndDrop = (onTaskUpdate: () => void) => {
       return;
     }
 
-    // Prevent scheduling in the past
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (targetDate < today) {
-      toast.error('Cannot schedule content in the past');
-      handleDragEnd();
-      return;
-    }
-
     try {
       const { error } = await supabase
         .from('content_tasks')

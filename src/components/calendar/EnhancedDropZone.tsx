@@ -3,7 +3,7 @@ import { useState } from "react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useEnhancedDragContext } from "./EnhancedDragContext";
-import { Calendar, Clock, AlertTriangle } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 
 interface EnhancedDropZoneProps {
   date: Date;
@@ -16,12 +16,9 @@ export const EnhancedDropZone = ({ date, onDrop, className, children }: Enhanced
   const { dragState, setHoveredDropZone } = useEnhancedDragContext();
   const [isHovered, setIsHovered] = useState(false);
   
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const isPastDate = date < today;
   const isSameDate = dragState.draggedTasks.some(task => task.scheduled_date === format(date, 'yyyy-MM-dd'));
-  const isValidDrop = dragState.isDragging && !isPastDate && !isSameDate;
-  const isInvalidDrop = dragState.isDragging && (isPastDate || isSameDate);
+  const isValidDrop = dragState.isDragging && !isSameDate;
+  const isInvalidDrop = dragState.isDragging && isSameDate;
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -65,13 +62,11 @@ export const EnhancedDropZone = ({ date, onDrop, className, children }: Enhanced
 
   const getDropZoneMessage = () => {
     if (isSameDate) return "Already on this date";
-    if (isPastDate) return "Cannot schedule in past";
     return `Drop here to schedule for ${format(date, 'MMM d')}`;
   };
 
   const getDropZoneIcon = () => {
     if (isSameDate) return <Calendar className="w-4 h-4" />;
-    if (isPastDate) return <AlertTriangle className="w-4 h-4" />;
     return <Clock className="w-4 h-4" />;
   };
 

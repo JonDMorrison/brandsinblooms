@@ -50,15 +50,6 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
 
     const newDateString = format(targetDate, 'yyyy-MM-dd');
     
-    // Only prevent dropping in the past, allow moving FROM past TO future
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (targetDate < today) {
-      toast.error('Cannot schedule content in the past');
-      handleDragEnd();
-      return;
-    }
-
     // Check if any tasks are already on this date
     const tasksAlreadyOnDate = draggedTasks.filter(task => task.scheduled_date === newDateString);
     if (tasksAlreadyOnDate.length === draggedTasks.length) {
@@ -66,13 +57,6 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
       handleDragEnd();
       return;
     }
-
-    // Check if we're moving past content to future
-    const pastTasks = draggedTasks.filter(task => {
-      const taskDate = new Date(task.scheduled_date);
-      taskDate.setHours(0, 0, 0, 0);
-      return taskDate < today;
-    });
 
     try {
       // Execute the update operation as a Promise
@@ -91,15 +75,9 @@ export const useEnhancedDragAndDrop = (onTaskUpdate: () => void) => {
         loading: `Rescheduling ${draggedTasks.length} item${draggedTasks.length !== 1 ? 's' : ''}...`,
         success: () => {
           if (draggedTasks.length === 1) {
-            const successMessage = pastTasks.length > 0 
-              ? `Past content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
-              : `Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
-            return successMessage;
+            return `Content rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
           } else {
-            const successMessage = pastTasks.length > 0
-              ? `${draggedTasks.length} items (including past content) rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`
-              : `${draggedTasks.length} items rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
-            return successMessage;
+            return `${draggedTasks.length} items rescheduled to ${format(targetDate, 'MMMM d, yyyy')}`;
           }
         },
         error: 'Failed to reschedule content'

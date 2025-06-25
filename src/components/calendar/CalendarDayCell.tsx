@@ -98,7 +98,7 @@ export const CalendarDayCell = ({
         isToday && "bg-blue-50 border-blue-200 shadow-sm",
         isWeekend && isCurrentMonth && "bg-gray-50/30",
         selectionMode && "cursor-pointer",
-        isPastDate && "opacity-70"
+        isPastDate && "bg-yellow-50/30 border-yellow-200/50"
       )}
     >
       {/* Day number header */}
@@ -109,7 +109,8 @@ export const CalendarDayCell = ({
               "text-sm font-semibold flex items-center justify-center w-6 h-6 rounded-full transition-colors",
               isToday && "bg-blue-600 text-white",
               !isToday && isCurrentMonth && "text-gray-700",
-              !isCurrentMonth && "text-gray-400"
+              !isCurrentMonth && "text-gray-400",
+              isPastDate && isCurrentMonth && "text-yellow-700"
             )}
           >
             {dayNumber}
@@ -117,6 +118,11 @@ export const CalendarDayCell = ({
           {isToday && (
             <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 border-0">
               Today
+            </Badge>
+          )}
+          {isPastDate && !isToday && (
+            <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 border-0">
+              Past
             </Badge>
           )}
         </div>
