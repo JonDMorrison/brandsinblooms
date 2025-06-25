@@ -1,21 +1,14 @@
 
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
-import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
 import { toast } from 'sonner';
 
-interface ContentGenerationState {
-  isGenerating: boolean;
-  generatingCampaignId: string | null;
-  error: string | null;
-}
-
 interface ContentGenerationContextType {
-  state: ContentGenerationState;
-  generateContent: (campaignId: string, campaignTheme: string, campaignDescription: string, weekNumber?: number) => Promise<boolean>;
-  clearGeneratingState: () => void;
+  generateContent: (campaignId: string, theme: string, description: string, weekNumber: number) => Promise<boolean>;
   isGeneratingForCampaign: (campaignId: string) => boolean;
+  generatingCampaigns: Set<string>;
 }
 
 const ContentGenerationContext = createContext<ContentGenerationContextType | undefined>(undefined);
@@ -23,106 +16,82 @@ const ContentGenerationContext = createContext<ContentGenerationContextType | un
 export const useContentGeneration = () => {
   const context = useContext(ContentGenerationContext);
   if (!context) {
-    throw new Error('useContentGeneration must be used within ContentGenerationProvider');
+    throw new Error('useContentGeneration must be used within a ContentGenerationProvider');
   }
   return context;
 };
 
-export const ContentGenerationProvider = ({ children }: { children: ReactNode }) => {
+interface ContentGenerationProviderProps {
+  children: React.ReactNode;
+}
+
+export const ContentGenerationProvider = ({ children }: ContentGenerationProviderProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const [state, setState] = useState<ContentGenerationState>({
-    isGenerating: false,
-    generatingCampaignId: null,
-    error: null
-  });
+  const [generatingCampaigns, setGeneratingCampaigns] = useState<Set<string>>(new Set());
 
   const generateContent = useCallback(async (
     campaignId: string, 
-    campaignTheme: string, 
-    campaignDescription: string, 
-    weekNumber?: number
+    theme: string, 
+    description: string, 
+    weekNumber: number
   ): Promise<boolean> => {
-    if (!user) {
-      toast.error('Please log in to generate content');
+    if (!user || !tenant) {
+      toast.error('Authentication required');
       return false;
     }
 
-    // Prevent multiple simultaneous generations
-    if (state.isGenerating) {
-      console.log('Content generation already in progress, skipping');
+    if (generatingCampaigns.has(campaignId)) {
+      console.log('Already generating content for campaign:', campaignId);
       return false;
     }
 
-    console.log('🎯 Starting content generation for campaign:', campaignId);
-
-    setState({
-      isGenerating: true,
-      generatingCampaignId: campaignId,
-      error: null
-    });
-
+    setGeneratingCampaigns(prev => new Set(prev).add(campaignId));
+    
     try {
+      toast.loading('Generating your marketing content...', { id: 'generate-content' });
+
       const result = await generateCampaignContent(
         campaignId,
-        campaignTheme,
-        campaignDescription,
+        theme,
+        description,
         user.id,
         weekNumber,
-        tenant?.id
+        tenant.id
       );
 
       if (result.success) {
-        console.log('✅ Content generation successful');
-        toast.success(`Generated ${result.tasks?.length || 0} content pieces!`);
-        setState({
-          isGenerating: false,
-          generatingCampaignId: null,
-          error: null
-        });
+        toast.success(`Generated ${result.tasks?.length || 0} pieces of content!`, { id: 'generate-content' });
         return true;
       } else {
-        console.error('❌ Content generation failed:', result.message);
-        setState({
-          isGenerating: false,
-          generatingCampaignId: null,
-          error: result.message
-        });
-        toast.error(`Content generation failed: ${result.message}`);
+        toast.error(`Failed to generate content: ${result.message}`, { id: 'generate-content' });
         return false;
       }
     } catch (error) {
-      console.error('❌ Content generation error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      setState({
-        isGenerating: false,
-        generatingCampaignId: null,
-        error: errorMessage
-      });
-      toast.error(`Failed to generate content: ${errorMessage}`);
+      console.error('Error generating content:', error);
+      toast.error('Failed to generate content', { id: 'generate-content' });
       return false;
+    } finally {
+      setGeneratingCampaigns(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(campaignId);
+        return newSet;
+      });
     }
-  }, [user, tenant, state.isGenerating]);
-
-  const clearGeneratingState = useCallback(() => {
-    setState({
-      isGenerating: false,
-      generatingCampaignId: null,
-      error: null
-    });
-  }, []);
+  }, [user, tenant, generatingCampaigns]);
 
   const isGeneratingForCampaign = useCallback((campaignId: string) => {
-    return state.isGenerating && state.generatingCampaignId === campaignId;
-  }, [state.isGenerating, state.generatingCampaignId]);
+    return generatingCampaigns.has(campaignId);
+  }, [generatingCampaigns]);
+
+  const value = {
+    generateContent,
+    isGeneratingForCampaign,
+    generatingCampaigns
+  };
 
   return (
-    <ContentGenerationContext.Provider value={{
-      state,
-      generateContent,
-      clearGeneratingState,
-      isGeneratingForCampaign
-    }}>
+    <ContentGenerationContext.Provider value={value}>
       {children}
     </ContentGenerationContext.Provider>
   );

@@ -3,18 +3,18 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { NewCampaignDialog } from "./homepage/NewCampaignDialog";
-import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
-import { ReviewQueueCard } from "./content/ReviewQueueCard";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
-import { HomepageHeader } from "./homepage/HomepageHeader";
-import { HomepageActions } from "./homepage/HomepageActions";
-import { HomepageMainContent } from "./homepage/HomepageMainContent";
-import { HomepageSidebar } from "./homepage/HomepageSidebar";
-import { Campaign } from "@/types/content";
 import { HomepageErrorBoundary } from "./homepage/HomepageErrorBoundary";
+import { Loader2 } from "lucide-react";
+import { Campaign } from "@/types/content";
+
+// Import the 5 main sections
+import { QuickstartChecklist } from "@/components/onboarding/QuickstartChecklist";
+import { WeeklyThemeSection } from "./homepage/WeeklyThemeSection";
+import { QuickActionsSection } from "@/components/dashboard/QuickActionsSection";
+import { SeasonalHolidaysCard } from "@/components/dashboard/seasonal-holidays/SeasonalHolidaysCard";
+import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
 
 export const Homepage = () => {
   const { user } = useAuth();
@@ -22,8 +22,8 @@ export const Homepage = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [openNewCampaign, setOpenNewCampaign] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showQuickstart, setShowQuickstart] = useState(false);
 
   // Check if user is developer
   const isDeveloper = user?.email === 'jon@getclear.ca';
@@ -70,7 +70,6 @@ export const Homepage = () => {
       toast.error('An unexpected error occurred');
       setCampaigns([]);
     } finally {
-      // CRITICAL FIX: Always set loading to false
       setLoading(false);
     }
   };
@@ -123,7 +122,6 @@ export const Homepage = () => {
 
       if (error) {
         console.error('Homepage: Error fetching tasks:', error);
-        // Don't show error toast for tasks, just log it
         setTasks([]);
       } else {
         // Security filter to double-check ownership
@@ -144,26 +142,36 @@ export const Homepage = () => {
     }
   };
 
-  const handleCampaignCreate = async (newCampaign: Campaign) => {
-    try {
-      await fetchCampaigns();
-      toast.success('Campaign created successfully');
-      setOpenNewCampaign(false);
-    } catch (error) {
-      console.error('Error handling campaign creation:', error);
-      toast.error('Failed to refresh campaigns');
-    }
-  };
-
   const handleTaskUpdate = () => {
     fetchTasks();
   };
 
-  const handleThemesGenerated = () => {
+  const handleCampaignCreated = () => {
     fetchCampaigns();
+    fetchTasks();
   };
 
-  // Initial data loading with proper dependency management
+  const handleNavigateToSection = (section: string) => {
+    switch (section) {
+      case 'social':
+        window.location.href = '/social';
+        break;
+      case 'weekly-content':
+        const weeklyElement = document.querySelector('[data-section="weekly-content"]');
+        if (weeklyElement) {
+          weeklyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        break;
+      case 'ready-to-post':
+        const readyElement = document.querySelector('[data-section="ready-to-post"]');
+        if (readyElement) {
+          readyElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        break;
+    }
+  };
+
+  // Initial data loading
   useEffect(() => {
     if (!user) {
       console.log('Homepage: No user, setting loading to false');
@@ -176,11 +184,25 @@ export const Homepage = () => {
       return;
     }
 
-    // User is authenticated and tenant loading is complete
     console.log('Homepage: Starting data fetch for user:', user.id, 'tenant:', tenant?.id || 'none');
     fetchCampaigns();
     fetchTasks();
   }, [user, tenant, tenantLoading]);
+
+  // Check if should show quickstart checklist
+  useEffect(() => {
+    if (user && !tenantLoading) {
+      const hasSeenChecklist = localStorage.getItem(`quickstart_dismissed_${user.id}`);
+      setShowQuickstart(!hasSeenChecklist);
+    }
+  }, [user, tenantLoading]);
+
+  const handleDismissQuickstart = () => {
+    setShowQuickstart(false);
+    if (user) {
+      localStorage.setItem(`quickstart_dismissed_${user.id}`, 'true');
+    }
+  };
 
   // Handle early returns with proper loading states
   if (!user || tenantLoading) {
@@ -246,13 +268,6 @@ export const Homepage = () => {
     return (
       <div className="min-h-screen bg-garden-background">
         <div className="max-w-5xl mx-auto p-6">
-          <HomepageErrorBoundary>
-            <HomepageHeader 
-              onNewCampaignClick={() => setOpenNewCampaign(true)} 
-              onImportComplete={fetchCampaigns} 
-            />
-          </HomepageErrorBoundary>
-          
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
               <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-garden-green" />
@@ -277,50 +292,50 @@ export const Homepage = () => {
     <HomepageErrorBoundary>
       <div className="min-h-screen bg-garden-background p-6">
         <div className="max-w-5xl mx-auto space-y-8">
-          <HomepageErrorBoundary>
-            <HomepageHeader 
-              onNewCampaignClick={() => setOpenNewCampaign(true)} 
-              onImportComplete={fetchCampaigns} 
-            />
-          </HomepageErrorBoundary>
-
-          <HomepageErrorBoundary>
-            <HomepageActions 
-              onNewCampaignClick={() => setOpenNewCampaign(true)} 
-              onImportComplete={fetchCampaigns} 
-            />
-          </HomepageErrorBoundary>
-
-          <HomepageErrorBoundary>
-            <ReviewQueueCard onTaskUpdate={handleTaskUpdate} />
-          </HomepageErrorBoundary>
-
-          <HomepageErrorBoundary>
-            <ReadyToPostCard 
-              tasks={tasks}
-              onTaskUpdate={handleTaskUpdate}
-            />
-          </HomepageErrorBoundary>
-
-          <div className="grid lg:grid-cols-3 gap-6">
+          
+          {/* Section 1: 4 Steps to Use the App */}
+          {showQuickstart && (
             <HomepageErrorBoundary>
-              <HomepageMainContent 
-                currentCampaign={currentCampaign}
-                onTaskUpdate={handleTaskUpdate}
+              <QuickstartChecklist
+                onDismiss={handleDismissQuickstart}
+                onNavigateToSection={handleNavigateToSection}
               />
             </HomepageErrorBoundary>
-            
-            <HomepageErrorBoundary>
-              <HomepageSidebar onThemesGenerated={handleThemesGenerated} />
-            </HomepageErrorBoundary>
-          </div>
-        </div>
+          )}
 
-        <NewCampaignDialog 
-          open={openNewCampaign} 
-          onOpenChange={setOpenNewCampaign} 
-          onCreate={handleCampaignCreate} 
-        />
+          {/* Section 2: Weekly Theme Accordion */}
+          <HomepageErrorBoundary>
+            <div data-section="weekly-content">
+              <WeeklyThemeSection 
+                currentCampaign={currentCampaign}
+                tasks={tasks}
+                onTaskUpdate={handleTaskUpdate}
+                onCampaignCreated={handleCampaignCreated}
+              />
+            </div>
+          </HomepageErrorBoundary>
+
+          {/* Section 3: Quick Actions */}
+          <HomepageErrorBoundary>
+            <QuickActionsSection onCampaignCreated={handleCampaignCreated} />
+          </HomepageErrorBoundary>
+
+          {/* Section 4: Holiday Cards */}
+          <HomepageErrorBoundary>
+            <SeasonalHolidaysCard onContentGenerated={handleTaskUpdate} />
+          </HomepageErrorBoundary>
+
+          {/* Section 5: Ready to Post */}
+          <HomepageErrorBoundary>
+            <div data-section="ready-to-post">
+              <ReadyToPostCard 
+                tasks={tasks}
+                onTaskUpdate={handleTaskUpdate}
+              />
+            </div>
+          </HomepageErrorBoundary>
+
+        </div>
       </div>
     </HomepageErrorBoundary>
   );
