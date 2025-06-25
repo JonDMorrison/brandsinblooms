@@ -1,24 +1,27 @@
 
 import React from 'react';
+import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
+import { DeleteAccountSection } from '@/components/account/DeleteAccountSection';
 import { SidebarLayout } from '@/components/SidebarLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const AccountPage = () => {
   return (
-    <SidebarLayout>
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Account Settings</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Account management features coming soon.
+    <ProtectedPageWrapper>
+      <SidebarLayout>
+        <div className="container mx-auto px-4 py-8 space-y-8">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-3xl font-bold text-garden-green-dark mb-2">
+              Account Settings
+            </h1>
+            <p className="text-garden-green mb-8">
+              Manage your account preferences and settings
             </p>
-          </CardContent>
-        </Card>
-      </div>
-    </SidebarLayout>
+            
+            <DeleteAccountSection />
+          </div>
+        </div>
+      </SidebarLayout>
+    </ProtectedPageWrapper>
   );
 };
 

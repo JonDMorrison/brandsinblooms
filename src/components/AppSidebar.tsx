@@ -88,7 +88,7 @@ const AppSidebar: React.FC = () => {
     },
     {
       title: "Company Profile",
-      url: "/account",
+      url: "/profile",
       icon: Building2,
     },
     {

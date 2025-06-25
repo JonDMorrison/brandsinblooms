@@ -1,4 +1,3 @@
-
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -13,6 +12,7 @@ import { OnboardingGuard } from "@/components/OnboardingGuard";
 import { DevNavigation } from "@/components/DevNavigation";
 import PricingPage from "./pages/PricingPage";
 import AccountPage from "./pages/AccountPage";
+import ProfilePage from "./pages/ProfilePage";
 import CalendarPage from "./pages/CalendarPage";
 import BillingPage from "./pages/BillingPage";
 import SocialPage from "./pages/SocialPage";
@@ -78,6 +78,16 @@ function App() {
                 />
                 
                 {/* Protected routes */}
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <OnboardingGuard>
+                        <ProfilePage />
+                      </OnboardingGuard>
+                    </ProtectedRoute>
+                  }
+                />
                 <Route
                   path="/account"
                   element={
