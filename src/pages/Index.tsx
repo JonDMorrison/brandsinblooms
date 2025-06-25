@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -76,8 +75,8 @@ const Index = () => {
   };
 
   const handleCampaignCreated = () => {
-    // Refresh dashboard data
-    window.location.reload();
+    // Refresh dashboard data without full page reload
+    window.dispatchEvent(new CustomEvent('campaignCreated'));
   };
 
   // Show loading state while auth is loading

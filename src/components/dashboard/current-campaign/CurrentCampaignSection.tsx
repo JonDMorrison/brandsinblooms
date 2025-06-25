@@ -1,15 +1,11 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, Play } from "lucide-react";
 import { CampaignContent } from "./CampaignContent";
 import { WeeklyContentUpdater } from "./WeeklyContentUpdater";
-import { WeeklyContentExplanation } from "./WeeklyContentExplanation";
-import { ManualContentGenerator } from "@/components/content/ManualContentGenerator";
 import { useCurrentCampaignSection } from "./useCurrentCampaignSection";
-import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
-import { useAuth } from "@/contexts/AuthContext";
-import { useTenant } from "@/hooks/useTenant";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useContentGeneration } from "@/contexts/ContentGenerationContext";
 import { useState } from "react";
 
 interface CurrentCampaignSectionProps {
@@ -25,74 +21,41 @@ export const CurrentCampaignSection = ({
   onTaskUpdate,
   onTaskClick 
 }: CurrentCampaignSectionProps) => {
-  const { user } = useAuth();
-  const { tenant } = useTenant();
-  const [refreshing, setRefreshing] = useState(false);
+  const { generateContent, isGeneratingForCampaign } = useContentGeneration();
+  const [lastGenerationAttempt, setLastGenerationAttempt] = useState<string | null>(null);
   
   const { 
     tasksCount, 
     loading, 
     selectedTask, 
     showContentViewer, 
-    isDevelopment, 
-    usesTenantModel,
     handleTaskClick,
     handleContentViewerClose
   } = useCurrentCampaignSection(activeCampaign, tasks);
 
-  const handleRefreshContent = async () => {
-    if (!activeCampaign || !user) {
-      toast.error('Unable to refresh content at this time');
-      return;
-    }
+  const isCurrentlyGenerating = activeCampaign ? isGeneratingForCampaign(activeCampaign.id) : false;
 
-    setRefreshing(true);
+  const handleGenerateContent = async () => {
+    if (!activeCampaign) return;
     
-    try {
-      // Delete existing tasks for this campaign
-      const { error: deleteError } = await supabase
-        .from('content_tasks')
-        .delete()
-        .eq('campaign_id', activeCampaign.id);
-
-      if (deleteError) {
-        console.error('Error deleting existing tasks:', deleteError);
-        toast.error('Failed to clear existing content');
-        return;
-      }
-
-      toast.loading('Generating fresh content...', { id: 'refresh-content' });
-
-      // Generate new content
-      const result = await generateCampaignContent(
-        activeCampaign.id,
-        activeCampaign.theme || activeCampaign.title,
-        activeCampaign.description || '',
-        user.id,
-        activeCampaign.week_number,
-        tenant?.id
-      );
-
-      if (result.success) {
-        toast.success(`Generated ${result.tasks?.length || 0} fresh content pieces!`, { id: 'refresh-content' });
-        onTaskUpdate(); // Refresh the task list
-      } else {
-        toast.error(`Failed to refresh content: ${result.message}`, { id: 'refresh-content' });
-      }
-    } catch (error) {
-      console.error('Error refreshing content:', error);
-      toast.error('Failed to refresh content', { id: 'refresh-content' });
-    } finally {
-      setRefreshing(false);
+    setLastGenerationAttempt(activeCampaign.id);
+    const success = await generateContent(
+      activeCampaign.id,
+      activeCampaign.theme || activeCampaign.title,
+      activeCampaign.description || '',
+      activeCampaign.week_number
+    );
+    
+    if (success) {
+      setTimeout(onTaskUpdate, 1000); // Refresh after generation
     }
   };
 
   console.log('🔍 CurrentCampaignSection: Rendering with:', {
-    hasUser: !!activeCampaign,
     hasActiveCampaign: !!activeCampaign,
     activeCampaignTitle: activeCampaign?.title,
-    activeCampaignId: activeCampaign?.id,
     tasksCount,
+    isCurrentlyGenerating,
     loading
   });
 
@@ -113,7 +76,6 @@ export const CurrentCampaignSection = ({
   }
 
   if (!activeCampaign) {
-    console.log('🔍 CurrentCampaignSection: No active campaign available');
     return (
       <Card>
         <CardHeader>
@@ -131,8 +93,6 @@ export const CurrentCampaignSection = ({
     );
   }
 
-  console.log('🔍 CurrentCampaignSection: Showing CampaignContent with campaign:', activeCampaign.title);
-
   return (
     <>
       <WeeklyContentUpdater />
@@ -147,31 +107,36 @@ export const CurrentCampaignSection = ({
           <div className="text-sm text-muted-foreground">
             <span className="font-medium text-garden-green">{tasksCount}/5</span> content pieces ready for review
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            Campaign: {activeCampaign.title} (ID: {activeCampaign.id.substring(0, 8)}...)
-          </div>
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {tasksCount === 0 ? (
-            <div className="space-y-4">
-              <div className="text-center py-8">
-                <div className="flex items-center justify-center gap-2 text-blue-600 mb-4">
-                  <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                  <span className="text-sm font-medium">Generating your marketing content...</span>
-                </div>
-                <p className="text-gray-600 text-sm">
-                  This usually takes 30-60 seconds. We're creating 5 pieces of content for you to review.
+          {isCurrentlyGenerating ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 text-blue-800 mb-2">
+                <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <span className="text-sm font-medium">Generating your marketing content...</span>
+              </div>
+              <p className="text-blue-600 text-sm">
+                This usually takes 30-60 seconds. We're creating 5 pieces of content for you to review.
+              </p>
+            </div>
+          ) : tasksCount === 0 ? (
+            <div className="text-center py-8 space-y-4">
+              <div className="text-gray-600 mb-4">
+                <p className="mb-2">Ready to generate your weekly content?</p>
+                <p className="text-sm text-gray-500">
+                  Click below to create 5 pieces of marketing content for your review.
                 </p>
               </div>
               
-              <div className="border-t pt-4">
-                <h4 className="text-sm font-medium mb-3">Content generation taking too long?</h4>
-                <ManualContentGenerator 
-                  campaign={activeCampaign}
-                  onContentGenerated={onTaskUpdate}
-                />
-              </div>
+              <Button 
+                onClick={handleGenerateContent}
+                disabled={isCurrentlyGenerating}
+                className="bg-garden-green hover:bg-garden-green/90"
+              >
+                <Play className="w-4 h-4 mr-2" />
+                Generate Content
+              </Button>
             </div>
           ) : (
             <CampaignContent 
@@ -179,8 +144,8 @@ export const CurrentCampaignSection = ({
               tasks={tasks}
               onTaskUpdate={onTaskUpdate}
               onTaskClick={onTaskClick || handleTaskClick}
-              onRefreshContent={handleRefreshContent}
-              isRefreshing={refreshing}
+              onRefreshContent={handleGenerateContent}
+              isRefreshing={isCurrentlyGenerating}
             />
           )}
         </CardContent>
