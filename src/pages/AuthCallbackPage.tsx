@@ -27,7 +27,8 @@ export const AuthCallbackPage = () => {
         state,
         error, 
         errorDescription,
-        currentUrl: window.location.href
+        currentUrl: window.location.href,
+        userAgent: navigator.userAgent
       });
 
       if (error) {
@@ -48,18 +49,24 @@ export const AuthCallbackPage = () => {
         return;
       }
 
-      // Enhanced state verification with fallback
+      // Enhanced state verification with multiple fallbacks
       const storedState = sessionStorage.getItem('oauth_state');
-      console.log('🔍 State verification:', { 
+      const backupState = localStorage.getItem('oauth_state_backup');
+      
+      console.log('🔍 Enhanced state verification:', { 
         received: state, 
         stored: storedState,
-        match: state === storedState
+        backup: backupState,
+        sessionMatch: state === storedState,
+        backupMatch: state === backupState
       });
 
-      if (state !== storedState) {
-        console.warn('⚠️ State mismatch detected, but attempting to continue...');
+      // Allow if either state matches
+      const stateValid = state === storedState || state === backupState;
+      
+      if (!stateValid) {
+        console.warn('⚠️ State mismatch detected');
         
-        // Instead of immediately failing, let's try to proceed with additional checks
         if (!user) {
           console.error('❌ State mismatch AND no authenticated user');
           setStatus('error');
@@ -69,11 +76,12 @@ export const AuthCallbackPage = () => {
           return;
         }
         
-        console.log('✅ State mismatch but user is authenticated, proceeding...');
+        console.log('✅ State mismatch but user is authenticated, proceeding with caution...');
       }
 
-      // Clear the stored state regardless of whether it matched
+      // Clear stored states
       sessionStorage.removeItem('oauth_state');
+      localStorage.removeItem('oauth_state_backup');
 
       if (!user) {
         console.error('❌ No authenticated user');
@@ -84,24 +92,61 @@ export const AuthCallbackPage = () => {
         return;
       }
 
-      try {
-        console.log('🔗 Exchanging OAuth code for tokens...');
-        
-        // Exchange the authorization code for access token
-        const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
-          body: {
-            code,
-            state,
-            redirect_uri: `${window.location.origin}/auth/callback`
+      let retryCount = 0;
+      const maxRetries = 3;
+
+      const attemptExchange = async (): Promise<any> => {
+        try {
+          console.log(`🔗 Attempting OAuth code exchange (attempt ${retryCount + 1}/${maxRetries})...`);
+          
+          setMessage(`Connecting to Meta platform... (${retryCount + 1}/${maxRetries})`);
+          
+          const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
+            body: {
+              code,
+              state,
+              redirect_uri: `${window.location.origin}/auth/callback`
+            }
+          });
+
+          console.log('📬 Exchange response:', { 
+            data, 
+            error: exchangeError,
+            hasData: !!data,
+            dataType: typeof data
+          });
+
+          if (exchangeError) {
+            console.error('❌ Edge function error:', exchangeError);
+            throw new Error(`Edge function failed: ${JSON.stringify(exchangeError)}`);
           }
-        });
 
-        if (exchangeError) {
-          console.error('❌ Edge function error:', exchangeError);
-          throw new Error(exchangeError.message || 'Failed to exchange OAuth code');
+          if (!data) {
+            throw new Error('No response data received from edge function');
+          }
+
+          return data;
+        } catch (error: any) {
+          console.error(`❌ Exchange attempt ${retryCount + 1} failed:`, {
+            error: error.message,
+            details: error.details || 'No additional details',
+            code: error.code || 'No error code'
+          });
+          
+          retryCount++;
+          
+          if (retryCount < maxRetries) {
+            console.log(`⏳ Retrying in 2 seconds... (${retryCount}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            return attemptExchange();
+          } else {
+            throw error;
+          }
         }
+      };
 
-        console.log('✅ OAuth exchange response:', data);
+      try {
+        const data = await attemptExchange();
 
         if (data?.success) {
           setStatus('success');
@@ -109,23 +154,36 @@ export const AuthCallbackPage = () => {
           setMessage(successMessage);
           toast.success(successMessage);
           
-          // SET FLAG FOR POST-CONNECTION FLOW
           console.log('🎯 Setting post-connection flow flag');
           sessionStorage.setItem('oauth_just_completed', 'true');
           
-          // Navigate to homepage where the post-connection flow should trigger
           console.log('🏠 Redirecting to homepage for post-connection flow');
           setTimeout(() => navigate('/'), 2000);
         } else {
           throw new Error(data?.error || 'Failed to connect - no success response');
         }
       } catch (error: any) {
-        console.error('❌ OAuth callback error:', error);
+        console.error('❌ Final OAuth callback error:', {
+          message: error?.message,
+          details: error?.details,
+          code: error?.code,
+          stack: error?.stack
+        });
+        
         setStatus('error');
-        const errorMessage = error?.message || 'Unknown error occurred';
-        setMessage(`Connection failed: ${errorMessage}`);
-        toast.error(`Failed to connect Meta platform: ${errorMessage}`);
-        setTimeout(() => navigate('/social'), 3000);
+        let errorMessage = 'Connection failed';
+        
+        if (error?.message?.includes('Edge function failed')) {
+          errorMessage = 'Unable to connect to Meta platform. Please check your internet connection and try again.';
+        } else if (error?.message?.includes('No response data')) {
+          errorMessage = 'Connection service is temporarily unavailable. Please try again in a few minutes.';
+        } else {
+          errorMessage = `Connection failed: ${error?.message || 'Unknown error'}`;
+        }
+        
+        setMessage(errorMessage);
+        toast.error(errorMessage);
+        setTimeout(() => navigate('/social'), 5000);
       }
     };
 
@@ -164,7 +222,7 @@ export const AuthCallbackPage = () => {
               <AlertCircle className="h-12 w-12 text-red-600 mb-4" />
               <h2 className="text-xl font-semibold mb-2">Connection Failed</h2>
               <p className="text-gray-600 text-center">{message}</p>
-              <p className="text-sm text-gray-500 mt-2">Redirecting you back...</p>
+              <p className="text-sm text-gray-500 mt-2">Taking you back to try again...</p>
             </>
           )}
         </CardContent>

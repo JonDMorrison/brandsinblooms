@@ -22,18 +22,25 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     setLoading(true);
     
     try {
-      // Generate a random state parameter for security
+      // Generate a cryptographically secure random state parameter
       const state = crypto.randomUUID();
+      const timestamp = Date.now().toString();
+      const combinedState = `${state}-${timestamp}`;
       
-      console.log('🔐 Generated OAuth state:', state);
+      console.log('🔐 Generated OAuth state:', { state, timestamp, combined: combinedState });
       
-      // Store the state in sessionStorage to verify later
-      sessionStorage.setItem('oauth_state', state);
+      // Store the state in multiple locations for redundancy
+      sessionStorage.setItem('oauth_state', combinedState);
+      localStorage.setItem('oauth_state_backup', combinedState);
       
-      // Also store a backup in localStorage for additional verification
-      localStorage.setItem('oauth_state_backup', state);
+      // Also store individual components for debugging
+      sessionStorage.setItem('oauth_state_uuid', state);
+      sessionStorage.setItem('oauth_state_timestamp', timestamp);
       
-      console.log('💾 Stored OAuth state in both session and local storage');
+      console.log('💾 Stored OAuth state in multiple locations');
+      
+      // Clear any previous completion flags
+      sessionStorage.removeItem('oauth_just_completed');
       
       // Required permissions for Facebook Pages and Instagram Business
       const scopes = [
@@ -50,12 +57,14 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       // Use the actual Facebook App ID
       const clientId = '2527232767625484';
       
-      console.log('🚀 Initiating OAuth with:', {
+      console.log('🚀 Initiating OAuth with enhanced parameters:', {
         clientId,
         redirectUri,
         scopes,
-        state,
-        currentUrl: window.location.href
+        state: combinedState,
+        currentUrl: window.location.href,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
       });
       
       const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
@@ -63,20 +72,36 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('scope', scopes);
       authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('state', state);
+      authUrl.searchParams.set('state', combinedState);
       
       console.log('🔗 Final OAuth URL:', authUrl.toString());
       
       // Show loading message
-      toast.info('Redirecting to Facebook for authentication...');
+      toast.info('Redirecting to Meta for authentication...', {
+        duration: 3000
+      });
+      
+      // Small delay to ensure state is stored
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       // Redirect to Facebook OAuth
       window.location.href = authUrl.toString();
       
     } catch (error) {
-      console.error('❌ OAuth initiation error:', error);
-      toast.error('Failed to initiate connection');
+      console.error('❌ OAuth initiation error:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString()
+      });
+      
+      toast.error('Failed to initiate connection. Please try again.');
       setLoading(false);
+      
+      // Clean up stored state on error
+      sessionStorage.removeItem('oauth_state');
+      localStorage.removeItem('oauth_state_backup');
+      sessionStorage.removeItem('oauth_state_uuid');
+      sessionStorage.removeItem('oauth_state_timestamp');
     }
   };
 

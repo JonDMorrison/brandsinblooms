@@ -7,18 +7,39 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('📋 Handling CORS preflight request');
     return new Response('ok', { headers: corsHeaders })
   }
+
+  console.log('🚀 OAuth exchange function started:', {
+    method: req.method,
+    url: req.url,
+    timestamp: new Date().toISOString()
+  });
 
   try {
     const { code, state, redirect_uri } = await req.json()
     
     console.log('🔄 OAuth exchange request received:', { 
-      code: code ? 'present' : 'missing', 
+      code: code ? `present (${code.substring(0, 10)}...)` : 'missing', 
       state: state ? `present (${state.substring(0, 8)}...)` : 'missing', 
-      redirect_uri 
+      redirect_uri,
+      contentLength: req.headers.get('content-length'),
+      contentType: req.headers.get('content-type')
     })
+
+    // Validate required parameters
+    if (!code) {
+      throw new Error('Authorization code is required');
+    }
+    if (!state) {
+      throw new Error('State parameter is required');
+    }
+    if (!redirect_uri) {
+      throw new Error('Redirect URI is required');
+    }
     
     // Get user from auth header
     const authHeader = req.headers.get('Authorization')
@@ -43,20 +64,31 @@ serve(async (req) => {
       throw new Error('Invalid or expired token')
     }
 
-    console.log('✅ User authenticated:', user.email)
+    console.log('✅ User authenticated:', { 
+      email: user.email,
+      id: user.id.substring(0, 8) + '...'
+    })
 
+    // Check environment variables
     const clientId = Deno.env.get('FB_CLIENT_ID')
     const clientSecret = Deno.env.get('FB_CLIENT_SECRET')
 
+    console.log('🔑 Environment check:', {
+      clientId: clientId ? `present (${clientId.substring(0, 8)}...)` : 'MISSING',
+      clientSecret: clientSecret ? 'present' : 'MISSING',
+      supabaseUrl: Deno.env.get('SUPABASE_URL') ? 'present' : 'missing',
+      serviceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? 'present' : 'missing'
+    })
+
     if (!clientId || !clientSecret) {
       console.error('❌ Missing Facebook credentials:', { 
-        clientId: clientId ? 'present' : 'missing', 
-        clientSecret: clientSecret ? 'present' : 'missing' 
+        clientId: clientId ? 'present' : 'MISSING', 
+        clientSecret: clientSecret ? 'present' : 'MISSING' 
       })
-      throw new Error('Facebook/Instagram app credentials not configured. Please check your environment variables.')
+      throw new Error('Facebook/Instagram app credentials not configured. Please add FB_CLIENT_ID and FB_CLIENT_SECRET to your Supabase Edge Function secrets.')
     }
 
-    console.log('🔗 Starting OAuth token exchange for user:', user.id)
+    console.log('🔗 Starting OAuth token exchange for user:', user.id.substring(0, 8) + '...')
 
     // Exchange authorization code for access token
     const tokenParams = new URLSearchParams({
@@ -66,7 +98,11 @@ serve(async (req) => {
       code: code,
     })
 
-    console.log('📡 Sending token exchange request to Facebook...')
+    console.log('📡 Sending token exchange request to Facebook...', {
+      url: 'https://graph.facebook.com/v19.0/oauth/access_token',
+      method: 'POST',
+      hasParams: true
+    })
 
     const tokenResponse = await fetch('https://graph.facebook.com/v19.0/oauth/access_token', {
       method: 'POST',
@@ -79,13 +115,20 @@ serve(async (req) => {
     const tokenData = await tokenResponse.json()
     console.log('📬 Token response received:', {
       status: tokenResponse.status,
+      ok: tokenResponse.ok,
       hasAccessToken: !!tokenData.access_token,
-      hasError: !!tokenData.error
+      hasError: !!tokenData.error,
+      errorType: tokenData.error?.type,
+      errorMessage: tokenData.error?.message
     })
 
     if (!tokenResponse.ok) {
-      console.error('❌ Token exchange failed:', tokenData)
-      throw new Error(`Token exchange failed: ${JSON.stringify(tokenData)}`)
+      console.error('❌ Token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        error: tokenData
+      })
+      throw new Error(`Token exchange failed (${tokenResponse.status}): ${JSON.stringify(tokenData)}`)
     }
 
     const accessToken = tokenData.access_token
@@ -102,10 +145,13 @@ serve(async (req) => {
 
     if (!userResponse.ok) {
       console.error('❌ Failed to get user data:', userData)
-      throw new Error(`Failed to get user data: ${JSON.stringify(userData)}`)
+      throw new Error(`Failed to get user data (${userResponse.status}): ${JSON.stringify(userData)}`)
     }
 
-    console.log('✅ Retrieved Facebook user data for:', userData.name)
+    console.log('✅ Retrieved Facebook user data:', {
+      name: userData.name,
+      id: userData.id
+    })
 
     // Get pages (for Facebook) and Instagram accounts
     console.log('📄 Fetching Facebook pages and Instagram accounts...')
@@ -114,7 +160,7 @@ serve(async (req) => {
 
     if (!pagesResponse.ok) {
       console.error('❌ Failed to get pages:', pagesData)
-      throw new Error(`Failed to get pages: ${JSON.stringify(pagesData)}`)
+      throw new Error(`Failed to get pages (${pagesResponse.status}): ${JSON.stringify(pagesData)}`)
     }
 
     const pageCount = pagesData.data?.length || 0
@@ -190,22 +236,38 @@ serve(async (req) => {
 
     console.log(`🎉 Successfully processed ${connections.length} connections`)
 
+    const successResponse = { 
+      success: true, 
+      connections: connections,
+      user: userData,
+      message: `Successfully connected ${connections.length} account${connections.length !== 1 ? 's' : ''}`
+    }
+
+    console.log('✅ Sending success response:', {
+      connectionsCount: connections.length,
+      hasUser: !!userData,
+      timestamp: new Date().toISOString()
+    })
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        connections: connections,
-        user: userData,
-        message: `Successfully connected ${connections.length} account${connections.length !== 1 ? 's' : ''}`
-      }),
+      JSON.stringify(successResponse),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('❌ Error in OAuth exchange:', error)
+    console.error('❌ Error in OAuth exchange:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    })
+    
+    const errorResponse = { 
+      success: false, 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    }
+    
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
+      JSON.stringify(errorResponse),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
