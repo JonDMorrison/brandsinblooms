@@ -51,9 +51,6 @@ export const WeeklyThemeSection = ({
           <CardHeader className="cursor-pointer hover:bg-green-100/50 transition-colors rounded-t-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-800 text-sm font-medium">
-                  1
-                </div>
                 <div>
                   <CardTitle className="text-lg text-green-800 flex items-center gap-2">
                     <Calendar className="w-5 h-5" />
