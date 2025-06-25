@@ -1,3 +1,4 @@
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -214,7 +215,9 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => {
+              {users.map((user, index) => {
+                // Create a unique key using user.id and index to prevent duplicate key warnings
+                const uniqueKey = `${user.id}-${index}`;
                 const daysRemaining = getDaysRemaining(user.trial_end_date);
                 const isDeleting = deletingUser === user.id;
                 const isSelected = selectedUserIds.has(user.id);
@@ -222,7 +225,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                 
                 return (
                   <TableRow 
-                    key={user.id} 
+                    key={uniqueKey}
                     className={`
                       ${user.is_duplicate ? 'bg-gray-50' : ''} 
                       ${isSelected ? 'bg-gray-50 border-gray-200' : ''}
