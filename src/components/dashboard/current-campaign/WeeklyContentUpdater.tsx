@@ -5,6 +5,8 @@ import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { cleanupDuplicateCampaigns, generateMeaningfulTheme } from '@/utils/campaignCleanup';
+import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
+import { toast } from 'sonner';
 
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
@@ -14,20 +16,36 @@ export const WeeklyContentUpdater = () => {
   useEffect(() => {
     if (!user || !tenant) return;
 
-    const ensureCurrentWeekCampaign = async () => {
+    const ensureCurrentWeekCampaignWithContent = async () => {
       if (isProcessing) return;
       
       try {
         setIsProcessing(true);
         const currentWeek = getCurrentWeekNumber();
         
-        console.log('🔍 WeeklyContentUpdater: Checking for current week campaign:', currentWeek);
+        console.log('🔍 WeeklyContentUpdater: Checking for current week campaign and content:', currentWeek);
 
         // First, cleanup any duplicate campaigns for this week
         const cleanupResult = await cleanupDuplicateCampaigns(user.id, currentWeek);
         if (cleanupResult.success && cleanupResult.bestCampaign) {
           console.log('✅ Found existing good campaign:', cleanupResult.bestCampaign.theme);
-          return; // Don't auto-generate content - let user decide
+          
+          // Check if this campaign has content already
+          const { data: existingTasks } = await supabase
+            .from('content_tasks')
+            .select('id')
+            .eq('campaign_id', cleanupResult.bestCampaign.id)
+            .eq('user_id', user.id);
+
+          if (existingTasks && existingTasks.length > 0) {
+            console.log('✅ Campaign already has content, no action needed');
+            return;
+          }
+
+          // Campaign exists but no content - generate it for new users
+          console.log('📝 Campaign exists but no content found, generating...');
+          await generateContentForCampaign(cleanupResult.bestCampaign);
+          return;
         }
 
         // Check if current week campaign exists
@@ -46,7 +64,7 @@ export const WeeklyContentUpdater = () => {
           return;
         }
 
-        // Create campaign if it doesn't exist
+        // Create campaign if it doesn't exist, then generate content
         if (!existingCampaign) {
           console.log('📝 Creating meaningful campaign for current week:', currentWeek);
           
@@ -87,7 +105,21 @@ export const WeeklyContentUpdater = () => {
           }
 
           console.log('✅ Created meaningful campaign:', newCampaign.theme);
-          // Note: No automatic content generation - user will trigger it manually
+          
+          // Generate content for the new campaign  
+          await generateContentForCampaign(newCampaign);
+        } else {
+          // Campaign exists, check if it has content
+          const { data: existingTasks } = await supabase
+            .from('content_tasks')
+            .select('id')
+            .eq('campaign_id', existingCampaign.id)
+            .eq('user_id', user.id);
+
+          if (!existingTasks || existingTasks.length === 0) {
+            console.log('📝 Existing campaign has no content, generating...');
+            await generateContentForCampaign(existingCampaign);
+          }
         }
 
       } catch (error) {
@@ -97,8 +129,42 @@ export const WeeklyContentUpdater = () => {
       }
     };
 
+    const generateContentForCampaign = async (campaign: any) => {
+      try {
+        console.log('🎯 Auto-generating content for campaign:', campaign.theme);
+        
+        // Show a subtle loading toast for new users
+        toast.loading('Setting up your weekly content...', { 
+          id: 'auto-setup',
+          duration: 10000 
+        });
+
+        const result = await generateCampaignContent(
+          campaign.id,
+          campaign.theme || campaign.title,
+          campaign.description || '',
+          user.id,
+          campaign.week_number,
+          tenant.id
+        );
+
+        if (result.success) {
+          console.log('✅ Auto-generated content successfully');
+          toast.success('Your weekly content is ready for review!', { 
+            id: 'auto-setup' 
+          });
+        } else {
+          console.error('❌ Auto-generation failed:', result.message);
+          toast.dismiss('auto-setup');
+        }
+      } catch (error) {
+        console.error('❌ Error auto-generating content:', error);
+        toast.dismiss('auto-setup');
+      }
+    };
+
     // Run the check after a short delay to avoid race conditions
-    const timeoutId = setTimeout(ensureCurrentWeekCampaign, 2000);
+    const timeoutId = setTimeout(ensureCurrentWeekCampaignWithContent, 2000);
     
     return () => clearTimeout(timeoutId);
   }, [user, tenant, isProcessing]);
