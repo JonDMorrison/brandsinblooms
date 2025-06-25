@@ -27,37 +27,38 @@ export const useTenant = () => {
       }
 
       try {
-        console.log('useTenant: Checking company profile for user:', user.id);
+        console.log('useTenant: Checking for real tenant for user:', user.id);
         
-        // Check if user has a company profile (simplified tenant check)
-        const { data: profileData, error: profileError } = await supabase
-          .from('company_profiles')
-          .select('id, company_name')
-          .eq('user_id', user.id)
+        // First check if user is assigned to a real tenant
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('tenant_id')
+          .eq('id', user.id)
           .maybeSingle();
 
-        if (profileError) {
-          console.error('useTenant: Error fetching profile:', profileError);
-          setLoading(false);
-          return;
+        if (userError) {
+          console.error('useTenant: Error fetching user tenant:', userError);
         }
 
-        if (!profileData) {
-          console.log('useTenant: User has no company profile yet');
-          setTenant(null);
+        if (userData?.tenant_id) {
+          // User has a real tenant, fetch it
+          const { data: tenantData, error: tenantError } = await supabase
+            .from('tenants')
+            .select('*')
+            .eq('id', userData.tenant_id)
+            .single();
+
+          if (tenantError) {
+            console.error('useTenant: Error fetching tenant:', tenantError);
+            setTenant(null);
+          } else {
+            console.log('useTenant: Found real tenant:', tenantData.name);
+            setTenant(tenantData);
+          }
         } else {
-          // For now, create a virtual tenant from the user's profile
-          // This maintains compatibility while we don't have a true multi-tenant setup
-          console.log('useTenant: User has company profile, creating virtual tenant');
-          setTenant({
-            id: user.id, // Use user ID as tenant ID for single-tenant mode
-            name: profileData.company_name || 'My Company',
-            slug: null,
-            settings: {},
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
+          // No real tenant found - operate in single-user mode
+          console.log('useTenant: No real tenant found, operating in single-user mode');
+          setTenant(null);
         }
       } catch (error) {
         console.error('useTenant: Error in fetchTenant:', error);

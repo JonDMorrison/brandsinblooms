@@ -14,7 +14,7 @@ export const WeeklyContentUpdater = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (!user || !tenant) return;
+    if (!user) return;
 
     const ensureCurrentWeekCampaignWithContent = async () => {
       if (isProcessing) return;
@@ -48,16 +48,21 @@ export const WeeklyContentUpdater = () => {
           return;
         }
 
-        // Check if current week campaign exists
-        const { data: existingCampaign, error: campaignError } = await supabase
+        // Build query based on tenant availability  
+        let campaignQuery = supabase
           .from('campaigns')
           .select('id, title, theme, week_number, description')
           .eq('user_id', user.id)
-          .eq('tenant_id', tenant.id)
           .eq('week_number', currentWeek)
           .not('theme', 'ilike', '%seasonal gardening focus%')
-          .not('theme', 'ilike', '%week % seasonal content%')
-          .maybeSingle();
+          .not('theme', 'ilike', '%week % seasonal content%');
+
+        // Only add tenant_id filter if tenant exists
+        if (tenant?.id) {
+          campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
+        }
+
+        const { data: existingCampaign, error: campaignError } = await campaignQuery.maybeSingle();
 
         if (campaignError) {
           console.error('❌ Error checking existing campaign:', campaignError);
@@ -89,8 +94,8 @@ export const WeeklyContentUpdater = () => {
             start_date: new Date().toISOString().split('T')[0],
             prompt: `Create engaging gardening content focused on ${themeData.theme}`,
             user_id: user.id,
-            tenant_id: tenant.id,
-            source: 'auto_generated_meaningful'
+            source: 'auto_generated_meaningful',
+            ...(tenant?.id && { tenant_id: tenant.id }) // Only set tenant_id if tenant exists
           };
 
           const { data: newCampaign, error: createError } = await supabase
@@ -145,7 +150,7 @@ export const WeeklyContentUpdater = () => {
           campaign.description || '',
           user.id,
           campaign.week_number,
-          tenant.id
+          tenant?.id // Pass tenant_id only if it exists
         );
 
         if (result.success) {

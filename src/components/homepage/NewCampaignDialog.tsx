@@ -64,8 +64,8 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || !tenant) {
-      setError("You must be logged in and assigned to an organization");
+    if (!user) {
+      setError("You must be logged in to create a campaign");
       return;
     }
     
@@ -105,7 +105,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
         week_number: weekNumber,
         source: 'quick_action',
         user_id: user.id,
-        tenant_id: tenant.id
+        ...(tenant?.id && { tenant_id: tenant.id }) // Only set tenant_id if real tenant exists
       };
 
       // Create campaign directly in Supabase

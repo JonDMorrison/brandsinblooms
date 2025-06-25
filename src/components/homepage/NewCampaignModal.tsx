@@ -97,7 +97,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       const weekNumber = parseInt(selectedWeek);
       const startDate = calculateStartDate(weekNumber);
 
-      // 🔒 SECURITY: Always set user_id and tenant_id for proper isolation
+      // 🔒 SECURITY: Always set user_id, only set tenant_id if tenant exists
       const campaignData = {
         title: title.trim(),
         description: description.trim() || null,
@@ -108,7 +108,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
         source: 'quick_action',
         user_id: user.id, // 🔒 CRITICAL: Always set user_id for RLS
         created_by_user_id: user.id, // 🔒 Track who created it
-        ...(tenant?.id && { tenant_id: tenant.id }) // 🔒 Set tenant_id if available
+        ...(tenant?.id && { tenant_id: tenant.id }) // 🔒 Only set tenant_id if real tenant exists
       };
 
       console.log('🔒 SECURITY: Creating campaign with proper user isolation:', {
@@ -142,7 +142,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
           [insertedCampaign],
           user.id, // 🔒 CRITICAL: Pass user_id for RLS
           onCampaignCreated,
-          tenant?.id // 🔒 Pass tenant_id if available
+          tenant?.id // 🔒 Pass tenant_id only if it exists
         );
 
         if (result.success) {
