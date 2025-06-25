@@ -173,13 +173,13 @@ export const generateCampaignContent = async (
       try {
         console.log(`🎨 Generating ${contentType} content...`);
 
-        // Create the content task with 'scheduled' status instead of 'generating'
+        // Create the content task with 'planned' status instead of 'scheduled'
         const taskData = {
           campaign_id: campaignId,
           user_id: userId,
           tenant_id: tenantId,
           post_type: contentType,
-          status: 'scheduled', // Changed from 'generating' to 'scheduled'
+          status: 'planned', // Changed from 'scheduled' to 'planned'
           scheduled_date: new Date().toISOString().split('T')[0]
         };
 
