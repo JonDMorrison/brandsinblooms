@@ -154,7 +154,7 @@ export const DashboardContent = ({
       
       setUserCreatedCampaigns(customCampaigns);
 
-      // 🔧 FIXED: Updated campaign selection logic to prioritize preview campaigns in development
+      // 🔧 IMPROVED: Better campaign selection logic to prioritize meaningful campaigns
       let selectedCampaign: Campaign | undefined;
       
       if (isDevelopment) {
@@ -165,14 +165,30 @@ export const DashboardContent = ({
         
         if (selectedCampaign) {
           console.log('✅ DashboardContent: Found PREVIEW campaign for development:', selectedCampaign.title);
-        } else {
-          console.log('🔍 DashboardContent: No PREVIEW campaign found, falling back to current week');
-          // Fall back to current week campaign
-          selectedCampaign = systemCampaigns.find(c => c.week_number === currentWeekNumber);
         }
-      } else {
-        // In production, use current week campaign
+      }
+      
+      if (!selectedCampaign) {
+        // Prioritize campaigns with meaningful themes for current week
+        selectedCampaign = systemCampaigns.find(c => 
+          c.week_number === currentWeekNumber &&
+          c.theme && 
+          !c.theme.includes('Seasonal Gardening Focus') &&
+          !c.theme.includes('Week ') &&
+          !c.theme.includes('PREVIEW')
+        );
+        
+        if (selectedCampaign) {
+          console.log('✅ DashboardContent: Found meaningful current week campaign:', selectedCampaign.theme);
+        }
+      }
+      
+      if (!selectedCampaign) {
+        // Fallback to any current week campaign
         selectedCampaign = systemCampaigns.find(c => c.week_number === currentWeekNumber);
+        if (selectedCampaign) {
+          console.log('🔍 DashboardContent: Using current week campaign:', selectedCampaign.theme);
+        }
       }
       
       if (!selectedCampaign) {
@@ -183,6 +199,7 @@ export const DashboardContent = ({
 
       console.log('🎯 DashboardContent: Selected campaign:', {
         title: selectedCampaign?.title,
+        theme: selectedCampaign?.theme,
         id: selectedCampaign?.id,
         isPreview: selectedCampaign?.title?.includes('PREVIEW'),
         isDevelopment,

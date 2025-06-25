@@ -5,6 +5,7 @@ import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
+import { cleanupDuplicateCampaigns, generateMeaningfulTheme } from '@/utils/campaignCleanup';
 import { toast } from 'sonner';
 
 export const WeeklyContentUpdater = () => {
@@ -24,6 +25,46 @@ export const WeeklyContentUpdater = () => {
         
         console.log('🔍 WeeklyContentUpdater: Checking for current week campaign:', currentWeek);
 
+        // First, cleanup any duplicate campaigns for this week
+        const cleanupResult = await cleanupDuplicateCampaigns(user.id, currentWeek);
+        if (cleanupResult.success && cleanupResult.bestCampaign) {
+          console.log('✅ Found existing good campaign:', cleanupResult.bestCampaign.theme);
+          
+          // Check if this campaign has content
+          const { data: existingTasks } = await supabase
+            .from('content_tasks')
+            .select('id, post_type, status')
+            .eq('campaign_id', cleanupResult.bestCampaign.id)
+            .eq('tenant_id', tenant.id);
+
+          const hasValidContent = existingTasks && existingTasks.length > 0 && 
+            existingTasks.some(task => task.status !== 'failed' && task.status !== 'cancelled');
+
+          if (!hasValidContent) {
+            console.log('🎨 Generating content for existing campaign:', cleanupResult.bestCampaign.id);
+            
+            toast.loading('Generating fresh content for this week...', { id: 'weekly-content-gen' });
+
+            const result = await generateCampaignContent(
+              cleanupResult.bestCampaign.id,
+              cleanupResult.bestCampaign.theme || cleanupResult.bestCampaign.title,
+              cleanupResult.bestCampaign.description || 'AI-generated weekly content for your garden center',
+              user.id,
+              cleanupResult.bestCampaign.week_number,
+              tenant.id
+            );
+
+            if (result.success) {
+              console.log('🎉 Content generation successful');
+              toast.success(`Generated ${result.tasks?.length || 0} content pieces!`, { id: 'weekly-content-gen' });
+            } else {
+              console.error('❌ Content generation failed:', result.message);
+              toast.error(`Content generation failed: ${result.message}`, { id: 'weekly-content-gen' });
+            }
+          }
+          return;
+        }
+
         // Check if current week campaign exists
         const { data: existingCampaign, error: campaignError } = await supabase
           .from('campaigns')
@@ -31,6 +72,8 @@ export const WeeklyContentUpdater = () => {
           .eq('user_id', user.id)
           .eq('tenant_id', tenant.id)
           .eq('week_number', currentWeek)
+          .not('theme', 'ilike', '%seasonal gardening focus%')
+          .not('theme', 'ilike', '%week % seasonal content%')
           .maybeSingle();
 
         if (campaignError) {
@@ -40,20 +83,33 @@ export const WeeklyContentUpdater = () => {
 
         let targetCampaign = existingCampaign;
 
-        // Create campaign if it doesn't exist
+        // Create campaign if it doesn't exist or only placeholder ones exist
         if (!existingCampaign) {
-          console.log('📝 Creating campaign for current week:', currentWeek);
+          console.log('📝 Creating meaningful campaign for current week:', currentWeek);
           
+          // Get company profile for personalization
+          const { data: companyProfile } = await supabase
+            .from('company_profiles')
+            .select('company_name')
+            .eq('user_id', user.id)
+            .single();
+
+          // Generate meaningful theme
+          const themeData = await generateMeaningfulTheme(
+            currentWeek, 
+            companyProfile?.company_name
+          );
+
           const campaignData = {
             week_number: currentWeek,
-            title: `Current Week Garden Focus`,
-            theme: `Week ${currentWeek} Seasonal Content`,
-            description: 'AI-generated weekly content for your garden center',
+            title: themeData.title,
+            theme: themeData.theme,
+            description: themeData.description,
             start_date: new Date().toISOString().split('T')[0],
-            prompt: 'Create engaging seasonal gardening content for current week',
+            prompt: `Create engaging gardening content focused on ${themeData.theme}`,
             user_id: user.id,
             tenant_id: tenant.id,
-            source: 'auto_generated'
+            source: 'auto_generated_meaningful'
           };
 
           const { data: newCampaign, error: createError } = await supabase
@@ -67,7 +123,7 @@ export const WeeklyContentUpdater = () => {
             return;
           }
 
-          console.log('✅ Created new campaign:', newCampaign.id);
+          console.log('✅ Created meaningful campaign:', newCampaign.theme);
           targetCampaign = newCampaign;
         }
 
@@ -90,7 +146,6 @@ export const WeeklyContentUpdater = () => {
           if (!hasValidContent) {
             console.log('🎨 Generating content for campaign:', targetCampaign.id);
             
-            // Show loading toast
             toast.loading('Generating fresh content for this week...', { id: 'weekly-content-gen' });
 
             const result = await generateCampaignContent(
