@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
   Home,
@@ -22,6 +21,7 @@ import {
   CreditCard,
   ClipboardList,
   TrendingUp,
+  Building2,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -85,6 +85,11 @@ const AppSidebar: React.FC = () => {
       title: "Content Tasks",
       url: "/content-tasks",
       icon: ClipboardList,
+    },
+    {
+      title: "Company Profile",
+      url: "/account",
+      icon: Building2,
     },
     {
       title: "Account",
