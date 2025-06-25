@@ -8,12 +8,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { Campaign } from "@/types/content";
+import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 
 interface NewCampaignDialogProps {
   open: boolean;
@@ -29,6 +30,8 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   const [theme, setTheme] = useState("");
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [loading, setLoading] = useState(false);
+  const [generatingContent, setGeneratingContent] = useState(false);
+  const [contentGenerated, setContentGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const currentWeekNumber = getCurrentWeekNumber();
@@ -105,7 +108,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
         week_number: weekNumber,
         source: 'quick_action',
         user_id: user.id,
-        ...(tenant?.id && { tenant_id: tenant.id }) // Only set tenant_id if real tenant exists
+        ...(tenant?.id && { tenant_id: tenant.id })
       };
 
       // Create campaign directly in Supabase
@@ -122,7 +125,36 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
 
       console.log('NewCampaignDialog: Campaign created successfully:', data);
       
-      // Reset form on success
+      // Now automatically generate content for the campaign
+      setGeneratingContent(true);
+      toast.loading('Generating content for your campaign...', { id: 'content-generation' });
+
+      try {
+        console.log('NewCampaignDialog: Starting content generation');
+        
+        const result = await generateCampaignContent(
+          data.id,
+          data.theme || data.title,
+          data.description || '',
+          user.id,
+          data.week_number,
+          tenant?.id
+        );
+
+        if (result.success) {
+          console.log('NewCampaignDialog: Content generated successfully');
+          setContentGenerated(true);
+          toast.success(`Campaign created with ${result.tasks?.length || 5} content pieces!`, { id: 'content-generation' });
+        } else {
+          console.warn('NewCampaignDialog: Content generation had issues:', result.message);
+          toast.warning(`Campaign created, but content generation had issues: ${result.message}`, { id: 'content-generation' });
+        }
+      } catch (contentError) {
+        console.error('NewCampaignDialog: Content generation failed:', contentError);
+        toast.error('Campaign created, but content generation failed. You can generate content manually.', { id: 'content-generation' });
+      }
+
+      // Reset form
       setTitle("");
       setDescription("");
       setTheme("");
@@ -131,8 +163,14 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
       
       console.log('NewCampaignDialog: Campaign created successfully');
       toast.success('Campaign created successfully!');
-      onOpenChange(false);
-      onCreate(data);
+      
+      // Close modal after short delay to show success state
+      setTimeout(() => {
+        onOpenChange(false);
+        setContentGenerated(false);
+        setGeneratingContent(false);
+        onCreate(data);
+      }, 2000);
       
     } catch (error: any) {
       console.error('NewCampaignDialog: Error creating campaign:', error);
@@ -144,12 +182,13 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
   };
 
   const handleClose = () => {
-    if (!loading) {
+    if (!loading && !generatingContent) {
       setTitle("");
       setDescription("");
       setTheme("");
       setSelectedWeek("");
       setError(null);
+      setContentGenerated(false);
       onOpenChange(false);
     }
   };
@@ -167,6 +206,15 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        {contentGenerated && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800">
+              Campaign created successfully with 5 content pieces! Check your dashboard to review and approve the content.
+            </AlertDescription>
+          </Alert>
+        )}
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -178,12 +226,12 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
-                setError(null); // Clear error when user starts typing
+                setError(null);
               }}
               placeholder="Enter campaign title"
               required
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading}
+              disabled={loading || generatingContent}
             />
           </div>
 
@@ -191,7 +239,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
             <Label htmlFor="week" className="text-garden-green-dark">
               Schedule for Week *
             </Label>
-            <Select value={selectedWeek} onValueChange={setSelectedWeek} disabled={loading}>
+            <Select value={selectedWeek} onValueChange={setSelectedWeek} disabled={loading || generatingContent}>
               <SelectTrigger className="border-garden-green-light focus:border-garden-green">
                 <SelectValue placeholder="Select a week for the campaign" />
               </SelectTrigger>
@@ -215,7 +263,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe your campaign"
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading}
+              disabled={loading || generatingContent}
             />
           </div>
           
@@ -229,7 +277,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               onChange={(e) => setTheme(e.target.value)}
               placeholder="Campaign theme (e.g., Spring Planting)"
               className="border-garden-green-light focus:border-garden-green"
-              disabled={loading}
+              disabled={loading || generatingContent}
             />
           </div>
           
@@ -239,19 +287,29 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               variant="outline"
               onClick={handleClose}
               className="border-garden-green-light text-garden-green-dark"
-              disabled={loading}
+              disabled={loading || generatingContent}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim() || !selectedWeek || loading}
+              disabled={!title.trim() || !selectedWeek || loading || generatingContent}
               className="bg-garden-green hover:bg-garden-green-dark text-white"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Creating...
+                </>
+              ) : generatingContent ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating Content...
+                </>
+              ) : contentGenerated ? (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Complete!
                 </>
               ) : (
                 'Create Campaign'
