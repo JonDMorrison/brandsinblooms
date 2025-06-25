@@ -12,81 +12,106 @@ serve(async (req) => {
   }
 
   try {
-    const { post_id } = await req.json()
+    const { content_task_id, content, media_url } = await req.json()
     
-    // Get the post from database
+    // Get the content task and connection info from database
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { data: post, error: postError } = await supabaseAdmin
-      .from('social_posts')
+    // Get task and user's Instagram connection
+    const { data: task, error: taskError } = await supabaseAdmin
+      .from('content_tasks')
       .select(`
         *,
         social_connections!inner(*)
       `)
-      .eq('id', post_id)
+      .eq('id', content_task_id)
+      .eq('social_connections.platform', 'instagram')
       .single()
 
-    if (postError || !post) {
-      throw new Error('Post not found')
+    if (taskError || !task) {
+      throw new Error('Task or Instagram connection not found')
     }
 
-    const connection = post.social_connections
+    const connection = task.social_connections
     
     // Refresh token if needed
     await refreshTokenIfNeeded(connection, supabaseAdmin)
 
-    if (!post.media_url) {
-      throw new Error('Instagram posts require an image')
-    }
-
-    // Step 1: Create media container
-    const containerResponse = await fetch(`https://graph.facebook.com/v19.0/${connection.page_id}/media`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        image_url: post.media_url,
-        caption: post.content,
-        access_token: connection.access_token
-      })
-    })
-
-    const containerResult = await containerResponse.json()
+    let result;
     
-    if (!containerResponse.ok) {
-      throw new Error(`Container creation failed: ${JSON.stringify(containerResult)}`)
+    if (media_url) {
+      // Create media object first
+      const mediaResponse = await fetch(`https://graph.facebook.com/v19.0/${connection.platform_account_id}/media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image_url: media_url,
+          caption: content,
+          access_token: connection.access_token
+        })
+      })
+      
+      const mediaResult = await mediaResponse.json()
+      
+      if (!mediaResponse.ok || !mediaResult.id) {
+        throw new Error(mediaResult.error?.message || 'Failed to create Instagram media')
+      }
+      
+      // Publish the media
+      const publishResponse = await fetch(`https://graph.facebook.com/v19.0/${connection.platform_account_id}/media_publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creation_id: mediaResult.id,
+          access_token: connection.access_token
+        })
+      })
+      
+      result = await publishResponse.json()
+      
+      if (!publishResponse.ok) {
+        throw new Error(result.error?.message || 'Failed to publish Instagram post')
+      }
+    } else {
+      // Text-only post (Story or Reel - Instagram doesn't support text-only feed posts)
+      throw new Error('Instagram requires media for feed posts. Please add an image.')
     }
-
-    const containerId = containerResult.id
-
-    // Step 2: Publish the media
-    const publishResponse = await fetch(`https://graph.facebook.com/v19.0/${connection.page_id}/media_publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        creation_id: containerId,
-        access_token: connection.access_token
-      })
-    })
-
-    const publishResult = await publishResponse.json()
     
-    // Update post status
-    const status = publishResponse.ok ? 'published' : 'failed'
-    await supabaseAdmin
-      .from('social_posts')
-      .update({
-        status,
-        api_response: publishResult,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', post_id)
+    if (result.id) {
+      // Update task with success
+      await supabaseAdmin
+        .from('content_tasks')
+        .update({
+          status: 'posted',
+          platform_post_id: result.id,
+          platform_post_url: `https://instagram.com/p/${result.id}`,
+          last_posting_error: null,
+          posting_attempts: (task.posting_attempts || 0) + 1
+        })
+        .eq('id', content_task_id)
+    } else {
+      // Update task with error
+      const errorMessage = result.error?.message || 'Failed to post to Instagram'
+      const attempts = (task.posting_attempts || 0) + 1
+      
+      await supabaseAdmin
+        .from('content_tasks')
+        .update({
+          last_posting_error: errorMessage,
+          posting_attempts: attempts,
+          posting_disabled_at: attempts >= 3 ? new Date().toISOString() : null
+        })
+        .eq('id', content_task_id)
+      
+      throw new Error(errorMessage)
+    }
 
     return new Response(
-      JSON.stringify({ success: publishResponse.ok, result: publishResult }),
+      JSON.stringify({ success: true, post_id: result.id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
@@ -102,6 +127,8 @@ serve(async (req) => {
 })
 
 async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any) {
+  if (!connection.expires_at) return
+  
   const expiresAt = new Date(connection.expires_at)
   const twoDaysFromNow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
   
@@ -109,33 +136,19 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any) {
     return // Token is still valid
   }
 
-  const clientId = Deno.env.get('FB_CLIENT_ID')
-  const clientSecret = Deno.env.get('FB_CLIENT_SECRET')
+  const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${Deno.env.get('FB_CLIENT_ID')}&client_secret=${Deno.env.get('FB_CLIENT_SECRET')}&fb_exchange_token=${connection.access_token}`
   
-  if (!clientId || !clientSecret) {
-    console.error('Facebook credentials not configured for token refresh')
-    return
-  }
-
-  try {
-    const refreshUrl = `https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=${clientId}&client_secret=${clientSecret}&fb_exchange_token=${connection.access_token}`
-    
-    const response = await fetch(refreshUrl)
-    const data = await response.json()
-    
-    if (data.access_token) {
-      const newExpiresAt = new Date(Date.now() + (data.expires_in || 5184000) * 1000) // Default to 60 days if not provided
-      await supabaseAdmin
-        .from('social_connections')
-        .update({
-          access_token: data.access_token,
-          expires_at: newExpiresAt.toISOString()
-        })
-        .eq('id', connection.id)
-      
-      console.log('Token refreshed successfully for connection:', connection.id)
-    }
-  } catch (error) {
-    console.error('Token refresh failed:', error)
+  const response = await fetch(refreshUrl)
+  const data = await response.json()
+  
+  if (data.access_token) {
+    const newExpiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000)
+    await supabaseAdmin
+      .from('social_connections')
+      .update({
+        access_token: data.access_token,
+        expires_at: newExpiresAt.toISOString()
+      })
+      .eq('id', connection.id)
   }
 }

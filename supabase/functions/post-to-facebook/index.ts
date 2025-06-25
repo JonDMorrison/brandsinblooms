@@ -12,66 +12,78 @@ serve(async (req) => {
   }
 
   try {
-    const { post_id } = await req.json()
+    const { content_task_id, content, platform_post_id } = await req.json()
     
-    // Get the post from database
+    // Get the content task and connection info from database
     const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { data: post, error: postError } = await supabaseAdmin
-      .from('social_posts')
+    // Get task and user's Facebook connection
+    const { data: task, error: taskError } = await supabaseAdmin
+      .from('content_tasks')
       .select(`
         *,
         social_connections!inner(*)
       `)
-      .eq('id', post_id)
+      .eq('id', content_task_id)
+      .eq('social_connections.platform', 'facebook')
       .single()
 
-    if (postError || !post) {
-      throw new Error('Post not found')
+    if (taskError || !task) {
+      throw new Error('Task or Facebook connection not found')
     }
 
-    const connection = post.social_connections
+    const connection = task.social_connections
     
     // Refresh token if needed
     await refreshTokenIfNeeded(connection, supabaseAdmin)
 
     // Post to Facebook
     const formData = new FormData()
-    formData.append('message', post.content)
+    formData.append('message', content)
     formData.append('access_token', connection.access_token)
-    
-    if (post.media_url) {
-      formData.append('url', post.media_url)
-    }
 
-    const endpoint = post.media_url 
-      ? `https://graph.facebook.com/v19.0/${connection.page_id}/photos`
-      : `https://graph.facebook.com/v19.0/${connection.page_id}/feed`
-
-    const response = await fetch(endpoint, {
+    const response = await fetch(`https://graph.facebook.com/v19.0/${connection.page_id || connection.platform_account_id}/feed`, {
       method: 'POST',
       body: formData
     })
 
     const result = await response.json()
     
-    // Update post status
-    const status = response.ok ? 'published' : 'failed'
-    await supabaseAdmin
-      .from('social_posts')
-      .update({
-        status,
-        api_response: result,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', post_id)
+    if (response.ok && result.id) {
+      // Update task with success
+      await supabaseAdmin
+        .from('content_tasks')
+        .update({
+          status: 'posted',
+          platform_post_id: result.id,
+          platform_post_url: `https://facebook.com/${result.id}`,
+          last_posting_error: null,
+          posting_attempts: (task.posting_attempts || 0) + 1
+        })
+        .eq('id', content_task_id)
+    } else {
+      // Update task with error
+      const errorMessage = result.error?.message || 'Failed to post to Facebook'
+      const attempts = (task.posting_attempts || 0) + 1
+      
+      await supabaseAdmin
+        .from('content_tasks')
+        .update({
+          last_posting_error: errorMessage,
+          posting_attempts: attempts,
+          posting_disabled_at: attempts >= 3 ? new Date().toISOString() : null
+        })
+        .eq('id', content_task_id)
+      
+      throw new Error(errorMessage)
+    }
 
     return new Response(
-      JSON.stringify({ success: response.ok, result }),
+      JSON.stringify({ success: true, post_id: result.id }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
@@ -87,6 +99,8 @@ serve(async (req) => {
 })
 
 async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any) {
+  if (!connection.expires_at) return
+  
   const expiresAt = new Date(connection.expires_at)
   const twoDaysFromNow = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
   
@@ -100,7 +114,7 @@ async function refreshTokenIfNeeded(connection: any, supabaseAdmin: any) {
   const data = await response.json()
   
   if (data.access_token) {
-    const newExpiresAt = new Date(Date.now() + data.expires_in * 1000)
+    const newExpiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000)
     await supabaseAdmin
       .from('social_connections')
       .update({

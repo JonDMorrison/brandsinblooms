@@ -298,8 +298,13 @@ export type Database = {
           holiday_id: string | null
           id: string
           image_idea: string | null
+          last_posting_error: string | null
           notes: string | null
+          platform_post_id: string | null
+          platform_post_url: string | null
           post_type: string | null
+          posting_attempts: number | null
+          posting_disabled_at: string | null
           scheduled_date: string | null
           status: string
           tenant_id: string | null
@@ -316,8 +321,13 @@ export type Database = {
           holiday_id?: string | null
           id?: string
           image_idea?: string | null
+          last_posting_error?: string | null
           notes?: string | null
+          platform_post_id?: string | null
+          platform_post_url?: string | null
           post_type?: string | null
+          posting_attempts?: number | null
+          posting_disabled_at?: string | null
           scheduled_date?: string | null
           status?: string
           tenant_id?: string | null
@@ -334,8 +344,13 @@ export type Database = {
           holiday_id?: string | null
           id?: string
           image_idea?: string | null
+          last_posting_error?: string | null
           notes?: string | null
+          platform_post_id?: string | null
+          platform_post_url?: string | null
           post_type?: string | null
+          posting_attempts?: number | null
+          posting_disabled_at?: string | null
           scheduled_date?: string | null
           status?: string
           tenant_id?: string | null
@@ -736,6 +751,62 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      post_performance: {
+        Row: {
+          collected_at: string | null
+          comments_count: number | null
+          content_task_id: string | null
+          created_at: string | null
+          engagement_rate: number | null
+          id: string
+          impressions: number | null
+          likes_count: number | null
+          platform: string
+          platform_post_id: string
+          reach: number | null
+          shares_count: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          collected_at?: string | null
+          comments_count?: number | null
+          content_task_id?: string | null
+          created_at?: string | null
+          engagement_rate?: number | null
+          id?: string
+          impressions?: number | null
+          likes_count?: number | null
+          platform: string
+          platform_post_id: string
+          reach?: number | null
+          shares_count?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          collected_at?: string | null
+          comments_count?: number | null
+          content_task_id?: string | null
+          created_at?: string | null
+          engagement_rate?: number | null
+          id?: string
+          impressions?: number | null
+          likes_count?: number | null
+          platform?: string
+          platform_post_id?: string
+          reach?: number | null
+          shares_count?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_performance_content_task_id_fkey"
+            columns: ["content_task_id"]
+            isOneToOne: false
+            referencedRelation: "content_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       social_connections: {
         Row: {

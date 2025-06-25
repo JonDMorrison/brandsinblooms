@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
@@ -11,7 +12,7 @@ import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostIt
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
 import { FirstTimeConnectionCallout } from "./ready-to-post/FirstTimeConnectionCallout";
-import { PostNowButton } from "./ready-to-post/PostNowButton";
+import { BatchModeToggle } from "./ready-to-post/BatchModeToggle";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -28,6 +29,8 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [showFirstTimeCallout, setShowFirstTimeCallout] = useState(false);
   const [socialConnections, setSocialConnections] = useState<any[]>([]);
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
 
   // Use environment-based detection instead of hardcoded email
   const isDevelopment = import.meta.env.DEV;
@@ -62,7 +65,8 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
         const { data, error } = await supabase
           .from('social_connections')
           .select('*')
-          .eq('user_id', user.id);
+          .eq('user_id', user.id)
+          .eq('is_active', true);
 
         if (error) {
           console.error('Error fetching social connections:', error);
@@ -77,6 +81,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     fetchSocialConnections();
   }, [user]);
 
+  // Fetch ready tasks with enhanced error handling data
   useEffect(() => {
     const fetchReadyTasks = async () => {
       if (!user || !tenant) {
@@ -93,7 +98,7 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
           statusFilter.push('preview');
         }
 
-        // Updated query to include holiday content without requiring campaigns
+        // Updated query to include new error handling fields
         const { data, error } = await supabase
           .from('content_tasks')
           .select(`
@@ -224,6 +229,16 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     }
   };
 
+  const handleTaskSelect = (taskId: string, selected: boolean) => {
+    const newSelected = new Set(selectedTasks);
+    if (selected) {
+      newSelected.add(taskId);
+    } else {
+      newSelected.delete(taskId);
+    }
+    setSelectedTasks(newSelected);
+  };
+
   if (tasks.length === 0) {
     return (
       <EnhancedAppleCard 
@@ -264,9 +279,6 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
     task.status === 'preview' || task.campaigns?.title?.startsWith('PREVIEW')
   );
 
-  const facebookConnection = socialConnections.find(conn => conn.platform === 'facebook');
-  const instagramConnection = socialConnections.find(conn => conn.platform === 'instagram');
-
   return (
     <>
       <EnhancedAppleCard 
@@ -286,6 +298,14 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
               <DevPreviewBadge show={true} />
             </div>
           )}
+
+          {/* Batch Mode Toggle */}
+          <BatchModeToggle
+            batchMode={batchMode}
+            onToggle={setBatchMode}
+            selectedCount={selectedTasks.size}
+          />
+          
           <div className="space-y-0">
             {tasks.map((task, index) => (
               <div 
@@ -298,33 +318,11 @@ export const ReadyToPostCard = ({ tasks: propTasks, onTaskUpdate, onTaskClick }:
                   onViewFull={handleTaskViewFull}
                   onTaskUpdate={onTaskUpdate}
                   isFirst={index === 0}
+                  socialConnections={socialConnections}
+                  batchMode={batchMode}
+                  isSelected={selectedTasks.has(task.id)}
+                  onSelect={(selected) => handleTaskSelect(task.id, selected)}
                 />
-                
-                {/* Post Now Buttons for first item when showing callout */}
-                {index === 0 && showFirstTimeCallout && (
-                  <div className="mt-3 flex gap-2 justify-end">
-                    {facebookConnection && (
-                      <PostNowButton
-                        task={task}
-                        platform="facebook"
-                        onSuccess={() => {
-                          setShowFirstTimeCallout(false);
-                          if (onTaskUpdate) onTaskUpdate();
-                        }}
-                      />
-                    )}
-                    {instagramConnection && (
-                      <PostNowButton
-                        task={task}
-                        platform="instagram"
-                        onSuccess={() => {
-                          setShowFirstTimeCallout(false);
-                          if (onTaskUpdate) onTaskUpdate();
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
               </div>
             ))}
           </div>
