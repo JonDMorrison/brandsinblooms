@@ -43,8 +43,8 @@ export const TrialBanner = () => {
         width: `calc(100% - ${sidebarWidth}px)`
       };
 
-  // Show urgent banner for last 3 days
-  if (daysLeft <= 3) {
+  // Show urgent banner for last 2 days (updated from 3 days)
+  if (daysLeft <= 2) {
     const dayText = daysLeft === 1 ? 'day' : 'days';
     console.log('TrialBanner: Showing urgent banner for', daysLeft, dayText);
     
@@ -56,7 +56,7 @@ export const TrialBanner = () => {
         <div className="flex items-center justify-center gap-3 text-sm font-medium">
           <Clock className="h-4 w-4 animate-pulse text-black" />
           <span className="text-black">
-            ⚠️ Trial expires in {daysLeft} {dayText}! Don't lose your campaigns.
+            ⚠️ Your 7-day trial expires in {daysLeft} {dayText}! Don't lose access to all Bloom features.
           </span>
           <Button 
             variant="outline" 
@@ -84,14 +84,14 @@ export const TrialBanner = () => {
         <div className="flex items-center gap-4 text-sm">
           <Badge variant="outline" className="bg-white/20 text-black border-black font-medium">
             <Zap className="h-3 w-3 mr-1 text-black" />
-            Free Trial: {daysLeft} days left
+            7-Day Trial: {daysLeft} days left
           </Badge>
-          <span className="hidden sm:inline text-black">Experience premium features - </span>
+          <span className="hidden sm:inline text-black">Full Bloom features included - </span>
           <button 
             onClick={handleUpgrade}
             className="text-black hover:text-gray-700 underline hover:no-underline font-medium cursor-pointer bg-transparent border-none p-0"
           >
-            upgrade to keep them forever
+            keep them forever
           </button>
         </div>
         

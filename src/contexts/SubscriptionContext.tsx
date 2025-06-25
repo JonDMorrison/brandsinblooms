@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -146,10 +147,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         return data;
       }
 
-      // Regular trial subscription for non-test accounts
+      // Regular trial subscription for non-test accounts - now 7 days instead of 14
       const startDate = new Date();
       const endDate = new Date();
-      endDate.setDate(startDate.getDate() + 14); // 14-day trial
+      endDate.setDate(startDate.getDate() + 7); // 7-day trial
 
       const { data, error } = await supabase
         .from('subscriptions')
@@ -168,7 +169,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         return null;
       }
 
-      console.log('Created new subscription:', data);
+      console.log('Created new 7-day trial subscription:', data);
       return data;
     } catch (error) {
       console.error('Error in createDefaultSubscription:', error);
@@ -184,7 +185,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       let endDate = new Date();
       
       if (plan === 'free_trial') {
-        endDate.setDate(startDate.getDate() + 14);
+        endDate.setDate(startDate.getDate() + 7); // 7-day trial
       } else if (plan === 'sprout' || plan === 'bloom') {
         if (billingInterval === 'annual') {
           endDate.setFullYear(startDate.getFullYear() + 1);
@@ -320,9 +321,10 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
     if (!subscription) return false;
     
+    // Give trial users full Bloom-level access
     const planHierarchy = {
       'expired': 0,
-      'free_trial': 1,
+      'free_trial': 3, // Now equivalent to Bloom level
       'sprout': 2,
       'bloom': 3
     };

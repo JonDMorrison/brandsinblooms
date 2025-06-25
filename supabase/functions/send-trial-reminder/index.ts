@@ -52,13 +52,13 @@ const handler = async (req: Request): Promise<Response> => {
     let htmlContent: string;
 
     if (email_type === 'trial_expired') {
-      subject = "Your trial has ended - Your content creation just got harder";
+      subject = "Your 7-day trial has ended - Your content creation just got harder";
       htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #dc2626; margin-bottom: 20px;">Hi ${companyName}! 😔</h1>
           
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            Your free trial has ended, and we hate to see you go back to the old way of doing things...
+            Your 7-day trial with full Bloom features has ended, and we hate to see you go back to the old way of doing things...
           </p>
           
           <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin: 20px 0;">
@@ -68,17 +68,18 @@ const handler = async (req: Request): Promise<Response> => {
               <li>Spending hours typing out content manually</li>
               <li>Forgetting to post consistently</li>
               <li>Missing out on seasonal opportunities</li>
-              <li>No more automated campaigns or content generation</li>
+              <li>No more automated campaigns or social media posting</li>
+              <li>No more drag-and-drop content scheduling</li>
             </ul>
           </div>
           
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            <strong>But it doesn't have to be this way!</strong> You experienced how smooth content creation can be with BloomSuite. Your campaigns were ready, your content was generated, and your social media strategy was on autopilot.
+            <strong>But it doesn't have to be this way!</strong> You experienced how smooth content creation can be with BloomSuite's full features. Your campaigns were ready, your content was generated, and your social media strategy was on autopilot.
           </p>
           
           <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; margin: 20px 0;">
             <p style="margin: 0; color: #0c4a6e; font-weight: 500;">
-              🚨 <strong>Don't let your momentum die!</strong> Reactivate now and get back to effortless content creation.
+              🚨 <strong>Don't let your momentum die!</strong> Reactivate now and get back to effortless content creation with all Bloom features.
             </p>
           </div>
           
@@ -104,14 +105,14 @@ const handler = async (req: Request): Promise<Response> => {
         </div>
       `;
     } else {
-      // Original trial expiring email
-      subject = "Your trial ends in 3 days - Don't go back to manual posting!";
+      // Updated trial expiring email for 2-day warning
+      subject = "Your 7-day trial ends in 2 days - Don't go back to manual posting!";
       htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h1 style="color: #2563eb; margin-bottom: 20px;">Hi ${companyName}! 👋</h1>
           
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            Your free trial ends in <strong>3 days</strong>, and we don't want you to go back to the old way of doing things:
+            Your 7-day trial with <strong>full Bloom features</strong> ends in <strong>2 days</strong>, and we don't want you to go back to the old way of doing things:
           </p>
           
           <div style="background-color: #fef2f2; border-left: 4px solid #ef4444; padding: 16px; margin: 20px 0;">
@@ -119,11 +120,23 @@ const handler = async (req: Request): Promise<Response> => {
               <li>Thinking about what to post</li>
               <li>Typing everything out manually</li>
               <li>Never getting around to actually posting it</li>
+              <li>Missing seasonal content opportunities</li>
+            </ul>
+          </div>
+          
+          <div style="background-color: #f0fdf4; border-left: 4px solid #22c55e; padding: 16px; margin: 20px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #166534;">What you've experienced in your trial:</h3>
+            <ul style="margin: 0; padding-left: 20px; color: #166534;">
+              <li>✅ Automated content generation</li>
+              <li>✅ Social media scheduling & posting</li>
+              <li>✅ Drag-and-drop calendar management</li>
+              <li>✅ Campaign automation</li>
+              <li>✅ All premium features included</li>
             </ul>
           </div>
           
           <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
-            With BloomSuite, you've experienced how easy content creation can be. Your campaigns are ready, your content is generated, and your social media strategy is on autopilot.
+            With BloomSuite, you've experienced how easy content creation can be with <strong>full premium access</strong>. Your campaigns are ready, your content is generated, and your social media strategy is on autopilot.
           </p>
           
           <div style="background-color: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 16px; margin: 20px 0;">
@@ -189,8 +202,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+      status: 500,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
   }
