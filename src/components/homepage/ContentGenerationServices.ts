@@ -1,207 +1,275 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { attachImagesToTask } from "@/services/contentGenerationHelpers";
-import { transformCampaignTitle, cleanContentFromWeekReferences } from "@/utils/campaignTitleUtils";
+import { toast } from "sonner";
 
-export const generatePersonalizedContent = async (
-  postType: string,
-  campaignTitle: string,
-  userId?: string,
-  campaignDescription?: string
-): Promise<string> => {
-  console.log(`🔧 CONTENT_GEN DEBUG: Starting generation for ${postType.toUpperCase()}`);
-  
-  // Transform campaign title to remove week references
-  const cleanTitle = transformCampaignTitle(campaignTitle);
-  console.log(`🔧 CONTENT_GEN DEBUG: Transformed title from "${campaignTitle}" to "${cleanTitle}"`);
+export interface ContentGenerationResult {
+  success: boolean;
+  message: string;
+  tasks?: any[];
+}
 
-  if (postType === 'video') {
-    console.log(`🎬 CONTENT_GEN DEBUG: Detected video type, calling generateVideoScript`);
-    try {
-      const result = await generateVideoScript(cleanTitle, userId, campaignDescription);
-      const cleanedResult = cleanContentFromWeekReferences(result);
-      console.log(`🎬 CONTENT_GEN DEBUG: Video script generated and cleaned, length: ${cleanedResult?.length || 0}`);
-      return cleanedResult;
-    } catch (error) {
-      console.error(`🎬 CONTENT_GEN ERROR: Video script generation failed:`, error);
-      throw error;
-    }
-  }
-
-  if (postType === 'newsletter') {
-    console.log(`📧 CONTENT_GEN DEBUG: Detected newsletter type, calling generateNewsletterContent`);
-    const result = await generateNewsletterContent('', cleanTitle, 0, userId, campaignDescription);
-    return cleanContentFromWeekReferences(result);
-  }
-
-  console.log(`📝 CONTENT_GEN DEBUG: Using standard content generation for ${postType}`);
-
-  try {
-    const { data, error } = await supabase.functions.invoke('generate-content', {
-      body: {
-        postType,
-        campaignTitle: cleanTitle,
-        userId,
-        campaignDescription
-      }
-    });
-
-    if (error) {
-      console.error(`📝 CONTENT_GEN ERROR: Supabase function error for ${postType}:`, error);
-      throw new Error(`Content generation failed: ${error.message}`);
-    }
-
-    if (!data?.content) {
-      console.error(`📝 CONTENT_GEN ERROR: No content returned for ${postType}`);
-      throw new Error('No content generated');
-    }
-
-    const cleanedContent = cleanContentFromWeekReferences(data.content);
-    console.log(`📝 CONTENT_GEN DEBUG: ${postType} content generated and cleaned successfully, length: ${cleanedContent.length}`);
-    return cleanedContent;
-  } catch (error) {
-    console.error(`📝 CONTENT_GEN ERROR: Exception in generatePersonalizedContent for ${postType}:`, error);
-    throw error;
-  }
-};
-
-export const generateVideoScript = async (
-  campaignTitle: string,
-  userId?: string,
-  weekDescription?: string
-): Promise<string> => {
-  console.log(`🎬 VIDEO_SCRIPT DEBUG: Starting video script generation`);
-  
-  // Transform title to remove week references
-  const cleanTitle = transformCampaignTitle(campaignTitle);
-  console.log(`🎬 VIDEO_SCRIPT DEBUG: Using cleaned title: "${cleanTitle}"`);
-
-  try {
-    const { data, error } = await supabase.functions.invoke('generate-video-script', {
-      body: {
-        campaignTitle: cleanTitle,
-        userId,
-        weekDescription
-      }
-    });
-
-    if (error) {
-      console.error(`🎬 VIDEO_SCRIPT ERROR: Supabase function invoke error:`, error);
-      throw new Error(`Video script generation failed: ${error.message}`);
-    }
-
-    if (!data?.script) {
-      console.error(`🎬 VIDEO_SCRIPT ERROR: No script returned from function`);
-      throw new Error('No video script generated');
-    }
-
-    const cleanedScript = cleanContentFromWeekReferences(data.script);
-    console.log(`🎬 VIDEO_SCRIPT DEBUG: Script generated and cleaned successfully`);
-    return cleanedScript;
-  } catch (error) {
-    console.error(`🎬 VIDEO_SCRIPT ERROR: Exception in generateVideoScript:`, error);
-    throw error;
-  }
-};
-
-// Newsletter generation function
-export const generateNewsletterContent = async (
-  newsletterType: string,
-  campaignTitle: string,
-  weekNumber: number,
-  userId?: string,
-  description?: string
-): Promise<string> => {
-  console.log(`📧 NEWSLETTER DEBUG: Generating newsletter content`);
-  
-  // Transform title to remove week references
-  const cleanTitle = transformCampaignTitle(campaignTitle);
-  console.log(`📧 NEWSLETTER DEBUG: Using cleaned title: "${cleanTitle}"`);
-
-  try {
-    const { data, error } = await supabase.functions.invoke('generate-newsletter', {
-      body: {
-        newsletterType,
-        campaignTitle: cleanTitle,
-        weekNumber: 0, // Always use 0 to avoid week number references
-        userId,
-        description
-      }
-    });
-
-    if (error) {
-      console.error(`📧 NEWSLETTER ERROR: Generation failed:`, error);
-      throw new Error(`Newsletter generation failed: ${error.message}`);
-    }
-
-    if (!data?.content) {
-      console.error(`📧 NEWSLETTER ERROR: No content returned`);
-      throw new Error('No newsletter content generated');
-    }
-
-    const cleanedContent = cleanContentFromWeekReferences(data.content);
-    console.log(`📧 NEWSLETTER DEBUG: Newsletter generated and cleaned successfully, length: ${cleanedContent.length}`);
-    return cleanedContent;
-  } catch (error) {
-    console.error(`📧 NEWSLETTER ERROR: Exception in generateNewsletterContent:`, error);
-    throw error;
-  }
-};
-
-// Campaign content generation function with image attachment
 export const generateCampaignContent = async (
   campaignId: string,
-  campaignTitle: string,
-  description: string,
+  campaignTheme: string,
+  campaignDescription: string,
   userId: string,
   weekNumber?: number,
   tenantId?: string
-): Promise<{ success: boolean; message?: string; tasks?: any[] }> => {
-  console.log(`🚀 CAMPAIGN_GEN DEBUG: Starting campaign content generation`);
-  
-  // Transform title to remove week references
-  const cleanTitle = transformCampaignTitle(campaignTitle);
-  console.log(`🚀 CAMPAIGN_GEN DEBUG: Using cleaned title: "${cleanTitle}"`);
+): Promise<ContentGenerationResult> => {
+  console.log('🎯 Starting campaign content generation:', {
+    campaignId,
+    campaignTheme,
+    userId,
+    weekNumber,
+    tenantId
+  });
 
   try {
-    const { data, error } = await supabase.functions.invoke('generate_campaign_content', {
+    // Validate required parameters
+    if (!campaignId || !userId) {
+      throw new Error('Campaign ID and User ID are required');
+    }
+
+    // Check if content already exists
+    const { data: existingTasks, error: checkError } = await supabase
+      .from('content_tasks')
+      .select('id, post_type, status')
+      .eq('campaign_id', campaignId)
+      .not('status', 'eq', 'cancelled');
+
+    if (checkError) {
+      console.error('❌ Error checking existing tasks:', checkError);
+      throw new Error(`Failed to check existing content: ${checkError.message}`);
+    }
+
+    if (existingTasks && existingTasks.length > 0) {
+      console.log('✅ Content already exists for campaign:', existingTasks.length, 'tasks');
+      return {
+        success: true,
+        message: `Found ${existingTasks.length} existing content pieces`,
+        tasks: existingTasks
+      };
+    }
+
+    // Define content types to generate
+    const contentTypes = [
+      'facebook',
+      'instagram', 
+      'newsletter',
+      'blog',
+      'video'
+    ];
+
+    console.log('🔄 Generating content for types:', contentTypes);
+
+    const generatedTasks = [];
+    const errors = [];
+
+    // Generate content for each type
+    for (const contentType of contentTypes) {
+      try {
+        console.log(`🎨 Generating ${contentType} content...`);
+
+        // Create the content task first
+        const taskData = {
+          campaign_id: campaignId,
+          user_id: userId,
+          tenant_id: tenantId,
+          post_type: contentType,
+          status: 'generating',
+          scheduled_date: new Date().toISOString().split('T')[0]
+        };
+
+        const { data: newTask, error: taskError } = await supabase
+          .from('content_tasks')
+          .insert(taskData)
+          .select()
+          .single();
+
+        if (taskError) {
+          console.error(`❌ Error creating ${contentType} task:`, taskError);
+          errors.push(`Failed to create ${contentType} task: ${taskError.message}`);
+          continue;
+        }
+
+        console.log(`✅ Created ${contentType} task:`, newTask.id);
+
+        // Generate content using the edge function
+        const { data: contentResult, error: contentError } = await supabase.functions.invoke('generate-content', {
+          body: {
+            postType: contentType,
+            campaignTitle: campaignTheme,
+            userId: userId,
+            weekDescription: campaignDescription,
+            enforceCompanyName: true
+          }
+        });
+
+        if (contentError) {
+          console.error(`❌ Error generating ${contentType} content:`, contentError);
+          errors.push(`Failed to generate ${contentType} content: ${contentError.message}`);
+          
+          // Update task status to failed
+          await supabase
+            .from('content_tasks')
+            .update({ 
+              status: 'failed',
+              notes: `Generation failed: ${contentError.message}`
+            })
+            .eq('id', newTask.id);
+          
+          continue;
+        }
+
+        if (!contentResult?.content) {
+          console.error(`❌ No content returned for ${contentType}`);
+          errors.push(`No content generated for ${contentType}`);
+          
+          // Update task status to failed
+          await supabase
+            .from('content_tasks')
+            .update({ 
+              status: 'failed',
+              notes: 'No content returned from generation'
+            })
+            .eq('id', newTask.id);
+          
+          continue;
+        }
+
+        // Update task with generated content
+        const { error: updateError } = await supabase
+          .from('content_tasks')
+          .update({
+            ai_output: contentResult.content,
+            status: 'review',
+            notes: `Generated successfully with ${contentResult.generationAttempts || 1} attempts`
+          })
+          .eq('id', newTask.id);
+
+        if (updateError) {
+          console.error(`❌ Error updating ${contentType} task:`, updateError);
+          errors.push(`Failed to save ${contentType} content: ${updateError.message}`);
+          continue;
+        }
+
+        console.log(`🎉 Successfully generated ${contentType} content`);
+        generatedTasks.push({
+          ...newTask,
+          ai_output: contentResult.content,
+          status: 'review'
+        });
+
+        // Add a small delay between generations to avoid rate limits
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (error) {
+        console.error(`❌ Unexpected error generating ${contentType}:`, error);
+        errors.push(`Unexpected error for ${contentType}: ${error.message}`);
+      }
+    }
+
+    console.log('🏁 Content generation completed:', {
+      successful: generatedTasks.length,
+      failed: errors.length,
+      errors: errors
+    });
+
+    if (generatedTasks.length === 0) {
+      throw new Error(`Failed to generate any content. Errors: ${errors.join(', ')}`);
+    }
+
+    return {
+      success: true,
+      message: `Generated ${generatedTasks.length} content pieces${errors.length > 0 ? ` (${errors.length} failed)` : ''}`,
+      tasks: generatedTasks
+    };
+
+  } catch (error) {
+    console.error('❌ Campaign content generation failed:', error);
+    return {
+      success: false,
+      message: error.message || 'Content generation failed'
+    };
+  }
+};
+
+export const regenerateTaskContent = async (taskId: string, userId: string): Promise<boolean> => {
+  try {
+    console.log('🔄 Regenerating content for task:', taskId);
+
+    // Get task details
+    const { data: task, error: taskError } = await supabase
+      .from('content_tasks')
+      .select(`
+        *,
+        campaigns (
+          title,
+          theme,
+          description
+        )
+      `)
+      .eq('id', taskId)
+      .eq('user_id', userId)
+      .single();
+
+    if (taskError || !task) {
+      console.error('❌ Error fetching task:', taskError);
+      return false;
+    }
+
+    // Update task status to generating
+    await supabase
+      .from('content_tasks')
+      .update({ status: 'generating' })
+      .eq('id', taskId);
+
+    // Generate new content
+    const { data: contentResult, error: contentError } = await supabase.functions.invoke('generate-content', {
       body: {
-        campaign_id: campaignId,
-        campaign_title: cleanTitle,
-        description,
-        user_id: userId,
-        week_number: weekNumber,
-        tenant_id: tenantId
+        postType: task.post_type,
+        campaignTitle: task.campaigns?.title || task.campaigns?.theme,
+        userId: userId,
+        weekDescription: task.campaigns?.description,
+        enforceCompanyName: true
       }
     });
 
-    if (error) {
-      console.error(`🚀 CAMPAIGN_GEN ERROR: Generation failed:`, error);
-      return { success: false, message: error.message };
-    }
-
-    // Attach images to generated tasks and clean content
-    if (data?.tasks && Array.isArray(data.tasks)) {
-      console.log(`🖼️ CAMPAIGN_GEN DEBUG: Processing ${data.tasks.length} tasks`);
+    if (contentError || !contentResult?.content) {
+      console.error('❌ Error regenerating content:', contentError);
       
-      for (const task of data.tasks) {
-        try {
-          // Clean any week references from generated content
-          if (task.ai_output) {
-            task.ai_output = cleanContentFromWeekReferences(task.ai_output);
-          }
-          
-          await attachImagesToTask(task);
-        } catch (imageError) {
-          console.warn(`🖼️ CAMPAIGN_GEN WARN: Failed to process task ${task.id}:`, imageError);
-        }
-      }
+      // Update task status back to review or failed
+      await supabase
+        .from('content_tasks')
+        .update({ 
+          status: 'failed',
+          notes: `Regeneration failed: ${contentError?.message || 'No content generated'}`
+        })
+        .eq('id', taskId);
+      
+      return false;
     }
 
-    console.log(`🚀 CAMPAIGN_GEN DEBUG: Campaign content generated and cleaned successfully`);
-    return { success: true, tasks: data?.tasks || [] };
+    // Update task with new content
+    const { error: updateError } = await supabase
+      .from('content_tasks')
+      .update({
+        ai_output: contentResult.content,
+        status: 'review',
+        notes: `Regenerated successfully with ${contentResult.generationAttempts || 1} attempts`
+      })
+      .eq('id', taskId);
+
+    if (updateError) {
+      console.error('❌ Error updating regenerated task:', updateError);
+      return false;
+    }
+
+    console.log('🎉 Successfully regenerated content for task:', taskId);
+    return true;
+
   } catch (error) {
-    console.error(`🚀 CAMPAIGN_GEN ERROR: Exception in generateCampaignContent:`, error);
-    return { success: false, message: error.message };
+    console.error('❌ Task regeneration failed:', error);
+    return false;
   }
 };
