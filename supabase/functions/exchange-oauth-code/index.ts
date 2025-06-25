@@ -14,11 +14,16 @@ serve(async (req) => {
   try {
     const { code, state, redirect_uri } = await req.json()
     
-    console.log('OAuth exchange request:', { code: code ? 'present' : 'missing', state, redirect_uri })
+    console.log('🔄 OAuth exchange request received:', { 
+      code: code ? 'present' : 'missing', 
+      state: state ? `present (${state.substring(0, 8)}...)` : 'missing', 
+      redirect_uri 
+    })
     
     // Get user from auth header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
+      console.error('❌ No authorization header provided')
       throw new Error('Authorization header required')
     }
     
@@ -34,22 +39,24 @@ serve(async (req) => {
     // Get the authenticated user
     const { data: { user }, error: userError } = await supabase.auth.getUser(jwt)
     if (userError || !user) {
+      console.error('❌ User authentication failed:', userError)
       throw new Error('Invalid or expired token')
     }
+
+    console.log('✅ User authenticated:', user.email)
 
     const clientId = Deno.env.get('FB_CLIENT_ID')
     const clientSecret = Deno.env.get('FB_CLIENT_SECRET')
 
     if (!clientId || !clientSecret) {
-      console.error('Missing Facebook credentials:', { 
+      console.error('❌ Missing Facebook credentials:', { 
         clientId: clientId ? 'present' : 'missing', 
         clientSecret: clientSecret ? 'present' : 'missing' 
       })
       throw new Error('Facebook/Instagram app credentials not configured. Please check your environment variables.')
     }
 
-    console.log('Starting OAuth token exchange for user:', user.id)
-    console.log('Using client ID:', clientId)
+    console.log('🔗 Starting OAuth token exchange for user:', user.id)
 
     // Exchange authorization code for access token
     const tokenParams = new URLSearchParams({
@@ -59,11 +66,7 @@ serve(async (req) => {
       code: code,
     })
 
-    console.log('Token exchange parameters:', {
-      client_id: clientId,
-      redirect_uri: redirect_uri,
-      code: code ? 'present' : 'missing'
-    })
+    console.log('📡 Sending token exchange request to Facebook...')
 
     const tokenResponse = await fetch('https://graph.facebook.com/v19.0/oauth/access_token', {
       method: 'POST',
@@ -74,11 +77,14 @@ serve(async (req) => {
     })
 
     const tokenData = await tokenResponse.json()
-    console.log('Token response status:', tokenResponse.status)
-    console.log('Token response:', tokenData)
+    console.log('📬 Token response received:', {
+      status: tokenResponse.status,
+      hasAccessToken: !!tokenData.access_token,
+      hasError: !!tokenData.error
+    })
 
     if (!tokenResponse.ok) {
-      console.error('Token exchange failed:', tokenData)
+      console.error('❌ Token exchange failed:', tokenData)
       throw new Error(`Token exchange failed: ${JSON.stringify(tokenData)}`)
     }
 
@@ -87,35 +93,38 @@ serve(async (req) => {
       throw new Error('No access token received from Facebook')
     }
 
-    console.log('Successfully obtained access token')
+    console.log('✅ Successfully obtained access token')
 
     // Get user info and pages/accounts
+    console.log('👤 Fetching Facebook user data...')
     const userResponse = await fetch(`https://graph.facebook.com/v19.0/me?fields=id,name&access_token=${accessToken}`)
     const userData = await userResponse.json()
 
     if (!userResponse.ok) {
-      console.error('Failed to get user data:', userData)
+      console.error('❌ Failed to get user data:', userData)
       throw new Error(`Failed to get user data: ${JSON.stringify(userData)}`)
     }
 
-    console.log('Retrieved Facebook user data:', userData.name)
+    console.log('✅ Retrieved Facebook user data for:', userData.name)
 
     // Get pages (for Facebook) and Instagram accounts
+    console.log('📄 Fetching Facebook pages and Instagram accounts...')
     const pagesResponse = await fetch(`https://graph.facebook.com/v19.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${accessToken}`)
     const pagesData = await pagesResponse.json()
 
     if (!pagesResponse.ok) {
-      console.error('Failed to get pages:', pagesData)
+      console.error('❌ Failed to get pages:', pagesData)
       throw new Error(`Failed to get pages: ${JSON.stringify(pagesData)}`)
     }
 
-    console.log(`Found ${pagesData.data?.length || 0} pages to process`)
+    const pageCount = pagesData.data?.length || 0
+    console.log(`📊 Found ${pageCount} pages to process`)
 
     // Store connections for each page/account
     const connections = []
     
     for (const page of pagesData.data || []) {
-      console.log('Processing page:', page.name)
+      console.log('🔄 Processing page:', page.name)
       
       // Store Facebook page connection
       const { data: fbConnection, error: fbError } = await supabase
@@ -135,16 +144,16 @@ serve(async (req) => {
         .select()
 
       if (fbError) {
-        console.error('Error saving Facebook connection:', fbError)
+        console.error('❌ Error saving Facebook connection:', fbError)
       } else {
-        console.log('Successfully saved Facebook connection for:', page.name)
+        console.log('✅ Successfully saved Facebook connection for:', page.name)
         connections.push(fbConnection[0])
       }
 
       // Store Instagram connection if available
       if (page.instagram_business_account) {
         const igAccount = page.instagram_business_account
-        console.log('Processing Instagram account:', igAccount.id)
+        console.log('📷 Processing Instagram account:', igAccount.id)
         
         // Get Instagram account details
         const igResponse = await fetch(`https://graph.facebook.com/v19.0/${igAccount.id}?fields=id,username&access_token=${page.access_token}`)
@@ -168,18 +177,18 @@ serve(async (req) => {
             .select()
 
           if (igError) {
-            console.error('Error saving Instagram connection:', igError)
+            console.error('❌ Error saving Instagram connection:', igError)
           } else {
-            console.log('Successfully saved Instagram connection for:', igData.username)
+            console.log('✅ Successfully saved Instagram connection for:', igData.username)
             connections.push(igConnection[0])
           }
         } else {
-          console.error('Failed to get Instagram account details:', igData)
+          console.error('❌ Failed to get Instagram account details:', igData)
         }
       }
     }
 
-    console.log(`Successfully processed ${connections.length} connections`)
+    console.log(`🎉 Successfully processed ${connections.length} connections`)
 
     return new Response(
       JSON.stringify({ 
@@ -191,7 +200,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
-    console.error('Error in OAuth exchange:', error)
+    console.error('❌ Error in OAuth exchange:', error)
     return new Response(
       JSON.stringify({ 
         success: false, 

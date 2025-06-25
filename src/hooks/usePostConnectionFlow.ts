@@ -29,14 +29,25 @@ export const usePostConnectionFlow = () => {
     const oauthCompleted = sessionStorage.getItem('oauth_just_completed');
     const hasSeenOnboarding = localStorage.getItem(`social_onboarding_completed_${user?.id}`);
     
+    console.log('🔍 Checking OAuth completion:', {
+      oauthCompleted,
+      hasSeenOnboarding,
+      userId: user?.id
+    });
+    
     return oauthCompleted === 'true' && !hasSeenOnboarding;
   };
 
   // Check for approved content
   const checkApprovedContent = async () => {
-    if (!user || !tenant) return false;
+    if (!user || !tenant) {
+      console.log('⏭️ Skipping content check - no user or tenant');
+      return false;
+    }
 
     try {
+      console.log('📋 Checking for approved content...');
+      
       const { data, error } = await supabase
         .from('content_tasks')
         .select('id')
@@ -45,13 +56,16 @@ export const usePostConnectionFlow = () => {
         .limit(1);
 
       if (error) {
-        console.error('Error checking approved content:', error);
+        console.error('❌ Error checking approved content:', error);
         return false;
       }
 
-      return (data && data.length > 0);
+      const hasContent = data && data.length > 0;
+      console.log('📊 Approved content check result:', { hasContent, count: data?.length || 0 });
+      
+      return hasContent;
     } catch (error) {
-      console.error('Error checking approved content:', error);
+      console.error('❌ Error checking approved content:', error);
       return false;
     }
   };
@@ -59,17 +73,34 @@ export const usePostConnectionFlow = () => {
   // Initialize flow state
   useEffect(() => {
     const initializeFlow = async () => {
-      if (!user || !tenant) return;
+      if (!user || !tenant) {
+        console.log('⏭️ Skipping flow initialization - no user or tenant');
+        return;
+      }
+
+      console.log('🎯 Initializing post-connection flow...');
 
       const isFirstTime = checkOAuthCompletion();
       const hasApproved = await checkApprovedContent();
 
-      setFlowState({
+      const newFlowState = {
         isFirstTimeConnection: isFirstTime,
         shouldShowOnboarding: isFirstTime,
         hasApprovedContent: hasApproved,
         targetSection: isFirstTime ? (hasApproved ? 'ready-to-post' : 'weekly-content') : null
-      });
+      };
+
+      console.log('📊 Flow state initialized:', newFlowState);
+
+      setFlowState(newFlowState);
+
+      // If this is first time connection, automatically navigate to target section
+      if (isFirstTime) {
+        console.log('🎯 First time connection detected, will navigate to target section');
+        setTimeout(() => {
+          navigateToTargetSection();
+        }, 1000); // Small delay to ensure page is loaded
+      }
     };
 
     initializeFlow();
@@ -77,10 +108,16 @@ export const usePostConnectionFlow = () => {
 
   // Navigate to target section
   const navigateToTargetSection = () => {
-    if (!flowState.targetSection) return;
+    if (!flowState.targetSection) {
+      console.log('⏭️ No target section to navigate to');
+      return;
+    }
+
+    console.log('🧭 Navigating to target section:', flowState.targetSection);
 
     // Clear OAuth completion flag
     sessionStorage.removeItem('oauth_just_completed');
+    localStorage.removeItem('oauth_state_backup');
 
     // Navigate to home page and scroll to section
     navigate('/', { replace: true });
@@ -90,16 +127,24 @@ export const usePostConnectionFlow = () => {
         ? 'ready-to-post-section' 
         : 'weekly-content-section';
       
+      console.log('📍 Looking for section element:', sectionId);
+      
       const element = document.querySelector(`[data-section="${sectionId}"]`);
       if (element) {
+        console.log('✅ Found section element, scrolling...');
         element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        console.warn('⚠️ Section element not found:', sectionId);
+        // Fallback: just ensure we're at the top of the page
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-    }, 100);
+    }, 500);
   };
 
   // Complete onboarding
   const completeOnboarding = () => {
     if (user) {
+      console.log('✅ Completing onboarding for user:', user.id);
       localStorage.setItem(`social_onboarding_completed_${user.id}`, 'true');
       setFlowState(prev => ({ ...prev, shouldShowOnboarding: false }));
     }
@@ -107,6 +152,7 @@ export const usePostConnectionFlow = () => {
 
   // Trigger flow manually (for testing)
   const triggerFlow = () => {
+    console.log('🧪 Manually triggering post-connection flow');
     sessionStorage.setItem('oauth_just_completed', 'true');
     if (user) {
       localStorage.removeItem(`social_onboarding_completed_${user.id}`);

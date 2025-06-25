@@ -25,8 +25,15 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       // Generate a random state parameter for security
       const state = crypto.randomUUID();
       
+      console.log('🔐 Generated OAuth state:', state);
+      
       // Store the state in sessionStorage to verify later
       sessionStorage.setItem('oauth_state', state);
+      
+      // Also store a backup in localStorage for additional verification
+      localStorage.setItem('oauth_state_backup', state);
+      
+      console.log('💾 Stored OAuth state in both session and local storage');
       
       // Required permissions for Facebook Pages and Instagram Business
       const scopes = [
@@ -43,11 +50,12 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       // Use the actual Facebook App ID
       const clientId = '2527232767625484';
       
-      console.log('Initiating OAuth with:', {
+      console.log('🚀 Initiating OAuth with:', {
         clientId,
         redirectUri,
         scopes,
-        state
+        state,
+        currentUrl: window.location.href
       });
       
       const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
@@ -57,7 +65,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('state', state);
       
-      console.log('Redirecting to:', authUrl.toString());
+      console.log('🔗 Final OAuth URL:', authUrl.toString());
       
       // Show loading message
       toast.info('Redirecting to Facebook for authentication...');
@@ -66,7 +74,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       window.location.href = authUrl.toString();
       
     } catch (error) {
-      console.error('OAuth initiation error:', error);
+      console.error('❌ OAuth initiation error:', error);
       toast.error('Failed to initiate connection');
       setLoading(false);
     }
