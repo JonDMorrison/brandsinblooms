@@ -2,7 +2,9 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
-import Index from '@/pages/Index';
+import { Homepage } from '@/components/Homepage';
+import { SidebarLayout } from '@/components/SidebarLayout';
+import { OnboardingGuard } from '@/components/OnboardingGuard';
 import { Loader2 } from 'lucide-react';
 
 export const SmartRootRoute = () => {
@@ -21,5 +23,13 @@ export const SmartRootRoute = () => {
   }
 
   // Show dashboard for authenticated users, comprehensive landing page for guests
-  return user ? <Index /> : <CompleteLandingPage />;
+  return user ? (
+    <SidebarLayout>
+      <OnboardingGuard>
+        <Homepage />
+      </OnboardingGuard>
+    </SidebarLayout>
+  ) : (
+    <CompleteLandingPage />
+  );
 };
