@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,7 +11,7 @@ export const AuthCallbackPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
-  const [message, setMessage] = useState('Processing your connection...');
+  const [message, setMessage] = useState('Connecting to Meta platform...');
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -99,7 +98,8 @@ export const AuthCallbackPage = () => {
         try {
           console.log(`🔗 Attempting OAuth code exchange (attempt ${retryCount + 1}/${maxRetries})...`);
           
-          setMessage(`Connecting to Meta platform... (${retryCount + 1}/${maxRetries})`);
+          // Keep the message simple and consistent - no retry count shown to user
+          setMessage('Connecting to Meta platform...');
           
           const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
             body: {
