@@ -10,9 +10,9 @@ import { isSuperAdmin } from "@/utils/adminUtils";
 const AdminPage = () => {
   const { user } = useAuth();
 
-  // Only allow access to super admins
+  // Only allow access to super admins - redirect to root instead of /app
   if (!user || !isSuperAdmin(user.email)) {
-    return <Navigate to="/app" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return (

@@ -67,7 +67,7 @@ function App() {
                 {/* Public pricing route */}
                 <Route path="/pricing" element={<PricingPage />} />
                 
-                {/* Master Admin route */}
+                {/* Master Admin route - NO OnboardingGuard to allow admin access regardless of onboarding */}
                 <Route
                   path="/admin"
                   element={
