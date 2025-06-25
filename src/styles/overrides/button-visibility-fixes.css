@@ -1,0 +1,54 @@
+
+/* Button visibility fixes for Calendar page actions */
+
+/* CRITICAL: Force visibility for calendar action buttons */
+.calendar-action-button,
+button[class*="bg-blue-600"],
+button[class*="bg-green-600"] {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 50 !important;
+  position: relative !important;
+}
+
+/* Ensure button text is visible */
+.calendar-action-button span,
+button[class*="bg-blue-600"] span,
+button[class*="bg-green-600"] span {
+  color: white !important;
+  font-weight: 600 !important;
+  display: inline !important;
+}
+
+/* Force specific colors for calendar buttons */
+button[data-calendar-action="promote-event"] {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  color: white !important;
+}
+
+button[data-calendar-action="promote-event"]:hover {
+  background-color: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+  color: white !important;
+}
+
+button[data-calendar-action="create-campaign"] {
+  background-color: #16a34a !important;
+  border-color: #16a34a !important;
+  color: white !important;
+}
+
+button[data-calendar-action="create-campaign"]:hover {
+  background-color: #15803d !important;
+  border-color: #15803d !important;
+  color: white !important;
+}
+
+/* Debug helper - temporary red border to identify button location */
+.debug-button-visibility {
+  border: 2px solid red !important;
+  outline: 2px solid yellow !important;
+  outline-offset: 2px !important;
+}

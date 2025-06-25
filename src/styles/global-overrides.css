@@ -9,3 +9,4 @@
 @import './overrides/css-variables-overrides.css';
 @import './overrides/svg-overrides.css';
 @import './overrides/fallback-overrides.css';
+@import './overrides/button-visibility-fixes.css';
