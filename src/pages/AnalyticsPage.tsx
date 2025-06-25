@@ -113,7 +113,7 @@ const AnalyticsPage = () => {
       </div>
       
       {/* Analytics Content */}
-      <AnalyticsDashboard campaigns={campaigns} tasks={tasks} />
+      <AnalyticsDashboard />
     </div>
   );
 };

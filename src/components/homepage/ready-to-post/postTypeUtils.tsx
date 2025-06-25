@@ -3,12 +3,23 @@ import { Instagram, Facebook, Mail, BookOpen, Video, FileText } from "lucide-rea
 
 export const getPostTypeIcon = (postType: string) => {
   switch (postType) {
-    case 'instagram': return <Instagram className="w-4 h-4" />;
-    case 'facebook': return <Facebook className="w-4 h-4" />;
-    case 'email': return <Mail className="w-4 h-4" />;
-    case 'newsletter': return <BookOpen className="w-4 h-4" />;
-    case 'video': return <Video className="w-4 h-4" />;
-    default: return <FileText className="w-4 h-4" />;
+    case 'instagram': return Instagram;
+    case 'facebook': return Facebook;
+    case 'email': return Mail;
+    case 'newsletter': return BookOpen;
+    case 'video': return Video;
+    default: return FileText;
+  }
+};
+
+export const getPostTypeLabel = (postType: string) => {
+  switch (postType) {
+    case 'instagram': return 'Instagram Post';
+    case 'facebook': return 'Facebook Post';
+    case 'email': return 'Email';
+    case 'newsletter': return 'Newsletter';
+    case 'video': return 'Video';
+    default: return 'Content';
   }
 };
 

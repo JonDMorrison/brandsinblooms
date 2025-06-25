@@ -1,11 +1,12 @@
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Calendar, Clock, Eye, Checkbox } from "lucide-react";
+import { ChevronDown, ChevronRight, Calendar, Clock, Eye } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { getPostTypeIcon, getPostTypeLabel, getPostTypeColor } from "./postTypeUtils";
-import { getStatusColor } from "../../homepageUtils";
+import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
+import { getStatusColor } from "../homepageUtils";
 import { formatDistanceToNow } from "date-fns";
 import { EnhancedPostNowButton } from "./EnhancedPostNowButton";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -20,6 +21,17 @@ interface AccordionReadyToPostItemProps {
   isSelected?: boolean;
   onSelect?: (selected: boolean) => void;
 }
+
+const getPostTypeLabel = (postType: string) => {
+  switch (postType) {
+    case 'instagram': return 'Instagram Post';
+    case 'facebook': return 'Facebook Post';
+    case 'email': return 'Email';
+    case 'newsletter': return 'Newsletter';
+    case 'video': return 'Video';
+    default: return 'Content';
+  }
+};
 
 export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> = ({
   task,
