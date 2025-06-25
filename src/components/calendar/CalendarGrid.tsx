@@ -1,5 +1,3 @@
-
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -125,8 +123,7 @@ export const CalendarGrid = ({
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div className="flex items-center gap-4">
               <div>
-                <CardTitle className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                  <CalendarIcon className="w-8 h-8 text-blue-600" />
+                <CardTitle className="text-3xl font-bold text-gray-900">
                   {format(currentDate, 'MMMM yyyy')}
                 </CardTitle>
               </div>
@@ -243,4 +240,3 @@ export const CalendarGrid = ({
 function cn(...classes: (string | undefined | boolean)[]): string {
   return classes.filter(Boolean).join(' ');
 }
-
