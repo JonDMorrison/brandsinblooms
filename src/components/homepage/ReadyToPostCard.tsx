@@ -37,7 +37,10 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
         .select(`
           *,
           campaigns!inner (
+            id,
             title,
+            week_number,
+            start_date,
             tenant_id,
             user_id
           )

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,6 +14,7 @@ import { WeeklyThemeSection } from "./homepage/WeeklyThemeSection";
 import { QuickActionsSection } from "@/components/dashboard/QuickActionsSection";
 import { SeasonalHolidaysCard } from "@/components/dashboard/seasonal-holidays/SeasonalHolidaysCard";
 import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
+import { WeeklyContentUpdater } from "@/components/dashboard/current-campaign/WeeklyContentUpdater";
 
 export const Homepage = () => {
   const { user } = useAuth();
@@ -292,6 +292,9 @@ export const Homepage = () => {
     <HomepageErrorBoundary>
       <div className="min-h-screen bg-garden-background p-6">
         <div className="max-w-5xl mx-auto space-y-8">
+          
+          {/* Auto-generate weekly content for new users */}
+          <WeeklyContentUpdater />
           
           {/* Section 1: 4 Steps to Use the App */}
           {showQuickstart && (
