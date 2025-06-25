@@ -155,14 +155,21 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      selectAll(users.map(u => u.id));
+      // Only select non-admin users
+      const nonAdminUserIds = users
+        .filter(user => !isSuperAdmin(user.email))
+        .map(u => u.id);
+      selectAll(nonAdminUserIds);
     } else {
       clearSelection();
     }
   };
 
-  const isAllSelected = users.length > 0 && selectedUserIds.size === users.length;
-  const isIndeterminate = selectedUserIds.size > 0 && selectedUserIds.size < users.length;
+  // Calculate selection state excluding admin users
+  const selectableUsers = users.filter(user => !isSuperAdmin(user.email));
+  const selectedNonAdminCount = selectableUsers.filter(user => selectedUserIds.has(user.id)).length;
+  const isAllSelected = selectableUsers.length > 0 && selectedNonAdminCount === selectableUsers.length;
+  const isIndeterminate = selectedNonAdminCount > 0 && selectedNonAdminCount < selectableUsers.length;
 
   return (
     <div className="space-y-4">
@@ -179,7 +186,10 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
         <CardHeader>
           <CardTitle className="text-xl">All Users ({users.length})</CardTitle>
           <p className="text-sm text-gray-600">
-            Showing all accounts including duplicates. Users with multiple accounts are marked. Use the Duplicate Management section above to merge accounts safely.
+            Showing all accounts including duplicates. Users with multiple accounts are marked. 
+            <span className="text-green-600 font-medium ml-2">
+              Master Admin accounts ({isSuperAdmin.toString().split(',').join(', ')}) are protected from deletion.
+            </span>
           </p>
         </CardHeader>
         <CardContent>
@@ -190,7 +200,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                   <Checkbox
                     checked={isAllSelected}
                     onCheckedChange={handleSelectAll}
-                    aria-label="Select all users"
+                    aria-label="Select all non-admin users"
                     className={isIndeterminate ? "data-[state=checked]:bg-blue-600" : ""}
                   />
                 </TableHead>
@@ -208,6 +218,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                 const daysRemaining = getDaysRemaining(user.trial_end_date);
                 const isDeleting = deletingUser === user.id;
                 const isSelected = selectedUserIds.has(user.id);
+                const isAdmin = isSuperAdmin(user.email);
                 
                 return (
                   <TableRow 
@@ -215,12 +226,13 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                     className={`
                       ${user.is_duplicate ? 'bg-gray-50' : ''} 
                       ${isSelected ? 'bg-gray-50 border-gray-200' : ''}
+                      ${isAdmin ? 'bg-green-50 border-green-200' : ''}
                     `}
                     style={{
-                      backgroundColor: isSelected ? '#F9FAFB' : undefined,
-                      borderColor: isSelected ? '#E5E7EB' : undefined,
-                      borderWidth: isSelected ? '1px' : undefined,
-                      borderStyle: isSelected ? 'solid' : undefined
+                      backgroundColor: isAdmin ? '#F0FDF4' : (isSelected ? '#F9FAFB' : undefined),
+                      borderColor: isAdmin ? '#BBF7D0' : (isSelected ? '#E5E7EB' : undefined),
+                      borderWidth: (isSelected || isAdmin) ? '1px' : undefined,
+                      borderStyle: (isSelected || isAdmin) ? 'solid' : undefined
                     }}
                   >
                     <TableCell>
@@ -228,22 +240,26 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                         checked={isSelected}
                         onCheckedChange={() => toggleUserSelection(user.id)}
                         aria-label={`Select ${user.email}`}
-                        disabled={isDeleting || isProcessing}
+                        disabled={isDeleting || isProcessing || isAdmin}
                       />
                     </TableCell>
-                    
                     
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-xs">
+                          <AvatarFallback className={`text-xs ${isAdmin ? 'bg-green-100 text-green-800' : ''}`}>
                             {getInitials(user.email, user.company_name)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="flex items-center gap-2">
                             <div className="font-medium">{user.email}</div>
-                            {user.is_duplicate && (
+                            {isAdmin && (
+                              <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
+                                Master Admin
+                              </Badge>
+                            )}
+                            {user.is_duplicate && !isAdmin && (
                               <div className="flex items-center gap-1">
                                 <AlertTriangle className="w-4 h-4 text-gray-500" />
                                 <Badge variant="outline" className="text-xs bg-gray-100 text-gray-800">
@@ -336,47 +352,49 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
                               Manage Duplicates
                             </DropdownMenuItem>
                           )}
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={isDeleting || isProcessing}>
-                                <Trash2 className="mr-2 h-4 w-4 text-red-600" />
-                                <span className="text-red-600">
-                                  {isDeleting ? 'Deleting...' : 'Delete User'}
-                                </span>
-                              </DropdownMenuItem>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Delete User Account</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to permanently delete the account for <strong>{user.email}</strong>
-                                  {user.is_duplicate && ` (Account #${user.account_number})`}? 
-                                  This will delete all their data including campaigns, content, and subscriptions. 
-                                  This action cannot be undone.
-                                  {user.is_duplicate && (
-                                    <div className="mt-2 p-2 bg-gray-50 rounded text-gray-800 text-sm">
-                                      <strong>Note:</strong> This user has multiple accounts. Consider using the Duplicate Management section to merge accounts instead of deleting.
+                          {!isAdmin && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} disabled={isDeleting || isProcessing}>
+                                  <Trash2 className="mr-2 h-4 w-4 text-red-600" />
+                                  <span className="text-red-600">
+                                    {isDeleting ? 'Deleting...' : 'Delete User'}
+                                  </span>
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete User Account</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to permanently delete the account for <strong>{user.email}</strong>
+                                    {user.is_duplicate && ` (Account #${user.account_number})`}? 
+                                    This will delete all their data including campaigns, content, and subscriptions. 
+                                    This action cannot be undone.
+                                    {user.is_duplicate && (
+                                      <div className="mt-2 p-2 bg-gray-50 rounded text-gray-800 text-sm">
+                                        <strong>Note:</strong> This user has multiple accounts. Consider using the Duplicate Management section to merge accounts instead of deleting.
+                                      </div>
+                                    )}
+                                    <div className="mt-2 p-2 bg-blue-50 rounded text-blue-800 text-sm">
+                                      <strong>Admin Check:</strong> Only super administrators can delete users. 
+                                      Current user: {currentUser?.email || 'Not logged in'} 
+                                      {currentUser?.email && isSuperAdmin(currentUser.email) ? ' ✓ (Super Admin)' : ' ✗ (Not Super Admin)'}
                                     </div>
-                                  )}
-                                  <div className="mt-2 p-2 bg-blue-50 rounded text-blue-800 text-sm">
-                                    <strong>Admin Check:</strong> Only super administrators can delete users. 
-                                    Current user: {currentUser?.email || 'Not logged in'} 
-                                    {currentUser?.email && isSuperAdmin(currentUser.email) ? ' ✓ (Super Admin)' : ' ✗ (Not Super Admin)'}
-                                  </div>
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteUser(user.id, user.email)}
-                                  disabled={isDeleting || !currentUser?.email || !isSuperAdmin(currentUser.email)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  {isDeleting ? 'Deleting...' : 'Delete User'}
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteUser(user.id, user.email)}
+                                    disabled={isDeleting || !currentUser?.email || !isSuperAdmin(currentUser.email)}
+                                    className="bg-red-600 hover:bg-red-700"
+                                  >
+                                    {isDeleting ? 'Deleting...' : 'Delete User'}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
