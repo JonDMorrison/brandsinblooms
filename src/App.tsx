@@ -48,6 +48,9 @@ function App() {
                   } 
                 />
                 
+                {/* Redirect /app to / to fix route mismatch */}
+                <Route path="/app" element={<Navigate to="/" replace />} />
+                
                 {/* Onboarding route for new users */}
                 <Route 
                   path="/onboarding" 
