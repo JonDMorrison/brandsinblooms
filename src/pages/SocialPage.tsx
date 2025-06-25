@@ -1,13 +1,15 @@
 
 import React from 'react';
 import { SocialPlannerPage } from '@/components/social/SocialPlannerPage';
-import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
+import { SidebarLayout } from '@/components/SidebarLayout';
 
 const SocialPage = () => {
   return (
-    <ProtectedPageWrapper>
-      <SocialPlannerPage />
-    </ProtectedPageWrapper>
+    <SidebarLayout>
+      <div className="p-6">
+        <SocialPlannerPage />
+      </div>
+    </SidebarLayout>
   );
 };
 

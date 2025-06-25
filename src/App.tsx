@@ -14,6 +14,7 @@ import AccountPage from "./pages/AccountPage";
 import CalendarPage from "./pages/CalendarPage";
 import BillingPage from "./pages/BillingPage";
 import SocialPage from "./pages/SocialPage";
+import SocialMediaPage from "./pages/SocialMediaPage";
 import ContentTasksPage from "./pages/ContentTasksPage";
 import Auth from "./pages/Auth";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -71,6 +72,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <SocialPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/social-media"
+                  element={
+                    <ProtectedRoute>
+                      <SocialMediaPage />
                     </ProtectedRoute>
                   }
                 />

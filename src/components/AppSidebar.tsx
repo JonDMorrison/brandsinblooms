@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Home,
@@ -20,6 +21,7 @@ import {
   Activity,
   CreditCard,
   ClipboardList,
+  TrendingUp,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,6 +68,18 @@ const AppSidebar: React.FC = () => {
       title: "Social Media",
       url: "/social",
       icon: Share2,
+      items: [
+        {
+          title: "Content Planner",
+          url: "/social",
+          icon: Share2,
+        },
+        {
+          title: "Analytics & Scheduling",
+          url: "/social-media",
+          icon: TrendingUp,
+        },
+      ],
     },
     {
       title: "Content Tasks",
