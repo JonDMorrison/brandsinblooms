@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { CustomContentSection } from "./custom-content/CustomContentSection";
 import { CurrentCampaignSection } from "./CurrentCampaignSection";
-import { QuickAction } from "./QuickAction";
 import { CampaignCleanupButton } from '@/components/admin/CampaignCleanupButton';
+import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 interface UnifiedDashboardGridProps {
   activeCampaign: any;
@@ -51,18 +52,19 @@ export const UnifiedDashboardGrid = ({
     }
 
     try {
+      const currentWeekNumber = getCurrentWeekNumber();
+      
       const { data, error } = await supabase
         .from("campaigns")
-        .insert([
-          {
-            title: title,
-            description: description,
-            start_date: selectedDate.toISOString().split("T")[0],
-            user_id: user.id,
-            tenant_id: tenant?.id,
-            source: 'quick_action'
-          },
-        ])
+        .insert({
+          title: title,
+          description: description,
+          start_date: selectedDate.toISOString().split("T")[0],
+          user_id: user.id,
+          tenant_id: tenant?.id,
+          source: 'quick_action',
+          week_number: currentWeekNumber
+        })
         .select();
 
       if (error) {
