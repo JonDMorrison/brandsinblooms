@@ -1,4 +1,5 @@
 
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -177,8 +178,8 @@ export const CalendarGrid = ({
             </div>
           )}
 
-          <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <div className="text-sm text-green-700">
+          <div className="mt-2 p-3 bg-white rounded-lg">
+            <div className="text-sm text-black">
               <strong>Enhanced Drag & Drop:</strong> Click tasks to view content • Drag tasks to reschedule • Ctrl+Click for multi-selection • Hover for quick actions
             </div>
           </div>
@@ -242,3 +243,4 @@ export const CalendarGrid = ({
 function cn(...classes: (string | undefined | boolean)[]): string {
   return classes.filter(Boolean).join(' ');
 }
+
