@@ -13,13 +13,13 @@ interface PostPerformance {
   content_task_id: string;
   platform: string;
   platform_post_id: string;
-  platform_post_url: string;
-  views: number;
-  likes: number;
-  comments: number;
-  shares: number;
+  impressions: number;
+  likes_count: number;
+  comments_count: number;
+  shares_count: number;
+  reach: number;
   engagement_rate: number;
-  last_updated: string;
+  collected_at: string;
   content_tasks: {
     post_type: string;
     ai_output: string;
@@ -47,7 +47,7 @@ export const PostPerformanceTracker: React.FC = () => {
           )
         `)
         .eq('content_tasks.user_id', user.id)
-        .order('last_updated', { ascending: false })
+        .order('collected_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
@@ -58,13 +58,13 @@ export const PostPerformanceTracker: React.FC = () => {
         content_task_id: item.content_task_id,
         platform: item.platform,
         platform_post_id: item.platform_post_id,
-        platform_post_url: item.platform_post_url || '',
-        views: item.views || 0,
-        likes: item.likes || 0,
-        comments: item.comments || 0,
-        shares: item.shares || 0,
+        impressions: item.impressions || 0,
+        likes_count: item.likes_count || 0,
+        comments_count: item.comments_count || 0,
+        shares_count: item.shares_count || 0,
+        reach: item.reach || 0,
         engagement_rate: Number(item.engagement_rate) || 0,
-        last_updated: item.last_updated,
+        collected_at: item.collected_at,
         content_tasks: item.content_tasks
       }));
       
@@ -169,36 +169,27 @@ export const PostPerformanceTracker: React.FC = () => {
                       {performance.content_tasks.ai_output.substring(0, 100)}...
                     </p>
                   </div>
-                  {performance.platform_post_url && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => window.open(performance.platform_post_url, '_blank')}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
-                  )}
                 </div>
                 
                 <div className="grid grid-cols-4 gap-4 text-center">
                   <div className="flex flex-col items-center">
                     <Eye className="w-4 h-4 text-gray-500 mb-1" />
-                    <span className="text-sm font-medium">{formatNumber(performance.views)}</span>
-                    <span className="text-xs text-gray-500">Views</span>
+                    <span className="text-sm font-medium">{formatNumber(performance.impressions)}</span>
+                    <span className="text-xs text-gray-500">Impressions</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <Heart className="w-4 h-4 text-red-500 mb-1" />
-                    <span className="text-sm font-medium">{formatNumber(performance.likes)}</span>
+                    <span className="text-sm font-medium">{formatNumber(performance.likes_count)}</span>
                     <span className="text-xs text-gray-500">Likes</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <MessageCircle className="w-4 h-4 text-blue-500 mb-1" />
-                    <span className="text-sm font-medium">{formatNumber(performance.comments)}</span>
+                    <span className="text-sm font-medium">{formatNumber(performance.comments_count)}</span>
                     <span className="text-xs text-gray-500">Comments</span>
                   </div>
                   <div className="flex flex-col items-center">
                     <Share2 className="w-4 h-4 text-green-500 mb-1" />
-                    <span className="text-sm font-medium">{formatNumber(performance.shares)}</span>
+                    <span className="text-sm font-medium">{formatNumber(performance.shares_count)}</span>
                     <span className="text-xs text-gray-500">Shares</span>
                   </div>
                 </div>

@@ -50,13 +50,24 @@ export const AutoScheduler: React.FC = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('scheduling_preferences')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      setPreferences(data || []);
+      // Since scheduling_preferences table doesn't exist yet, we'll use localStorage as fallback
+      const stored = localStorage.getItem(`scheduling_preferences_${user.id}`);
+      if (stored) {
+        setPreferences(JSON.parse(stored));
+      } else {
+        // Initialize with default preferences
+        const defaultPreferences = PLATFORM_OPTIONS.map(platform => ({
+          id: `${platform.value}_${Date.now()}`,
+          user_id: user.id,
+          platform: platform.value,
+          enabled: false,
+          optimal_times: ['12:00', '18:00'],
+          frequency: 'daily',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        setPreferences(defaultPreferences);
+      }
     } catch (error) {
       console.error('Error fetching scheduling preferences:', error);
     } finally {
@@ -69,35 +80,17 @@ export const AutoScheduler: React.FC = () => {
 
     setSaving(true);
     try {
-      const existingPreference = preferences.find(p => p.platform === platform);
+      const updatedPreferences = preferences.map(pref => 
+        pref.platform === platform 
+          ? { ...pref, ...updates, updated_at: new Date().toISOString() }
+          : pref
+      );
       
-      if (existingPreference) {
-        const { error } = await supabase
-          .from('scheduling_preferences')
-          .update({
-            ...updates,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingPreference.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('scheduling_preferences')
-          .insert({
-            user_id: user.id,
-            platform,
-            enabled: false,
-            optimal_times: ['12:00', '18:00'],
-            frequency: 'daily',
-            ...updates
-          });
-
-        if (error) throw error;
-      }
-
+      // Save to localStorage since database table doesn't exist
+      localStorage.setItem(`scheduling_preferences_${user.id}`, JSON.stringify(updatedPreferences));
+      setPreferences(updatedPreferences);
+      
       toast.success('Scheduling preferences updated');
-      fetchPreferences();
     } catch (error) {
       console.error('Error updating scheduling preference:', error);
       toast.error('Failed to update preferences');
@@ -127,10 +120,14 @@ export const AutoScheduler: React.FC = () => {
 
   const getPreferenceForPlatform = (platform: string) => {
     return preferences.find(p => p.platform === platform) || {
+      id: `${platform}_${Date.now()}`,
+      user_id: user?.id || '',
       platform,
       enabled: false,
       optimal_times: ['12:00', '18:00'],
-      frequency: 'daily'
+      frequency: 'daily',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
   };
 
