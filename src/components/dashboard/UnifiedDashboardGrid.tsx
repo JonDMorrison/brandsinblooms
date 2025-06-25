@@ -17,6 +17,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { CustomContentSection } from "./custom-content/CustomContentSection";
 import { CurrentCampaignSection } from "./CurrentCampaignSection";
 import { CampaignCleanupButton } from '@/components/admin/CampaignCleanupButton';
+import { QuickActionsSection } from "./QuickActionsSection";
+import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
+import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 interface UnifiedDashboardGridProps {
@@ -40,51 +43,23 @@ export const UnifiedDashboardGrid = ({
 }: UnifiedDashboardGridProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
+  const [showAddEventDialog, setShowAddEventDialog] = useState(false);
 
-  const handleCreateCampaign = async () => {
-    if (!user || !title || !description || !selectedDate) {
-      toast.error("Please fill in all fields");
-      return;
-    }
+  const handleNewCampaignCreate = (newCampaign: any) => {
+    setShowNewCampaignDialog(false);
+    onCampaignCreated();
+    onCreateCampaign();
+  };
 
-    try {
-      const currentWeekNumber = getCurrentWeekNumber();
-      
-      const { data, error } = await supabase
-        .from("campaigns")
-        .insert({
-          title: title,
-          description: description,
-          start_date: selectedDate.toISOString().split("T")[0],
-          user_id: user.id,
-          tenant_id: tenant?.id,
-          source: 'quick_action',
-          week_number: currentWeekNumber
-        })
-        .select();
+  const handleEventCreated = () => {
+    setShowAddEventDialog(false);
+    onCampaignCreated();
+    onCreateCampaign();
+  };
 
-      if (error) {
-        console.error("Error creating campaign:", error);
-        toast.error("Failed to create campaign");
-        return;
-      }
-
-      console.log("Campaign created successfully:", data);
-      toast.success("Campaign created successfully!");
-      setOpen(false);
-      setTitle("");
-      setDescription("");
-      setSelectedDate(new Date());
-      onCampaignCreated();
-      onCreateCampaign();
-    } catch (error) {
-      console.error("Error creating campaign:", error);
-      toast.error("Failed to create campaign");
-    }
+  const handleViewCalendar = () => {
+    window.location.href = '/calendar';
   };
 
   const handleTaskClick = (task: any) => {
@@ -127,58 +102,8 @@ export const UnifiedDashboardGrid = ({
 
       {/* Sidebar Section */}
       <div className="xl:col-span-4 space-y-6">
-        {/* Quick Action - Create Campaign */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Campaign</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <Popover open={open} onOpenChange={setOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className="justify-start text-left font-normal"
-                >
-                  <CalendarDays className="mr-2 h-4 w-4" />
-                  {selectedDate ? (
-                    selectedDate?.toLocaleDateString()
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  captionLayout="dropdown"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
-            <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                type="title"
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-            <Button onClick={handleCreateCampaign} size="sm">
-              Create
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Quick Actions Section */}
+        <QuickActionsSection onCampaignCreated={onCampaignCreated} />
 
         {/* Custom Content Section */}
         <CustomContentSection
@@ -186,6 +111,19 @@ export const UnifiedDashboardGrid = ({
           onContentGenerated={onTaskUpdate}
         />
       </div>
+
+      {/* Dialogs */}
+      <NewCampaignDialog 
+        open={showNewCampaignDialog} 
+        onOpenChange={setShowNewCampaignDialog} 
+        onCreate={handleNewCampaignCreate} 
+      />
+
+      <AddEventDialog 
+        open={showAddEventDialog}
+        onOpenChange={setShowAddEventDialog}
+        onEventCreated={handleEventCreated}
+      />
     </div>
   );
 };
