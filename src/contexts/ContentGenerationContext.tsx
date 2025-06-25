@@ -36,7 +36,7 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
     description: string, 
     weekNumber: number
   ): Promise<boolean> => {
-    if (!user || !tenant) {
+    if (!user) {
       toast.error('Authentication required');
       return false;
     }
@@ -57,7 +57,7 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
         description,
         user.id,
         weekNumber,
-        tenant.id
+        tenant?.id // Pass tenant?.id - can be undefined for single-user mode
       );
 
       if (result.success) {
