@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const cleanupDuplicateProfiles = async (userId: string) => {
   try {
-    console.log('Starting profile cleanup for user:', userId);
+    console.log('🧹 Starting profile cleanup for user:', userId);
     
     // Get all profiles for this user
     const { data: profiles, error: fetchError } = await supabase
@@ -12,16 +12,16 @@ export const cleanupDuplicateProfiles = async (userId: string) => {
       .order('created_at', { ascending: false });
 
     if (fetchError) {
-      console.error('Error fetching profiles:', fetchError);
+      console.error('❌ Error fetching profiles:', fetchError);
       return false;
     }
 
     if (!profiles || profiles.length <= 1) {
-      console.log('No duplicate profiles found');
+      console.log('✅ No duplicate profiles found');
       return true;
     }
 
-    console.log(`Found ${profiles.length} profiles, keeping the most recent one`);
+    console.log(`🔧 Found ${profiles.length} profiles, keeping the most recent one`);
     
     // Keep the first (most recent) profile, delete the rest
     const profileToKeep = profiles[0];
@@ -35,9 +35,9 @@ export const cleanupDuplicateProfiles = async (userId: string) => {
         .eq('id', profile.id);
       
       if (deleteError) {
-        console.error('Error deleting duplicate profile:', deleteError);
+        console.error('❌ Error deleting duplicate profile:', deleteError);
       } else {
-        console.log('Deleted duplicate profile:', profile.id);
+        console.log('✅ Deleted duplicate profile:', profile.id);
       }
     }
     
@@ -52,15 +52,15 @@ export const cleanupDuplicateProfiles = async (userId: string) => {
       .eq('id', profileToKeep.id);
     
     if (updateError) {
-      console.error('Error updating profile flags:', updateError);
+      console.error('❌ Error updating profile flags:', updateError);
       return false;
     }
     
-    console.log('Profile cleanup completed successfully');
+    console.log('🎉 Profile cleanup completed successfully');
     return true;
     
   } catch (error) {
-    console.error('Error in profile cleanup:', error);
+    console.error('❌ Error in profile cleanup:', error);
     return false;
   }
 };
@@ -75,7 +75,7 @@ export const ensureFirstTimeFlags = async (userId: string) => {
       .limit(1);
     
     if (tasksError) {
-      console.error('Error checking tasks:', tasksError);
+      console.error('❌ Error checking tasks:', tasksError);
       return false;
     }
     
@@ -91,16 +91,16 @@ export const ensureFirstTimeFlags = async (userId: string) => {
         .eq('user_id', userId);
       
       if (updateError) {
-        console.error('Error updating first time flags:', updateError);
+        console.error('❌ Error updating first time flags:', updateError);
         return false;
       }
       
-      console.log('Updated first time flags for user with existing content');
+      console.log('✅ Updated first time flags for user with existing content');
     }
     
     return true;
   } catch (error) {
-    console.error('Error ensuring first time flags:', error);
+    console.error('❌ Error ensuring first time flags:', error);
     return false;
   }
 };

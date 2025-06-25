@@ -23,12 +23,12 @@ export const useOnboardingStatus = () => {
       
       // Add timeout to database query
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database query timeout')), 8000);
+        setTimeout(() => reject(new Error('Database query timeout')), 6000); // Reduced timeout
       });
 
       const queryPromise = supabase
         .from('company_profiles')
-        .select('id, first_content_generated')
+        .select('id, first_content_generated, onboarding_completed_at')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -42,12 +42,16 @@ export const useOnboardingStatus = () => {
         setError(dbError.message);
         setIsCompleted(false);
       } else {
-        // User has completed onboarding if they have a profile with content generated
-        const completed = !!(profile && profile.first_content_generated);
+        // FIX: More robust completion check - consider both flags
+        const completed = !!(profile && (
+          profile.first_content_generated || 
+          profile.onboarding_completed_at
+        ));
         
         console.log('✅ useOnboardingStatus: Status check complete', {
           hasProfile: !!profile,
           hasGeneratedContent: !!profile?.first_content_generated,
+          hasCompletedAt: !!profile?.onboarding_completed_at,
           completed
         });
         
@@ -65,10 +69,10 @@ export const useOnboardingStatus = () => {
   };
 
   useEffect(() => {
-    // Add small delay to prevent race conditions
+    // Reduced delay to prevent race conditions
     const timer = setTimeout(() => {
       checkOnboardingStatus();
-    }, 100);
+    }, 50);
 
     return () => clearTimeout(timer);
   }, [user]);
@@ -86,6 +90,7 @@ export const useOnboardingStatus = () => {
     console.log('✅ useOnboardingStatus: Marking as completed immediately');
     setIsCompleted(true);
     setError(null);
+    setIsLoading(false);
   };
 
   return { isCompleted, isLoading, error, refreshStatus, markAsCompleted };

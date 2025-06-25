@@ -115,16 +115,23 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       throw new Error(`Profile generation failed: ${profileError.message}`);
     }
     
-    // STEP 3: Save the generated profile to the database
+    // STEP 3: Save the generated profile to the database using UPSERT to prevent duplicates
     console.log('🔧 STEP 3: Saving company profile to database...');
     let savedProfile;
     
     try {
+      // FIX: Use UPSERT instead of INSERT to prevent duplicate profiles
       const { data: newProfile, error: saveError } = await supabase
         .from('company_profiles')
         .upsert({
           user_id: userId,
-          ...profileData
+          ...profileData,
+          // Ensure we don't override existing successful onboarding state
+          first_content_generated: true,
+          onboarding_completed_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
         })
         .select()
         .single();
@@ -141,7 +148,7 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       throw new Error(`Profile save failed: ${saveError.message}`);
     }
 
-    // STEP 4: Create immediate campaign for current week
+    // STEP 4: Create immediate campaign for current week (only if none exists)
     console.log('🔧 STEP 4: Creating immediate campaign...');
     let immediateCampaign;
     
@@ -156,66 +163,92 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       const currentWeek = getCurrentWeekNumber();
       console.log('🎯 Creating campaign for week:', currentWeek);
       
-      const immediateStartDate = new Date();
-      const campaignData = {
-        week_number: currentWeek,
-        title: `Week ${currentWeek} Garden Center Theme`,
-        theme: `Seasonal Gardening Focus - Week ${currentWeek}`,
-        description: 'AI-generated weekly theme for your garden center marketing',
-        start_date: immediateStartDate.toISOString().split('T')[0],
-        prompt: 'Create engaging content focused on current seasonal gardening needs and trends',
-        user_id: userId,
-        tenant_id: tenant.id,
-        source: 'onboarding_immediate'
-      };
-
-      const { data: campaignResult, error: campaignError } = await supabase
+      // Check if immediate campaign already exists
+      const { data: existingCampaign } = await supabase
         .from('campaigns')
-        .insert(campaignData)
-        .select()
-        .single();
+        .select('id')
+        .eq('user_id', userId)
+        .eq('week_number', currentWeek)
+        .eq('source', 'onboarding_immediate')
+        .maybeSingle();
 
-      if (campaignError) {
-        console.error('❌ Error creating immediate campaign:', campaignError);
-        throw new Error(`Campaign creation failed: ${campaignError.message}`);
+      if (existingCampaign) {
+        console.log('✅ Immediate campaign already exists:', existingCampaign.id);
+        immediateCampaign = existingCampaign;
+      } else {
+        const immediateStartDate = new Date();
+        const campaignData = {
+          week_number: currentWeek,
+          title: `Week ${currentWeek} Garden Center Theme`,
+          theme: `Seasonal Gardening Focus - Week ${currentWeek}`,
+          description: 'AI-generated weekly theme for your garden center marketing',
+          start_date: immediateStartDate.toISOString().split('T')[0],
+          prompt: 'Create engaging content focused on current seasonal gardening needs and trends',
+          user_id: userId,
+          tenant_id: tenant.id,
+          source: 'onboarding_immediate'
+        };
+
+        const { data: campaignResult, error: campaignError } = await supabase
+          .from('campaigns')
+          .insert(campaignData)
+          .select()
+          .single();
+
+        if (campaignError) {
+          console.error('❌ Error creating immediate campaign:', campaignError);
+          throw new Error(`Campaign creation failed: ${campaignError.message}`);
+        }
+
+        immediateCampaign = campaignResult;
+        console.log('✅ Created immediate campaign:', immediateCampaign.title, 'ID:', immediateCampaign.id);
       }
-
-      immediateCampaign = campaignResult;
-      console.log('✅ Created immediate campaign:', immediateCampaign.title, 'ID:', immediateCampaign.id);
     } catch (campaignError) {
       console.error('❌ Critical error creating campaign:', campaignError);
       throw new Error(`Campaign creation failed: ${campaignError.message}`);
     }
 
-    // STEP 5: Generate content for the immediate campaign
+    // STEP 5: Generate content for the immediate campaign (only if no content exists)
     console.log('🔧 STEP 5: Generating content for immediate campaign...');
     
     try {
-      const dummyTaskUpdate = () => {
-        console.log('📋 Task update during onboarding content generation');
-      };
-      
-      await generateRequiredTasks(
-        immediateCampaign.id, 
-        [immediateCampaign], 
-        userId, 
-        dummyTaskUpdate,
-        tenant.id
-      );
-      
-      console.log('🎉 IMMEDIATE CONTENT GENERATED! User will see ready content on dashboard');
-      
-      // Verify content was created
-      const { data: verifyContent, error: verifyError } = await supabase
+      // Check if content already exists for this campaign
+      const { data: existingContent } = await supabase
         .from('content_tasks')
-        .select('id, post_type, status, tenant_id')
+        .select('id')
         .eq('campaign_id', immediateCampaign.id)
-        .eq('tenant_id', tenant.id);
+        .eq('tenant_id', tenant.id)
+        .limit(1);
 
-      if (verifyError) {
-        console.error('⚠️ Error verifying generated content:', verifyError);
+      if (existingContent && existingContent.length > 0) {
+        console.log('✅ Content already exists for campaign, skipping generation');
       } else {
-        console.log('✅ Content verification - Generated tasks:', verifyContent?.length || 0, 'for tenant:', tenant.id);
+        const dummyTaskUpdate = () => {
+          console.log('📋 Task update during onboarding content generation');
+        };
+        
+        await generateRequiredTasks(
+          immediateCampaign.id, 
+          [immediateCampaign], 
+          userId, 
+          dummyTaskUpdate,
+          tenant.id
+        );
+        
+        console.log('🎉 IMMEDIATE CONTENT GENERATED! User will see ready content on dashboard');
+        
+        // Verify content was created
+        const { data: verifyContent, error: verifyError } = await supabase
+          .from('content_tasks')
+          .select('id, post_type, status, tenant_id')
+          .eq('campaign_id', immediateCampaign.id)
+          .eq('tenant_id', tenant.id);
+
+        if (verifyError) {
+          console.error('⚠️ Error verifying generated content:', verifyError);
+        } else {
+          console.log('✅ Content verification - Generated tasks:', verifyContent?.length || 0, 'for tenant:', tenant.id);
+        }
       }
       
     } catch (contentError) {
@@ -276,28 +309,6 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       // Don't throw - this is optional background work
     }
 
-    // STEP 7: Mark onboarding as completed
-    console.log('🔧 STEP 7: Marking onboarding as completed...');
-    
-    try {
-      const { error: updateError } = await supabase
-        .from('company_profiles')
-        .update({ 
-          first_content_generated: true,
-          onboarding_completed_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
-        
-      if (updateError) {
-        console.error('⚠️ Error updating onboarding completion status:', updateError);
-        // Don't throw - the main process succeeded
-      } else {
-        console.log('✅ Onboarding marked as completed');
-      }
-    } catch (completionError) {
-      console.error('⚠️ Error marking onboarding complete (non-critical):', completionError);
-    }
-
     console.log('🎉 ONBOARDING COMPLETED SUCCESSFULLY!');
     console.log('📊 Final summary:', {
       userId,
@@ -334,6 +345,7 @@ export const saveOnboardingResponse = async (onboardingData: any, userId: string
   console.log('💾 Saving onboarding response for user:', userId);
   
   try {
+    // FIX: Use UPSERT to prevent duplicate onboarding responses
     const { data, error } = await supabase
       .from('onboarding_responses')
       .upsert({
@@ -341,6 +353,9 @@ export const saveOnboardingResponse = async (onboardingData: any, userId: string
         about_business: onboardingData.aboutBusiness,
         tone_samples: onboardingData.toneSamples,
         annual_events: onboardingData.annualEvents
+      }, {
+        onConflict: 'user_id',
+        ignoreDuplicates: false
       })
       .select()
       .single();

@@ -85,11 +85,11 @@ export const useOnboardingCompletion = () => {
       
       toast.success("🎉 Setup complete! Your first week's content is ready to review!");
       
-      console.log('🎯 Onboarding completed successfully, navigating to app...');
+      console.log('🎯 Onboarding completed successfully, navigating to dashboard...');
       
-      // Add a small delay to ensure all state updates complete
+      // FIX: Navigate to '/' instead of '/app' - this was the critical bug
       setTimeout(() => {
-        navigate('/app', { replace: true });
+        navigate('/', { replace: true });
       }, 200);
       
     } catch (error) {

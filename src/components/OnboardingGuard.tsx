@@ -13,6 +13,7 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
   const { isCompleted, isLoading: onboardingLoading } = useOnboardingStatus();
   const [timeoutReached, setTimeoutReached] = useState(false);
+  const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
 
   console.log('🛡️ OnboardingGuard: State check', {
     user: user?.id,
@@ -20,6 +21,7 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     onboardingLoading,
     isCompleted,
     timeoutReached,
+    hasCheckedOnce,
     currentPath: window.location.pathname,
     timestamp: new Date().toISOString()
   });
@@ -29,16 +31,24 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     const timeout = setTimeout(() => {
       console.warn('⚠️ OnboardingGuard: Loading timeout reached - forcing fallback');
       setTimeoutReached(true);
-    }, 10000); // 10 second timeout
+    }, 8000); // Reduced to 8 seconds for faster fallback
 
     return () => clearTimeout(timeout);
   }, []);
 
-  // Simplified loading check - only wait for auth and onboarding
-  const isLoading = authLoading || (user && onboardingLoading && !timeoutReached);
+  // Track when we've completed our first check
+  useEffect(() => {
+    if (!authLoading && !onboardingLoading) {
+      setHasCheckedOnce(true);
+    }
+  }, [authLoading, onboardingLoading]);
+
+  // Simplified loading check with race condition protection
+  const shouldShowLoading = authLoading || 
+    (user && onboardingLoading && !timeoutReached && !hasCheckedOnce);
 
   // Show loading while checking auth or onboarding status (with timeout)
-  if (isLoading) {
+  if (shouldShowLoading) {
     console.log('⏳ OnboardingGuard: Showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -66,8 +76,14 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
-  // If user is authenticated but hasn't completed onboarding, redirect to onboarding
-  if (user && !isCompleted && !timeoutReached) {
+  // FIX: Improved race condition handling - only redirect if we're confident about the state
+  if (user && !isCompleted && !timeoutReached && hasCheckedOnce) {
+    // Additional check: if we're already on the onboarding page, don't redirect
+    if (window.location.pathname === '/onboarding') {
+      console.log('🛡️ OnboardingGuard: Already on onboarding page, showing content');
+      return <>{children}</>;
+    }
+    
     console.log('🔄 OnboardingGuard: User needs onboarding, redirecting');
     return <Navigate to="/onboarding" replace />;
   }
