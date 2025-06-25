@@ -12,6 +12,7 @@ interface PostPerformance {
   id: string;
   content_task_id: string;
   platform: string;
+  platform_post_id: string;
   platform_post_url: string;
   views: number;
   likes: number;
@@ -50,7 +51,24 @@ export const PostPerformanceTracker: React.FC = () => {
         .limit(10);
 
       if (error) throw error;
-      setPerformances(data || []);
+      
+      // Transform the data to match our interface
+      const transformedData = (data || []).map(item => ({
+        id: item.id,
+        content_task_id: item.content_task_id,
+        platform: item.platform,
+        platform_post_id: item.platform_post_id,
+        platform_post_url: item.platform_post_url || '',
+        views: item.views || 0,
+        likes: item.likes || 0,
+        comments: item.comments || 0,
+        shares: item.shares || 0,
+        engagement_rate: Number(item.engagement_rate) || 0,
+        last_updated: item.last_updated,
+        content_tasks: item.content_tasks
+      }));
+      
+      setPerformances(transformedData);
     } catch (error) {
       console.error('Error fetching post performances:', error);
       toast.error('Failed to load post performance data');
