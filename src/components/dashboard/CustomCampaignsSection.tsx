@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { NewCampaignCard } from "@/components/homepage/NewCampaignCard";
-import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
+import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 
 interface CustomCampaignsSectionProps {
   userCreatedCampaigns: any[];
@@ -21,15 +21,15 @@ export const CustomCampaignsSection = ({
   onCampaignDelete,
   onCreateCampaign
 }: CustomCampaignsSectionProps) => {
-  const [showNewCampaignDialog, setShowNewCampaignDialog] = useState(false);
+  const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
-  const handleNewCampaignCreate = (newCampaign: any) => {
-    setShowNewCampaignDialog(false);
+  const handleNewCampaignCreate = () => {
+    setShowNewCampaignModal(false);
     onCampaignUpdate();
   };
 
   const handleCreateCampaignClick = () => {
-    setShowNewCampaignDialog(true);
+    setShowNewCampaignModal(true);
   };
 
   if (userCreatedCampaigns.length === 0) {
@@ -57,10 +57,10 @@ export const CustomCampaignsSection = ({
           </CardContent>
         </Card>
 
-        <NewCampaignDialog 
-          open={showNewCampaignDialog} 
-          onOpenChange={setShowNewCampaignDialog} 
-          onCreate={handleNewCampaignCreate} 
+        <NewCampaignModal 
+          open={showNewCampaignModal} 
+          onOpenChange={setShowNewCampaignModal} 
+          onCampaignCreated={handleNewCampaignCreate} 
         />
       </div>
     );
@@ -88,10 +88,10 @@ export const CustomCampaignsSection = ({
         ))}
       </div>
 
-      <NewCampaignDialog 
-        open={showNewCampaignDialog} 
-        onOpenChange={setShowNewCampaignDialog} 
-        onCreate={handleNewCampaignCreate} 
+      <NewCampaignModal 
+        open={showNewCampaignModal} 
+        onOpenChange={setShowNewCampaignModal} 
+        onCampaignCreated={handleNewCampaignCreate} 
       />
     </div>
   );
