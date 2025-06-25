@@ -129,6 +129,8 @@ export const CustomContentSection = ({
       if (result.success) {
         toast.success(`Generated content for ${campaign.title}!`);
         await fetchCampaignContent();
+      } else {
+        toast.error(`Failed to generate content: ${result.message}`);
       }
     } catch (error) {
       console.error('Failed to generate campaign content:', error);

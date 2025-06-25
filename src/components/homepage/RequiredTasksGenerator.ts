@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { generateCampaignContent } from "./ContentGenerationServices";
+import { generateCampaignContent, ContentGenerationResult } from "./ContentGenerationServices";
 
 export const generateRequiredTasks = async (
   campaignId: string,
@@ -8,7 +8,7 @@ export const generateRequiredTasks = async (
   userId: string,
   onTaskUpdate: () => void,
   tenantId?: string
-) => {
+): Promise<ContentGenerationResult> => {
   console.log('🎯 RequiredTasksGenerator: Starting task generation for campaign:', campaignId);
 
   try {
@@ -16,7 +16,10 @@ export const generateRequiredTasks = async (
     const campaign = campaigns.find(c => c.id === campaignId);
     if (!campaign) {
       console.error('❌ Campaign not found:', campaignId);
-      throw new Error('Campaign not found');
+      return {
+        success: false,
+        message: 'Campaign not found'
+      };
     }
 
     console.log('📋 Found campaign:', campaign.title, 'Week:', campaign.week_number);
@@ -29,13 +32,20 @@ export const generateRequiredTasks = async (
 
     if (checkError) {
       console.error('❌ Error checking existing tasks:', checkError);
-      throw new Error(`Failed to check existing tasks: ${checkError.message}`);
+      return {
+        success: false,
+        message: `Failed to check existing tasks: ${checkError.message}`
+      };
     }
 
     if (existingTasks && existingTasks.length > 0) {
       console.log('✅ Tasks already exist for campaign:', existingTasks.length);
       onTaskUpdate();
-      return;
+      return {
+        success: true,
+        message: `Found ${existingTasks.length} existing content pieces`,
+        tasks: existingTasks
+      };
     }
 
     // Generate content using the improved service
@@ -51,13 +61,17 @@ export const generateRequiredTasks = async (
     if (result.success) {
       console.log('🎉 Successfully generated tasks for campaign');
       onTaskUpdate(); // Refresh the UI
+      return result;
     } else {
       console.error('❌ Task generation failed:', result.message);
-      throw new Error(result.message);
+      return result;
     }
 
   } catch (error) {
     console.error('❌ RequiredTasksGenerator error:', error);
-    throw error;
+    return {
+      success: false,
+      message: error.message || 'Task generation failed'
+    };
   }
 };
