@@ -173,13 +173,13 @@ export const generateCampaignContent = async (
       try {
         console.log(`🎨 Generating ${contentType} content...`);
 
-        // Create the content task first
+        // Create the content task with 'scheduled' status instead of 'generating'
         const taskData = {
           campaign_id: campaignId,
           user_id: userId,
           tenant_id: tenantId,
           post_type: contentType,
-          status: 'generating',
+          status: 'scheduled', // Changed from 'generating' to 'scheduled'
           scheduled_date: new Date().toISOString().split('T')[0]
         };
 
@@ -211,71 +211,43 @@ export const generateCampaignContent = async (
         if (contentError) {
           console.error(`❌ Error generating ${contentType} content:`, contentError);
           errors.push(`Failed to generate ${contentType} content: ${contentError.message}`);
-          
-          // Update task status to failed
-          await supabase
-            .from('content_tasks')
-            .update({ 
-              status: 'failed',
-              notes: `Generation failed: ${contentError.message}`
-            })
-            .eq('id', newTask.id);
-          
           continue;
         }
 
         if (!contentResult?.content) {
-          console.error(`❌ No content returned for ${contentType}`);
+          console.error(`❌ No content generated for ${contentType}`);
           errors.push(`No content generated for ${contentType}`);
-          
-          // Update task status to failed
-          await supabase
-            .from('content_tasks')
-            .update({ 
-              status: 'failed',
-              notes: 'No content returned from generation'
-            })
-            .eq('id', newTask.id);
-          
           continue;
         }
 
-        // Update task with generated content
+        // Update the task with the generated content
         const { error: updateError } = await supabase
           .from('content_tasks')
-          .update({
+          .update({ 
             ai_output: contentResult.content,
-            status: 'review',
-            notes: `Generated successfully with ${contentResult.generationAttempts || 1} attempts`
+            status: 'review' // Update to review status after generation
           })
           .eq('id', newTask.id);
 
         if (updateError) {
           console.error(`❌ Error updating ${contentType} task:`, updateError);
-          errors.push(`Failed to save ${contentType} content: ${updateError.message}`);
+          errors.push(`Failed to update ${contentType} task: ${updateError.message}`);
           continue;
         }
 
-        console.log(`🎉 Successfully generated ${contentType} content`);
-        generatedTasks.push({
-          ...newTask,
-          ai_output: contentResult.content,
-          status: 'review'
-        });
-
-        // Add a small delay between generations to avoid rate limits
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(`✅ Generated and saved ${contentType} content`);
+        generatedTasks.push({ ...newTask, ai_output: contentResult.content, status: 'review' });
 
       } catch (error) {
-        console.error(`❌ Unexpected error generating ${contentType}:`, error);
-        errors.push(`Unexpected error for ${contentType}: ${error.message}`);
+        console.error(`❌ Error in ${contentType} generation:`, error);
+        errors.push(`${contentType}: ${error.message}`);
       }
     }
 
     console.log('🏁 Content generation completed:', {
       successful: generatedTasks.length,
       failed: errors.length,
-      errors: errors
+      errors
     });
 
     if (generatedTasks.length === 0) {
@@ -284,95 +256,12 @@ export const generateCampaignContent = async (
 
     return {
       success: true,
-      message: `Generated ${generatedTasks.length} content pieces${errors.length > 0 ? ` (${errors.length} failed)` : ''}`,
+      message: `Generated ${generatedTasks.length}/${contentTypes.length} content pieces${errors.length > 0 ? `. Issues: ${errors.length}` : ''}`,
       tasks: generatedTasks
     };
 
   } catch (error) {
     console.error('❌ Campaign content generation failed:', error);
-    return {
-      success: false,
-      message: error.message || 'Content generation failed'
-    };
-  }
-};
-
-export const regenerateTaskContent = async (taskId: string, userId: string): Promise<boolean> => {
-  try {
-    console.log('🔄 Regenerating content for task:', taskId);
-
-    // Get task details
-    const { data: task, error: taskError } = await supabase
-      .from('content_tasks')
-      .select(`
-        *,
-        campaigns (
-          title,
-          theme,
-          description
-        )
-      `)
-      .eq('id', taskId)
-      .eq('user_id', userId)
-      .single();
-
-    if (taskError || !task) {
-      console.error('❌ Error fetching task:', taskError);
-      return false;
-    }
-
-    // Update task status to generating
-    await supabase
-      .from('content_tasks')
-      .update({ status: 'generating' })
-      .eq('id', taskId);
-
-    // Generate new content
-    const { data: contentResult, error: contentError } = await supabase.functions.invoke('generate-content', {
-      body: {
-        postType: task.post_type,
-        campaignTitle: task.campaigns?.title || task.campaigns?.theme,
-        userId: userId,
-        weekDescription: task.campaigns?.description,
-        enforceCompanyName: true
-      }
-    });
-
-    if (contentError || !contentResult?.content) {
-      console.error('❌ Error regenerating content:', contentError);
-      
-      // Update task status back to review or failed
-      await supabase
-        .from('content_tasks')
-        .update({ 
-          status: 'failed',
-          notes: `Regeneration failed: ${contentError?.message || 'No content generated'}`
-        })
-        .eq('id', taskId);
-      
-      return false;
-    }
-
-    // Update task with new content
-    const { error: updateError } = await supabase
-      .from('content_tasks')
-      .update({
-        ai_output: contentResult.content,
-        status: 'review',
-        notes: `Regenerated successfully with ${contentResult.generationAttempts || 1} attempts`
-      })
-      .eq('id', taskId);
-
-    if (updateError) {
-      console.error('❌ Error updating regenerated task:', updateError);
-      return false;
-    }
-
-    console.log('🎉 Successfully regenerated content for task:', taskId);
-    return true;
-
-  } catch (error) {
-    console.error('❌ Task regeneration failed:', error);
-    return false;
+    throw error;
   }
 };
