@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { SmartRootRoute } from "@/components/SmartRootRoute";
 import { OnboardingGuard } from "@/components/OnboardingGuard";
+import { DevNavigation } from "@/components/DevNavigation";
 import PricingPage from "./pages/PricingPage";
 import AccountPage from "./pages/AccountPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -18,6 +19,7 @@ import SocialPage from "./pages/SocialPage";
 import SocialMediaPage from "./pages/SocialMediaPage";
 import ContentTasksPage from "./pages/ContentTasksPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import AdminPage from "./pages/AdminPage";
 import Auth from "./pages/Auth";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
@@ -34,6 +36,7 @@ function App() {
         <ThemeProvider defaultTheme="light" storageKey="ui-theme">
           <AuthProvider>
             <SubscriptionProvider>
+              <DevNavigation />
               <Routes>
                 {/* Smart root route - shows landing page for guests, dashboard for users (with onboarding guard) */}
                 <Route 
@@ -60,6 +63,16 @@ function App() {
                 
                 {/* Public pricing route */}
                 <Route path="/pricing" element={<PricingPage />} />
+                
+                {/* Master Admin route */}
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <AdminPage />
+                    </ProtectedRoute>
+                  }
+                />
                 
                 {/* Protected routes */}
                 <Route
