@@ -19,49 +19,31 @@ export const useOnboardingStatus = () => {
     try {
       console.log('🔍 useOnboardingStatus: Checking status for user:', user.id);
       
-      // First check localStorage for immediate feedback
-      const hasLocalData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
-      if (hasLocalData) {
-        console.log('✅ useOnboardingStatus: Found localStorage data, marking as completed');
-        setIsCompleted(true);
-      }
-      
-      // Then check database for authoritative status
-      const { data: onboardingData, error } = await supabase
-        .from('onboarding_responses')
-        .select('id')
+      // Check database for authoritative onboarding status
+      const { data: profile, error } = await supabase
+        .from('company_profiles')
+        .select('id, first_content_generated')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (error && error.code !== 'PGRST116') {
         console.error('❌ useOnboardingStatus: Error checking onboarding status:', error);
-        // If there's localStorage data but DB error, trust localStorage
-        if (hasLocalData) {
-          setIsCompleted(true);
-        } else {
-          setIsCompleted(false);
-        }
+        setIsCompleted(false);
       } else {
-        const dbCompleted = !!onboardingData;
-        const localCompleted = !!hasLocalData;
-        
-        // Use OR logic - if either localStorage or DB shows completed, consider it completed
-        const finalCompleted = dbCompleted || localCompleted;
+        // User has completed onboarding if they have a profile with content generated
+        const completed = !!(profile && profile.first_content_generated);
         
         console.log('✅ useOnboardingStatus: Status check complete', {
-          dbCompleted,
-          localCompleted,
-          finalCompleted
+          hasProfile: !!profile,
+          hasGeneratedContent: !!profile?.first_content_generated,
+          completed
         });
         
-        setIsCompleted(finalCompleted);
+        setIsCompleted(completed);
       }
     } catch (error) {
       console.error('❌ useOnboardingStatus: Error in checkOnboardingStatus:', error);
-      
-      // Fallback to localStorage if DB fails
-      const hasLocalData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
-      setIsCompleted(!!hasLocalData);
+      setIsCompleted(false);
     } finally {
       setIsLoading(false);
     }

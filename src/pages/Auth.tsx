@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,31 +34,32 @@ const Auth = () => {
     try {
       console.log('🔍 Auth: Checking onboarding status for user:', userId);
       
-      // Check if user has completed onboarding
+      // Check if user has completed onboarding by looking for company profile
       const { data: profile, error } = await supabase
         .from('company_profiles')
-        .select('id')
+        .select('id, first_content_generated')
         .eq('user_id', userId)
-        .maybeSingle(); // Use maybeSingle to avoid errors when no profile exists
+        .maybeSingle();
 
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('❌ Auth: Error checking profile:', error);
-        // Default to home for safety
-        navigate('/', { replace: true });
+        // On error, assume they need onboarding for safety
+        navigate('/onboarding', { replace: true });
         return;
       }
 
-      if (profile) {
-        console.log('✅ Auth: User has completed onboarding, going to home');
-        navigate('/', { replace: true });
+      // If no profile exists or content not generated, they need onboarding
+      if (!profile || !profile.first_content_generated) {
+        console.log('⏳ Auth: New user needs onboarding, redirecting to onboarding');
+        navigate('/onboarding', { replace: true });
       } else {
-        console.log('⏳ Auth: New user, needs onboarding - going to home for now');
+        console.log('✅ Auth: User has completed onboarding, going to dashboard');
         navigate('/', { replace: true });
       }
     } catch (error) {
       console.error('❌ Auth: Error in checkOnboardingAndRedirect:', error);
-      // Default to home for safety
-      navigate('/', { replace: true });
+      // Default to onboarding for safety
+      navigate('/onboarding', { replace: true });
     }
   };
 
@@ -84,7 +84,7 @@ const Auth = () => {
         console.log('✅ Auth: Sign in successful for user:', data.user.id);
         toast.success('Welcome back!');
         
-        // Small delay to ensure auth state is updated
+        // Check onboarding status and redirect appropriately
         setTimeout(() => {
           checkOnboardingAndRedirect(data.user.id);
         }, 100);
@@ -126,9 +126,9 @@ const Auth = () => {
         console.log('✅ Auth: Sign up successful for user:', data.user.id);
         
         if (data.user.email_confirmed_at) {
-          console.log('📧 Auth: Email already confirmed, redirecting to home');
-          toast.success('Account created! Welcome to BloomSuite!');
-          navigate('/', { replace: true });
+          console.log('📧 Auth: Email already confirmed, new user needs onboarding');
+          toast.success('Account created! Let\'s set up your business profile.');
+          navigate('/onboarding', { replace: true });
         } else {
           console.log('📧 Auth: Email confirmation required');
           setMessage("Please check your email for a confirmation link, then return to sign in.");

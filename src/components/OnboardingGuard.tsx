@@ -44,20 +44,13 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
-  // TEMPORARY DEBUG: Skip onboarding check if we're in a loop
-  const hasOnboardingData = localStorage.getItem(`garden-center-onboarding-${user.id}`);
-  if (hasOnboardingData && !isCompleted) {
-    console.log('🔧 OnboardingGuard: Found onboarding data in localStorage but DB shows incomplete, allowing access');
-    return <>{children}</>;
-  }
-
   // If user is authenticated but hasn't completed onboarding, redirect to onboarding
-  if (user && !isCompleted && !hasOnboardingData) {
+  if (user && !isCompleted) {
     console.log('🔄 OnboardingGuard: User needs onboarding, redirecting');
     return <Navigate to="/onboarding" replace />;
   }
 
   // If onboarding is completed, show the protected content
-  console.log('✅ OnboardingGuard: Onboarding completed or bypassed, showing protected content');
+  console.log('✅ OnboardingGuard: Onboarding completed, showing protected content');
   return <>{children}</>;
 };
