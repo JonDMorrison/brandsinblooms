@@ -35,6 +35,7 @@ export const SimpleReadyToPostCard = ({ task, onClick }: SimpleReadyToPostCardPr
   };
 
   const thumbnailImage = getThumbnailImage();
+  const PostIcon = getPostTypeIcon(task.post_type);
 
   return (
     <div
@@ -49,7 +50,7 @@ export const SimpleReadyToPostCard = ({ task, onClick }: SimpleReadyToPostCardPr
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="text-stone-600 flex-shrink-0">
-            {getPostTypeIcon(task.post_type)}
+            <PostIcon className="w-5 h-5" />
           </div>
           <Badge 
             variant="secondary" 

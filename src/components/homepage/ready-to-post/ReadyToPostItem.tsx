@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink, Edit } from "lucide-react";
@@ -24,6 +25,8 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
     else onClick(task); // Fallback to regular click if onEdit not provided
   };
 
+  const PostIcon = getPostTypeIcon(task.post_type);
+
   return (
     <div
       key={task.id}
@@ -32,7 +35,7 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          {getPostTypeIcon(task.post_type)}
+          <PostIcon className="w-5 h-5" />
           <Badge className={getPostTypeColor(task.post_type)}>
             {task.post_type}
           </Badge>

@@ -80,6 +80,8 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
     onClick(task); // Open the full content viewer which has the full image carousel
   };
 
+  const PostIcon = getPostTypeIcon(task.post_type);
+
   return (
     <div
       className={`
@@ -93,7 +95,7 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
       <div className="flex items-start justify-between mb-3 gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="flex-shrink-0 text-stone-600">
-            {getPostTypeIcon(task.post_type)}
+            <PostIcon className="w-5 h-5" />
           </div>
           <div className="flex flex-col gap-1 min-w-0 flex-1">
             <Badge 
