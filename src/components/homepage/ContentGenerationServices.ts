@@ -8,6 +8,109 @@ export interface ContentGenerationResult {
   tasks?: any[];
 }
 
+// Legacy function exports for backward compatibility
+export const generatePersonalizedContent = async (
+  postType: string,
+  campaignTitle: string,
+  userId?: string | null,
+  weekDescription?: string
+): Promise<string> => {
+  console.log('🎯 Legacy generatePersonalizedContent called:', { postType, campaignTitle });
+  
+  try {
+    const { data: contentResult, error: contentError } = await supabase.functions.invoke('generate-content', {
+      body: {
+        postType: postType,
+        campaignTitle: campaignTitle,
+        userId: userId,
+        weekDescription: weekDescription,
+        enforceCompanyName: true
+      }
+    });
+
+    if (contentError) {
+      console.error('❌ Error generating content:', contentError);
+      throw new Error(contentError.message);
+    }
+
+    if (!contentResult?.content) {
+      throw new Error('No content generated');
+    }
+
+    return contentResult.content;
+  } catch (error) {
+    console.error('❌ generatePersonalizedContent failed:', error);
+    throw error;
+  }
+};
+
+export const generateNewsletterContent = async (
+  campaignId: string,
+  campaignTitle: string,
+  weekNumber: number,
+  userId: string,
+  weekDescription?: string
+): Promise<string> => {
+  console.log('🎯 Legacy generateNewsletterContent called:', { campaignId, campaignTitle });
+  
+  try {
+    const { data: result, error } = await supabase.functions.invoke('generate-newsletter', {
+      body: {
+        campaignId: campaignId,
+        userId: userId
+      }
+    });
+
+    if (error) {
+      console.error('❌ Newsletter generation error:', error);
+      throw new Error(error.message);
+    }
+
+    if (!result?.content) {
+      throw new Error('No newsletter content generated');
+    }
+
+    return result.content;
+  } catch (error) {
+    console.error('❌ generateNewsletterContent failed:', error);
+    throw error;
+  }
+};
+
+export const generateVideoScript = async (
+  campaignTitle: string,
+  userId?: string | null,
+  weekDescription?: string
+): Promise<string> => {
+  console.log('🎯 Legacy generateVideoScript called:', { campaignTitle });
+  
+  try {
+    const { data: contentResult, error: contentError } = await supabase.functions.invoke('generate-content', {
+      body: {
+        postType: 'video',
+        campaignTitle: campaignTitle,
+        userId: userId,
+        weekDescription: weekDescription,
+        enforceCompanyName: true
+      }
+    });
+
+    if (contentError) {
+      console.error('❌ Error generating video script:', contentError);
+      throw new Error(contentError.message);
+    }
+
+    if (!contentResult?.content) {
+      throw new Error('No video script generated');
+    }
+
+    return contentResult.content;
+  } catch (error) {
+    console.error('❌ generateVideoScript failed:', error);
+    throw error;
+  }
+};
+
 export const generateCampaignContent = async (
   campaignId: string,
   campaignTheme: string,

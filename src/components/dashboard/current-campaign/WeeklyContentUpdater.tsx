@@ -27,7 +27,7 @@ export const WeeklyContentUpdater = () => {
         // Check if current week campaign exists
         const { data: existingCampaign, error: campaignError } = await supabase
           .from('campaigns')
-          .select('id, title, theme, week_number')
+          .select('id, title, theme, week_number, description')
           .eq('user_id', user.id)
           .eq('tenant_id', tenant.id)
           .eq('week_number', currentWeek)
@@ -96,7 +96,7 @@ export const WeeklyContentUpdater = () => {
             const result = await generateCampaignContent(
               targetCampaign.id,
               targetCampaign.theme || targetCampaign.title,
-              targetCampaign.description || '',
+              targetCampaign.description || 'AI-generated weekly content for your garden center',
               user.id,
               targetCampaign.week_number,
               tenant.id
