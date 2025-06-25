@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 
@@ -7,8 +6,44 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
   console.log('📋 Onboarding data received:', onboardingData);
   
   try {
-    // STEP 1: Get or create tenant for the user
-    console.log('🔧 STEP 1: Getting or creating tenant...');
+    // STEP 1: Clean up any existing duplicate profiles before proceeding
+    console.log('🧹 STEP 1: Cleaning up existing duplicate profiles...');
+    try {
+      // Delete duplicate profiles, keeping only the most recent one
+      const { data: existingProfiles, error: fetchError } = await supabase
+        .from('company_profiles')
+        .select('id, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        console.error('❌ Error fetching existing profiles:', fetchError);
+      } else if (existingProfiles && existingProfiles.length > 1) {
+        console.log(`🔧 Found ${existingProfiles.length} duplicate profiles, cleaning up...`);
+        
+        // Keep the first (most recent) profile, delete the rest
+        const profilesToDelete = existingProfiles.slice(1);
+        
+        for (const profile of profilesToDelete) {
+          const { error: deleteError } = await supabase
+            .from('company_profiles')
+            .delete()
+            .eq('id', profile.id);
+          
+          if (deleteError) {
+            console.error('❌ Error deleting duplicate profile:', deleteError);
+          } else {
+            console.log('✅ Deleted duplicate profile:', profile.id);
+          }
+        }
+      }
+    } catch (cleanupError) {
+      console.error('⚠️ Error during profile cleanup (non-critical):', cleanupError);
+      // Continue with onboarding even if cleanup fails
+    }
+
+    // STEP 2: Get or create tenant for the user
+    console.log('🔧 STEP 2: Getting or creating tenant...');
     let tenant;
     
     try {
@@ -85,8 +120,8 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       throw new Error(`Tenant setup failed: ${tenantError.message}`);
     }
 
-    // STEP 2: Generate company profile
-    console.log('🔧 STEP 2: Generating company profile...');
+    // STEP 3: Generate company profile
+    console.log('🔧 STEP 3: Generating company profile...');
     let profileData;
     
     try {
@@ -115,41 +150,74 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       throw new Error(`Profile generation failed: ${profileError.message}`);
     }
     
-    // STEP 3: Save the generated profile to the database using UPSERT to prevent duplicates
-    console.log('🔧 STEP 3: Saving company profile to database...');
+    // STEP 4: Save the generated profile to the database using proper UPDATE/INSERT logic
+    console.log('🔧 STEP 4: Saving company profile to database...');
     let savedProfile;
     
     try {
-      // FIX: Use UPSERT instead of INSERT to prevent duplicate profiles
-      const { data: newProfile, error: saveError } = await supabase
+      // First, check if a profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
         .from('company_profiles')
-        .upsert({
-          user_id: userId,
-          ...profileData,
-          // Ensure we don't override existing successful onboarding state
-          first_content_generated: true,
-          onboarding_completed_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id',
-          ignoreDuplicates: false
-        })
-        .select()
-        .single();
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
 
-      if (saveError) {
-        console.error('❌ Error saving company profile:', saveError);
-        throw new Error(`Failed to save profile: ${saveError.message}`);
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Error checking existing profile:', checkError);
+        throw new Error(`Failed to check existing profile: ${checkError.message}`);
       }
 
-      savedProfile = newProfile;
-      console.log('✅ Company profile saved successfully:', savedProfile.id);
+      if (existingProfile) {
+        // Update existing profile
+        console.log('🔄 Updating existing profile:', existingProfile.id);
+        const { data: updatedProfile, error: updateError } = await supabase
+          .from('company_profiles')
+          .update({
+            ...profileData,
+            first_content_generated: true,
+            onboarding_completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('❌ Error updating company profile:', updateError);
+          throw new Error(`Failed to update profile: ${updateError.message}`);
+        }
+
+        savedProfile = updatedProfile;
+        console.log('✅ Company profile updated successfully:', savedProfile.id);
+      } else {
+        // Create new profile
+        console.log('🆕 Creating new profile');
+        const { data: newProfile, error: insertError } = await supabase
+          .from('company_profiles')
+          .insert({
+            user_id: userId,
+            ...profileData,
+            first_content_generated: true,
+            onboarding_completed_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('❌ Error creating company profile:', insertError);
+          throw new Error(`Failed to create profile: ${insertError.message}`);
+        }
+
+        savedProfile = newProfile;
+        console.log('✅ Company profile created successfully:', savedProfile.id);
+      }
     } catch (saveError) {
       console.error('❌ Critical error saving profile:', saveError);
       throw new Error(`Profile save failed: ${saveError.message}`);
     }
 
-    // STEP 4: Create immediate campaign for current week (only if none exists)
-    console.log('🔧 STEP 4: Creating immediate campaign...');
+    // STEP 5: Create immediate campaign for current week (only if none exists)
+    console.log('🔧 STEP 5: Creating immediate campaign...');
     let immediateCampaign;
     
     try {
@@ -208,8 +276,8 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       throw new Error(`Campaign creation failed: ${campaignError.message}`);
     }
 
-    // STEP 5: Generate content for the immediate campaign (only if no content exists)
-    console.log('🔧 STEP 5: Generating content for immediate campaign...');
+    // STEP 6: Generate content for the immediate campaign (only if no content exists)
+    console.log('🔧 STEP 6: Generating content for immediate campaign...');
     
     try {
       // Check if content already exists for this campaign
@@ -257,8 +325,8 @@ export const createCompanyProfileFromOnboarding = async (onboardingData: any, us
       console.log('⚠️ Continuing with onboarding despite content generation issue');
     }
 
-    // STEP 6: Generate 52-week collection (optional, non-blocking)
-    console.log('🔧 STEP 6: Generating 52-week theme collection (background)...');
+    // STEP 7: Generate 52-week collection (optional, non-blocking)
+    console.log('🔧 STEP 7: Generating 52-week theme collection (background)...');
     
     try {
       const { data: themesData, error: themesError } = await supabase.functions.invoke('generate-weekly-themes', {
@@ -345,27 +413,90 @@ export const saveOnboardingResponse = async (onboardingData: any, userId: string
   console.log('💾 Saving onboarding response for user:', userId);
   
   try {
-    // FIX: Use UPSERT to prevent duplicate onboarding responses
-    const { data, error } = await supabase
+    // Clean up any existing duplicate onboarding responses first
+    const { data: existingResponses, error: fetchError } = await supabase
       .from('onboarding_responses')
-      .upsert({
-        user_id: userId,
-        about_business: onboardingData.aboutBusiness,
-        tone_samples: onboardingData.toneSamples,
-        annual_events: onboardingData.annualEvents
-      }, {
-        onConflict: 'user_id',
-        ignoreDuplicates: false
-      })
-      .select()
-      .single();
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('❌ Error saving onboarding response:', error);
-      throw new Error(`Failed to save onboarding data: ${error.message}`);
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('❌ Error fetching existing responses:', fetchError);
+    } else if (existingResponses && existingResponses.length > 1) {
+      console.log(`🧹 Found ${existingResponses.length} duplicate responses, cleaning up...`);
+      
+      // Keep the first (most recent) response, delete the rest
+      const responsesToDelete = existingResponses.slice(1);
+      
+      for (const response of responsesToDelete) {
+        const { error: deleteError } = await supabase
+          .from('onboarding_responses')
+          .delete()
+          .eq('id', response.id);
+        
+        if (deleteError) {
+          console.error('❌ Error deleting duplicate response:', deleteError);
+        } else {
+          console.log('✅ Deleted duplicate response:', response.id);
+        }
+      }
     }
 
-    console.log('✅ Onboarding response saved successfully');
+    // Now save or update the onboarding response
+    const { data: existingResponse, error: checkError } = await supabase
+      .from('onboarding_responses')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('❌ Error checking existing response:', checkError);
+      throw new Error(`Failed to check existing response: ${checkError.message}`);
+    }
+
+    let data;
+    if (existingResponse) {
+      // Update existing response
+      const { data: updatedResponse, error: updateError } = await supabase
+        .from('onboarding_responses')
+        .update({
+          about_business: onboardingData.aboutBusiness,
+          tone_samples: onboardingData.toneSamples,
+          annual_events: onboardingData.annualEvents
+        })
+        .eq('user_id', userId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('❌ Error updating onboarding response:', updateError);
+        throw new Error(`Failed to update onboarding data: ${updateError.message}`);
+      }
+
+      data = updatedResponse;
+      console.log('✅ Onboarding response updated successfully');
+    } else {
+      // Insert new response
+      const { data: newResponse, error: insertError } = await supabase
+        .from('onboarding_responses')
+        .insert({
+          user_id: userId,
+          about_business: onboardingData.aboutBusiness,
+          tone_samples: onboardingData.toneSamples,
+          annual_events: onboardingData.annualEvents
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error('❌ Error creating onboarding response:', insertError);
+        throw new Error(`Failed to save onboarding data: ${insertError.message}`);
+      }
+
+      data = newResponse;
+      console.log('✅ Onboarding response created successfully');
+    }
+
     return data;
   } catch (error) {
     console.error('❌ Critical error saving onboarding response:', error);
