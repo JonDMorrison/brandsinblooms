@@ -11,7 +11,7 @@ interface OnboardingGuardProps {
 
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { isCompleted, isLoading: onboardingLoading } = useOnboardingStatus();
+  const { isCompleted, isLoading: onboardingLoading, error: onboardingError } = useOnboardingStatus();
   const [timeoutReached, setTimeoutReached] = useState(false);
   const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
 
@@ -22,6 +22,7 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     isCompleted,
     timeoutReached,
     hasCheckedOnce,
+    onboardingError,
     currentPath: window.location.pathname,
     timestamp: new Date().toISOString()
   });
@@ -31,7 +32,7 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     const timeout = setTimeout(() => {
       console.warn('⚠️ OnboardingGuard: Loading timeout reached - forcing fallback');
       setTimeoutReached(true);
-    }, 8000); // Reduced to 8 seconds for faster fallback
+    }, 8000);
 
     return () => clearTimeout(timeout);
   }, []);
@@ -43,9 +44,9 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     }
   }, [authLoading, onboardingLoading]);
 
-  // Simplified loading check with race condition protection
+  // If there's an onboarding error and we've timed out, assume incomplete
   const shouldShowLoading = authLoading || 
-    (user && onboardingLoading && !timeoutReached && !hasCheckedOnce);
+    (user && onboardingLoading && !timeoutReached && !hasCheckedOnce && !onboardingError);
 
   // Show loading while checking auth or onboarding status (with timeout)
   if (shouldShowLoading) {
@@ -76,19 +77,25 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <>{children}</>;
   }
 
-  // FIX: Improved race condition handling - only redirect if we're confident about the state
-  if (user && !isCompleted && !timeoutReached && hasCheckedOnce) {
-    // Additional check: if we're already on the onboarding page, don't redirect
-    if (window.location.pathname === '/onboarding') {
-      console.log('🛡️ OnboardingGuard: Already on onboarding page, showing content');
-      return <>{children}</>;
-    }
-    
+  // Enhanced logic to handle various completion states
+  const shouldRedirectToOnboarding = user && 
+    !isCompleted && 
+    !timeoutReached && 
+    hasCheckedOnce && 
+    !onboardingError &&
+    window.location.pathname !== '/onboarding';
+
+  if (shouldRedirectToOnboarding) {
     console.log('🔄 OnboardingGuard: User needs onboarding, redirecting');
     return <Navigate to="/onboarding" replace />;
   }
 
-  // If onboarding is completed or timeout reached, show the protected content
-  console.log('✅ OnboardingGuard: Onboarding completed or timeout reached, showing protected content');
+  // If we have an error or timeout, assume completed to avoid blocking users
+  if (onboardingError || timeoutReached) {
+    console.log('⚠️ OnboardingGuard: Error or timeout detected, allowing access:', { onboardingError, timeoutReached });
+  }
+
+  // If onboarding is completed or we've hit edge cases, show the protected content
+  console.log('✅ OnboardingGuard: Allowing access to protected content');
   return <>{children}</>;
 };

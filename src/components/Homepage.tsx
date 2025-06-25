@@ -29,46 +29,65 @@ export const Homepage = () => {
   const isDeveloper = user?.email === 'jon@getclear.ca';
 
   const fetchCampaigns = async () => {
-    if (!user || !tenant) {
-      console.log('Homepage: No authenticated user or tenant, skipping campaign fetch');
+    if (!user) {
+      console.log('Homepage: No authenticated user, skipping campaign fetch');
       setLoading(false);
+      return;
+    }
+
+    if (tenantLoading) {
+      console.log('Homepage: Tenant still loading, waiting...');
       return;
     }
 
     try {
       setError(null);
-      console.log('Homepage: Fetching campaigns for tenant:', tenant.id);
+      console.log('Homepage: Fetching campaigns for user:', user.id, 'tenant:', tenant?.id || 'none');
       
-      // SECURITY: Filter campaigns by current tenant
-      const { data, error } = await supabase
-        .from('campaigns')
-        .select('*')
-        .eq('tenant_id', tenant.id)
-        .order('created_at', { ascending: false });
+      // Build the query based on tenant availability
+      let campaignQuery = supabase.from('campaigns').select('*');
+      
+      if (tenant?.id) {
+        campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
+      } else {
+        campaignQuery = campaignQuery.eq('user_id', user.id);
+      }
+
+      const { data, error } = await campaignQuery.order('created_at', { ascending: false });
 
       if (error) {
         console.error('Homepage: Error fetching campaigns:', error);
         setError('Failed to load campaigns');
         toast.error('Failed to load campaigns');
+        setCampaigns([]);
       } else {
-        console.log('Homepage: Successfully fetched', data?.length || 0, 'campaigns for tenant', tenant.id);
+        console.log('Homepage: Successfully fetched', data?.length || 0, 'campaigns');
         setCampaigns(data || []);
       }
     } catch (error) {
       console.error('Homepage: Error fetching campaigns:', error);
       setError('An unexpected error occurred while loading campaigns');
       toast.error('An unexpected error occurred');
+      setCampaigns([]);
+    } finally {
+      // CRITICAL FIX: Always set loading to false
+      setLoading(false);
     }
   };
 
   const fetchTasks = async () => {
-    if (!user || !tenant) {
-      console.log('Homepage: No authenticated user or tenant, skipping task fetch');
+    if (!user) {
+      console.log('Homepage: No authenticated user, skipping task fetch');
+      return;
+    }
+
+    if (tenantLoading) {
+      console.log('Homepage: Tenant still loading, skipping task fetch');
       return;
     }
 
     try {
-      console.log('Homepage: Fetching tasks for tenant:', tenant.id);
+      console.log('Homepage: Fetching tasks for user:', user.id, 'tenant:', tenant?.id || 'none');
       
       // Build status filter with valid statuses only
       const statusFilter = ['planned', 'review', 'approved', 'posted', 'generated'];
@@ -76,33 +95,52 @@ export const Homepage = () => {
         statusFilter.push('preview');
       }
 
-      const { data, error } = await supabase
+      // Build the query based on tenant availability
+      let taskQuery = supabase
         .from('content_tasks')
         .select(`
           *,
           campaigns!inner (
             title,
-            tenant_id
+            tenant_id,
+            user_id
           ),
           holidays (
             holiday_name,
             holiday_date
           )
         `)
-        .eq('tenant_id', tenant.id)
         .in('status', statusFilter)
         .order('created_at', { ascending: false });
+
+      if (tenant?.id) {
+        taskQuery = taskQuery.eq('tenant_id', tenant.id);
+      } else {
+        taskQuery = taskQuery.eq('user_id', user.id);
+      }
+
+      const { data, error } = await taskQuery;
 
       if (error) {
         console.error('Homepage: Error fetching tasks:', error);
         // Don't show error toast for tasks, just log it
+        setTasks([]);
       } else {
-        console.log('Homepage: Successfully fetched', data?.length || 0, 'tasks for tenant', tenant.id);
-        setTasks(data || []);
+        // Security filter to double-check ownership
+        const securityCheckedTasks = data?.filter(task => {
+          if (tenant?.id) {
+            return task.campaigns?.tenant_id === tenant.id;
+          } else {
+            return task.campaigns?.user_id === user.id || task.user_id === user.id;
+          }
+        }) || [];
+        
+        console.log('Homepage: Successfully fetched', securityCheckedTasks.length, 'tasks');
+        setTasks(securityCheckedTasks);
       }
     } catch (error) {
       console.error('Homepage: Error fetching tasks:', error);
-      // Don't show error toast for tasks, just log it
+      setTasks([]);
     }
   };
 
@@ -125,18 +163,26 @@ export const Homepage = () => {
     fetchCampaigns();
   };
 
-  // Initial data loading
+  // Initial data loading with proper dependency management
   useEffect(() => {
-    if (user && !tenantLoading && tenant) {
-      fetchCampaigns();
-      fetchTasks();
-    } else if (user && !tenantLoading && !tenant) {
+    if (!user) {
+      console.log('Homepage: No user, setting loading to false');
       setLoading(false);
-      setError('No workspace assigned');
+      return;
     }
+
+    if (tenantLoading) {
+      console.log('Homepage: Tenant loading, waiting...');
+      return;
+    }
+
+    // User is authenticated and tenant loading is complete
+    console.log('Homepage: Starting data fetch for user:', user.id, 'tenant:', tenant?.id || 'none');
+    fetchCampaigns();
+    fetchTasks();
   }, [user, tenant, tenantLoading]);
 
-  // Early return for no user or tenant loading
+  // Handle early returns with proper loading states
   if (!user || tenantLoading) {
     return (
       <div className="min-h-screen bg-garden-background">

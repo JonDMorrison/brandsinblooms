@@ -21,20 +21,29 @@ export const useTenant = () => {
   useEffect(() => {
     const fetchTenant = async () => {
       if (!user) {
+        console.log('useTenant: No user, setting loading to false');
         setLoading(false);
         return;
       }
 
       try {
-        // First get the user's tenant_id from the users table
-        const { data: userData, error: userError } = await supabase
-          .from('users')
+        console.log('useTenant: Fetching tenant for user:', user.id);
+        
+        // First check if user has a company profile with tenant info
+        const { data: profileData, error: profileError } = await supabase
+          .from('company_profiles')
           .select('tenant_id')
-          .eq('id', user.id)
-          .single();
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-        if (userError || !userData?.tenant_id) {
-          console.log('User not assigned to a tenant yet');
+        if (profileError) {
+          console.error('useTenant: Error fetching profile:', profileError);
+          setLoading(false);
+          return;
+        }
+
+        if (!profileData?.tenant_id) {
+          console.log('useTenant: User not assigned to a tenant yet');
           setLoading(false);
           return;
         }
@@ -43,16 +52,19 @@ export const useTenant = () => {
         const { data: tenantData, error: tenantError } = await supabase
           .from('tenants')
           .select('*')
-          .eq('id', userData.tenant_id)
+          .eq('id', profileData.tenant_id)
           .single();
 
         if (tenantError) {
-          console.error('Error fetching tenant:', tenantError);
+          console.error('useTenant: Error fetching tenant:', tenantError);
+          setTenant(null);
         } else {
+          console.log('useTenant: Successfully fetched tenant:', tenantData.name);
           setTenant(tenantData);
         }
       } catch (error) {
-        console.error('Error in fetchTenant:', error);
+        console.error('useTenant: Error in fetchTenant:', error);
+        setTenant(null);
       } finally {
         setLoading(false);
       }

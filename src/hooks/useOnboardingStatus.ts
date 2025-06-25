@@ -21,9 +21,9 @@ export const useOnboardingStatus = () => {
     try {
       console.log('🔍 useOnboardingStatus: Checking status for user:', user.id);
       
-      // Add timeout to database query
+      // Add timeout to database query with reduced time
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database query timeout')), 6000); // Reduced timeout
+        setTimeout(() => reject(new Error('Database query timeout')), 5000);
       });
 
       const queryPromise = supabase
@@ -40,9 +40,10 @@ export const useOnboardingStatus = () => {
       if (dbError && dbError.code !== 'PGRST116') {
         console.error('❌ useOnboardingStatus: Database error:', dbError);
         setError(dbError.message);
+        // On database error, assume not completed to be safe
         setIsCompleted(false);
       } else {
-        // FIX: More robust completion check - consider both flags
+        // Enhanced completion check - consider multiple completion indicators
         const completed = !!(profile && (
           profile.first_content_generated || 
           profile.onboarding_completed_at
@@ -60,7 +61,13 @@ export const useOnboardingStatus = () => {
       }
     } catch (error: any) {
       console.error('❌ useOnboardingStatus: Error in checkOnboardingStatus:', error);
-      setError(error.message || 'Failed to check onboarding status');
+      
+      if (error.message === 'Database query timeout') {
+        setError('Connection timeout - please try refreshing');
+      } else {
+        setError(error.message || 'Failed to check onboarding status');
+      }
+      
       // On timeout or error, assume not completed to be safe
       setIsCompleted(false);
     } finally {
@@ -69,10 +76,10 @@ export const useOnboardingStatus = () => {
   };
 
   useEffect(() => {
-    // Reduced delay to prevent race conditions
+    // Immediate check with shorter delay
     const timer = setTimeout(() => {
       checkOnboardingStatus();
-    }, 50);
+    }, 100);
 
     return () => clearTimeout(timer);
   }, [user]);
