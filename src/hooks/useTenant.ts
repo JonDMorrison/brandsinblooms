@@ -27,12 +27,12 @@ export const useTenant = () => {
       }
 
       try {
-        console.log('useTenant: Fetching tenant for user:', user.id);
+        console.log('useTenant: Checking company profile for user:', user.id);
         
-        // First check if user has a company profile with tenant info
+        // Check if user has a company profile (simplified tenant check)
         const { data: profileData, error: profileError } = await supabase
           .from('company_profiles')
-          .select('tenant_id')
+          .select('id, company_name')
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -42,25 +42,22 @@ export const useTenant = () => {
           return;
         }
 
-        if (!profileData?.tenant_id) {
-          console.log('useTenant: User not assigned to a tenant yet');
-          setLoading(false);
-          return;
-        }
-
-        // Then fetch the tenant details
-        const { data: tenantData, error: tenantError } = await supabase
-          .from('tenants')
-          .select('*')
-          .eq('id', profileData.tenant_id)
-          .single();
-
-        if (tenantError) {
-          console.error('useTenant: Error fetching tenant:', tenantError);
+        if (!profileData) {
+          console.log('useTenant: User has no company profile yet');
           setTenant(null);
         } else {
-          console.log('useTenant: Successfully fetched tenant:', tenantData.name);
-          setTenant(tenantData);
+          // For now, create a virtual tenant from the user's profile
+          // This maintains compatibility while we don't have a true multi-tenant setup
+          console.log('useTenant: User has company profile, creating virtual tenant');
+          setTenant({
+            id: user.id, // Use user ID as tenant ID for single-tenant mode
+            name: profileData.company_name || 'My Company',
+            slug: null,
+            settings: {},
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
         }
       } catch (error) {
         console.error('useTenant: Error in fetchTenant:', error);
