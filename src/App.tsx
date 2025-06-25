@@ -9,6 +9,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { SmartRootRoute } from "@/components/SmartRootRoute";
+import { OnboardingGuard } from "@/components/OnboardingGuard";
 import PricingPage from "./pages/PricingPage";
 import AccountPage from "./pages/AccountPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -16,6 +17,7 @@ import BillingPage from "./pages/BillingPage";
 import SocialPage from "./pages/SocialPage";
 import SocialMediaPage from "./pages/SocialMediaPage";
 import ContentTasksPage from "./pages/ContentTasksPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import Auth from "./pages/Auth";
 import { AuthProvider } from "./contexts/AuthContext";
 import { SubscriptionProvider } from "./contexts/SubscriptionContext";
@@ -33,8 +35,25 @@ function App() {
           <AuthProvider>
             <SubscriptionProvider>
               <Routes>
-                {/* Smart root route - shows landing page for guests, dashboard for users */}
-                <Route path="/" element={<SmartRootRoute />} />
+                {/* Smart root route - shows landing page for guests, dashboard for users (with onboarding guard) */}
+                <Route 
+                  path="/" 
+                  element={
+                    <OnboardingGuard>
+                      <SmartRootRoute />
+                    </OnboardingGuard>
+                  } 
+                />
+                
+                {/* Onboarding route for new users */}
+                <Route 
+                  path="/onboarding" 
+                  element={
+                    <ProtectedRoute>
+                      <OnboardingPage />
+                    </ProtectedRoute>
+                  } 
+                />
                 
                 {/* Public auth route */}
                 <Route path="/auth" element={<Auth />} />
@@ -47,7 +66,9 @@ function App() {
                   path="/account"
                   element={
                     <ProtectedRoute>
-                      <AccountPage />
+                      <OnboardingGuard>
+                        <AccountPage />
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   }
                 />
@@ -55,7 +76,9 @@ function App() {
                   path="/calendar"
                   element={
                     <ProtectedRoute>
-                      <CalendarPage />
+                      <OnboardingGuard>
+                        <CalendarPage />
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   }
                 />
@@ -63,7 +86,9 @@ function App() {
                   path="/billing"
                   element={
                     <ProtectedRoute>
-                      <BillingPage />
+                      <OnboardingGuard>
+                        <BillingPage />
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   }
                 />
@@ -71,7 +96,9 @@ function App() {
                   path="/social"
                   element={
                     <ProtectedRoute>
-                      <SocialPage />
+                      <OnboardingGuard>
+                        <SocialPage />
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   }
                 />
@@ -79,7 +106,9 @@ function App() {
                   path="/social-media"
                   element={
                     <ProtectedRoute>
-                      <SocialMediaPage />
+                      <OnboardingGuard>
+                        <SocialMediaPage />
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   }
                 />
@@ -87,7 +116,9 @@ function App() {
                   path="/content-tasks"
                   element={
                     <ProtectedRoute>
-                      <ContentTasksPage />
+                      <OnboardingGuard>
+                        <ContentTasksPage />
+                      </OnboardingGuard>
                     </ProtectedRoute>
                   }
                 />

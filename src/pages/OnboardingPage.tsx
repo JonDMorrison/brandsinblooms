@@ -29,8 +29,8 @@ const OnboardingPage = () => {
       
       // Add a small delay to ensure all database operations complete
       setTimeout(() => {
-        console.log('🎯 OnboardingPage: Navigating to app after completion');
-        navigate('/app', { replace: true });
+        console.log('🎯 OnboardingPage: Navigating to dashboard after completion');
+        navigate('/', { replace: true });
       }, 200);
     } else {
       console.error('❌ OnboardingPage: No user found during onboarding completion');
