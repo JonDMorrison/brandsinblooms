@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,6 +14,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const [error, setError] = useState<string | null>(null);
   const [approvingTasks, setApprovingTasks] = useState(new Set<string>());
   const channelRef = useRef<any>(null);
+  const isSubscribedRef = useRef(false);
 
   // Check if user is developer
   const isDeveloper = user?.email === 'jon@getclear.ca';
@@ -26,8 +28,8 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     try {
       setError(null);
       
-      // Build status filter - include 'preview' for developer
-      const statusFilter = ['pending', 'generated', 'review'];
+      // Build status filter - include 'preview' for developer, use valid statuses only
+      const statusFilter = ['review', 'generated', 'pending'];
       if (isDeveloper) {
         statusFilter.push('preview');
       }
@@ -116,39 +118,58 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     fetchPendingTasks();
   }, [user, tenant, isDeveloper]);
 
-  // Set up real-time subscription only once
+  // Set up real-time subscription with proper cleanup
   useEffect(() => {
-    if (!user || !tenant) return;
+    if (!user || !tenant || isSubscribedRef.current) return;
 
-    // Clean up existing channel if it exists
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-
-    // Create new channel
-    const channel = supabase
-      .channel('content_tasks_changes')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'content_tasks' 
-        }, 
-        () => {
-          console.log('Content tasks changed, refetching...');
-          fetchPendingTasks();
+    const setupSubscription = async () => {
+      try {
+        // Clean up existing channel if it exists
+        if (channelRef.current) {
+          await supabase.removeChannel(channelRef.current);
+          channelRef.current = null;
         }
-      )
-      .subscribe();
 
-    channelRef.current = channel;
+        // Create new channel with error handling
+        const channel = supabase
+          .channel(`content_tasks_changes_${tenant.id}`)
+          .on('postgres_changes', 
+            { 
+              event: '*', 
+              schema: 'public', 
+              table: 'content_tasks',
+              filter: `tenant_id=eq.${tenant.id}`
+            }, 
+            (payload) => {
+              console.log('Content tasks changed, refetching...', payload);
+              fetchPendingTasks();
+            }
+          )
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              isSubscribedRef.current = true;
+              console.log('Successfully subscribed to content_tasks changes');
+            } else if (status === 'CHANNEL_ERROR') {
+              console.error('Channel subscription error');
+              isSubscribedRef.current = false;
+            }
+          });
+
+        channelRef.current = channel;
+      } catch (error) {
+        console.error('Error setting up realtime subscription:', error);
+        // Don't fail the entire component if realtime fails
+      }
+    };
+
+    setupSubscription();
 
     // Cleanup function
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
+        isSubscribedRef.current = false;
       }
     };
   }, [user, tenant]);

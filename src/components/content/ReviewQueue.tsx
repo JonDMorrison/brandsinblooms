@@ -50,9 +50,10 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
     try {
       const taskIds = themeTasks.map(task => task.id);
       
+      // Use 'approved' status instead of 'posted' for bulk approval
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'posted' })
+        .update({ status: 'approved' })
         .in('id', taskIds);
 
       if (error) throw error;
@@ -60,6 +61,7 @@ export const ReviewQueue = ({ onTaskUpdate, onTaskClick }: ReviewQueueProps) => 
       toast.success(`🚀 Approved ${themeTasks.length} pieces of content!`);
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
+      console.error('Bulk approval error:', error);
       toast.error('Failed to approve content batch');
     } finally {
       setBulkApproving(false);

@@ -5,6 +5,7 @@ import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
 import { Homepage } from '@/components/Homepage';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { OnboardingGuard } from '@/components/OnboardingGuard';
+import { HomepageErrorBoundary } from '@/components/homepage/HomepageErrorBoundary';
 import { Loader2 } from 'lucide-react';
 
 export const SmartRootRoute = () => {
@@ -24,11 +25,13 @@ export const SmartRootRoute = () => {
 
   // Show dashboard for authenticated users, comprehensive landing page for guests
   return user ? (
-    <SidebarLayout>
-      <OnboardingGuard>
-        <Homepage />
-      </OnboardingGuard>
-    </SidebarLayout>
+    <HomepageErrorBoundary>
+      <SidebarLayout>
+        <OnboardingGuard>
+          <Homepage />
+        </OnboardingGuard>
+      </SidebarLayout>
+    </HomepageErrorBoundary>
   ) : (
     <CompleteLandingPage />
   );
