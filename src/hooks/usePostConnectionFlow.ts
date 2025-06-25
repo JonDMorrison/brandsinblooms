@@ -83,11 +83,15 @@ export const usePostConnectionFlow = () => {
       const isFirstTime = checkOAuthCompletion();
       const hasApproved = await checkApprovedContent();
 
-      const newFlowState = {
+      const targetSection: 'ready-to-post' | 'weekly-content' | null = isFirstTime 
+        ? (hasApproved ? 'ready-to-post' : 'weekly-content') 
+        : null;
+
+      const newFlowState: PostConnectionFlowState = {
         isFirstTimeConnection: isFirstTime,
         shouldShowOnboarding: isFirstTime,
         hasApprovedContent: hasApproved,
-        targetSection: isFirstTime ? (hasApproved ? 'ready-to-post' : 'weekly-content') : null
+        targetSection
       };
 
       console.log('📊 Flow state initialized:', newFlowState);
