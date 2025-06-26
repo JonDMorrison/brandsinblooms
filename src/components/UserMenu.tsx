@@ -33,13 +33,19 @@ export const UserMenu = () => {
   const { refreshStatus } = useOnboardingStatus();
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
+    setIsSigningOut(true);
     try {
+      console.log('🚪 UserMenu: Starting sign out process...');
       await signOutCompletely();
+      toast.success('Successfully signed out');
     } catch (error) {
       console.error('Sign out error:', error);
       toast.error('Error signing out');
+    } finally {
+      setIsSigningOut(false);
     }
   };
 
@@ -91,9 +97,12 @@ export const UserMenu = () => {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-garden-green text-white">
+          <Button 
+            variant="ghost" 
+            className="relative h-10 w-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-200"
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-garden-green text-white text-sm font-semibold">
                 {getUserInitials()}
               </AvatarFallback>
             </Avatar>
@@ -102,7 +111,7 @@ export const UserMenu = () => {
         <DropdownMenuContent className="w-56" align="end" forceMount>
           <div className="flex items-center justify-start gap-2 p-2">
             <div className="flex flex-col space-y-1 leading-none">
-              <p className="font-medium">{user?.email}</p>
+              <p className="font-medium text-sm">{user?.email}</p>
               {isAdmin && (
                 <p className="text-xs text-muted-foreground">Master Admin</p>
               )}
@@ -136,9 +145,13 @@ export const UserMenu = () => {
           )}
           
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut}>
+          <DropdownMenuItem 
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="text-red-600 focus:text-red-600 font-medium"
+          >
             <LogOut className="mr-2 h-4 w-4" />
-            Sign out
+            {isSigningOut ? 'Signing out...' : 'Sign out'}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

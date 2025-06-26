@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { format, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ContentViewerDialog } from './content/ContentViewerDialog';
 import { CampaignDetailsModal } from './calendar/CampaignDetailsModal';
+import { UserMenu } from './UserMenu';
 
 export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   campaigns: any[];
@@ -169,7 +171,12 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col relative">
+      {/* Fixed UserMenu for Calendar */}
+      <div className="fixed top-4 right-4 z-[9999]">
+        <UserMenu />
+      </div>
+
       <div className="border-b px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h2 className="text-lg font-semibold">Calendar</h2>
@@ -228,7 +235,7 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
           </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 pr-16"> {/* Add padding to avoid overlap with UserMenu */}
           {selectedTasks.length > 0 && (
             <>
               <Button

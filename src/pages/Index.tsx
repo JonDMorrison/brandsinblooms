@@ -97,8 +97,8 @@ const Index = () => {
   }
 
   return (
-    <>
-      {/* UserMenu positioned absolutely - outside SidebarLayout to ensure visibility */}
+    <div className="min-h-screen relative">
+      {/* Fixed UserMenu - always visible at top right */}
       <div className={`fixed top-4 right-4 z-[9999] ${isMobile ? 'top-2 right-2' : ''}`}>
         <UserMenu />
       </div>
@@ -115,7 +115,7 @@ const Index = () => {
           </div>
         </div>
       </SidebarLayout>
-    </>
+    </div>
   );
 };
 

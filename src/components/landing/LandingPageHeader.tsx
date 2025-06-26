@@ -13,7 +13,7 @@ export const LandingPageHeader = ({ onLogin, showUserMenu = true }: LandingPageH
   const { user } = useAuth();
 
   return (
-    <nav className="flex justify-between items-center px-6 py-4">
+    <nav className="flex justify-between items-center px-6 py-4 relative z-50">
       <div className="flex items-center gap-4">
         <div className="text-2xl font-bold text-garden-green-dark">
           BloomSuite
