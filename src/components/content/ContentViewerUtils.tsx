@@ -1,15 +1,14 @@
-
 import { stripHtmlAndFormat } from "@/components/homepage/ready-to-post/contentUtils";
 import { Instagram, Facebook, Mail, BookOpen, Video, FileText } from "lucide-react";
 
 export const getPostTypeIcon = (postType: string) => {
   switch (postType) {
-    case 'instagram': return <Instagram className="w-4 h-4" />;
-    case 'facebook': return <Facebook className="w-4 h-4" />;
-    case 'newsletter': return <Mail className="w-4 h-4" />;
-    case 'blog': return <BookOpen className="w-4 h-4" />;
-    case 'video': return <Video className="w-4 h-4" />;
-    default: return <FileText className="w-4 h-4" />;
+    case 'instagram': return Instagram;
+    case 'facebook': return Facebook;
+    case 'newsletter': return Mail;
+    case 'blog': return BookOpen;
+    case 'video': return Video;
+    default: return FileText;
   }
 };
 
