@@ -2,7 +2,9 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
-import { ContentBody } from "../display/ContentBody";
+import { MagazineContentDisplay } from "./MagazineContentDisplay";
+import { SocialMediaPostPreview } from "./SocialMediaPostPreview";
+import { NewsletterDisplay } from "@/components/newsletter/NewsletterDisplay";
 import { generatePersonalizedContent } from "@/components/homepage/ContentGenerationServices";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,6 +21,22 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
   
   // Normalize the task for consistent display
   const normalizedTask = normalizeTask(task);
+  
+  const isGenerating = normalizedTask.status === 'generating';
+  const isStuckGenerating = normalizedTask.status === 'generating' && !normalizedTask.ai_output;
+
+  // Enhanced content validation for video tasks
+  const hasValidContent = normalizedTask.ai_output && normalizedTask.ai_output.trim() !== '';
+  
+  // Special validation for video content
+  if (normalizedTask.post_type === 'video' && normalizedTask.ai_output) {
+    console.log(`🎬 TASK_CONTENT DEBUG: Video task validation:`, {
+      id: normalizedTask.id,
+      has_content: hasValidContent,
+      content_length: normalizedTask.ai_output?.length || 0,
+      content_preview: normalizedTask.ai_output?.substring(0, 200)
+    });
+  }
 
   const handleRegenerateContent = async () => {
     if (!normalizedTask.campaigns?.title && !normalizedTask.holiday_id) {
@@ -68,11 +86,65 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
     }
   };
 
-  return (
-    <div className="space-y-3">
-      <ContentBody task={normalizedTask} />
-      
-      {normalizedTask.ai_output && (
+  if (hasValidContent) {
+    // Check if this is a social media post for special preview handling
+    const isSocialMediaPost = normalizedTask.post_type === 'instagram' || normalizedTask.post_type === 'facebook';
+    
+    if (isSocialMediaPost) {
+      return (
+        <div className="space-y-3">
+          <SocialMediaPostPreview 
+            content={normalizedTask.ai_output}
+            postType={normalizedTask.post_type as 'instagram' | 'facebook'}
+            contentTaskId={normalizedTask.id}
+            campaignTitle={normalizedTask.campaigns?.theme || normalizedTask.campaigns?.title}
+          />
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRegenerateContent}
+              disabled={regenerating}
+              className="text-xs"
+            >
+              <RefreshCw className={`w-3 h-3 mr-1 ${regenerating ? 'animate-spin' : ''}`} />
+              Regenerate
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // ALWAYS use NewsletterDisplay for newsletter content - it handles everything internally
+    if (normalizedTask.post_type === 'newsletter') {
+      return (
+        <div className="space-y-3">
+          <NewsletterDisplay task={normalizedTask} />
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRegenerateContent}
+              disabled={regenerating}
+              className="text-xs"
+            >
+              <RefreshCw className={`w-3 h-3 mr-1 ${regenerating ? 'animate-spin' : ''}`} />
+              Regenerate
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    // Use magazine-style display for all other content types (blog, video)
+    return (
+      <div className="space-y-3">
+        <MagazineContentDisplay 
+          content={normalizedTask.display_content || normalizedTask.ai_output}
+          postType={normalizedTask.post_type}
+          contentTaskId={normalizedTask.id}
+          campaignTitle={normalizedTask.campaigns?.theme || normalizedTask.campaigns?.title}
+        />
         <div className="flex justify-end">
           <Button
             size="sm"
@@ -85,7 +157,39 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
             Regenerate
           </Button>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  if (isGenerating) {
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-blue-800">
+            <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+            <span className="text-sm">Generating {normalizedTask.post_type} content...</span>
+          </div>
+          {isStuckGenerating && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onRetryGeneration}
+              disabled={retryingGeneration}
+              className="border-orange-300 text-orange-600 hover:bg-orange-50 text-xs px-2 py-1"
+            >
+              <RefreshCw className={`w-3 h-3 mr-1 ${retryingGeneration ? 'animate-spin' : ''}`} />
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+      <div className="text-sm text-gray-500 italic">
+        No content generated yet
+      </div>
     </div>
   );
 };
