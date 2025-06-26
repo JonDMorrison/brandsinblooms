@@ -97,23 +97,25 @@ const Index = () => {
   }
 
   return (
-    <SidebarLayout>
-      <div className="w-full h-full bg-garden-background relative">
-        {/* UserMenu positioned absolutely in top right - always visible */}
-        <div className={`fixed top-4 right-4 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
-          <UserMenu />
-        </div>
-        
-        {/* Dashboard Content */}
-        <div className="w-full h-full p-6">
-          <DashboardContent
-            onboardingData={onboardingData}
-            onBusinessNameChange={handleBusinessNameChange}
-            onCampaignCreated={handleCampaignCreated}
-          />
-        </div>
+    <>
+      {/* UserMenu positioned absolutely - outside SidebarLayout to ensure visibility */}
+      <div className={`fixed top-4 right-4 z-[9999] ${isMobile ? 'top-2 right-2' : ''}`}>
+        <UserMenu />
       </div>
-    </SidebarLayout>
+      
+      <SidebarLayout>
+        <div className="w-full h-full bg-garden-background">
+          {/* Dashboard Content */}
+          <div className="w-full h-full p-6">
+            <DashboardContent
+              onboardingData={onboardingData}
+              onBusinessNameChange={handleBusinessNameChange}
+              onCampaignCreated={handleCampaignCreated}
+            />
+          </div>
+        </div>
+      </SidebarLayout>
+    </>
   );
 };
 
