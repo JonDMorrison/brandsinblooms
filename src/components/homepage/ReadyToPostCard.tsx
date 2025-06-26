@@ -29,8 +29,8 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
     }
 
     try {
-      // Build status filter for ready-to-post content
-      const statusFilter = ['approved'];
+      // Build status filter for ready-to-post content - include both approved and review status
+      const statusFilter = ['approved', 'review'];
       
       const { data, error } = await supabase
         .from('content_tasks')
@@ -121,7 +121,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   }
 
   return (
-    <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+    <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50" data-section="ready-to-post-section">
       <CardHeader>
         <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
           <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
@@ -143,6 +143,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           {readyTasks.slice(0, 5).map((task) => (
             <div
               key={task.id}
+              id={`task-${task.id}`}
               className="bg-white/70 border border-blue-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
             >
               <div className="flex items-start justify-between gap-3">

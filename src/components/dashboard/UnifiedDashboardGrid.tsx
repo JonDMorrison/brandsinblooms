@@ -20,6 +20,7 @@ import { CampaignCleanupButton } from '@/components/admin/CampaignCleanupButton'
 import { QuickActionsSection } from "./QuickActionsSection";
 import { NewCampaignDialog } from "@/components/homepage/NewCampaignDialog";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
+import { ReadyToPostCard } from "@/components/homepage/ReadyToPostCard";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 interface UnifiedDashboardGridProps {
@@ -97,6 +98,12 @@ export const UnifiedDashboardGrid = ({
           onCreateCampaign={onCreateCampaign}
           onCampaignCreated={onCampaignCreated}
           onTaskClick={handleTaskClick}
+        />
+
+        {/* Ready to Post Section */}
+        <ReadyToPostCard 
+          tasks={tasks}
+          onTaskUpdate={onTaskUpdate}
         />
       </div>
 
