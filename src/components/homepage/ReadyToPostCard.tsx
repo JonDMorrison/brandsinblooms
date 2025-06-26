@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, Leaf } from "lucide-react";
@@ -9,6 +8,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { ContentTask } from "@/types/content";
 import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostItem";
 import { ContentViewerDialog } from "@/components/content/ContentViewerDialog";
+import { SocialConnectionStatus } from "@/components/social/SocialConnectionStatus";
+import { toast } from "sonner";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -45,6 +46,11 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
     } catch (error) {
       console.error('Exception fetching social connections:', error);
     }
+  };
+
+  const handleConnectPlatform = (platform: string) => {
+    // For now, show a message about setting up OAuth
+    toast.info(`To connect ${platform}, please set up OAuth credentials in your project settings.`);
   };
 
   const fetchReadyTasks = async () => {
@@ -176,7 +182,14 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
             Content approved and ready for your social media channels
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Social Connection Status */}
+          <SocialConnectionStatus
+            connections={socialConnections}
+            onConnectPlatform={handleConnectPlatform}
+            onRefreshConnections={fetchSocialConnections}
+          />
+          
           <div className="space-y-3">
             {readyTasks.map((task, index) => (
               <AccordionReadyToPostItem

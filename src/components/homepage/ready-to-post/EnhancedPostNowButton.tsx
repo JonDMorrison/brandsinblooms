@@ -28,66 +28,6 @@ export const EnhancedPostNowButton: React.FC<EnhancedPostNowButtonProps> = ({
   const hasRecentError = task.last_posting_error && task.posting_attempts >= 3;
   const isAlreadyPosted = task.platform_post_url;
 
-  const handlePost = async () => {
-    if (isDisabled) return;
-    
-    setIsPosting(true);
-    setError(null);
-
-    try {
-      // Update posting attempts
-      const { error: updateError } = await supabase
-        .from('content_tasks')
-        .update({ 
-          posting_attempts: (task.posting_attempts || 0) + 1,
-          last_posting_error: null
-        })
-        .eq('id', task.id);
-
-      if (updateError) throw updateError;
-
-      // Simulate posting - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Update task with success
-      const postUrl = `https://${platform}.com/posts/example-${task.id}`;
-      const { error: successError } = await supabase
-        .from('content_tasks')
-        .update({ 
-          status: 'posted',
-          platform_post_id: `${platform}_${Date.now()}`,
-          platform_post_url: postUrl,
-          last_posting_error: null
-        })
-        .eq('id', task.id);
-
-      if (successError) throw successError;
-
-      toast.success(`Posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`);
-      
-      if (onSuccess) {
-        onSuccess();
-      }
-    } catch (error: any) {
-      console.error('Error posting:', error);
-      const errorMessage = error.message || `Failed to post to ${platform}`;
-      setError(errorMessage);
-      
-      // Update task with error
-      await supabase
-        .from('content_tasks')
-        .update({ 
-          last_posting_error: errorMessage,
-          posting_disabled_at: task.posting_attempts >= 2 ? new Date().toISOString() : null
-        })
-        .eq('id', task.id);
-
-      toast.error(errorMessage);
-    } finally {
-      setIsPosting(false);
-    }
-  };
-
   const handleRetry = async () => {
     setError(null);
     await supabase

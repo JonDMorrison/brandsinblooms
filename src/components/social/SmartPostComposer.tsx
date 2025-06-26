@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import { ContentOptimizer } from './ContentOptimizer';
 
 interface SmartPostComposerProps {
@@ -67,15 +67,29 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
       // Call the appropriate edge function
       const functionName = platform === 'facebook' ? 'post-to-facebook' : 'post-to-instagram';
       
-      // This is a placeholder - will be replaced with actual posting logic
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      toast.success(`Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`);
-      onSuccess();
-      onClose();
-    } catch (error) {
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: {
+          content_task_id: task.id,
+          content: fullContent,
+          // For Instagram, we might need media_url if there are images
+          ...(platform === 'instagram' && task.image_url && { media_url: task.image_url })
+        }
+      });
+
+      if (error) {
+        throw new Error(error.message || `Failed to post to ${platform}`);
+      }
+
+      if (data?.success) {
+        toast.success(`Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`);
+        onSuccess();
+        onClose();
+      } else {
+        throw new Error(data?.error || `Failed to post to ${platform}`);
+      }
+    } catch (error: any) {
       console.error(`Error posting to ${platform}:`, error);
-      toast.error(`Failed to post to ${platform}`);
+      toast.error(error.message || `Failed to post to ${platform}`);
     } finally {
       setIsPosting(false);
     }
