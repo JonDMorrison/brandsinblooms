@@ -30,7 +30,8 @@ interface CalendarDayCellProps {
   isCurrentMonth: boolean;
   isToday: boolean;
   onCampaignClick?: (campaign: Campaign) => void;
-  onTaskClick?: (task: Task, ctrlKey: boolean) => void;
+  onTaskClick?: (task: Task) => void;
+  onTaskLongPress?: (task: Task) => void;
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
   selectedTasks?: Task[];
@@ -53,6 +54,7 @@ export const CalendarDayCell = ({
   isToday,
   onCampaignClick,
   onTaskClick,
+  onTaskLongPress,
   selectionMode = false,
   selectedCampaigns = [],
   selectedTasks = [],
@@ -113,6 +115,7 @@ export const CalendarDayCell = ({
           draggedTask={draggedTask}
           onCampaignClick={onCampaignClick}
           onTaskClick={onTaskClick}
+          onTaskLongPress={onTaskLongPress}
           isTaskSelected={isTaskSelected}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}

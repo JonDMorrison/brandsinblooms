@@ -7,6 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { format, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
+import { ContentViewerDialog } from './content/ContentViewerDialog';
+import { CampaignDetailsModal } from './calendar/CampaignDetailsModal';
 
 export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   campaigns: any[];
@@ -20,6 +22,10 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const { toast } = useToast();
   const { user } = useAuth();
+  const [selectedTaskForModal, setSelectedTaskForModal] = useState<any>(null);
+  const [selectedCampaignForModal, setSelectedCampaignForModal] = useState<any>(null);
+  const [contentModalOpen, setContentModalOpen] = useState(false);
+  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
 
   // Use the drag and drop hook with proper handlers
   const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(onDataUpdate);
@@ -129,13 +135,20 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   };
 
   const handleTaskClick = (task: any) => {
-    // TODO: Implement task modal
-    console.log('Task clicked:', task);
+    console.log('Task clicked for modal:', task);
+    setSelectedTaskForModal(task);
+    setContentModalOpen(true);
+  };
+
+  const handleTaskLongPress = (task: any) => {
+    console.log('Task long pressed for drag:', task);
+    handleDragStart(task);
   };
 
   const handleCampaignClick = (campaign: any) => {
-    // TODO: Implement campaign modal
-    console.log('Campaign clicked:', campaign);
+    console.log('Campaign clicked for modal:', campaign);
+    setSelectedCampaignForModal(campaign);
+    setCampaignModalOpen(true);
   };
 
   const handleDateClick = (date: Date) => {
@@ -262,6 +275,7 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
           currentDate={currentDate}
           viewMode={viewMode}
           onTaskClick={handleTaskClick}
+          onTaskLongPress={handleTaskLongPress}
           onCampaignClick={handleCampaignClick}
           onDateClick={handleDateClick}
           selectedTasks={selectedTasks}
@@ -273,6 +287,37 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
           onDragEnd={handleDragEnd}
         />
       </div>
+
+      {/* Content Modal */}
+      {selectedTaskForModal && (
+        <ContentViewerDialog
+          isOpen={contentModalOpen}
+          onClose={() => {
+            setContentModalOpen(false);
+            setSelectedTaskForModal(null);
+          }}
+          campaignTitle={selectedTaskForModal.campaigns?.title || 'Content'}
+          loading={false}
+          tasks={[selectedTaskForModal]}
+          onTaskUpdate={onDataUpdate}
+        />
+      )}
+
+      {/* Campaign Modal */}
+      {selectedCampaignForModal && (
+        <CampaignDetailsModal
+          campaign={selectedCampaignForModal}
+          isOpen={campaignModalOpen}
+          onClose={() => {
+            setCampaignModalOpen(false);
+            setSelectedCampaignForModal(null);
+          }}
+          onUpdate={(updatedCampaign) => {
+            setSelectedCampaignForModal(updatedCampaign);
+            onDataUpdate();
+          }}
+        />
+      )}
     </div>
   );
 };

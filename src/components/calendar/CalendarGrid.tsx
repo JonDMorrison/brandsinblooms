@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { CalendarDayCell } from './CalendarDayCell';
 import { addDays, startOfWeek, startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
@@ -9,6 +8,7 @@ interface CalendarGridProps {
   currentDate: Date;
   viewMode: 'month' | 'week';
   onTaskClick: (task: any) => void;
+  onTaskLongPress?: (task: any) => void;
   onCampaignClick: (campaign: any) => void;
   onDateClick: (date: Date) => void;
   selectedTasks: any[];
@@ -26,6 +26,7 @@ export const CalendarGrid = ({
   currentDate,
   viewMode,
   onTaskClick,
+  onTaskLongPress,
   onCampaignClick,
   onDateClick,
   selectedTasks,
@@ -105,14 +106,9 @@ export const CalendarGrid = ({
               date={date}
               campaigns={dayCampaigns}
               tasks={dayTasks}
-              onTaskClick={(task, ctrlKey) => {
-                console.log('CalendarGrid: Task click event triggered for task:', task.id);
-                onTaskClick(task);
-              }}
-              onCampaignClick={(campaign) => {
-                console.log('CalendarGrid: Campaign click event triggered for campaign:', campaign.id);
-                onCampaignClick(campaign);
-              }}
+              onTaskClick={onTaskClick}
+              onTaskLongPress={onTaskLongPress}
+              onCampaignClick={onCampaignClick}
               isCurrentMonth={isCurrentMonth}
               isToday={isToday}
               selectionMode={true}

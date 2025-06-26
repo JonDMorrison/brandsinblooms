@@ -1,6 +1,5 @@
-
-import { CalendarTaskItem } from "./CalendarTaskItem";
 import { CalendarCampaignList } from "./CalendarCampaignList";
+import { EnhancedCalendarTaskItem } from "./EnhancedCalendarTaskItem";
 
 interface Campaign {
   id: number;
@@ -30,7 +29,8 @@ interface CalendarDayContentProps {
   isPastDate: boolean;
   draggedTask?: Task;
   onCampaignClick?: (campaign: Campaign) => void;
-  onTaskClick?: (task: Task, ctrlKey: boolean) => void;
+  onTaskClick?: (task: Task) => void;
+  onTaskLongPress?: (task: Task) => void;
   isTaskSelected?: (task: Task) => boolean;
   onDragStart?: (task: Task) => void;
   onDragEnd?: () => void;
@@ -45,6 +45,7 @@ export const CalendarDayContent = ({
   draggedTask,
   onCampaignClick,
   onTaskClick,
+  onTaskLongPress,
   isTaskSelected,
   onDragStart,
   onDragEnd,
@@ -62,16 +63,13 @@ export const CalendarDayContent = ({
       {/* Tasks */}
       <div className="space-y-1">
         {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task) => (
-          <CalendarTaskItem
+          <EnhancedCalendarTaskItem
             key={task.id}
             task={task}
             isSelected={isTaskSelected?.(task) || false}
-            isBeingDragged={draggedTask?.id === task.id}
             isPastDate={isPastDate}
-            selectionMode={selectionMode}
             onTaskClick={onTaskClick || (() => {})}
-            onDragStart={onDragStart || (() => {})}
-            onDragEnd={onDragEnd || (() => {})}
+            onLongPress={onTaskLongPress || (() => {})}
           />
         ))}
       </div>
