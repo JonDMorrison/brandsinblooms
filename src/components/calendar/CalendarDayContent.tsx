@@ -39,7 +39,7 @@ interface CalendarDayContentProps {
 export const CalendarDayContent = ({
   campaigns,
   tasks,
-  selectionMode = false,
+  selectionMode = true,
   selectedCampaigns = [],
   isPastDate,
   draggedTask,

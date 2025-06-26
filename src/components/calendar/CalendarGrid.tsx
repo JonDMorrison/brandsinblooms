@@ -88,15 +88,6 @@ export const CalendarGrid = ({
             const campaignDate = new Date(campaign.start_date);
             const dateMatch = campaignDate.toDateString() === date.toDateString();
             
-            if (dateMatch) {
-              console.log('CalendarGrid: Campaign matched to date:', {
-                campaignId: campaign.id,
-                campaignTitle: campaign.title,
-                campaignStartDate: campaign.start_date,
-                targetDate: date.toDateString()
-              });
-            }
-            
             return dateMatch;
           });
 
@@ -124,7 +115,7 @@ export const CalendarGrid = ({
               }}
               isCurrentMonth={isCurrentMonth}
               isToday={isToday}
-              selectionMode={false}
+              selectionMode={true}
               onDrop={onDrop}
               isTaskSelected={isTaskSelected}
               isDragging={isDragging}

@@ -121,7 +121,7 @@ export const CalendarTaskItem = ({
       onDragEnd={handleDragEnd}
       onClick={handleClick}
       className={cn(
-        "relative text-xs p-2 rounded-lg transition-all duration-200 group/task cursor-pointer",
+        "relative text-xs p-2 rounded-lg transition-all duration-200 group/task cursor-pointer select-none",
         "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200",
         !isBeingDragged && "hover:from-green-100 hover:to-emerald-100 hover:shadow-md hover:-translate-y-0.5",
         isDraggable && !isBeingDragged && "hover:cursor-move",
