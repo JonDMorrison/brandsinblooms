@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,21 +22,31 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
   const handleApprove = async () => {
     setApprovingTask(true);
     
+    console.log('🎯 TASK_ACTIONS: Starting approval for task', {
+      taskId: task.id,
+      currentStatus: task.status,
+      postType: task.post_type
+    });
+    
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'posted' })
+        .update({ status: 'approved' })
         .eq('id', task.id);
 
       if (error) {
-        console.error('Error approving task:', error);
-        toast.error('Failed to approve content');
+        console.error('❌ TASK_ACTIONS: Database error during approval:', error);
+        toast.error(`Failed to approve content: ${error.message}`);
       } else {
+        console.log('✅ TASK_ACTIONS: Successfully updated task status to approved');
         toast.success('Content approved and moved to Ready to Post!');
-        if (onTaskUpdate) onTaskUpdate();
+        if (onTaskUpdate) {
+          console.log('🔄 TASK_ACTIONS: Calling onTaskUpdate to refresh data');
+          onTaskUpdate();
+        }
       }
     } catch (error) {
-      console.error('Error approving task:', error);
+      console.error('❌ TASK_ACTIONS: Exception during approval:', error);
       toast.error('Failed to approve content');
     } finally {
       setApprovingTask(false);
@@ -144,7 +153,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
         const { error: updateError } = await supabase
           .from('content_tasks')
           .update({ 
-            status: 'scheduled',
+            status: 'review',
             ai_output: generatedContent 
           })
           .eq('id', task.id);
@@ -163,7 +172,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
         // Update task status back to failed/scheduled if generation fails
         await supabase
           .from('content_tasks')
-          .update({ status: 'scheduled' })
+          .update({ status: 'review' })
           .eq('id', task.id);
           
         toast.error('Failed to generate content. Please try again.');
@@ -176,12 +185,12 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
     }
   };
 
-  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review', 'posted'].includes(task.status) && task.ai_output;
+  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review'].includes(task.status) && task.ai_output;
   const canEdit = task.ai_output && task.status !== 'published';
   const isGenerating = task.status === 'generating';
   const hasFailedGeneration = task.status === 'generating' && !task.ai_output;
   const isStuckGenerating = task.status === 'generating' && !task.ai_output;
-  const isApproved = task.status === 'posted';
+  const isApproved = ['approved', 'posted'].includes(task.status);
 
   return (
     <TooltipProvider>
@@ -236,6 +245,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
           <Tooltip>
             <TooltipTrigger asChild>
               <ApproveButton
+                taskId={task.id}
                 isApproved={isApproved}
                 onApprove={handleApprove}
                 disabled={approvingTask}
@@ -247,7 +257,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
           </Tooltip>
         )}
         
-        {task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
+        {isApproved && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
           <Button
             size="sm"
             variant="outline"

@@ -26,8 +26,8 @@ export const TaskItemActions = ({
   const [approvingTask, setApprovingTask] = useState(false);
   const [deletingTask, setDeletingTask] = useState(false);
 
-  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review', 'posted'].includes(task.status) && task.ai_output;
-  const isApproved = task.status === 'posted';
+  const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review'].includes(task.status) && task.ai_output;
+  const isApproved = ['approved', 'posted'].includes(task.status);
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -38,21 +38,31 @@ export const TaskItemActions = ({
     e.stopPropagation();
     setApprovingTask(true);
     
+    console.log('🎯 TASK_ACTIONS: Starting approval for task', {
+      taskId: task.id,
+      currentStatus: task.status,
+      postType: task.post_type
+    });
+    
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'posted' })
+        .update({ status: 'approved' })
         .eq('id', task.id);
 
       if (error) {
-        console.error('Error approving task:', error);
-        toast.error('Failed to approve content');
+        console.error('❌ TASK_ACTIONS: Database error during approval:', error);
+        toast.error(`Failed to approve content: ${error.message}`);
       } else {
+        console.log('✅ TASK_ACTIONS: Successfully updated task status to approved');
         toast.success('Content approved and moved to Ready to Post!');
-        if (onTaskUpdate) onTaskUpdate();
+        if (onTaskUpdate) {
+          console.log('🔄 TASK_ACTIONS: Calling onTaskUpdate to refresh data');
+          onTaskUpdate();
+        }
       }
     } catch (error) {
-      console.error('Error approving task:', error);
+      console.error('❌ TASK_ACTIONS: Exception during approval:', error);
       toast.error('Failed to approve content');
     } finally {
       setApprovingTask(false);
@@ -126,6 +136,7 @@ export const TaskItemActions = ({
 
         {canApprove && (
           <ApproveButton
+            taskId={task.id}
             isApproved={isApproved}
             onApprove={handleApprove}
             disabled={approvingTask}
@@ -133,7 +144,7 @@ export const TaskItemActions = ({
           />
         )}
 
-        {task.status === 'posted' && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
+        {isApproved && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
           <Button
             size="sm"
             variant="ghost"

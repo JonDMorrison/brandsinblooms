@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { ContentTask } from "@/types/content";
+import { toast } from "sonner";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -28,9 +29,11 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
       return;
     }
 
+    console.log('🔍 READY_TO_POST: Fetching ready tasks for tenant:', tenant.id);
+
     try {
-      // Build status filter for ready-to-post content - include both approved and review status
-      const statusFilter = ['approved', 'review'];
+      // Build status filter for ready-to-post content - focus on approved content
+      const statusFilter = ['approved', 'posted'];
       
       const { data, error } = await supabase
         .from('content_tasks')
@@ -50,9 +53,17 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching ready tasks:', error);
+        console.error('❌ READY_TO_POST: Error fetching ready tasks:', error);
         setReadyTasks([]);
       } else {
+        console.log('📊 READY_TO_POST: Raw query results:', {
+          totalFound: data?.length || 0,
+          statusBreakdown: data?.reduce((acc, task) => {
+            acc[task.status] = (acc[task.status] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>)
+        });
+
         // Security filter to double-check ownership
         const securityCheckedTasks = data?.filter(task => {
           if (tenant?.id) {
@@ -62,10 +73,15 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           }
         }) || [];
         
+        console.log('✅ READY_TO_POST: Security filtered results:', {
+          finalCount: securityCheckedTasks.length,
+          statuses: securityCheckedTasks.map(t => ({ id: t.id, status: t.status, type: t.post_type }))
+        });
+        
         setReadyTasks(securityCheckedTasks as ContentTask[]);
       }
     } catch (error) {
-      console.error('Error fetching ready tasks:', error);
+      console.error('❌ READY_TO_POST: Exception fetching ready tasks:', error);
       setReadyTasks([]);
     } finally {
       setLoading(false);
@@ -77,19 +93,28 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   }, [user, tenant, tasks]);
 
   const handleMarkAsPosted = async (taskId: string) => {
+    console.log('🎯 READY_TO_POST: Marking task as posted:', taskId);
+    
     try {
       const { error } = await supabase
         .from('content_tasks')
         .update({ status: 'posted' })
         .eq('id', taskId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ READY_TO_POST: Error marking as posted:', error);
+        toast.error('Failed to mark content as posted');
+        throw error;
+      }
 
+      console.log('✅ READY_TO_POST: Successfully marked as posted');
+      toast.success('Content marked as posted!');
+      
       // Refresh the tasks
       await fetchReadyTasks();
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
-      console.error('Error marking task as posted:', error);
+      console.error('❌ READY_TO_POST: Exception marking task as posted:', error);
     }
   };
 
@@ -117,6 +142,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
   // Don't render if no ready tasks
   if (readyTasks.length === 0) {
+    console.log('🔍 READY_TO_POST: No ready tasks found, component will not render');
     return null;
   }
 
@@ -151,6 +177,12 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
                   <div className="flex items-center gap-2 mb-2">
                     <Badge variant="outline" className="text-blue-700 border-blue-300 text-xs">
                       {task.post_type || 'Social Post'}
+                    </Badge>
+                    <Badge 
+                      variant="outline" 
+                      className={task.status === 'approved' ? 'text-green-700 border-green-300' : 'text-blue-700 border-blue-300'}
+                    >
+                      {task.status}
                     </Badge>
                     <span className="text-xs text-blue-600">
                       {task.campaigns?.title}

@@ -3,8 +3,11 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ApproveButtonProps {
+  taskId?: string;
   isApproved: boolean;
   onApprove: (event: React.MouseEvent) => Promise<void> | void;
   disabled?: boolean;
@@ -15,6 +18,7 @@ interface ApproveButtonProps {
 }
 
 export const ApproveButton = ({ 
+  taskId,
   isApproved, 
   onApprove, 
   disabled = false, 
@@ -30,7 +34,20 @@ export const ApproveButton = ({
     event.stopPropagation();
     event.preventDefault();
     
-    if (isApproved || disabled || isLoading) return;
+    if (isApproved || disabled || isLoading) {
+      console.log('🚫 APPROVE_BUTTON: Click ignored', {
+        isApproved,
+        disabled,
+        isLoading,
+        taskId
+      });
+      return;
+    }
+    
+    console.log('🎯 APPROVE_BUTTON: Starting approval process', {
+      taskId,
+      requiresConfirmation
+    });
     
     // Add confirmation dialog for explicit approval
     if (requiresConfirmation || !isApproved) {
@@ -39,15 +56,47 @@ export const ApproveButton = ({
         'It will be moved to the "Ready to Post" section.'
       );
       
-      if (!confirmed) return;
+      if (!confirmed) {
+        console.log('🚫 APPROVE_BUTTON: User cancelled approval');
+        return;
+      }
     }
     
     setIsLoading(true);
     
     try {
+      console.log('🎯 APPROVE_BUTTON: Calling onApprove handler');
       await onApprove(event);
+      console.log('✅ APPROVE_BUTTON: Approval completed successfully');
+      
+      // Additional verification - check if status was actually updated
+      if (taskId) {
+        setTimeout(async () => {
+          try {
+            const { data: updatedTask, error } = await supabase
+              .from('content_tasks')
+              .select('status')
+              .eq('id', taskId)
+              .single();
+            
+            if (error) {
+              console.error('❌ APPROVE_BUTTON: Error verifying approval status:', error);
+            } else {
+              console.log('🔍 APPROVE_BUTTON: Verification - Current status:', updatedTask.status);
+              if (updatedTask.status !== 'approved' && updatedTask.status !== 'posted') {
+                console.warn('⚠️ APPROVE_BUTTON: Status verification failed - expected approved/posted, got:', updatedTask.status);
+                toast.error('Approval may not have completed properly. Please refresh and try again.');
+              }
+            }
+          } catch (verifyError) {
+            console.error('❌ APPROVE_BUTTON: Verification error:', verifyError);
+          }
+        }, 1000);
+      }
+      
     } catch (error) {
-      console.error('Error approving:', error);
+      console.error('❌ APPROVE_BUTTON: Approval failed:', error);
+      toast.error('Failed to approve content. Please try again.');
     } finally {
       setIsLoading(false);
     }
