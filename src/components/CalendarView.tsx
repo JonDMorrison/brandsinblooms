@@ -1,15 +1,12 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
-import { useCampaigns } from '@/hooks/useCampaigns';
-import { useTasks } from '@/hooks/useTasks';
 import { Button } from '@/components/ui/button';
 import { Plus, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEnhancedDragAndDrop } from '@/hooks/useEnhancedDragAndDrop';
-import { EnhancedDragProvider } from './calendar/EnhancedDragContext';
+import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 
 export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   campaigns: any[];
@@ -32,6 +29,9 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
     const startOfWeek = new Date(today.setDate(diff));
     setCurrentWeek(startOfWeek);
   }, []);
+
+  // Use the simpler drag and drop hook
+  const { handleDrop } = useDragAndDrop(onDataUpdate);
 
   // Task selection and bulk operations
   const toggleTaskSelection = (taskId: string) => {
@@ -115,10 +115,6 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
       setBulkDeleteLoading(false);
     }
   };
-  
-  const {
-    handleDrop
-  } = useEnhancedDragAndDrop(onDataUpdate);
 
   const handleTaskClick = (task: any) => {
     // TODO: Implement task modal
@@ -140,64 +136,62 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   };
 
   return (
-    <EnhancedDragProvider>
-      <div className="h-full flex flex-col">
-        <div className="border-b px-4 py-2 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Calendar</h2>
-          <div className="flex gap-2">
-            {selectedTasks.length > 0 && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkComplete}
-                  disabled={bulkCompleteLoading}
-                  className="text-green-600 hover:bg-green-50"
-                >
-                  {bulkCompleteLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
-                  ) : (
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                  )}
-                  Complete ({selectedTasks.length})
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleBulkDelete}
-                  disabled={bulkDeleteLoading}
-                  className="text-red-600 hover:bg-red-50"
-                >
-                  {bulkDeleteLoading ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
-                  ) : (
-                    <XCircle className="w-4 h-4 mr-2" />
-                  )}
-                  Delete ({selectedTasks.length})
-                </Button>
-              </>
-            )}
-            <Button size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Task
-            </Button>
-          </div>
-        </div>
-        
-        <div className="flex-1 overflow-hidden">
-          <CalendarGrid
-            campaigns={campaigns}
-            tasks={tasks}
-            currentWeek={currentWeek}
-            onTaskClick={handleTaskClick}
-            onCampaignClick={handleCampaignClick}
-            onDateClick={handleDateClick}
-            selectedTasks={selectedTasks}
-            onDrop={handleDrop}
-            isTaskSelected={isTaskSelected}
-          />
+    <div className="h-full flex flex-col">
+      <div className="border-b px-4 py-2 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Calendar</h2>
+        <div className="flex gap-2">
+          {selectedTasks.length > 0 && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkComplete}
+                disabled={bulkCompleteLoading}
+                className="text-green-600 hover:bg-green-50"
+              >
+                {bulkCompleteLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                Complete ({selectedTasks.length})
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleteLoading}
+                className="text-red-600 hover:bg-red-50"
+              >
+                {bulkDeleteLoading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                ) : (
+                  <XCircle className="w-4 h-4 mr-2" />
+                )}
+                Delete ({selectedTasks.length})
+              </Button>
+            </>
+          )}
+          <Button size="sm">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Task
+          </Button>
         </div>
       </div>
-    </EnhancedDragProvider>
+      
+      <div className="flex-1 overflow-hidden">
+        <CalendarGrid
+          campaigns={campaigns}
+          tasks={tasks}
+          currentWeek={currentWeek}
+          onTaskClick={handleTaskClick}
+          onCampaignClick={handleCampaignClick}
+          onDateClick={handleDateClick}
+          selectedTasks={selectedTasks}
+          onDrop={handleDrop}
+          isTaskSelected={isTaskSelected}
+        />
+      </div>
+    </div>
   );
 };

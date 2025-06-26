@@ -3,8 +3,7 @@ import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EnhancedCalendarTaskItem } from "./EnhancedCalendarTaskItem";
-import { EnhancedDropZone } from "./EnhancedDropZone";
+import { CalendarTaskItem } from "./CalendarTaskItem";
 
 interface Campaign {
   id: number;
@@ -75,62 +74,55 @@ export const CalendarDayCell = ({
     }
   };
 
-  const handleTaskSelectionToggle = (task: Task) => {
-    if (onTaskSelection) {
-      onTaskSelection(task, true);
-    }
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (targetDate: Date) => {
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
     if (onDrop) {
-      onDrop(targetDate);
+      onDrop(date);
     }
   };
 
   return (
-    <EnhancedDropZone
-      date={date}
-      onDrop={handleDrop}
+    <div
       className={cn(
-        "group min-h-[140px] p-3 border transition-all duration-200 relative",
+        "min-h-[120px] p-3 border transition-all duration-200 relative",
         !isCurrentMonth && "text-gray-400 bg-gray-50/50",
-        isCurrentMonth && "bg-white hover:bg-gray-50/50 border-gray-200",
-        isToday && "bg-blue-50 border-blue-200 shadow-sm",
-        isWeekend && isCurrentMonth && "bg-gray-50/30",
-        selectionMode && "cursor-pointer",
-        isPastDate && "bg-yellow-50/30 border-yellow-200/50"
+        isCurrentMonth && "bg-white hover:bg-gray-50/30 border-gray-200",
+        isToday && "bg-blue-50/50 border-blue-200",
+        isWeekend && isCurrentMonth && "bg-gray-50/20",
+        isPastDate && "bg-yellow-50/20"
       )}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
     >
       {/* Day number header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span
             className={cn(
-              "text-sm font-semibold flex items-center justify-center w-6 h-6 rounded-full transition-colors",
+              "text-sm font-medium flex items-center justify-center w-6 h-6 rounded-full",
               isToday && "bg-blue-600 text-white",
               !isToday && isCurrentMonth && "text-gray-700",
-              !isCurrentMonth && "text-gray-400",
-              isPastDate && isCurrentMonth && "text-yellow-700"
+              !isCurrentMonth && "text-gray-400"
             )}
           >
             {dayNumber}
           </span>
           {isToday && (
-            <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 border-0">
+            <Badge variant="secondary" className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700">
               Today
-            </Badge>
-          )}
-          {isPastDate && !isToday && (
-            <Badge variant="secondary" className="text-xs px-2 py-0.5 bg-yellow-100 text-yellow-700 border-0">
-              Past
             </Badge>
           )}
         </div>
       </div>
       
       {/* Content container */}
-      <div className="space-y-2">
-        {/* Campaigns - Clean card design */}
+      <div className="space-y-1.5">
+        {/* Campaigns */}
         {campaigns.slice(0, 2).map((campaign) => {
           const isSelected = isCampaignSelected(campaign);
           
@@ -138,11 +130,11 @@ export const CalendarDayCell = ({
             <div
               key={campaign.id}
               className={cn(
-                "relative p-2.5 rounded-md cursor-pointer transition-all duration-200 border",
+                "relative p-2 rounded-md cursor-pointer transition-all duration-200 border text-xs",
                 selectionMode && isSelected 
-                  ? "bg-blue-50 border-blue-300 shadow-sm" 
-                  : "bg-white border-gray-200 hover:border-green-300 hover:bg-green-50/50 hover:shadow-sm",
-                !selectionMode && "hover:border-green-300"
+                  ? "bg-blue-50 border-blue-300" 
+                  : "bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50/50",
+                !selectionMode && "hover:border-blue-300 hover:shadow-sm"
               )}
               onClick={() => onCampaignClick?.(campaign)}
             >
@@ -152,85 +144,48 @@ export const CalendarDayCell = ({
                 </div>
               )}
               
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm text-gray-800 truncate pr-2">
-                    {campaign.title}
-                  </h4>
-                  <Badge className="text-xs bg-green-100 text-green-700 border-0 px-1.5 py-0.5 shrink-0">
-                    W{campaign.week_number}
-                  </Badge>
-                </div>
-                
-                {campaign.theme && campaign.theme !== campaign.title && (
-                  <p className="text-xs text-gray-600 truncate leading-relaxed">
-                    {campaign.theme}
-                  </p>
-                )}
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-800 truncate pr-2">
+                  {campaign.title}
+                </h4>
+                <Badge className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 shrink-0">
+                  W{campaign.week_number}
+                </Badge>
               </div>
+              
+              {campaign.theme && campaign.theme !== campaign.title && (
+                <p className="text-xs text-gray-600 truncate mt-1">
+                  {campaign.theme}
+                </p>
+              )}
             </div>
           );
         })}
 
-        {/* Enhanced Content Tasks - Clean design */}
-        <div className="space-y-1.5">
+        {/* Tasks */}
+        <div className="space-y-1">
           {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task) => (
-            <div
+            <CalendarTaskItem
               key={task.id}
-              className={cn(
-                "p-2 rounded-md border cursor-pointer transition-all duration-200",
-                "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm",
-                isTaskSelected?.(task) && "border-blue-300 bg-blue-50"
-              )}
-              onClick={() => handleTaskClick(task, false)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="text-sm">
-                    {task.post_type === 'facebook' && '📘'}
-                    {task.post_type === 'instagram' && '📷'}
-                    {task.post_type === 'email' && '📧'}
-                    {task.post_type === 'newsletter' && '📰'}
-                    {task.post_type === 'video' && '🎥'}
-                    {(!task.post_type || !['facebook', 'instagram', 'email', 'newsletter', 'video'].includes(task.post_type)) && '📝'}
-                  </div>
-                  <span className="text-xs font-medium text-gray-700 capitalize truncate">
-                    {task.post_type}
-                  </span>
-                </div>
-                
-                <Badge 
-                  className={cn(
-                    "text-xs px-1.5 py-0.5 border-0 shrink-0",
-                    task.status === 'posted' && "bg-green-100 text-green-700",
-                    task.status === 'scheduled' && "bg-blue-100 text-blue-700",
-                    task.status === 'published' && "bg-purple-100 text-purple-700",
-                    !['posted', 'scheduled', 'published'].includes(task.status) && "bg-gray-100 text-gray-600"
-                  )}
-                >
-                  {task.status === 'posted' ? 'Ready' : 
-                   task.status === 'scheduled' ? 'Scheduled' :
-                   task.status === 'published' ? 'Published' : 
-                   task.status}
-                </Badge>
-              </div>
-              
-              {task.campaigns && (
-                <p className="text-xs text-gray-600 truncate mt-1">
-                  {task.campaigns.title}
-                </p>
-              )}
-            </div>
+              task={task}
+              isSelected={isTaskSelected?.(task) || false}
+              isBeingDragged={false}
+              isPastDate={isPastDate}
+              selectionMode={true}
+              onTaskClick={handleTaskClick}
+              onDragStart={() => {}}
+              onDragEnd={() => {}}
+            />
           ))}
         </div>
         
-        {/* Show more indicator - Cleaner design */}
+        {/* Show more indicator */}
         {(campaigns.length + tasks.length) > 3 && (
-          <div className="text-xs text-gray-500 text-center py-1.5 bg-gray-50 rounded-md border border-gray-100 hover:bg-gray-100 transition-colors cursor-pointer">
+          <div className="text-xs text-gray-500 text-center py-1 bg-gray-50/50 rounded border border-gray-100">
             +{(campaigns.length + tasks.length) - 3} more
           </div>
         )}
       </div>
-    </EnhancedDropZone>
+    </div>
   );
 };

@@ -32,7 +32,7 @@ export const CalendarGrid = ({
   return (
     <div className="grid grid-cols-7 gap-px bg-gray-200 h-full">
       {weekDays.map((date) => (
-        <div key={date.toISOString()} className="bg-gray-100 p-2 text-sm font-medium text-gray-500 h-12 flex items-center justify-center">
+        <div key={date.toISOString()} className="bg-gray-100 p-2 text-sm font-medium text-gray-700 h-10 flex items-center justify-center">
           {date.toLocaleDateString(undefined, { weekday: 'short' })}
         </div>
       ))}
