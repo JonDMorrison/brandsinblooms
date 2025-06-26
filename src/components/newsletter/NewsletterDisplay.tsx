@@ -1,6 +1,5 @@
 
 import React, { useEffect, useState } from 'react';
-import { ParsedMarkdown } from '../markdown/ParsedMarkdown';
 import { MagazineNewsletterDisplay } from '../content-sidebar/MagazineNewsletterDisplay';
 import { normalizeTask } from '@/utils/normalizeTask';
 import { validateContentCompliance } from '@/utils/campaignTitleUtils';
@@ -143,37 +142,12 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
     );
   }
   
-  // Check if this is a structured newsletter using normalized data
-  const isStructuredNewsletter = normalizedTask.normalized && 
-    (displayContent.includes('newsletter_md:') || displayContent.includes('blocks:') || normalizedTask.normalized.newsletter_md);
-  
-  if (isStructuredNewsletter && normalizedTask.normalized) {
-    // Use MagazineNewsletterDisplay for structured newsletters
-    return (
-      <div className="prose lg:prose-lg mx-auto">
-        <MagazineNewsletterDisplay content={displayContent} />
-      </div>
-    );
-  }
-  
-  // Use ParsedMarkdown for plain text newsletters
-  const markdownContent = normalizedTask.normalized?.newsletter_md || displayContent;
-  
-  // Clean any remaining formatting issues for plain text newsletters
-  const cleanedContent = markdownContent
-    .replace(/^\s*Welcome\s+to\s+[^.!?]*[.!?]\s*/gi, '') // Remove welcome openings
-    .replace(/Week\s+\d+/gi, '') // Remove any remaining week references
-    .replace(/This week's theme:[^.!?]*[.!?]/gi, '') // Remove theme references
-    .replace(/Seasonal Gardening Focus[^.!?]*[.!?]/gi, '') // Remove placeholder focus
-    .replace(/^\s*•\s*/gm, '') // Convert bullet points to plain text
-    .replace(/^\s*\d+\.\s*/gm, '') // Convert numbered lists to plain text
-    .replace(/\s{2,}/g, ' ') // Clean up multiple spaces
-    .trim();
-  
+  // ALWAYS use MagazineNewsletterDisplay for all newsletters
+  // This ensures consistent enhanced display regardless of content format
   return (
-    <article className="prose lg:prose-lg mx-auto">
-      <ParsedMarkdown content={cleanedContent} />
-    </article>
+    <div className="prose lg:prose-lg mx-auto">
+      <MagazineNewsletterDisplay content={displayContent} />
+    </div>
   );
 };
 

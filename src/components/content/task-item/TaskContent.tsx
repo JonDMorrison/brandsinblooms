@@ -115,7 +115,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       );
     }
 
-    // Use NewsletterDisplay for all newsletter content (now handles normalized data)
+    // ALWAYS use NewsletterDisplay for newsletter content - it handles everything internally
     if (normalizedTask.post_type === 'newsletter') {
       return (
         <div className="space-y-3">

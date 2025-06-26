@@ -1,3 +1,4 @@
+
 import { parseNewsletterYAML } from './newsletterUtils';
 import { cleanContentForDisplay, truncateText } from './contentUtils';
 import { markdownToHtmlBlocks, extractKeywordsFromContent } from './markdownUtils';
@@ -31,7 +32,7 @@ export function normalizeTask(task: any): NormalizedTask {
     out.image_prompts = [...contentKeywords, ...themeKeywords.slice(0, 2)];
   }
 
-  // 2. Normalize NEWSLETTER content
+  // 2. Enhanced NEWSLETTER content normalization
   if (out.post_type === 'newsletter') {
     const raw = out.ai_output?.trim() || '';
     
@@ -39,28 +40,51 @@ export function normalizeTask(task: any): NormalizedTask {
     const parsedNewsletter = parseNewsletterYAML(raw);
     
     if (parsedNewsletter) {
-      // Already structured - use as is
-      out.normalized = parsedNewsletter;
+      // Already structured - use as is but enhance image prompts
+      out.normalized = {
+        ...parsedNewsletter,
+        blocks: parsedNewsletter.blocks.map((block, index) => ({
+          ...block,
+          image_prompt: block.image_prompt || out.image_prompts?.[index] || `newsletter ${out.campaigns?.theme || 'garden center'} professional`,
+          alt_text: block.alt_text || `${block.title} - newsletter content image`
+        }))
+      };
     } else {
-      // Legacy markdown newsletter - convert to structured format
+      // Plain text newsletter - create enhanced structured format
       const blocks = markdownToHtmlBlocks(raw);
       const title = blocks.find(b => b.type === 'header')?.text || out.title || 'Newsletter';
       
+      // Create meaningful sections from plain text content
+      const contentSections = raw.split(/\n\n+/).filter(section => section.trim().length > 50);
+      const newsletterBlocks = contentSections.map((section, index) => {
+        const sectionTitle = section.match(/^([^.!?\n]{10,60})/)?.[1]?.trim() || `Section ${index + 1}`;
+        const cleanSection = section.replace(/^[^.!?\n]*[.!?]\s*/, '').trim();
+        
+        return {
+          title: sectionTitle,
+          body: cleanSection || section,
+          cta: index === contentSections.length - 1 ? 'Visit us for expert advice' : '',
+          link: '',
+          image_prompt: `${out.campaigns?.theme || 'garden center'} ${sectionTitle.toLowerCase()} professional newsletter`,
+          alt_text: `${sectionTitle} - newsletter image`
+        };
+      });
+
       out.normalized = {
         newsletter_md: raw,
-        blocks: blocks.map(block => ({
-          title: block.type === 'header' ? block.text : 'Content',
-          body: block.body,
-          cta: '',
+        blocks: newsletterBlocks.length > 0 ? newsletterBlocks : [{
+          title: title,
+          body: raw,
+          cta: 'Visit us for expert advice',
           link: '',
-          image_prompt: out.image_prompts?.[0] || 'newsletter',
-          alt_text: `${block.text || 'Newsletter content'} image`
-        })),
+          image_prompt: `${out.campaigns?.theme || 'garden center'} newsletter professional informative`,
+          alt_text: `${title} - newsletter content image`
+        }],
         extra_content_ideas: [],
         meta: {
           reading_time: '≈3 min',
           theme: out.campaigns?.theme || 'Newsletter',
-          week_focus: 'General'
+          week_focus: 'Seasonal gardening advice'
         }
       };
     }
@@ -74,10 +98,7 @@ export function normalizeTask(task: any): NormalizedTask {
     out.teaser_html = firstParagraph ? truncateText(firstParagraph, 300, '...') : '';
   }
 
-  // 4. Remove aggressive trimming for social media posts - let preview handle full content
-  // The preview component should show the full generated content for better user experience
-  
-  // 5. Clean content for display
+  // 4. Clean content for display
   out.display_content = cleanContentForDisplay(out.ai_output || '', out.post_type);
 
   return out;
