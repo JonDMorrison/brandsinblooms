@@ -181,8 +181,9 @@ export const useSeasonalHolidays = () => {
 
       const results = await generateHolidayContent(user, holiday, tenant);
       
-      // Check results
+      // Check results and provide detailed feedback
       const successCount = results.filter(r => r.success).length;
+      const failedResults = results.filter(r => !r.success);
       const totalExpected = 5; // instagram, facebook, blog, video, newsletter
       
       toast.dismiss(`holiday-gen-${holidayId}`);
@@ -191,10 +192,22 @@ export const useSeasonalHolidays = () => {
         toast.success(`All 5 content pieces generated for ${holiday.holiday_name}!`, {
           description: 'Instagram, Facebook, Blog, Video, and Newsletter are ready for review.'
         });
-      } else {
+      } else if (successCount > 0) {
         toast.warning(`${successCount}/${totalExpected} content pieces generated`, {
-          description: 'Some content generation may have failed. Check the review queue.'
+          description: `Successfully created: ${results.filter(r => r.success).map(r => r.type).join(', ')}`
         });
+        
+        // Log detailed error information for failed content types
+        if (failedResults.length > 0) {
+          console.error('❌ HOLIDAY GENERATION: Failed content types:', failedResults);
+          failedResults.forEach(failed => {
+            console.error(`❌ ${failed.type.toUpperCase()} FAILED:`, failed.error);
+          });
+        }
+      } else {
+        // Complete failure - throw error with details
+        const errorDetails = failedResults.map(r => `${r.type}: ${r.error}`).join('; ');
+        throw new Error(`Content generation failed for all types. Details: ${errorDetails}`);
       }
 
       // Refresh content state
@@ -204,10 +217,27 @@ export const useSeasonalHolidays = () => {
     } catch (error) {
       console.error('Error generating holiday content:', error);
       toast.dismiss(`holiday-gen-${holidayId}`);
+      
+      // Provide more specific error messages
+      let errorMessage = 'An unexpected error occurred';
+      if (error.message) {
+        if (error.message.includes('OpenAI')) {
+          errorMessage = 'AI content generation service is currently unavailable';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = 'Network connection issue - please check your internet';
+        } else if (error.message.includes('authentication') || error.message.includes('auth')) {
+          errorMessage = 'Authentication issue - please refresh and try again';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast.error(`Failed to generate content for ${holiday.holiday_name}`, {
-        description: error.message
+        description: errorMessage
       });
-      throw error;
+      
+      // Re-throw with enhanced error message for component handling
+      throw new Error(errorMessage);
     }
   }, [user, tenant, allHolidays, fetchHolidayContentState]);
 

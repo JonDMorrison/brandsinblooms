@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Eye, Calendar } from "lucide-react";
+import { Sparkles, Eye, Calendar, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { DateCalendarIcon } from "./DateCalendarIcon";
 import { toast } from "sonner";
@@ -26,10 +26,14 @@ export const HolidayItem = ({
   isFirst = false
 }: HolidayItemProps) => {
   const hasContent = contentState && contentState.contentCount > 0;
+  const [lastError, setLastError] = React.useState<string | null>(null);
 
   const handleGenerateClick = async () => {
     try {
       console.log(`🎉 HOLIDAY_ITEM: Starting content generation for holiday: ${holiday.holiday_name}`);
+      
+      // Clear any previous errors
+      setLastError(null);
       
       // Show immediate feedback
       toast.loading(`Starting content generation for ${holiday.holiday_name}...`, {
@@ -43,9 +47,12 @@ export const HolidayItem = ({
       
     } catch (error) {
       console.error('🎉 HOLIDAY_ITEM: Error generating content:', error);
+      const errorMessage = error.message || 'Unknown error occurred';
+      setLastError(errorMessage);
+      
       toast.dismiss(`holiday-loading-${holiday.id}`);
       toast.error(`Failed to generate content for ${holiday.holiday_name}`, {
-        description: 'Please try again or contact support if the issue persists.'
+        description: errorMessage
       });
     }
   };
@@ -99,22 +106,46 @@ export const HolidayItem = ({
           </p>
         )}
         
+        {/* Show error message if generation failed */}
+        {lastError && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-red-800">Generation Failed</p>
+              <p className="text-xs text-red-600 mt-1">{lastError}</p>
+            </div>
+          </div>
+        )}
+        
         {!hasContent ? (
-          <Button
-            onClick={handleGenerateClick}
-            disabled={isGenerating}
-            size="sm"
-            className="flex items-center gap-2"
-          >
-            <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
-            {isGenerating ? 'Generating...' : 'Generate Content'}
-          </Button>
+          <div className="space-y-2">
+            <Button
+              onClick={handleGenerateClick}
+              disabled={isGenerating}
+              size="sm"
+              className="flex items-center gap-2 w-full"
+            >
+              <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
+              {isGenerating ? 'Generating...' : 'Generate Content'}
+            </Button>
+            {lastError && (
+              <Button
+                onClick={handleGenerateClick}
+                disabled={isGenerating}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2 w-full text-xs"
+              >
+                Try Again
+              </Button>
+            )}
+          </div>
         ) : (
           <Button
             onClick={handleViewClick}
             variant="default"
             size="sm"
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 w-full"
           >
             <Eye className="w-4 h-4" />
             View Content

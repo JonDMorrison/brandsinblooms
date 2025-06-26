@@ -54,32 +54,34 @@ export async function generateHolidayContent(
           
           if (type === 'video') {
             console.log(`🎬 VIDEO DEBUG: About to generate video script for holiday: ${holiday.holiday_name}`);
-            
-            // Build holiday-specific context for video
-            const holidayContext = buildHolidayContentPrompt('video', holiday, companyProfile);
-            
-            console.log(`🎬 VIDEO DEBUG: Holiday context built`);
-            
-            // Generate video content using existing service with enhanced holiday context
-            output = await generatePersonalizedContentWithHolidayPrompt(
-              type,
-              holiday.holiday_name,
-              user.id,
-              holidayContext,
-              companyProfile
-            );
-            
-            console.log(`🎬 VIDEO DEBUG: Generated output length: ${output?.length || 0}`);
-          } else {
-            // Generate content using holiday-specific prompts
-            output = await generatePersonalizedContentWithHolidayPrompt(
-              type,
-              holiday.holiday_name,
-              user.id,
-              buildHolidayContentPrompt(type, holiday, companyProfile),
-              companyProfile
-            );
           }
+          
+          // Generate content using holiday-specific prompts via edge function
+          const holidayPrompt = buildHolidayContentPrompt(type, holiday, companyProfile);
+          
+          const { data, error } = await supabase.functions.invoke('generate-content', {
+            body: {
+              postType: type,
+              campaignTitle: holiday.holiday_name,
+              userId: user.id,
+              campaignDescription: '', // Not used since we're providing a complete prompt
+              customPrompt: holidayPrompt, // Pass the holiday-specific prompt
+              enforceCompanyName: true
+            }
+          });
+
+          if (error) {
+            console.error(`🔧 HOLIDAY_CONTENT ERROR: Supabase function error:`, error);
+            throw new Error(`Holiday content generation failed: ${error.message}`);
+          }
+
+          if (!data?.content) {
+            console.error(`🔧 HOLIDAY_CONTENT ERROR: No content returned`);
+            throw new Error('No holiday content generated');
+          }
+
+          output = data.content;
+          console.log(`🔧 HOLIDAY_CONTENT DEBUG: Generated successfully, length: ${output.length}`);
 
           // Validate holiday content quality (especially for Instagram)
           if (type === 'instagram' && output) {
@@ -203,46 +205,6 @@ export async function generateHolidayContent(
   console.log(`📊 SUMMARY: ${successCount} successful, ${failureCount} failed generations`);
   
   return results;
-}
-
-// New function for holiday-specific content generation
-async function generatePersonalizedContentWithHolidayPrompt(
-  postType: string,
-  campaignTitle: string,
-  userId: string,
-  holidayPrompt: string,
-  companyProfile: any
-): Promise<string> {
-  console.log(`🔧 HOLIDAY_CONTENT DEBUG: Generating ${postType} with holiday-specific prompt`);
-  
-  try {
-    const { data, error } = await supabase.functions.invoke('generate-content', {
-      body: {
-        postType,
-        campaignTitle,
-        userId,
-        campaignDescription: '', // Not used since we're providing a complete prompt
-        customPrompt: holidayPrompt, // Pass the holiday-specific prompt
-        enforceCompanyName: true
-      }
-    });
-
-    if (error) {
-      console.error(`🔧 HOLIDAY_CONTENT ERROR: Supabase function error:`, error);
-      throw new Error(`Holiday content generation failed: ${error.message}`);
-    }
-
-    if (!data?.content) {
-      console.error(`🔧 HOLIDAY_CONTENT ERROR: No content returned`);
-      throw new Error('No holiday content generated');
-    }
-
-    console.log(`🔧 HOLIDAY_CONTENT DEBUG: Generated successfully, length: ${data.content.length}`);
-    return data.content;
-  } catch (error) {
-    console.error(`🔧 HOLIDAY_CONTENT ERROR: Exception:`, error);
-    throw error;
-  }
 }
 
 // Export individual content generation for backwards compatibility
