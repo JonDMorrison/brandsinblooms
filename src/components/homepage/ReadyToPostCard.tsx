@@ -185,7 +185,9 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
       {/* Content Viewer Dialog */}
       {selectedTask && (
         <ContentViewerDialog
-          task={selectedTask}
+          campaignTitle={selectedTask.campaigns?.title || 'Content'}
+          loading={false}
+          tasks={[selectedTask]}
           isOpen={showContentViewer}
           onClose={handleContentViewerClose}
           onTaskUpdate={handleContentViewerClose}
