@@ -2,12 +2,17 @@
 import React, { useEffect, useState } from 'react';
 import { parseNewsletterYAML, StructuredNewsletter } from '@/utils/newsletterUtils';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Image as ImageIcon } from 'lucide-react';
+import { Clock, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MagazineNewsletterDisplayProps {
   content: string;
   className?: string;
+  contentTaskId?: string;
+  campaignTitle?: string;
 }
 
 interface ImageData {
@@ -16,47 +21,57 @@ interface ImageData {
   photographer?: string;
 }
 
-export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsletterDisplayProps) => {
+export const MagazineNewsletterDisplay = ({ 
+  content, 
+  className,
+  contentTaskId,
+  campaignTitle 
+}: MagazineNewsletterDisplayProps) => {
+  const { user } = useAuth();
   const [images, setImages] = useState<Record<number, ImageData>>({});
   const [loadingImages, setLoadingImages] = useState(false);
   const [imageErrors, setImageErrors] = useState<Record<number, string>>({});
+  const [regenerating, setRegenerating] = useState(false);
 
   console.log('🖼️ MagazineNewsletterDisplay received content:', {
     hasContent: !!content,
     contentLength: content?.length || 0,
-    contentPreview: content?.substring(0, 200)
+    contentPreview: content?.substring(0, 200),
+    contentTaskId,
+    campaignTitle
   });
+
+  // Check if content is placeholder or insufficient
+  const isPlaceholderContent = !content || 
+    content.trim().length < 100 ||
+    content.includes('Newsletter Update') ||
+    content.includes('Welcome to our latest newsletter update') ||
+    content === 'Newsletter Update. Welcome to our latest newsletter update.';
 
   // Try to parse as structured YAML first
   const newsletter = parseNewsletterYAML(content);
   
   // Create a robust newsletter structure for both YAML and plain text
   const processedNewsletter = newsletter || {
-    newsletter_md: content,
-    blocks: createBlocksFromPlainText(content),
+    newsletter_md: content || '',
+    blocks: createBlocksFromPlainText(content || ''),
     extra_content_ideas: [],
     meta: {
-      reading_time: calculateReadingTime(content),
-      theme: 'Newsletter',
+      reading_time: calculateReadingTime(content || ''),
+      theme: campaignTitle || 'Newsletter',
       week_focus: 'Content Update'
     }
   };
 
-  console.log('📄 Processed newsletter structure:', {
-    isStructured: !!newsletter,
-    blockCount: processedNewsletter.blocks.length,
-    hasValidBlocks: processedNewsletter.blocks.some(b => b.body && b.body.trim().length > 0)
-  });
-
   // Enhanced function to create meaningful blocks from plain text
   function createBlocksFromPlainText(rawContent: string) {
-    if (!rawContent || rawContent.trim().length === 0) {
+    if (!rawContent || rawContent.trim().length === 0 || isPlaceholderContent) {
       return [{
-        title: 'Newsletter Content',
-        body: 'Newsletter content is being prepared...',
-        cta: '',
+        title: 'Newsletter Content Loading',
+        body: 'Your newsletter content is being generated with expert gardening advice...',
+        cta: 'Visit us for expert advice',
         link: '',
-        image_prompt: 'newsletter professional clean informative',
+        image_prompt: 'newsletter professional garden center informative',
         alt_text: 'Newsletter content image'
       }];
     }
@@ -67,7 +82,7 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
     let currentSection = '';
     
     for (const line of lines) {
-      // Check if this looks like a header (all caps, short, or has specific patterns)
+      // Check if this looks like a header
       const isHeader = line.length < 60 && (
         line === line.toUpperCase() ||
         line.includes('WEEK') ||
@@ -77,7 +92,6 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
       );
       
       if (isHeader && currentSection.length > 100) {
-        // Start a new section
         sections.push(currentSection.trim());
         currentSection = line + '\n';
       } else {
@@ -85,12 +99,10 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
       }
     }
     
-    // Add the last section
     if (currentSection.trim().length > 0) {
       sections.push(currentSection.trim());
     }
     
-    // If we couldn't parse into sections, treat as one block
     if (sections.length === 0) {
       sections.push(rawContent);
     }
@@ -105,7 +117,7 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
         body: body || section,
         cta: index === sections.length - 1 ? 'Visit us for more information' : '',
         link: '',
-        image_prompt: `newsletter professional ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
+        image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
         alt_text: `${title} - newsletter section image`
       };
     });
@@ -115,22 +127,77 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
   function calculateReadingTime(text: string): string {
     if (!text) return '≈1 min';
     const wordCount = text.replace(/<[^>]*>/g, '').split(/\s+/).length;
-    const minutes = Math.ceil(wordCount / 200); // Average reading speed
+    const minutes = Math.ceil(wordCount / 200);
     return `≈${minutes} min`;
   }
 
-  // Fetch images for newsletter blocks
-  useEffect(() => {
-    const fetchImages = async () => {
-      if (!processedNewsletter.blocks.length) {
-        console.log('[NEWSLETTER] No blocks found, skipping image fetch');
+  // Regenerate newsletter content
+  const regenerateNewsletter = async () => {
+    if (!user || !contentTaskId) {
+      toast.error('Unable to regenerate newsletter - missing required information');
+      return;
+    }
+
+    setRegenerating(true);
+    try {
+      console.log('🔄 Regenerating newsletter content...');
+      
+      const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {
+        body: {
+          business_name: '',
+          theme: campaignTitle || 'Seasonal Gardening',
+          week_focus: `Expert gardening advice for ${campaignTitle || 'seasonal care'}`,
+          promo_items: [],
+          tone_note: '',
+          userId: user.id,
+          is_holiday: false
+        }
+      });
+
+      if (error) {
+        console.error('❌ Newsletter regeneration error:', error);
+        toast.error('Failed to regenerate newsletter content');
         return;
       }
-      
-      setLoadingImages(true);
-      setImageErrors({});
-      console.log('[NEWSLETTER] Starting image fetch for', processedNewsletter.blocks.length, 'blocks');
-      
+
+      if (data?.content) {
+        // Update the task with new content
+        const { error: updateError } = await supabase
+          .from('content_tasks')
+          .update({
+            ai_output: data.content,
+            status: 'review'
+          })
+          .eq('id', contentTaskId);
+
+        if (updateError) {
+          console.error('❌ Error updating newsletter:', updateError);
+          toast.error('Failed to save regenerated newsletter');
+        } else {
+          toast.success('Newsletter regenerated successfully! Refreshing page...');
+          setTimeout(() => window.location.reload(), 1500);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Newsletter regeneration failed:', error);
+      toast.error('Failed to regenerate newsletter');
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  // Fetch images for newsletter blocks
+  useEffect(() => {
+    if (!processedNewsletter.blocks.length || isPlaceholderContent) {
+      console.log('[NEWSLETTER] Skipping image fetch - no valid blocks or placeholder content');
+      return;
+    }
+    
+    setLoadingImages(true);
+    setImageErrors({});
+    console.log('[NEWSLETTER] Starting image fetch for', processedNewsletter.blocks.length, 'blocks');
+    
+    const fetchImages = async () => {
       const imagePromises = processedNewsletter.blocks.map(async (block, index) => {
         if (!block.image_prompt) {
           console.log('[NEWSLETTER] Block', index, 'has no image prompt, skipping');
@@ -195,11 +262,41 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
     };
 
     fetchImages();
-  }, [content]);
+  }, [content, isPlaceholderContent]);
+
+  // If content is placeholder, show regeneration option
+  if (isPlaceholderContent) {
+    return (
+      <div className={`max-w-4xl mx-auto ${className || ''}`}>
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">
+            Newsletter Content Not Available
+          </h2>
+          <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            The newsletter content appears to be incomplete or placeholder text. 
+            Let's generate proper structured newsletter content with expert gardening advice.
+          </p>
+          <Button 
+            onClick={regenerateNewsletter}
+            disabled={regenerating || !contentTaskId}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
+            {regenerating ? 'Generating Newsletter...' : 'Generate Full Newsletter'}
+          </Button>
+          {!contentTaskId && (
+            <p className="text-sm text-gray-500 mt-2">
+              Content ID required for regeneration
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // Extract main headline from newsletter_md
   const headlineMatch = processedNewsletter.newsletter_md.match(/^# (.+)$/m);
-  const headline = headlineMatch?.[1] || extractTitleFromContent(processedNewsletter.newsletter_md) || 'Newsletter Update';
+  const headline = headlineMatch?.[1] || extractTitleFromContent(processedNewsletter.newsletter_md) || campaignTitle || 'Newsletter Update';
   
   // Extract intro from newsletter_md
   const introMatch = processedNewsletter.newsletter_md.match(/\*(.+?)\*/);
@@ -209,12 +306,11 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
     const lines = content.split('\n').filter(line => line.trim().length > 0);
     if (lines.length > 0) {
       const firstLine = lines[0].trim();
-      // If first line looks like a title (short and not a sentence)
       if (firstLine.length < 100 && !firstLine.endsWith('.') && !firstLine.includes('\n')) {
         return firstLine;
       }
     }
-    return 'Newsletter Update';
+    return campaignTitle || 'Newsletter Update';
   }
 
   function generateIntroFromContent(content: string): string {
@@ -225,7 +321,7 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
       line.length > 30 &&
       line.length < 200
     );
-    return firstMeaningfulLine || 'Welcome to our latest newsletter update';
+    return firstMeaningfulLine || `Discover expert gardening insights for ${campaignTitle || 'seasonal care'}`;
   }
 
   return (
@@ -245,6 +341,18 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
           <Badge variant="outline">
             Newsletter
           </Badge>
+          {contentTaskId && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={regenerateNewsletter}
+              disabled={regenerating}
+              className="ml-auto gap-1"
+            >
+              <RefreshCw className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} />
+              Regenerate
+            </Button>
+          )}
         </div>
         
         <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">
@@ -257,22 +365,6 @@ export const MagazineNewsletterDisplay = ({ content, className }: MagazineNewsle
           </p>
         )}
       </div>
-
-      {/* Debug Info in Development */}
-      {import.meta.env.DEV && (
-        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <h3 className="font-semibold text-blue-900 mb-2">Debug Info</h3>
-          <div className="text-sm text-blue-800 space-y-1">
-            <div>Newsletter type: {newsletter ? 'Structured YAML' : 'Plain text'}</div>
-            <div>Blocks: {processedNewsletter.blocks.length}</div>
-            <div>Images loaded: {Object.keys(images).length}</div>
-            <div>Loading: {loadingImages ? 'Yes' : 'No'}</div>
-            {Object.keys(imageErrors).length > 0 && (
-              <div>Errors: {JSON.stringify(imageErrors)}</div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Content Blocks */}
       <div className="space-y-12">
