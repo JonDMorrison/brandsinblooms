@@ -1,3 +1,4 @@
+
 import { CalendarCampaignList } from "./CalendarCampaignList";
 import { EnhancedCalendarTaskItem } from "./EnhancedCalendarTaskItem";
 
@@ -70,6 +71,8 @@ export const CalendarDayContent = ({
             isPastDate={isPastDate}
             onTaskClick={onTaskClick || (() => {})}
             onLongPress={onTaskLongPress || (() => {})}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
           />
         ))}
       </div>

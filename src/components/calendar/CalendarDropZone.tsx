@@ -35,15 +35,22 @@ export const CalendarDropZone = ({
     e.preventDefault();
     e.stopPropagation();
     
-    if (isDragging && draggedTask) {
-      const draggedTaskDate = format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd');
+    if (isDragging || e.dataTransfer.types.includes('text/plain')) {
       const targetDate = format(date, 'yyyy-MM-dd');
       
-      if (draggedTaskDate !== targetDate) {
+      // Check if we have draggedTask or try to get it from dataTransfer
+      if (draggedTask) {
+        const draggedTaskDate = format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd');
+        if (draggedTaskDate !== targetDate) {
+          e.dataTransfer.dropEffect = 'move';
+          setIsHoveredDrop(true);
+        } else {
+          e.dataTransfer.dropEffect = 'none';
+        }
+      } else {
+        // Allow drop anyway - we'll validate in handleDrop
         e.dataTransfer.dropEffect = 'move';
         setIsHoveredDrop(true);
-      } else {
-        e.dataTransfer.dropEffect = 'none';
       }
     }
   };
@@ -52,13 +59,8 @@ export const CalendarDropZone = ({
     e.preventDefault();
     e.stopPropagation();
     
-    if (isDragging && draggedTask) {
-      const draggedTaskDate = format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd');
-      const targetDate = format(date, 'yyyy-MM-dd');
-      
-      if (draggedTaskDate !== targetDate) {
-        setIsHoveredDrop(true);
-      }
+    if (isDragging || e.dataTransfer.types.includes('text/plain')) {
+      setIsHoveredDrop(true);
     }
   };
 
@@ -80,22 +82,14 @@ export const CalendarDropZone = ({
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('CalendarDropZone: Drop event triggered', { 
-      isDragging, 
-      draggedTask: draggedTask?.id,
-      targetDate: format(date, 'yyyy-MM-dd')
-    });
+    console.log('CalendarDropZone: Drop event triggered on date:', format(date, 'yyyy-MM-dd'));
     
     setIsHoveredDrop(false);
     
-    if (onDrop && isDragging && draggedTask) {
-      const draggedTaskDate = format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd');
-      const targetDate = format(date, 'yyyy-MM-dd');
-      
-      if (draggedTaskDate !== targetDate) {
-        console.log('CalendarDropZone: Executing drop for task:', draggedTask.id, 'to date:', targetDate);
-        onDrop(date);
-      }
+    if (onDrop) {
+      const taskId = e.dataTransfer.getData('text/plain');
+      console.log('CalendarDropZone: Executing drop for task ID:', taskId, 'to date:', format(date, 'yyyy-MM-dd'));
+      onDrop(date);
     }
   };
 
@@ -106,10 +100,9 @@ export const CalendarDropZone = ({
     <div
       className={cn(
         "relative h-full",
-        isDragging && canDrop && "transition-all duration-300",
-        isDragging && canDrop && isHoveredDrop && "bg-green-100/50 border-2 border-dashed border-green-400 rounded-lg",
-        isDragging && canDrop && !isHoveredDrop && "bg-blue-50/30 border border-dashed border-blue-300 rounded-lg",
-        isDragging && !canDrop && "opacity-60"
+        (isDragging || isHoveredDrop) && "transition-all duration-300",
+        isHoveredDrop && "bg-green-100/50 border-2 border-dashed border-green-400 rounded-lg",
+        isDragging && !isHoveredDrop && "bg-blue-50/30 border border-dashed border-blue-300 rounded-lg opacity-90"
       )}
       onDragOver={handleDragOver}
       onDragEnter={handleDragEnter}
@@ -117,7 +110,7 @@ export const CalendarDropZone = ({
       onDrop={handleDrop}
     >
       {/* Drop indicator overlay */}
-      {isDragging && canDrop && isHoveredDrop && (
+      {isHoveredDrop && (
         <div className="absolute inset-2 flex items-center justify-center bg-green-100/90 border-2 border-green-400 border-dashed rounded-lg z-20 pointer-events-none">
           <div className="bg-white/95 text-green-700 font-semibold text-sm px-4 py-2 rounded-lg shadow-md border border-green-200">
             📅 Drop here to reschedule

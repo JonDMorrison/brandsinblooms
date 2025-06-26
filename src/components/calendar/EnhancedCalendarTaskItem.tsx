@@ -22,6 +22,8 @@ interface EnhancedCalendarTaskItemProps {
   isPastDate: boolean;
   onTaskClick: (task: Task) => void;
   onLongPress: (task: Task) => void;
+  onDragStart?: (task: Task) => void;
+  onDragEnd?: () => void;
 }
 
 export const EnhancedCalendarTaskItem = ({
@@ -29,7 +31,9 @@ export const EnhancedCalendarTaskItem = ({
   isSelected,
   isPastDate,
   onTaskClick,
-  onLongPress
+  onLongPress,
+  onDragStart,
+  onDragEnd
 }: EnhancedCalendarTaskItemProps) => {
   const [isDragReady, setIsDragReady] = useState(false);
 
@@ -59,17 +63,60 @@ export const EnhancedCalendarTaskItem = ({
     }
   };
 
-  const longPressProps = useLongPress({
-    onLongPress: () => {
-      setIsDragReady(true);
-      onLongPress(task);
-    },
-    onClick: () => {
-      if (!isDragReady) {
-        onTaskClick(task);
-      }
+  const handleLongPressStart = () => {
+    console.log('Long press detected, enabling drag for task:', task.id);
+    setIsDragReady(true);
+    onLongPress(task);
+    if (onDragStart) {
+      onDragStart(task);
     }
+  };
+
+  const handleClick = () => {
+    if (!isDragReady) {
+      console.log('Quick click detected, opening modal for task:', task.id);
+      onTaskClick(task);
+    }
+  };
+
+  const longPressProps = useLongPress({
+    onLongPress: handleLongPressStart,
+    onClick: handleClick,
+    longPressThreshold: 300
   });
+
+  const handleDragStart = (e: React.DragEvent) => {
+    console.log('Drag start event triggered for task:', task.id);
+    e.dataTransfer.setData('text/plain', task.id);
+    e.dataTransfer.effectAllowed = 'move';
+    
+    // Create custom drag image
+    const dragElement = e.currentTarget.cloneNode(true) as HTMLElement;
+    dragElement.style.transform = 'rotate(2deg) scale(1.05)';
+    dragElement.style.opacity = '0.9';
+    dragElement.style.position = 'absolute';
+    dragElement.style.top = '-1000px';
+    dragElement.style.left = '-1000px';
+    dragElement.style.pointerEvents = 'none';
+    dragElement.style.zIndex = '9999';
+    
+    document.body.appendChild(dragElement);
+    e.dataTransfer.setDragImage(dragElement, 50, 25);
+    
+    setTimeout(() => {
+      if (document.body.contains(dragElement)) {
+        document.body.removeChild(dragElement);
+      }
+    }, 100);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    console.log('Drag end event triggered for task:', task.id);
+    setIsDragReady(false);
+    if (onDragEnd) {
+      onDragEnd();
+    }
+  };
 
   const statusBadge = getStatusBadge(task.status);
 
@@ -77,16 +124,17 @@ export const EnhancedCalendarTaskItem = ({
     <div
       {...longPressProps}
       draggable={isDragReady}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
       className={cn(
         "relative text-xs p-3 rounded-lg transition-all duration-200 group/task cursor-pointer select-none",
         "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200",
         !isDragReady && "hover:from-green-100 hover:to-emerald-100 hover:shadow-md hover:-translate-y-0.5",
-        isDragReady && "cursor-move bg-blue-50 border-blue-300 shadow-lg scale-105",
+        isDragReady && "cursor-move bg-blue-50 border-blue-300 shadow-lg scale-105 z-50",
         isSelected && "ring-2 ring-blue-500 bg-blue-50 border-blue-300",
         isPastDate && "opacity-75",
         longPressProps.isPressed && "scale-95 bg-blue-100"
       )}
-      onDragEnd={() => setIsDragReady(false)}
     >
       {/* Long press visual feedback */}
       {longPressProps.isPressed && (
