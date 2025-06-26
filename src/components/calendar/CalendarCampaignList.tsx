@@ -46,31 +46,31 @@ export const CalendarCampaignList = ({
           <div
             key={campaign.id}
             className={cn(
-              "relative p-2 rounded-md cursor-pointer transition-all duration-200 border text-xs",
+              "relative p-3 rounded-lg cursor-pointer transition-all duration-300 border text-xs shadow-sm",
               selectionMode && isSelected 
-                ? "bg-blue-50 border-blue-300" 
-                : "bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50/50",
-              !selectionMode && "hover:border-blue-300 hover:shadow-sm"
+                ? "bg-gradient-to-r from-blue-50 to-blue-100 border-blue-300 shadow-md" 
+                : "bg-gradient-to-r from-white to-blue-50/30 border-blue-200/50 hover:border-blue-300 hover:from-blue-50/50 hover:to-blue-100/40 hover:shadow-md",
+              !selectionMode && "hover:border-blue-300 hover:shadow-lg hover:-translate-y-0.5"
             )}
             onClick={(e) => handleCampaignClick(campaign, e)}
           >
             {selectionMode && isSelected && (
-              <div className="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center">
-                <Check className="w-2.5 h-2.5" />
+              <div className="absolute -top-1 -right-1 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                <Check className="w-3 h-3" />
               </div>
             )}
             
             <div className="flex items-center justify-between">
-              <h4 className="font-medium text-gray-800 truncate pr-2">
+              <h4 className="font-semibold text-gray-800 truncate pr-2">
                 {campaign.title}
               </h4>
-              <Badge className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 shrink-0">
+              <Badge className="text-xs bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 px-2 py-1 shrink-0 shadow-sm border-blue-200/50">
                 W{campaign.week_number}
               </Badge>
             </div>
             
             {campaign.theme && campaign.theme !== campaign.title && (
-              <p className="text-xs text-gray-600 truncate mt-1">
+              <p className="text-xs text-gray-600 truncate mt-1.5 leading-relaxed">
                 {campaign.theme}
               </p>
             )}

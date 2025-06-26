@@ -67,55 +67,57 @@ export const CalendarGrid = ({
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
 
   return (
-    <div className={`grid ${gridCols} gap-px bg-gray-200 ${dayHeight}`}>
-      {/* Day headers */}
-      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-        <div key={day} className="bg-gray-100 p-2 text-sm font-medium text-gray-700 h-10 flex items-center justify-center">
-          {day}
-        </div>
-      ))}
-      
-      {/* Calendar days */}
-      {days.map((date) => {
-        const dayCampaigns = uniqueCampaigns.filter(campaign => {
-          const campaignDate = new Date(campaign.publish_date || campaign.start_date);
-          return campaignDate.toDateString() === date.toDateString();
-        });
+    <div className="bg-gradient-to-br from-green-50/30 to-blue-50/20 rounded-xl shadow-sm border border-green-100/50 overflow-hidden">
+      <div className={`grid ${gridCols} ${dayHeight}`}>
+        {/* Enhanced Day headers */}
+        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
+          <div key={day} className="bg-gradient-to-b from-green-100/80 to-green-50/60 p-3 text-sm font-semibold text-green-800 h-12 flex items-center justify-center border-b border-green-200/50">
+            <span className="tracking-wide">{day}</span>
+          </div>
+        ))}
+        
+        {/* Calendar days with enhanced styling */}
+        {days.map((date) => {
+          const dayCampaigns = uniqueCampaigns.filter(campaign => {
+            const campaignDate = new Date(campaign.publish_date || campaign.start_date);
+            return campaignDate.toDateString() === date.toDateString();
+          });
 
-        const dayTasks = uniqueTasks.filter(task => {
-          const taskDate = new Date(task.scheduled_date);
-          return taskDate.toDateString() === date.toDateString();
-        });
+          const dayTasks = uniqueTasks.filter(task => {
+            const taskDate = new Date(task.scheduled_date);
+            return taskDate.toDateString() === date.toDateString();
+          });
 
-        const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
-        const isToday = date.toDateString() === new Date().toDateString();
+          const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
+          const isToday = date.toDateString() === new Date().toDateString();
 
-        return (
-          <CalendarDayCell
-            key={date.toISOString()}
-            date={date}
-            campaigns={dayCampaigns}
-            tasks={dayTasks}
-            onTaskClick={(task, ctrlKey) => {
-              console.log('CalendarGrid: Task click event triggered for task:', task.id);
-              onTaskClick(task);
-            }}
-            onCampaignClick={(campaign) => {
-              console.log('CalendarGrid: Campaign click event triggered for campaign:', campaign.id);
-              onCampaignClick(campaign);
-            }}
-            isCurrentMonth={isCurrentMonth}
-            isToday={isToday}
-            selectionMode={true}
-            onDrop={onDrop}
-            isTaskSelected={isTaskSelected}
-            isDragging={isDragging}
-            draggedTask={draggedTask}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-          />
-        );
-      })}
+          return (
+            <CalendarDayCell
+              key={date.toISOString()}
+              date={date}
+              campaigns={dayCampaigns}
+              tasks={dayTasks}
+              onTaskClick={(task, ctrlKey) => {
+                console.log('CalendarGrid: Task click event triggered for task:', task.id);
+                onTaskClick(task);
+              }}
+              onCampaignClick={(campaign) => {
+                console.log('CalendarGrid: Campaign click event triggered for campaign:', campaign.id);
+                onCampaignClick(campaign);
+              }}
+              isCurrentMonth={isCurrentMonth}
+              isToday={isToday}
+              selectionMode={false}
+              onDrop={onDrop}
+              isTaskSelected={isTaskSelected}
+              isDragging={isDragging}
+              draggedTask={draggedTask}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 };

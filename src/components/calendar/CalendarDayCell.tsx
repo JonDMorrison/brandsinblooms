@@ -1,4 +1,3 @@
-
 import { cn } from "@/lib/utils";
 import { CalendarDayHeader } from "./CalendarDayHeader";
 import { CalendarDayContent } from "./CalendarDayContent";
@@ -77,14 +76,28 @@ export const CalendarDayCell = ({
     >
       <div
         className={cn(
-          "min-h-[120px] p-3 border transition-all duration-200",
-          !isCurrentMonth && "text-gray-400 bg-gray-50/50",
-          isCurrentMonth && "bg-white hover:bg-gray-50/30 border-gray-200",
-          isToday && "bg-blue-50/50 border-blue-200",
-          isWeekend && isCurrentMonth && "bg-gray-50/20",
-          isPastDate && "bg-yellow-50/20"
+          "min-h-[140px] p-3 transition-all duration-300 relative group",
+          // Base styling with warmer colors
+          "border-r border-b border-green-100/40",
+          // Current month styling
+          isCurrentMonth && "bg-gradient-to-br from-white via-green-50/20 to-blue-50/10 hover:from-green-50/30 hover:to-blue-50/20",
+          // Other month styling
+          !isCurrentMonth && "bg-gradient-to-br from-gray-50/50 to-gray-100/30 text-gray-500",
+          // Today styling
+          isToday && "bg-gradient-to-br from-blue-50/60 to-green-50/40 ring-2 ring-blue-200/50 shadow-sm",
+          // Weekend styling
+          isWeekend && isCurrentMonth && "bg-gradient-to-br from-green-50/40 to-emerald-50/20",
+          // Past date styling
+          isPastDate && isCurrentMonth && "bg-gradient-to-br from-orange-50/20 to-yellow-50/10",
+          // Subtle hover shadow
+          isCurrentMonth && "hover:shadow-md hover:shadow-green-100/50"
         )}
       >
+        {/* Subtle corner accent for today */}
+        {isToday && (
+          <div className="absolute top-0 right-0 w-0 h-0 border-l-[20px] border-l-transparent border-t-[20px] border-t-blue-400/30 rounded-tr-lg" />
+        )}
+
         <CalendarDayHeader
           date={date}
           isCurrentMonth={isCurrentMonth}
@@ -104,6 +117,9 @@ export const CalendarDayCell = ({
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
         />
+
+        {/* Subtle gradient overlay for depth */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/0 via-transparent to-white/5 pointer-events-none rounded-sm" />
       </div>
     </CalendarDropZone>
   );
