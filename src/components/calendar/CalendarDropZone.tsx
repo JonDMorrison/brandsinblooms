@@ -33,6 +33,8 @@ export const CalendarDropZone = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     if (isDragging && draggedTask) {
       const draggedTaskDate = format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd');
       const targetDate = format(date, 'yyyy-MM-dd');
@@ -46,13 +48,44 @@ export const CalendarDropZone = ({
     }
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isDragging && draggedTask) {
+      const draggedTaskDate = format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd');
+      const targetDate = format(date, 'yyyy-MM-dd');
+      
+      if (draggedTaskDate !== targetDate) {
+        setIsHoveredDrop(true);
+      }
+    }
+  };
+
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsHoveredDrop(false);
+    e.stopPropagation();
+    
+    // Check if we're actually leaving the drop zone
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setIsHoveredDrop(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('CalendarDropZone: Drop event triggered', { 
+      isDragging, 
+      draggedTask: draggedTask?.id,
+      targetDate: format(date, 'yyyy-MM-dd')
+    });
+    
     setIsHoveredDrop(false);
     
     if (onDrop && isDragging && draggedTask) {
@@ -60,6 +93,7 @@ export const CalendarDropZone = ({
       const targetDate = format(date, 'yyyy-MM-dd');
       
       if (draggedTaskDate !== targetDate) {
+        console.log('CalendarDropZone: Executing drop for task:', draggedTask.id, 'to date:', targetDate);
         onDrop(date);
       }
     }
@@ -72,19 +106,19 @@ export const CalendarDropZone = ({
     <div
       className={cn(
         "relative h-full",
-        // Enhanced drag and drop styling with better visibility
-        isDragging && canDrop && "border-2 border-dashed transition-all duration-300",
-        isDragging && canDrop && isHoveredDrop && "border-green-400 bg-green-100/50 shadow-lg backdrop-blur-sm",
-        isDragging && canDrop && !isHoveredDrop && "border-blue-300 bg-blue-50/30",
+        isDragging && canDrop && "transition-all duration-300",
+        isDragging && canDrop && isHoveredDrop && "bg-green-100/50 border-2 border-dashed border-green-400 rounded-lg",
+        isDragging && canDrop && !isHoveredDrop && "bg-blue-50/30 border border-dashed border-blue-300 rounded-lg",
         isDragging && !canDrop && "opacity-60"
       )}
       onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Drop indicator overlay - positioned to not block content */}
+      {/* Drop indicator overlay */}
       {isDragging && canDrop && isHoveredDrop && (
-        <div className="absolute inset-2 flex items-center justify-center bg-green-100/80 border-2 border-green-400 border-dashed rounded-lg z-20 backdrop-blur-sm pointer-events-none">
+        <div className="absolute inset-2 flex items-center justify-center bg-green-100/90 border-2 border-green-400 border-dashed rounded-lg z-20 pointer-events-none">
           <div className="bg-white/95 text-green-700 font-semibold text-sm px-4 py-2 rounded-lg shadow-md border border-green-200">
             📅 Drop here to reschedule
           </div>
