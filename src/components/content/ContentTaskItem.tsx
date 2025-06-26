@@ -5,7 +5,6 @@ import { TaskHeader } from "./task-item/TaskHeader";
 import { TaskActions } from "./task-item/TaskActions";
 import { TaskContent } from "./task-item/TaskContent";
 import { TaskMetadata } from "./task-item/TaskMetadata";
-import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { supabase } from "@/integrations/supabase/client";
 
 interface ContentTaskItemProps {
@@ -95,17 +94,6 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
             onRetryGeneration={handleRetryGeneration}
             retryingGeneration={retryingGeneration}
           />
-
-          {/* Image Suggestions */}
-          {task.ai_output && (
-            <div className="mt-4 pt-4 border-t border-slate-100">
-              <CompactImageCarousel 
-                task={task}
-                campaignTheme={getCampaignTheme()}
-                onShowAll={handleShowAllImages}
-              />
-            </div>
-          )}
         </div>
 
         {/* Footer */}
