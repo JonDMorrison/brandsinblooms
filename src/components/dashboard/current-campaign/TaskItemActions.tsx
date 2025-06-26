@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { ApproveButton } from "@/components/ui/approve-button";
+import { PostToSocialButton } from "@/components/social/PostToSocialButton";
 
 interface TaskItemActionsProps {
   task: any;
@@ -141,6 +142,16 @@ export const TaskItemActions = ({
             onApprove={handleApprove}
             disabled={approvingTask}
             className="text-sm"
+          />
+        )}
+
+        {isApproved && (
+          <PostToSocialButton
+            task={task}
+            onSuccess={onTaskUpdate}
+            variant="ghost"
+            size="sm"
+            className="text-xs"
           />
         )}
 

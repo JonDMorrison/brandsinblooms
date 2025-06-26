@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Edit, MoreHorizontal, Copy, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ApproveButton } from "@/components/ui/approve-button";
+import { PostToSocialButton } from "@/components/social/PostToSocialButton";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -85,6 +86,16 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
           taskId={task.id}
           isApproved={isApproved}
           onApprove={handleApprove}
+          size="sm"
+          className="h-8 px-2 text-xs"
+        />
+      )}
+
+      {isApproved && (
+        <PostToSocialButton
+          task={task}
+          onSuccess={onTaskUpdate}
+          variant="ghost"
           size="sm"
           className="h-8 px-2 text-xs"
         />
