@@ -10,9 +10,10 @@ interface SocialMediaPostPreviewProps {
   postType: 'instagram' | 'facebook';
   className?: string;
   contentTaskId?: string;
+  campaignTitle?: string;
 }
 
-export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId }: SocialMediaPostPreviewProps) => {
+export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId, campaignTitle }: SocialMediaPostPreviewProps) => {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   
   // Improved content processing to handle various content formats
@@ -41,99 +42,19 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
   };
 
   const { text, hashtags } = formatContent(content);
-
-  // Enhanced keyword extraction that prioritizes content relevance
-  const extractKeywords = (text: string): string => {
-    console.log('[PREVIEW] Processing content for images:', text.substring(0, 100));
-    
-    // First, check for specific food/dessert terms and preserve exact phrases
-    const foodPhrases = [
-      'ice cream', 'ice-cream', 'frozen yogurt', 'gelato', 'sorbet',
-      'chocolate', 'vanilla', 'strawberry', 'mint chip',
-      'dessert', 'sweet treat', 'frozen treat', 'dairy',
-      'milkshake', 'sundae', 'cone', 'scoop'
-    ];
-    
-    const holidayPhrases = [
-      'ice cream month', 'national ice cream month', 'ice cream day',
-      'summer treats', 'july celebration', 'frozen desserts'
-    ];
-    
-    const lowerText = text.toLowerCase();
-    
-    // Look for exact food/holiday phrases first
-    const foundFoodPhrases = foodPhrases.filter(phrase => lowerText.includes(phrase));
-    const foundHolidayPhrases = holidayPhrases.filter(phrase => lowerText.includes(phrase));
-    
-    console.log('[PREVIEW] Found food phrases:', foundFoodPhrases);
-    console.log('[PREVIEW] Found holiday phrases:', foundHolidayPhrases);
-    
-    // If we found specific food/holiday content, prioritize it
-    if (foundFoodPhrases.length > 0 || foundHolidayPhrases.length > 0) {
-      const priorityTerms = [...foundHolidayPhrases, ...foundFoodPhrases];
-      const searchQuery = priorityTerms.slice(0, 3).join(' ');
-      console.log('[PREVIEW] Using food/holiday priority query:', searchQuery);
-      return searchQuery;
-    }
-    
-    // Extract hashtags without # symbol for secondary keywords
-    const hashtagKeywords = hashtags.map(tag => tag.replace('#', '').toLowerCase());
-    
-    // Extract meaningful words from the main text
-    const cleanText = text
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ') 
-      .replace(/\b(the|and|or|of|in|on|at|to|for|with|by|a|an|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|could|should|may|might|can|get|make|take|go|come|see|know|think|say|want|use|work|try|ask|need|feel|become|leave|put|mean|keep|let|begin|seem|help|talk|turn|start|show|hear|play|run|move|live|believe|hold|bring|happen|write|provide|sit|stand|lose|pay|meet|include|continue|set|learn|change|lead|understand|watch|follow|stop|create|speak|read|allow|add|spend|grow|open|walk|win|offer|remember|love|consider|appear|buy|wait|serve|die|send|expect|build|stay|fall|cut|reach|kill|remain)\b/g, '')
-      .trim();
-    
-    const words = cleanText.split(/\s+/).filter(word => word.length > 2);
-    const meaningfulWords = words.filter(word => 
-      !/^\d+$/.test(word) && 
-      word.length > 2 && 
-      !['your', 'this', 'that', 'they', 'them', 'their', 'here', 'there', 'when', 'what', 'where', 'how', 'why', 'who'].includes(word)
-    );
-
-    // Combine hashtag keywords with meaningful words from text
-    const allKeywords = [...hashtagKeywords, ...meaningfulWords.slice(0, 3)];
-    
-    // Build the search query
-    let searchQuery = '';
-    
-    if (allKeywords.length > 0) {
-      searchQuery = allKeywords.slice(0, 3).join(' ');
-    } else {
-      // Final fallback to post type only
-      searchQuery = postType === 'instagram' ? 'lifestyle aesthetic' : 'community social';
-    }
-
-    console.log('[PREVIEW] Final extracted query:', searchQuery);
-    return searchQuery.trim();
-  };
-
-  const searchQuery = extractKeywords(text);
   const { images, loading, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
 
   // Auto-fetch images when component mounts or content changes
   useEffect(() => {
-    if (searchQuery && contentTaskId) {
-      console.log('[PREVIEW] Auto-fetching images with query:', searchQuery);
-      console.log('[PREVIEW] Current image state - count:', images.length, 'loading:', loading);
+    if (contentTaskId && content && content.trim().length > 10) {
+      console.log('[PREVIEW] Auto-fetching images with smart analysis');
+      console.log('[PREVIEW] Content preview:', content.substring(0, 100));
+      console.log('[PREVIEW] Campaign title:', campaignTitle);
       
-      // Always fetch new images if we have a search query
-      fetchNewImages(searchQuery, contentTaskId, postType);
+      // Use smart content analysis for image search
+      fetchNewImages('', contentTaskId, postType, content, campaignTitle);
     }
-  }, [searchQuery, contentTaskId, postType]);
-
-  // Debug image state changes
-  useEffect(() => {
-    console.log('[PREVIEW] Image state changed:', {
-      imageCount: images.length,
-      loading,
-      searchQuery,
-      selectedIndex: selectedImageIndex,
-      currentImage: images[selectedImageIndex]?.id || 'none'
-    });
-  }, [images, loading, selectedImageIndex, searchQuery]);
+  }, [content, contentTaskId, postType, campaignTitle]);
 
   const getPlatformIcon = () => {
     return postType === 'instagram' ? (
@@ -151,14 +72,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
 
   const currentImage = images[selectedImageIndex];
   const thumbnailImages = images.slice(0, 4);
-
-  // Debug content state
-  console.log('[PREVIEW_DEBUG] Content state:', {
-    rawContent: content,
-    processedText: text,
-    hashtags: hashtags,
-    isEmpty: !text || text.trim() === ''
-  });
 
   return (
     <div className={cn('rounded-lg border-2 overflow-hidden shadow-sm', getPlatformStyle(), className)}>
@@ -193,7 +106,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
             ) : (
               <div className="text-gray-400 italic text-sm">
                 <p>Content is being generated...</p>
-                <p className="text-xs mt-1">Raw content: {content ? content.substring(0, 50) + '...' : 'No content'}</p>
               </div>
             )}
           </div>
@@ -245,8 +157,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
             {loading ? (
               <div className="text-center text-gray-500">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-2"></div>
-                <p className="text-sm">Loading image...</p>
-                <p className="text-xs mt-1">Query: {searchQuery}</p>
+                <p className="text-sm">Finding relevant images...</p>
               </div>
             ) : currentImage ? (
               <>
@@ -254,40 +165,25 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                   src={currentImage.download_url || currentImage.thumb_url}
                   alt={currentImage.alt}
                   className="w-full h-full object-cover"
-                  onLoad={() => console.log('[PREVIEW] Image loaded successfully:', currentImage.id)}
                   onError={(e) => {
                     console.error('[PREVIEW] Image failed to load:', currentImage.id, e);
-                    // Fallback to thumb_url if download_url fails
                     if (e.currentTarget.src === currentImage.download_url && currentImage.thumb_url) {
-                      console.log('[PREVIEW] Attempting fallback to thumb_url');
                       e.currentTarget.src = currentImage.thumb_url;
-                    } else {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.parentElement?.querySelector('.fallback-placeholder')?.classList.remove('hidden');
                     }
                   }}
                 />
-                {/* Debug overlay */}
                 <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
                   {selectedImageIndex + 1}/{images.length}
                 </div>
               </>
-            ) : null}
-            
-            {/* Fallback placeholder */}
-            <div className={cn(
-              "absolute inset-0 flex items-center justify-center text-center text-gray-500 bg-gradient-to-br from-gray-100 to-gray-200",
-              currentImage && !loading ? "hidden fallback-placeholder" : ""
-            )}>
-              <div>
+            ) : (
+              <div className="text-center text-gray-500">
                 <div className="w-12 h-12 mx-auto mb-2 bg-gray-300 rounded-lg flex items-center justify-center">
                   <span className="text-xl">🖼️</span>
                 </div>
-                <p className="text-sm font-medium">Featured Image</p>
-                <p className="text-xs">{searchQuery ? `Query: ${searchQuery}` : 'Generating...'}</p>
-                <p className="text-xs mt-1">Images: {images.length} | Loading: {loading ? 'Yes' : 'No'}</p>
+                <p className="text-sm font-medium">Relevant Image</p>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Thumbnail Gallery */}
@@ -305,25 +201,16 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                       ? "ring-2 ring-blue-500 border-blue-300" 
                       : "hover:border-gray-400"
                   )}
-                  onClick={() => {
-                    console.log('[PREVIEW] Selected thumbnail index:', index);
-                    setSelectedImageIndex(index);
-                  }}
+                  onClick={() => setSelectedImageIndex(index)}
                 >
                   <img
                     src={image.thumb_url}
                     alt={image.alt}
                     className="w-full h-full object-cover"
-                    onLoad={() => console.log('[PREVIEW] Thumbnail loaded:', image.id)}
                     onError={(e) => {
-                      console.error('[PREVIEW] Thumbnail failed to load:', image.id);
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.parentElement?.querySelector('.thumb-fallback')?.classList.remove('hidden');
                     }}
                   />
-                  <div className="hidden thumb-fallback text-xs text-gray-500 bg-gray-200 w-full h-full flex items-center justify-center">
-                    <span>?</span>
-                  </div>
                 </div>
               ))}
               

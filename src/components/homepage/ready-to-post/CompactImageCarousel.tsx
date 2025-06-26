@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,28 +18,18 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
   const [hasAutoFetched, setHasAutoFetched] = useState(false);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
-  // Get initial query from campaign theme or post type
-  const getInitialQuery = () => {
-    if (campaignTheme) {
-      const cleanTheme = campaignTheme
-        .toLowerCase()
-        .replace(/week \d+/g, '')
-        .replace(/\b(the|and|or|of|in|on|at|to|for|with|by)\b/g, '')
-        .trim();
-      return cleanTheme || task?.post_type || 'garden';
-    }
-    return task?.post_type || 'garden';
-  };
-
-  // Auto-fetch images when component mounts
+  // Auto-fetch images when component mounts with smart content analysis
   useEffect(() => {
     if (task?.id && images.length === 0 && !loading && !hasAutoFetched) {
-      console.log('[COMPACT_CAROUSEL] Auto-fetching images for task:', task.id);
-      const initialQuery = getInitialQuery();
-      fetchNewImages(initialQuery, task.id, task.post_type);
+      console.log('[COMPACT_CAROUSEL] Auto-fetching images with smart analysis for task:', task.id);
+      console.log('[COMPACT_CAROUSEL] Task content preview:', task.ai_output?.substring(0, 100));
+      console.log('[COMPACT_CAROUSEL] Campaign theme:', campaignTheme);
+      
+      // Use smart analysis - pass content and campaign info
+      fetchNewImages('', task.id, task.post_type, task.ai_output, campaignTheme);
       setHasAutoFetched(true);
     }
-  }, [task?.id, images.length, loading, hasAutoFetched, task?.post_type]);
+  }, [task?.id, images.length, loading, hasAutoFetched, task?.ai_output, campaignTheme]);
 
   const handleDownload = (imageUrl: string, photographer: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -86,7 +75,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
     return (
       <div className="flex items-center gap-2 p-2 bg-stone-50 rounded-lg">
         <div className="animate-spin w-4 h-4 border-2 border-stone-300 border-t-blue-500 rounded-full"></div>
-        <span className="text-xs text-stone-600">Finding {task?.post_type} images...</span>
+        <span className="text-xs text-stone-600">Finding relevant images...</span>
       </div>
     );
   }
@@ -95,7 +84,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
     return (
       <div className="flex items-center gap-2 p-2 bg-stone-50 rounded-lg">
         <ImageIcon className="w-4 h-4 text-stone-400" />
-        <span className="text-xs text-stone-500">No {task?.post_type} images found</span>
+        <span className="text-xs text-stone-500">No relevant images found</span>
       </div>
     );
   }

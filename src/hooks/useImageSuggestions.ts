@@ -133,56 +133,98 @@ const getPlatformPlaceholderImages = (query: string, postType: string): ImageSug
   }));
 };
 
-// Improved platform-specific image search queries that prioritize content relevance
-const generatePlatformQuery = (baseQuery: string, postType: string): string => {
-  console.log('[IMAGE_HOOK] Generating platform query for:', baseQuery, 'type:', postType);
+// Smart content analysis to extract meaningful keywords
+const extractKeywordsFromContent = (content: string, campaignTitle?: string): string[] => {
+  console.log('[IMAGE_HOOK] Raw content analysis:', content?.substring(0, 200));
   
-  // Don't modify content-rich queries - preserve the content meaning
-  if (!baseQuery || baseQuery.length < 3) {
-    const fallbackQueries = {
-      instagram: 'aesthetic lifestyle beautiful',
-      facebook: 'community social people',
-      newsletter: 'professional business',
-      email: 'simple clean modern',
-      video: 'cinematic lifestyle'
-    };
-    const fallback = fallbackQueries[postType] || fallbackQueries.instagram;
-    console.log('[IMAGE_HOOK] Using fallback query:', fallback);
+  if (!content || content.trim().length < 10) {
+    console.log('[IMAGE_HOOK] Content too short, using campaign title fallback');
+    return campaignTitle ? [campaignTitle] : ['garden center'];
+  }
+
+  // Clean HTML tags and decode entities
+  let cleanContent = content
+    .replace(/<[^>]*>/g, ' ')           // Remove HTML tags
+    .replace(/&[^;]+;/g, ' ')          // Remove HTML entities
+    .replace(/\s+/g, ' ')              // Normalize whitespace
+    .trim();
+
+  console.log('[IMAGE_HOOK] Cleaned content:', cleanContent.substring(0, 200));
+
+  // Look for specific themes first
+  const themes = {
+    iceCream: /\b(ice cream|gelato|frozen|dessert|sweet|cone|scoop|sundae|milkshake|dairy|treat)\b/gi,
+    plants: /\b(plant|flower|garden|bloom|seed|soil|grow|botanical|herb|vegetable|tree|shrub)\b/gi,
+    outdoor: /\b(outdoor|patio|deck|yard|landscape|backyard|sunshine|fresh air)\b/gi,
+    tools: /\b(tool|shovel|rake|hose|fertilizer|mulch|compost|pruning|watering)\b/gi,
+    seasonal: /\b(spring|summer|fall|autumn|winter|seasonal|planting|harvest)\b/gi,
+    holiday: /\b(holiday|celebration|month|day|national|festival|special)\b/gi
+  };
+
+  const foundThemes = [];
+  for (const [theme, regex] of Object.entries(themes)) {
+    const matches = cleanContent.match(regex);
+    if (matches && matches.length > 0) {
+      foundThemes.push({ theme, count: matches.length, terms: matches.slice(0, 3) });
+    }
+  }
+
+  console.log('[IMAGE_HOOK] Found themes:', foundThemes);
+
+  // If we found specific themes, use those
+  if (foundThemes.length > 0) {
+    const topTheme = foundThemes.sort((a, b) => b.count - a.count)[0];
+    const keywords = topTheme.terms.map(term => term.toLowerCase());
+    console.log('[IMAGE_HOOK] Using theme keywords:', keywords);
+    return keywords;
+  }
+
+  // Extract meaningful words as fallback
+  const words = cleanContent
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => 
+      word.length > 3 && 
+      !['your', 'this', 'that', 'they', 'them', 'their', 'here', 'there', 'when', 'what', 'where', 'how', 'why', 'who', 'will', 'have', 'been', 'with', 'from', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'among', 'throughout', 'alongside', 'within'].includes(word)
+    )
+    .slice(0, 5);
+
+  console.log('[IMAGE_HOOK] Fallback keywords:', words);
+  return words.length > 0 ? words : ['garden center'];
+};
+
+// Build smart search query based on content analysis
+const buildSmartQuery = (keywords: string[], postType: string, campaignTitle?: string): string => {
+  console.log('[IMAGE_HOOK] Building query with keywords:', keywords, 'type:', postType);
+
+  if (!keywords || keywords.length === 0) {
+    const fallback = campaignTitle || 'garden center plants';
+    console.log('[IMAGE_HOOK] No keywords, using fallback:', fallback);
     return fallback;
   }
 
-  const contentKeywords = baseQuery.toLowerCase();
+  // Build primary query from top keywords
+  let query = keywords.slice(0, 2).join(' ');
+
+  // Add context based on primary keyword themes
+  const primaryKeyword = keywords[0].toLowerCase();
   
-  // Detect specific content types for better matching
-  const isFoodRelated = /\b(ice cream|cream|food|dessert|treat|sweet|flavor|taste|eat|drink|recipe|cooking|baking|chocolate|vanilla|strawberry|frozen|dairy|milkshake|sundae|cone|scoop|gelato|sorbet)\b/i.test(contentKeywords);
-  const isProductRelated = /\b(product|brand|business|service|sale|shop|store|buy|purchase)\b/i.test(contentKeywords);
-  const isEventRelated = /\b(event|party|celebration|holiday|festival|gathering|month|day|national)\b/i.test(contentKeywords);
-  const isGardenRelated = /\b(plant|garden|flower|tree|seed|soil|grow|bloom|harvest|outdoor|nature|herb|vegetable|farming|agriculture)\b/i.test(contentKeywords);
-  
-  console.log('[IMAGE_HOOK] Content analysis - Food:', isFoodRelated, 'Product:', isProductRelated, 'Event:', isEventRelated, 'Garden:', isGardenRelated);
-  
-  let enhancedQuery = baseQuery;
-  
-  // Only add platform-specific enhancements if they won't dilute the content meaning
-  if (postType === 'instagram' && !isFoodRelated) {
-    // For Instagram, only add aesthetic terms for non-food content
-    if (isGardenRelated) {
-      enhancedQuery += ' aesthetic garden';
-    } else if (!isProductRelated && !isEventRelated) {
-      enhancedQuery += ' beautiful photography';
-    }
-  } else if (postType === 'facebook' && !isFoodRelated) {
-    // For Facebook, only add community terms for non-food content
-    if (isEventRelated) {
-      enhancedQuery += ' community celebration';
-    } else if (isGardenRelated) {
-      enhancedQuery += ' garden community';
-    }
+  if (/ice.?cream|frozen|dessert|sweet/.test(primaryKeyword)) {
+    query += ' food photography delicious';
+  } else if (/plant|flower|garden|bloom/.test(primaryKeyword)) {
+    query += ' gardening nature';
+  } else if (/outdoor|patio|landscape/.test(primaryKeyword)) {
+    query += ' outdoor lifestyle';
+  } else if (/tool|equipment/.test(primaryKeyword)) {
+    query += ' gardening tools';
+  } else {
+    // Generic garden center context
+    query += ' garden center';
   }
-  
-  const finalQuery = enhancedQuery.trim();
-  console.log('[IMAGE_HOOK] Final enhanced query:', finalQuery);
-  return finalQuery;
+
+  console.log('[IMAGE_HOOK] Final smart query:', query);
+  return query;
 };
 
 export const useImageSuggestions = (contentTaskId?: string, postType?: string) => {
@@ -224,27 +266,38 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
     }
   };
 
-  const fetchNewImages = async (searchQuery: string, taskId?: string, contentType?: string) => {
+  const fetchNewImages = async (searchQuery: string, taskId?: string, contentType?: string, content?: string, campaignTitle?: string) => {
     setLoading(true);
-    console.log('[IMAGE_HOOK] Fetching NEW images for query:', searchQuery, 'type:', contentType);
+    console.log('[IMAGE_HOOK] Fetching NEW images with params:', { searchQuery, contentType, campaignTitle });
     
     try {
-      // Generate platform-specific query with improved logic
-      const platformQuery = contentType ? generatePlatformQuery(searchQuery, contentType) : searchQuery;
-      console.log('[IMAGE_HOOK] Enhanced platform query:', platformQuery);
+      let finalQuery = searchQuery;
+
+      // If we have content, do smart analysis
+      if (content && content.trim().length > 10) {
+        console.log('[IMAGE_HOOK] Analyzing content for smart keywords');
+        const smartKeywords = extractKeywordsFromContent(content, campaignTitle);
+        finalQuery = buildSmartQuery(smartKeywords, contentType || 'instagram', campaignTitle);
+      } else if (campaignTitle) {
+        // Use campaign title as fallback
+        const titleKeywords = extractKeywordsFromContent(campaignTitle);
+        finalQuery = buildSmartQuery(titleKeywords, contentType || 'instagram');
+      }
+
+      console.log('[IMAGE_HOOK] Final search query:', finalQuery);
       
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
-          query: platformQuery,
+          query: finalQuery,
           contentTaskId: taskId 
         }
       });
 
       if (error) {
         console.log('[IMAGE_HOOK] Unsplash API error, using placeholders:', error.message);
-        const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
+        const placeholders = getPlatformPlaceholderImages(finalQuery, contentType || 'instagram');
         setImages(placeholders);
-        setQuery(searchQuery);
+        setQuery(finalQuery);
         setUsingPlaceholders(true);
         setHasStoredImages(false);
         toast.info(`Using sample images - Unsplash API unavailable`);
@@ -254,18 +307,18 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       if (data?.images && data.images.length > 0) {
         console.log('[IMAGE_HOOK] Successfully fetched', data.images.length, 'real images');
         setImages(data.images);
-        setQuery(searchQuery);
+        setQuery(finalQuery);
         setUsingPlaceholders(false);
         setHasStoredImages(true);
-        toast.success(`Found ${data.images.length} new images for "${searchQuery}"`);
+        toast.success(`Found ${data.images.length} relevant images for "${finalQuery}"`);
       } else {
         console.log('[IMAGE_HOOK] No images returned, using placeholders');
-        const placeholders = getPlatformPlaceholderImages(searchQuery, contentType || 'instagram');
+        const placeholders = getPlatformPlaceholderImages(finalQuery, contentType || 'instagram');
         setImages(placeholders);
-        setQuery(searchQuery);
+        setQuery(finalQuery);
         setUsingPlaceholders(true);
         setHasStoredImages(false);
-        toast.info(`No images found for "${searchQuery}", using sample images`);
+        toast.info(`No images found, using sample images`);
       }
     } catch (error) {
       console.error('[IMAGE_HOOK] Error fetching images:', error);
@@ -284,22 +337,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
   const shuffleImages = async () => {
     if (query) {
       console.log('[IMAGE_HOOK] User requested to shuffle/refresh images for query:', query);
-      const variations = postType ? [
-        `${query} ${postType}`,
-        `${query} beautiful`,
-        `${query} aesthetic`,
-        `${query} professional`,
-        query
-      ] : [
-        `${query} beautiful`,
-        `${query} aesthetic`,
-        `${query} professional`,
-        `${query} lifestyle`,
-        query
-      ];
-      
-      const randomVariation = variations[Math.floor(Math.random() * variations.length)];
-      await fetchNewImages(randomVariation, contentTaskId, postType);
+      await fetchNewImages(query, contentTaskId, postType);
     }
   };
 
