@@ -97,6 +97,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
             content={normalizedTask.ai_output}
             postType={normalizedTask.post_type as 'instagram' | 'facebook'}
             contentTaskId={normalizedTask.id}
+            campaignTitle={normalizedTask.campaigns?.theme || normalizedTask.campaigns?.title}
           />
           <div className="flex justify-end">
             <Button
@@ -141,6 +142,8 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
         <MagazineContentDisplay 
           content={normalizedTask.display_content || normalizedTask.ai_output}
           postType={normalizedTask.post_type}
+          contentTaskId={normalizedTask.id}
+          campaignTitle={normalizedTask.campaigns?.theme || normalizedTask.campaigns?.title}
         />
         <div className="flex justify-end">
           <Button
