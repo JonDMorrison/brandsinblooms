@@ -152,9 +152,14 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
     normalizedTask: normalizedTask
   });
   
+  // Remove prose constraints to allow full magazine layout
   return (
-    <div className="prose lg:prose-lg mx-auto">
-      <MagazineNewsletterDisplay content={displayContent} />
+    <div className="w-full">
+      <MagazineNewsletterDisplay 
+        content={displayContent} 
+        contentTaskId={task.id}
+        campaignTitle={task.campaigns?.theme}
+      />
     </div>
   );
 };

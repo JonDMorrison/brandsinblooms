@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { parseNewsletterYAML, StructuredNewsletter } from '@/utils/newsletterUtils';
 import { Badge } from '@/components/ui/badge';
@@ -316,7 +315,7 @@ export const MagazineNewsletterDisplay = ({
   if (isPlaceholderContent) {
     console.log('🔄 Showing regeneration UI due to truly placeholder content');
     return (
-      <div className={`max-w-4xl mx-auto ${className || ''}`}>
+      <div className={`w-full ${className || ''}`}>
         <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <h2 className="text-xl font-semibold text-gray-700 mb-4">
             Newsletter Content Needs Generation
@@ -373,21 +372,22 @@ export const MagazineNewsletterDisplay = ({
     return firstMeaningfulLine || `Discover expert gardening insights for ${campaignTitle || 'seasonal care'}`;
   }
 
+  // Full magazine layout without width constraints
   return (
-    <div className={`max-w-4xl mx-auto ${className || ''}`}>
-      {/* Header Section */}
-      <div className="mb-8 pb-6 border-b border-gray-200">
-        <div className="flex items-center gap-3 mb-4">
-          <Badge variant="outline" className="flex items-center gap-1">
-            <Clock className="w-3 h-3" />
+    <div className={`w-full ${className || ''}`}>
+      {/* Header Section - Full Width */}
+      <div className="mb-12 pb-8 border-b-2 border-gray-200">
+        <div className="flex items-center gap-4 mb-6">
+          <Badge variant="outline" className="flex items-center gap-2 px-3 py-1">
+            <Clock className="w-4 h-4" />
             {processedNewsletter.meta.reading_time}
           </Badge>
           {processedNewsletter.meta.theme && (
-            <Badge variant="secondary">
+            <Badge variant="secondary" className="px-3 py-1 text-sm">
               {processedNewsletter.meta.theme}
             </Badge>
           )}
-          <Badge variant="outline">
+          <Badge variant="outline" className="px-3 py-1 text-sm">
             Newsletter
           </Badge>
           {contentTaskId && (
@@ -396,40 +396,40 @@ export const MagazineNewsletterDisplay = ({
               variant="outline"
               onClick={regenerateNewsletter}
               disabled={regenerating}
-              className="ml-auto gap-1"
+              className="ml-auto gap-2"
             >
-              <RefreshCw className={`w-3 h-3 ${regenerating ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
               Regenerate
             </Button>
           )}
         </div>
         
-        <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">
+        <h1 className="text-5xl font-bold text-slate-900 leading-tight mb-6">
           {headline}
         </h1>
         
         {intro && (
-          <p className="text-xl text-slate-600 leading-relaxed font-light">
+          <p className="text-2xl text-slate-600 leading-relaxed font-light max-w-4xl">
             {intro}
           </p>
         )}
       </div>
 
-      {/* Content Blocks */}
-      <div className="space-y-12">
+      {/* Content Blocks - Full Magazine Layout */}
+      <div className="space-y-16">
         {processedNewsletter.blocks.map((block, index) => (
-          <div key={index} className="grid lg:grid-cols-3 gap-8 items-start">
-            {/* Content */}
-            <div className="lg:col-span-2">
+          <div key={index} className="grid lg:grid-cols-2 gap-12 items-start">
+            {/* Content Section - Enhanced */}
+            <div className="space-y-6">
               {newsletter ? (
                 // Structured newsletter - show title and body separately
                 <>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-4 leading-tight">
+                  <h2 className="text-3xl font-bold text-slate-900 leading-tight">
                     {block.title}
-                  </h3>
+                  </h2>
                   
-                  <div className="prose prose-slate max-w-none">
-                    <p className="text-lg text-slate-700 leading-relaxed mb-6">
+                  <div className="prose prose-lg prose-slate max-w-none">
+                    <p className="text-xl text-slate-700 leading-relaxed">
                       {block.body}
                     </p>
                   </div>
@@ -438,13 +438,13 @@ export const MagazineNewsletterDisplay = ({
                 // Plain text newsletter - enhanced formatting
                 <>
                   {block.title !== block.body && (
-                    <h3 className="text-2xl font-bold text-slate-900 mb-4 leading-tight">
+                    <h2 className="text-3xl font-bold text-slate-900 leading-tight">
                       {block.title}
-                    </h3>
+                    </h2>
                   )}
                   
-                  <div className="prose prose-slate max-w-none">
-                    <div className="text-lg text-slate-700 leading-relaxed whitespace-pre-wrap">
+                  <div className="prose prose-lg prose-slate max-w-none">
+                    <div className="text-xl text-slate-700 leading-relaxed whitespace-pre-wrap">
                       {block.body}
                     </div>
                   </div>
@@ -452,10 +452,10 @@ export const MagazineNewsletterDisplay = ({
               )}
               
               {block.cta && (
-                <div className="mt-6">
+                <div className="mt-8">
                   <a 
                     href={block.link || '#'} 
-                    className="inline-flex items-center text-primary font-semibold hover:text-primary/80 transition-colors"
+                    className="inline-flex items-center text-lg text-primary font-semibold hover:text-primary/80 transition-colors bg-primary/10 px-4 py-2 rounded-lg"
                   >
                     {block.cta} →
                   </a>
@@ -463,21 +463,21 @@ export const MagazineNewsletterDisplay = ({
               )}
             </div>
 
-            {/* Image */}
+            {/* Image Section - Enhanced */}
             <div className="lg:col-span-1">
               {loadingImages ? (
-                <div className="aspect-[4/3] bg-gray-100 rounded-lg flex items-center justify-center animate-pulse">
+                <div className="aspect-[3/2] bg-gray-100 rounded-xl flex items-center justify-center animate-pulse">
                   <div className="text-center text-gray-500">
-                    <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm">Loading image...</p>
+                    <ImageIcon className="w-12 h-12 mx-auto mb-3" />
+                    <p className="text-lg">Loading image...</p>
                   </div>
                 </div>
               ) : images[index] ? (
-                <div className="aspect-[4/3] rounded-lg overflow-hidden shadow-sm">
+                <div className="aspect-[3/2] rounded-xl overflow-hidden shadow-lg">
                   <img
                     src={images[index].url}
                     alt={images[index].alt}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                     onError={(e) => {
                       console.error('[NEWSLETTER] Image failed to load:', images[index].url);
                       e.currentTarget.style.display = 'none';
@@ -487,20 +487,20 @@ export const MagazineNewsletterDisplay = ({
                       }
                     }}
                   />
-                  <div className="hidden aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center">
+                  <div className="hidden aspect-[3/2] bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center">
                     <div className="text-center text-gray-500">
-                      <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                      <p className="text-sm">Image unavailable</p>
+                      <ImageIcon className="w-12 h-12 mx-auto mb-3" />
+                      <p className="text-lg">Image unavailable</p>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
-                  <div className="text-center text-gray-500 p-4">
-                    <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm mb-1">Loading image...</p>
+                <div className="aspect-[3/2] bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl flex items-center justify-center border-2 border-gray-200 border-dashed">
+                  <div className="text-center text-gray-500 p-6">
+                    <ImageIcon className="w-12 h-12 mx-auto mb-3" />
+                    <p className="text-lg mb-2">Loading image...</p>
                     {imageErrors[index] && (
-                      <p className="text-xs text-red-500">{imageErrors[index]}</p>
+                      <p className="text-sm text-red-500">{imageErrors[index]}</p>
                     )}
                   </div>
                 </div>
@@ -510,12 +510,189 @@ export const MagazineNewsletterDisplay = ({
         ))}
       </div>
 
-      {/* Footer */}
-      <div className="mt-16 pt-8 border-t border-gray-200 text-center">
-        <p className="text-gray-600">
+      {/* Footer - Enhanced */}
+      <div className="mt-20 pt-12 border-t-2 border-gray-200 text-center">
+        <p className="text-xl text-gray-600">
           Thanks for reading! 🌿
         </p>
       </div>
     </div>
   );
+
+  // Helper functions moved to bottom for readability
+  function createBlocksFromPlainText(rawContent: string) {
+    if (!rawContent || rawContent.trim().length === 0) {
+      console.log('🚫 Creating placeholder block due to empty content');
+      return [{
+        title: 'Newsletter Content Loading',
+        body: 'Your newsletter content is being generated with expert gardening advice...',
+        cta: 'Visit us for expert advice',
+        link: '',
+        image_prompt: 'newsletter professional garden center informative',
+        alt_text: 'Newsletter content image'
+      }];
+    }
+
+    // For legitimate content, create proper blocks
+    const lines = rawContent.split('\n').filter(line => line.trim().length > 0);
+    
+    if (lines.length === 0) {
+      return [{
+        title: 'Newsletter Update',
+        body: rawContent.trim(),
+        cta: '',
+        link: '',
+        image_prompt: `newsletter professional ${campaignTitle || 'garden center'} informative`,
+        alt_text: 'Newsletter content image'
+      }];
+    }
+
+    // If we have multiple lines, create sections
+    if (lines.length > 2) {
+      const sections = [];
+      let currentSection = '';
+      
+      for (const line of lines) {
+        // Check if this looks like a header (short line that might be a title)
+        const isHeader = line.length < 60 && (
+          line === line.toUpperCase() ||
+          line.includes('WEEK') ||
+          line.includes('FOCUS') ||
+          line.includes(':') ||
+          /^[A-Z][A-Za-z\s]+$/.test(line.trim())
+        );
+        
+        if (isHeader && currentSection.length > 50) {
+          sections.push(currentSection.trim());
+          currentSection = line + '\n';
+        } else {
+          currentSection += line + '\n';
+        }
+      }
+      
+      if (currentSection.trim().length > 0) {
+        sections.push(currentSection.trim());
+      }
+      
+      if (sections.length > 1) {
+        return sections.map((section, index) => {
+          const sectionLines = section.split('\n');
+          const title = sectionLines[0]?.trim() || `Section ${index + 1}`;
+          const body = sectionLines.slice(1).join('\n').trim() || section;
+          
+          return {
+            title: title.length > 100 ? `Section ${index + 1}` : title,
+            body: body || section,
+            cta: index === sections.length - 1 ? 'Visit us for more information' : '',
+            link: '',
+            image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
+            alt_text: `${title} - newsletter section image`
+          };
+        });
+      }
+    }
+    
+    // For shorter content or single sections, create one main block
+    const title = lines[0]?.trim() || 'Newsletter Update';
+    const body = lines.length > 1 ? lines.slice(1).join('\n').trim() : rawContent.trim();
+    
+    return [{
+      title: title.length > 100 ? 'Newsletter Update' : title,
+      body: body || rawContent.trim(),
+      cta: 'Visit us for more information',
+      link: '',
+      image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
+      alt_text: `${title} - newsletter image`
+    }];
+  }
+
+  function calculateReadingTime(text: string): string {
+    if (!text) return '≈1 min';
+    const wordCount = text.replace(/<[^>]*>/g, '').split(/\s+/).length;
+    const minutes = Math.ceil(wordCount / 200);
+    return `≈${minutes} min`;
+  }
+
+  // Skip image fetch if content is truly placeholder
+  useEffect(() => {
+    if (isPlaceholderContent) {
+      console.log('[NEWSLETTER] Skipping image fetch - placeholder content detected');
+      return;
+    }
+    
+    if (!processedNewsletter.blocks.length) {
+      console.log('[NEWSLETTER] Skipping image fetch - no valid blocks');
+      return;
+    }
+    
+    setLoadingImages(true);
+    setImageErrors({});
+    console.log('[NEWSLETTER] Starting image fetch for', processedNewsletter.blocks.length, 'blocks');
+    
+    const fetchImages = async () => {
+      const imagePromises = processedNewsletter.blocks.map(async (block, index) => {
+        if (!block.image_prompt) {
+          console.log('[NEWSLETTER] Block', index, 'has no image prompt, skipping');
+          return null;
+        }
+        
+        try {
+          console.log('[NEWSLETTER] Fetching image for block', index, 'with prompt:', block.image_prompt);
+          
+          const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
+            body: { 
+              query: block.image_prompt,
+              contentType: 'newsletter'
+            }
+          });
+          
+          if (error) {
+            console.error('[NEWSLETTER] Supabase function error for block', index, ':', error);
+            setImageErrors(prev => ({ ...prev, [index]: error.message || 'Function call failed' }));
+            return null;
+          }
+          
+          if (data?.images?.[0]) {
+            console.log('[NEWSLETTER] Successfully fetched image for block', index);
+            return {
+              index,
+              image: {
+                url: data.images[0].thumb_url,
+                alt: data.images[0].alt || block.alt_text || block.title,
+                photographer: data.images[0].photographer
+              }
+            };
+          } else {
+            console.warn('[NEWSLETTER] No images in response for block', index);
+            setImageErrors(prev => ({ ...prev, [index]: 'No images found for query' }));
+            return null;
+          }
+        } catch (error) {
+          console.error('[NEWSLETTER] Exception fetching image for block', index, ':', error);
+          setImageErrors(prev => ({ ...prev, [index]: error.message || 'Network error' }));
+          return null;
+        }
+      });
+
+      try {
+        const results = await Promise.all(imagePromises);
+        const imageMap: Record<number, ImageData> = {};
+        
+        results.forEach(result => {
+          if (result) {
+            imageMap[result.index] = result.image;
+          }
+        });
+        
+        console.log('[NEWSLETTER] Final image map:', imageMap);
+        setImages(imageMap);
+      } catch (error) {
+        console.error('[NEWSLETTER] Error in Promise.all:', error);
+      } finally {
+        setLoadingImages(false);
+      }
+    };
+
+    fetchImages();
+  }, [content, isPlaceholderContent, contentTaskId]);
 };
