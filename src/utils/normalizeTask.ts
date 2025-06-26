@@ -1,7 +1,6 @@
-
 import { parseNewsletterYAML } from './newsletterUtils';
 import { cleanContentForDisplay, truncateText } from './contentUtils';
-import { markdownToHtmlBlocks, trimTo140, extractKeywordsFromContent } from './markdownUtils';
+import { markdownToHtmlBlocks, extractKeywordsFromContent } from './markdownUtils';
 
 export interface NormalizedTask {
   id: string;
@@ -75,12 +74,9 @@ export function normalizeTask(task: any): NormalizedTask {
     out.teaser_html = firstParagraph ? truncateText(firstParagraph, 300, '...') : '';
   }
 
-  // 4. Normalize social media captions (Instagram/Facebook)
-  if (['instagram', 'facebook'].includes(out.post_type)) {
-    const maxLength = out.post_type === 'instagram' ? 180 : 600;
-    out.ai_output = trimTo140(out.ai_output || '', maxLength);
-  }
-
+  // 4. Remove aggressive trimming for social media posts - let preview handle full content
+  // The preview component should show the full generated content for better user experience
+  
   // 5. Clean content for display
   out.display_content = cleanContentForDisplay(out.ai_output || '', out.post_type);
 
