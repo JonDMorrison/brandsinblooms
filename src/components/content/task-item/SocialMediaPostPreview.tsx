@@ -1,9 +1,11 @@
-
 import React, { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface SocialMediaPostPreviewProps {
   content: string;
@@ -13,7 +15,51 @@ interface SocialMediaPostPreviewProps {
   campaignTitle?: string;
 }
 
+// Helper function to generate initials from company name
+const generateInitials = (companyName: string): string => {
+  if (!companyName || companyName.trim() === '') return 'BC';
+  
+  const words = companyName.trim().split(/\s+/);
+  
+  if (words.length === 1) {
+    // Single word - take first two characters
+    const word = words[0].toUpperCase();
+    return word.length >= 2 ? word.substring(0, 2) : word + 'C';
+  }
+  
+  // Multiple words - take first letter of first two words
+  return words[0][0].toUpperCase() + words[1][0].toUpperCase();
+};
+
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId, campaignTitle }: SocialMediaPostPreviewProps) => {
+  const { user } = useAuth();
+
+  // Fetch company profile data
+  const { data: companyProfile } = useQuery({
+    queryKey: ['company-profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('company_profiles')
+        .select('company_name')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Error fetching company profile:', error);
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Get company name with fallback
+  const companyName = companyProfile?.company_name || 'Your Business';
+  const companyInitials = generateInitials(companyName);
+
   // Improved content processing to handle various content formats
   const formatContent = (rawContent: string) => {
     console.log('[PREVIEW] Raw content received:', rawContent?.substring(0, 200));
@@ -105,10 +151,10 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-semibold">YB</span>
+              <span className="text-white text-sm font-semibold">{companyInitials}</span>
             </div>
             <div>
-              <p className="font-semibold text-sm text-gray-900">Your Business</p>
+              <p className="font-semibold text-sm text-gray-900">{companyName}</p>
               <p className="text-xs text-gray-500">2 hours ago</p>
             </div>
           </div>
