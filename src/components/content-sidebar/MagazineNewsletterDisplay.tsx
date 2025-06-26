@@ -41,24 +41,22 @@ export const MagazineNewsletterDisplay = ({
     campaignTitle
   });
 
-  // Enhanced placeholder detection - check for all types of minimal content
+  // Much more conservative placeholder detection - only flag truly empty or minimal content
   const isPlaceholderContent = !content || 
-    content.trim().length < 150 ||
-    content.includes('Newsletter Update') ||
-    content.includes('Welcome to our latest newsletter update') ||
-    content === 'Newsletter Update. Welcome to our latest newsletter update.' ||
+    content.trim().length === 0 ||
     content.trim() === 'Newsletter Update' ||
-    // Check if content only has a title and generic description
-    (content.includes('Newsletter Update') && content.length < 300) ||
-    // Check for content that's just a title with generic text
-    (content.split('\n').filter(line => line.trim().length > 0).length < 3);
+    content.trim() === 'Newsletter Update.' ||
+    content === 'Newsletter Update. Welcome to our latest newsletter update.' ||
+    // Only flag as placeholder if content is extremely minimal (less than 50 characters and generic)
+    (content.trim().length < 50 && 
+     (content.includes('Welcome to our latest newsletter update') || 
+      content === 'Newsletter Update. Welcome to our latest newsletter update'));
 
   console.log('🔍 Placeholder content check:', {
     isPlaceholder: isPlaceholderContent,
     contentLength: content?.length,
     trimmedLength: content?.trim().length,
-    includesUpdate: content?.includes('Newsletter Update'),
-    lineCount: content?.split('\n').filter(line => line.trim().length > 0).length
+    contentStart: content?.trim().substring(0, 100)
   });
 
   // Try to parse as structured YAML first
@@ -76,10 +74,10 @@ export const MagazineNewsletterDisplay = ({
     }
   };
 
-  // Enhanced function to create meaningful blocks from plain text
+  // Improved function to create meaningful blocks from plain text
   function createBlocksFromPlainText(rawContent: string) {
-    if (!rawContent || rawContent.trim().length === 0 || isPlaceholderContent) {
-      console.log('🚫 Creating placeholder block due to insufficient content');
+    if (!rawContent || rawContent.trim().length === 0) {
+      console.log('🚫 Creating placeholder block due to empty content');
       return [{
         title: 'Newsletter Content Loading',
         body: 'Your newsletter content is being generated with expert gardening advice...',
@@ -90,51 +88,77 @@ export const MagazineNewsletterDisplay = ({
       }];
     }
 
-    // Split content into meaningful sections
+    // For legitimate content, create proper blocks
     const lines = rawContent.split('\n').filter(line => line.trim().length > 0);
-    const sections = [];
-    let currentSection = '';
     
-    for (const line of lines) {
-      // Check if this looks like a header
-      const isHeader = line.length < 60 && (
-        line === line.toUpperCase() ||
-        line.includes('WEEK') ||
-        line.includes('FOCUS') ||
-        line.includes(':') ||
-        /^[A-Z][A-Za-z\s]+$/.test(line.trim())
-      );
+    if (lines.length === 0) {
+      return [{
+        title: 'Newsletter Update',
+        body: rawContent.trim(),
+        cta: '',
+        link: '',
+        image_prompt: `newsletter professional ${campaignTitle || 'garden center'} informative`,
+        alt_text: 'Newsletter content image'
+      }];
+    }
+
+    // If we have multiple lines, create sections
+    if (lines.length > 2) {
+      const sections = [];
+      let currentSection = '';
       
-      if (isHeader && currentSection.length > 100) {
+      for (const line of lines) {
+        // Check if this looks like a header (short line that might be a title)
+        const isHeader = line.length < 60 && (
+          line === line.toUpperCase() ||
+          line.includes('WEEK') ||
+          line.includes('FOCUS') ||
+          line.includes(':') ||
+          /^[A-Z][A-Za-z\s]+$/.test(line.trim())
+        );
+        
+        if (isHeader && currentSection.length > 50) {
+          sections.push(currentSection.trim());
+          currentSection = line + '\n';
+        } else {
+          currentSection += line + '\n';
+        }
+      }
+      
+      if (currentSection.trim().length > 0) {
         sections.push(currentSection.trim());
-        currentSection = line + '\n';
-      } else {
-        currentSection += line + '\n';
+      }
+      
+      if (sections.length > 1) {
+        return sections.map((section, index) => {
+          const sectionLines = section.split('\n');
+          const title = sectionLines[0]?.trim() || `Section ${index + 1}`;
+          const body = sectionLines.slice(1).join('\n').trim() || section;
+          
+          return {
+            title: title.length > 100 ? `Section ${index + 1}` : title,
+            body: body || section,
+            cta: index === sections.length - 1 ? 'Visit us for more information' : '',
+            link: '',
+            image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
+            alt_text: `${title} - newsletter section image`
+          };
+        });
       }
     }
     
-    if (currentSection.trim().length > 0) {
-      sections.push(currentSection.trim());
-    }
+    // For shorter content or single sections, create one main block
+    const title = lines[0]?.trim() || 'Newsletter Update';
+    const body = lines.length > 1 ? lines.slice(1).join('\n').trim() : rawContent.trim();
     
-    if (sections.length === 0) {
-      sections.push(rawContent);
-    }
-    
-    return sections.map((section, index) => {
-      const lines = section.split('\n');
-      const title = lines[0]?.trim() || `Section ${index + 1}`;
-      const body = lines.slice(1).join('\n').trim() || section;
-      
-      return {
-        title: title.length > 100 ? `Section ${index + 1}` : title,
-        body: body || section,
-        cta: index === sections.length - 1 ? 'Visit us for more information' : '',
-        link: '',
-        image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
-        alt_text: `${title} - newsletter section image`
-      };
-    });
+    return [{
+      title: title.length > 100 ? 'Newsletter Update' : title,
+      body: body || rawContent.trim(),
+      cta: 'Visit us for more information',
+      link: '',
+      image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
+      alt_text: `${title} - newsletter image`
+    }];
   }
 
   // Calculate reading time based on content length
@@ -205,7 +229,7 @@ export const MagazineNewsletterDisplay = ({
     }
   };
 
-  // Skip image fetch if content is placeholder
+  // Skip image fetch if content is truly placeholder
   useEffect(() => {
     if (isPlaceholderContent) {
       console.log('[NEWSLETTER] Skipping image fetch - placeholder content detected');
@@ -288,9 +312,9 @@ export const MagazineNewsletterDisplay = ({
     fetchImages();
   }, [content, isPlaceholderContent, contentTaskId]);
 
-  // If content is placeholder, show regeneration option
+  // If content is truly placeholder, show regeneration option
   if (isPlaceholderContent) {
-    console.log('🔄 Showing regeneration UI due to placeholder content');
+    console.log('🔄 Showing regeneration UI due to truly placeholder content');
     return (
       <div className={`max-w-4xl mx-auto ${className || ''}`}>
         <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
