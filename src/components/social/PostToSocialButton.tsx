@@ -1,8 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Facebook, Instagram, Send, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -158,17 +158,36 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
 
   const canPost = task.ai_output && task.status === 'approved';
 
+  const getTooltipMessage = () => {
+    if (!task.ai_output) {
+      return 'Content must be generated first before posting to social media';
+    }
+    if (task.status !== 'approved') {
+      return 'Content must be approved before posting to social media';
+    }
+    return 'Connect your social media accounts in Settings to post content directly';
+  };
+
   if (!canPost) {
     return (
-      <Button
-        disabled
-        variant={variant}
-        size={size}
-        className={`${className} opacity-50`}
-      >
-        <Send className="w-4 h-4 mr-2" />
-        Post to Social
-      </Button>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              disabled
+              variant={variant}
+              size={size}
+              className={`${className} opacity-50`}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Post to Social
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{getTooltipMessage()}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
