@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -97,9 +98,9 @@ const Index = () => {
 
   return (
     <SidebarLayout>
-      <div className="w-full h-full bg-garden-background">
-        {/* UserMenu positioned in top right */}
-        <div className={`fixed top-6 right-6 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
+      <div className="w-full h-full bg-garden-background relative">
+        {/* UserMenu positioned absolutely in top right - always visible */}
+        <div className={`fixed top-4 right-4 z-50 ${isMobile ? 'top-2 right-2' : ''}`}>
           <UserMenu />
         </div>
         
