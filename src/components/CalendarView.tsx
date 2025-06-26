@@ -1,87 +1,36 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
-import { TaskModal } from './modals/TaskModal';
-import { CampaignModal } from './modals/CampaignModal';
-import { DateModal } from './modals/DateModal';
-import { useCampaigns } from '@/contexts/CampaignContext';
-import { useTasks } from '@/contexts/TaskContext';
+import { useCampaigns } from '@/hooks/useCampaigns';
+import { useTasks } from '@/hooks/useTasks';
 import { Button } from '@/components/ui/button';
 import { Plus, CheckCircle, XCircle } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from '@/integrations/supabase/client';
-import { useUser } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { useEnhancedDragAndDrop } from '@/hooks/useEnhancedDragAndDrop';
 
-export const CalendarView = () => {
-  const [taskModalOpen, setTaskModalOpen] = useState(false);
-  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
-  const [dateModalOpen, setDateModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTask, setSelectedTask] = useState<any | null>(null);
-  const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
-  const [currentWeek, setCurrentWeek] = useState<Date[]>([]);
+export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
+  campaigns: any[];
+  tasks: any[];
+  onDataUpdate: () => void;
+}) => {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [bulkCompleteLoading, setBulkCompleteLoading] = useState(false);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
-  const { campaigns, fetchCampaigns } = useCampaigns();
-  const { tasks, fetchTasks, deleteTask, completeTask } = useTasks();
   const { toast } = useToast();
-	const { user } = useUser();
+  const { user } = useAuth();
 
   // Calculate the current week
+  const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
+
   useEffect(() => {
     const today = new Date();
     const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
     const startOfWeek = new Date(today.setDate(diff));
-
-    const weekDays = [];
-    for (let i = 0; i < 7; i++) {
-      const nextDay = new Date(startOfWeek);
-      nextDay.setDate(startOfWeek.getDate() + i);
-      weekDays.push(nextDay);
-    }
-    setCurrentWeek(weekDays);
+    setCurrentWeek(startOfWeek);
   }, []);
-
-  // Fetch campaigns and tasks on mount
-  useEffect(() => {
-    if (user) {
-      fetchCampaigns(user.id);
-      fetchTasks(user.id);
-    }
-  }, [fetchCampaigns, fetchTasks, user]);
-
-  // Handlers for opening modals
-  const handleTaskClick = (task: any) => {
-    setSelectedTask(task);
-    setTaskModalOpen(true);
-  };
-
-  const handleCampaignClick = (campaign: any) => {
-    setSelectedCampaign(campaign);
-    setCampaignModalOpen(true);
-  };
-
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
-    setDateModalOpen(true);
-  };
-
-  const handleCloseTaskModal = () => {
-    setSelectedTask(null);
-    setTaskModalOpen(false);
-  };
-
-  const handleCloseCampaignModal = () => {
-    setSelectedCampaign(null);
-    setCampaignModalOpen(false);
-  };
-
-  const handleCloseDateModal = () => {
-    setSelectedDate(null);
-    setDateModalOpen(false);
-  };
 
   // Task selection and bulk operations
   const toggleTaskSelection = (taskId: string) => {
@@ -102,7 +51,12 @@ export const CalendarView = () => {
     setBulkCompleteLoading(true);
     try {
       await Promise.all(selectedTasks.map(async (taskId) => {
-        await completeTask(taskId);
+        const { error } = await supabase
+          .from('content_tasks')
+          .update({ status: 'completed' })
+          .eq('id', taskId);
+        
+        if (error) throw error;
       }));
 
       toast({
@@ -110,7 +64,7 @@ export const CalendarView = () => {
         description: `${selectedTasks.length} tasks have been marked as complete.`,
       })
       setSelectedTasks([]);
-      fetchTasks(user?.id); // Refresh tasks
+      onDataUpdate();
     } catch (error) {
       toast({
         variant: "destructive",
@@ -135,7 +89,12 @@ export const CalendarView = () => {
     setBulkDeleteLoading(true);
     try {
       await Promise.all(selectedTasks.map(async (taskId) => {
-        await deleteTask(taskId);
+        const { error } = await supabase
+          .from('content_tasks')
+          .delete()
+          .eq('id', taskId);
+        
+        if (error) throw error;
       }));
 
       toast({
@@ -143,7 +102,7 @@ export const CalendarView = () => {
         description: `${selectedTasks.length} tasks have been deleted.`,
       })
       setSelectedTasks([]);
-      fetchTasks(user?.id); // Refresh tasks
+      onDataUpdate();
     } catch (error) {
       toast({
         variant: "destructive",
@@ -157,15 +116,40 @@ export const CalendarView = () => {
   };
   
   const {
-    draggedTasks,
     isDragging,
+    draggedTasks,
     handleDragStart,
     handleDragEnd,
-    handleDragEnter,
-    handleDragLeave,
-    handleDragOver,
     handleDrop
-  } = useEnhancedDragAndDrop();
+  } = useEnhancedDragAndDrop(onDataUpdate);
+
+  // Simple drag handlers for the calendar grid
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>, date: Date) => {
+    event.preventDefault();
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleTaskClick = (task: any) => {
+    // TODO: Implement task modal
+    console.log('Task clicked:', task);
+  };
+
+  const handleCampaignClick = (campaign: any) => {
+    // TODO: Implement campaign modal
+    console.log('Campaign clicked:', campaign);
+  };
+
+  const handleDateClick = (date: Date) => {
+    // TODO: Implement date modal
+    console.log('Date clicked:', date);
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -204,7 +188,7 @@ export const CalendarView = () => {
               </Button>
             </>
           )}
-          <Button size="sm" onClick={() => setTaskModalOpen(true)}>
+          <Button size="sm">
             <Plus className="w-4 h-4 mr-2" />
             Add Task
           </Button>
@@ -220,34 +204,20 @@ export const CalendarView = () => {
           onCampaignClick={handleCampaignClick}
           onDateClick={handleDateClick}
           selectedTasks={selectedTasks}
-          onDragStart={handleDragStart}
+          onDragStart={(event: React.DragEvent<HTMLDivElement>, task: any) => {
+            handleDragStart([task]);
+          }}
           onDragEnd={handleDragEnd}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
-          onDrop={handleDrop}
+          onDrop={(event: React.DragEvent<HTMLDivElement>, date: Date) => {
+            handleDrop(date);
+          }}
           isDragging={isDragging}
           draggedTasks={draggedTasks}
         />
       </div>
-
-      <TaskModal
-        open={taskModalOpen}
-        onClose={handleCloseTaskModal}
-        selectedTask={selectedTask}
-        fetchTasks={() => fetchTasks(user?.id)}
-      />
-      <CampaignModal
-        open={campaignModalOpen}
-        onClose={handleCloseCampaignModal}
-        selectedCampaign={selectedCampaign}
-        fetchCampaigns={() => fetchCampaigns(user?.id)}
-      />
-      <DateModal
-        open={dateModalOpen}
-        onClose={handleCloseDateModal}
-        selectedDate={selectedDate}
-      />
     </div>
   );
 };

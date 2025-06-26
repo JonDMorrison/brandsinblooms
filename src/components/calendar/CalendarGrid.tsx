@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { CalendarDayCell } from './CalendarDayCell';
 import { addDays, startOfWeek } from 'date-fns';
@@ -55,7 +56,7 @@ export const CalendarGrid = ({
         });
 
         const dayTasks = tasks.filter(task => {
-          const taskDate = new Date(task.publish_date);
+          const taskDate = new Date(task.scheduled_date);
           return taskDate.toDateString() === date.toDateString();
         });
 
@@ -67,14 +68,14 @@ export const CalendarGrid = ({
             tasks={dayTasks}
             onTaskClick={onTaskClick}
             onCampaignClick={onCampaignClick}
-            onDateClick={onDateClick}
+            onDateClick={() => onDateClick(date)}
             selectedTasks={selectedTasks}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            onDragEnter={onDragEnter}
+            onDragEnter={(event: React.DragEvent<HTMLDivElement>) => onDragEnter(event, date)}
             onDragLeave={onDragLeave}
             onDragOver={onDragOver}
-            onDrop={onDrop}
+            onDrop={(event: React.DragEvent<HTMLDivElement>) => onDrop(event, date)}
             isDragging={isDragging}
             draggedTasks={draggedTasks}
           />
