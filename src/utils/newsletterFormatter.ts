@@ -20,11 +20,15 @@ export const formatNewsletterContent = (content: string): string => {
       trimmed.endsWith(':') ||
       /^[A-Z][A-Za-z\s]+$/.test(trimmed) ||
       trimmed.includes('WEEK') ||
-      trimmed.includes('FOCUS')
+      trimmed.includes('FOCUS') ||
+      // Check for specific section headers we add
+      trimmed === 'Gardening Focus' ||
+      trimmed === "What's Happening" ||
+      trimmed === 'Expert Tips'
     );
     
     if (isHeader) {
-      formattedContent += `<h2 class="text-xl font-semibold mt-6 mb-3 text-slate-900">${trimmed}</h2>\n`;
+      formattedContent += `<div class="font-bold text-lg mt-6 mb-3 text-slate-900">${trimmed}</div>\n`;
     } else {
       // Break long paragraphs into shorter ones
       const sentences = trimmed.split(/(?<=[.!?])\s+/);
@@ -49,13 +53,13 @@ export const formatNewsletterContent = (content: string): string => {
   
   // Add section breaks for better visual separation
   formattedContent = formattedContent.replace(
-    /(<h2[^>]*>.*?<\/h2>)/g, 
+    /(<div class="font-bold[^>]*>.*?<\/div>)/g, 
     '<div class="border-t border-gray-200 pt-6 mt-6 first:border-t-0 first:pt-0 first:mt-0">$1'
   );
   
   // Close the section divs
   formattedContent = formattedContent.replace(
-    /(<h2[^>]*>.*?<\/h2>(?:(?!<h2|$).)*)/g,
+    /(<div class="font-bold[^>]*>.*?<\/div>(?:(?!<div class="font-bold|$).)*)/g,
     '$1</div>'
   );
   
@@ -82,17 +86,17 @@ export const addNewsletterSections = (content: string): string => {
     const hasBusinessKeywords = businessKeywords.some(keyword => trimmed.toLowerCase().includes(keyword));
     const hasTipKeywords = tipKeywords.some(keyword => trimmed.toLowerCase().includes(keyword));
     
-    // Add section headers based on content type
+    // Add section headers based on content type (without markdown syntax)
     if (index === 0 || (hasGardenKeywords && currentSection !== 'garden')) {
       if (hasGardenKeywords && index > 0) {
-        processedContent += '\n## Gardening Focus\n\n';
+        processedContent += '\nGardening Focus\n\n';
         currentSection = 'garden';
       }
     } else if (hasBusinessKeywords && currentSection !== 'business') {
-      processedContent += '\n## What\'s Happening\n\n';
+      processedContent += '\nWhat\'s Happening\n\n';
       currentSection = 'business';
     } else if (hasTipKeywords && currentSection !== 'tips') {
-      processedContent += '\n## Expert Tips\n\n';
+      processedContent += '\nExpert Tips\n\n';
       currentSection = 'tips';
     }
     
