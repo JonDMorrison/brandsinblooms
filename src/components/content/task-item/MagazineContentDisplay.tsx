@@ -1,20 +1,16 @@
-import React, { useEffect, useState } from 'react';
+
+import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
-import { supabase } from "@/integrations/supabase/client";
+import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 
 interface MagazineContentDisplayProps {
   content: string;
   postType: string;
   className?: string;
-}
-
-interface ImageData {
-  thumb_url: string;
-  alt: string;
-  photographer?: string;
-  id?: string;
+  contentTaskId?: string;
+  campaignTitle?: string;
 }
 
 // Utility function to convert markdown to HTML
@@ -78,115 +74,9 @@ const removeHeadlineFromContent = (htmlContent: string): string => {
     .trim();
 };
 
-// Function to generate image prompt based on content
-const generateImagePrompt = (content: string, postType: string): string => {
-  // Extract title or first meaningful line
-  const lines = content.split('\n').filter(line => line.trim());
-  let basePrompt = '';
-  
-  // Try to find a title (line starting with #)
-  const titleLine = lines.find(line => line.startsWith('#'));
-  if (titleLine) {
-    basePrompt = titleLine.replace(/^#+\s*/, '').trim();
-  } else if (lines.length > 0) {
-    // Use first substantial line
-    basePrompt = lines[0].substring(0, 100).trim();
-  }
-  
-  // Clean up the prompt and add context
-  basePrompt = basePrompt.replace(/[^\w\s]/g, ' ').trim();
-  
-  if (postType === 'blog') {
-    return `${basePrompt} gardening blog article professional`;
-  } else if (postType === 'video') {
-    return `${basePrompt} gardening video tutorial educational`;
-  }
-  
-  return `${basePrompt} gardening professional`;
-};
-
-export const MagazineContentDisplay = ({ content, postType, className }: MagazineContentDisplayProps) => {
-  const [image, setImage] = useState<ImageData | null>(null);
-  const [loadingImage, setLoadingImage] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
-
-  // Fetch image for blog content only
-  useEffect(() => {
-    const fetchImage = async () => {
-      if (postType !== 'blog') return;
-      
-      setLoadingImage(true);
-      setImageError(null);
-      console.log(`[MAGAZINE_DISPLAY] Fetching image for ${postType} content`);
-      
-      try {
-        const imagePrompt = generateImagePrompt(content, postType);
-        console.log(`[MAGAZINE_DISPLAY] Generated prompt: ${imagePrompt}`);
-        
-        const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
-          body: { 
-            query: imagePrompt,
-            contentType: postType
-          }
-        });
-        
-        console.log(`[MAGAZINE_DISPLAY] Function response:`, { data, error });
-        
-        if (error) {
-          console.log(`[MAGAZINE_DISPLAY] Supabase function error for ${postType}:`, error.message);
-          setImageError(error.message || 'Function call failed');
-          setImage(null);
-          return;
-        }
-        
-        if (!data) {
-          console.warn(`[MAGAZINE_DISPLAY] No data returned for ${postType}`);
-          setImageError('No data returned from function');
-          setImage(null);
-          return;
-        }
-        
-        if (data.error) {
-          console.error(`[MAGAZINE_DISPLAY] API error for ${postType}:`, data.error);
-          setImageError(data.error);
-          setImage(null);
-          return;
-        }
-        
-        if (data?.images?.[0]) {
-          const imageData = data.images[0];
-          console.log(`[MAGAZINE_DISPLAY] Successfully fetched image for ${postType}:`, imageData);
-          
-          // Validate the image URL before setting
-          if (imageData.thumb_url && typeof imageData.thumb_url === 'string') {
-            setImage({
-              thumb_url: imageData.thumb_url,
-              alt: imageData.alt || `${postType} content image`,
-              photographer: imageData.photographer,
-              id: imageData.id || imageData.unsplash_id
-            });
-            console.log(`[MAGAZINE_DISPLAY] Image URL set to:`, imageData.thumb_url);
-          } else {
-            console.warn(`[MAGAZINE_DISPLAY] Invalid image URL for ${postType}:`, imageData);
-            setImageError('Invalid image URL received');
-            setImage(null);
-          }
-        } else {
-          console.warn(`[MAGAZINE_DISPLAY] No images in response for ${postType}. Response:`, data);
-          setImageError('No images found for query');
-          setImage(null);
-        }
-      } catch (error) {
-        console.error(`[MAGAZINE_DISPLAY] Exception fetching image for ${postType}:`, error);
-        setImageError(error.message || 'Network error');
-        setImage(null);
-      } finally {
-        setLoadingImage(false);
-      }
-    };
-
-    fetchImage();
-  }, [content, postType]);
+export const MagazineContentDisplay = ({ content, postType, className, contentTaskId, campaignTitle }: MagazineContentDisplayProps) => {
+  // Use the smart image suggestions hook instead of basic image fetching
+  const { images, loading: loadingImage } = useImageSuggestions(contentTaskId, postType);
 
   const getPostTypeIcon = () => {
     switch (postType) {
@@ -223,6 +113,9 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
   };
 
   const { text, hashtags } = formatContent(content);
+
+  // Get the first relevant image from the smart suggestions
+  const relevantImage = images[0];
 
   if (postType === 'newsletter') {
     // Check if this is a structured YAML newsletter
@@ -350,12 +243,42 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
           </div>
         </div>
 
-        {/* Image Placeholder */}
-        <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 flex items-center justify-center border border-pink-200">
-          <div className="text-center text-pink-600">
-            <ImageIcon className="w-12 h-12 mx-auto mb-2" />
-            <p className="text-sm">Visual content area</p>
-          </div>
+        {/* Image with smart suggestions */}
+        <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 flex items-center justify-center border border-pink-200 overflow-hidden">
+          {loadingImage ? (
+            <div className="text-center text-pink-600">
+              <div className="animate-spin h-6 w-6 border-2 border-pink-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+              <p className="text-sm">Finding relevant image...</p>
+            </div>
+          ) : relevantImage ? (
+            <img
+              src={relevantImage.download_url || relevantImage.thumb_url}
+              alt={relevantImage.alt}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
+                // Fallback to placeholder
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                const parent = target.parentElement;
+                if (parent) {
+                  parent.innerHTML = `
+                    <div class="text-center text-pink-600">
+                      <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                      </svg>
+                      <p class="text-sm">Visual content area</p>
+                    </div>
+                  `;
+                }
+              }}
+            />
+          ) : (
+            <div className="text-center text-pink-600">
+              <ImageIcon className="w-12 h-12 mx-auto mb-2" />
+              <p className="text-sm">Visual content area</p>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -398,12 +321,42 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
             {text}
           </p>
           
-          {/* Image Placeholder */}
-          <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200">
-            <div className="text-center text-blue-600">
-              <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Featured image</p>
-            </div>
+          {/* Image with smart suggestions */}
+          <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200 overflow-hidden">
+            {loadingImage ? (
+              <div className="text-center text-blue-600">
+                <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+                <p className="text-sm">Finding relevant image...</p>
+              </div>
+            ) : relevantImage ? (
+              <img
+                src={relevantImage.download_url || relevantImage.thumb_url}
+                alt={relevantImage.alt}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
+                  // Fallback to placeholder
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent) {
+                    parent.innerHTML = `
+                      <div class="text-center text-blue-600">
+                        <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <p class="text-sm">Featured image</p>
+                      </div>
+                    `;
+                  }
+                }}
+              />
+            ) : (
+              <div className="text-center text-blue-600">
+                <ImageIcon className="w-8 h-8 mx-auto mb-2" />
+                <p className="text-sm">Featured image</p>
+              </div>
+            )}
           </div>
 
           {hashtags.length > 0 && (
@@ -445,44 +398,47 @@ export const MagazineContentDisplay = ({ content, postType, className }: Magazin
 
         {/* Article Content with Floating Image */}
         <div className="relative">
-          {/* Floating Image - Top Right */}
+          {/* Floating Image - Top Right with smart suggestions */}
           <div className="w-1/4 float-right ml-6 mb-4">
             <div className="aspect-square bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200 overflow-hidden">
               {loadingImage ? (
                 <div className="flex items-center justify-center">
                   <div className="animate-spin h-6 w-6 border-2 border-green-600 border-t-transparent rounded-full"></div>
                 </div>
-              ) : image?.thumb_url ? (
+              ) : relevantImage ? (
                 <>
                   <img
-                    src={image.thumb_url}
-                    alt={image.alt}
+                    src={relevantImage.download_url || relevantImage.thumb_url}
+                    alt={relevantImage.alt}
                     className="w-full h-full object-cover rounded-lg"
                     onError={(e) => {
-                      console.error('[MAGAZINE_DISPLAY] Image failed to load:', image.thumb_url);
-                      console.error('[MAGAZINE_DISPLAY] Image error event:', e);
-                      setImageError('Image failed to load');
-                      setImage(null);
-                    }}
-                    onLoad={() => {
-                      console.log('[MAGAZINE_DISPLAY] Image loaded successfully:', image.thumb_url);
+                      console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
+                      // Fallback to placeholder
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="text-center text-green-600 p-2">
+                            <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <p class="text-xs">Featured image</p>
+                          </div>
+                        `;
+                      }
                     }}
                   />
-                  {image.photographer && (
+                  {relevantImage.photographer && (
                     <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-2 py-1 opacity-0 hover:opacity-100 transition-opacity">
-                      Photo by {image.photographer}
+                      Photo by {relevantImage.photographer}
                     </div>
                   )}
                 </>
               ) : (
                 <div className="text-center text-green-600 p-2">
                   <ImageIcon className="w-6 h-6 mx-auto mb-1" />
-                  <p className="text-xs">
-                    {imageError ? 'Image unavailable' : 'Featured image'}
-                  </p>
-                  {imageError && import.meta.env.DEV && (
-                    <p className="text-xs text-red-500 mt-1">{imageError}</p>
-                  )}
+                  <p className="text-xs">Featured image</p>
                 </div>
               )}
             </div>
