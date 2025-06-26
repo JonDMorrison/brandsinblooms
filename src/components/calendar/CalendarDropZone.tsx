@@ -72,20 +72,20 @@ export const CalendarDropZone = ({
     <div
       className={cn(
         "relative h-full",
-        // Enhanced drag and drop styling
+        // Enhanced drag and drop styling with better visibility
         isDragging && canDrop && "border-2 border-dashed transition-all duration-300",
-        isDragging && canDrop && isHoveredDrop && "border-green-400 bg-gradient-to-br from-green-100/80 to-emerald-100/60 shadow-lg",
-        isDragging && canDrop && !isHoveredDrop && "border-blue-300 bg-gradient-to-br from-blue-50/60 to-green-50/40",
+        isDragging && canDrop && isHoveredDrop && "border-green-400 bg-green-100/50 shadow-lg backdrop-blur-sm",
+        isDragging && canDrop && !isHoveredDrop && "border-blue-300 bg-blue-50/30",
         isDragging && !canDrop && "opacity-60"
       )}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Enhanced drop indicator overlay */}
+      {/* Drop indicator overlay - positioned to not block content */}
       {isDragging && canDrop && isHoveredDrop && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-100/90 to-emerald-100/80 border-2 border-green-400 border-dashed rounded-lg z-10 backdrop-blur-sm">
-          <div className="bg-white/90 text-green-700 font-semibold text-sm px-4 py-2 rounded-lg shadow-lg border border-green-200">
+        <div className="absolute inset-2 flex items-center justify-center bg-green-100/80 border-2 border-green-400 border-dashed rounded-lg z-20 backdrop-blur-sm pointer-events-none">
+          <div className="bg-white/95 text-green-700 font-semibold text-sm px-4 py-2 rounded-lg shadow-md border border-green-200">
             📅 Drop here to reschedule
           </div>
         </div>
