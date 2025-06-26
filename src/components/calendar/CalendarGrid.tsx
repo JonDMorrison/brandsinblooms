@@ -78,9 +78,26 @@ export const CalendarGrid = ({
         
         {/* Calendar days with enhanced styling */}
         {days.map((date) => {
+          // Fix the campaign filtering logic - use only start_date which exists in the database
           const dayCampaigns = uniqueCampaigns.filter(campaign => {
-            const campaignDate = new Date(campaign.publish_date || campaign.start_date);
-            return campaignDate.toDateString() === date.toDateString();
+            if (!campaign.start_date) {
+              console.log('CalendarGrid: Campaign missing start_date:', campaign);
+              return false;
+            }
+            
+            const campaignDate = new Date(campaign.start_date);
+            const dateMatch = campaignDate.toDateString() === date.toDateString();
+            
+            if (dateMatch) {
+              console.log('CalendarGrid: Campaign matched to date:', {
+                campaignId: campaign.id,
+                campaignTitle: campaign.title,
+                campaignStartDate: campaign.start_date,
+                targetDate: date.toDateString()
+              });
+            }
+            
+            return dateMatch;
           });
 
           const dayTasks = uniqueTasks.filter(task => {
