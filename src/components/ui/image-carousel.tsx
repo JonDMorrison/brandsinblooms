@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Download, Copy, Heart, Shuffle, Info } from 'lucide-react';
+import { Download, Copy, Heart, Shuffle, Info, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -37,6 +37,11 @@ export const ImageCarousel = ({
   const { user } = useAuth();
   const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const [favoriteImages, setFavoriteImages] = useState<Set<string>>(new Set());
+
+  // Limit to exactly 4 images
+  const displayImages = images.slice(0, 4);
+  const featuredImage = displayImages[0];
+  const alternativeImages = displayImages.slice(1, 4);
 
   const handleDownload = (imageUrl: string, photographer: string) => {
     if (usingPlaceholders) {
@@ -98,7 +103,7 @@ export const ImageCarousel = ({
     }
   };
 
-  if (images.length === 0) {
+  if (displayImages.length === 0) {
     return (
       <Card className={`p-4 text-center ${className}`}>
         <p className="text-gray-500">No images found for "{query}"</p>
@@ -112,12 +117,76 @@ export const ImageCarousel = ({
     );
   }
 
+  const ImageCard = ({ image, isFeatured = false }: { image: ImageSuggestion, isFeatured?: boolean }) => (
+    <div
+      className={`relative group cursor-pointer ${isFeatured ? 'col-span-2 row-span-2' : ''}`}
+      onMouseEnter={() => setHoveredImage(image.id)}
+      onMouseLeave={() => setHoveredImage(null)}
+    >
+      <div className={`${isFeatured ? 'aspect-square' : 'aspect-video'} rounded-lg overflow-hidden bg-gray-100 relative`}>
+        <img
+          src={image.thumb_url}
+          alt={image.alt}
+          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          loading="lazy"
+        />
+        
+        {/* Featured badge */}
+        {isFeatured && (
+          <Badge className="absolute top-2 left-2 bg-yellow-500 text-yellow-900">
+            <Star className="w-3 h-3 mr-1" />
+            Featured
+          </Badge>
+        )}
+        
+        {/* Hover overlay */}
+        {hoveredImage === image.id && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center transition-opacity">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleDownload(image.download_url, image.photographer)}
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleCopyCredit(image.photographer)}
+              >
+                <Copy className="w-4 h-4" />
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => handleFavorite(image)}
+                disabled={favoriteImages.has(image.id)}
+              >
+                <Heart className={`w-4 h-4 ${favoriteImages.has(image.id) ? 'fill-red-500 text-red-500' : ''}`} />
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Credit badge */}
+      <Badge 
+        variant="secondary" 
+        className="absolute bottom-2 left-2 text-xs cursor-pointer"
+        onClick={() => handleCopyCredit(image.photographer)}
+      >
+        📷 {image.photographer}
+      </Badge>
+    </div>
+  );
+
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold">
-            {usingPlaceholders ? 'Sample Images Preview' : 'Free Images for This Post'}
+            {usingPlaceholders ? 'Sample Images Preview' : 'Images for This Post'}
           </h3>
           <p className="text-sm text-gray-600">
             {usingPlaceholders ? 'Add your Unsplash API key for real images' : `From Unsplash • Search: "${query}"`}
@@ -139,69 +208,21 @@ export const ImageCarousel = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {images.map((image) => (
-          <div
-            key={image.id}
-            className="relative group cursor-pointer"
-            onMouseEnter={() => setHoveredImage(image.id)}
-            onMouseLeave={() => setHoveredImage(null)}
-          >
-            <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
-              <img
-                src={image.thumb_url}
-                alt={image.alt}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                loading="lazy"
-              />
-              
-              {/* Hover overlay */}
-              {hoveredImage === image.id && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center transition-opacity">
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleDownload(image.download_url, image.photographer)}
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleCopyCredit(image.photographer)}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => handleFavorite(image)}
-                      disabled={favoriteImages.has(image.id)}
-                    >
-                      <Heart className={`w-4 h-4 ${favoriteImages.has(image.id) ? 'fill-red-500 text-red-500' : ''}`} />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Credit badge */}
-            <Badge 
-              variant="secondary" 
-              className="absolute bottom-2 left-2 text-xs cursor-pointer"
-              onClick={() => handleCopyCredit(image.photographer)}
-            >
-              📷 {image.photographer}
-            </Badge>
-          </div>
+      {/* Featured + Alternatives Grid Layout */}
+      <div className="grid grid-cols-4 grid-rows-2 gap-4 h-64">
+        {/* Featured Image - Takes up left 2x2 space */}
+        {featuredImage && <ImageCard image={featuredImage} isFeatured={true} />}
+        
+        {/* Alternative Images - Take up remaining right side */}
+        {alternativeImages.map((image) => (
+          <ImageCard key={image.id} image={image} />
         ))}
       </div>
 
       {usingPlaceholders && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <p className="text-sm text-blue-800">
-            💡 These are sample images to show how the feature works. Add your Unsplash API key to get real, high-quality images for your content.
+            💡 These are 4 sample images (1 featured + 3 alternatives) to show how the feature works. Add your Unsplash API key to get real, high-quality images for your content.
           </p>
         </div>
       )}

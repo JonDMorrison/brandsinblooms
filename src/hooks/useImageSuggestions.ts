@@ -13,7 +13,7 @@ interface ImageSuggestion {
   query: string;
 }
 
-// Reliable placeholder images using Lorem Picsum (no API key required)
+// Generate exactly 4 placeholder images - 1 featured + 3 alternatives
 const getPlatformPlaceholderImages = (query: string, postType: string): ImageSuggestion[] => {
   const basePhotographer = 'Lorem Picsum';
   
@@ -23,102 +23,132 @@ const getPlatformPlaceholderImages = (query: string, postType: string): ImageSug
   const platformImages = {
     instagram: [
       {
-        id: `instagram-1-${seed}`,
+        id: `instagram-featured-${seed}`,
         thumb_url: `https://picsum.photos/seed/${seed + 1}/400/400`,
         download_url: `https://picsum.photos/seed/${seed + 1}/1080/1080`,
-        alt: `${query} - aesthetic square image`,
+        alt: `${query} - featured image`,
       },
       {
-        id: `instagram-2-${seed}`,
+        id: `instagram-alt1-${seed}`,
         thumb_url: `https://picsum.photos/seed/${seed + 2}/400/400`,
         download_url: `https://picsum.photos/seed/${seed + 2}/1080/1080`,
-        alt: `${query} - vibrant square composition`,
+        alt: `${query} - alternative 1`,
       },
       {
-        id: `instagram-3-${seed}`,
+        id: `instagram-alt2-${seed}`,
         thumb_url: `https://picsum.photos/seed/${seed + 3}/400/400`,
         download_url: `https://picsum.photos/seed/${seed + 3}/1080/1080`,
-        alt: `${query} - lifestyle square shot`,
+        alt: `${query} - alternative 2`,
+      },
+      {
+        id: `instagram-alt3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 4}/400/400`,
+        download_url: `https://picsum.photos/seed/${seed + 4}/1080/1080`,
+        alt: `${query} - alternative 3`,
       }
     ],
     facebook: [
       {
-        id: `facebook-1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 4}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 4}/1200/630`,
-        alt: `${query} - landscape format`,
-      },
-      {
-        id: `facebook-2-${seed}`,
+        id: `facebook-featured-${seed}`,
         thumb_url: `https://picsum.photos/seed/${seed + 5}/400/300`,
         download_url: `https://picsum.photos/seed/${seed + 5}/1200/630`,
-        alt: `${query} - wide composition`,
+        alt: `${query} - featured image`,
       },
       {
-        id: `facebook-3-${seed}`,
+        id: `facebook-alt1-${seed}`,
         thumb_url: `https://picsum.photos/seed/${seed + 6}/400/300`,
         download_url: `https://picsum.photos/seed/${seed + 6}/1200/630`,
-        alt: `${query} - community style`,
+        alt: `${query} - alternative 1`,
+      },
+      {
+        id: `facebook-alt2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 7}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 7}/1200/630`,
+        alt: `${query} - alternative 2`,
+      },
+      {
+        id: `facebook-alt3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 8}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 8}/1200/630`,
+        alt: `${query} - alternative 3`,
       }
     ],
     newsletter: [
       {
-        id: `newsletter-1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 7}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 7}/1000/600`,
-        alt: `${query} - newsletter header`,
-      },
-      {
-        id: `newsletter-2-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 8}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 8}/1000/600`,
-        alt: `${query} - professional layout`,
-      },
-      {
-        id: `newsletter-3-${seed}`,
+        id: `newsletter-featured-${seed}`,
         thumb_url: `https://picsum.photos/seed/${seed + 9}/400/250`,
         download_url: `https://picsum.photos/seed/${seed + 9}/1000/600`,
-        alt: `${query} - informative design`,
+        alt: `${query} - featured image`,
+      },
+      {
+        id: `newsletter-alt1-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 10}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 10}/1000/600`,
+        alt: `${query} - alternative 1`,
+      },
+      {
+        id: `newsletter-alt2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 11}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 11}/1000/600`,
+        alt: `${query} - alternative 2`,
+      },
+      {
+        id: `newsletter-alt3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 12}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 12}/1000/600`,
+        alt: `${query} - alternative 3`,
       }
     ],
     email: [
       {
-        id: `email-1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 10}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 10}/800/500`,
-        alt: `${query} - email friendly`,
+        id: `email-featured-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 13}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 13}/800/500`,
+        alt: `${query} - featured image`,
       },
       {
-        id: `email-2-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 11}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 11}/800/500`,
-        alt: `${query} - clean design`,
+        id: `email-alt1-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 14}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 14}/800/500`,
+        alt: `${query} - alternative 1`,
       },
       {
-        id: `email-3-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 12}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 12}/800/500`,
-        alt: `${query} - simple layout`,
+        id: `email-alt2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 15}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 15}/800/500`,
+        alt: `${query} - alternative 2`,
+      },
+      {
+        id: `email-alt3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 16}/400/250`,
+        download_url: `https://picsum.photos/seed/${seed + 16}/800/500`,
+        alt: `${query} - alternative 3`,
       }
     ],
     video: [
       {
-        id: `video-1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 13}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 13}/1280/720`,
-        alt: `${query} - video thumbnail`,
+        id: `video-featured-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 17}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 17}/1280/720`,
+        alt: `${query} - featured image`,
       },
       {
-        id: `video-2-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 14}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 14}/1280/720`,
-        alt: `${query} - cinematic style`,
+        id: `video-alt1-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 18}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 18}/1280/720`,
+        alt: `${query} - alternative 1`,
       },
       {
-        id: `video-3-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 15}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 15}/1280/720`,
-        alt: `${query} - video format`,
+        id: `video-alt2-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 19}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 19}/1280/720`,
+        alt: `${query} - alternative 2`,
+      },
+      {
+        id: `video-alt3-${seed}`,
+        thumb_url: `https://picsum.photos/seed/${seed + 20}/400/300`,
+        download_url: `https://picsum.photos/seed/${seed + 20}/1280/720`,
+        alt: `${query} - alternative 3`,
       }
     ]
   };
@@ -241,7 +271,8 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         .from('image_suggestions')
         .select('*')
         .eq('content_task_id', taskId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(4); // Only get 4 images
 
       if (error) {
         console.error('[IMAGE_HOOK] Error fetching stored images:', error);
@@ -250,7 +281,7 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
 
       if (data && data.length > 0) {
         console.log('[IMAGE_HOOK] Found', data.length, 'stored images - using cached images');
-        setImages(data);
+        setImages(data.slice(0, 4)); // Ensure max 4 images
         setQuery(data[0].query);
         setUsingPlaceholders(false);
         setHasStoredImages(true);
@@ -289,7 +320,8 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
           query: finalQuery,
-          contentTaskId: taskId 
+          contentTaskId: taskId,
+          maxImages: 4 // Request exactly 4 images
         }
       });
 
@@ -306,11 +338,12 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
 
       if (data?.images && data.images.length > 0) {
         console.log('[IMAGE_HOOK] Successfully fetched', data.images.length, 'real images');
-        setImages(data.images);
+        const limitedImages = data.images.slice(0, 4); // Ensure max 4 images
+        setImages(limitedImages);
         setQuery(finalQuery);
         setUsingPlaceholders(false);
         setHasStoredImages(true);
-        toast.success(`Found ${data.images.length} relevant images for "${finalQuery}"`);
+        toast.success(`Found ${limitedImages.length} relevant images for "${finalQuery}"`);
       } else {
         console.log('[IMAGE_HOOK] No images returned, using placeholders');
         const placeholders = getPlatformPlaceholderImages(finalQuery, contentType || 'instagram');

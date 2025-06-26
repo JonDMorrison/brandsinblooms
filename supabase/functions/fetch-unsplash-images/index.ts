@@ -18,13 +18,13 @@ serve(async (req) => {
   }
 
   try {
-    const { query, contentTaskId } = await req.json();
+    const { query, contentTaskId, maxImages = 4 } = await req.json();
 
     if (!query) {
       throw new Error('Query parameter is required');
     }
 
-    console.log(`[UNSPLASH] Fetching images for query: ${query}`);
+    console.log(`[UNSPLASH] Fetching exactly ${maxImages} images for query: ${query}`);
     console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey}`);
 
     if (!unsplashAccessKey) {
@@ -32,9 +32,9 @@ serve(async (req) => {
       throw new Error('Unsplash API key not configured');
     }
 
-    // Fetch images from Unsplash API
+    // Fetch images from Unsplash API - request exactly what we need
     const unsplashResponse = await fetch(
-      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=6&orientation=landscape`,
+      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${maxImages}&orientation=landscape`,
       {
         headers: {
           'Authorization': `Client-ID ${unsplashAccessKey}`,
@@ -55,11 +55,14 @@ serve(async (req) => {
 
     console.log(`[UNSPLASH] Found ${images.length} images from Unsplash`);
 
+    // Limit to exactly maxImages (4)
+    const limitedImages = images.slice(0, maxImages);
+
     // If contentTaskId is provided, store the images in the database
-    if (contentTaskId && images.length > 0) {
+    if (contentTaskId && limitedImages.length > 0) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const imageSuggestions = images.map((image: any) => ({
+      const imageSuggestions = limitedImages.map((image: any) => ({
         content_task_id: contentTaskId,
         query: query,
         thumb_url: image.urls.thumb,
@@ -81,8 +84,8 @@ serve(async (req) => {
       console.log(`[UNSPLASH] Stored ${imageSuggestions.length} image suggestions for task ${contentTaskId}`);
     }
 
-    // Return the images
-    const formattedImages = images.map((image: any) => ({
+    // Return exactly 4 images
+    const formattedImages = limitedImages.map((image: any) => ({
       id: image.id,
       thumb_url: image.urls.thumb,
       download_url: image.urls.full,
