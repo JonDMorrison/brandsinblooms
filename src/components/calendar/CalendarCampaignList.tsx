@@ -25,6 +25,13 @@ export const CalendarCampaignList = ({
   selectedCampaigns = [],
   onCampaignClick,
 }: CalendarCampaignListProps) => {
+  // Deduplicate campaigns based on ID at the component level
+  const uniqueCampaigns = campaigns.filter((campaign, index, self) => 
+    index === self.findIndex(c => c.id === campaign.id)
+  );
+
+  console.log(`CalendarCampaignList: Received ${campaigns.length} campaigns, showing ${uniqueCampaigns.length} unique campaigns`);
+
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
   };
@@ -39,7 +46,7 @@ export const CalendarCampaignList = ({
 
   return (
     <>
-      {campaigns.slice(0, 2).map((campaign) => {
+      {uniqueCampaigns.slice(0, 2).map((campaign) => {
         const isSelected = isCampaignSelected(campaign);
         
         return (
