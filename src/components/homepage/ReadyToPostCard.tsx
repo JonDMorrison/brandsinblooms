@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { ContentTask } from "@/types/content";
-import { toast } from "sonner";
+import { ImprovedReadyToPostItem } from "./ready-to-post/ImprovedReadyToPostItem";
+import { ContentViewerDialog } from "@/components/content/ContentViewerDialog";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -19,6 +20,8 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   const { tenant } = useTenant();
   const [readyTasks, setReadyTasks] = useState<ContentTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [showContentViewer, setShowContentViewer] = useState(false);
 
   // Check if user is developer
   const isDeveloper = user?.email === 'jon@getclear.ca';
@@ -92,30 +95,21 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
     fetchReadyTasks();
   }, [user, tenant, tasks]);
 
-  const handleMarkAsPosted = async (taskId: string) => {
-    console.log('🎯 READY_TO_POST: Marking task as posted:', taskId);
-    
-    try {
-      const { error } = await supabase
-        .from('content_tasks')
-        .update({ status: 'posted' })
-        .eq('id', taskId);
+  const handleTaskClick = (task: any) => {
+    setSelectedTask(task);
+    setShowContentViewer(true);
+  };
 
-      if (error) {
-        console.error('❌ READY_TO_POST: Error marking as posted:', error);
-        toast.error('Failed to mark content as posted');
-        throw error;
-      }
+  const handleTaskEdit = (task: any, editMode: boolean) => {
+    setSelectedTask(task);
+    setShowContentViewer(true);
+  };
 
-      console.log('✅ READY_TO_POST: Successfully marked as posted');
-      toast.success('Content marked as posted!');
-      
-      // Refresh the tasks
-      await fetchReadyTasks();
-      if (onTaskUpdate) onTaskUpdate();
-    } catch (error) {
-      console.error('❌ READY_TO_POST: Exception marking task as posted:', error);
-    }
+  const handleContentViewerClose = () => {
+    setShowContentViewer(false);
+    setSelectedTask(null);
+    fetchReadyTasks();
+    if (onTaskUpdate) onTaskUpdate();
   };
 
   if (loading) {
@@ -147,77 +141,56 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   }
 
   return (
-    <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50" data-section="ready-to-post-section">
-      <CardHeader>
-        <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
-          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
-            5
-          </div>
-          <CheckCircle2 className="w-5 h-5" />
-          Ready to Post!
-          <Badge className="bg-blue-100 text-blue-800 border-blue-300">
-            {readyTasks.length} approved
-          </Badge>
-        </CardTitle>
-        <CardDescription className="text-blue-700 flex items-center gap-2">
-          <Clock className="w-4 h-4" />
-          Content approved and ready for your social media channels
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {readyTasks.slice(0, 5).map((task) => (
-            <div
-              key={task.id}
-              id={`task-${task.id}`}
-              className="bg-white/70 border border-blue-200 rounded-lg p-4 hover:shadow-sm transition-shadow"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="text-blue-700 border-blue-300 text-xs">
-                      {task.post_type || 'Social Post'}
-                    </Badge>
-                    <Badge 
-                      variant="outline" 
-                      className={task.status === 'approved' ? 'text-green-700 border-green-300' : 'text-blue-700 border-blue-300'}
-                    >
-                      {task.status}
-                    </Badge>
-                    <span className="text-xs text-blue-600">
-                      {task.campaigns?.title}
-                    </span>
-                  </div>
-                  <p className="text-sm text-blue-900 mb-2 line-clamp-2">
-                    {task.ai_output?.substring(0, 120)}...
-                  </p>
-                  {task.hashtags && (
-                    <p className="text-xs text-blue-600 mb-2">
-                      {task.hashtags}
-                    </p>
-                  )}
-                </div>
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => handleMarkAsPosted(task.id)}
-                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                  >
-                    Mark Posted
-                  </button>
-                </div>
-              </div>
+    <>
+      <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50" data-section="ready-to-post-section">
+        <CardHeader>
+          <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+              5
             </div>
-          ))}
+            <CheckCircle2 className="w-5 h-5" />
+            Ready to Post!
+            <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+              {readyTasks.length} approved
+            </Badge>
+          </CardTitle>
+          <CardDescription className="text-blue-700 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Content approved and ready for your social media channels
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {readyTasks.map((task) => (
+              <ImprovedReadyToPostItem
+                key={task.id}
+                task={task}
+                onClick={handleTaskClick}
+                onTaskUpdate={fetchReadyTasks}
+                onEdit={handleTaskEdit}
+              />
+            ))}
+          </div>
           
-          {readyTasks.length > 5 && (
-            <div className="text-center pt-2">
+          {readyTasks.length > 4 && (
+            <div className="text-center pt-4 mt-4 border-t border-blue-200">
               <p className="text-blue-600 text-sm">
-                +{readyTasks.length - 5} more pieces ready to post
+                Showing {Math.min(4, readyTasks.length)} of {readyTasks.length} ready pieces
               </p>
             </div>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      {/* Content Viewer Dialog */}
+      {selectedTask && (
+        <ContentViewerDialog
+          task={selectedTask}
+          isOpen={showContentViewer}
+          onClose={handleContentViewerClose}
+          onTaskUpdate={handleContentViewerClose}
+        />
+      )}
+    </>
   );
 };
