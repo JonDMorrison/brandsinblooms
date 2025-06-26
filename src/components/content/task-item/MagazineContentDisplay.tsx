@@ -331,9 +331,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </div>
         </div>
 
-        {/* Image with smart suggestions */}
+        {/* Image with smart suggestions - Changed from aspect-square to aspect-video for landscape */}
         {renderImage(
-          "aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 border border-pink-200",
+          "aspect-video bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 border border-pink-200",
           "Visual content area"
         )}
 
