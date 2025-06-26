@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { MagazineContentDisplay } from "./MagazineContentDisplay";
 import { SocialMediaPostPreview } from "./SocialMediaPostPreview";
-import { NewsletterDisplay } from "@/components/newsletter/NewsletterDisplay";
 import { generatePersonalizedContent } from "@/components/homepage/ContentGenerationServices";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -115,11 +114,13 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       );
     }
 
-    // ALWAYS use NewsletterDisplay for newsletter content - it handles everything internally
+    // Simple newsletter handling - just use prose styling for clean display
     if (normalizedTask.post_type === 'newsletter') {
       return (
         <div className="space-y-3">
-          <NewsletterDisplay task={normalizedTask} />
+          <div className="prose prose-lg max-w-none">
+            <div dangerouslySetInnerHTML={{ __html: normalizedTask.ai_output }} />
+          </div>
           <div className="flex justify-end">
             <Button
               size="sm"

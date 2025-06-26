@@ -2,7 +2,6 @@
 import React from 'react';
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
-import { NewsletterDisplay } from "@/components/newsletter/NewsletterDisplay";
 import { extractBlogMetadata, cleanContentForDisplay } from "@/utils/contentUtils";
 
 interface TaskItemContentProps {
@@ -31,7 +30,11 @@ export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: Tas
             className="bg-white min-h-0"
           />
         ) : task.post_type === 'newsletter' ? (
-          <NewsletterDisplay task={task} />
+          <div className="p-4">
+            <div className="prose prose-lg max-w-none">
+              <div dangerouslySetInnerHTML={{ __html: cleanContent }} />
+            </div>
+          </div>
         ) : (
           <div className="p-4 bg-gray-50">
             <div className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
