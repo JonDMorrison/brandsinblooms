@@ -116,25 +116,8 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   };
   
   const {
-    isDragging,
-    draggedTasks,
-    handleDragStart,
-    handleDragEnd,
     handleDrop
   } = useEnhancedDragAndDrop(onDataUpdate);
-
-  // Simple drag handlers for the calendar grid
-  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>, date: Date) => {
-    event.preventDefault();
-  };
-
-  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-  };
-
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-  };
 
   const handleTaskClick = (task: any) => {
     // TODO: Implement task modal
@@ -149,6 +132,10 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   const handleDateClick = (date: Date) => {
     // TODO: Implement date modal
     console.log('Date clicked:', date);
+  };
+
+  const isTaskSelected = (task: any) => {
+    return selectedTasks.includes(task.id);
   };
 
   return (
@@ -204,18 +191,8 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
           onCampaignClick={handleCampaignClick}
           onDateClick={handleDateClick}
           selectedTasks={selectedTasks}
-          onDragStart={(event: React.DragEvent<HTMLDivElement>, task: any) => {
-            handleDragStart([task]);
-          }}
-          onDragEnd={handleDragEnd}
-          onDragEnter={handleDragEnter}
-          onDragLeave={handleDragLeave}
-          onDragOver={handleDragOver}
-          onDrop={(event: React.DragEvent<HTMLDivElement>, date: Date) => {
-            handleDrop(date);
-          }}
-          isDragging={isDragging}
-          draggedTasks={draggedTasks}
+          onDrop={handleDrop}
+          isTaskSelected={isTaskSelected}
         />
       </div>
     </div>

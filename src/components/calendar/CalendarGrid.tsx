@@ -11,14 +11,8 @@ interface CalendarGridProps {
   onCampaignClick: (campaign: any) => void;
   onDateClick: (date: Date) => void;
   selectedTasks: any[];
-  onDragStart: (event: React.DragEvent<HTMLDivElement>, task: any) => void;
-  onDragEnd: (event: React.DragEvent<HTMLDivElement>) => void;
-  onDragEnter: (event: React.DragEvent<HTMLDivElement>, date: Date) => void;
-  onDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
-  onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
-  onDrop: (event: React.DragEvent<HTMLDivElement>, date: Date) => void;
-  isDragging: boolean;
-  draggedTasks: any[];
+  onDrop?: (date: Date) => void;
+  isTaskSelected?: (task: any) => boolean;
 }
 
 export const CalendarGrid = ({
@@ -29,14 +23,8 @@ export const CalendarGrid = ({
   onCampaignClick,
   onDateClick,
   selectedTasks,
-  onDragStart,
-  onDragEnd,
-  onDragEnter,
-  onDragLeave,
-  onDragOver,
   onDrop,
-  isDragging,
-  draggedTasks
+  isTaskSelected
 }: CalendarGridProps) => {
   const start = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(start, i));
@@ -66,18 +54,12 @@ export const CalendarGrid = ({
             date={date}
             campaigns={dayCampaigns}
             tasks={dayTasks}
-            onTaskClick={onTaskClick}
+            onTaskClick={(task, ctrlKey) => onTaskClick(task)}
             onCampaignClick={onCampaignClick}
-            onDateClick={() => onDateClick(date)}
-            selectedTasks={selectedTasks}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-            onDragEnter={(event: React.DragEvent<HTMLDivElement>) => onDragEnter(event, date)}
-            onDragLeave={onDragLeave}
-            onDragOver={onDragOver}
-            onDrop={(event: React.DragEvent<HTMLDivElement>) => onDrop(event, date)}
-            isDragging={isDragging}
-            draggedTasks={draggedTasks}
+            isCurrentMonth={true}
+            isToday={date.toDateString() === new Date().toDateString()}
+            onDrop={onDrop}
+            isTaskSelected={isTaskSelected}
           />
         );
       })}
