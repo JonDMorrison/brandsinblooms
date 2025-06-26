@@ -477,8 +477,8 @@ export const MagazineNewsletterDisplay = ({
                     <p className="text-sm mb-1">Loading image...</p>
                     {imageErrors[index] && (
                       <p className="text-xs text-red-500">{imageErrors[index]}</p>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
             </div>
