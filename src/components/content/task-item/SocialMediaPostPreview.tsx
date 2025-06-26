@@ -32,15 +32,15 @@ const generateInitials = (companyName: string): string => {
   return words[0][0].toUpperCase() + words[1][0].toUpperCase();
 };
 
-// Enhanced content validation and formatting
-const formatAndValidateContent = (rawContent: string) => {
+// Enhanced content formatting without validation warnings
+const formatContentForDisplay = (rawContent: string) => {
   console.log('[PREVIEW] Raw content received:', rawContent?.substring(0, 200));
   
   if (!rawContent || rawContent.trim() === '') {
-    return { text: '', hashtags: [], hasViolations: false, violations: [] };
+    return { text: '', hashtags: [] };
   }
 
-  // Clean any HTML tags first but preserve structure
+  // Clean any HTML tags but preserve structure
   let cleanContent = rawContent
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script tags
@@ -64,7 +64,7 @@ const formatAndValidateContent = (rawContent: string) => {
 
   console.log('[PREVIEW] After HTML cleaning:', cleanContent?.substring(0, 200));
   
-  // Extract hashtags before validation
+  // Extract hashtags before further formatting
   const hashtagRegex = /#[\w]+/g;
   const hashtags = cleanContent.match(hashtagRegex) || [];
   
@@ -77,39 +77,6 @@ const formatAndValidateContent = (rawContent: string) => {
     .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs (but not line breaks)
     .replace(/^\s+|\s+$/gm, '') // Trim whitespace from start/end of each line
     .trim();
-
-  // Validate content against our writing rules
-  const violations: string[] = [];
-  const contentLower = textWithoutHashtags.toLowerCase();
-  
-  // Check for forbidden phrases
-  const forbiddenPhrases = [
-    'hello fellow gardeners',
-    'fellow gardeners',
-    'green thumbs',
-    'dear gardeners',
-    'hey gardeners',
-    'greetings gardeners'
-  ];
-  
-  forbiddenPhrases.forEach(phrase => {
-    if (contentLower.includes(phrase)) {
-      violations.push(`Contains forbidden phrase: "${phrase}"`);
-    }
-  });
-  
-  // Check for proper sentence structure (not one giant paragraph)
-  const sentences = textWithoutHashtags.split(/[.!?]+/).filter(s => s.trim().length > 0);
-  const avgSentenceLength = sentences.reduce((acc, sentence) => acc + sentence.trim().split(' ').length, 0) / sentences.length;
-  
-  if (avgSentenceLength > 20) {
-    violations.push('Sentences are too long (average > 20 words)');
-  }
-  
-  // Check for paragraph breaks in longer content
-  if (textWithoutHashtags.length > 200 && !textWithoutHashtags.includes('\n\n')) {
-    violations.push('Long content lacks paragraph breaks');
-  }
 
   // Enhanced content formatting for better readability
   let formattedText = textWithoutHashtags;
@@ -135,14 +102,11 @@ const formatAndValidateContent = (rawContent: string) => {
   }
 
   console.log('[PREVIEW] Final formatted text:', formattedText?.substring(0, 200));
-  console.log('[PREVIEW] Content violations:', violations);
   console.log('[PREVIEW] Extracted hashtags:', hashtags);
 
   return { 
     text: formattedText, 
-    hashtags, 
-    hasViolations: violations.length > 0,
-    violations 
+    hashtags
   };
 };
 
@@ -175,8 +139,8 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
   const companyName = companyProfile?.company_name || 'Your Business';
   const companyInitials = generateInitials(companyName);
 
-  // Enhanced content processing with validation
-  const { text, hashtags, hasViolations, violations } = formatAndValidateContent(content);
+  // Enhanced content processing without validation warnings
+  const { text, hashtags } = formatContentForDisplay(content);
   const { images, loading, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
 
   // Auto-fetch images when component mounts or content changes
@@ -209,20 +173,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
 
   return (
     <div className={cn('rounded-lg border-2 overflow-hidden shadow-sm', getPlatformStyle(), className)}>
-      {/* Content Validation Warnings */}
-      {hasViolations && (
-        <div className="bg-yellow-50 border-b border-yellow-200 p-3">
-          <div className="flex items-start gap-2">
-            <span className="text-yellow-600 font-medium text-sm">⚠️ Content Issues:</span>
-            <div className="text-yellow-700 text-sm">
-              {violations.map((violation, index) => (
-                <div key={index}>• {violation}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Platform Header */}
       <div className="flex items-center gap-3 p-4 bg-white border-b">
         {getPlatformIcon()}
