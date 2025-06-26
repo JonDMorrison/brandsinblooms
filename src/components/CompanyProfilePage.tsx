@@ -12,7 +12,12 @@ export const CompanyProfilePage = () => {
             Manage your business information and preferences
           </p>
         </div>
-        <CompanyProfileForm />
+        <CompanyProfileForm 
+          profile={null}
+          isEditing={false}
+          onToggleEdit={() => {}}
+          onProfileUpdate={() => {}}
+        />
       </div>
     </div>
   );
