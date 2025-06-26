@@ -1,9 +1,9 @@
-
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CalendarTaskItem } from "./CalendarTaskItem";
+import { useState } from "react";
 
 interface Campaign {
   id: number;
@@ -41,6 +41,10 @@ interface CalendarDayCellProps {
   onDrop?: (date: Date) => void;
   isTaskSelected?: (task: Task) => boolean;
   taskSelectionMode?: boolean;
+  isDragging?: boolean;
+  draggedTask?: Task;
+  onDragStart?: (task: Task) => void;
+  onDragEnd?: () => void;
 }
 
 export const CalendarDayCell = ({
@@ -57,7 +61,12 @@ export const CalendarDayCell = ({
   onTaskSelection,
   onDrop,
   isTaskSelected,
+  isDragging = false,
+  draggedTask,
+  onDragStart,
+  onDragEnd,
 }: CalendarDayCellProps) => {
+  const [isHoveredDrop, setIsHoveredDrop] = useState(false);
   const dayNumber = format(date, 'd');
   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
   const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
@@ -76,15 +85,41 @@ export const CalendarDayCell = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    if (isDragging && draggedTask) {
+      const draggedTaskDate = format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd');
+      const targetDate = format(date, 'yyyy-MM-dd');
+      
+      if (draggedTaskDate !== targetDate) {
+        e.dataTransfer.dropEffect = 'move';
+        setIsHoveredDrop(true);
+      } else {
+        e.dataTransfer.dropEffect = 'none';
+      }
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsHoveredDrop(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (onDrop) {
-      onDrop(date);
+    setIsHoveredDrop(false);
+    
+    if (onDrop && isDragging && draggedTask) {
+      const draggedTaskDate = format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd');
+      const targetDate = format(date, 'yyyy-MM-dd');
+      
+      // Only allow drop if it's a different date
+      if (draggedTaskDate !== targetDate) {
+        onDrop(date);
+      }
     }
   };
+
+  const canDrop = isDragging && draggedTask && 
+    format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd') !== format(date, 'yyyy-MM-dd');
 
   return (
     <div
@@ -94,11 +129,26 @@ export const CalendarDayCell = ({
         isCurrentMonth && "bg-white hover:bg-gray-50/30 border-gray-200",
         isToday && "bg-blue-50/50 border-blue-200",
         isWeekend && isCurrentMonth && "bg-gray-50/20",
-        isPastDate && "bg-yellow-50/20"
+        isPastDate && "bg-yellow-50/20",
+        // Drag and drop styling
+        isDragging && canDrop && "border-dashed border-2",
+        isDragging && canDrop && isHoveredDrop && "border-green-400 bg-green-50/30",
+        isDragging && canDrop && !isHoveredDrop && "border-blue-300 bg-blue-50/20",
+        isDragging && !canDrop && "opacity-50"
       )}
       onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Drop indicator overlay */}
+      {isDragging && canDrop && isHoveredDrop && (
+        <div className="absolute inset-0 flex items-center justify-center bg-green-100/80 border-2 border-green-400 border-dashed rounded-lg z-10">
+          <div className="text-green-700 font-medium text-sm">
+            Drop here to reschedule
+          </div>
+        </div>
+      )}
+
       {/* Day number header */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -169,12 +219,12 @@ export const CalendarDayCell = ({
               key={task.id}
               task={task}
               isSelected={isTaskSelected?.(task) || false}
-              isBeingDragged={false}
+              isBeingDragged={draggedTask?.id === task.id}
               isPastDate={isPastDate}
               selectionMode={true}
               onTaskClick={handleTaskClick}
-              onDragStart={() => {}}
-              onDragEnd={() => {}}
+              onDragStart={onDragStart || (() => {})}
+              onDragEnd={onDragEnd || (() => {})}
             />
           ))}
         </div>

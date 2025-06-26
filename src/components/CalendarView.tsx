@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { Button } from '@/components/ui/button';
@@ -22,8 +21,8 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Use the simpler drag and drop hook
-  const { handleDrop } = useDragAndDrop(onDataUpdate);
+  // Use the drag and drop hook with proper handlers
+  const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(onDataUpdate);
 
   // Navigation functions
   const goToPrevious = () => {
@@ -268,6 +267,10 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
           selectedTasks={selectedTasks}
           onDrop={handleDrop}
           isTaskSelected={isTaskSelected}
+          isDragging={isDragging}
+          draggedTask={draggedTask}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
         />
       </div>
     </div>

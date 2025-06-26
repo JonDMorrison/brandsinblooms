@@ -14,6 +14,10 @@ interface CalendarGridProps {
   selectedTasks: any[];
   onDrop?: (date: Date) => void;
   isTaskSelected?: (task: any) => boolean;
+  isDragging?: boolean;
+  draggedTask?: any;
+  onDragStart?: (task: any) => void;
+  onDragEnd?: () => void;
 }
 
 export const CalendarGrid = ({
@@ -26,7 +30,11 @@ export const CalendarGrid = ({
   onDateClick,
   selectedTasks,
   onDrop,
-  isTaskSelected
+  isTaskSelected,
+  isDragging,
+  draggedTask,
+  onDragStart,
+  onDragEnd
 }: CalendarGridProps) => {
   const generateDays = () => {
     if (viewMode === 'week') {
@@ -82,6 +90,10 @@ export const CalendarGrid = ({
             isToday={isToday}
             onDrop={onDrop}
             isTaskSelected={isTaskSelected}
+            isDragging={isDragging}
+            draggedTask={draggedTask}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
           />
         );
       })}
