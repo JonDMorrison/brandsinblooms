@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -14,8 +14,6 @@ interface SocialMediaPostPreviewProps {
 }
 
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId, campaignTitle }: SocialMediaPostPreviewProps) => {
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  
   // Improved content processing to handle various content formats
   const formatContent = (rawContent: string) => {
     if (!rawContent || rawContent.trim() === '') {
@@ -70,8 +68,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
       : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200';
   };
 
-  const currentImage = images[selectedImageIndex];
-  const thumbnailImages = images.slice(0, 4);
+  const currentImage = images[0]; // Just use the first image
 
   return (
     <div className={cn('rounded-lg border-2 overflow-hidden shadow-sm', getPlatformStyle(), className)}>
@@ -172,9 +169,11 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                     }
                   }}
                 />
-                <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                  {selectedImageIndex + 1}/{images.length}
-                </div>
+                {images.length > 1 && (
+                  <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
+                    1/{images.length}
+                  </div>
+                )}
               </>
             ) : (
               <div className="text-center text-gray-500">
@@ -184,46 +183,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                 <p className="text-sm font-medium">Relevant Image</p>
               </div>
             )}
-          </div>
-
-          {/* Thumbnail Gallery */}
-          <div className="p-3 bg-gray-50 border-t">
-            <p className="text-xs text-gray-600 mb-2 font-medium">
-              Additional Images ({images.length} available)
-            </p>
-            <div className="grid grid-cols-4 gap-2">
-              {thumbnailImages.map((image, index) => (
-                <div 
-                  key={image.id}
-                  className={cn(
-                    "aspect-square rounded border flex items-center justify-center cursor-pointer transition-all overflow-hidden",
-                    selectedImageIndex === index 
-                      ? "ring-2 ring-blue-500 border-blue-300" 
-                      : "hover:border-gray-400"
-                  )}
-                  onClick={() => setSelectedImageIndex(index)}
-                >
-                  <img
-                    src={image.thumb_url}
-                    alt={image.alt}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                </div>
-              ))}
-              
-              {/* Fill remaining slots with placeholders if needed */}
-              {Array.from({ length: Math.max(0, 4 - thumbnailImages.length) }).map((_, index) => (
-                <div 
-                  key={`placeholder-${index}`}
-                  className="aspect-square bg-gray-200 rounded border flex items-center justify-center hover:bg-gray-300 transition-colors"
-                >
-                  <span className="text-xs text-gray-500">+</span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>
