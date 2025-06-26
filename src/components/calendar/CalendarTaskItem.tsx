@@ -1,3 +1,4 @@
+
 import { Badge } from "@/components/ui/badge";
 import { GripVertical, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,8 @@ export const CalendarTaskItem = ({
         return { text: status, className: 'bg-gray-100 text-gray-700 border-gray-300' };
     }
   };
+
+  const statusBadge = getStatusBadge(task.status);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
