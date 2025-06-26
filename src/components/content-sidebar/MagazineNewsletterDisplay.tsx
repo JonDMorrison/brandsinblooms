@@ -41,12 +41,25 @@ export const MagazineNewsletterDisplay = ({
     campaignTitle
   });
 
-  // Check if content is placeholder or insufficient
+  // Enhanced placeholder detection - check for all types of minimal content
   const isPlaceholderContent = !content || 
-    content.trim().length < 100 ||
+    content.trim().length < 150 ||
     content.includes('Newsletter Update') ||
     content.includes('Welcome to our latest newsletter update') ||
-    content === 'Newsletter Update. Welcome to our latest newsletter update.';
+    content === 'Newsletter Update. Welcome to our latest newsletter update.' ||
+    content.trim() === 'Newsletter Update' ||
+    // Check if content only has a title and generic description
+    (content.includes('Newsletter Update') && content.length < 300) ||
+    // Check for content that's just a title with generic text
+    (content.split('\n').filter(line => line.trim().length > 0).length < 3);
+
+  console.log('🔍 Placeholder content check:', {
+    isPlaceholder: isPlaceholderContent,
+    contentLength: content?.length,
+    trimmedLength: content?.trim().length,
+    includesUpdate: content?.includes('Newsletter Update'),
+    lineCount: content?.split('\n').filter(line => line.trim().length > 0).length
+  });
 
   // Try to parse as structured YAML first
   const newsletter = parseNewsletterYAML(content);
@@ -66,6 +79,7 @@ export const MagazineNewsletterDisplay = ({
   // Enhanced function to create meaningful blocks from plain text
   function createBlocksFromPlainText(rawContent: string) {
     if (!rawContent || rawContent.trim().length === 0 || isPlaceholderContent) {
+      console.log('🚫 Creating placeholder block due to insufficient content');
       return [{
         title: 'Newsletter Content Loading',
         body: 'Your newsletter content is being generated with expert gardening advice...',
@@ -140,7 +154,7 @@ export const MagazineNewsletterDisplay = ({
 
     setRegenerating(true);
     try {
-      console.log('🔄 Regenerating newsletter content...');
+      console.log('🔄 Regenerating newsletter content for task:', contentTaskId);
       
       const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {
         body: {
@@ -161,6 +175,8 @@ export const MagazineNewsletterDisplay = ({
       }
 
       if (data?.content) {
+        console.log('✅ Generated new newsletter content, updating task...');
+        
         // Update the task with new content
         const { error: updateError } = await supabase
           .from('content_tasks')
@@ -177,6 +193,9 @@ export const MagazineNewsletterDisplay = ({
           toast.success('Newsletter regenerated successfully! Refreshing page...');
           setTimeout(() => window.location.reload(), 1500);
         }
+      } else {
+        console.error('❌ No content returned from generation function');
+        toast.error('No content was generated');
       }
     } catch (error) {
       console.error('❌ Newsletter regeneration failed:', error);
@@ -186,10 +205,15 @@ export const MagazineNewsletterDisplay = ({
     }
   };
 
-  // Fetch images for newsletter blocks
+  // Skip image fetch if content is placeholder
   useEffect(() => {
-    if (!processedNewsletter.blocks.length || isPlaceholderContent) {
-      console.log('[NEWSLETTER] Skipping image fetch - no valid blocks or placeholder content');
+    if (isPlaceholderContent) {
+      console.log('[NEWSLETTER] Skipping image fetch - placeholder content detected');
+      return;
+    }
+    
+    if (!processedNewsletter.blocks.length) {
+      console.log('[NEWSLETTER] Skipping image fetch - no valid blocks');
       return;
     }
     
@@ -262,18 +286,19 @@ export const MagazineNewsletterDisplay = ({
     };
 
     fetchImages();
-  }, [content, isPlaceholderContent]);
+  }, [content, isPlaceholderContent, contentTaskId]);
 
   // If content is placeholder, show regeneration option
   if (isPlaceholderContent) {
+    console.log('🔄 Showing regeneration UI due to placeholder content');
     return (
       <div className={`max-w-4xl mx-auto ${className || ''}`}>
         <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
           <h2 className="text-xl font-semibold text-gray-700 mb-4">
-            Newsletter Content Not Available
+            Newsletter Content Needs Generation
           </h2>
           <p className="text-gray-600 mb-6 max-w-md mx-auto">
-            The newsletter content appears to be incomplete or placeholder text. 
+            The newsletter content appears to be incomplete or just a placeholder. 
             Let's generate proper structured newsletter content with expert gardening advice.
           </p>
           <Button 
@@ -452,8 +477,8 @@ export const MagazineNewsletterDisplay = ({
                     <p className="text-sm mb-1">Loading image...</p>
                     {imageErrors[index] && (
                       <p className="text-xs text-red-500">{imageErrors[index]}</p>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
