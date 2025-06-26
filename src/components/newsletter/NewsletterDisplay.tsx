@@ -142,8 +142,16 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
     );
   }
   
-  // ALWAYS use MagazineNewsletterDisplay for all newsletters
+  // ALWAYS use MagazineNewsletterDisplay for ALL newsletters
   // This ensures consistent enhanced display regardless of content format
+  // Debug logging to see what's being passed
+  console.log('📧 Newsletter Display Debug:', {
+    hasContent: !!displayContent,
+    contentLength: displayContent?.length || 0,
+    contentPreview: displayContent?.substring(0, 100),
+    normalizedTask: normalizedTask
+  });
+  
   return (
     <div className="prose lg:prose-lg mx-auto">
       <MagazineNewsletterDisplay content={displayContent} />
