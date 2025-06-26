@@ -129,7 +129,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           <img
             src={relevantImage.download_url || relevantImage.thumb_url}
             alt={relevantImage.alt}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover scale-[2]"
             onLoad={() => console.log('[MAGAZINE_DISPLAY] Image loaded successfully:', relevantImage.id)}
             onError={(e) => {
               console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
