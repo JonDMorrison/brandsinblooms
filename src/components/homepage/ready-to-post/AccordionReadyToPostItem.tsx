@@ -150,11 +150,11 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
         <CollapsibleContent>
           <div className="px-4 pb-4 border-t border-gray-100">
             <div className="pt-4 space-y-4">
-              {/* Content Preview */}
+              {/* Content Preview - Full content when expanded */}
               {cleanContent && (
                 <div className="bg-gray-50 rounded-lg p-3">
                   <div 
-                    className={`text-gray-700 line-clamp-4 ${isMobile ? 'text-sm' : 'text-base'}`}
+                    className={`text-gray-700 ${isMobile ? 'text-sm' : 'text-base'}`}
                     dangerouslySetInnerHTML={{ __html: task.ai_output }}
                   />
                 </div>
