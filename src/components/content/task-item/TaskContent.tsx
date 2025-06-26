@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -8,6 +7,7 @@ import { generatePersonalizedContent } from "@/components/homepage/ContentGenera
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { normalizeTask } from "@/utils/normalizeTask";
+import { formatNewsletterContent, addNewsletterSections } from "@/utils/newsletterFormatter";
 
 interface TaskContentProps {
   task: any;
@@ -114,12 +114,15 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       );
     }
 
-    // Simple newsletter handling - just use prose styling for clean display
+    // Enhanced newsletter handling with better formatting
     if (normalizedTask.post_type === 'newsletter') {
+      const enhancedContent = addNewsletterSections(normalizedTask.ai_output);
+      const formattedContent = formatNewsletterContent(enhancedContent);
+      
       return (
         <div className="space-y-3">
           <div className="prose prose-lg max-w-none">
-            <div dangerouslySetInnerHTML={{ __html: normalizedTask.ai_output }} />
+            <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
           </div>
           <div className="flex justify-end">
             <Button

@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { extractBlogMetadata, cleanContentForDisplay } from "@/utils/contentUtils";
+import { formatNewsletterContent, addNewsletterSections } from "@/utils/newsletterFormatter";
 
 interface TaskItemContentProps {
   task: any;
@@ -32,7 +32,11 @@ export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: Tas
         ) : task.post_type === 'newsletter' ? (
           <div className="p-4">
             <div className="prose prose-lg max-w-none">
-              <div dangerouslySetInnerHTML={{ __html: cleanContent }} />
+              {(() => {
+                const enhancedContent = addNewsletterSections(cleanContent);
+                const formattedContent = formatNewsletterContent(enhancedContent);
+                return <div dangerouslySetInnerHTML={{ __html: formattedContent }} />;
+              })()}
             </div>
           </div>
         ) : (
