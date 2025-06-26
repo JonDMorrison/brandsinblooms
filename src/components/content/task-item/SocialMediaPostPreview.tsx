@@ -16,25 +16,52 @@ interface SocialMediaPostPreviewProps {
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId, campaignTitle }: SocialMediaPostPreviewProps) => {
   // Improved content processing to handle various content formats
   const formatContent = (rawContent: string) => {
+    console.log('[PREVIEW] Raw content received:', rawContent?.substring(0, 200));
+    
     if (!rawContent || rawContent.trim() === '') {
       return { text: '', hashtags: [] };
     }
 
-    // Clean any HTML tags first
-    const cleanContent = rawContent.replace(/<[^>]*>/g, '').trim();
+    // Clean any HTML tags first but preserve structure
+    let cleanContent = rawContent
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script tags
+      .replace(/<h[1-6][^>]*>/gi, '\n\n**') // Convert headers to bold with spacing
+      .replace(/<\/h[1-6]>/gi, '**\n\n') // Close headers with spacing
+      .replace(/<p[^>]*>/gi, '\n\n') // Convert paragraphs with proper spacing
+      .replace(/<\/p>/gi, '') // Close paragraphs
+      .replace(/<br[^>]*>/gi, '\n') // Convert line breaks
+      .replace(/<li[^>]*>/gi, '\n• ') // Convert list items
+      .replace(/<\/li>/gi, '') // Close list items
+      .replace(/<ul[^>]*>|<\/ul>/gi, '') // Remove ul tags
+      .replace(/<ol[^>]*>|<\/ol>/gi, '') // Remove ol tags
+      .replace(/<strong[^>]*>|<b[^>]*>/gi, '**') // Convert bold tags
+      .replace(/<\/strong>|<\/b>/gi, '**') // Close bold tags
+      .replace(/<em[^>]*>|<i[^>]*>/gi, '*') // Convert italic tags
+      .replace(/<\/em>|<\/i>/gi, '*') // Close italic tags
+      .replace(/<a[^>]*>([^<]*)<\/a>/gi, '$1') // Extract link text
+      .replace(/<[^>]*>/g, '') // Remove any remaining HTML tags
+      .replace(/\\n/g, '\n') // Convert literal \n to actual newlines
+      .trim();
+
+    console.log('[PREVIEW] After HTML cleaning:', cleanContent?.substring(0, 200));
     
-    // Extract hashtags
+    // Extract hashtags before final cleanup
     const hashtagRegex = /#[\w]+/g;
     const hashtags = cleanContent.match(hashtagRegex) || [];
     
-    // Remove hashtags from main text but preserve line breaks and formatting
+    // Remove hashtags from main text but preserve formatting
     let textWithoutHashtags = cleanContent.replace(hashtagRegex, '').trim();
     
-    // Clean up extra whitespace and line breaks
+    // Clean up excessive whitespace while preserving intentional formatting
     textWithoutHashtags = textWithoutHashtags
-      .replace(/\n\s*\n/g, '\n\n') // Normalize double line breaks
-      .replace(/\s+/g, ' ') // Normalize spaces
+      .replace(/\n\s*\n\s*\n+/g, '\n\n') // Convert 3+ line breaks to double
+      .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs (but not line breaks)
+      .replace(/^\s+|\s+$/gm, '') // Trim whitespace from start/end of each line
       .trim();
+
+    console.log('[PREVIEW] Final formatted text:', textWithoutHashtags?.substring(0, 200));
+    console.log('[PREVIEW] Extracted hashtags:', hashtags);
 
     return { text: textWithoutHashtags, hashtags };
   };
