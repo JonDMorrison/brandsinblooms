@@ -16,7 +16,7 @@ import { AlertTriangle, Loader2, Calendar as CalendarIcon, CheckCircle } from "l
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { generateRequiredTasks } from "./RequiredTasksGenerator";
+import { generateCampaignContent } from "./ContentGenerationServices";
 
 interface AddEventDialogProps {
   open: boolean;
@@ -107,18 +107,19 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
       console.log('✅ AddEventDialog: Campaign created with proper isolation:', insertedCampaign);
 
-      // Now automatically generate content for the event
+      // Now automatically generate content for the event using the working service
       setGeneratingContent(true);
       toast.loading('Generating content for your event...', { id: 'content-generation' });
 
       try {
         console.log('🔒 SECURITY: Starting content generation with proper user isolation');
         
-        const result = await generateRequiredTasks(
+        const result = await generateCampaignContent(
           insertedCampaign.id,
-          [insertedCampaign],
+          insertedCampaign.theme || insertedCampaign.title,
+          insertedCampaign.description || '',
           user.id, // 🔒 CRITICAL: Pass user_id for RLS
-          onEventCreated,
+          insertedCampaign.week_number,
           tenant?.id // 🔒 Pass tenant_id if available
         );
 
@@ -142,6 +143,9 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
       setEventInstructions("");
       setSelectedDate(undefined);
       setError(null);
+
+      // Call onEventCreated to refresh the dashboard data
+      onEventCreated();
 
       // Close modal after short delay to show success state
       setTimeout(() => {
