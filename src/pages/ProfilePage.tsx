@@ -1,14 +1,12 @@
 
 import React from 'react';
-import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
+import { SidebarLayout } from '@/components/SidebarLayout';
 import { CompanyProfilePage } from '@/components/CompanyProfilePage';
 
-const ProfilePage = () => {
+export default function ProfilePage() {
   return (
-    <ProtectedPageWrapper>
+    <SidebarLayout>
       <CompanyProfilePage />
-    </ProtectedPageWrapper>
+    </SidebarLayout>
   );
-};
-
-export default ProfilePage;
+}

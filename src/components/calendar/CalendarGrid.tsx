@@ -1,242 +1,85 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ChevronLeft, ChevronRight, CalendarIcon } from "lucide-react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek } from "date-fns";
-import { CalendarDayCell } from "./CalendarDayCell";
-import { EnhancedDragProvider } from "./EnhancedDragContext";
-import { getCurrentWeekNumber, getDateForWeek, dateToWeekNumber } from "@/utils/dateUtils";
-
-interface Campaign {
-  id: number;
-  week_number: number;
-  start_date: string;
-  title: string;
-  theme?: string;
-  description?: string;
-}
-
-interface Task {
-  id: string;
-  scheduled_date: string;
-  post_type: string;
-  status: string;
-  ai_output?: string;
-  campaigns?: {
-    title: string;
-  };
-}
+import React from 'react';
+import { CalendarDayCell } from './CalendarDayCell';
+import { addDays, startOfWeek } from 'date-fns';
 
 interface CalendarGridProps {
-  campaigns: Campaign[];
-  tasks?: Task[];
-  onCampaignClick?: (campaign: Campaign) => void;
-  onTaskClick?: (task: Task) => void;
-  selectionMode?: boolean;
-  selectedCampaigns?: Campaign[];
-  selectedTasks?: Task[];
-  isDragging?: boolean;
-  draggedTasks?: Task[];
-  dragPreview?: string;
-  onTaskSelection?: (task: Task, ctrlKey: boolean) => void;
-  onDragStart?: (tasks: Task[]) => void;
-  onDragEnd?: () => void;
-  onDrop?: (date: Date) => void;
-  isTaskSelected?: (task: Task) => boolean;
-  taskSelectionMode?: boolean;
+  campaigns: any[];
+  tasks: any[];
+  currentWeek: Date;
+  onTaskClick: (task: any) => void;
+  onCampaignClick: (campaign: any) => void;
+  onDateClick: (date: Date) => void;
+  selectedTasks: any[];
+  onDragStart: (event: React.DragEvent<HTMLDivElement>, task: any) => void;
+  onDragEnd: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnter: (event: React.DragEvent<HTMLDivElement>, date: Date) => void;
+  onDragLeave: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver: (event: React.DragEvent<HTMLDivElement>) => void;
+  onDrop: (event: React.DragEvent<HTMLDivElement>, date: Date) => void;
+  isDragging: boolean;
+  draggedTasks: any[];
 }
 
-export const CalendarGrid = ({ 
-  campaigns, 
-  tasks = [],
-  onCampaignClick,
+export const CalendarGrid = ({
+  campaigns,
+  tasks,
+  currentWeek,
   onTaskClick,
-  selectionMode = false,
-  selectedCampaigns = [],
-  selectedTasks = [],
-  onTaskSelection,
+  onCampaignClick,
+  onDateClick,
+  selectedTasks,
+  onDragStart,
+  onDragEnd,
+  onDragEnter,
+  onDragLeave,
+  onDragOver,
   onDrop,
-  isTaskSelected,
+  isDragging,
+  draggedTasks
 }: CalendarGridProps) => {
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const calendarStart = startOfWeek(monthStart);
-  const calendarEnd = endOfWeek(monthEnd);
-  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
-  const currentWeekNumber = getCurrentWeekNumber();
-  const currentYear = currentDate.getFullYear();
-  
-  // Create a map of campaigns by date
-  const campaignsByDate = new Map<string, Campaign>();
-
-  campaigns.forEach(campaign => {
-    const campaignDate = getDateForWeek(campaign.week_number, currentYear);
-    const dateKey = format(campaignDate, 'yyyy-MM-dd');
-    
-    if (!campaignsByDate.has(dateKey)) {
-      campaignsByDate.set(dateKey, {
-        ...campaign,
-        start_date: dateKey
-      });
-    }
-  });
-
-  // Create a map of tasks by date
-  const tasksByDate = new Map<string, Task[]>();
-  
-  tasks.filter(task => 
-    task.scheduled_date && 
-    ['posted', 'completed', 'approved', 'scheduled', 'published'].includes(task.status)
-  ).forEach(task => {
-    const dateKey = task.scheduled_date;
-    if (!tasksByDate.has(dateKey)) {
-      tasksByDate.set(dateKey, []);
-    }
-    tasksByDate.get(dateKey)!.push(task);
-  });
-
-  // Convert map back to the expected format for rendering
-  const campaignsByDateObject = Array.from(campaignsByDate.entries()).reduce((acc, [dateKey, campaign]) => {
-    if (!acc[dateKey]) acc[dateKey] = [];
-    acc[dateKey].push(campaign);
-    return acc;
-  }, {} as Record<string, Campaign[]>);
-
-  const navigateMonth = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(currentDate.getMonth() + (direction === 'next' ? 1 : -1));
-    setCurrentDate(newDate);
-  };
-
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
+  const start = startOfWeek(currentWeek, { weekStartsOn: 1 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(start, i));
 
   return (
-    <EnhancedDragProvider>
-      <Card className="w-full shadow-lg border-0 bg-white">
-        <CardHeader className="pb-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-blue-100">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div>
-                <CardTitle className="text-3xl font-bold text-gray-900">
-                  {format(currentDate, 'MMMM yyyy')}
-                </CardTitle>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateMonth('prev')}
-                className="hover:bg-blue-50 border-blue-200"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToToday}
-                className="hover:bg-blue-50 border-blue-200 font-medium"
-              >
-                Today
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigateMonth('next')}
-                className="hover:bg-blue-50 border-blue-200"
-              >
-                Next
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          
-          {selectionMode && selectedCampaigns.length > 0 && (
-            <div className="mt-4 p-3 bg-blue-100 border border-blue-200 rounded-lg">
-              <div className="text-sm text-blue-800 font-medium">
-                {selectedCampaigns.length} campaign{selectedCampaigns.length !== 1 ? 's' : ''} selected
-              </div>
-            </div>
-          )}
+    <div className="grid grid-cols-7 gap-px bg-gray-200 h-full">
+      {weekDays.map((date) => (
+        <div key={date.toISOString()} className="bg-gray-100 p-2 text-sm font-medium text-gray-500 h-12 flex items-center justify-center">
+          {date.toLocaleDateString(undefined, { weekday: 'short' })}
+        </div>
+      ))}
+      
+      {weekDays.map((date) => {
+        const dayCampaigns = campaigns.filter(campaign => {
+          const campaignDate = new Date(campaign.publish_date);
+          return campaignDate.toDateString() === date.toDateString();
+        });
 
-          {selectedTasks && selectedTasks.length > 0 && (
-            <div className="mt-4 p-3 bg-blue-100 border border-blue-200 rounded-lg">
-              <div className="text-sm text-blue-800 font-medium">
-                {selectedTasks.length} task{selectedTasks.length !== 1 ? 's' : ''} selected - Click to view, drag to reschedule, Ctrl+Click for multi-select
-              </div>
-            </div>
-          )}
+        const dayTasks = tasks.filter(task => {
+          const taskDate = new Date(task.publish_date);
+          return taskDate.toDateString() === date.toDateString();
+        });
 
-          <div className="mt-2 p-3 bg-white rounded-lg">
-            <div className="text-sm text-black">
-              <strong>Enhanced Drag & Drop:</strong> Click tasks to view content • Drag tasks to reschedule • Ctrl+Click for multi-selection • Hover for quick actions
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-0">
-          {/* Day headers */}
-          <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
-            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day) => (
-              <div key={day} className="p-4 text-center text-sm font-semibold text-gray-700 border-r border-gray-200 last:border-r-0">
-                <span className="hidden sm:inline">{day}</span>
-                <span className="sm:hidden">{day.slice(0, 3)}</span>
-              </div>
-            ))}
-          </div>
-          
-          {/* Calendar grid */}
-          <div className="grid grid-cols-7">
-            {calendarDays.map((day, index) => {
-              const dateKey = format(day, 'yyyy-MM-dd');
-              const dayCampaigns = campaignsByDateObject[dateKey] || [];
-              const dayTasks = tasksByDate.get(dateKey) || [];
-              const dayWeekNumber = dateToWeekNumber(day);
-              const isLastInRow = (index + 1) % 7 === 0;
-              
-              return (
-                <div
-                  key={dateKey}
-                  className={cn(
-                    "border-r border-b border-gray-200",
-                    isLastInRow && "border-r-0"
-                  )}
-                >
-                  <CalendarDayCell
-                    date={day}
-                    campaigns={dayCampaigns}
-                    tasks={dayTasks}
-                    isCurrentMonth={isSameMonth(day, currentDate)}
-                    isToday={isToday(day)}
-                    onCampaignClick={onCampaignClick}
-                    onTaskClick={onTaskClick}
-                    selectionMode={selectionMode}
-                    selectedCampaigns={selectedCampaigns}
-                    selectedTasks={selectedTasks}
-                    weekNumber={dayWeekNumber}
-                    onTaskSelection={onTaskSelection}
-                    onDrop={onDrop}
-                    isTaskSelected={isTaskSelected}
-                    taskSelectionMode={true}
-                  />
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-    </EnhancedDragProvider>
+        return (
+          <CalendarDayCell
+            key={date.toISOString()}
+            date={date}
+            campaigns={dayCampaigns}
+            tasks={dayTasks}
+            onTaskClick={onTaskClick}
+            onCampaignClick={onCampaignClick}
+            onDateClick={onDateClick}
+            selectedTasks={selectedTasks}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            onDragEnter={onDragEnter}
+            onDragLeave={onDragLeave}
+            onDragOver={onDragOver}
+            onDrop={onDrop}
+            isDragging={isDragging}
+            draggedTasks={draggedTasks}
+          />
+        );
+      })}
+    </div>
   );
 };
-
-function cn(...classes: (string | undefined | boolean)[]): string {
-  return classes.filter(Boolean).join(' ');
-}
