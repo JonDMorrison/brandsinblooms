@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { ContentTask } from "@/types/content";
-import { ImprovedReadyToPostItem } from "./ready-to-post/ImprovedReadyToPostItem";
+import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostItem";
 import { ContentViewerDialog } from "@/components/content/ContentViewerDialog";
 
 interface ReadyToPostCardProps {
@@ -22,9 +22,30 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
+  const [socialConnections, setSocialConnections] = useState<any[]>([]);
 
   // Check if user is developer
   const isDeveloper = user?.email === 'jon@getclear.ca';
+
+  const fetchSocialConnections = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('social_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      if (error) {
+        console.error('Error fetching social connections:', error);
+      } else {
+        setSocialConnections(data || []);
+      }
+    } catch (error) {
+      console.error('Exception fetching social connections:', error);
+    }
+  };
 
   const fetchReadyTasks = async () => {
     if (!user || !tenant) {
@@ -93,14 +114,10 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
   useEffect(() => {
     fetchReadyTasks();
+    fetchSocialConnections();
   }, [user, tenant, tasks]);
 
-  const handleTaskClick = (task: any) => {
-    setSelectedTask(task);
-    setShowContentViewer(true);
-  };
-
-  const handleTaskEdit = (task: any, editMode: boolean) => {
+  const handleViewFull = (task: any) => {
     setSelectedTask(task);
     setShowContentViewer(true);
   };
@@ -160,14 +177,15 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {readyTasks.map((task) => (
-              <ImprovedReadyToPostItem
+          <div className="space-y-3">
+            {readyTasks.map((task, index) => (
+              <AccordionReadyToPostItem
                 key={task.id}
                 task={task}
-                onClick={handleTaskClick}
+                onViewFull={handleViewFull}
                 onTaskUpdate={fetchReadyTasks}
-                onEdit={handleTaskEdit}
+                isFirst={index === 0}
+                socialConnections={socialConnections}
               />
             ))}
           </div>
