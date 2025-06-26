@@ -50,6 +50,18 @@ export const CalendarGrid = ({
     }
   };
 
+  // Deduplicate campaigns and tasks at the source level
+  const uniqueCampaigns = campaigns.filter((campaign, index, self) => 
+    index === self.findIndex(c => c.id === campaign.id)
+  );
+  
+  const uniqueTasks = tasks.filter((task, index, self) => 
+    index === self.findIndex(t => t.id === task.id)
+  );
+
+  console.log('CalendarGrid: Original campaigns:', campaigns.length, 'Unique:', uniqueCampaigns.length);
+  console.log('CalendarGrid: Original tasks:', tasks.length, 'Unique:', uniqueTasks.length);
+
   const days = generateDays();
   const gridCols = viewMode === 'week' ? 'grid-cols-7' : 'grid-cols-7';
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
@@ -65,12 +77,12 @@ export const CalendarGrid = ({
       
       {/* Calendar days */}
       {days.map((date) => {
-        const dayCampaigns = campaigns.filter(campaign => {
+        const dayCampaigns = uniqueCampaigns.filter(campaign => {
           const campaignDate = new Date(campaign.publish_date || campaign.start_date);
           return campaignDate.toDateString() === date.toDateString();
         });
 
-        const dayTasks = tasks.filter(task => {
+        const dayTasks = uniqueTasks.filter(task => {
           const taskDate = new Date(task.scheduled_date);
           return taskDate.toDateString() === date.toDateString();
         });
@@ -84,8 +96,14 @@ export const CalendarGrid = ({
             date={date}
             campaigns={dayCampaigns}
             tasks={dayTasks}
-            onTaskClick={(task, ctrlKey) => onTaskClick(task)}
-            onCampaignClick={onCampaignClick}
+            onTaskClick={(task, ctrlKey) => {
+              console.log('CalendarGrid: Task click event triggered for task:', task.id);
+              onTaskClick(task);
+            }}
+            onCampaignClick={(campaign) => {
+              console.log('CalendarGrid: Campaign click event triggered for campaign:', campaign.id);
+              onCampaignClick(campaign);
+            }}
             isCurrentMonth={isCurrentMonth}
             isToday={isToday}
             onDrop={onDrop}

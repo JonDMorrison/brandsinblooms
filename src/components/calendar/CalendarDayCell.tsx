@@ -77,10 +77,20 @@ export const CalendarDayCell = ({
   };
 
   const handleTaskClick = (task: Task, ctrlKey: boolean = false) => {
+    console.log('CalendarDayCell: Task click handler called for task:', task.id);
     if (ctrlKey && onTaskSelection) {
       onTaskSelection(task, ctrlKey);
     } else if (onTaskClick) {
       onTaskClick(task, ctrlKey);
+    }
+  };
+
+  const handleCampaignClick = (campaign: Campaign, e: React.MouseEvent) => {
+    // Prevent drag events from interfering with click events
+    e.stopPropagation();
+    console.log('CalendarDayCell: Campaign click handler called for campaign:', campaign.id);
+    if (onCampaignClick) {
+      onCampaignClick(campaign);
     }
   };
 
@@ -121,15 +131,6 @@ export const CalendarDayCell = ({
 
   const canDrop = isDragging && draggedTask && 
     format(new Date(draggedTask.scheduled_date), 'yyyy-MM-dd') !== format(date, 'yyyy-MM-dd');
-
-  // Remove duplicates from campaigns and tasks arrays
-  const uniqueCampaigns = campaigns.filter((campaign, index, self) => 
-    index === self.findIndex(c => c.id === campaign.id)
-  );
-  
-  const uniqueTasks = tasks.filter((task, index, self) => 
-    index === self.findIndex(t => t.id === task.id)
-  );
 
   return (
     <div
@@ -183,7 +184,7 @@ export const CalendarDayCell = ({
       {/* Content container */}
       <div className="space-y-1.5">
         {/* Campaigns */}
-        {uniqueCampaigns.slice(0, 2).map((campaign) => {
+        {campaigns.slice(0, 2).map((campaign) => {
           const isSelected = isCampaignSelected(campaign);
           
           return (
@@ -196,7 +197,7 @@ export const CalendarDayCell = ({
                   : "bg-white border-gray-200 hover:border-blue-300 hover:bg-blue-50/50",
                 !selectionMode && "hover:border-blue-300 hover:shadow-sm"
               )}
-              onClick={() => onCampaignClick?.(campaign)}
+              onClick={(e) => handleCampaignClick(campaign, e)}
             >
               {selectionMode && isSelected && (
                 <div className="absolute -top-1 -right-1 bg-blue-600 text-white rounded-full w-4 h-4 flex items-center justify-center">
@@ -224,7 +225,7 @@ export const CalendarDayCell = ({
 
         {/* Tasks */}
         <div className="space-y-1">
-          {uniqueTasks.slice(0, uniqueCampaigns.length > 0 ? 2 : 3).map((task) => (
+          {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task) => (
             <CalendarTaskItem
               key={task.id}
               task={task}
@@ -240,9 +241,9 @@ export const CalendarDayCell = ({
         </div>
         
         {/* Show more indicator */}
-        {(uniqueCampaigns.length + uniqueTasks.length) > 3 && (
+        {(campaigns.length + tasks.length) > 3 && (
           <div className="text-xs text-gray-500 text-center py-1 bg-gray-50/50 rounded border border-gray-100">
-            +{(uniqueCampaigns.length + uniqueTasks.length) - 3} more
+            +{(campaigns.length + tasks.length) - 3} more
           </div>
         )}
       </div>
