@@ -56,14 +56,11 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
   };
 
   const handleRetryGeneration = () => {
-    // This will be handled by TaskActions component
     setRetryingGeneration(true);
-    // Reset after a delay to allow the action to complete
     setTimeout(() => setRetryingGeneration(false), 3000);
   };
 
   const handleShowAllImages = () => {
-    // Open the content sidebar with full image gallery
     setShowContentSidebar(true);
   };
 
@@ -80,8 +77,9 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
 
   return (
     <>
-      <div className="border rounded-lg p-4 space-y-3 relative group">
-        <div className="flex items-center justify-between">
+      <div className="border border-slate-200 rounded-lg bg-white hover:shadow-sm transition-shadow duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-100">
           <TaskHeader postType={task.post_type} status={task.status} />
           <TaskActions 
             task={task} 
@@ -90,34 +88,32 @@ export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) =>
           />
         </div>
 
-        <TaskContent 
-          task={task} 
-          onRetryGeneration={handleRetryGeneration}
-          retryingGeneration={retryingGeneration}
-        />
+        {/* Content */}
+        <div className="p-4">
+          <TaskContent 
+            task={task} 
+            onRetryGeneration={handleRetryGeneration}
+            retryingGeneration={retryingGeneration}
+          />
 
-        {/* Image Suggestions */}
-        {task.ai_output && (
-          <div className="mt-4">
-            <CompactImageCarousel 
-              task={task}
-              campaignTheme={getCampaignTheme()}
-              onShowAll={handleShowAllImages}
-            />
-          </div>
-        )}
-
-        <div className="flex items-center justify-between">
-          <TaskMetadata scheduledDate={task.scheduled_date} />
-          
-          {/* Image count indicator */}
-          {imageCount > 0 && (
-            <div className="flex items-center gap-1 text-sm text-gray-500">
-              <span>📷</span>
-              <span>{imageCount} images</span>
+          {/* Image Suggestions */}
+          {task.ai_output && (
+            <div className="mt-4 pt-4 border-t border-slate-100">
+              <CompactImageCarousel 
+                task={task}
+                campaignTheme={getCampaignTheme()}
+                onShowAll={handleShowAllImages}
+              />
             </div>
           )}
         </div>
+
+        {/* Footer */}
+        {task.scheduled_date && (
+          <div className="px-4 pb-4">
+            <TaskMetadata scheduledDate={task.scheduled_date} />
+          </div>
+        )}
       </div>
 
       <ContentSidebar
