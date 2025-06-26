@@ -1,4 +1,3 @@
-
 import { CalendarView } from "@/components/CalendarView";
 import { BackfillCampaigns } from "@/components/calendar/BackfillCampaigns";
 import { useState, useEffect } from "react";
@@ -158,7 +157,6 @@ const CalendarPage = () => {
     fetchData();
   };
 
-  // Early return if no authenticated user
   if (!user) {
     return (
       <SidebarLayout>

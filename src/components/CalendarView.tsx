@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { Button } from '@/components/ui/button';
-import { Plus, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, ChevronLeft, ChevronRight, Calendar, CalendarDays } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
+import { format, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 
 export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   campaigns: any[];
@@ -16,22 +17,34 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [bulkCompleteLoading, setBulkCompleteLoading] = useState(false);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Calculate the current week
-  const [currentWeek, setCurrentWeek] = useState<Date>(new Date());
-
-  useEffect(() => {
-    const today = new Date();
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-    const startOfWeek = new Date(today.setDate(diff));
-    setCurrentWeek(startOfWeek);
-  }, []);
-
   // Use the simpler drag and drop hook
   const { handleDrop } = useDragAndDrop(onDataUpdate);
+
+  // Navigation functions
+  const goToPrevious = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(prev => subMonths(prev, 1));
+    } else {
+      setCurrentDate(prev => subWeeks(prev, 1));
+    }
+  };
+
+  const goToNext = () => {
+    if (viewMode === 'month') {
+      setCurrentDate(prev => addMonths(prev, 1));
+    } else {
+      setCurrentDate(prev => addWeeks(prev, 1));
+    }
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
 
   // Task selection and bulk operations
   const toggleTaskSelection = (taskId: string) => {
@@ -135,10 +148,74 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
     return selectedTasks.includes(task.id);
   };
 
+  const getDisplayTitle = () => {
+    if (viewMode === 'month') {
+      return format(currentDate, 'MMMM yyyy');
+    } else {
+      return format(currentDate, "'Week of' MMM d, yyyy");
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       <div className="border-b px-4 py-2 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Calendar</h2>
+        <div className="flex items-center gap-4">
+          <h2 className="text-lg font-semibold">Calendar</h2>
+          
+          {/* Navigation Controls */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToPrevious}
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            
+            <div className="text-sm font-medium min-w-[180px] text-center">
+              {getDisplayTitle()}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToNext}
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={goToToday}
+            >
+              Today
+            </Button>
+          </div>
+
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 border rounded-md p-1">
+            <Button
+              variant={viewMode === 'month' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('month')}
+              className="h-7 px-2"
+            >
+              <Calendar className="w-3 h-3 mr-1" />
+              Month
+            </Button>
+            <Button
+              variant={viewMode === 'week' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('week')}
+              className="h-7 px-2"
+            >
+              <CalendarDays className="w-3 h-3 mr-1" />
+              Week
+            </Button>
+          </div>
+        </div>
+        
         <div className="flex gap-2">
           {selectedTasks.length > 0 && (
             <>
@@ -183,7 +260,8 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
         <CalendarGrid
           campaigns={campaigns}
           tasks={tasks}
-          currentWeek={currentWeek}
+          currentDate={currentDate}
+          viewMode={viewMode}
           onTaskClick={handleTaskClick}
           onCampaignClick={handleCampaignClick}
           onDateClick={handleDateClick}
