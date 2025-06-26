@@ -106,6 +106,7 @@ export const CalendarGrid = ({
             }}
             isCurrentMonth={isCurrentMonth}
             isToday={isToday}
+            selectionMode={true}
             onDrop={onDrop}
             isTaskSelected={isTaskSelected}
             isDragging={isDragging}

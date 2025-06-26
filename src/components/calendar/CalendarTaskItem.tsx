@@ -64,17 +64,13 @@ export const CalendarTaskItem = ({
   const statusBadge = getStatusBadge(task.status);
 
   const handleClick = (e: React.MouseEvent) => {
-    // Only handle click if not currently dragging
-    if (!isBeingDragged) {
-      e.stopPropagation();
-      console.log('CalendarTaskItem: Task click handler called for task:', task.id);
-      onTaskClick(task, e.ctrlKey || e.metaKey);
-    }
+    e.stopPropagation();
+    console.log('CalendarTaskItem: Task click handler called for task:', task.id);
+    onTaskClick(task, e.ctrlKey || e.metaKey);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
     if (selectionMode) {
-      // Set drag data
       e.dataTransfer.setData('text/plain', task.id);
       e.dataTransfer.effectAllowed = 'move';
       
@@ -87,16 +83,13 @@ export const CalendarTaskItem = ({
       dragElement.style.border = '2px solid #3B82F6';
       dragElement.style.borderRadius = '8px';
       
-      // Position off-screen temporarily
       dragElement.style.position = 'absolute';
       dragElement.style.top = '-1000px';
       dragElement.style.left = '-1000px';
       document.body.appendChild(dragElement);
       
-      // Set custom drag image
       e.dataTransfer.setDragImage(dragElement, 50, 25);
       
-      // Clean up after drag starts
       setTimeout(() => {
         if (document.body.contains(dragElement)) {
           document.body.removeChild(dragElement);
@@ -115,15 +108,6 @@ export const CalendarTaskItem = ({
     onDragEnd();
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    // Prevent drag from interfering with click on non-drag handle areas
-    if (!e.currentTarget.contains(e.target as Node) || 
-        (e.target as HTMLElement).closest('.drag-handle')) {
-      return;
-    }
-    e.stopPropagation();
-  };
-
   const isDraggable = selectionMode;
 
   const tooltipText = isPastDate 
@@ -136,15 +120,12 @@ export const CalendarTaskItem = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onClick={handleClick}
-      onMouseDown={handleMouseDown}
       className={cn(
         "relative text-xs p-2 rounded-lg transition-all duration-200 group/task cursor-pointer",
         "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200",
-        // Hover states when not being dragged
         !isBeingDragged && "hover:from-green-100 hover:to-emerald-100 hover:shadow-md hover:-translate-y-0.5",
         isDraggable && !isBeingDragged && "hover:cursor-move",
         isSelected && "ring-2 ring-blue-500 bg-blue-50 border-blue-300",
-        // Drag state styling
         isBeingDragged && "opacity-60 shadow-lg scale-105 z-50 pointer-events-none",
         isPastDate && "opacity-75"
       )}
@@ -192,7 +173,6 @@ export const CalendarTaskItem = ({
         </div>
       </div>
 
-      {/* Subtle hover overlay - only when not being dragged */}
       {!isBeingDragged && (
         <div className="absolute inset-0 bg-white/10 opacity-0 group-hover/task:opacity-100 transition-opacity duration-200 rounded-lg pointer-events-none" />
       )}

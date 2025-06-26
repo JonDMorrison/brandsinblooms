@@ -49,13 +49,6 @@ export const CalendarDayContent = ({
   onDragStart,
   onDragEnd,
 }: CalendarDayContentProps) => {
-  const handleTaskClick = (task: Task, ctrlKey: boolean = false) => {
-    console.log('CalendarDayContent: Task click handler called for task:', task.id);
-    if (onTaskClick) {
-      onTaskClick(task, ctrlKey);
-    }
-  };
-
   return (
     <div className="space-y-1.5">
       {/* Campaigns */}
@@ -75,8 +68,8 @@ export const CalendarDayContent = ({
             isSelected={isTaskSelected?.(task) || false}
             isBeingDragged={draggedTask?.id === task.id}
             isPastDate={isPastDate}
-            selectionMode={true}
-            onTaskClick={handleTaskClick}
+            selectionMode={selectionMode}
+            onTaskClick={onTaskClick || (() => {})}
             onDragStart={onDragStart || (() => {})}
             onDragEnd={onDragEnd || (() => {})}
           />

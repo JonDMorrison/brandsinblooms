@@ -68,15 +68,6 @@ export const CalendarDayCell = ({
   const isWeekend = date.getDay() === 0 || date.getDay() === 6;
   const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
 
-  const handleTaskClick = (task: Task, ctrlKey: boolean = false) => {
-    console.log('CalendarDayCell: Task click handler called for task:', task.id);
-    if (ctrlKey && onTaskSelection) {
-      onTaskSelection(task, ctrlKey);
-    } else if (onTaskClick) {
-      onTaskClick(task, ctrlKey);
-    }
-  };
-
   return (
     <CalendarDropZone
       date={date}
@@ -108,7 +99,7 @@ export const CalendarDayCell = ({
           isPastDate={isPastDate}
           draggedTask={draggedTask}
           onCampaignClick={onCampaignClick}
-          onTaskClick={handleTaskClick}
+          onTaskClick={onTaskClick}
           isTaskSelected={isTaskSelected}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}
