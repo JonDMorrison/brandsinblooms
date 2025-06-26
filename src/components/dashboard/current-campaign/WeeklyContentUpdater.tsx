@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,24 +11,43 @@ import { toast } from 'sonner';
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
-  const [isProcessing, setIsProcessing] = useState(false);
+  const isProcessingRef = useRef(false);
+  const lastRunTimestampRef = useRef(0);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    if (!user) return;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user || !mountedRef.current) return;
 
     const ensureCurrentWeekCampaignWithContent = async () => {
-      if (isProcessing) return;
+      // Rate limiting: prevent runs within 10 seconds of each other
+      const now = Date.now();
+      if (now - lastRunTimestampRef.current < 10000) {
+        return;
+      }
+      
+      // Prevent concurrent runs
+      if (isProcessingRef.current) {
+        return;
+      }
       
       try {
-        setIsProcessing(true);
+        isProcessingRef.current = true;
+        lastRunTimestampRef.current = now;
+        
         const currentWeek = getCurrentWeekNumber();
         
-        console.log('🔍 WeeklyContentUpdater: Checking for current week campaign and content:', currentWeek);
+        console.log('🔍 WeeklyContentUpdater: Starting check for week:', currentWeek);
 
         // First, cleanup any duplicate campaigns for this week
         const cleanupResult = await cleanupDuplicateCampaigns(user.id, currentWeek);
         if (cleanupResult.success && cleanupResult.bestCampaign) {
-          console.log('✅ Found existing good campaign:', cleanupResult.bestCampaign.theme);
+          console.log('✅ Found existing campaign:', cleanupResult.bestCampaign.theme);
           
           // Check if this campaign has content already
           const { data: existingTasks } = await supabase
@@ -38,7 +57,7 @@ export const WeeklyContentUpdater = () => {
             .eq('user_id', user.id);
 
           if (existingTasks && existingTasks.length > 0) {
-            console.log('✅ Campaign already has content, no action needed');
+            console.log('✅ Campaign already has content, setup complete');
             return;
           }
 
@@ -130,17 +149,19 @@ export const WeeklyContentUpdater = () => {
       } catch (error) {
         console.error('❌ WeeklyContentUpdater error:', error);
       } finally {
-        setIsProcessing(false);
+        if (mountedRef.current) {
+          isProcessingRef.current = false;
+        }
       }
     };
 
     const generateContentForCampaign = async (campaign: any) => {
+      if (!mountedRef.current) return;
+      
       try {
         console.log('🎯 Auto-generating content for campaign:', campaign.theme);
         
-        // Show a subtle loading toast for new users
-        toast.loading('Setting up your weekly content...', { 
-          id: 'auto-setup',
+        const toastId = toast.loading('Setting up your weekly content...', { 
           duration: 10000 
         });
 
@@ -150,29 +171,37 @@ export const WeeklyContentUpdater = () => {
           campaign.description || '',
           user.id,
           campaign.week_number,
-          tenant?.id // Pass tenant_id only if it exists
+          tenant?.id
         );
 
-        if (result.success) {
+        if (result.success && mountedRef.current) {
           console.log('✅ Auto-generated content successfully');
           toast.success('Your weekly content is ready for review!', { 
-            id: 'auto-setup' 
+            id: toastId 
           });
-        } else {
+        } else if (mountedRef.current) {
           console.error('❌ Auto-generation failed:', result.message);
-          toast.dismiss('auto-setup');
+          toast.dismiss(toastId);
         }
       } catch (error) {
         console.error('❌ Error auto-generating content:', error);
-        toast.dismiss('auto-setup');
+        if (mountedRef.current) {
+          toast.dismiss('auto-setup');
+        }
       }
     };
 
-    // Run the check after a short delay to avoid race conditions
-    const timeoutId = setTimeout(ensureCurrentWeekCampaignWithContent, 2000);
+    // Use a timeout to avoid blocking the main thread
+    const timeoutId = setTimeout(() => {
+      if (mountedRef.current && !isProcessingRef.current) {
+        ensureCurrentWeekCampaignWithContent();
+      }
+    }, 2000);
     
-    return () => clearTimeout(timeoutId);
-  }, [user, tenant, isProcessing]);
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [user, tenant]); // Removed isProcessing from dependencies to prevent infinite loop
 
   return null; // This is a background component
 };
