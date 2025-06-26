@@ -62,20 +62,8 @@ export const MagazineNewsletterDisplay = ({
   // Try to parse as structured YAML first
   const newsletter = parseNewsletterYAML(content);
   
-  // Create a robust newsletter structure for both YAML and plain text
-  const processedNewsletter = newsletter || {
-    newsletter_md: content || '',
-    blocks: createBlocksFromPlainText(content || ''),
-    extra_content_ideas: [],
-    meta: {
-      reading_time: calculateReadingTime(content || ''),
-      theme: campaignTitle || 'Newsletter',
-      week_focus: 'Content Update'
-    }
-  };
-
-  // Improved function to create meaningful blocks from plain text
-  function createBlocksFromPlainText(rawContent: string) {
+  // Helper functions - defined once to avoid duplicates
+  const createBlocksFromPlainText = (rawContent: string) => {
     if (!rawContent || rawContent.trim().length === 0) {
       console.log('🚫 Creating placeholder block due to empty content');
       return [{
@@ -159,15 +147,48 @@ export const MagazineNewsletterDisplay = ({
       image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
       alt_text: `${title} - newsletter image`
     }];
-  }
+  };
 
-  // Calculate reading time based on content length
-  function calculateReadingTime(text: string): string {
+  const calculateReadingTime = (text: string): string => {
     if (!text) return '≈1 min';
     const wordCount = text.replace(/<[^>]*>/g, '').split(/\s+/).length;
     const minutes = Math.ceil(wordCount / 200);
     return `≈${minutes} min`;
-  }
+  };
+
+  const extractTitleFromContent = (content: string): string => {
+    const lines = content.split('\n').filter(line => line.trim().length > 0);
+    if (lines.length > 0) {
+      const firstLine = lines[0].trim();
+      if (firstLine.length < 100 && !firstLine.endsWith('.') && !firstLine.includes('\n')) {
+        return firstLine;
+      }
+    }
+    return campaignTitle || 'Newsletter Update';
+  };
+
+  const generateIntroFromContent = (content: string): string => {
+    const lines = content.split('\n').filter(line => line.trim().length > 20);
+    const firstMeaningfulLine = lines.find(line => 
+      !line.includes('#') && 
+      !line.includes('WEEK') && 
+      line.length > 30 &&
+      line.length < 200
+    );
+    return firstMeaningfulLine || `Discover expert gardening insights for ${campaignTitle || 'seasonal care'}`;
+  };
+
+  // Create a robust newsletter structure for both YAML and plain text
+  const processedNewsletter = newsletter || {
+    newsletter_md: content || '',
+    blocks: createBlocksFromPlainText(content || ''),
+    extra_content_ideas: [],
+    meta: {
+      reading_time: calculateReadingTime(content || ''),
+      theme: campaignTitle || 'Newsletter',
+      week_focus: 'Content Update'
+    }
+  };
 
   // Regenerate newsletter content
   const regenerateNewsletter = async () => {
@@ -350,28 +371,6 @@ export const MagazineNewsletterDisplay = ({
   // Extract intro from newsletter_md
   const introMatch = processedNewsletter.newsletter_md.match(/\*(.+?)\*/);
   const intro = introMatch?.[1] || generateIntroFromContent(processedNewsletter.newsletter_md);
-
-  function extractTitleFromContent(content: string): string {
-    const lines = content.split('\n').filter(line => line.trim().length > 0);
-    if (lines.length > 0) {
-      const firstLine = lines[0].trim();
-      if (firstLine.length < 100 && !firstLine.endsWith('.') && !firstLine.includes('\n')) {
-        return firstLine;
-      }
-    }
-    return campaignTitle || 'Newsletter Update';
-  }
-
-  function generateIntroFromContent(content: string): string {
-    const lines = content.split('\n').filter(line => line.trim().length > 20);
-    const firstMeaningfulLine = lines.find(line => 
-      !line.includes('#') && 
-      !line.includes('WEEK') && 
-      line.length > 30 &&
-      line.length < 200
-    );
-    return firstMeaningfulLine || `Discover expert gardening insights for ${campaignTitle || 'seasonal care'}`;
-  }
 
   return (
     <div className={`max-w-4xl mx-auto ${className || ''}`}>
