@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sparkles, Eye, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { DateCalendarIcon } from "./DateCalendarIcon";
+import { toast } from "sonner";
 
 interface HolidayItemProps {
   holiday: any;
@@ -26,8 +27,27 @@ export const HolidayItem = ({
 }: HolidayItemProps) => {
   const hasContent = contentState && contentState.contentCount > 0;
 
-  const handleGenerateClick = () => {
-    onGenerateContent(holiday.id);
+  const handleGenerateClick = async () => {
+    try {
+      console.log(`🎉 HOLIDAY_ITEM: Starting content generation for holiday: ${holiday.holiday_name}`);
+      
+      // Show immediate feedback
+      toast.loading(`Starting content generation for ${holiday.holiday_name}...`, {
+        id: `holiday-loading-${holiday.id}`
+      });
+      
+      await onGenerateContent(holiday.id);
+      
+      // Success feedback is handled in the parent component
+      toast.dismiss(`holiday-loading-${holiday.id}`);
+      
+    } catch (error) {
+      console.error('🎉 HOLIDAY_ITEM: Error generating content:', error);
+      toast.dismiss(`holiday-loading-${holiday.id}`);
+      toast.error(`Failed to generate content for ${holiday.holiday_name}`, {
+        description: 'Please try again or contact support if the issue persists.'
+      });
+    }
   };
 
   const handleViewClick = () => {
@@ -86,7 +106,7 @@ export const HolidayItem = ({
             size="sm"
             className="flex items-center gap-2"
           >
-            <Sparkles className="w-4 h-4" />
+            <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
             {isGenerating ? 'Generating...' : 'Generate Content'}
           </Button>
         ) : (
