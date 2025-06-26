@@ -1,3 +1,4 @@
+
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -84,33 +85,51 @@ export const SeasonalHolidaysCard = ({
   }, [user]);
 
   const handleGenerateContent = async (holidayId: string) => {
+    console.log(`📋 CARD: Generate content requested for holiday ID: ${holidayId}`);
+    console.log(`📋 CARD: Current generating holidays:`, Array.from(generatingHolidays));
+    
+    // Check if already generating
+    if (generatingHolidays.has(holidayId)) {
+      console.log(`📋 CARD: Already generating content for holiday: ${holidayId}`);
+      return;
+    }
+
     // Check if user has company profile before generating
     if (hasCompanyProfile === false) {
+      console.log(`📋 CARD: No company profile, showing setup`);
       setShowProfileSetup(true);
       return;
     }
 
     const holiday = allHolidays.find(h => h.id === holidayId);
-    if (!holiday) return;
+    if (!holiday) {
+      console.error(`📋 CARD: Holiday not found for ID: ${holidayId}`);
+      return;
+    }
 
+    console.log(`📋 CARD: Starting generation for: ${holiday.holiday_name}`);
     setGeneratingHolidays(prev => new Set(prev).add(holidayId));
 
     try {
-      console.log('Generating content for holiday:', holiday.holiday_name);
+      await generateHolidayContent(holidayId);
       
-      const result = await generateHolidayContent(holidayId);
+      console.log(`📋 CARD: Generation completed successfully for: ${holiday.holiday_name}`);
       
-      // Success toast is handled in the hook
-      // Refresh content state to show the new content
-      await refreshHolidayContent();
-
       if (onContentGenerated) {
         onContentGenerated();
       }
     } catch (error) {
-      console.error('Failed to generate holiday content:', error);
-      // Error toast is handled in the hook
+      console.error('📋 CARD: Failed to generate holiday content:', error);
+      
+      // Make sure error is shown to user - the hook should have already shown toast
+      // but we'll add a fallback just in case
+      if (!error?.message?.includes('toast already shown')) {
+        toast.error(`Failed to generate content for ${holiday.holiday_name}`, {
+          description: error?.message || 'An unknown error occurred'
+        });
+      }
     } finally {
+      console.log(`📋 CARD: Clearing generating state for: ${holidayId}`);
       setGeneratingHolidays(prev => {
         const newSet = new Set(prev);
         newSet.delete(holidayId);

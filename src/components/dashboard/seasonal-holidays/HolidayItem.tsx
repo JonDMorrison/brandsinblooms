@@ -26,31 +26,30 @@ export const HolidayItem = ({
   isFirst = false
 }: HolidayItemProps) => {
   const hasContent = contentState && contentState.contentCount > 0;
-  const [lastError, setLastError] = React.useState<string | null>(null);
+  const [localError, setLocalError] = React.useState<string | null>(null);
 
   const handleGenerateClick = async () => {
+    console.log(`🎉 HOLIDAY_ITEM: Generate button clicked for: ${holiday.holiday_name}`);
+    console.log(`🎉 HOLIDAY_ITEM: Current isGenerating state: ${isGenerating}`);
+    
+    if (isGenerating) {
+      console.log(`🎉 HOLIDAY_ITEM: Already generating, ignoring click`);
+      return;
+    }
+
     try {
-      console.log(`🎉 HOLIDAY_ITEM: Starting content generation for holiday: ${holiday.holiday_name}`);
-      
-      // Clear any previous errors
-      setLastError(null);
-      
-      // Show immediate feedback
-      toast.loading(`Starting content generation for ${holiday.holiday_name}...`, {
-        id: `holiday-loading-${holiday.id}`
-      });
+      setLocalError(null);
+      console.log(`🎉 HOLIDAY_ITEM: Calling onGenerateContent for holiday: ${holiday.holiday_name}`);
       
       await onGenerateContent(holiday.id);
       
-      // Success feedback is handled in the parent component
-      toast.dismiss(`holiday-loading-${holiday.id}`);
+      console.log(`🎉 HOLIDAY_ITEM: Content generation completed successfully for: ${holiday.holiday_name}`);
       
     } catch (error) {
-      console.error('🎉 HOLIDAY_ITEM: Error generating content:', error);
-      const errorMessage = error.message || 'Unknown error occurred';
-      setLastError(errorMessage);
+      console.error('🎉 HOLIDAY_ITEM: Error in handleGenerateClick:', error);
+      const errorMessage = error?.message || 'Unknown error occurred';
+      setLocalError(errorMessage);
       
-      toast.dismiss(`holiday-loading-${holiday.id}`);
       toast.error(`Failed to generate content for ${holiday.holiday_name}`, {
         description: errorMessage
       });
@@ -107,12 +106,12 @@ export const HolidayItem = ({
         )}
         
         {/* Show error message if generation failed */}
-        {lastError && (
+        {localError && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium text-red-800">Generation Failed</p>
-              <p className="text-xs text-red-600 mt-1">{lastError}</p>
+              <p className="text-xs text-red-600 mt-1">{localError}</p>
             </div>
           </div>
         )}
@@ -128,7 +127,7 @@ export const HolidayItem = ({
               <Sparkles className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
               {isGenerating ? 'Generating...' : 'Generate Content'}
             </Button>
-            {lastError && (
+            {localError && (
               <Button
                 onClick={handleGenerateClick}
                 disabled={isGenerating}

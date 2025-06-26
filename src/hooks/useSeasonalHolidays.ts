@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -162,31 +161,32 @@ export const useSeasonalHolidays = () => {
 
   // Generate content for a holiday
   const generateHolidayContentForHoliday = useCallback(async (holidayId: string) => {
+    console.log(`🎯 HOOK: Starting generation for holiday ID: ${holidayId}`);
+    
     if (!user || !tenant) {
-      throw new Error('User authentication required');
+      const errorMsg = 'User authentication required';
+      console.error(`🎯 HOOK ERROR: ${errorMsg}`, { user: !!user, tenant: !!tenant });
+      throw new Error(errorMsg);
     }
 
     const holiday = allHolidays.find(h => h.id === holidayId);
     if (!holiday) {
-      throw new Error('Holiday not found');
+      const errorMsg = 'Holiday not found';
+      console.error(`🎯 HOOK ERROR: ${errorMsg}`, { holidayId, availableHolidays: allHolidays.length });
+      throw new Error(errorMsg);
     }
 
-    console.log(`🎉 Starting content generation for holiday: ${holiday.holiday_name}`);
+    console.log(`🎯 HOOK: Found holiday: ${holiday.holiday_name}, calling service...`);
     
     try {
-      toast.loading(`Generating content for ${holiday.holiday_name}...`, {
-        duration: 30000,
-        id: `holiday-gen-${holidayId}`
-      });
-
-      const results = await generateHolidayContent(user, holiday, tenant);
+      const results = await generateHolidayContent(user, holiday, tenant, fetchHolidayContentState);
+      
+      console.log(`🎯 HOOK: Service returned results:`, results);
       
       // Check results and provide detailed feedback
       const successCount = results.filter(r => r.success).length;
       const failedResults = results.filter(r => !r.success);
       const totalExpected = 5; // instagram, facebook, blog, video, newsletter
-      
-      toast.dismiss(`holiday-gen-${holidayId}`);
       
       if (successCount === totalExpected) {
         toast.success(`All 5 content pieces generated for ${holiday.holiday_name}!`, {
@@ -197,30 +197,28 @@ export const useSeasonalHolidays = () => {
           description: `Successfully created: ${results.filter(r => r.success).map(r => r.type).join(', ')}`
         });
         
-        // Log detailed error information for failed content types
         if (failedResults.length > 0) {
-          console.error('❌ HOLIDAY GENERATION: Failed content types:', failedResults);
-          failedResults.forEach(failed => {
-            console.error(`❌ ${failed.type.toUpperCase()} FAILED:`, failed.error);
-          });
+          console.error('🎯 HOOK: Failed content types:', failedResults);
         }
       } else {
         // Complete failure - throw error with details
         const errorDetails = failedResults.map(r => `${r.type}: ${r.error}`).join('; ');
-        throw new Error(`Content generation failed for all types. Details: ${errorDetails}`);
+        const errorMsg = `Content generation failed for all types. Details: ${errorDetails}`;
+        console.error('🎯 HOOK ERROR: Complete failure:', errorMsg);
+        throw new Error(errorMsg);
       }
 
       // Refresh content state
+      console.log(`🎯 HOOK: Refreshing content state...`);
       await fetchHolidayContentState();
       
       return results;
     } catch (error) {
-      console.error('Error generating holiday content:', error);
-      toast.dismiss(`holiday-gen-${holidayId}`);
+      console.error('🎯 HOOK: Error in generateHolidayContentForHoliday:', error);
       
       // Provide more specific error messages
       let errorMessage = 'An unexpected error occurred';
-      if (error.message) {
+      if (error?.message) {
         if (error.message.includes('OpenAI')) {
           errorMessage = 'AI content generation service is currently unavailable';
         } else if (error.message.includes('network') || error.message.includes('fetch')) {
@@ -232,11 +230,7 @@ export const useSeasonalHolidays = () => {
         }
       }
       
-      toast.error(`Failed to generate content for ${holiday.holiday_name}`, {
-        description: errorMessage
-      });
-      
-      // Re-throw with enhanced error message for component handling
+      console.error('🎯 HOOK: Final error message:', errorMessage);
       throw new Error(errorMessage);
     }
   }, [user, tenant, allHolidays, fetchHolidayContentState]);
