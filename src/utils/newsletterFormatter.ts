@@ -3,7 +3,10 @@ export const formatNewsletterContent = (content: string): string => {
   if (!content) return '';
   
   // Remove HTML tags for processing
-  const cleanContent = content.replace(/<[^>]*>/g, '');
+  let cleanContent = content.replace(/<[^>]*>/g, '');
+  
+  // Convert markdown bold syntax (**text**) to HTML bold tags
+  cleanContent = cleanContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
   
   // Split into paragraphs
   const paragraphs = cleanContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
