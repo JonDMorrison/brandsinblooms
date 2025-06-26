@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
@@ -31,6 +32,120 @@ const generateInitials = (companyName: string): string => {
   return words[0][0].toUpperCase() + words[1][0].toUpperCase();
 };
 
+// Enhanced content validation and formatting
+const formatAndValidateContent = (rawContent: string) => {
+  console.log('[PREVIEW] Raw content received:', rawContent?.substring(0, 200));
+  
+  if (!rawContent || rawContent.trim() === '') {
+    return { text: '', hashtags: [], hasViolations: false, violations: [] };
+  }
+
+  // Clean any HTML tags first but preserve structure
+  let cleanContent = rawContent
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script tags
+    .replace(/<h[1-6][^>]*>/gi, '\n\n**') // Convert headers to bold with spacing
+    .replace(/<\/h[1-6]>/gi, '**\n\n') // Close headers with spacing
+    .replace(/<p[^>]*>/gi, '\n\n') // Convert paragraphs with proper spacing
+    .replace(/<\/p>/gi, '') // Close paragraphs
+    .replace(/<br[^>]*>/gi, '\n') // Convert line breaks
+    .replace(/<li[^>]*>/gi, '\n• ') // Convert list items
+    .replace(/<\/li>/gi, '') // Close list items
+    .replace(/<ul[^>]*>|<\/ul>/gi, '') // Remove ul tags
+    .replace(/<ol[^>]*>|<\/ol>/gi, '') // Remove ol tags
+    .replace(/<strong[^>]*>|<b[^>]*>/gi, '**') // Convert bold tags
+    .replace(/<\/strong>|<\/b>/gi, '**') // Close bold tags
+    .replace(/<em[^>]*>|<i[^>]*>/gi, '*') // Convert italic tags
+    .replace(/<\/em>|<\/i>/gi, '*') // Close italic tags
+    .replace(/<a[^>]*>([^<]*)<\/a>/gi, '$1') // Extract link text
+    .replace(/<[^>]*>/g, '') // Remove any remaining HTML tags
+    .replace(/\\n/g, '\n') // Convert literal \n to actual newlines
+    .trim();
+
+  console.log('[PREVIEW] After HTML cleaning:', cleanContent?.substring(0, 200));
+  
+  // Extract hashtags before validation
+  const hashtagRegex = /#[\w]+/g;
+  const hashtags = cleanContent.match(hashtagRegex) || [];
+  
+  // Remove hashtags from main text but preserve formatting
+  let textWithoutHashtags = cleanContent.replace(hashtagRegex, '').trim();
+  
+  // Clean up excessive whitespace while preserving intentional formatting
+  textWithoutHashtags = textWithoutHashtags
+    .replace(/\n\s*\n\s*\n+/g, '\n\n') // Convert 3+ line breaks to double
+    .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs (but not line breaks)
+    .replace(/^\s+|\s+$/gm, '') // Trim whitespace from start/end of each line
+    .trim();
+
+  // Validate content against our writing rules
+  const violations: string[] = [];
+  const contentLower = textWithoutHashtags.toLowerCase();
+  
+  // Check for forbidden phrases
+  const forbiddenPhrases = [
+    'hello fellow gardeners',
+    'fellow gardeners',
+    'green thumbs',
+    'dear gardeners',
+    'hey gardeners',
+    'greetings gardeners'
+  ];
+  
+  forbiddenPhrases.forEach(phrase => {
+    if (contentLower.includes(phrase)) {
+      violations.push(`Contains forbidden phrase: "${phrase}"`);
+    }
+  });
+  
+  // Check for proper sentence structure (not one giant paragraph)
+  const sentences = textWithoutHashtags.split(/[.!?]+/).filter(s => s.trim().length > 0);
+  const avgSentenceLength = sentences.reduce((acc, sentence) => acc + sentence.trim().split(' ').length, 0) / sentences.length;
+  
+  if (avgSentenceLength > 20) {
+    violations.push('Sentences are too long (average > 20 words)');
+  }
+  
+  // Check for paragraph breaks in longer content
+  if (textWithoutHashtags.length > 200 && !textWithoutHashtags.includes('\n\n')) {
+    violations.push('Long content lacks paragraph breaks');
+  }
+
+  // Enhanced content formatting for better readability
+  let formattedText = textWithoutHashtags;
+  
+  // If content is one long paragraph, try to break it up
+  if (formattedText.length > 150 && !formattedText.includes('\n\n')) {
+    // Split on sentence boundaries and group into smaller paragraphs
+    const sentences = formattedText.split(/(?<=[.!?])\s+/);
+    const paragraphs = [];
+    let currentParagraph = '';
+    
+    sentences.forEach((sentence, index) => {
+      currentParagraph += sentence + ' ';
+      
+      // Break into new paragraph every 2-3 sentences or at logical breaks
+      if ((index + 1) % 3 === 0 || sentence.length > 100 || index === sentences.length - 1) {
+        paragraphs.push(currentParagraph.trim());
+        currentParagraph = '';
+      }
+    });
+    
+    formattedText = paragraphs.join('\n\n');
+  }
+
+  console.log('[PREVIEW] Final formatted text:', formattedText?.substring(0, 200));
+  console.log('[PREVIEW] Content violations:', violations);
+  console.log('[PREVIEW] Extracted hashtags:', hashtags);
+
+  return { 
+    text: formattedText, 
+    hashtags, 
+    hasViolations: violations.length > 0,
+    violations 
+  };
+};
+
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId, campaignTitle }: SocialMediaPostPreviewProps) => {
   const { user } = useAuth();
 
@@ -60,59 +175,8 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
   const companyName = companyProfile?.company_name || 'Your Business';
   const companyInitials = generateInitials(companyName);
 
-  // Improved content processing to handle various content formats
-  const formatContent = (rawContent: string) => {
-    console.log('[PREVIEW] Raw content received:', rawContent?.substring(0, 200));
-    
-    if (!rawContent || rawContent.trim() === '') {
-      return { text: '', hashtags: [] };
-    }
-
-    // Clean any HTML tags first but preserve structure
-    let cleanContent = rawContent
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '') // Remove style tags
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '') // Remove script tags
-      .replace(/<h[1-6][^>]*>/gi, '\n\n**') // Convert headers to bold with spacing
-      .replace(/<\/h[1-6]>/gi, '**\n\n') // Close headers with spacing
-      .replace(/<p[^>]*>/gi, '\n\n') // Convert paragraphs with proper spacing
-      .replace(/<\/p>/gi, '') // Close paragraphs
-      .replace(/<br[^>]*>/gi, '\n') // Convert line breaks
-      .replace(/<li[^>]*>/gi, '\n• ') // Convert list items
-      .replace(/<\/li>/gi, '') // Close list items
-      .replace(/<ul[^>]*>|<\/ul>/gi, '') // Remove ul tags
-      .replace(/<ol[^>]*>|<\/ol>/gi, '') // Remove ol tags
-      .replace(/<strong[^>]*>|<b[^>]*>/gi, '**') // Convert bold tags
-      .replace(/<\/strong>|<\/b>/gi, '**') // Close bold tags
-      .replace(/<em[^>]*>|<i[^>]*>/gi, '*') // Convert italic tags
-      .replace(/<\/em>|<\/i>/gi, '*') // Close italic tags
-      .replace(/<a[^>]*>([^<]*)<\/a>/gi, '$1') // Extract link text
-      .replace(/<[^>]*>/g, '') // Remove any remaining HTML tags
-      .replace(/\\n/g, '\n') // Convert literal \n to actual newlines
-      .trim();
-
-    console.log('[PREVIEW] After HTML cleaning:', cleanContent?.substring(0, 200));
-    
-    // Extract hashtags before final cleanup
-    const hashtagRegex = /#[\w]+/g;
-    const hashtags = cleanContent.match(hashtagRegex) || [];
-    
-    // Remove hashtags from main text but preserve formatting
-    let textWithoutHashtags = cleanContent.replace(hashtagRegex, '').trim();
-    
-    // Clean up excessive whitespace while preserving intentional formatting
-    textWithoutHashtags = textWithoutHashtags
-      .replace(/\n\s*\n\s*\n+/g, '\n\n') // Convert 3+ line breaks to double
-      .replace(/[ \t]+/g, ' ') // Normalize spaces and tabs (but not line breaks)
-      .replace(/^\s+|\s+$/gm, '') // Trim whitespace from start/end of each line
-      .trim();
-
-    console.log('[PREVIEW] Final formatted text:', textWithoutHashtags?.substring(0, 200));
-    console.log('[PREVIEW] Extracted hashtags:', hashtags);
-
-    return { text: textWithoutHashtags, hashtags };
-  };
-
-  const { text, hashtags } = formatContent(content);
+  // Enhanced content processing with validation
+  const { text, hashtags, hasViolations, violations } = formatAndValidateContent(content);
   const { images, loading, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
 
   // Auto-fetch images when component mounts or content changes
@@ -145,6 +209,20 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
 
   return (
     <div className={cn('rounded-lg border-2 overflow-hidden shadow-sm', getPlatformStyle(), className)}>
+      {/* Content Validation Warnings */}
+      {hasViolations && (
+        <div className="bg-yellow-50 border-b border-yellow-200 p-3">
+          <div className="flex items-start gap-2">
+            <span className="text-yellow-600 font-medium text-sm">⚠️ Content Issues:</span>
+            <div className="text-yellow-700 text-sm">
+              {violations.map((violation, index) => (
+                <div key={index}>• {violation}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Platform Header */}
       <div className="flex items-center gap-3 p-4 bg-white border-b">
         {getPlatformIcon()}
@@ -170,9 +248,13 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
         <div className="flex-1 p-4 space-y-3">
           <div className="prose prose-sm max-w-none">
             {text && text.trim() !== '' ? (
-              <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                {text}
-              </p>
+              <div className="text-gray-800 leading-relaxed space-y-3">
+                {text.split('\n\n').map((paragraph, index) => (
+                  <p key={index} className="text-sm">
+                    {paragraph.trim()}
+                  </p>
+                ))}
+              </div>
             ) : (
               <div className="text-gray-400 italic text-sm">
                 <p>Content is being generated...</p>
