@@ -22,6 +22,11 @@ interface SocialConnection {
   is_active: boolean;
 }
 
+// Type guard to ensure platform is valid
+const isValidPlatform = (platform: string): platform is 'facebook' | 'instagram' => {
+  return platform === 'facebook' || platform === 'instagram';
+};
+
 export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
   task,
   onSuccess,
@@ -49,7 +54,14 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
           .in('platform', ['facebook', 'instagram']);
 
         if (error) throw error;
-        setConnections(data || []);
+        
+        // Filter and type-check the data to ensure platform is valid
+        const validConnections = (data || [])
+          .filter((connection): connection is SocialConnection => 
+            isValidPlatform(connection.platform)
+          );
+        
+        setConnections(validConnections);
       } catch (error) {
         console.error('Error fetching social connections:', error);
         toast.error('Failed to load social media connections');
