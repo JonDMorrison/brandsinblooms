@@ -27,7 +27,15 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [useManualEntry, setUseManualEntry] = useState(false);
   
-  const { isAnalyzing, extractedData, analyzeWebsite, updateExtractedData } = useWebsiteAnalysis();
+  const { 
+    isAnalyzing, 
+    analysisError, 
+    extractedData, 
+    analyzeWebsite, 
+    updateExtractedData, 
+    resetAnalysis 
+  } = useWebsiteAnalysis();
+  
   const { markAsCompleted } = useOnboardingStatus();
   const { saveProgress, clearProgress } = useOnboardingProgress();
   const { completeOnboarding } = useOnboardingCompletion();
@@ -46,6 +54,11 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
   ];
 
   const handleAnalyze = async () => {
+    // Clear any stuck progress from previous failed attempts
+    if (analysisError) {
+      clearProgress();
+    }
+    
     // Save the website URL immediately
     if (websiteUrl.trim()) {
       saveProgress({ websiteUrl, currentStep: 1, extractedData: {} });
@@ -53,10 +66,14 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
     
     const success = await analyzeWebsite(websiteUrl);
     if (success) {
+      // Only advance to next step on successful analysis
       setTimeout(() => {
         setCurrentStep(2);
+        // Save successful progress
+        saveProgress({ websiteUrl, currentStep: 2, extractedData });
       }, 1000);
     }
+    // If analysis fails, user stays on current step with error displayed
   };
 
   const handleManualEntry = () => {
@@ -84,24 +101,35 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
       );
     } catch (error) {
       // Error handling is done in the completion function
+      console.error('Onboarding completion error:', error);
     } finally {
       setIsCompleting(false);
     }
   };
 
   const handleBack = () => {
+    // Reset analysis state when going back
+    resetAnalysis();
     setCurrentStep(1);
   };
 
   const handleManualEntryBack = () => {
     setUseManualEntry(false);
+    // Clear any analysis errors when returning
+    resetAnalysis();
   };
 
-  // Update website URL and save progress
+  const handleResetAnalysis = () => {
+    resetAnalysis();
+    // Clear stuck progress
+    clearProgress();
+  };
+
+  // Update website URL and save progress (but not for failed attempts)
   const handleWebsiteUrlChange = (url: string) => {
     setWebsiteUrl(url);
-    // Save immediately when URL changes
-    if (user && url.trim()) {
+    // Only save progress for valid URLs, not during error states
+    if (user && url.trim() && !analysisError) {
       saveProgress({ websiteUrl: url, currentStep, extractedData });
     }
   };
@@ -151,6 +179,8 @@ export const WebsiteOnboardingFlow = ({ onComplete }: WebsiteOnboardingFlowProps
                   onAnalyze={handleAnalyze}
                   onManualEntry={handleManualEntry}
                   isAnalyzing={isAnalyzing}
+                  analysisError={analysisError}
+                  onResetAnalysis={handleResetAnalysis}
                 />
               ) : (
                 <DataReviewStep

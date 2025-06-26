@@ -13,8 +13,16 @@ interface ExtractedData {
   websiteContent: string;
 }
 
+interface AnalysisError {
+  type: 'network' | 'validation' | 'extraction' | 'unknown';
+  message: string;
+  canRetry: boolean;
+  suggestedAction?: string;
+}
+
 export const useWebsiteAnalysis = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState<AnalysisError | null>(null);
   const [extractedData, setExtractedData] = useState<ExtractedData>({
     businessName: "",
     aboutBusiness: "",
@@ -25,43 +33,104 @@ export const useWebsiteAnalysis = () => {
     websiteContent: ""
   });
 
+  const resetAnalysis = () => {
+    setIsAnalyzing(false);
+    setAnalysisError(null);
+    setExtractedData({
+      businessName: "",
+      aboutBusiness: "",
+      location: "",
+      services: "",
+      brandVoice: "",
+      annualEvents: "",
+      websiteContent: ""
+    });
+  };
+
+  const categorizeError = (error: any): AnalysisError => {
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    
+    // Network-related errors
+    if (!navigator.onLine || errorMessage.includes('Failed to fetch') || errorMessage.includes('Network Error')) {
+      return {
+        type: 'network',
+        message: 'No internet connection. Please check your connection and try again.',
+        canRetry: true,
+        suggestedAction: 'Check your internet connection'
+      };
+    }
+    
+    // URL validation errors
+    if (errorMessage.includes('Website analysis failed') || errorMessage.includes('URL')) {
+      return {
+        type: 'validation',
+        message: 'The website URL appears to be invalid or inaccessible. Please verify the URL is correct.',
+        canRetry: true,
+        suggestedAction: 'Double-check the website URL'
+      };
+    }
+    
+    // Content extraction errors
+    if (errorMessage.includes('content') || errorMessage.includes('extraction')) {
+      return {
+        type: 'extraction',
+        message: 'Unable to extract content from this website. You can try manual entry instead.',
+        canRetry: false,
+        suggestedAction: 'Switch to manual entry'
+      };
+    }
+    
+    // Generic error
+    return {
+      type: 'unknown',
+      message: errorMessage,
+      canRetry: true,
+      suggestedAction: 'Try again or use manual entry'
+    };
+  };
+
   const analyzeWebsite = async (websiteUrl: string): Promise<boolean> => {
     if (!websiteUrl.trim()) {
-      toast.error("Please enter a website URL");
+      const error: AnalysisError = {
+        type: 'validation',
+        message: 'Please enter a website URL',
+        canRetry: true,
+        suggestedAction: 'Enter a valid website URL'
+      };
+      setAnalysisError(error);
       return false;
     }
 
     console.log('=== WEBSITE ANALYSIS DEBUG ===');
     console.log('1. Starting website analysis for:', websiteUrl);
-    console.log('2. Supabase client status:', !!supabase);
-    console.log('3. Current user:', await supabase.auth.getUser());
     
+    // Reset previous errors and start analysis
+    setAnalysisError(null);
     setIsAnalyzing(true);
     
     try {
-      console.log('4. About to call supabase.functions.invoke...');
+      console.log('2. About to call supabase.functions.invoke...');
       
       const { data, error } = await supabase.functions.invoke('analyze-website', {
         body: { websiteUrl: websiteUrl.trim() }
       });
 
-      console.log('5. Function response received:');
+      console.log('3. Function response received:');
       console.log('   - Data:', data);
       console.log('   - Error:', error);
-      console.log('   - Full response object:', { data, error });
 
       if (error) {
-        console.error('6. Error analyzing website:', error);
-        console.error('   - Error type:', typeof error);
-        console.error('   - Error message:', error.message);
-        console.error('   - Error details:', error.details);
-        toast.error(`Failed to analyze website: ${error.message || 'Unknown error'}`);
+        console.error('4. Error analyzing website:', error);
+        const analysisError = categorizeError(error);
+        setAnalysisError(analysisError);
+        
+        // Don't show toast for errors we're handling gracefully
         return false;
       }
 
       if (data?.extractedData) {
-        console.log('7. Successfully extracted data:', data.extractedData);
-        console.log('8. Extraction method used:', data.extractionMethod);
+        console.log('5. Successfully extracted data:', data.extractedData);
+        console.log('6. Extraction method used:', data.extractionMethod);
         
         setExtractedData(data.extractedData);
         
@@ -70,30 +139,30 @@ export const useWebsiteAnalysis = () => {
           'Website analyzed successfully using advanced extraction!' : 
           'Website analyzed successfully!';
         
-        // Wait for all items to be visible before advancing
         setTimeout(() => {
           toast.success(methodText);
         }, 1000);
         return true;
       } else {
-        console.warn('9. No extracted data received');
-        console.warn('   - Full data object:', data);
-        toast.error("No data could be extracted from the website.");
+        console.warn('7. No extracted data received');
+        const analysisError: AnalysisError = {
+          type: 'extraction',
+          message: 'No content could be extracted from this website. The site may be protected or have limited content.',
+          canRetry: false,
+          suggestedAction: 'Try manual entry instead'
+        };
+        setAnalysisError(analysisError);
         return false;
       }
-    } catch (error) {
-      console.error('10. Catch block - Error in analyzeWebsite:', error);
-      console.error('    - Error type:', typeof error);
-      console.error('    - Error name:', error?.name);
-      console.error('    - Error message:', error?.message);
-      console.error('    - Error stack:', error?.stack);
-      toast.error(`Failed to analyze website: ${error?.message || 'Network error'}`);
+    } catch (error: any) {
+      console.error('8. Catch block - Error in analyzeWebsite:', error);
+      const analysisError = categorizeError(error);
+      setAnalysisError(analysisError);
       return false;
     } finally {
-      console.log('11. Analysis complete, setting isAnalyzing to false');
-      setTimeout(() => {
-        setIsAnalyzing(false);
-      }, 1000);
+      console.log('9. Analysis complete, setting isAnalyzing to false');
+      // Always reset analyzing state immediately
+      setIsAnalyzing(false);
     }
   };
 
@@ -106,8 +175,10 @@ export const useWebsiteAnalysis = () => {
 
   return {
     isAnalyzing,
+    analysisError,
     extractedData,
     analyzeWebsite,
-    updateExtractedData
+    updateExtractedData,
+    resetAnalysis
   };
 };

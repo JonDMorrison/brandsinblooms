@@ -11,6 +11,35 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 };
 
+const validateUrl = (url: string): { isValid: boolean; normalizedUrl?: string; error?: string } => {
+  try {
+    let normalizedUrl = url.trim();
+    
+    // Add protocol if missing
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = `https://${normalizedUrl}`;
+    }
+    
+    // Validate URL format
+    const urlObj = new URL(normalizedUrl);
+    
+    // Check for valid hostname
+    if (!urlObj.hostname || urlObj.hostname === 'localhost' || urlObj.hostname.includes('127.0.0.1')) {
+      return {
+        isValid: false,
+        error: 'Local URLs are not supported. Please enter a public website URL.'
+      };
+    }
+    
+    return { isValid: true, normalizedUrl };
+  } catch (error) {
+    return {
+      isValid: false,
+      error: 'Invalid URL format. Please enter a valid website URL (e.g., https://example.com)'
+    };
+  }
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -18,35 +47,55 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting website analysis function');
+    console.log('🚀 Starting website analysis function');
     
     const { websiteUrl } = await req.json();
-    console.log('Received request for URL:', websiteUrl);
+    console.log('📥 Received request for URL:', websiteUrl);
 
     if (!websiteUrl) {
-      console.error('No website URL provided');
-      throw new Error('Website URL is required');
+      console.error('❌ No website URL provided');
+      return new Response(JSON.stringify({ 
+        error: 'Website URL is required',
+        type: 'validation'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     if (!openAIApiKey) {
-      console.error('OpenAI API key not found');
-      throw new Error('OpenAI API key not configured');
+      console.error('❌ OpenAI API key not found');
+      return new Response(JSON.stringify({ 
+        error: 'OpenAI API key not configured',
+        type: 'configuration'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Analyzing website:', websiteUrl);
+    // Validate URL
+    const urlValidation = validateUrl(websiteUrl);
+    if (!urlValidation.isValid) {
+      console.error('❌ URL validation failed:', urlValidation.error);
+      return new Response(JSON.stringify({ 
+        error: urlValidation.error,
+        type: 'validation'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const normalizedUrl = urlValidation.normalizedUrl!;
+    console.log('✅ Analyzing website:', normalizedUrl);
 
     let websiteContent = '';
     let extractionMethod = '';
 
-    // Normalize URL
-    let normalizedUrl = websiteUrl.trim();
-    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
-      normalizedUrl = `https://${normalizedUrl}`;
-    }
-
     // First, try the direct fetch method with better error handling
     try {
-      console.log('Attempting direct fetch from:', normalizedUrl);
+      console.log('🔍 Attempting direct fetch from:', normalizedUrl);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
@@ -69,30 +118,31 @@ serve(async (req) => {
       });
       
       clearTimeout(timeoutId);
-      console.log('Direct fetch response status:', response.status, response.statusText);
+      console.log('📡 Direct fetch response status:', response.status, response.statusText);
       
       if (!response.ok) {
-        console.log('Direct fetch failed with status:', response.status, response.statusText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorMsg = `Website returned ${response.status} ${response.statusText}`;
+        console.log('❌ Direct fetch failed:', errorMsg);
+        throw new Error(errorMsg);
       }
 
       const contentType = response.headers.get('content-type') || '';
       if (!contentType.includes('text/html')) {
-        console.log('Response is not HTML, content-type:', contentType);
+        console.log('❌ Response is not HTML, content-type:', contentType);
         throw new Error('Website did not return HTML content');
       }
 
       websiteContent = await response.text();
       extractionMethod = 'direct';
-      console.log('Direct fetch successful, content length:', websiteContent.length);
+      console.log('✅ Direct fetch successful, content length:', websiteContent.length);
       
     } catch (directFetchError) {
-      console.log('Direct fetch failed:', directFetchError.message);
+      console.log('⚠️ Direct fetch failed:', directFetchError.message);
       
       // Fallback to Firecrawl if available
       if (firecrawlApiKey) {
         try {
-          console.log('Using Firecrawl API as fallback');
+          console.log('🔥 Using Firecrawl API as fallback');
           
           const firecrawlResponse = await fetch('https://api.firecrawl.dev/v0/scrape', {
             method: 'POST',
@@ -109,39 +159,68 @@ serve(async (req) => {
             }),
           });
 
-          console.log('Firecrawl response status:', firecrawlResponse.status);
+          console.log('📡 Firecrawl response status:', firecrawlResponse.status);
 
           if (!firecrawlResponse.ok) {
             const errorText = await firecrawlResponse.text();
-            console.error('Firecrawl API error:', firecrawlResponse.status, errorText);
+            console.error('❌ Firecrawl API error:', firecrawlResponse.status, errorText);
             throw new Error(`Firecrawl API error: ${firecrawlResponse.status}`);
           }
 
           const firecrawlData = await firecrawlResponse.json();
-          console.log('Firecrawl response received');
+          console.log('📥 Firecrawl response received');
 
           if (firecrawlData.success && firecrawlData.data && firecrawlData.data.markdown) {
             websiteContent = firecrawlData.data.markdown;
             extractionMethod = 'firecrawl';
-            console.log('Firecrawl extraction successful, content length:', websiteContent.length);
+            console.log('✅ Firecrawl extraction successful, content length:', websiteContent.length);
           } else {
-            console.error('Firecrawl did not return valid data:', firecrawlData);
+            console.error('❌ Firecrawl did not return valid data:', firecrawlData);
             throw new Error('Firecrawl extraction failed - no valid content returned');
           }
           
         } catch (firecrawlError) {
-          console.error('Firecrawl extraction failed:', firecrawlError.message);
-          throw new Error(`Website analysis failed. Direct fetch error: ${directFetchError.message}. Firecrawl error: ${firecrawlError.message}`);
+          console.error('❌ Firecrawl extraction failed:', firecrawlError.message);
+          
+          // Return structured error for better handling
+          return new Response(JSON.stringify({ 
+            error: `Unable to analyze website: ${directFetchError.message}. Please verify the URL is correct and the site is accessible.`,
+            type: 'extraction',
+            details: {
+              directFetchError: directFetchError.message,
+              firecrawlError: firecrawlError.message,
+              url: normalizedUrl
+            }
+          }), {
+            status: 422,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
       } else {
-        console.error('No Firecrawl API key available for fallback');
-        throw new Error(`Website analysis failed: ${directFetchError.message}. Please check the URL and try again.`);
+        console.error('❌ No Firecrawl API key available for fallback');
+        return new Response(JSON.stringify({ 
+          error: `Website analysis failed: ${directFetchError.message}. Please check that the URL is correct and the website is accessible.`,
+          type: 'extraction',
+          details: { 
+            error: directFetchError.message,
+            url: normalizedUrl
+          }
+        }), {
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
     if (!websiteContent || websiteContent.length < 100) {
-      console.error('Website content is too short:', websiteContent.length);
-      throw new Error('Website content is too short or empty. Please check the URL.');
+      console.error('❌ Website content is too short:', websiteContent.length);
+      return new Response(JSON.stringify({
+        error: 'Website content is too short or empty. The site might be protected or have limited accessible content.',
+        type: 'extraction'
+      }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
     
     // Clean up content for analysis
@@ -158,17 +237,23 @@ serve(async (req) => {
     }
     // Firecrawl already returns clean markdown content
     
-    console.log('Cleaned content length:', cleanContent.length);
+    console.log('🧹 Cleaned content length:', cleanContent.length);
     
     // Take first 8000 characters for analysis to stay within token limits
     const contentForAnalysis = cleanContent.slice(0, 8000);
     
     if (contentForAnalysis.length < 50) {
-      console.error('Content too short after cleaning:', contentForAnalysis.length);
-      throw new Error('Website content is too short after processing');
+      console.error('❌ Content too short after cleaning:', contentForAnalysis.length);
+      return new Response(JSON.stringify({
+        error: 'Website content is too short after processing. The site might be mostly images or protected content.',
+        type: 'extraction'
+      }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    console.log('Content ready for OpenAI analysis, length:', contentForAnalysis.length);
+    console.log('🤖 Content ready for OpenAI analysis, length:', contentForAnalysis.length);
 
     // Use OpenAI to analyze the website content
     const prompt = `Analyze this website content and extract business information. Return ONLY valid JSON:
@@ -191,7 +276,7 @@ CRITICAL:
 - Extract any garden center, nursery, landscaping, or plant-related information
 - Focus on finding their business name, location, and what they sell`;
 
-    console.log('Sending request to OpenAI');
+    console.log('📤 Sending request to OpenAI');
 
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -213,21 +298,27 @@ CRITICAL:
       }),
     });
 
-    console.log('OpenAI response status:', openAIResponse.status);
+    console.log('📡 OpenAI response status:', openAIResponse.status);
 
     if (!openAIResponse.ok) {
       const errorText = await openAIResponse.text();
-      console.error('OpenAI API error:', openAIResponse.status, errorText);
-      throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+      console.error('❌ OpenAI API error:', openAIResponse.status, errorText);
+      return new Response(JSON.stringify({
+        error: `AI analysis failed: ${openAIResponse.status}`,
+        type: 'ai_processing'
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const data = await openAIResponse.json();
-    console.log('OpenAI response received');
+    console.log('📥 OpenAI response received');
 
     let extractedData;
     try {
       const content = data.choices[0].message.content.trim();
-      console.log('AI response content:', content);
+      console.log('🤖 AI response content:', content);
       
       // Clean up the response to ensure it's valid JSON
       let jsonString = content;
@@ -251,10 +342,10 @@ CRITICAL:
         }
       }
       
-      console.log('Successfully parsed extracted data');
+      console.log('✅ Successfully parsed extracted data');
       
     } catch (parseError) {
-      console.error('Error parsing AI response:', parseError);
+      console.error('❌ Error parsing AI response:', parseError);
       console.error('Raw AI response:', data.choices[0].message.content);
       
       // Fallback: create a basic structure
@@ -268,8 +359,8 @@ CRITICAL:
       };
     }
 
-    console.log('Final extracted data:', extractedData);
-    console.log('Analysis completed using:', extractionMethod);
+    console.log('🎉 Final extracted data:', extractedData);
+    console.log('✅ Analysis completed using:', extractionMethod);
 
     return new Response(JSON.stringify({ 
       extractedData,
@@ -279,11 +370,12 @@ CRITICAL:
     });
 
   } catch (error) {
-    console.error('Error in analyze-website function:', error);
+    console.error('💥 Error in analyze-website function:', error);
     
     return new Response(JSON.stringify({ 
       error: error.message || 'Failed to analyze website',
-      details: 'Please check the website URL is correct and accessible, then try again.'
+      type: 'server_error',
+      details: 'An unexpected error occurred during website analysis. Please try again or use manual entry.'
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
