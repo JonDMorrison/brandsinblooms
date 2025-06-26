@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
@@ -75,8 +74,101 @@ const removeHeadlineFromContent = (htmlContent: string): string => {
 };
 
 export const MagazineContentDisplay = ({ content, postType, className, contentTaskId, campaignTitle }: MagazineContentDisplayProps) => {
-  // Use the smart image suggestions hook instead of basic image fetching
-  const { images, loading: loadingImage } = useImageSuggestions(contentTaskId, postType);
+  const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
+  
+  // Use the smart image suggestions hook
+  const { images, loading: loadingImage, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('[MAGAZINE_DISPLAY] Props received:', {
+      contentTaskId,
+      postType,
+      campaignTitle,
+      contentLength: content?.length,
+      hasImages: images.length > 0
+    });
+  }, [contentTaskId, postType, campaignTitle, content, images.length]);
+
+  // Auto-fetch images when component mounts with proper content analysis
+  useEffect(() => {
+    if (!hasAttemptedFetch && contentTaskId && content && content.trim().length > 20) {
+      console.log('[MAGAZINE_DISPLAY] Auto-fetching images with smart analysis');
+      console.log('[MAGAZINE_DISPLAY] Content preview:', content.substring(0, 150));
+      console.log('[MAGAZINE_DISPLAY] Campaign title:', campaignTitle);
+      
+      // Trigger smart image fetch with content analysis
+      fetchNewImages('', contentTaskId, postType, content, campaignTitle);
+      setHasAttemptedFetch(true);
+    } else if (!contentTaskId) {
+      console.log('[MAGAZINE_DISPLAY] No contentTaskId provided - cannot fetch images');
+    } else if (!content || content.trim().length <= 20) {
+      console.log('[MAGAZINE_DISPLAY] Content too short for image analysis:', content?.length);
+    }
+  }, [contentTaskId, content, postType, campaignTitle, hasAttemptedFetch, fetchNewImages]);
+
+  // Get the first relevant image from the smart suggestions
+  const relevantImage = images[0];
+
+  // Helper function to render image with better fallback handling
+  const renderImage = (containerClasses: string, fallbackText: string) => {
+    if (loadingImage) {
+      return (
+        <div className={`${containerClasses} flex items-center justify-center`}>
+          <div className="text-center text-gray-500">
+            <div className="animate-spin h-6 w-6 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+            <p className="text-sm">Finding relevant images...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (relevantImage) {
+      return (
+        <div className={`${containerClasses} overflow-hidden`}>
+          <img
+            src={relevantImage.download_url || relevantImage.thumb_url}
+            alt={relevantImage.alt}
+            className="w-full h-full object-cover"
+            onLoad={() => console.log('[MAGAZINE_DISPLAY] Image loaded successfully:', relevantImage.id)}
+            onError={(e) => {
+              console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
+              // Fallback to placeholder
+              const target = e.currentTarget;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent) {
+                parent.innerHTML = `
+                  <div class="text-center text-gray-500 p-4">
+                    <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <p class="text-sm">${fallbackText}</p>
+                  </div>
+                `;
+              }
+            }}
+          />
+        </div>
+      );
+    }
+
+    // No image available - show informative placeholder
+    return (
+      <div className={`${containerClasses} flex items-center justify-center`}>
+        <div className="text-center text-gray-500 p-4">
+          <ImageIcon className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+          <p className="text-sm">{fallbackText}</p>
+          {!contentTaskId && (
+            <p className="text-xs text-gray-400 mt-1">No task ID provided</p>
+          )}
+          {contentTaskId && !hasAttemptedFetch && (
+            <p className="text-xs text-gray-400 mt-1">Content too short for analysis</p>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const getPostTypeIcon = () => {
     switch (postType) {
@@ -113,9 +205,6 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   };
 
   const { text, hashtags } = formatContent(content);
-
-  // Get the first relevant image from the smart suggestions
-  const relevantImage = images[0];
 
   if (postType === 'newsletter') {
     // Check if this is a structured YAML newsletter
@@ -229,7 +318,6 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
     );
   }
 
-  
   if (postType === 'instagram') {
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
@@ -244,42 +332,10 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
         </div>
 
         {/* Image with smart suggestions */}
-        <div className="aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 flex items-center justify-center border border-pink-200 overflow-hidden">
-          {loadingImage ? (
-            <div className="text-center text-pink-600">
-              <div className="animate-spin h-6 w-6 border-2 border-pink-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-              <p className="text-sm">Finding relevant image...</p>
-            </div>
-          ) : relevantImage ? (
-            <img
-              src={relevantImage.download_url || relevantImage.thumb_url}
-              alt={relevantImage.alt}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
-                // Fallback to placeholder
-                const target = e.currentTarget;
-                target.style.display = 'none';
-                const parent = target.parentElement;
-                if (parent) {
-                  parent.innerHTML = `
-                    <div class="text-center text-pink-600">
-                      <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                      </svg>
-                      <p class="text-sm">Visual content area</p>
-                    </div>
-                  `;
-                }
-              }}
-            />
-          ) : (
-            <div className="text-center text-pink-600">
-              <ImageIcon className="w-12 h-12 mx-auto mb-2" />
-              <p className="text-sm">Visual content area</p>
-            </div>
-          )}
-        </div>
+        {renderImage(
+          "aspect-square bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 border border-pink-200",
+          "Visual content area"
+        )}
 
         {/* Content */}
         <div className="space-y-3">
@@ -322,42 +378,10 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </p>
           
           {/* Image with smart suggestions */}
-          <div className="aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center border border-blue-200 overflow-hidden">
-            {loadingImage ? (
-              <div className="text-center text-blue-600">
-                <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-                <p className="text-sm">Finding relevant image...</p>
-              </div>
-            ) : relevantImage ? (
-              <img
-                src={relevantImage.download_url || relevantImage.thumb_url}
-                alt={relevantImage.alt}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
-                  // Fallback to placeholder
-                  const target = e.currentTarget;
-                  target.style.display = 'none';
-                  const parent = target.parentElement;
-                  if (parent) {
-                    parent.innerHTML = `
-                      <div class="text-center text-blue-600">
-                        <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                        </svg>
-                        <p class="text-sm">Featured image</p>
-                      </div>
-                    `;
-                  }
-                }}
-              />
-            ) : (
-              <div className="text-center text-blue-600">
-                <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm">Featured image</p>
-              </div>
-            )}
-          </div>
+          {renderImage(
+            "aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg border border-blue-200",
+            "Featured image"
+          )}
 
           {hashtags.length > 0 && (
             <div className="flex flex-wrap gap-1">
@@ -400,48 +424,10 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
         <div className="relative">
           {/* Floating Image - Top Right with smart suggestions */}
           <div className="w-1/4 float-right ml-6 mb-4">
-            <div className="aspect-square bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg flex items-center justify-center border border-green-200 overflow-hidden">
-              {loadingImage ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin h-6 w-6 border-2 border-green-600 border-t-transparent rounded-full"></div>
-                </div>
-              ) : relevantImage ? (
-                <>
-                  <img
-                    src={relevantImage.download_url || relevantImage.thumb_url}
-                    alt={relevantImage.alt}
-                    className="w-full h-full object-cover rounded-lg"
-                    onError={(e) => {
-                      console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
-                      // Fallback to placeholder
-                      const target = e.currentTarget;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent) {
-                        parent.innerHTML = `
-                          <div class="text-center text-green-600 p-2">
-                            <svg class="w-6 h-6 mx-auto mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                            <p class="text-xs">Featured image</p>
-                          </div>
-                        `;
-                      }
-                    }}
-                  />
-                  {relevantImage.photographer && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs px-2 py-1 opacity-0 hover:opacity-100 transition-opacity">
-                      Photo by {relevantImage.photographer}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center text-green-600 p-2">
-                  <ImageIcon className="w-6 h-6 mx-auto mb-1" />
-                  <p className="text-xs">Featured image</p>
-                </div>
-              )}
-            </div>
+            {renderImage(
+              "aspect-square bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg border border-green-200",
+              "Featured image"
+            )}
           </div>
 
           {/* Article Content - Now with proper markdown parsing and text wrapping */}
