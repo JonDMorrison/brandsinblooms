@@ -25,12 +25,8 @@ export const CalendarCampaignList = ({
   selectedCampaigns = [],
   onCampaignClick,
 }: CalendarCampaignListProps) => {
-  // Deduplicate campaigns based on ID at the component level
-  const uniqueCampaigns = campaigns.filter((campaign, index, self) => 
-    index === self.findIndex(c => c.id === campaign.id)
-  );
-
-  console.log(`CalendarCampaignList: Received ${campaigns.length} campaigns, showing ${uniqueCampaigns.length} unique campaigns`);
+  // Campaigns are now pre-filtered by CalendarGrid, so no need for deduplication
+  console.log(`CalendarCampaignList: Displaying ${campaigns.length} campaigns`);
 
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
@@ -44,9 +40,10 @@ export const CalendarCampaignList = ({
     }
   };
 
+  // Show up to 2 campaigns per day to maintain clean UI
   return (
     <>
-      {uniqueCampaigns.slice(0, 2).map((campaign) => {
+      {campaigns.slice(0, 2).map((campaign) => {
         const isSelected = isCampaignSelected(campaign);
         
         return (

@@ -1,6 +1,7 @@
+
 import React from 'react';
 import { CalendarDayCell } from './CalendarDayCell';
-import { addDays, startOfWeek, startOfMonth, endOfMonth, isSameMonth } from 'date-fns';
+import { addDays, startOfWeek, startOfMonth, endOfMonth, isSameMonth, format } from 'date-fns';
 
 interface CalendarGridProps {
   campaigns: any[];
@@ -51,21 +52,48 @@ export const CalendarGrid = ({
     }
   };
 
-  // Deduplicate campaigns and tasks at the source level
-  const uniqueCampaigns = campaigns.filter((campaign, index, self) => 
-    index === self.findIndex(c => c.id === campaign.id)
-  );
-  
-  const uniqueTasks = tasks.filter((task, index, self) => 
-    index === self.findIndex(t => t.id === task.id)
-  );
+  // Create a map of date strings to campaigns for efficient lookup
+  const campaignsByDate = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    
+    campaigns.forEach(campaign => {
+      if (!campaign.start_date) {
+        console.log('CalendarGrid: Campaign missing start_date:', campaign);
+        return;
+      }
+      
+      const dateKey = format(new Date(campaign.start_date), 'yyyy-MM-dd');
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(campaign);
+    });
+    
+    return map;
+  }, [campaigns]);
 
-  console.log('CalendarGrid: Original campaigns:', campaigns.length, 'Unique:', uniqueCampaigns.length);
-  console.log('CalendarGrid: Original tasks:', tasks.length, 'Unique:', uniqueTasks.length);
+  // Create a map of date strings to tasks for efficient lookup
+  const tasksByDate = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    
+    tasks.forEach(task => {
+      if (!task.scheduled_date) return;
+      
+      const dateKey = format(new Date(task.scheduled_date), 'yyyy-MM-dd');
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(task);
+    });
+    
+    return map;
+  }, [tasks]);
 
   const days = generateDays();
   const gridCols = viewMode === 'week' ? 'grid-cols-7' : 'grid-cols-7';
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
+
+  console.log('CalendarGrid: Rendering with', campaigns.length, 'campaigns and', tasks.length, 'tasks');
 
   return (
     <div className="bg-gradient-to-br from-green-50/30 to-blue-50/20 rounded-xl shadow-sm border border-green-100/50 overflow-hidden">
@@ -79,26 +107,16 @@ export const CalendarGrid = ({
         
         {/* Calendar days with enhanced styling */}
         {days.map((date) => {
-          // Fix the campaign filtering logic - use only start_date which exists in the database
-          const dayCampaigns = uniqueCampaigns.filter(campaign => {
-            if (!campaign.start_date) {
-              console.log('CalendarGrid: Campaign missing start_date:', campaign);
-              return false;
-            }
-            
-            const campaignDate = new Date(campaign.start_date);
-            const dateMatch = campaignDate.toDateString() === date.toDateString();
-            
-            return dateMatch;
-          });
-
-          const dayTasks = uniqueTasks.filter(task => {
-            const taskDate = new Date(task.scheduled_date);
-            return taskDate.toDateString() === date.toDateString();
-          });
+          const dateKey = format(date, 'yyyy-MM-dd');
+          
+          // Get campaigns and tasks for this specific date only
+          const dayCampaigns = campaignsByDate.get(dateKey) || [];
+          const dayTasks = tasksByDate.get(dateKey) || [];
 
           const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
           const isToday = date.toDateString() === new Date().toDateString();
+
+          console.log(`CalendarGrid: Date ${dateKey} has ${dayCampaigns.length} campaigns and ${dayTasks.length} tasks`);
 
           return (
             <CalendarDayCell

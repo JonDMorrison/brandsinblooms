@@ -51,36 +51,50 @@ export const CalendarDayContent = ({
   onDragStart,
   onDragEnd,
 }: CalendarDayContentProps) => {
+  // Calculate how many items we can show based on available space
+  const maxCampaignsToShow = 2;
+  const maxTasksToShow = campaigns.length > 0 ? 2 : 3;
+  
+  const totalItemsShown = Math.min(campaigns.length, maxCampaignsToShow) + Math.min(tasks.length, maxTasksToShow);
+  const totalItems = campaigns.length + tasks.length;
+  const hasMoreItems = totalItems > totalItemsShown;
+
+  console.log(`CalendarDayContent: Rendering ${campaigns.length} campaigns and ${tasks.length} tasks`);
+
   return (
     <div className="space-y-1.5">
-      {/* Campaigns */}
-      <CalendarCampaignList
-        campaigns={campaigns}
-        selectionMode={selectionMode}
-        selectedCampaigns={selectedCampaigns}
-        onCampaignClick={onCampaignClick}
-      />
+      {/* Campaigns - only show those that start on this date */}
+      {campaigns.length > 0 && (
+        <CalendarCampaignList
+          campaigns={campaigns}
+          selectionMode={selectionMode}
+          selectedCampaigns={selectedCampaigns}
+          onCampaignClick={onCampaignClick}
+        />
+      )}
 
       {/* Tasks */}
-      <div className="space-y-1">
-        {tasks.slice(0, campaigns.length > 0 ? 2 : 3).map((task) => (
-          <EnhancedCalendarTaskItem
-            key={task.id}
-            task={task}
-            isSelected={isTaskSelected?.(task) || false}
-            isPastDate={isPastDate}
-            onTaskClick={onTaskClick || (() => {})}
-            onLongPress={onTaskLongPress || (() => {})}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-          />
-        ))}
-      </div>
+      {tasks.length > 0 && (
+        <div className="space-y-1">
+          {tasks.slice(0, maxTasksToShow).map((task) => (
+            <EnhancedCalendarTaskItem
+              key={task.id}
+              task={task}
+              isSelected={isTaskSelected?.(task) || false}
+              isPastDate={isPastDate}
+              onTaskClick={onTaskClick || (() => {})}
+              onLongPress={onTaskLongPress || (() => {})}
+              onDragStart={onDragStart}
+              onDragEnd={onDragEnd}
+            />
+          ))}
+        </div>
+      )}
       
-      {/* Show more indicator */}
-      {(campaigns.length + tasks.length) > 3 && (
+      {/* Show more indicator - only if there are actually more items */}
+      {hasMoreItems && (
         <div className="text-xs text-gray-500 text-center py-1 bg-gray-50/50 rounded border border-gray-100">
-          +{(campaigns.length + tasks.length) - 3} more
+          +{totalItems - totalItemsShown} more
         </div>
       )}
     </div>
