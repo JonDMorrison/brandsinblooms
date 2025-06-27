@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
+import { Instagram, Facebook, FileText, Video, Hash, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { ImageCarousel } from '@/components/ui/image-carousel';
@@ -527,8 +527,6 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   }
 
   if (postType === 'video') {
-    const lines = text.split('\n').filter(line => line.trim());
-    
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
         {/* Header */}
@@ -539,18 +537,15 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </Badge>
         </div>
 
-        {/* Script Content - No placeholder, directly show content */}
-        <div className="space-y-3">
-          {lines.map((line, index) => (
-            <div key={index} className="flex gap-3">
-              <div className="flex-shrink-0 w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
-                <Clock className="w-4 h-4 text-red-600" />
-              </div>
-              <p className="text-gray-700 leading-relaxed flex-1">
-                {line}
+        {/* Script Content - Natural conversation flow */}
+        <div className="space-y-4">
+          <div className="prose prose-sm max-w-none">
+            {text.split('\n\n').map((paragraph, index) => (
+              <p key={index} className="text-gray-700 leading-relaxed mb-4">
+                {paragraph.trim()}
               </p>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     );
