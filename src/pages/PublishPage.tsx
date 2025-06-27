@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ComposerTray } from '@/components/publish/ComposerTray';
@@ -207,40 +208,41 @@ const PublishPage = () => {
 
   return (
     <SidebarLayout>
-      <div className="min-h-screen bg-[#F9FAFB]">
-        <div className="max-w-[1120px] mx-auto px-4 py-6">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-2xl font-semibold text-[#3E5A6B] mb-2">Publish Portal</h1>
-            <p className="text-gray-600">Schedule and publish your approved Facebook and Instagram content</p>
+      <div className="min-h-screen bg-[#F9FAFB] overflow-hidden">
+        <div className="h-screen flex flex-col">
+          {/* Header - Fixed height */}
+          <div className="flex-shrink-0 px-4 sm:px-6 py-4 bg-white border-b border-gray-200">
+            <h1 className="text-xl sm:text-2xl font-semibold text-[#3E5A6B] mb-1">Publish Portal</h1>
+            <p className="text-sm sm:text-base text-gray-600">Schedule and publish your approved Facebook and Instagram content</p>
           </div>
 
-          {/* Main Layout */}
-          <div className="grid grid-cols-12 gap-6 h-[calc(100vh-12rem)]">
-            {/* Left Rail - Content Tray */}
-            <div className="col-span-3">
-              <ComposerTray
-                content={publishData?.content || []}
-                selectedContent={selectedContent}
-                onContentSelect={handleContentSelect}
-              />
+          {/* Main Content Area - Flexible */}
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
+            {/* Left Panel - Content Tray */}
+            <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">
+              <div className="h-full max-h-[calc(100vh-12rem)]">
+                <ComposerTray
+                  content={publishData?.content || []}
+                  selectedContent={selectedContent}
+                  onContentSelect={handleContentSelect}
+                />
+              </div>
             </div>
 
-            {/* Center Editor */}
-            <div className="col-span-6">
-              <ComposerEditor
-                selectedContent={selectedContent}
-                onContentUpdate={(updatedContent) => setSelectedContent(updatedContent)}
-                onOpenDrawer={() => setDrawerOpen(true)}
-              />
+            {/* Right Panel - Editor */}
+            <div className="flex-1 min-w-0">
+              <div className="h-full max-h-[calc(100vh-12rem)]">
+                <ComposerEditor
+                  selectedContent={selectedContent}
+                  onContentUpdate={(updatedContent) => setSelectedContent(updatedContent)}
+                  onOpenDrawer={() => setDrawerOpen(true)}
+                />
+              </div>
             </div>
-
-            {/* Right space for drawer overlay */}
-            <div className="col-span-3"></div>
           </div>
 
-          {/* Bottom Calendar Ribbon */}
-          <div className="mt-6">
+          {/* Bottom Calendar Ribbon - Fixed height */}
+          <div className="flex-shrink-0 px-4 sm:px-6 pb-4">
             <CalendarRibbon
               selectedContent={selectedContent}
               onReschedule={(contentId, newDate) => {

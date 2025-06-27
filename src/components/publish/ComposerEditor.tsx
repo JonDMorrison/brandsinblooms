@@ -47,8 +47,8 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
 
   if (!selectedContent) {
     return (
-      <Card className="h-full flex items-center justify-center bg-white/70 backdrop-blur rounded-2xl shadow-md">
-        <div className="text-center">
+      <Card className="h-full flex items-center justify-center bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="text-center p-8">
           <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-3xl">✨</span>
           </div>
@@ -60,25 +60,25 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
   }
 
   return (
-    <Card className="h-full bg-white/70 backdrop-blur rounded-2xl shadow-md overflow-hidden">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+    <Card className="h-full bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col overflow-hidden">
+      {/* Toolbar - Fixed */}
+      <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50/50">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="text-[#3E5A6B]">
+          <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-8 w-8 p-0">
             <Bold className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="text-[#3E5A6B]">
+          <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-8 w-8 p-0">
             <Italic className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="text-[#3E5A6B]">
+          <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-8 w-8 p-0">
             <Link className="w-4 h-4" />
           </Button>
-          <Button variant="ghost" size="sm" className="text-[#3E5A6B]">
+          <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-8 w-8 p-0">
             <Crop className="w-4 h-4" />
           </Button>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span 
             className={cn(
               "text-sm font-medium",
@@ -89,60 +89,76 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
           </span>
           <Button 
             onClick={onOpenDrawer}
-            className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
+            className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white text-sm h-8"
             size="sm"
           >
             <Settings className="w-4 h-4 mr-2" />
-            Publish Settings
+            Publish
           </Button>
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 p-6 space-y-6">
-        {/* Media Section */}
-        <div className="space-y-3">
-          <label className="text-sm font-medium text-[#3E5A6B]">Media</label>
-          <div className="aspect-square max-w-md bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden">
-            {mediaUrl ? (
-              <img 
-                src={mediaUrl} 
-                alt="Content media" 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="text-center">
-                <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600 font-medium mb-1">Drop media here</p>
-                <p className="text-gray-500 text-sm">or click to browse</p>
-                <Button variant="outline" className="mt-3">
-                  Choose File
-                </Button>
-              </div>
+      {/* Content Area - Scrollable */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="p-6 space-y-6">
+          {/* Media Section */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-[#3E5A6B]">Media</label>
+            <div className="w-full max-w-sm aspect-square bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden">
+              {mediaUrl ? (
+                <img 
+                  src={mediaUrl} 
+                  alt="Content media" 
+                  className="w-full h-full object-cover rounded-lg"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `
+                        <div class="text-center">
+                          <div class="w-12 h-12 text-gray-400 mx-auto mb-3">📷</div>
+                          <p class="text-gray-600 font-medium mb-1">Media not available</p>
+                          <p class="text-gray-500 text-sm">Click to upload new media</p>
+                        </div>
+                      `;
+                    }
+                  }}
+                />
+              ) : (
+                <div className="text-center p-6">
+                  <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 font-medium mb-1">Drop media here</p>
+                  <p className="text-gray-500 text-sm">or click to browse</p>
+                  <Button variant="outline" className="mt-3" size="sm">
+                    Choose File
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Caption Section */}
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-[#3E5A6B]">Caption</label>
+            <Textarea
+              value={caption}
+              onChange={(e) => handleCaptionChange(e.target.value)}
+              placeholder="Write your caption here..."
+              className={cn(
+                "min-h-[160px] resize-none border-gray-300 focus:border-[#68BEB9] focus:ring-[#68BEB9]/20",
+                "text-base leading-relaxed",
+                isOverLimit && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
+              )}
+              style={{ caretColor: '#68BEB9' }}
+            />
+            
+            {isOverLimit && (
+              <p className="text-red-600 text-sm font-medium">
+                Caption exceeds the {maxCharacters} character limit
+              </p>
             )}
           </div>
-        </div>
-
-        {/* Caption Section */}
-        <div className="space-y-3 flex-1">
-          <label className="text-sm font-medium text-[#3E5A6B]">Caption</label>
-          <Textarea
-            value={caption}
-            onChange={(e) => handleCaptionChange(e.target.value)}
-            placeholder="Write your caption here..."
-            className={cn(
-              "min-h-[200px] resize-none border-gray-300 focus:border-[#68BEB9] focus:ring-[#68BEB9]/20",
-              "text-base leading-relaxed",
-              isOverLimit && "border-red-300 focus:border-red-500 focus:ring-red-500/20"
-            )}
-            style={{ caretColor: '#68BEB9' }}
-          />
-          
-          {isOverLimit && (
-            <p className="text-red-600 text-sm">
-              Caption exceeds the {maxCharacters} character limit
-            </p>
-          )}
         </div>
       </div>
     </Card>
