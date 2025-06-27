@@ -4,12 +4,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, RefreshCw } from 'lucide-react';
+import { CompactImageCarousel } from '@/components/homepage/ready-to-post/CompactImageCarousel';
 
 interface GeneratedTask {
   id: string;
   post_type: string;
   ai_output: string;
   status: string;
+  campaign_id?: string;
   // Add other properties as needed
 }
 
@@ -20,6 +22,7 @@ interface FivePostModalProps {
   posts: GeneratedTask[];
   onApprove?: (postIds: string[]) => void;
   onRegenerate?: () => void;
+  campaignTheme?: string;
 }
 
 export const FivePostModal = ({
@@ -28,7 +31,8 @@ export const FivePostModal = ({
   title,
   posts,
   onApprove,
-  onRegenerate
+  onRegenerate,
+  campaignTheme
 }: FivePostModalProps) => {
   const handleApprove = () => {
     if (onApprove) {
@@ -56,7 +60,7 @@ export const FivePostModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-semibold text-[#3E5A6B] text-xl">
             {title}
@@ -81,7 +85,7 @@ export const FivePostModal = ({
                 </div>
               </div>
               
-              <div className="prose prose-sm max-w-none">
+              <div className="prose prose-sm max-w-none mb-4">
                 <div className="text-gray-800 leading-relaxed">
                   {post.ai_output ? (
                     <div dangerouslySetInnerHTML={{ __html: post.ai_output.replace(/\n/g, '<br>') }} />
@@ -89,6 +93,14 @@ export const FivePostModal = ({
                     <p className="text-gray-500 italic">Content preview unavailable</p>
                   )}
                 </div>
+              </div>
+
+              {/* Image Section */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <CompactImageCarousel 
+                  task={post} 
+                  campaignTheme={campaignTheme || title}
+                />
               </div>
             </div>
           ))}
