@@ -1,5 +1,3 @@
-
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,14 +147,25 @@ export const WeeklyThemeSection = ({
                               {campaignTasks.length} pieces of content are ready for review
                             </p>
                           </div>
-                          <Button 
-                            onClick={handleViewContent}
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
-                            View Content
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={handleViewContent}
+                              size="sm"
+                              variant="outline"
+                              className="border-green-300 text-green-700 hover:bg-green-50"
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              Review
+                            </Button>
+                            <Button 
+                              onClick={() => window.location.href = '/publish'}
+                              size="sm"
+                              className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              Publish
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -197,4 +206,3 @@ export const WeeklyThemeSection = ({
     </>
   );
 };
-

@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Sparkles, Calendar, CalendarPlus } from "lucide-react";
@@ -30,6 +29,10 @@ export const QuickActionsSection = ({
     window.location.href = '/calendar';
   };
 
+  const handleOpenPublishPortal = () => {
+    window.location.href = '/publish';
+  };
+
   const actionItems = [
     {
       id: 'new-campaign',
@@ -48,12 +51,20 @@ export const QuickActionsSection = ({
       onClick: () => setShowAddEventDialog(true),
     },
     {
+      id: 'publish-portal',
+      icon: Sparkles,
+      title: 'Publish Portal',
+      description: 'Schedule and publish your content',
+      benefit: 'Professional social media management',
+      onClick: handleOpenPublishPortal,
+    },
+    {
       id: 'view-calendar',
       icon: Calendar,
       title: 'Content Calendar',
       description: 'See your planned content schedule',
       benefit: "Preview what's coming this year",
-      onClick: handleViewCalendar,
+      onClick: () => { window.location.href = '/calendar'; },
     }
   ];
 
