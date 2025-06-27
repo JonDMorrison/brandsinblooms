@@ -36,11 +36,11 @@ export const DraftTray = ({ tasks, selectedDraft, onSelectDraft }: DraftTrayProp
 
   const getTaskTitle = (task: any) => {
     const typeMap: { [key: string]: string } = {
-      facebook: 'Social Media Post',
-      instagram: 'Social Media Post',
-      video: 'Video Content',
+      facebook: 'Facebook',
+      instagram: 'Instagram',
+      video: 'Video Script',
       newsletter: 'Newsletter',
-      blog: 'Blog Post'
+      blog: 'Blog'
     };
     return typeMap[task.post_type] || 'Content Draft';
   };
