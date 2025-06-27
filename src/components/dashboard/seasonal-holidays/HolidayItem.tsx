@@ -95,17 +95,6 @@ export const HolidayItem = ({
           </p>
         )}
         
-        {/* Show generation status */}
-        {isGenerating && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2">
-            <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full mt-0.5"></div>
-            <div>
-              <p className="text-sm font-medium text-blue-800">Generating Content</p>
-              <p className="text-xs text-blue-600 mt-1">Creating holiday-themed content pieces...</p>
-            </div>
-          </div>
-        )}
-        
         {/* Use compact view when content exists, similar to WeeklyThemeGenerator */}
         {hasContent ? (
           <HolidayGenerationSuccess
