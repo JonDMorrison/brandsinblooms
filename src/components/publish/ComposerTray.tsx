@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GeneratedContent {
@@ -21,8 +23,18 @@ interface ComposerTrayProps {
 }
 
 export const ComposerTray = ({ content, selectedContent, onContentSelect }: ComposerTrayProps) => {
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Responsive behavior
+  useEffect(() => {
+    const handleResize = () => {
+      setIsCollapsed(window.innerWidth < 1200);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -48,21 +60,84 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
     }
   };
 
-  const truncateCaption = (caption: string, maxLength: number = 40) => {
+  const truncateCaption = (caption: string, maxLength: number = 35) => {
     if (caption.length <= maxLength) return caption;
-    return caption.substring(0, maxLength) + '...';
+    return caption.substring(0, maxLength) + '…';
   };
+
+  const formatShortDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      day: 'numeric', 
+      month: 'short' 
+    });
+  };
+
+  const draftCount = content.filter(c => c.status === 'DRAFT').length;
+
+  if (isCollapsed) {
+    return (
+      <div className="w-16 bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col items-center p-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsCollapsed(false)}
+          className="w-10 h-10 p-0 mb-4"
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+        
+        {content.slice(0, 5).map((item) => (
+          <Button
+            key={item.id}
+            variant="ghost"
+            size="sm"
+            onClick={() => onContentSelect(item)}
+            className={cn(
+              "w-10 h-10 p-0 mb-2 text-lg rounded-lg border transition-all",
+              selectedContent?.id === item.id
+                ? "border-[#68BEB9] bg-[#68BEB9]/10"
+                : "border-gray-200 hover:border-[#68BEB9]/30"
+            )}
+          >
+            {getPlatformIcon(item.platform)}
+          </Button>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
       {/* Header - Fixed */}
       <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50/50">
-        <h2 className="text-lg font-semibold text-[#3E5A6B]">Social Content Queue</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-[#3E5A6B]">Social Content Queue</h2>
+          {window.innerWidth >= 1200 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCollapsed(true)}
+              className="lg:hidden w-8 h-8 p-0"
+            >
+              <Menu className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+        
+        {/* Section Label */}
+        {draftCount > 0 && (
+          <div className="mt-3 mb-1">
+            <p className="text-sm text-gray-500 font-medium">Drafts ({draftCount})</p>
+          </div>
+        )}
+        
         <div className="flex items-center justify-between mt-1">
           <p className="text-sm text-gray-600">{content.length} approved posts ready</p>
           {content.length > 0 && (
             <Badge variant="outline" className="text-xs">
-              {content.filter(c => c.status === 'DRAFT').length} drafts
+              {draftCount} drafts
             </Badge>
           )}
         </div>
@@ -71,18 +146,33 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
       {/* Content List - Scrollable */}
       <div className="flex-1 min-h-0">
         <ScrollArea className="h-full">
-          <div className="p-3 space-y-2">
+          <div className="p-3 space-y-3">
             {content.map((item) => (
               <div
                 key={item.id}
                 onClick={() => onContentSelect(item)}
                 className={cn(
-                  "group flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-200",
-                  "hover:shadow-md hover:border-[#68BEB9]/30 hover:bg-[#68BEB9]/5",
+                  "group flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-all duration-200",
+                  "hover:shadow-md hover:border-[#68BEB9]/30",
                   selectedContent?.id === item.id
                     ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-sm"
-                    : "border-gray-200 bg-white hover:bg-gray-50"
+                    : "border-gray-200 bg-white hover:bg-[#68BEB9]/5"
                 )}
+                style={{
+                  backgroundColor: selectedContent?.id === item.id 
+                    ? 'rgba(104, 190, 185, 0.1)' 
+                    : undefined
+                }}
+                onMouseEnter={(e) => {
+                  if (selectedContent?.id !== item.id) {
+                    e.currentTarget.style.backgroundColor = 'rgba(104, 190, 185, 0.05)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (selectedContent?.id !== item.id) {
+                    e.currentTarget.style.backgroundColor = '';
+                  }
+                }}
               >
                 {/* Thumbnail - Fixed size */}
                 <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-lg flex-shrink-0 overflow-hidden">
@@ -107,9 +197,9 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
 
                 {/* Content Details - Flexible */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-medium text-[#3E5A6B] text-sm leading-tight line-clamp-2">
-                      {truncateCaption(item.caption, 50)}
+                  <div className="mb-3">
+                    <h3 className="font-medium text-[#3E5A6B] text-sm leading-tight">
+                      {truncateCaption(item.caption)}
                     </h3>
                   </div>
                   
@@ -122,7 +212,7 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
                     </Badge>
                     
                     <span className="text-xs text-gray-500">
-                      {new Date(item.createdAt).toLocaleDateString()}
+                      {formatShortDate(item.createdAt)}
                     </span>
                   </div>
                 </div>
@@ -138,12 +228,6 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
                 <p className="text-gray-600 text-sm">
                   Generate and approve Facebook or Instagram content to start publishing
                 </p>
-              </div>
-            )}
-
-            {loading && (
-              <div className="text-center py-4">
-                <div className="animate-spin w-6 h-6 border-2 border-[#68BEB9] border-t-transparent rounded-full mx-auto"></div>
               </div>
             )}
           </div>

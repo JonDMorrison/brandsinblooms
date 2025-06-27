@@ -4,6 +4,7 @@ import { ComposerTray } from '@/components/publish/ComposerTray';
 import { ComposerEditor } from '@/components/publish/ComposerEditor';
 import { ComposerDrawer } from '@/components/publish/ComposerDrawer';
 import { CalendarRibbon } from '@/components/publish/CalendarRibbon';
+import { showSuccessToast, triggerCardPulse } from '@/components/publish/SuccessFeedback';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
@@ -155,7 +156,17 @@ const PublishPage = () => {
   }) => {
     try {
       // TODO: Implement scheduling API call
-      toast.success('Post scheduled successfully');
+      
+      // Show success feedback
+      const formattedTime = new Date(scheduleData.publishAt).toLocaleDateString('en-US', {
+        weekday: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      showSuccessToast('scheduled', formattedTime);
+      triggerCardPulse(scheduleData.contentId);
       
       // Update local state
       if (publishData && selectedContent) {
@@ -188,7 +199,10 @@ const PublishPage = () => {
   }) => {
     try {
       // TODO: Implement immediate publish API call
-      toast.success('Post published successfully');
+      
+      // Show success feedback
+      showSuccessToast('published');
+      triggerCardPulse(publishDataPayload.contentId);
       
       // Update local state
       if (publishData && selectedContent) {
@@ -233,11 +247,11 @@ const PublishPage = () => {
             <p className="text-sm sm:text-base text-gray-600">Schedule and publish your approved Facebook and Instagram content</p>
           </div>
 
-          {/* Main Content Area - Flexible */}
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 p-4 sm:p-6">
+          {/* Main Content Area - Flexible with bottom padding for sticky calendar */}
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 p-4 sm:p-6 pb-32">
             {/* Left Panel - Content Tray */}
             <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">
-              <div className="h-full max-h-[calc(100vh-12rem)]">
+              <div className="h-full max-h-[calc(100vh-16rem)]">
                 <ComposerTray
                   content={publishData?.content || []}
                   selectedContent={selectedContent}
@@ -248,7 +262,7 @@ const PublishPage = () => {
 
             {/* Right Panel - Editor */}
             <div className="flex-1 min-w-0">
-              <div className="h-full max-h-[calc(100vh-12rem)]">
+              <div className="h-full max-h-[calc(100vh-16rem)]">
                 <ComposerEditor
                   selectedContent={selectedContent}
                   onContentUpdate={(updatedContent) => setSelectedContent(updatedContent)}
@@ -258,19 +272,17 @@ const PublishPage = () => {
             </div>
           </div>
 
-          {/* Bottom Calendar Ribbon - Fixed height */}
-          <div className="flex-shrink-0 px-4 sm:px-6 pb-4">
-            <CalendarRibbon
-              selectedContent={selectedContent}
-              onReschedule={(contentId, newDate) => {
-                // TODO: Implement reschedule logic
-                console.log('Reschedule:', contentId, newDate);
-              }}
-            />
-          </div>
+          {/* Sticky Calendar Ribbon */}
+          <CalendarRibbon
+            selectedContent={selectedContent}
+            onReschedule={(contentId, newDate) => {
+              // TODO: Implement reschedule logic
+              console.log('Reschedule:', contentId, newDate);
+            }}
+          />
         </div>
 
-        {/* Right Drawer */}
+        {/* Right Drawer - Keep sticky */}
         <ComposerDrawer
           isOpen={drawerOpen}
           onClose={() => setDrawerOpen(false)}

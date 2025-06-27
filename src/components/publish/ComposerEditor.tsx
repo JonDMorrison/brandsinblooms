@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Bold, Italic, Link, Crop, Image, Settings, MousePointer } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Bold, Italic, Link, Crop, Image, Settings, MousePointer, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GeneratedContent {
@@ -25,11 +26,13 @@ interface ComposerEditorProps {
 export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer }: ComposerEditorProps) => {
   const [caption, setCaption] = useState('');
   const [mediaUrl, setMediaUrl] = useState<string | undefined>('');
+  const [isMediaExpanded, setIsMediaExpanded] = useState(false);
 
   useEffect(() => {
     if (selectedContent) {
       setCaption(selectedContent.caption);
       setMediaUrl(selectedContent.mediaUrl);
+      setIsMediaExpanded(!!selectedContent.mediaUrl);
     }
   }, [selectedContent]);
 
@@ -41,9 +44,32 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
     }
   };
 
+  const handleRemoveMedia = () => {
+    setMediaUrl('');
+    setIsMediaExpanded(false);
+    if (selectedContent) {
+      const updatedContent = { ...selectedContent, mediaUrl: '' };
+      onContentUpdate(updatedContent);
+    }
+  };
+
+  const handleAddMedia = () => {
+    setIsMediaExpanded(true);
+    // Placeholder for file upload logic
+  };
+
   const characterCount = caption.length;
   const maxCharacters = 2000; // Instagram limit
+  const isNearLimit = characterCount >= 1950;
   const isOverLimit = characterCount > maxCharacters;
+  const isAtWarning = characterCount >= 1950 && characterCount <= 2000;
+  const excessChars = Math.max(0, characterCount - maxCharacters);
+
+  const getCounterColor = () => {
+    if (isOverLimit) return 'text-red-600';
+    if (isAtWarning) return 'text-orange-500';
+    return 'text-gray-600';
+  };
 
   if (!selectedContent) {
     return (
@@ -72,40 +98,55 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
 
   return (
     <Card className="h-full bg-white border border-gray-200 rounded-lg shadow-sm flex flex-col overflow-hidden">
-      {/* Toolbar - Fixed */}
+      {/* Toolbar - Rebalanced */}
       <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50/50">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-8 w-8 p-0">
-            <Bold className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-8 w-8 p-0">
-            <Italic className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-8 w-8 p-0">
-            <Link className="w-4 h-4" />
-          </Button>
-          <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-8 w-8 p-0">
-            <Crop className="w-4 h-4" />
-          </Button>
-        </div>
-        
         <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-7 w-7 p-0">
+              <Bold className="w-[18px] h-[18px]" />
+            </Button>
+            <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-7 w-7 p-0">
+              <Italic className="w-[18px] h-[18px]" />
+            </Button>
+            <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-7 w-7 p-0">
+              <Link className="w-[18px] h-[18px]" />
+            </Button>
+            <Button variant="ghost" size="sm" className="text-[#3E5A6B] h-7 w-7 p-0">
+              <Crop className="w-[18px] h-[18px]" />
+            </Button>
+          </div>
+          
           <span 
             className={cn(
-              "text-sm font-medium",
-              isOverLimit ? "text-red-600" : "text-gray-600"
+              "text-sm font-medium ml-2",
+              getCounterColor()
             )}
           >
             {characterCount}/{maxCharacters}
           </span>
-          <Button 
-            onClick={onOpenDrawer}
-            className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white text-sm h-8"
-            size="sm"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Publish
-          </Button>
+        </div>
+        
+        <div className="flex items-center">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={onOpenDrawer}
+                  disabled={isOverLimit}
+                  className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white text-sm h-8 disabled:opacity-50 disabled:cursor-not-allowed"
+                  size="sm"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Publish Settings
+                </Button>
+              </TooltipTrigger>
+              {isOverLimit && (
+                <TooltipContent>
+                  <p>Trim {excessChars} chars to continue</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -121,29 +162,44 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
               </div>
             </div>
             
-            <div className="w-full max-w-sm aspect-square bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden">
-              {mediaUrl ? (
-                <img 
-                  src={mediaUrl} 
-                  alt="Content media" 
-                  className="w-full h-full object-cover rounded-lg"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                    const parent = target.parentElement;
-                    if (parent) {
-                      parent.innerHTML = `
-                        <div class="text-center p-6">
-                          <div class="w-12 h-12 text-gray-400 mx-auto mb-3">📷</div>
-                          <p class="text-gray-600 font-medium mb-1">Media not available</p>
-                          <p class="text-gray-500 text-sm">Click to upload new media</p>
-                        </div>
-                      `;
-                    }
-                  }}
-                />
+            <div 
+              className={cn(
+                "w-full max-w-sm bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden transition-all duration-300 ease-in-out",
+                isMediaExpanded ? "aspect-square" : "h-60"
+              )}
+            >
+              {mediaUrl && isMediaExpanded ? (
+                <div className="relative w-full h-full group">
+                  <img 
+                    src={mediaUrl} 
+                    alt="Content media" 
+                    className="w-full h-full object-cover rounded-lg animate-scale-in"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `
+                          <div class="text-center p-6">
+                            <div class="w-12 h-12 text-gray-400 mx-auto mb-3">📷</div>
+                            <p class="text-gray-600 font-medium mb-1">Media not available</p>
+                            <p class="text-gray-500 text-sm">Click to upload new media</p>
+                          </div>
+                        `;
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveMedia}
+                    className="absolute top-2 right-2 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
               ) : (
-                <div className="text-center p-6">
+                <div className="text-center p-6" onClick={handleAddMedia}>
                   <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <p className="text-gray-600 font-medium mb-1">Drop media here</p>
                   <p className="text-gray-500 text-sm">or click to browse</p>
@@ -170,11 +226,18 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
               style={{ caretColor: '#68BEB9' }}
             />
             
-            {isOverLimit && (
-              <p className="text-red-600 text-sm font-medium">
-                Caption exceeds the {maxCharacters} character limit
+            {/* Helper text and error states */}
+            <div className="space-y-2">
+              <p className="text-xs text-gray-500">
+                Instagram max = 2,000 chars • Twitter max = 280 (if toggled)
               </p>
-            )}
+              
+              {isOverLimit && (
+                <p className="text-red-600 text-sm font-medium">
+                  Caption exceeds the {maxCharacters} character limit
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
