@@ -8,7 +8,6 @@ import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useContentGeneration } from "@/contexts/ContentGenerationContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
-import { FivePostModal } from "@/components/shared/FivePostModal";
 
 interface WeeklyThemeSectionProps {
   currentCampaign: Campaign | undefined;
@@ -24,7 +23,7 @@ export const WeeklyThemeSection = ({
   onCampaignCreated 
 }: WeeklyThemeSectionProps) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [showFivePostModal, setShowFivePostModal] = useState(false);
+  const [showContentViewer, setShowContentViewer] = useState(false);
   const { generateContent, isGeneratingForCampaign } = useContentGeneration();
 
   const currentWeek = getCurrentWeekNumber();
@@ -60,24 +59,11 @@ export const WeeklyThemeSection = ({
       return;
     }
     
-    setShowFivePostModal(true);
+    setShowContentViewer(true);
   };
 
   const handleContentUpdate = () => {
     onTaskUpdate();
-  };
-
-  const handleApprove = (postIds: string[]) => {
-    console.log('Approving posts:', postIds);
-    // Add approval logic here
-    setShowFivePostModal(false);
-  };
-
-  const handleRegenerate = () => {
-    if (currentCampaign) {
-      handleGenerateContent();
-    }
-    setShowFivePostModal(false);
   };
 
   return (
@@ -222,15 +208,13 @@ export const WeeklyThemeSection = ({
         </Collapsible>
       </Card>
 
-      {/* Replace ContentViewer with FivePostModal */}
-      {currentCampaign && showFivePostModal && (
-        <FivePostModal
-          isOpen={showFivePostModal}
-          onClose={() => setShowFivePostModal(false)}
-          title={`Week ${currentWeek} Content - ${currentCampaign.theme || currentCampaign.title}`}
-          posts={campaignTasks}
-          onApprove={handleApprove}
-          onRegenerate={handleRegenerate}
+      {currentCampaign && showContentViewer && (
+        <ContentViewer
+          campaignId={currentCampaign.id}
+          campaignTitle={currentCampaign.theme || currentCampaign.title}
+          isOpen={showContentViewer}
+          onClose={() => setShowContentViewer(false)}
+          onTaskUpdate={handleContentUpdate}
         />
       )}
     </>
