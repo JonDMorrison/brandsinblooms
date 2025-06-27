@@ -46,6 +46,19 @@ export const WeeklyThemeSection = ({
   };
 
   const handleViewContent = () => {
+    console.log('Review button clicked - Current campaign:', currentCampaign);
+    console.log('Campaign tasks:', campaignTasks);
+    
+    if (!currentCampaign) {
+      console.error('No current campaign available');
+      return;
+    }
+    
+    if (campaignTasks.length === 0) {
+      console.error('No tasks available for this campaign');
+      return;
+    }
+    
     setShowContentViewer(true);
   };
 
@@ -153,6 +166,7 @@ export const WeeklyThemeSection = ({
                               size="sm"
                               variant="outline"
                               className="border-green-300 text-green-700 hover:bg-green-50"
+                              disabled={!currentCampaign || campaignTasks.length === 0}
                             >
                               <Eye className="w-4 h-4 mr-2" />
                               Review
@@ -194,7 +208,7 @@ export const WeeklyThemeSection = ({
         </Collapsible>
       </Card>
 
-      {currentCampaign && (
+      {currentCampaign && showContentViewer && (
         <ContentViewer
           campaignId={currentCampaign.id}
           campaignTitle={currentCampaign.theme || currentCampaign.title}
