@@ -4,7 +4,7 @@ import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
-import { TodaysFocusCard } from '@/components/new-dashboard/TodaysFocusCard';
+import { FocusCarousel } from '@/components/focus/FocusCarousel';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
@@ -61,7 +61,7 @@ const NewDashboard = () => {
             tenant_id
           )
         `)
-        .in('status', ['draft', 'generated', 'approved'])
+        .in('status', ['draft', 'generated', 'approved', 'review'])
         .order('created_at', { ascending: false });
 
       if (tenant?.id) {
@@ -121,12 +121,9 @@ const NewDashboard = () => {
           <div className="grid grid-cols-12 gap-6 mb-6">
             {/* Left Column - Today's Focus + Draft Tray stacked */}
             <div className="col-span-4 space-y-6">
-              {/* Today's Focus */}
-              <div className="h-[220px]">
-                <TodaysFocusCard 
-                  campaign={dashboardData?.currentCampaign}
-                  onComplete={() => handleTaskUpdate()}
-                />
+              {/* Today's Focus Carousel */}
+              <div className="h-[480px]">
+                <FocusCarousel onTaskUpdate={handleTaskUpdate} />
               </div>
 
               {/* Draft Tray */}
@@ -141,7 +138,7 @@ const NewDashboard = () => {
 
             {/* Right Column - Composer Panel (full height) */}
             <div className="col-span-8">
-              <div className="h-[480px]">
+              <div className="h-[740px]">
                 <ComposerPanel 
                   selectedDraft={selectedDraft}
                   socialConnections={dashboardData?.socialConnections || []}

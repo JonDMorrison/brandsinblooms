@@ -1260,6 +1260,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_theme_status: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          status: string | null
+          tenant_id: string | null
+          theme_id: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          status?: string | null
+          tenant_id?: string | null
+          theme_id: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          status?: string | null
+          tenant_id?: string | null
+          theme_id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_theme_status_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       users: {
         Row: {
           created_at: string
