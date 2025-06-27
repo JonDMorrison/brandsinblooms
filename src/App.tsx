@@ -22,6 +22,7 @@ import ContentImportPage from './pages/ContentLibraryPage';
 import ReviewQueuePage from './pages/ContentTasksPage';
 import DevSocialPageWrapper from './pages/DevSocialPage';
 import PublishPage from "./pages/PublishPage";
+import NewDashboard from "./pages/NewDashboard";
 
 const App = () => {
   return (
@@ -32,6 +33,7 @@ const App = () => {
             <Routes>
               <Route path="/" element={<SmartRootRoute />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
+              <Route path="/new-dashboard" element={<NewDashboard />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/account" element={<AccountSettings />} />
