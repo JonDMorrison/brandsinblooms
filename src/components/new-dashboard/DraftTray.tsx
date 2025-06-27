@@ -38,7 +38,7 @@ export const DraftTray = ({ tasks, selectedDraft, onSelectDraft }: DraftTrayProp
     const typeMap: { [key: string]: string } = {
       facebook: 'Social Media Post',
       instagram: 'Social Media Post',
-      video: 'Video',
+      video: 'Video Content',
       newsletter: 'Newsletter',
       blog: 'Blog Post'
     };
@@ -62,12 +62,12 @@ export const DraftTray = ({ tasks, selectedDraft, onSelectDraft }: DraftTrayProp
   };
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-4 h-[440px] border border-white/20">
+    <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-4 h-full border border-white/20">
       <h2 className="text-lg font-semibold text-[#3E5A6B] mb-4">Draft Tray</h2>
       
-      <div className="space-y-3 h-[350px] overflow-y-auto">
+      <div className="space-y-3 h-[180px] overflow-y-auto">
         {tasks.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-8">
             <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
               <Edit className="w-6 h-6 text-gray-400" />
             </div>

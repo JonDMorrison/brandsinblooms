@@ -50,7 +50,7 @@ const NewDashboard = () => {
       const { data: campaigns } = await campaignQuery;
       const currentCampaign = campaigns?.[0] || null;
 
-      // Fetch tasks
+      // Fetch tasks - including all content types
       const taskQuery = supabase
         .from('content_tasks')
         .select(`
@@ -117,32 +117,37 @@ const NewDashboard = () => {
             <p className="text-gray-600">Your content creation command center</p>
           </div>
 
-          {/* Main Dashboard Grid - Now with full width */}
+          {/* Main Dashboard Grid - Updated layout: 4 cols left, 8 cols right */}
           <div className="grid grid-cols-12 gap-6 mb-6">
-            {/* Today's Focus - Left Column */}
-            <div className="col-span-3">
-              <TodaysFocusCard 
-                campaign={dashboardData?.currentCampaign}
-                onComplete={() => handleTaskUpdate()}
-              />
+            {/* Left Column - Today's Focus + Draft Tray stacked */}
+            <div className="col-span-4 space-y-6">
+              {/* Today's Focus */}
+              <div className="h-[220px]">
+                <TodaysFocusCard 
+                  campaign={dashboardData?.currentCampaign}
+                  onComplete={() => handleTaskUpdate()}
+                />
+              </div>
+
+              {/* Draft Tray */}
+              <div className="h-[240px]">
+                <DraftTray 
+                  tasks={dashboardData?.tasks || []}
+                  selectedDraft={selectedDraft}
+                  onSelectDraft={setSelectedDraft}
+                />
+              </div>
             </div>
 
-            {/* Draft Tray - Second Column */}
-            <div className="col-span-3">
-              <DraftTray 
-                tasks={dashboardData?.tasks || []}
-                selectedDraft={selectedDraft}
-                onSelectDraft={setSelectedDraft}
-              />
-            </div>
-
-            {/* Composer Panel - Right 6 Columns */}
-            <div className="col-span-6">
-              <ComposerPanel 
-                selectedDraft={selectedDraft}
-                socialConnections={dashboardData?.socialConnections || []}
-                onTaskUpdate={handleTaskUpdate}
-              />
+            {/* Right Column - Composer Panel (full height) */}
+            <div className="col-span-8">
+              <div className="h-[480px]">
+                <ComposerPanel 
+                  selectedDraft={selectedDraft}
+                  socialConnections={dashboardData?.socialConnections || []}
+                  onTaskUpdate={handleTaskUpdate}
+                />
+              </div>
             </div>
           </div>
 

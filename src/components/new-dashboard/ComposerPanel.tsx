@@ -2,15 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { ImageGallery } from '@/components/new-dashboard/ImageGallery';
 import { 
   Bold, 
   Italic, 
   Link, 
-  Type,
   List,
   Minus
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface ComposerPanelProps {
   selectedDraft: any;
@@ -37,53 +36,8 @@ export const ComposerPanel = ({ selectedDraft, socialConnections, onTaskUpdate }
     setCharacterCount(value.length);
   };
 
-  // Mock KPI data - in real app would come from analytics
-  const kpiData = {
-    reach: { current: 75, goal: 100, label: 'Reach' },
-    engagement: { current: 85, goal: 100, label: 'Engagement' },
-    growth: { current: 65, goal: 100, label: 'Growth' }
-  };
-
-  const renderKPIRing = (kpi: typeof kpiData.reach) => {
-    const percentage = (kpi.current / kpi.goal) * 100;
-    const isGoalMet = percentage >= 100;
-    
-    return (
-      <div className="flex flex-col items-center">
-        <div className="relative w-16 h-16 mb-2">
-          <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
-            <circle
-              cx="32"
-              cy="32"
-              r="28"
-              stroke="#E2E8F0"
-              strokeWidth="4"
-              fill="none"
-            />
-            <circle
-              cx="32"
-              cy="32"
-              r="28"
-              stroke={isGoalMet ? "#22C55E" : "#68BEB9"}
-              strokeWidth="4"
-              fill="none"
-              strokeLinecap="round"
-              strokeDasharray={`${2 * Math.PI * 28}`}
-              strokeDashoffset={`${2 * Math.PI * 28 * (1 - percentage / 100)}`}
-              className="transition-all duration-300"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-xs font-medium text-[#3E5A6B]">{kpi.current}</span>
-          </div>
-        </div>
-        <span className="text-xs text-gray-600">{kpi.label}</span>
-      </div>
-    );
-  };
-
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-6 h-[440px] border border-white/20">
+    <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-6 h-full border border-white/20">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-[#3E5A6B]">Composer</h2>
         <div className="flex items-center gap-1">
@@ -93,7 +47,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections, onTaskUpdate }
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 h-[350px]">
+      <div className="grid grid-cols-4 gap-4 h-[400px]">
         {/* Left 3 columns - Editor */}
         <div className="col-span-3 flex flex-col">
           {/* Toolbar */}
@@ -143,17 +97,9 @@ export const ComposerPanel = ({ selectedDraft, socialConnections, onTaskUpdate }
           </div>
         </div>
 
-        {/* Right column - Pulse KPIs */}
-        <div className="col-span-1 bg-gradient-to-b from-[#68BEB9]/10 to-[#68BEB9]/5 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-[#3E5A6B] mb-4 text-center">Pulse</h3>
-          
-          <div className="space-y-6">
-            {Object.values(kpiData).map((kpi, index) => (
-              <div key={index}>
-                {renderKPIRing(kpi)}
-              </div>
-            ))}
-          </div>
+        {/* Right column - Image Gallery */}
+        <div className="col-span-1">
+          <ImageGallery selectedDraft={selectedDraft} />
         </div>
       </div>
     </div>
