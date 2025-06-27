@@ -290,6 +290,7 @@ export type Database = {
         Row: {
           ai_output: string | null
           assigned_user_id: string | null
+          attachments: Json | null
           campaign_id: string | null
           created_at: string
           created_by_user_id: string | null
@@ -313,6 +314,7 @@ export type Database = {
         Insert: {
           ai_output?: string | null
           assigned_user_id?: string | null
+          attachments?: Json | null
           campaign_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
@@ -336,6 +338,7 @@ export type Database = {
         Update: {
           ai_output?: string | null
           assigned_user_id?: string | null
+          attachments?: Json | null
           campaign_id?: string | null
           created_at?: string
           created_by_user_id?: string | null
