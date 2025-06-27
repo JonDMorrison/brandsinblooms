@@ -49,7 +49,7 @@ export function AppRoutes() {
           } />
           <Route path="/onboarding" element={
             <ProtectedRoute>
-              <OnboardingFlow />
+              <OnboardingFlow onComplete={() => {}} />
             </ProtectedRoute>
           } />
           <Route path="/dashboard" element={
@@ -93,7 +93,7 @@ export function AppRoutes() {
           <Route path="/content-library" element={
             <ProtectedRoute>
               <OnboardingGuard>
-                <ContentLibrary />
+                <ContentLibrary onboardingData={{}} />
               </OnboardingGuard>
             </ProtectedRoute>
           } />
