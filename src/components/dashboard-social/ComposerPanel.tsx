@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { PulsePanel } from '@/components/dashboard-social/PulsePanel';
 import { 
@@ -10,13 +10,23 @@ import {
   Link, 
   List,
   MoreVertical,
-  Save
+  Save,
+  Clock,
+  Edit,
+  Trash2,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export const ComposerPanel = () => {
-  const { activeDraft, refreshData } = useDashboard();
+  const { 
+    activeDraft, 
+    updateDraftContent, 
+    composerMode, 
+    setComposerMode 
+  } = useDashboard();
+  
   const [content, setContent] = useState('');
   const [characterCount, setCharacterCount] = useState(0);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -37,22 +47,14 @@ export const ComposerPanel = () => {
 
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('content_tasks')
-        .update({ ai_output: content })
-        .eq('id', activeDraft.id);
-
-      if (error) throw error;
-
+      await updateDraftContent(activeDraft.id, content);
       setLastSaved(new Date());
-      toast.success('Content saved');
     } catch (error) {
       console.error('Error saving content:', error);
-      toast.error('Failed to save content');
     } finally {
       setSaving(false);
     }
-  }, [activeDraft, content]);
+  }, [activeDraft, content, updateDraftContent]);
 
   // Auto-save with debounce
   useEffect(() => {
@@ -60,7 +62,7 @@ export const ComposerPanel = () => {
 
     const timer = setTimeout(() => {
       saveContent();
-    }, 10000); // 10 seconds
+    }, 3000); // 3 seconds for better UX
 
     return () => clearTimeout(timer);
   }, [content, activeDraft, saveContent]);
@@ -84,17 +86,71 @@ export const ComposerPanel = () => {
     return `Saved ${minutes}m ago`;
   };
 
+  const getComposerModeLabel = () => {
+    switch (composerMode) {
+      case 'scheduled':
+        return 'Scheduled';
+      case 'draft':
+      default:
+        return 'Draft';
+    }
+  };
+
+  const getComposerActions = () => {
+    if (composerMode === 'scheduled') {
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm">
+              <MoreVertical className="w-4 h-4 mr-1" />
+              Actions
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem>
+              <Clock className="w-4 h-4 mr-2" />
+              Reschedule
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <X className="w-4 h-4 mr-2" />
+              Unschedule
+            </DropdownMenuItem>
+            <DropdownMenuItem className="text-red-600">
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-6 h-[440px] border border-white/20">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-[#3E5A6B]">Composer</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-semibold text-[#3E5A6B]">Composer</h2>
+          {activeDraft && (
+            <Badge 
+              variant="outline" 
+              className={
+                composerMode === 'scheduled' 
+                  ? "border-[#68BEB9] text-[#68BEB9]" 
+                  : "border-gray-400 text-gray-600"
+              }
+            >
+              {getComposerModeLabel()}
+            </Badge>
+          )}
+        </div>
+        
         <div className="flex items-center gap-2">
           {lastSaved && (
             <span className="text-xs text-gray-500">{formatLastSaved()}</span>
           )}
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <MoreVertical className="w-4 h-4" />
-          </Button>
+          {getComposerActions()}
         </div>
       </div>
 
@@ -120,7 +176,13 @@ export const ComposerPanel = () => {
           {/* Content Area */}
           <div className="flex-1 flex flex-col">
             <Textarea
-              placeholder={activeDraft ? "Edit your content..." : "Select a draft from the tray to start editing"}
+              placeholder={
+                activeDraft 
+                  ? composerMode === 'scheduled' 
+                    ? "Edit your scheduled content..."
+                    : "Edit your content..." 
+                  : "Select a draft from the tray to start editing"
+              }
               value={content}
               onChange={(e) => handleContentChange(e.target.value)}
               className="flex-1 resize-none border-0 shadow-none focus:ring-0 text-sm"

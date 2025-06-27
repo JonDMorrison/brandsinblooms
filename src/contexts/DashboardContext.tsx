@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
@@ -16,6 +15,7 @@ interface ContentTask {
   campaigns?: {
     title: string;
   };
+  _scheduledPostId?: string; // For tracking scheduled posts
 }
 
 interface Campaign {
@@ -34,8 +34,11 @@ interface DashboardContextType {
   campaigns: Campaign[];
   currentCampaign: Campaign | null;
   scheduleDraft: (draftId: string, dateTime: string) => Promise<void>;
+  updateDraftContent: (draftId: string, content: string) => Promise<void>;
   refreshData: () => Promise<void>;
   loading: boolean;
+  composerMode: 'draft' | 'scheduled';
+  setComposerMode: (mode: 'draft' | 'scheduled') => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -60,6 +63,14 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [currentCampaign, setCurrentCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
+  const [composerMode, setComposerMode] = useState<'draft' | 'scheduled'>('draft');
+
+  // Update composer mode when active draft changes
+  useEffect(() => {
+    if (activeDraft) {
+      setComposerMode(activeDraft.status === 'scheduled' ? 'scheduled' : 'draft');
+    }
+  }, [activeDraft]);
 
   const fetchDrafts = async () => {
     if (!user) return;
@@ -154,6 +165,43 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     }
   };
 
+  const updateDraftContent = async (draftId: string, content: string) => {
+    try {
+      // Check if this is a scheduled post
+      const currentDraft = activeDraft;
+      if (currentDraft?._scheduledPostId) {
+        // Update the generated_content table for scheduled posts
+        const { error } = await supabase
+          .from('generated_content')
+          .update({ caption: content })
+          .eq('id', currentDraft.id);
+
+        if (error) throw error;
+      } else {
+        // Update content_tasks for regular drafts
+        const { error } = await supabase
+          .from('content_tasks')
+          .update({ ai_output: content })
+          .eq('id', draftId);
+
+        if (error) throw error;
+      }
+
+      // Update local state
+      if (activeDraft?.id === draftId) {
+        setActiveDraft({
+          ...activeDraft,
+          ai_output: content
+        });
+      }
+
+      toast.success('Content saved');
+    } catch (error) {
+      console.error('Error updating content:', error);
+      toast.error('Failed to save content');
+    }
+  };
+
   const refreshData = async () => {
     setLoading(true);
     await Promise.all([fetchDrafts(), fetchCampaigns()]);
@@ -173,8 +221,11 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     campaigns,
     currentCampaign,
     scheduleDraft,
+    updateDraftContent,
     refreshData,
     loading,
+    composerMode,
+    setComposerMode,
   };
 
   return (
