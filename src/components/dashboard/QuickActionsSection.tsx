@@ -61,7 +61,7 @@ export const QuickActionsSection = ({
     <div>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-left">
             <Sparkles className="w-5 h-5" />
             Quick Actions
           </CardTitle>
@@ -83,21 +83,21 @@ export const QuickActionsSection = ({
                   }
                 }}
               >
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 text-left">
                   <div className="flex-shrink-0 p-2 bg-gray-50 rounded-lg">
                     <IconComponent className="w-5 h-5 text-green-600" />
                   </div>
                   
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <h3 className="text-gray-800 font-medium">
+                  <div className="flex-1 min-w-0 space-y-1 text-left">
+                    <h3 className="text-gray-800 font-medium text-left">
                       {item.title}
                     </h3>
                     
-                    <p className="text-gray-600 text-sm">
+                    <p className="text-gray-600 text-sm text-left">
                       {item.description}
                     </p>
                     
-                    <p className="text-gray-500 text-xs">
+                    <p className="text-gray-500 text-xs text-left">
                       {item.benefit}
                     </p>
                   </div>
