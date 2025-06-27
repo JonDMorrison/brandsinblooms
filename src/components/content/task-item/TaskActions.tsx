@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Edit, MoreHorizontal, Copy, Trash2 } from "lucide-react";
+import { Edit, MoreHorizontal, Copy, Trash2, Save, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { PostToSocialButton } from "@/components/social/PostToSocialButton";
@@ -12,9 +12,19 @@ interface TaskActionsProps {
   task: any;
   onTaskUpdate?: () => void;
   onEdit: () => void;
+  isEditing?: boolean;
+  onSave?: () => void;
+  onCancel?: () => void;
 }
 
-export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) => {
+export const TaskActions = ({ 
+  task, 
+  onTaskUpdate, 
+  onEdit, 
+  isEditing = false, 
+  onSave, 
+  onCancel 
+}: TaskActionsProps) => {
   const [deletingTask, setDeletingTask] = useState(false);
 
   const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review'].includes(task.status) && task.ai_output;
@@ -71,17 +81,40 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
 
   return (
     <div className="flex items-center gap-1">
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={onEdit}
-        className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-      >
-        <Edit className="w-3 h-3 mr-1" />
-        Edit
-      </Button>
+      {isEditing ? (
+        <>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onSave}
+            className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+          >
+            <Save className="w-3 h-3 mr-1" />
+            Save
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onCancel}
+            className="h-8 px-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+          >
+            <X className="w-3 h-3 mr-1" />
+            Cancel
+          </Button>
+        </>
+      ) : (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onEdit}
+          className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+        >
+          <Edit className="w-3 h-3 mr-1" />
+          Edit
+        </Button>
+      )}
 
-      {canApprove && (
+      {!isEditing && canApprove && (
         <ApproveButton
           taskId={task.id}
           isApproved={isApproved}
@@ -91,7 +124,7 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
         />
       )}
 
-      {isApproved && (
+      {!isEditing && isApproved && (
         <PostToSocialButton
           task={task}
           onSuccess={onTaskUpdate}
@@ -101,27 +134,29 @@ export const TaskActions = ({ task, onTaskUpdate, onEdit }: TaskActionsProps) =>
         />
       )}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-            <MoreHorizontal className="w-3 h-3" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={handleCopy}>
-            <Copy className="w-3 h-3 mr-2" />
-            Copy Content
-          </DropdownMenuItem>
-          <DropdownMenuItem 
-            onClick={handleDelete} 
-            disabled={deletingTask}
-            className="text-red-600 focus:text-red-600"
-          >
-            <Trash2 className="w-3 h-3 mr-2" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {!isEditing && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+              <MoreHorizontal className="w-3 h-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handleCopy}>
+              <Copy className="w-3 h-3 mr-2" />
+              Copy Content
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={handleDelete} 
+              disabled={deletingTask}
+              className="text-red-600 focus:text-red-600"
+            >
+              <Trash2 className="w-3 h-3 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
     </div>
   );
 };

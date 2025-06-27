@@ -1,11 +1,10 @@
 
-import React, { useState, useEffect } from "react";
-import { ContentSidebar } from "@/components/ContentSidebar";
-import { TaskHeader } from "./task-item/TaskHeader";
-import { TaskActions } from "./task-item/TaskActions";
+import React from "react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { TaskContent } from "./task-item/TaskContent";
-import { TaskMetadata } from "./task-item/TaskMetadata";
-import { supabase } from "@/integrations/supabase/client";
+import { InlineEditableContent } from "./InlineEditableContent";
+import { normalizeTask } from "@/utils/normalizeTask";
 
 interface ContentTaskItemProps {
   task: any;
@@ -13,104 +12,64 @@ interface ContentTaskItemProps {
 }
 
 export const ContentTaskItem = ({ task, onTaskUpdate }: ContentTaskItemProps) => {
-  const [showContentSidebar, setShowContentSidebar] = useState(false);
-  const [openInEditMode, setOpenInEditMode] = useState(false);
-  const [retryingGeneration, setRetryingGeneration] = useState(false);
-  const [imageCount, setImageCount] = useState(0);
-
-  // Fetch image count for this task
-  useEffect(() => {
-    const fetchImageCount = async () => {
-      if (task?.id) {
-        try {
-          const { count, error } = await supabase
-            .from('image_suggestions')
-            .select('*', { count: 'exact', head: true })
-            .eq('content_task_id', task.id);
-
-          if (!error && count !== null) {
-            setImageCount(count);
-          }
-        } catch (error) {
-          console.error('Error fetching image count:', error);
-        }
-      }
-    };
-
-    fetchImageCount();
-  }, [task?.id]);
-
-  const handleEdit = () => {
-    setOpenInEditMode(true);
-    setShowContentSidebar(true);
+  const normalizedTask = normalizeTask(task);
+  
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'review': return 'bg-blue-100 text-blue-800';
+      case 'generating': return 'bg-yellow-100 text-yellow-800';
+      case 'posted': return 'bg-purple-100 text-purple-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const handleCloseSidebar = () => {
-    setShowContentSidebar(false);
-    setOpenInEditMode(false);
+  const getPostTypeIcon = (postType: string) => {
+    switch (postType) {
+      case 'facebook': return '📘';
+      case 'instagram': return '📷';
+      case 'blog': return '📝';
+      case 'video': return '🎬';
+      case 'newsletter': return '📧';
+      default: return '📄';
+    }
   };
 
-  const handleTaskUpdateFromSidebar = () => {
+  const retryGeneration = () => {
+    // Implement retry logic if needed
     if (onTaskUpdate) onTaskUpdate();
   };
 
-  const handleRetryGeneration = () => {
-    setRetryingGeneration(true);
-    setTimeout(() => setRetryingGeneration(false), 3000);
-  };
-
-  const handleShowAllImages = () => {
-    setShowContentSidebar(true);
-  };
-
-  // Get the campaign theme, handling both campaign and holiday content
-  const getCampaignTheme = () => {
-    if (task.campaigns?.theme) {
-      return task.campaigns.theme;
-    }
-    if (task.holiday_id && task.holidays?.holiday_name) {
-      return task.holidays.holiday_name;
-    }
-    return 'Holiday Content';
-  };
-
   return (
-    <>
-      <div className="border border-slate-200 rounded-lg bg-white hover:shadow-sm transition-shadow duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-100">
-          <TaskHeader postType={task.post_type} status={task.status} />
-          <TaskActions 
-            task={task} 
-            onTaskUpdate={onTaskUpdate} 
-            onEdit={handleEdit}
-          />
-        </div>
-
-        {/* Content */}
-        <div className="p-4">
-          <TaskContent 
-            task={task} 
-            onRetryGeneration={handleRetryGeneration}
-            retryingGeneration={retryingGeneration}
-          />
-        </div>
-
-        {/* Footer */}
-        {task.scheduled_date && (
-          <div className="px-4 pb-4">
-            <TaskMetadata scheduledDate={task.scheduled_date} />
+    <Card className="w-full">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{getPostTypeIcon(normalizedTask.post_type)}</span>
+            <div>
+              <h3 className="font-semibold capitalize">
+                {normalizedTask.post_type} Content
+              </h3>
+              {normalizedTask.scheduled_date && (
+                <p className="text-sm text-gray-600">
+                  Scheduled: {new Date(normalizedTask.scheduled_date).toLocaleDateString()}
+                </p>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-
-      <ContentSidebar
-        task={task}
-        isOpen={showContentSidebar}
-        onClose={handleCloseSidebar}
-        onTaskUpdate={handleTaskUpdateFromSidebar}
-        initialEditMode={openInEditMode}
-      />
-    </>
+          <div className="flex items-center gap-2">
+            <Badge className={getStatusColor(normalizedTask.status)}>
+              {normalizedTask.status}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <InlineEditableContent
+          task={normalizedTask}
+          onTaskUpdate={onTaskUpdate}
+        />
+      </CardContent>
+    </Card>
   );
 };

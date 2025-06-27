@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Copy, Edit, ExternalLink, Trash2 } from "lucide-react";
+import { Copy, Edit, ExternalLink, Trash2, Save, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,9 @@ interface TaskItemActionsProps {
   cleanContent: string;
   onClick: (task: any) => void;
   onTaskUpdate?: () => void;
+  isEditing?: boolean;
+  onSave?: () => void;
+  onCancel?: () => void;
 }
 
 export const TaskItemActions = ({ 
@@ -22,7 +25,10 @@ export const TaskItemActions = ({
   hasContent, 
   cleanContent, 
   onClick, 
-  onTaskUpdate 
+  onTaskUpdate,
+  isEditing = false,
+  onSave,
+  onCancel
 }: TaskItemActionsProps) => {
   const [approvingTask, setApprovingTask] = useState(false);
   const [deletingTask, setDeletingTask] = useState(false);
@@ -125,17 +131,46 @@ export const TaskItemActions = ({
           </Button>
         )}
 
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleEdit}
-          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-        >
-          <Edit className="w-3 h-3 mr-1" />
-          Edit
-        </Button>
+        {isEditing ? (
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSave?.();
+              }}
+              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+            >
+              <Save className="w-3 h-3 mr-1" />
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel?.();
+              }}
+              className="text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+            >
+              <X className="w-3 h-3 mr-1" />
+              Cancel
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleEdit}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          >
+            <Edit className="w-3 h-3 mr-1" />
+            Edit
+          </Button>
+        )}
 
-        {canApprove && (
+        {!isEditing && canApprove && (
           <ApproveButton
             taskId={task.id}
             isApproved={isApproved}
@@ -145,7 +180,7 @@ export const TaskItemActions = ({
           />
         )}
 
-        {isApproved && (
+        {!isEditing && isApproved && (
           <PostToSocialButton
             task={task}
             onSuccess={onTaskUpdate}
@@ -155,7 +190,7 @@ export const TaskItemActions = ({
           />
         )}
 
-        {isApproved && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
+        {!isEditing && isApproved && task.post_type !== 'facebook' && task.post_type !== 'instagram' && (
           <Button
             size="sm"
             variant="ghost"
@@ -170,22 +205,24 @@ export const TaskItemActions = ({
           </Button>
         )}
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDelete}
-              disabled={deletingTask}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            >
-              <Trash2 className="w-3 h-3" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Delete this content</p>
-          </TooltipContent>
-        </Tooltip>
+        {!isEditing && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleDelete}
+                disabled={deletingTask}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Delete this content</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
     </TooltipProvider>
   );
