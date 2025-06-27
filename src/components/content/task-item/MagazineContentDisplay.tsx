@@ -108,7 +108,77 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
     }
   }, [contentTaskId, content, postType, campaignTitle, hasAttemptedFetch, fetchNewImages]);
 
-  // Helper function to render ImageCarousel or fallback
+  // Helper function to render featured image only (first image)
+  const renderFeaturedImage = (containerClasses: string, fallbackText: string) => {
+    if (loadingImage) {
+      return (
+        <div className={`${containerClasses} flex items-center justify-center`}>
+          <div className="text-center text-gray-500">
+            <div className="animate-spin h-6 w-6 border-2 border-gray-400 border-t-transparent rounded-full mx-auto mb-2"></div>
+            <p className="text-sm">Finding relevant images...</p>
+          </div>
+        </div>
+      );
+    }
+
+    if (images.length > 0) {
+      const featuredImage = images[0];
+      return (
+        <div className={containerClasses}>
+          <img
+            src={featuredImage.thumb_url}
+            alt={featuredImage.alt}
+            className="w-full h-full object-cover rounded-lg"
+          />
+        </div>
+      );
+    }
+
+    // No images available - show informative placeholder
+    return (
+      <div className={`${containerClasses} flex items-center justify-center`}>
+        <div className="text-center text-gray-500 p-4">
+          <ImageIcon className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+          <p className="text-sm">{fallbackText}</p>
+          {!contentTaskId && (
+            <p className="text-xs text-gray-400 mt-1">No task ID provided</p>
+          )}
+          {contentTaskId && !hasAttemptedFetch && (
+            <p className="text-xs text-gray-400 mt-1">Content too short for analysis</p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // Helper function to render thumbnail alternatives section
+  const renderThumbnailSection = () => {
+    if (loadingImage || images.length <= 1) {
+      return null;
+    }
+
+    const thumbnails = images.slice(1); // Get alternatives (skip featured image)
+    
+    return (
+      <div className="mt-8 pt-6 border-t border-gray-200">
+        <h4 className="text-sm font-medium text-gray-700 mb-3">Alternative Images</h4>
+        <div className="grid grid-cols-3 gap-3">
+          {thumbnails.map((image, index) => (
+            <div key={image.id} className="relative group cursor-pointer">
+              <img
+                src={image.thumb_url}
+                alt={image.alt}
+                className="w-full h-20 object-cover rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Helper function to render ImageCarousel or fallback (for social media types)
   const renderImageSection = (containerClasses: string, fallbackText: string) => {
     if (loadingImage) {
       return (
@@ -206,9 +276,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
               </Badge>
             </div>
 
-            {/* Featured Image with ImageCarousel */}
-            {renderImageSection(
-              "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4",
+            {/* Featured Image */}
+            {renderFeaturedImage(
+              "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
               "Newsletter featured image"
             )}
 
@@ -251,6 +321,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
                 ≈{parsedNewsletter.meta.reading_time} • {parsedNewsletter.blocks.length} sections
               </p>
             </div>
+
+            {/* Thumbnail Alternatives Section */}
+            {renderThumbnailSection()}
           </div>
         );
       }
@@ -267,9 +340,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </Badge>
         </div>
 
-        {/* Featured Image with ImageCarousel */}
-        {renderImageSection(
-          "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4",
+        {/* Featured Image */}
+        {renderFeaturedImage(
+          "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
           "Newsletter featured image"
         )}
 
@@ -290,6 +363,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
             Thanks for reading! 📧
           </p>
         </div>
+
+        {/* Thumbnail Alternatives Section */}
+        {renderThumbnailSection()}
       </div>
     );
   }
@@ -396,12 +472,12 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </h1>
         )}
 
-        {/* Article Content with Floating Image */}
+        {/* Article Content with Floating Featured Image */}
         <div className="relative">
-          {/* Floating Image - Top Right with ImageCarousel */}
+          {/* Floating Featured Image - Top Right */}
           <div className="w-1/4 float-right ml-6 mb-4">
-            {renderImageSection(
-              "bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg border border-green-200 p-2",
+            {renderFeaturedImage(
+              "bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg border border-green-200 p-2 h-32",
               "Featured image"
             )}
           </div>
@@ -417,6 +493,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           {/* Clear float */}
           <div className="clear-both"></div>
         </div>
+
+        {/* Thumbnail Alternatives Section */}
+        {renderThumbnailSection()}
       </div>
     );
   }
