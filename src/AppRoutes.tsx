@@ -79,7 +79,7 @@ export function AppRoutes() {
           <Route path="/calendar" element={
             <ProtectedRoute>
               <OnboardingGuard>
-                <CalendarView />
+                <CalendarView campaigns={[]} tasks={[]} onDataUpdate={() => {}} />
               </OnboardingGuard>
             </ProtectedRoute>
           } />
