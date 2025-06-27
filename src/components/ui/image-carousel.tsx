@@ -169,15 +169,6 @@ export const ImageCarousel = ({
           </div>
         )}
       </div>
-      
-      {/* Credit badge */}
-      <Badge 
-        variant="secondary" 
-        className="absolute bottom-2 left-2 text-xs cursor-pointer"
-        onClick={() => handleCopyCredit(image.photographer)}
-      >
-        📷 {image.photographer}
-      </Badge>
     </div>
   );
 
