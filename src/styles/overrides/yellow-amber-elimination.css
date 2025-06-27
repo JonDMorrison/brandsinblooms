@@ -31,14 +31,14 @@
 .border-orange-50, .border-orange-100, .border-orange-200, .border-orange-300, .border-orange-400, .border-orange-500, .border-orange-600, .border-orange-700, .border-orange-800, .border-orange-900,
 .border-purple-50, .border-purple-100, .border-purple-200, .border-purple-300, .border-purple-400, .border-purple-500, .border-purple-600, .border-purple-700, .border-purple-800, .border-purple-900,
 .border-pink-50, .border-pink-100, .border-pink-200, .border-pink-300, .border-pink-400, .border-pink-500, .border-pink-600, .border-pink-700, .border-pink-800, .border-pink-900,
-.border-fuchsia-50, .border-fuchsia-100, .border-fuchsia-200, .border-fuchsia-300, .border-fuchsia-400, .border-fuchsia-500, .border-fuchsia-600, .border-fuchsia-700, .border-fuchsia-800, .border-fuchsia-900 {
+.border-[#68BEB9]\/40 {
   border-color: #68BEB9 !important; /* Brand teal-mint */
 }
 
 /* High specificity overrides for ring colors */
 .ring-yellow-50, .ring-yellow-100, .ring-yellow-200, .ring-yellow-300, .ring-yellow-400, .ring-yellow-500, .ring-yellow-600, .ring-yellow-700, .ring-yellow-800, .ring-yellow-900,
 .ring-amber-50, .ring-amber-100, .ring-amber-200, .ring-amber-300, .ring-amber-400, .ring-amber-500, .ring-amber-600, .ring-amber-700, .ring-amber-800, .ring-amber-900,
-.ring-orange-50, .ring-orange-100, .ring-orange-200, .ring-orange-300, .ring-orange-400, .ring-orange-500, .ring-orange-600, .ring-orange-700, .ring-orange-800, .ring-orange-900,
+.ring-orange-50, .ring-orange-100, .ring-orange-200, .ring-orange-300, .ring-orange-400, .ring-[#68BEB9], .ring-orange-600, .ring-orange-700, .ring-orange-800, .ring-orange-900,
 .ring-purple-50, .ring-purple-100, .ring-purple-200, .ring-purple-300, .ring-purple-400, .ring-purple-500, .ring-purple-600, .ring-purple-700, .ring-purple-800, .ring-purple-900,
 .ring-pink-50, .ring-pink-100, .ring-pink-200, .ring-pink-300, .ring-pink-400, .ring-pink-500, .ring-pink-600, .ring-pink-700, .ring-pink-800, .ring-pink-900,
 .ring-fuchsia-50, .ring-fuchsia-100, .ring-fuchsia-200, .ring-fuchsia-300, .ring-fuchsia-400, .ring-fuchsia-500, .ring-fuchsia-600, .ring-fuchsia-700, .ring-fuchsia-800, .ring-fuchsia-900,
@@ -62,6 +62,11 @@
 
 .stroke-yellow-500, .stroke-amber-500, .stroke-orange-500, .stroke-purple-500, .stroke-pink-500, .stroke-fuchsia-500 {
   stroke: #68BEB9 !important;
+}
+
+/* Global search & replace implementations */
+.text-[#3E5A6B] {
+  color: #3E5A6B !important; /* Brand steel-blue */
 }
 
 /* Catch-all for any remaining color issues */

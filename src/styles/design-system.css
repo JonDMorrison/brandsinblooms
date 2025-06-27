@@ -1,21 +1,22 @@
+
 @layer base {
   :root {
     /* Enhanced Brand Tokens */
-    --brand-green: 34 197 94; /* #22C55E */
-    --brand-blue: 37 99 235; /* #2563EB */
+    --brand-green-rgb: 34, 197, 94; /* #22C55E */
+    --brand-blue-rgb: 37, 99, 235; /* #2563EB */
     
     /* Enhanced Gray Scale */
-    --gray-50: 249 250 251; /* #F9FAFB */
-    --gray-100: 243 244 246; /* #F3F4F6 */
-    --gray-200: 229 231 235; /* #E5E7EB */
-    --gray-700: 55 65 81; /* #374151 */
+    --gray-50-rgb: 249, 250, 251; /* #F9FAFB */
+    --gray-100-rgb: 243, 244, 246; /* #F3F4F6 */
+    --gray-200-rgb: 229, 231, 235; /* #E5E7EB */
+    --gray-700-rgb: 55, 65, 81; /* #374151 */
     
     /* Status Chip Colors */
-    --chip-draft: 156 163 175; /* #9CA3AF */
-    --chip-generated: 59 130 246; /* #3B82F6 */
-    --chip-approved: 34 197 94; /* #22C55E */
-    --chip-scheduled: 251 191 36; /* #FBBF24 */
-    --chip-posted: 16 185 129; /* #10B981 */
+    --chip-draft-rgb: 156, 163, 175; /* #9CA3AF */
+    --chip-generated-rgb: 59, 130, 246; /* #3B82F6 */
+    --chip-approved-rgb: 34, 197, 94; /* #22C55E */
+    --chip-scheduled-rgb: 251, 191, 36; /* #FBBF24 */
+    --chip-posted-rgb: 16, 185, 129; /* #10B981 */
 
     /* Surface Colors */
     --background: 248 250 248; /* #F8FAF8 - Garden background */
@@ -59,32 +60,32 @@
     --radius: 0.75rem; /* 12px default radius */
 
     /* Text Colors */
-    --text-primary: 32 33 36; /* #202124 */
-    --text-secondary: 95 99 104; /* #5F6368 */
-    --text-tertiary: 154 160 166; /* #9AA0A6 */
-    --text-inverse: 255 255 255; /* #FFFFFF */
+    --text-primary-rgb: 32, 33, 36; /* #202124 */
+    --text-secondary-rgb: 95, 99, 104; /* #5F6368 */
+    --text-tertiary-rgb: 154, 160, 166; /* #9AA0A6 */
+    --text-inverse-rgb: 255, 255, 255; /* #FFFFFF */
 
     /* Surface Colors */
-    --surface-primary: 255 255 255; /* #FFFFFF */
-    --surface-secondary: 248 250 248; /* #F8FAF8 - Garden background */
-    --surface-tertiary: 240 244 240; /* #F0F4F0 - Garden sage */
+    --surface-primary-rgb: 255, 255, 255; /* #FFFFFF */
+    --surface-secondary-rgb: 248, 250, 248; /* #F8FAF8 - Garden background */
+    --surface-tertiary-rgb: 240, 244, 240; /* #F0F4F0 - Garden sage */
 
     /* Garden-specific color variables */
-    --garden-green: 76 175 80; /* #4CAF50 */
-    --garden-green-dark: 46 125 50; /* #2E7D32 */
-    --garden-green-light: 129 199 132; /* #81C784 */
-    --garden-background: 248 250 248; /* #F8FAF8 */
-    --garden-sage: 240 244 240; /* #F0F4F0 */
+    --garden-green-rgb: 76, 175, 80; /* #4CAF50 */
+    --garden-green-dark-rgb: 46, 125, 50; /* #2E7D32 */
+    --garden-green-light-rgb: 129, 199, 132; /* #81C784 */
+    --garden-background-rgb: 248, 250, 248; /* #F8FAF8 */
+    --garden-sage-rgb: 240, 244, 240; /* #F0F4F0 */
 
     /* OVERRIDE ALL YELLOW/AMBER CSS VARIABLES */
-    --yellow-50: 232 245 232; /* Garden green very light */
-    --yellow-100: 200 230 201; /* Garden green light */
-    --yellow-500: 76 175 80; /* Garden green primary */
-    --yellow-600: 67 160 71; /* Garden green medium dark */
-    --amber-50: 255 243 224; /* Orange very light for warnings */
-    --amber-100: 255 224 178; /* Orange light */
-    --amber-500: 255 152 0; /* Orange primary */
-    --amber-600: 251 140 0; /* Orange medium dark */
+    --yellow-50-rgb: 232, 245, 232; /* Garden green very light */
+    --yellow-100-rgb: 200, 230, 201; /* Garden green light */
+    --yellow-500-rgb: 76, 175, 80; /* Garden green primary */
+    --yellow-600-rgb: 67, 160, 71; /* Garden green medium dark */
+    --amber-50-rgb: 255, 243, 224; /* Orange very light for warnings */
+    --amber-100-rgb: 255, 224, 178; /* Orange light */
+    --amber-500-rgb: 255, 152, 0; /* Orange primary */
+    --amber-600-rgb: 251, 140, 0; /* Orange medium dark */
   }
 
   .dark {
@@ -114,48 +115,48 @@
     --input: 66 66 66;
     --ring: 129 199 132; /* Garden green ring for dark mode */
     
-    --text-primary: 255 255 255;
-    --text-secondary: 189 189 189;
-    --text-tertiary: 158 158 158;
-    --text-inverse: 0 0 0;
+    --text-primary-rgb: 255, 255, 255;
+    --text-secondary-rgb: 189, 189, 189;
+    --text-tertiary-rgb: 158, 158, 158;
+    --text-inverse-rgb: 0, 0, 0;
     
-    --surface-primary: 33 33 33;
-    --surface-secondary: 18 18 18;
-    --surface-tertiary: 66 66 66;
+    --surface-primary-rgb: 33, 33, 33;
+    --surface-secondary-rgb: 18, 18, 18;
+    --surface-tertiary-rgb: 66, 66, 66;
 
     /* Dark mode brand tokens */
-    --brand-green: 129 199 132; /* Lighter green for dark mode */
-    --brand-blue: 96 165 250; /* Lighter blue for dark mode */
+    --brand-green-rgb: 129, 199, 132; /* Lighter green for dark mode */
+    --brand-blue-rgb: 96, 165, 250; /* Lighter blue for dark mode */
     
     /* Dark mode gray scale */
-    --gray-50: 66 66 66;
-    --gray-100: 82 82 82;
-    --gray-200: 115 115 115;
-    --gray-700: 229 231 235;
+    --gray-50-rgb: 66, 66, 66;
+    --gray-100-rgb: 82, 82, 82;
+    --gray-200-rgb: 115, 115, 115;
+    --gray-700-rgb: 229, 231, 235;
     
     /* Dark mode status chips */
-    --chip-draft: 156 163 175;
-    --chip-generated: 96 165 250;
-    --chip-approved: 129 199 132;
-    --chip-scheduled: 251 191 36;
-    --chip-posted: 52 211 153;
+    --chip-draft-rgb: 156, 163, 175;
+    --chip-generated-rgb: 96, 165, 250;
+    --chip-approved-rgb: 129, 199, 132;
+    --chip-scheduled-rgb: 251, 191, 36;
+    --chip-posted-rgb: 52, 211, 153;
 
     /* Dark mode garden colors */
-    --garden-green: 129 199 132; /* Lighter green for dark mode */
-    --garden-green-dark: 129 199 132;
-    --garden-green-light: 165 214 167;
-    --garden-background: 18 18 18;
-    --garden-sage: 66 66 66;
+    --garden-green-rgb: 129, 199, 132; /* Lighter green for dark mode */
+    --garden-green-dark-rgb: 129, 199, 132;
+    --garden-green-light-rgb: 165, 214, 167;
+    --garden-background-rgb: 18, 18, 18;
+    --garden-sage-rgb: 66, 66, 66;
 
     /* Override yellow/amber in dark mode too */
-    --yellow-50: 66 66 66; /* Dark mode equivalent */
-    --yellow-100: 129 199 132; /* Garden green */
-    --yellow-500: 129 199 132; /* Garden green */
-    --yellow-600: 165 214 167; /* Garden green light */
-    --amber-50: 66 66 66; /* Dark mode equivalent */
-    --amber-100: 255 152 0; /* Orange */
-    --amber-500: 255 152 0; /* Orange */
-    --amber-600: 251 140 0; /* Orange dark */
+    --yellow-50-rgb: 66, 66, 66; /* Dark mode equivalent */
+    --yellow-100-rgb: 129, 199, 132; /* Garden green */
+    --yellow-500-rgb: 129, 199, 132; /* Garden green */
+    --yellow-600-rgb: 165, 214, 167; /* Garden green light */
+    --amber-50-rgb: 66, 66, 66; /* Dark mode equivalent */
+    --amber-100-rgb: 255, 152, 0; /* Orange */
+    --amber-500-rgb: 255, 152, 0; /* Orange */
+    --amber-600-rgb: 251, 140, 0; /* Orange dark */
   }
 }
 
@@ -237,9 +238,9 @@
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline: 2px solid rgb(var(--brand-green));
+    outline: 2px solid rgb(var(--brand-green-rgb));
     outline-offset: 2px;
-    box-shadow: 0 0 0 4px rgb(var(--brand-green) / 0.1);
+    box-shadow: 0 0 0 4px rgb(var(--brand-green-rgb) / 0.1);
   }
   
   /* Active states for better feedback */
@@ -260,38 +261,38 @@
   
   /* Status-specific colors using new tokens */
   .status-draft {
-    background-color: rgb(var(--chip-draft));
+    background-color: rgb(var(--chip-draft-rgb));
     color: white;
   }
   
   .status-generated {
-    background-color: rgb(var(--chip-generated));
+    background-color: rgb(var(--chip-generated-rgb));
     color: white;
   }
   
   .status-review {
-    background-color: rgb(var(--chip-generated));
+    background-color: rgb(var(--chip-generated-rgb));
     color: white;
   }
   
   .status-approved {
-    background-color: rgb(var(--chip-approved));
+    background-color: rgb(var(--chip-approved-rgb));
     color: white;
   }
   
   .status-scheduled {
-    background-color: rgb(var(--chip-scheduled));
+    background-color: rgb(var(--chip-scheduled-rgb));
     color: white;
   }
   
   .status-posted {
-    background-color: rgb(var(--chip-posted));
+    background-color: rgb(var(--chip-posted-rgb));
     color: white;
   }
 
   /* Platform-specific badge colors */
   .platform-newsletter {
-    background-color: rgb(var(--brand-blue));
+    background-color: rgb(var(--brand-blue-rgb));
     color: white;
   }
   
@@ -316,7 +317,7 @@
   }
   
   .platform-email {
-    background-color: rgb(var(--brand-green));
+    background-color: rgb(var(--brand-green-rgb));
     color: white;
   }
 
@@ -346,52 +347,52 @@
 
   /* Enhanced Brand Color Utilities */
   .brand-green {
-    color: rgb(var(--brand-green));
+    color: rgb(var(--brand-green-rgb));
   }
   
   .bg-brand-green {
-    background-color: rgb(var(--brand-green));
+    background-color: rgb(var(--brand-green-rgb));
   }
   
   .border-brand-green {
-    border-color: rgb(var(--brand-green));
+    border-color: rgb(var(--brand-green-rgb));
   }
   
   .brand-blue {
-    color: rgb(var(--brand-blue));
+    color: rgb(var(--brand-blue-rgb));
   }
   
   .bg-brand-blue {
-    background-color: rgb(var(--brand-blue));
+    background-color: rgb(var(--brand-blue-rgb));
   }
   
   .border-brand-blue {
-    border-color: rgb(var(--brand-blue));
+    border-color: rgb(var(--brand-blue-rgb));
   }
 
   /* Status Chip Utilities */
   .chip-draft {
-    background-color: rgb(var(--chip-draft));
+    background-color: rgb(var(--chip-draft-rgb));
     color: white;
   }
   
   .chip-generated {
-    background-color: rgb(var(--chip-generated));
+    background-color: rgb(var(--chip-generated-rgb));
     color: white;
   }
   
   .chip-approved {
-    background-color: rgb(var(--chip-approved));
+    background-color: rgb(var(--chip-approved-rgb));
     color: white;
   }
   
   .chip-scheduled {
-    background-color: rgb(var(--chip-scheduled));
+    background-color: rgb(var(--chip-scheduled-rgb));
     color: white;
   }
   
   .chip-posted {
-    background-color: rgb(var(--chip-posted));
+    background-color: rgb(var(--chip-posted-rgb));
     color: white;
   }
 
@@ -527,7 +528,7 @@
 
   /* Status-specific color replacements */
   .status-warning {
-    @apply bg-orange-100 text-orange-800 border-orange-200;
+    @apply bg-orange-100 text-[#3E5A6B] border-orange-200;
   }
 
   .status-info {

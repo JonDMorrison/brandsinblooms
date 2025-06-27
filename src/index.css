@@ -39,12 +39,12 @@
     --radius: 0.5rem;
     
     /* Clean Brand Colors */
-    --brand-steel-blue: 208 30% 33%; /* #3E5A6B */
-    --brand-teal-mint: 169 49% 46%; /* #68BEB9 */
+    --brand-steel-blue-rgb: 62, 90, 107; /* #3E5A6B */
+    --brand-teal-mint-rgb: 104, 190, 185; /* #68BEB9 */
     
     /* Garden Theme Colors - mapped to brand colors */
-    --garden-green: 104 190 185; /* Brand teal-mint RGB values */
-    --garden-background: 255 255 255; /* White background */
+    --garden-green-rgb: 104, 190, 185; /* Brand teal-mint RGB values */
+    --garden-background-rgb: 255, 255, 255; /* White background */
     
     /* Chip Colors - Clean system with brand colors */
     --chip-draft: 148 163 184; /* Gray */
@@ -68,8 +68,8 @@
     --border: 216 34% 17%;
     --input: 216 34% 17%;
     --ring: 169 49% 46%; /* Brand teal for dark mode */
-    --garden-green: 104 190 185; /* Brand teal-mint RGB values */
-    --garden-background: 224 71% 4%; /* Dark background */
+    --garden-green-rgb: 104, 190, 185; /* Brand teal-mint RGB values */
+    --garden-background-rgb: 224, 71, 4; /* Dark background */
   }
 }
 
@@ -86,6 +86,6 @@
   
   /* Brand heading colors */
   h1, h2, h3, h4, h5, h6 {
-    color: rgb(62 90 107); /* Brand steel-blue #3E5A6B */
+    color: rgb(var(--brand-steel-blue-rgb)); /* Brand steel-blue #3E5A6B */
   }
 }

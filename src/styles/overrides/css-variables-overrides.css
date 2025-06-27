@@ -2,96 +2,96 @@
 /* Comprehensive CSS variables override - ensure all unwanted colors map to brand colors */
 :root {
   /* Brand color variables */
-  --brand-steel-blue: 62, 90, 107; /* #3E5A6B */
-  --brand-teal-mint: 104, 190, 185; /* #68BEB9 */
+  --brand-steel-blue-rgb: 62, 90, 107; /* #3E5A6B */
+  --brand-teal-mint-rgb: 104, 190, 185; /* #68BEB9 */
   
   /* Force override ALL yellow variations */
-  --yellow-50: 248, 250, 252 !important; /* Light gray */
-  --yellow-100: 241, 245, 249 !important;
-  --yellow-200: 226, 232, 240 !important;
-  --yellow-300: 203, 213, 225 !important;
-  --yellow-400: 148, 163, 184 !important;
-  --yellow-500: 100, 116, 139 !important;
-  --yellow-600: 71, 85, 105 !important;
-  --yellow-700: 51, 65, 85 !important;
-  --yellow-800: 30, 41, 59 !important;
-  --yellow-900: 15, 23, 42 !important;
+  --yellow-50-rgb: 248, 250, 252 !important; /* Light gray */
+  --yellow-100-rgb: 241, 245, 249 !important;
+  --yellow-200-rgb: 226, 232, 240 !important;
+  --yellow-300-rgb: 203, 213, 225 !important;
+  --yellow-400-rgb: 148, 163, 184 !important;
+  --yellow-500-rgb: 100, 116, 139 !important;
+  --yellow-600-rgb: 71, 85, 105 !important;
+  --yellow-700-rgb: 51, 65, 85 !important;
+  --yellow-800-rgb: 30, 41, 59 !important;
+  --yellow-900-rgb: 15, 23, 42 !important;
   
   /* Force override ALL amber variations */
-  --amber-50: 248, 250, 252 !important;
-  --amber-100: 241, 245, 249 !important;
-  --amber-200: 226, 232, 240 !important;
-  --amber-300: 203, 213, 225 !important;
-  --amber-400: 148, 163, 184 !important;
-  --amber-500: 100, 116, 139 !important;
-  --amber-600: 71, 85, 105 !important;
-  --amber-700: 51, 65, 85 !important;
-  --amber-800: 30, 41, 59 !important;
-  --amber-900: 15, 23, 42 !important;
+  --amber-50-rgb: 248, 250, 252 !important;
+  --amber-100-rgb: 241, 245, 249 !important;
+  --amber-200-rgb: 226, 232, 240 !important;
+  --amber-300-rgb: 203, 213, 225 !important;
+  --amber-400-rgb: 148, 163, 184 !important;
+  --amber-500-rgb: 100, 116, 139 !important;
+  --amber-600-rgb: 71, 85, 105 !important;
+  --amber-700-rgb: 51, 65, 85 !important;
+  --amber-800-rgb: 30, 41, 59 !important;
+  --amber-900-rgb: 15, 23, 42 !important;
   
   /* Force override ALL orange variations */
-  --orange-50: 248, 250, 252 !important;
-  --orange-100: 241, 245, 249 !important;
-  --orange-200: 226, 232, 240 !important;
-  --orange-300: 203, 213, 225 !important;
-  --orange-400: 148, 163, 184 !important;
-  --orange-500: 100, 116, 139 !important;
-  --orange-600: 71, 85, 105 !important;
-  --orange-700: 51, 65, 85 !important;
-  --orange-800: 30, 41, 59 !important;
-  --orange-900: 15, 23, 42 !important;
+  --orange-50-rgb: 248, 250, 252 !important;
+  --orange-100-rgb: 241, 245, 249 !important;
+  --orange-200-rgb: 226, 232, 240 !important;
+  --orange-300-rgb: 203, 213, 225 !important;
+  --orange-400-rgb: 148, 163, 184 !important;
+  --orange-500-rgb: 100, 116, 139 !important;
+  --orange-600-rgb: 71, 85, 105 !important;
+  --orange-700-rgb: 51, 65, 85 !important;
+  --orange-800-rgb: 30, 41, 59 !important;
+  --orange-900-rgb: 15, 23, 42 !important;
   
   /* Force override ALL purple variations */
-  --purple-50: 248, 250, 252 !important;
-  --purple-100: 241, 245, 249 !important;
-  --purple-200: 226, 232, 240 !important;
-  --purple-300: 203, 213, 225 !important;
-  --purple-400: 148, 163, 184 !important;
-  --purple-500: 100, 116, 139 !important;
-  --purple-600: 71, 85, 105 !important;
-  --purple-700: 51, 65, 85 !important;
-  --purple-800: 30, 41, 59 !important;
-  --purple-900: 15, 23, 42 !important;
+  --purple-50-rgb: 248, 250, 252 !important;
+  --purple-100-rgb: 241, 245, 249 !important;
+  --purple-200-rgb: 226, 232, 240 !important;
+  --purple-300-rgb: 203, 213, 225 !important;
+  --purple-400-rgb: 148, 163, 184 !important;
+  --purple-500-rgb: 100, 116, 139 !important;
+  --purple-600-rgb: 71, 85, 105 !important;
+  --purple-700-rgb: 51, 65, 85 !important;
+  --purple-800-rgb: 30, 41, 59 !important;
+  --purple-900-rgb: 15, 23, 42 !important;
   
   /* Force override ALL pink variations */
-  --pink-50: 248, 250, 252 !important;
-  --pink-100: 241, 245, 249 !important;
-  --pink-200: 226, 232, 240 !important;
-  --pink-300: 203, 213, 225 !important;
-  --pink-400: 148, 163, 184 !important;
-  --pink-500: 100, 116, 139 !important;
-  --pink-600: 71, 85, 105 !important;
-  --pink-700: 51, 65, 85 !important;
-  --pink-800: 30, 41, 59 !important;
-  --pink-900: 15, 23, 42 !important;
+  --pink-50-rgb: 248, 250, 252 !important;
+  --pink-100-rgb: 241, 245, 249 !important;
+  --pink-200-rgb: 226, 232, 240 !important;
+  --pink-300-rgb: 203, 213, 225 !important;
+  --pink-400-rgb: 148, 163, 184 !important;
+  --pink-500-rgb: 100, 116, 139 !important;
+  --pink-600-rgb: 71, 85, 105 !important;
+  --pink-700-rgb: 51, 65, 85 !important;
+  --pink-800-rgb: 30, 41, 59 !important;
+  --pink-900-rgb: 15, 23, 42 !important;
   
   /* Force override ALL fuchsia variations */
-  --fuchsia-50: 248, 250, 252 !important;
-  --fuchsia-100: 241, 245, 249 !important;
-  --fuchsia-200: 226, 232, 240 !important;
-  --fuchsia-300: 203, 213, 225 !important;
-  --fuchsia-400: 148, 163, 184 !important;
-  --fuchsia-500: 100, 116, 139 !important;
-  --fuchsia-600: 71, 85, 105 !important;
-  --fuchsia-700: 51, 65, 85 !important;
-  --fuchsia-800: 30, 41, 59 !important;
-  --fuchsia-900: 15, 23, 42 !important;
+  --fuchsia-50-rgb: 248, 250, 252 !important;
+  --fuchsia-100-rgb: 241, 245, 249 !important;
+  --fuchsia-200-rgb: 226, 232, 240 !important;
+  --fuchsia-300-rgb: 203, 213, 225 !important;
+  --fuchsia-400-rgb: 148, 163, 184 !important;
+  --fuchsia-500-rgb: 100, 116, 139 !important;
+  --fuchsia-600-rgb: 71, 85, 105 !important;
+  --fuchsia-700-rgb: 51, 65, 85 !important;
+  --fuchsia-800-rgb: 30, 41, 59 !important;
+  --fuchsia-900-rgb: 15, 23, 42 !important;
 
   /* Override any potential Tailwind color variables */
-  --tw-color-yellow-500: 100, 116, 139 !important;
-  --tw-color-amber-500: 100, 116, 139 !important;
-  --tw-color-orange-500: 100, 116, 139 !important;
-  --tw-color-purple-500: 100, 116, 139 !important;
-  --tw-color-pink-500: 100, 116, 139 !important;
-  --tw-color-fuchsia-500: 100, 116, 139 !important;
+  --tw-color-yellow-500-rgb: 100, 116, 139 !important;
+  --tw-color-amber-500-rgb: 100, 116, 139 !important;
+  --tw-color-orange-500-rgb: 100, 116, 139 !important;
+  --tw-color-purple-500-rgb: 100, 116, 139 !important;
+  --tw-color-pink-500-rgb: 100, 116, 139 !important;
+  --tw-color-fuchsia-500-rgb: 100, 116, 139 !important;
 }
 
 /* Apply overrides to any element using CSS custom properties */
 html, body, * {
-  --yellow-500: 100, 116, 139 !important;
-  --amber-500: 100, 116, 139 !important;
-  --orange-500: 100, 116, 139 !important;
-  --purple-500: 100, 116, 139 !important;
-  --pink-500: 100, 116, 139 !important;
-  --fuchsia-500: 100, 116, 139 !important;
+  --yellow-500-rgb: 100, 116, 139 !important;
+  --amber-500-rgb: 100, 116, 139 !important;
+  --orange-500-rgb: 100, 116, 139 !important;
+  --purple-500-rgb: 100, 116, 139 !important;
+  --pink-500-rgb: 100, 116, 139 !important;
+  --fuchsia-500-rgb: 100, 116, 139 !important;
 }
