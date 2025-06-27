@@ -116,7 +116,7 @@ export async function generateHolidayContent(
       console.log(`🖼️ ${type.toUpperCase()} DEBUG: Fetching smart image`);
       const imageData = await attachImagesToTask(null, holiday.holiday_name);
 
-      // Create task data structure using attachments JSONB field for image data
+      // Create task data structure with proper field validation
       const taskData: any = {
         holiday_id: holiday.id,
         post_type: type,
@@ -150,13 +150,28 @@ export async function generateHolidayContent(
         }
       }
 
+      // Pre-insert field validation with allowed fields list
+      const allowedFields = [
+        'holiday_id', 'ai_output', 'post_type', 'attachments',
+        'status', 'scheduled_date', 'tenant_id', 'created_by_user_id',
+        'user_id', 'notes'
+      ];
+      
+      Object.keys(taskData).forEach(key => {
+        if (!allowedFields.includes(key)) {
+          console.warn(`🚧 Unexpected field in taskData: ${key}`);
+          delete taskData[key as keyof typeof taskData];
+        }
+      });
+
       // Validate required fields before database insertion
-      if (!taskData.holiday_id || !taskData.post_type || !taskData.ai_output || !taskData.tenant_id) {
+      if (!taskData.holiday_id || !taskData.post_type || !taskData.ai_output || (!taskData.tenant_id && !taskData.user_id)) {
         console.error(`❌ ${type.toUpperCase()} DEBUG: Missing required fields:`, {
           holiday_id: !!taskData.holiday_id,
           post_type: !!taskData.post_type,
           ai_output: !!taskData.ai_output,
-          tenant_id: !!taskData.tenant_id
+          tenant_id: !!taskData.tenant_id,
+          user_id: !!taskData.user_id
         });
         results.push({ type, success: false, error: 'Missing required task fields' });
         continue;
@@ -168,6 +183,7 @@ export async function generateHolidayContent(
         has_attachments: !!taskData.attachments
       });
 
+      // Insert with enhanced error logging
       const { data: task, error } = await supabase
         .from('content_tasks')
         .insert(taskData)
@@ -175,14 +191,13 @@ export async function generateHolidayContent(
         .single();
 
       if (error) {
-        console.error(`❌ ${type.toUpperCase()} DEBUG: Database error creating task:`, error);
+        console.error(`❌ ${type.toUpperCase()} DEBUG: DB insert failed\n`, JSON.stringify(error, null, 2), '\nTask payload:', taskData);
         console.error(`❌ ${type.toUpperCase()} DEBUG: Error details:`, {
           message: error.message,
           details: error.details,
           hint: error.hint,
           code: error.code
         });
-        console.error(`❌ ${type.toUpperCase()} DEBUG: Failed task data:`, taskData);
         results.push({ type, success: false, error: `Database error: ${error.message}` });
       } else {
         console.log(`✅ ${type.toUpperCase()} DEBUG: Created task successfully:`, task.id);
