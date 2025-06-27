@@ -116,7 +116,7 @@ export async function generateHolidayContent(
       console.log(`🖼️ ${type.toUpperCase()} DEBUG: Fetching smart image`);
       const imageData = await attachImagesToTask(null, holiday.holiday_name);
 
-      // Create task data structure WITHOUT the non-existent 'image' column
+      // Create task data structure using attachments JSONB field for image data
       const taskData: any = {
         holiday_id: holiday.id,
         post_type: type,
@@ -192,7 +192,7 @@ export async function generateHolidayContent(
           status: task.status,
           tenant_id: task.tenant_id,
           ai_output_length: task.ai_output?.length,
-          has_attachments: !!task.attachments,
+          has_image_data: !!taskData.attachments,
           ai_output_preview: task.ai_output?.substring(0, 100)
         });
         results.push({ type, success: true, taskId: task.id });
