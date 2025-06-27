@@ -16,7 +16,7 @@ interface HolidayItemProps {
   isGenerating: boolean;
   contentState?: any;
   isFirst?: boolean;
-  holidayTasks?: any[]; // Add tasks prop for modal
+  holidayTasks?: any[];
 }
 
 export const HolidayItem = ({ 
@@ -97,11 +97,6 @@ export const HolidayItem = ({
                 <span>{formatHolidayDate(holiday.holiday_date)}</span>
               </div>
             </div>
-            {hasContent && (
-              <Badge variant="success" className="text-xs">
-                {contentState.contentCount} {contentState.contentCount !== 1 ? 'pieces' : 'piece'}
-              </Badge>
-            )}
           </div>
         </CardHeader>
 
