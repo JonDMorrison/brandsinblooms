@@ -1,4 +1,3 @@
-
 import * as React from "react";
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
@@ -56,7 +55,6 @@ export const SeasonalHolidaysCard = ({
     setDisplayLimit(prev => Math.min(prev + 6, allHolidays.length));
   };
 
-  // Check if user has company profile
   React.useEffect(() => {
     const checkCompanyProfile = async () => {
       if (!user?.id) return;
@@ -181,8 +179,8 @@ export const SeasonalHolidaysCard = ({
     return (
       <div className={cn('space-y-6', className)}>
         {/* Header Skeleton */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
+        <div className="flex items-start justify-between text-left">
+          <div className="space-y-2 text-left">
             <div className="h-8 w-80 bg-gray-200 rounded-lg animate-pulse" />
             <div className="h-4 w-64 bg-gray-200 rounded animate-pulse" />
           </div>
@@ -202,14 +200,14 @@ export const SeasonalHolidaysCard = ({
   if (error) {
     return (
       <div className={cn('space-y-6', className)}>
-        <div className="text-center py-12 px-6 bg-red-50 rounded-xl border border-red-200">
-          <div className="w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+        <div className="text-left py-12 px-6 bg-red-50 rounded-xl border border-red-200">
+          <div className="w-16 h-16 mb-4 bg-red-100 rounded-full flex items-center justify-center">
             <Calendar className="w-8 h-8 text-red-500" />
           </div>
-          <HeadlineLarge className="text-red-800 mb-2">
+          <HeadlineLarge className="text-red-800 mb-2 text-left">
             Unable to Load Holiday Opportunities
           </HeadlineLarge>
-          <BodyMedium className="text-red-600 max-w-md mx-auto">
+          <BodyMedium className="text-red-600 max-w-md text-left">
             {error}
           </BodyMedium>
         </div>
@@ -220,17 +218,17 @@ export const SeasonalHolidaysCard = ({
   if (allHolidays.length === 0) {
     return (
       <div className={cn('space-y-6', className)}>
-        <div className="text-center py-16 px-6 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border border-green-200">
-          <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
+        <div className="text-left py-16 px-6 bg-gradient-to-br from-green-50 to-blue-50 rounded-xl border border-green-200">
+          <div className="w-20 h-20 mb-6 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center">
             <Leaf className="w-10 h-10 text-green-600" />
           </div>
-          <HeadlineLarge className="text-gray-800 mb-3">
+          <HeadlineLarge className="text-gray-800 mb-3 text-left">
             No Upcoming Holiday Opportunities
           </HeadlineLarge>
-          <BodyMedium className="text-gray-600 max-w-sm mx-auto mb-4">
+          <BodyMedium className="text-gray-600 max-w-sm mb-4 text-left">
             No seasonal holidays or observances in the next 90 days. Check back soon for new marketing opportunities!
           </BodyMedium>
-          <div className="flex justify-center space-x-2 text-2xl">
+          <div className="flex justify-start space-x-2 text-2xl">
             <span className="animate-bounce">🌸</span>
             <span className="animate-bounce" style={{ animationDelay: '0.1s' }}>🌿</span>
             <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>🌱</span>
@@ -244,10 +242,10 @@ export const SeasonalHolidaysCard = ({
     <>
       <div className={cn('space-y-6', className)}>
         {/* Header Section */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-2">
-            <HeadlineLarge>Seasonal Marketing Opportunities</HeadlineLarge>
-            <BodyMedium className="text-muted-foreground">
+        <div className="flex items-start justify-between text-left">
+          <div className="flex flex-col gap-2 text-left">
+            <HeadlineLarge className="text-left">Seasonal Marketing Opportunities</HeadlineLarge>
+            <BodyMedium className="text-muted-foreground text-left">
               Upcoming holidays and seasonal events for your marketing calendar
             </BodyMedium>
           </div>
@@ -277,7 +275,7 @@ export const SeasonalHolidaysCard = ({
 
         {/* Load More Button */}
         {hasMoreHolidays && (
-          <div className="flex justify-center pt-4">
+          <div className="flex justify-start pt-4">
             <Button
               onClick={handleLoadMore}
               variant="outline"
