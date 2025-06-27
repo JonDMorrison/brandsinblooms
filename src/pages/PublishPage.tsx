@@ -162,7 +162,7 @@ const PublishPage = () => {
     }
   };
 
-  const handlePublishNow = async (publishData: {
+  const handlePublishNow = async (publishDataPayload: {
     contentId: string;
     caption: string;
     mediaUrl?: string;
@@ -175,7 +175,7 @@ const PublishPage = () => {
       // Update local state
       if (publishData && selectedContent) {
         const updatedContent = publishData.content.map(c => 
-          c.id === publishData.contentId 
+          c.id === publishDataPayload.contentId 
             ? { ...c, status: 'PUBLISHED' as const }
             : c
         );
@@ -185,7 +185,7 @@ const PublishPage = () => {
           content: updatedContent
         });
         
-        if (selectedContent.id === publishData.contentId) {
+        if (selectedContent.id === publishDataPayload.contentId) {
           setSelectedContent({ ...selectedContent, status: 'PUBLISHED' });
         }
       }

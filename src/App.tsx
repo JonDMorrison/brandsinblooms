@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   BrowserRouter as Router,
@@ -6,18 +7,18 @@ import {
   Navigate,
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Onboarding } from './pages/Onboarding';
-import { Dashboard } from './pages/Dashboard';
-import { PricingPage } from './pages/PricingPage';
-import { AccountSettings } from './pages/AccountSettings';
-import { CompanyProfile } from './pages/CompanyProfile';
-import { SocialAccounts } from './pages/SocialAccounts';
-import { BillingPage } from './pages/BillingPage';
-import { CalendarPage } from './pages/CalendarPage';
-import { TeamPage } from './pages/TeamPage';
-import { ContentImportPage } from './pages/ContentImportPage';
-import { ReviewQueuePage } from './pages/ReviewQueuePage';
-import { DevSocialPageWrapper } from './pages/DevSocialPage';
+import Onboarding from './pages/OnboardingPage';
+import Dashboard from './pages/Index';
+import PricingPage from './pages/PricingPage';
+import AccountSettings from './pages/AccountPage';
+import CompanyProfile from './pages/ProfilePage';
+import SocialAccounts from './pages/SocialPage';
+import BillingPage from './pages/BillingPage';
+import CalendarPage from './pages/CalendarPage';
+import TeamPage from './pages/TeamPage';
+import ContentImportPage from './pages/ContentLibraryPage';
+import ReviewQueuePage from './pages/ContentTasksPage';
+import DevSocialPageWrapper from './pages/DevSocialPage';
 import PublishPage from "./pages/PublishPage";
 
 const App = () => {
