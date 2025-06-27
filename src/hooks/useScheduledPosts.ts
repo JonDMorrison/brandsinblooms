@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
@@ -11,6 +10,7 @@ interface ScheduledPost {
   platform: string;
   publish_at: string;
   status: string;
+  error_message?: string;
   content?: {
     caption: string;
     media_url?: string;
