@@ -1,11 +1,55 @@
 
-/* SWITCH COMPONENT FIXES */
-button[role="switch"] {
-  cursor: pointer !important;
+/* Component-specific overrides to ensure proper colors */
+
+/* Sidebar Navigation - Force black text */
+.sidebar-nav,
+.sidebar-nav a,
+.sidebar-nav button,
+.sidebar-nav [role="button"] {
+  color: #000000 !important;
 }
 
-/* Ensure switches are always clickable */
-[data-state="checked"],
-[data-state="unchecked"] {
-  pointer-events: auto !important;
+.sidebar-nav a:hover,
+.sidebar-nav button:hover,
+.sidebar-nav [role="button"]:hover {
+  color: #374151 !important; /* gray-700 */
+  background-color: #f3f4f6 !important; /* gray-100 */
+}
+
+.sidebar-nav a.active,
+.sidebar-nav button.active,
+.sidebar-nav [role="button"].active {
+  color: #000000 !important;
+  background-color: #f3f4f6 !important; /* gray-100 */
+  font-weight: 500;
+}
+
+/* Calendar Ribbon - Force black dashed borders */
+.calendar-day-cell {
+  border-color: #000000 !important;
+}
+
+.calendar-day-cell:hover {
+  border-color: #4b5563 !important; /* gray-600 */
+}
+
+/* Override any amber/orange text in navigation specifically */
+nav a,
+nav button,
+.sidebar a,
+.sidebar button {
+  color: #000000 !important;
+}
+
+nav a:hover,
+nav button:hover,
+.sidebar a:hover,
+.sidebar button:hover {
+  color: #374151 !important;
+}
+
+/* Ensure accordion triggers in sidebar are black */
+.sidebar [data-state="open"] > button,
+.sidebar [data-state="closed"] > button {
+  color: #000000 !important;
 }
