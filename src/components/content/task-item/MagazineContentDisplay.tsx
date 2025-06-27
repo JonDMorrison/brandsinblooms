@@ -176,24 +176,26 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
     return (
       <div className="mt-8 pt-6 border-t border-gray-200">
         <h4 className="text-sm font-medium text-gray-700 mb-3">Alternative Images</h4>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-4">
           {thumbnails.map((image, index) => {
             console.log('[MAGAZINE_DISPLAY] Rendering thumbnail:', { index, image });
             return (
               <div key={image.id || index} className="relative group cursor-pointer">
-                <img
-                  src={image.thumb_url}
-                  alt={image.alt}
-                  className="w-full h-20 object-cover rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
-                  onError={(e) => {
-                    console.error('[MAGAZINE_DISPLAY] Thumbnail image failed to load:', image.thumb_url);
-                    e.currentTarget.style.display = 'none';
-                  }}
-                  onLoad={() => {
-                    console.log('[MAGAZINE_DISPLAY] Thumbnail image loaded successfully:', image.thumb_url);
-                  }}
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded-lg" />
+                <div className="aspect-square overflow-hidden rounded-lg border border-gray-200 hover:border-gray-400 transition-colors">
+                  <img
+                    src={image.thumb_url}
+                    alt={image.alt}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error('[MAGAZINE_DISPLAY] Thumbnail image failed to load:', image.thumb_url);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    onLoad={() => {
+                      console.log('[MAGAZINE_DISPLAY] Thumbnail image loaded successfully:', image.thumb_url);
+                    }}
+                  />
+                </div>
+                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded-lg pointer-events-none" />
               </div>
             );
           })}
