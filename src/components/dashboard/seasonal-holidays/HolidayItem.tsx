@@ -99,7 +99,7 @@ export const HolidayItem = ({
             </div>
             {hasContent && (
               <Badge variant="success" className="text-xs">
-                {contentState.contentCount} post{contentState.contentCount !== 1 ? 's' : ''}
+                {contentState.contentCount} {contentState.contentCount !== 1 ? 'pieces' : 'piece'}
               </Badge>
             )}
           </div>
