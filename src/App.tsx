@@ -4,13 +4,12 @@ import {
   BrowserRouter as Router,
   Route,
   Routes,
-  Navigate,
 } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { ContentGenerationProvider } from './contexts/ContentGenerationContext';
+import { SmartRootRoute } from './components/SmartRootRoute';
 import Onboarding from './pages/OnboardingPage';
-import Dashboard from './pages/Index';
 import PricingPage from './pages/PricingPage';
 import AccountSettings from './pages/AccountPage';
 import CompanyProfile from './pages/ProfilePage';
@@ -29,49 +28,27 @@ const App = () => {
       <Router>
         <SubscriptionProvider>
           <ContentGenerationProvider>
-            <AppRoutes />
+            <Routes>
+              <Route path="/" element={<SmartRootRoute />} />
+              <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/pricing" element={<PricingPage />} />
+              <Route path="/account" element={<AccountSettings />} />
+              <Route path="/company-profile" element={<CompanyProfile />} />
+              <Route path="/social" element={<SocialAccounts />} />
+              <Route path="/social-accounts" element={<SocialAccounts />} />
+              <Route path="/billing" element={<BillingPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/team" element={<TeamPage />} />
+              <Route path="/content-import" element={<ContentImportPage />} />
+              <Route path="/review-queue" element={<ReviewQueuePage />} />
+              <Route path="/dev-social" element={<DevSocialPageWrapper />} />
+              <Route path="/publish" element={<PublishPage />} />
+            </Routes>
           </ContentGenerationProvider>
         </SubscriptionProvider>
       </Router>
     </AuthProvider>
   );
 };
-
-const AppRoutes = () => {
-  const { isAuthenticated, loading } = useAuth();
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  return (
-    <Routes>
-      <Route path="/login" element={!isAuthenticated ? <Login /> : <Navigate to="/dashboard" />} />
-      <Route path="/signup" element={!isAuthenticated ? <Signup /> : <Navigate to="/dashboard" />} />
-      <Route path="/forgot-password" element={!isAuthenticated ? <ForgotPassword /> : <Navigate to="/dashboard" />} />
-      <Route path="/reset-password" element={!isAuthenticated ? <ResetPassword /> : <Navigate to="/dashboard" />} />
-      <Route path="/onboarding" element={isAuthenticated ? <Onboarding /> : <Navigate to="/login" />} />
-      <Route path="/dashboard" element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} />
-      <Route path="/pricing" element={<PricingPage />} />
-      <Route path="/account" element={isAuthenticated ? <AccountSettings /> : <Navigate to="/login" />} />
-      <Route path="/company-profile" element={isAuthenticated ? <CompanyProfile /> : <Navigate to="/login" />} />
-      <Route path="/social" element={isAuthenticated ? <SocialAccounts /> : <Navigate to="/login" />} />
-      <Route path="/social-accounts" element={isAuthenticated ? <SocialAccounts /> : <Navigate to="/login" />} />
-      <Route path="/billing" element={isAuthenticated ? <BillingPage /> : <Navigate to="/login" />} />
-      <Route path="/calendar" element={isAuthenticated ? <CalendarPage /> : <Navigate to="/login" />} />
-      <Route path="/team" element={isAuthenticated ? <TeamPage /> : <Navigate to="/login" />} />
-      <Route path="/content-import" element={isAuthenticated ? <ContentImportPage /> : <Navigate to="/login" />} />
-      <Route path="/review-queue" element={isAuthenticated ? <ReviewQueuePage /> : <Navigate to="/login" />} />
-      <Route path="/dev-social" element={<DevSocialPageWrapper />} />
-      <Route path="/publish" element={<PublishPage />} />
-      <Route path="/" element={<Navigate to="/dashboard" />} />
-    </Routes>
-  );
-};
-
-const Login = () => <div>Login Page</div>;
-const Signup = () => <div>Signup Page</div>;
-const ForgotPassword = () => <div>Forgot Password Page</div>;
-const ResetPassword = () => <div>Reset Password Page</div>;
 
 export default App;

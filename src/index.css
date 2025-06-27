@@ -42,6 +42,10 @@
     --brand-steel-blue: 208 30% 33%; /* #3E5A6B */
     --brand-teal-mint: 169 49% 46%; /* #68BEB9 */
     
+    /* Garden Theme Colors - mapped to brand colors */
+    --garden-green: 104 190 185; /* Brand teal-mint RGB values */
+    --garden-background: 255 255 255; /* White background */
+    
     /* Chip Colors - Clean system with brand colors */
     --chip-draft: 148 163 184; /* Gray */
     --chip-generated: 59 130 246; /* Blue */
@@ -64,6 +68,8 @@
     --border: 216 34% 17%;
     --input: 216 34% 17%;
     --ring: 169 49% 46%; /* Brand teal for dark mode */
+    --garden-green: 104 190 185; /* Brand teal-mint RGB values */
+    --garden-background: 224 71% 4%; /* Dark background */
   }
 }
 
