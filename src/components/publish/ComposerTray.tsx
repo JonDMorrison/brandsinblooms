@@ -43,10 +43,8 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
         return '📘';
       case 'instagram':
         return '📷';
-      case 'email':
-        return '📧';
       default:
-        return '📝';
+        return '📱';
     }
   };
 
@@ -58,8 +56,8 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
   return (
     <div className="h-full bg-white rounded-xl shadow-sm border border-gray-200">
       <div className="p-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-[#3E5A6B]">Content Queue</h2>
-        <p className="text-sm text-gray-600 mt-1">{content.length} items ready</p>
+        <h2 className="text-lg font-semibold text-[#3E5A6B]">Social Content Queue</h2>
+        <p className="text-sm text-gray-600 mt-1">{content.length} approved posts ready</p>
       </div>
       
       <ScrollArea className="h-[calc(100%-5rem)]">
@@ -113,11 +111,11 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
           {content.length === 0 && (
             <div className="text-center py-12">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">📝</span>
+                <span className="text-2xl">📱</span>
               </div>
-              <h3 className="text-lg font-medium text-[#3E5A6B] mb-2">No content ready</h3>
+              <h3 className="text-lg font-medium text-[#3E5A6B] mb-2">No approved social content</h3>
               <p className="text-gray-600 text-sm">
-                Generate some content first to start publishing
+                Generate and approve Facebook or Instagram content to start publishing
               </p>
             </div>
           )}

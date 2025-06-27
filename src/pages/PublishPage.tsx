@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ComposerTray } from '@/components/publish/ComposerTray';
@@ -60,7 +59,7 @@ const PublishPage = () => {
     try {
       setLoading(true);
       
-      // Fetch content tasks as GeneratedContent
+      // Fetch only approved Facebook and Instagram content tasks
       const { data: contentTasks, error: contentError } = await supabase
         .from('content_tasks')
         .select(`
@@ -71,7 +70,8 @@ const PublishPage = () => {
             tenant_id
           )
         `)
-        .in('status', ['approved', 'review', 'generated'])
+        .eq('status', 'approved')
+        .in('post_type', ['facebook', 'instagram'])
         .eq(tenant?.id ? 'tenant_id' : 'user_id', tenant?.id || user?.id)
         .order('created_at', { ascending: false });
 
@@ -80,7 +80,7 @@ const PublishPage = () => {
       // Transform content_tasks to GeneratedContent format
       const generatedContent: GeneratedContent[] = (contentTasks || []).map(task => ({
         id: task.id,
-        status: task.status === 'approved' ? 'DRAFT' : 'DRAFT',
+        status: 'DRAFT',
         caption: task.ai_output || '',
         mediaUrl: task.image_idea,
         platform: task.post_type,
@@ -212,7 +212,7 @@ const PublishPage = () => {
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-2xl font-semibold text-[#3E5A6B] mb-2">Publish Portal</h1>
-            <p className="text-gray-600">Schedule and publish your content across social platforms</p>
+            <p className="text-gray-600">Schedule and publish your approved Facebook and Instagram content</p>
           </div>
 
           {/* Main Layout */}
