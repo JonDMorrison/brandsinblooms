@@ -287,10 +287,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
     return { text: textWithoutHashtags, hashtags };
   };
 
-  const { text, hashtags } = formatContent(content);
-
-  if (postType === 'newsletter') {
-    // Check if this is a structured YAML newsletter
+  // Enhanced content processing for newsletter
+  const processNewsletterContent = (content: string) => {
+    // Check if this is structured YAML newsletter
     const isStructuredNewsletter = content.includes('newsletter_md:') || content.includes('blocks:');
     
     if (isStructuredNewsletter) {
@@ -298,107 +297,146 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
       const parsedNewsletter = parseNewsletterYAML(content);
       
       if (parsedNewsletter) {
-        // Structured newsletter - show simplified preview since full display is in sidebar
-        return (
-          <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-6">
-              {getPostTypeIcon()}
-              <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-                Structured Newsletter
-              </Badge>
-            </div>
-
-            {/* Featured Image */}
-            {renderFeaturedImage(
-              "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
-              "Newsletter featured image"
-            )}
-
-            {/* Content Preview */}
-            <div className="space-y-4">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-                  {parsedNewsletter.meta.theme || 'Newsletter'}
-                </h2>
-                <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
-              </div>
-              
-              <div className="prose prose-sm max-w-none">
-                <p className="text-gray-600 italic mb-4">
-                  {parsedNewsletter.blocks.length}-section magazine-style newsletter with engaging headlines and content blocks. Click to view full layout.
-                </p>
-                
-                {parsedNewsletter.blocks.slice(0, 2).map((block, index) => (
-                  <div key={index} className="mb-3">
-                    <h4 className="font-semibold text-gray-800 text-sm mb-1">
-                      {block.title}
-                    </h4>
-                    <p className="text-gray-600 text-xs">
-                      {block.body.length > 100 ? `${block.body.substring(0, 100)}...` : block.body}
-                    </p>
-                  </div>
-                ))}
-                
-                {parsedNewsletter.blocks.length > 2 && (
-                  <p className="text-gray-500 text-xs italic">
-                    +{parsedNewsletter.blocks.length - 2} more sections...
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Newsletter Footer */}
-            <div className="mt-6 pt-4 border-t border-purple-200">
-              <p className="text-center text-sm text-purple-600 italic">
-                ≈{parsedNewsletter.meta.reading_time} • {parsedNewsletter.blocks.length} sections
-              </p>
-            </div>
-
-            {/* Thumbnail Alternatives Section */}
-            {renderThumbnailSection()}
-          </div>
-        );
+        return {
+          isStructured: true,
+          parsedNewsletter,
+          text: parsedNewsletter.newsletter_md || '',
+          hashtags: []
+        };
       }
     }
+    
+    // Fallback to regular content processing
+    const { text, hashtags } = formatContent(content);
+    return {
+      isStructured: false,
+      parsedNewsletter: null,
+      text,
+      hashtags
+    };
+  };
 
-    // Fallback for plain text newsletter
+  if (postType === 'newsletter') {
+    const { isStructured, parsedNewsletter, text, hashtags } = processNewsletterContent(content);
+    
+    if (isStructured && parsedNewsletter) {
+      // Structured newsletter - show simplified preview since full display is in sidebar
+      return (
+        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            {getPostTypeIcon()}
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+              Structured Newsletter
+            </Badge>
+          </div>
+
+          {/* Featured Image */}
+          {renderFeaturedImage(
+            "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
+            "Newsletter featured image"
+          )}
+
+          {/* Content Preview */}
+          <div className="space-y-4">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
+                {parsedNewsletter.meta.theme || 'Newsletter'}
+              </h2>
+              <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
+            </div>
+            
+            <div className="prose prose-sm max-w-none">
+              <p className="text-gray-600 italic mb-4">
+                {parsedNewsletter.blocks.length}-section magazine-style newsletter with engaging headlines and content blocks. Click to view full layout.
+              </p>
+              
+              {parsedNewsletter.blocks.slice(0, 2).map((block, index) => (
+                <div key={index} className="mb-3">
+                  <h4 className="font-semibold text-gray-800 text-sm mb-1">
+                    {block.title}
+                  </h4>
+                  <p className="text-gray-600 text-xs">
+                    {block.body.length > 100 ? `${block.body.substring(0, 100)}...` : block.body}
+                  </p>
+                </div>
+              ))}
+              
+              {parsedNewsletter.blocks.length > 2 && (
+                <p className="text-gray-500 text-xs italic">
+                  +{parsedNewsletter.blocks.length - 2} more sections...
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Newsletter Footer */}
+          <div className="mt-6 pt-4 border-t border-purple-200">
+            <p className="text-center text-sm text-purple-600 italic">
+              ≈{parsedNewsletter.meta.reading_time} • {parsedNewsletter.blocks.length} sections
+            </p>
+          </div>
+
+          {/* Thumbnail Alternatives Section */}
+          {renderThumbnailSection()}
+        </div>
+      );
+    }
+
+    // Fallback for plain text newsletter - only render if text exists and is not empty
+    if (text && text.trim().length > 0) {
+      return (
+        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            {getPostTypeIcon()}
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+              Newsletter
+            </Badge>
+          </div>
+
+          {/* Featured Image */}
+          {renderFeaturedImage(
+            "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
+            "Newsletter featured image"
+          )}
+
+          {/* Content - only render paragraphs with actual content */}
+          <div className="space-y-4">
+            <div className="prose prose-sm max-w-none">
+              {text.split('\n\n').filter(paragraph => paragraph.trim().length > 0).map((paragraph, index) => (
+                <p key={index} className="text-gray-700 leading-relaxed mb-4">
+                  {paragraph.trim()}
+                </p>
+              ))}
+            </div>
+          </div>
+
+          {/* Newsletter Footer */}
+          <div className="mt-6 pt-4 border-t border-purple-200">
+            <p className="text-center text-sm text-purple-600 italic">
+              Thanks for reading! 📧
+            </p>
+          </div>
+
+          {/* Thumbnail Alternatives Section */}
+          {renderThumbnailSection()}
+        </div>
+      );
+    }
+
+    // Empty content fallback
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-        {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           {getPostTypeIcon()}
           <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
             Newsletter
           </Badge>
         </div>
-
-        {/* Featured Image */}
-        {renderFeaturedImage(
-          "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
-          "Newsletter featured image"
-        )}
-
-        {/* Content */}
-        <div className="space-y-4">
-          <div className="prose prose-sm max-w-none">
-            {text.split('\n\n').map((paragraph, index) => (
-              <p key={index} className="text-gray-700 leading-relaxed mb-4">
-                {paragraph}
-              </p>
-            ))}
-          </div>
-        </div>
-
-        {/* Newsletter Footer */}
-        <div className="mt-6 pt-4 border-t border-purple-200">
-          <p className="text-center text-sm text-purple-600 italic">
-            Thanks for reading! 📧
-          </p>
-        </div>
-
-        {/* Thumbnail Alternatives Section */}
-        {renderThumbnailSection()}
+        <p className="text-gray-500 italic text-center py-8">
+          Newsletter content is being generated...
+        </p>
       </div>
     );
   }
