@@ -55,6 +55,7 @@ const AppRoutes = () => {
       <Route path="/pricing" element={<PricingPage />} />
       <Route path="/account" element={isAuthenticated ? <AccountSettings /> : <Navigate to="/login" />} />
       <Route path="/company-profile" element={isAuthenticated ? <CompanyProfile /> : <Navigate to="/login" />} />
+      <Route path="/social" element={isAuthenticated ? <SocialAccounts /> : <Navigate to="/login" />} />
       <Route path="/social-accounts" element={isAuthenticated ? <SocialAccounts /> : <Navigate to="/login" />} />
       <Route path="/billing" element={isAuthenticated ? <BillingPage /> : <Navigate to="/login" />} />
       <Route path="/calendar" element={isAuthenticated ? <CalendarPage /> : <Navigate to="/login" />} />
