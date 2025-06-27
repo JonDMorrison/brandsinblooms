@@ -2,12 +2,12 @@
 import { fetchSmartImage } from './unsplashService';
 import { extractKeywordsFromContent } from '@/utils/markdownUtils';
 
-export async function attachImagesToTask(task: any): Promise<any> {
+export async function attachImagesToTask(task: any, holidayName?: string): Promise<any> {
   try {
-    console.log(`[IMAGE_ATTACH] Processing task: ${task.post_type} - ${task.campaigns?.title || task.holidays?.holiday_name}`);
+    console.log(`[IMAGE_ATTACH] Processing task: ${task.post_type} - ${holidayName || task.campaigns?.title || 'Unknown'}`);
     
-    // Extract primary keyword from title or content
-    const title = task.campaigns?.title || task.holidays?.holiday_name || 'Garden Care';
+    // Extract primary keyword from holiday name, campaign title, or fallback
+    const title = holidayName || task.campaigns?.title || 'Garden Care';
     const primary = title.split(':')[0] || title.split(' - ')[0] || title;
     
     // Determine secondary context based on content analysis

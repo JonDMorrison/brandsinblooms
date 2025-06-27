@@ -112,7 +112,7 @@ export async function generateHolidayContent(
 
       console.log(`✅ ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}, attempts: ${attempts}`);
 
-      // Create task data structure - FIXED: removed invalid 'holidays' field
+      // Create task data structure with proper validation
       const taskData: any = {
         holiday_id: holiday.id,
         post_type: type,
@@ -122,9 +122,9 @@ export async function generateHolidayContent(
         notes: `Generated for ${holiday.holiday_name} (${attempts} attempts)`
       };
 
-      // Attach smart images to the task
+      // Attach smart images to the task - FIXED: Pass holiday name
       console.log(`🖼️ ${type.toUpperCase()} DEBUG: Attaching smart images`);
-      const taskWithImage = await attachImagesToTask(taskData);
+      const taskWithImage = await attachImagesToTask(taskData, holiday.holiday_name);
 
       // CRITICAL: Always set tenant_id for holiday tasks to ensure they appear in Ready to Post
       if (tenant?.id) {
@@ -149,6 +149,17 @@ export async function generateHolidayContent(
         }
       }
 
+      // Validate required fields before database insertion
+      if (!taskWithImage.holiday_id || !taskWithImage.post_type || !taskWithImage.ai_output) {
+        console.error(`❌ ${type.toUpperCase()} DEBUG: Missing required fields:`, {
+          holiday_id: !!taskWithImage.holiday_id,
+          post_type: !!taskWithImage.post_type,
+          ai_output: !!taskWithImage.ai_output
+        });
+        results.push({ type, success: false, error: 'Missing required task fields' });
+        continue;
+      }
+
       console.log(`📊 ${type.toUpperCase()} DEBUG: Task data before insert:`, {
         ...taskWithImage,
         ai_output_length: taskWithImage.ai_output?.length,
@@ -163,8 +174,14 @@ export async function generateHolidayContent(
 
       if (error) {
         console.error(`❌ ${type.toUpperCase()} DEBUG: Database error creating task:`, error);
+        console.error(`❌ ${type.toUpperCase()} DEBUG: Error details:`, {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         console.error(`❌ ${type.toUpperCase()} DEBUG: Failed task data:`, taskWithImage);
-        results.push({ type, success: false, error: error.message });
+        results.push({ type, success: false, error: `Database error: ${error.message}` });
       } else {
         console.log(`✅ ${type.toUpperCase()} DEBUG: Created task successfully:`, task.id);
         console.log(`✅ ${type.toUpperCase()} DEBUG: Task details:`, {
