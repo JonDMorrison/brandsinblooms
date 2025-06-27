@@ -75,8 +75,8 @@ export const CalendarRibbon = ({ selectedContent, onReschedule }: CalendarRibbon
               key={index}
               className={cn(
                 "min-h-[80px] p-3 rounded-lg border-2 border-dashed transition-colors",
-                "bg-gradient-to-br from-[#F9FAFB] to-gray-50",
-                "border-black hover:border-gray-600 hover:bg-gray-50"
+                "bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5",
+                "hover:border-[#68BEB9]/50 hover:bg-[#68BEB9]/10"
               )}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, day)}

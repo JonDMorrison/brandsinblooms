@@ -38,7 +38,7 @@
 .text-yellow-700,
 .text-yellow-800,
 .text-yellow-900 {
-  color: #374151 !important; /* Gray instead of garden green */
+  color: rgb(46 125 50) !important; /* Garden green dark */
 }
 
 .text-amber-50,
@@ -51,7 +51,7 @@
 .text-amber-700,
 .text-amber-800,
 .text-amber-900 {
-  color: #374151 !important; /* Gray instead of orange */
+  color: rgb(245 124 0) !important; /* Orange dark */
 }
 
 .border-yellow-50,

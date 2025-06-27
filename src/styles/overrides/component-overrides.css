@@ -1,88 +1,11 @@
 
-/* Component-specific overrides to ensure proper colors */
-
-/* Sidebar Navigation - Force black text */
-.sidebar-nav,
-.sidebar-nav a,
-.sidebar-nav button,
-.sidebar-nav [role="button"] {
-  color: #000000 !important;
+/* SWITCH COMPONENT FIXES */
+button[role="switch"] {
+  cursor: pointer !important;
 }
 
-.sidebar-nav a:hover,
-.sidebar-nav button:hover,
-.sidebar-nav [role="button"]:hover {
-  color: #374151 !important; /* gray-700 */
-  background-color: #f3f4f6 !important; /* gray-100 */
-}
-
-.sidebar-nav a.active,
-.sidebar-nav button.active,
-.sidebar-nav [role="button"].active {
-  color: #000000 !important;
-  background-color: #f3f4f6 !important; /* gray-100 */
-  font-weight: 500;
-}
-
-/* Calendar Ribbon - Force black dashed borders */
-.calendar-day-cell {
-  border-color: #000000 !important;
-}
-
-.calendar-day-cell:hover {
-  border-color: #4b5563 !important; /* gray-600 */
-}
-
-/* Override any amber/orange text in navigation specifically */
-nav a,
-nav button,
-.sidebar a,
-.sidebar button {
-  color: #000000 !important;
-}
-
-nav a:hover,
-nav button:hover,
-.sidebar a:hover,
-.sidebar button:hover {
-  color: #374151 !important;
-}
-
-/* Ensure accordion triggers in sidebar are black */
-.sidebar [data-state="open"] > button,
-.sidebar [data-state="closed"] > button {
-  color: #000000 !important;
-}
-
-/* Override any remaining inline styles with orange or purple */
-[style*="color: #FF6B35"]:not(svg),
-[style*="color: #FF8C42"]:not(svg),
-[style*="color: #FF7F00"]:not(svg),
-[style*="color: #FF4500"]:not(svg),
-[style*="background-color: #FF6B35"],
-[style*="background-color: #FF8C42"],
-[style*="background-color: #FF7F00"],
-[style*="background-color: #FF4500"],
-[style*="color: #8B5CF6"]:not(svg),
-[style*="color: #7C3AED"]:not(svg),
-[style*="color: #6D28D9"]:not(svg),
-[style*="color: #9333EA"]:not(svg),
-[style*="background-color: #8B5CF6"],
-[style*="background-color: #7C3AED"],
-[style*="background-color: #6D28D9"],
-[style*="background-color: #9333EA"] {
-  color: #374151 !important;
-  background-color: #f3f4f6 !important;
-}
-
-/* Override SVG fills that are orange or purple */
-svg [fill*="#FF6B35"],
-svg [fill*="#FF8C42"],
-svg [fill*="#FF7F00"],
-svg [fill*="#FF4500"],
-svg [fill*="#8B5CF6"],
-svg [fill*="#7C3AED"],
-svg [fill*="#6D28D9"],
-svg [fill*="#9333EA"] {
-  fill: #374151 !important;
+/* Ensure switches are always clickable */
+[data-state="checked"],
+[data-state="unchecked"] {
+  pointer-events: auto !important;
 }

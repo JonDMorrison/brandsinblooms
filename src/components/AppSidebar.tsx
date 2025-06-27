@@ -1,4 +1,3 @@
-
 import React from "react";
 import {
   Home,
@@ -107,7 +106,7 @@ const AppSidebar: React.FC = () => {
   return (
     <div className="w-64 flex-shrink-0 border-r bg-secondary">
       <div className="flex h-16 items-center px-4">
-        <NavLink to="/" className="font-semibold flex items-center gap-2 text-black hover:text-gray-700">
+        <NavLink to="/" className="font-semibold flex items-center gap-2">
           <img 
             src="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png" 
             alt="BloomSuite Logo" 
@@ -122,7 +121,7 @@ const AppSidebar: React.FC = () => {
           item.items ? (
             <Accordion type="single" collapsible key={item.title}>
               <AccordionItem value={item.title}>
-                <AccordionTrigger className="group flex items-center justify-between px-4 py-2 text-black hover:text-gray-700 hover:bg-gray-100">
+                <AccordionTrigger className="group flex items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground">
                   <div className="flex items-center gap-2">
                     <item.icon className="h-4 w-4" />
                     <span>{item.title}</span>
@@ -135,8 +134,8 @@ const AppSidebar: React.FC = () => {
                         to={subItem.url}
                         key={subItem.title}
                         className={({ isActive }) =>
-                          `flex items-center gap-2 px-4 py-2 text-black hover:text-gray-700 hover:bg-gray-100 ${
-                            isActive ? "font-medium bg-gray-100" : ""
+                          `flex items-center gap-2 px-4 py-2 hover:bg-accent hover:text-accent-foreground ${
+                            isActive ? "font-medium" : ""
                           }`
                         }
                       >
@@ -153,8 +152,8 @@ const AppSidebar: React.FC = () => {
               to={item.url}
               key={item.title}
               className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-2 text-black hover:text-gray-700 hover:bg-gray-100 ${
-                  isActive ? "font-medium bg-gray-100" : ""
+                `flex items-center gap-2 px-4 py-2 hover:bg-accent hover:text-accent-foreground ${
+                  isActive ? "font-medium" : ""
                 }`
               }
             >

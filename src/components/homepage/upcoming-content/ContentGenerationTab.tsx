@@ -53,7 +53,7 @@ export const ContentGenerationTab = ({
       icon: Instagram,
       description: 'Engaging visual post with hashtags',
       color: 'text-pink-700',
-      bgColor: 'bg-gradient-to-br from-pink-50 to-purple-50 border-gray-200'
+      bgColor: 'bg-gradient-to-br from-pink-50 to-purple-50 border-pink-200'
     },
     {
       id: 'facebook',
@@ -61,7 +61,7 @@ export const ContentGenerationTab = ({
       icon: Facebook,
       description: 'Community-focused social content',
       color: 'text-blue-700',
-      bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-gray-200'
+      bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200'
     },
     {
       id: 'blog',
@@ -69,7 +69,7 @@ export const ContentGenerationTab = ({
       icon: BookOpen,
       description: 'Educational blog content with clear headlines',
       color: 'text-purple-700',
-      bgColor: 'bg-gradient-to-br from-purple-50 to-indigo-50 border-gray-200'
+      bgColor: 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-200'
     },
     {
       id: 'newsletter',
@@ -77,15 +77,15 @@ export const ContentGenerationTab = ({
       icon: Mail,
       description: 'Weekly newsletter content',
       color: 'text-green-700',
-      bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50 border-gray-200'
+      bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200'
     },
     {
       id: 'video',
       name: 'Video Script',
       icon: Video,
       description: 'Script for video content',
-      color: 'text-[#3E5A6B]',
-      bgColor: 'bg-gradient-to-br from-red-50 to-pink-50 border-gray-200'
+      color: 'text-red-700',
+      bgColor: 'bg-gradient-to-br from-red-50 to-orange-50 border-red-200'
     }
   ];
 
