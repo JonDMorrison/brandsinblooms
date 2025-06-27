@@ -45,30 +45,68 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     posted: 'rgb(var(--chip-posted))',       // #10B981
   },
   
-  // COMPLETELY OVERRIDE YELLOW/AMBER WITH GARDEN GREEN AND ORANGE
+  // COMPLETELY OVERRIDE YELLOW/AMBER WITH NEUTRAL COLORS
   yellow: {
-    50: '#E8F5E8',    // Garden green very light
-    100: '#C8E6C9',   // Garden green light
-    200: '#A5D6A7',   // Garden green lighter
-    300: '#81C784',   // Garden green medium light
-    400: '#66BB6A',   // Garden green medium
-    500: '#4CAF50',   // Garden green primary
-    600: '#43A047',   // Garden green medium dark
-    700: '#388E3C',   // Garden green dark
-    800: '#2E7D32',   // Garden green darker
-    900: '#1B5E20',   // Garden green darkest
+    50: '#F9FAFB',    // Gray very light
+    100: '#F3F4F6',   // Gray light
+    200: '#E5E7EB',   // Gray lighter
+    300: '#D1D5DB',   // Gray medium light
+    400: '#9CA3AF',   // Gray medium
+    500: '#6B7280',   // Gray primary
+    600: '#4B5563',   // Gray medium dark
+    700: '#374151',   // Gray dark
+    800: '#1F2937',   // Gray darker
+    900: '#111827',   // Gray darkest
   },
   amber: {
-    50: '#FFF3E0',    // Orange very light for warnings
-    100: '#FFE0B2',   // Orange light
-    200: '#FFCC80',   // Orange lighter
-    300: '#FFB74D',   // Orange medium light
-    400: '#FFA726',   // Orange medium
-    500: '#FF9800',   // Orange primary
-    600: '#FB8C00',   // Orange medium dark
-    700: '#F57C00',   // Orange dark
-    800: '#EF6C00',   // Orange darker
-    900: '#E65100',   // Orange darkest
+    50: '#F9FAFB',    // Gray very light
+    100: '#F3F4F6',   // Gray light
+    200: '#E5E7EB',   // Gray lighter
+    300: '#D1D5DB',   // Gray medium light
+    400: '#9CA3AF',   // Gray medium
+    500: '#6B7280',   // Gray primary
+    600: '#4B5563',   // Gray medium dark
+    700: '#374151',   // Gray dark
+    800: '#1F2937',   // Gray darker
+    900: '#111827',   // Gray darkest
+  },
+  
+  // OVERRIDE ORANGE AND PURPLE WITH NEUTRAL COLORS
+  orange: {
+    50: '#F9FAFB',    // Gray very light
+    100: '#F3F4F6',   // Gray light
+    200: '#E5E7EB',   // Gray lighter
+    300: '#D1D5DB',   // Gray medium light
+    400: '#9CA3AF',   // Gray medium
+    500: '#6B7280',   // Gray primary
+    600: '#4B5563',   // Gray medium dark
+    700: '#374151',   // Gray dark
+    800: '#1F2937',   // Gray darker
+    900: '#111827',   // Gray darkest
+  },
+  purple: {
+    50: '#F9FAFB',    // Gray very light
+    100: '#F3F4F6',   // Gray light
+    200: '#E5E7EB',   // Gray lighter
+    300: '#D1D5DB',   // Gray medium light
+    400: '#9CA3AF',   // Gray medium
+    500: '#6B7280',   // Gray primary
+    600: '#4B5563',   // Gray medium dark
+    700: '#374151',   // Gray dark
+    800: '#1F2937',   // Gray darker
+    900: '#111827',   // Gray darkest
+  },
+  violet: {
+    50: '#F9FAFB',    // Gray very light
+    100: '#F3F4F6',   // Gray light
+    200: '#E5E7EB',   // Gray lighter
+    300: '#D1D5DB',   // Gray medium light
+    400: '#9CA3AF',   // Gray medium
+    500: '#6B7280',   // Gray primary
+    600: '#4B5563',   // Gray medium dark
+    700: '#374151',   // Gray dark
+    800: '#1F2937',   // Gray darker
+    900: '#111827',   // Gray darkest
   },
   
   // ADD GARDEN GREEN COLOR SYSTEM
@@ -129,11 +167,11 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     foreground: '#FFFFFF'
   },
   warning: {
-    DEFAULT: '#FF9800', // Orange for warnings instead of yellow
-    50: '#FFF3E0',
-    100: '#FFE0B2',
-    500: '#FF9800',
-    600: '#F57C00',
+    DEFAULT: '#6B7280', // Gray for warnings instead of orange
+    50: '#F9FAFB',
+    100: '#F3F4F6',
+    500: '#6B7280',
+    600: '#4B5563',
     foreground: '#FFFFFF'
   },
   destructive: {

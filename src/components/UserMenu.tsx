@@ -136,7 +136,7 @@ export const UserMenu = () => {
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={() => setShowResetDialog(true)}
-                className="text-orange-600 focus:text-orange-600"
+                className="text-gray-600 focus:text-gray-700"
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Reset for Testing
@@ -160,7 +160,7 @@ export const UserMenu = () => {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
+              <AlertTriangle className="h-5 w-5 text-gray-500" />
               Reset Master Admin Account
             </AlertDialogTitle>
             <AlertDialogDescription className="text-left">
@@ -173,7 +173,7 @@ export const UserMenu = () => {
                 <li>• Clear all generated content</li>
                 <li>• Trigger re-onboarding process</li>
               </ul>
-              <p className="mt-3 text-sm font-medium text-orange-600">
+              <p className="mt-3 text-sm font-medium text-gray-600">
                 This action cannot be undone. Only use this for testing purposes.
               </p>
             </AlertDialogDescription>
@@ -185,7 +185,7 @@ export const UserMenu = () => {
             <AlertDialogAction
               onClick={handleResetAccount}
               disabled={isResetting}
-              className="bg-orange-600 hover:bg-orange-700"
+              className="bg-gray-600 hover:bg-gray-700"
             >
               {isResetting ? "Resetting..." : "Reset Account"}
             </AlertDialogAction>

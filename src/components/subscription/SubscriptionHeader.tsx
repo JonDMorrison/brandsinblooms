@@ -44,11 +44,11 @@ export const SubscriptionHeader = ({
                 <span className="font-medium">{billingCycle}</span> billing
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <TrendingUp className="w-4 h-4 text-purple-600" />
+                <TrendingUp className="w-4 h-4 text-gray-600" />
                 <span className="font-medium">{tokenUsagePercent}%</span> token usage
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Shield className="w-4 h-4 text-orange-600" />
+                <Shield className="w-4 h-4 text-gray-600" />
                 <span className="font-medium">Resets {resetTime}</span>
               </div>
             </div>
