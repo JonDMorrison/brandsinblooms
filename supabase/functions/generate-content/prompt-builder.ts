@@ -21,7 +21,7 @@ export function buildContentPrompt(
     facebook: { format: 'Facebook post', wordCount: '100-200', cta: 'stop by for expert advice' },
     blog: { format: 'blog article', wordCount: '400-600', cta: 'schedule a consultation' },
     newsletter: { format: 'email newsletter', wordCount: '300-400', cta: 'visit this weekend' },
-    video: { format: 'natural teaching conversation', wordCount: '200-250 words (90 seconds)', cta: 'come in for supplies' }
+    video: { format: 'natural teaching content', wordCount: '200-250 words', cta: 'come in for supplies' }
   };
 
   const contentParams = contentFormatMap[postType.toLowerCase()] || contentFormatMap.instagram;
@@ -43,7 +43,7 @@ You are a certified StoryBrand Guide and seasoned garden center marketing expert
 2. Natural, conversational tone using contractions ("you'll", "we're", "don't")
 3. Specific plant names, care techniques, and actionable gardening advice
 4. Avoid corporate buzzwords: "leverage", "optimize", "maximize", "seamless", "synergy"
-5. Never use "hello fellow gardeners", "dear gardeners", or similar generic greetings
+5. Never use generic greetings like "hello fellow gardeners", "hey gardeners", "garden enthusiasts"
 6. Write like a knowledgeable local garden center expert talking to a neighbor
 7. Include sensory details (colors, scents, textures) that gardeners recognize
 8. Keep sentences under 20 words average, vary length for natural rhythm
@@ -179,22 +179,25 @@ EXCELLENCE MARKERS:
 
     case 'video':
       return `
-Video Script Excellence → 200-250 words, natural teaching conversation
+Teaching Content Excellence → 200-250 words, natural teaching conversation
 
-NATURAL CONVERSATION STRUCTURE:
-• Opening: Connect with seasonal opportunity naturally
+NATURAL TEACHING STRUCTURE:
+• Opening: Jump straight into seasonal gardening opportunity (NO greetings)
 • Problem: Explain gardening challenge and why timing matters
 • Teaching: Share practical advice and common mistake warnings
 • Conclusion: Encourage confidence and suggest visit to ${companyName}
 
-CONVERSATION EXCELLENCE MARKERS:
-- Sounds like explaining gardening to a friend or customer
-- Uses natural, flowing speech patterns
-- Includes specific regional plant varieties and timing
-- Addresses real gardening challenges for the season
-- NO production cues, timing markers, or artificial structure
+TEACHING CONTENT EXCELLENCE MARKERS:
+- Start immediately with valuable gardening information
+- Sound like explaining gardening to a friend or customer
+- Use natural, flowing speech patterns without any production cues
+- Include specific regional plant varieties and timing
+- Address real gardening challenges for the season
+- NO greetings, NO production cues, NO timing markers, NO artificial structure
 - Pure conversational teaching about gardening expertise
-- Focuses entirely on helping gardeners succeed this season`;
+- Focus entirely on helping gardeners succeed this season
+- NEVER start with "Hey there", "Hello gardeners", or any greeting
+- Jump straight into the most important gardening advice`;
 
     default:
       return `
