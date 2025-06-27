@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
 @import './styles/base.css';
 @import './styles/components.css';
@@ -47,11 +48,11 @@
     --ring: 53.7 72.2% 50%;
     --radius: 0.5rem;
     
-    // Brand Colors
+    /* Brand Colors */
     --brand-green: 144 57.1% 31.4%;
     --brand-blue: 220 72.2% 46.3%;
     
-    // Chip Colors
+    /* Chip Colors */
     --chip-draft: 210 11.1% 62.7%;
     --chip-generated: 219.4 90.2% 50.6%;
     --chip-approved: 131.7 72.7% 45.9%;
