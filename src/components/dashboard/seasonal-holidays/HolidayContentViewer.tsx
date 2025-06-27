@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +16,23 @@ interface HolidayContentViewerProps {
   onTaskUpdate?: () => void;
   onManualGeneration?: () => void;
 }
+
+// Define the desired content type order
+const POST_TYPE_ORDER = ['facebook', 'instagram', 'blog', 'video', 'newsletter'];
+
+// Function to sort tasks by content type priority
+const sortTasksByContentType = (tasks: any[]) => {
+  return [...tasks].sort((a, b) => {
+    const aIndex = POST_TYPE_ORDER.indexOf(a.post_type);
+    const bIndex = POST_TYPE_ORDER.indexOf(b.post_type);
+    
+    // If post_type is not in our order array, put it at the end
+    const aOrder = aIndex === -1 ? POST_TYPE_ORDER.length : aIndex;
+    const bOrder = bIndex === -1 ? POST_TYPE_ORDER.length : bIndex;
+    
+    return aOrder - bOrder;
+  });
+};
 
 export const HolidayContentViewer = ({
   holidayId,
@@ -79,6 +95,9 @@ export const HolidayContentViewer = ({
   const blogTasks = tasks.filter(task => task.post_type === 'blog');
   const videoTasks = tasks.filter(task => task.post_type === 'video');
   const newsletterTasks = tasks.filter(task => task.post_type === 'newsletter');
+
+  // Sort tasks for the "All" tab display
+  const sortedTasks = sortTasksByContentType(tasks);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -147,7 +166,7 @@ export const HolidayContentViewer = ({
                   
                   <TabsContent value="all" className="space-y-4">
                     <div className="grid gap-4">
-                      {tasks.map((task) => (
+                      {sortedTasks.map((task) => (
                         <ContentTaskItem 
                           key={task.id} 
                           task={task} 
