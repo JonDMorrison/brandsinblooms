@@ -1,19 +1,35 @@
 
-/* Clean fallback overrides - brand colors only */
+/* Ultimate fallback overrides - catch everything else */
 
-/* Final fallback for any missed unwanted elements */
-body *[style*="yellow"],
-body *[style*="amber"],
-body *[style*="orange"],
-body *[style*="purple"],
-body *[style*="fuchsia"],
-body *[style*="#FFC107"],
-body *[style*="#FBBC05"],
-body *[style*="#FDD835"],
-body *[style*="#FFEB3B"],
-body *[style*="#FF9800"],
-body *[style*="#9C27B0"],
-body *[style*="#E91E63"] {
+/* Brute force override for any remaining unwanted colors */
+body *[style*="yellow"], body *[style*="Yellow"], body *[style*="YELLOW"],
+body *[style*="amber"], body *[style*="Amber"], body *[style*="AMBER"], 
+body *[style*="orange"], body *[style*="Orange"], body *[style*="ORANGE"],
+body *[style*="purple"], body *[style*="Purple"], body *[style*="PURPLE"],
+body *[style*="fuchsia"], body *[style*="Fuchsia"], body *[style*="FUCHSIA"],
+body *[style*="pink"], body *[style*="Pink"], body *[style*="PINK"],
+body *[style*="#FFC107"], body *[style*="#FBBC05"], body *[style*="#FDD835"], 
+body *[style*="#FFEB3B"], body *[style*="#FF9800"], body *[style*="#9C27B0"], 
+body *[style*="#E91E63"], body *[style*="#F59E0B"], body *[style*="#D97706"],
+body *[style*="rgb(255, 193, 7)"], body *[style*="rgb(251, 188, 5)"],
+body *[style*="rgb(253, 216, 53)"], body *[style*="rgb(255, 235, 59)"],
+body *[style*="rgb(255, 152, 0)"], body *[style*="rgb(156, 39, 176)"],
+body *[style*="rgb(233, 30, 99)"] {
+  background-color: #F8FAFC !important;
+  color: #3E5A6B !important;
+  border-color: #68BEB9 !important;
+}
+
+/* Specific overrides for common UI elements that might have unwanted colors */
+.alert, .badge, .chip, .tag, .label, .status, .notification {
+  background-color: #F8FAFC !important;
+  color: #3E5A6B !important;
+  border-color: #68BEB9 !important;
+}
+
+/* Override any potential component library colors */
+[class*="MuiButton"], [class*="MuiChip"], [class*="MuiAlert"],
+[class*="ant-"], [class*="chakra-"], [class*="mantine-"] {
   background-color: #F8FAFC !important;
   color: #3E5A6B !important;
   border-color: #68BEB9 !important;
@@ -36,4 +52,21 @@ body *[style*="#E91E63"] {
 ::-webkit-search-results-button,
 ::-webkit-search-results-decoration {
   background-color: #FFFFFF !important;
+}
+
+/* Ensure all Tailwind utilities are properly overridden */
+.bg-warning, .text-warning, .border-warning {
+  background-color: #F8FAFC !important;
+  color: #3E5A6B !important;
+  border-color: #68BEB9 !important;
+}
+
+/* Final nuclear option - override everything with data attributes */
+[data-color*="yellow"], [data-color*="amber"], [data-color*="orange"],
+[data-color*="purple"], [data-color*="pink"], [data-color*="fuchsia"],
+[data-theme*="yellow"], [data-theme*="amber"], [data-theme*="orange"],
+[data-theme*="purple"], [data-theme*="pink"], [data-theme*="fuchsia"] {
+  background-color: #F8FAFC !important;
+  color: #3E5A6B !important;
+  border-color: #68BEB9 !important;
 }

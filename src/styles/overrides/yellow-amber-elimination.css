@@ -1,7 +1,13 @@
 
-/* Brand color enforcement - eliminate unwanted colors */
+/* Comprehensive brand color enforcement - eliminate ALL unwanted colors */
 
-/* Replace all unwanted Tailwind classes with brand colors */
+/* Higher specificity overrides for all unwanted colors */
+* {
+  /* Force override any yellow/amber/orange/purple/pink/fuchsia backgrounds */
+}
+
+*[class*="yellow"], *[class*="amber"], *[class*="orange"], 
+*[class*="purple"], *[class*="pink"], *[class*="fuchsia"],
 .bg-yellow-50, .bg-yellow-100, .bg-yellow-200, .bg-yellow-300, .bg-yellow-400, .bg-yellow-500, .bg-yellow-600, .bg-yellow-700, .bg-yellow-800, .bg-yellow-900,
 .bg-amber-50, .bg-amber-100, .bg-amber-200, .bg-amber-300, .bg-amber-400, .bg-amber-500, .bg-amber-600, .bg-amber-700, .bg-amber-800, .bg-amber-900,
 .bg-orange-50, .bg-orange-100, .bg-orange-200, .bg-orange-300, .bg-orange-400, .bg-orange-500, .bg-orange-600, .bg-orange-700, .bg-orange-800, .bg-orange-900,
@@ -29,6 +35,7 @@
   border-color: #68BEB9 !important; /* Brand teal-mint */
 }
 
+/* High specificity overrides for ring colors */
 .ring-yellow-50, .ring-yellow-100, .ring-yellow-200, .ring-yellow-300, .ring-yellow-400, .ring-yellow-500, .ring-yellow-600, .ring-yellow-700, .ring-yellow-800, .ring-yellow-900,
 .ring-amber-50, .ring-amber-100, .ring-amber-200, .ring-amber-300, .ring-amber-400, .ring-amber-500, .ring-amber-600, .ring-amber-700, .ring-amber-800, .ring-amber-900,
 .ring-orange-50, .ring-orange-100, .ring-orange-200, .ring-orange-300, .ring-orange-400, .ring-orange-500, .ring-orange-600, .ring-orange-700, .ring-orange-800, .ring-orange-900,
@@ -42,4 +49,25 @@
 .focus\:ring-pink-50:focus, .focus\:ring-pink-100:focus, .focus\:ring-pink-200:focus, .focus\:ring-pink-300:focus, .focus\:ring-pink-400:focus, .focus\:ring-pink-500:focus,
 .focus\:ring-fuchsia-50:focus, .focus\:ring-fuchsia-100:focus, .focus\:ring-fuchsia-200:focus, .focus\:ring-fuchsia-300:focus, .focus\:ring-fuchsia-400:focus, .focus\:ring-fuchsia-500:focus {
   --tw-ring-color: #68BEB9 !important; /* Brand teal-mint ring */
+}
+
+/* Additional overrides for any missed utility classes */
+.decoration-yellow-500, .decoration-amber-500, .decoration-orange-500, .decoration-purple-500, .decoration-pink-500, .decoration-fuchsia-500 {
+  text-decoration-color: #68BEB9 !important;
+}
+
+.fill-yellow-500, .fill-amber-500, .fill-orange-500, .fill-purple-500, .fill-pink-500, .fill-fuchsia-500 {
+  fill: #68BEB9 !important;
+}
+
+.stroke-yellow-500, .stroke-amber-500, .stroke-orange-500, .stroke-purple-500, .stroke-pink-500, .stroke-fuchsia-500 {
+  stroke: #68BEB9 !important;
+}
+
+/* Catch-all for any remaining color issues */
+*[style*="rgb(245, 101, 101)"], *[style*="rgb(139, 69, 19)"], *[style*="rgb(255, 165, 0)"], 
+*[style*="rgb(128, 0, 128)"], *[style*="rgb(255, 20, 147)"], *[style*="rgb(255, 0, 255)"] {
+  background-color: #F8FAFC !important;
+  color: #3E5A6B !important;
+  border-color: #68BEB9 !important;
 }

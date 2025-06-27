@@ -1,11 +1,11 @@
 
-/* Clean brand color CSS variables - no unwanted colors */
+/* Comprehensive CSS variables override - ensure all unwanted colors map to brand colors */
 :root {
   /* Brand color variables */
   --brand-steel-blue: 62, 90, 107; /* #3E5A6B */
   --brand-teal-mint: 104, 190, 185; /* #68BEB9 */
   
-  /* Neutralized unwanted colors to clean alternatives */
+  /* Force override ALL yellow variations */
   --yellow-50: 248, 250, 252 !important; /* Light gray */
   --yellow-100: 241, 245, 249 !important;
   --yellow-200: 226, 232, 240 !important;
@@ -17,6 +17,7 @@
   --yellow-800: 30, 41, 59 !important;
   --yellow-900: 15, 23, 42 !important;
   
+  /* Force override ALL amber variations */
   --amber-50: 248, 250, 252 !important;
   --amber-100: 241, 245, 249 !important;
   --amber-200: 226, 232, 240 !important;
@@ -28,6 +29,7 @@
   --amber-800: 30, 41, 59 !important;
   --amber-900: 15, 23, 42 !important;
   
+  /* Force override ALL orange variations */
   --orange-50: 248, 250, 252 !important;
   --orange-100: 241, 245, 249 !important;
   --orange-200: 226, 232, 240 !important;
@@ -39,6 +41,7 @@
   --orange-800: 30, 41, 59 !important;
   --orange-900: 15, 23, 42 !important;
   
+  /* Force override ALL purple variations */
   --purple-50: 248, 250, 252 !important;
   --purple-100: 241, 245, 249 !important;
   --purple-200: 226, 232, 240 !important;
@@ -50,6 +53,7 @@
   --purple-800: 30, 41, 59 !important;
   --purple-900: 15, 23, 42 !important;
   
+  /* Force override ALL pink variations */
   --pink-50: 248, 250, 252 !important;
   --pink-100: 241, 245, 249 !important;
   --pink-200: 226, 232, 240 !important;
@@ -61,6 +65,7 @@
   --pink-800: 30, 41, 59 !important;
   --pink-900: 15, 23, 42 !important;
   
+  /* Force override ALL fuchsia variations */
   --fuchsia-50: 248, 250, 252 !important;
   --fuchsia-100: 241, 245, 249 !important;
   --fuchsia-200: 226, 232, 240 !important;
@@ -71,4 +76,22 @@
   --fuchsia-700: 51, 65, 85 !important;
   --fuchsia-800: 30, 41, 59 !important;
   --fuchsia-900: 15, 23, 42 !important;
+
+  /* Override any potential Tailwind color variables */
+  --tw-color-yellow-500: 100, 116, 139 !important;
+  --tw-color-amber-500: 100, 116, 139 !important;
+  --tw-color-orange-500: 100, 116, 139 !important;
+  --tw-color-purple-500: 100, 116, 139 !important;
+  --tw-color-pink-500: 100, 116, 139 !important;
+  --tw-color-fuchsia-500: 100, 116, 139 !important;
+}
+
+/* Apply overrides to any element using CSS custom properties */
+html, body, * {
+  --yellow-500: 100, 116, 139 !important;
+  --amber-500: 100, 116, 139 !important;
+  --orange-500: 100, 116, 139 !important;
+  --purple-500: 100, 116, 139 !important;
+  --pink-500: 100, 116, 139 !important;
+  --fuchsia-500: 100, 116, 139 !important;
 }
