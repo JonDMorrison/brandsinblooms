@@ -6,12 +6,36 @@ import { Clock, Crown, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useEffect, useState } from "react";
 
 export const TrialBanner = () => {
-  const { subscription, trialDaysLeft } = useSubscription();
   const navigate = useNavigate();
   const { state } = useSidebar();
   const isMobile = useIsMobile();
+  const [subscriptionData, setSubscriptionData] = useState<{
+    subscription: any;
+    trialDaysLeft: number;
+  } | null>(null);
+  const [error, setError] = useState(false);
+
+  // Safely access subscription context with error handling
+  useEffect(() => {
+    try {
+      const { subscription, trialDaysLeft } = useSubscription();
+      setSubscriptionData({ subscription, trialDaysLeft });
+      setError(false);
+    } catch (err) {
+      console.warn('TrialBanner: Subscription context not available:', err);
+      setError(true);
+    }
+  }, []);
+
+  // Don't render if there's an error accessing the context
+  if (error || !subscriptionData) {
+    return null;
+  }
+
+  const { subscription, trialDaysLeft } = subscriptionData;
 
   console.log('TrialBanner: Rendering with values', {
     subscription: subscription?.plan,

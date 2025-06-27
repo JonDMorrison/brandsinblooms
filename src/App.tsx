@@ -7,6 +7,8 @@ import {
   Navigate,
 } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { SubscriptionProvider } from './contexts/SubscriptionContext';
+import { ContentGenerationProvider } from './contexts/ContentGenerationContext';
 import Onboarding from './pages/OnboardingPage';
 import Dashboard from './pages/Index';
 import PricingPage from './pages/PricingPage';
@@ -24,9 +26,13 @@ import PublishPage from "./pages/PublishPage";
 const App = () => {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <SubscriptionProvider>
+        <ContentGenerationProvider>
+          <Router>
+            <AppRoutes />
+          </Router>
+        </ContentGenerationProvider>
+      </SubscriptionProvider>
     </AuthProvider>
   );
 };
