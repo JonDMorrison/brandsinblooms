@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
@@ -34,6 +33,8 @@ import './App.css';
 const queryClient = new QueryClient();
 
 function App() {
+  console.log('🚀 App: Component rendering');
+  
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="vite-react-theme">
@@ -63,7 +64,7 @@ function App() {
                 <Route path="/test" element={<ProtectedRoute><TestPage /></ProtectedRoute>} />
                 <Route path="/calendar" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
                 <Route path="/social" element={<ProtectedRoute><SocialPage /></ProtectedRoute>} />
-                <Route path="/dev-social" element={<ProtectedRoute><DevSocialPageWrapper /></ProtectedRoute>} />
+                <Route path="/dev-social" element={<DevSocialPageWrapper />} />
                 <Route path="/social-media" element={<ProtectedRoute><SocialMediaPage /></ProtectedRoute>} />
               </Routes>
             </Router>
