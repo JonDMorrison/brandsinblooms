@@ -103,10 +103,10 @@ export const useFocusThemes = () => {
         .eq('user_id', user?.id)
         .eq('tenant_id', tenant?.id || null);
 
-      const statusMap = new Map(statusData?.map(s => [s.theme_id, s.status]) || []);
+      const statusMap = new Map(statusData?.map(s => [s.theme_id, s.status as 'generated' | 'skipped']) || []);
 
       // Combine sample themes with status
-      const themesWithStatus = SAMPLE_THEMES.map(theme => ({
+      const themesWithStatus: FocusTheme[] = SAMPLE_THEMES.map(theme => ({
         ...theme,
         status: statusMap.get(theme.id) || null
       }));
@@ -150,7 +150,7 @@ export const useFocusThemes = () => {
 
       // Update local state
       setThemes(prev => prev.map(theme => 
-        theme.id === themeId ? { ...theme, status: 'skipped' } : theme
+        theme.id === themeId ? { ...theme, status: 'skipped' as const } : theme
       ));
     } catch (error) {
       console.error('Error skipping theme:', error);
@@ -171,7 +171,7 @@ export const useFocusThemes = () => {
 
       // Update local state
       setThemes(prev => prev.map(theme => 
-        theme.id === themeId ? { ...theme, status: 'generated' } : theme
+        theme.id === themeId ? { ...theme, status: 'generated' as const } : theme
       ));
     } catch (error) {
       console.error('Error marking theme as generated:', error);
