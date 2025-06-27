@@ -44,21 +44,19 @@ export const FocusCard = ({ theme, onGenerate, onSkip, isGenerating }: FocusCard
         </Badge>
       </div>
 
-      {/* Enhanced Icon with gradient background */}
+      {/* Enhanced Icon with solid brand color background */}
       <div className="relative w-20 h-20 mx-auto mb-4">
         <div 
-          className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg ${
-            gradient ? `bg-gradient-to-br ${gradient}` : ''
-          }`}
-          style={!gradient ? { backgroundColor: iconColor } : {}}
+          className="w-20 h-20 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
+          style={{ backgroundColor: '#68BEB9' }}
         >
           <DynamicIcon className="w-10 h-10 text-white drop-shadow-sm" />
         </div>
         
-        {/* Subtle glow effect */}
+        {/* Subtle glow effect using brand color */}
         <div 
           className="absolute inset-0 rounded-full opacity-20 blur-md -z-10"
-          style={{ backgroundColor: iconColor }}
+          style={{ backgroundColor: '#68BEB9' }}
         />
       </div>
       
