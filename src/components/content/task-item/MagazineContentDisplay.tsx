@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Video, Hash, Clock, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
+import { ImageCarousel } from '@/components/ui/image-carousel';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -77,7 +78,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
   
   // Use the smart image suggestions hook
-  const { images, loading: loadingImage, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
+  const { images, loading: loadingImage, fetchNewImages, query } = useImageSuggestions(contentTaskId, postType);
 
   // Debug logging
   useEffect(() => {
@@ -107,11 +108,8 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
     }
   }, [contentTaskId, content, postType, campaignTitle, hasAttemptedFetch, fetchNewImages]);
 
-  // Get the first relevant image from the smart suggestions
-  const relevantImage = images[0];
-
-  // Helper function to render image with better fallback handling
-  const renderImage = (containerClasses: string, fallbackText: string) => {
+  // Helper function to render ImageCarousel or fallback
+  const renderImageSection = (containerClasses: string, fallbackText: string) => {
     if (loadingImage) {
       return (
         <div className={`${containerClasses} flex items-center justify-center`}>
@@ -123,37 +121,19 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
       );
     }
 
-    if (relevantImage) {
+    if (images.length > 0) {
       return (
-        <div className={`${containerClasses} overflow-hidden`}>
-          <img
-            src={relevantImage.download_url || relevantImage.thumb_url}
-            alt={relevantImage.alt}
-            className="w-full h-full object-cover scale-[2]"
-            onLoad={() => console.log('[MAGAZINE_DISPLAY] Image loaded successfully:', relevantImage.id)}
-            onError={(e) => {
-              console.error('[MAGAZINE_DISPLAY] Image failed to load:', relevantImage.id);
-              // Fallback to placeholder
-              const target = e.currentTarget;
-              target.style.display = 'none';
-              const parent = target.parentElement;
-              if (parent) {
-                parent.innerHTML = `
-                  <div class="text-center text-gray-500 p-4">
-                    <svg class="w-8 h-8 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                    <p class="text-sm">${fallbackText}</p>
-                  </div>
-                `;
-              }
-            }}
+        <div className={containerClasses}>
+          <ImageCarousel
+            images={images}
+            query={query}
+            contentTaskId={contentTaskId}
           />
         </div>
       );
     }
 
-    // No image available - show informative placeholder
+    // No images available - show informative placeholder
     return (
       <div className={`${containerClasses} flex items-center justify-center`}>
         <div className="text-center text-gray-500 p-4">
@@ -226,9 +206,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
               </Badge>
             </div>
 
-            {/* Featured Image - Now using dynamic renderImage */}
-            {renderImage(
-              "aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200",
+            {/* Featured Image with ImageCarousel */}
+            {renderImageSection(
+              "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4",
               "Newsletter featured image"
             )}
 
@@ -287,9 +267,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </Badge>
         </div>
 
-        {/* Featured Image - Now using dynamic renderImage */}
-        {renderImage(
-          "aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200",
+        {/* Featured Image with ImageCarousel */}
+        {renderImageSection(
+          "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4",
           "Newsletter featured image"
         )}
 
@@ -327,9 +307,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </div>
         </div>
 
-        {/* Image with smart suggestions - Changed from aspect-square to aspect-video for landscape */}
-        {renderImage(
-          "aspect-video bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 border border-pink-200",
+        {/* Image with ImageCarousel */}
+        {renderImageSection(
+          "bg-gradient-to-br from-pink-100 to-purple-100 rounded-lg mb-4 border border-pink-200 p-4",
           "Visual content area"
         )}
 
@@ -373,9 +353,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
             {text}
           </p>
           
-          {/* Image with smart suggestions */}
-          {renderImage(
-            "aspect-video bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg border border-blue-200",
+          {/* Image with ImageCarousel */}
+          {renderImageSection(
+            "bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg border border-blue-200 p-4",
             "Featured image"
           )}
 
@@ -418,10 +398,10 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
 
         {/* Article Content with Floating Image */}
         <div className="relative">
-          {/* Floating Image - Top Right with smart suggestions */}
+          {/* Floating Image - Top Right with ImageCarousel */}
           <div className="w-1/4 float-right ml-6 mb-4">
-            {renderImage(
-              "aspect-square bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg border border-green-200",
+            {renderImageSection(
+              "bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg border border-green-200 p-2",
               "Featured image"
             )}
           </div>

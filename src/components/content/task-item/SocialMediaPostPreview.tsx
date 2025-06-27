@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
@@ -7,6 +6,7 @@ import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { ImageCarousel } from '@/components/ui/image-carousel';
 
 interface SocialMediaPostPreviewProps {
   content: string;
@@ -141,7 +141,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
 
   // Enhanced content processing without validation warnings
   const { text, hashtags } = formatContentForDisplay(content);
-  const { images, loading, fetchNewImages } = useImageSuggestions(contentTaskId, postType);
+  const { images, loading, fetchNewImages, query } = useImageSuggestions(contentTaskId, postType);
 
   // Auto-fetch images when component mounts or content changes
   useEffect(() => {
@@ -168,8 +168,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
       ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-pink-200'
       : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200';
   };
-
-  const currentImage = images[0]; // Just use the first image
 
   return (
     <div className={cn('rounded-lg border-2 overflow-hidden shadow-sm', getPlatformStyle(), className)}>
@@ -249,45 +247,15 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
           </div>
         </div>
 
-        {/* Image Area - Right 50% */}
+        {/* Image Area - Right 50% with ImageCarousel */}
         <div className="flex-1 border-l border-gray-200">
-          {/* Main Featured Image */}
-          <div className={cn(
-            "relative bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center overflow-hidden",
-            postType === 'instagram' ? 'aspect-square' : 'aspect-[4/3]'
-          )}>
-            {loading ? (
-              <div className="text-center text-gray-500">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400 mx-auto mb-2"></div>
-                <p className="text-sm">Finding relevant images...</p>
-              </div>
-            ) : currentImage ? (
-              <>
-                <img
-                  src={currentImage.download_url || currentImage.thumb_url}
-                  alt={currentImage.alt}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    console.error('[PREVIEW] Image failed to load:', currentImage.id, e);
-                    if (e.currentTarget.src === currentImage.download_url && currentImage.thumb_url) {
-                      e.currentTarget.src = currentImage.thumb_url;
-                    }
-                  }}
-                />
-                {images.length > 1 && (
-                  <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
-                    1/{images.length}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center text-gray-500">
-                <div className="w-12 h-12 mx-auto mb-2 bg-gray-300 rounded-lg flex items-center justify-center">
-                  <span className="text-xl">🖼️</span>
-                </div>
-                <p className="text-sm font-medium">Relevant Image</p>
-              </div>
-            )}
+          <div className="p-4">
+            <ImageCarousel
+              images={images}
+              query={query}
+              contentTaskId={contentTaskId}
+              className="h-full"
+            />
           </div>
         </div>
       </div>
