@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { parseNewsletterYAML } from '@/utils/newsletterUtils';
+import { parseNewsletterYAML, processNewsletterMarkdown } from '@/utils/newsletterUtils';
 import { Badge } from '@/components/ui/badge';
 import { Clock, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,28 +47,6 @@ export const MagazineNewsletterDisplay = ({
     contentStart: content?.trim().substring(0, 100)
   });
 
-  // Try to parse as structured YAML first
-  const newsletter = parseNewsletterYAML(content);
-  
-  // Create a robust newsletter structure for both YAML and plain text
-  const processedNewsletter = newsletter || {
-    newsletter_md: content || '',
-    blocks: createBlocksFromPlainText(content || '', campaignTitle),
-    extra_content_ideas: [],
-    meta: {
-      reading_time: calculateReadingTime(content || ''),
-      theme: campaignTitle || 'Newsletter',
-      week_focus: 'Content Update'
-    }
-  };
-
-  // Use the custom hook for image management
-  const { images, loadingImages, imageErrors } = useNewsletterImages(
-    processedNewsletter.blocks,
-    isPlaceholderContent,
-    contentTaskId
-  );
-
   // If content is truly placeholder, show regeneration option
   if (isPlaceholderContent) {
     console.log('🔄 Showing regeneration UI due to truly placeholder content');
@@ -84,13 +62,49 @@ export const MagazineNewsletterDisplay = ({
     );
   }
 
-  // Extract main headline from newsletter_md
-  const headlineMatch = processedNewsletter.newsletter_md.match(/^# (.+)$/m);
-  const headline = headlineMatch?.[1] || extractTitleFromContent(processedNewsletter.newsletter_md, campaignTitle) || campaignTitle || 'Newsletter Update';
+  // Try to parse as structured YAML first
+  const newsletter = parseNewsletterYAML(content);
   
-  // Extract intro from newsletter_md
-  const introMatch = processedNewsletter.newsletter_md.match(/\*(.+?)\*/);
-  const intro = introMatch?.[1] || generateIntroFromContent(processedNewsletter.newsletter_md, campaignTitle);
+  // Create a robust newsletter structure for both YAML and plain text
+  const processedNewsletter = newsletter || {
+    newsletter_md: content || '',
+    blocks: createBlocksFromPlainText(content || '', campaignTitle),
+    extra_content_ideas: [],
+    meta: {
+      reading_time: calculateReadingTime(content || ''),
+      theme: campaignTitle || 'Newsletter',
+      week_focus: 'Content Update'
+    }
+  };
+
+  console.log('📧 Newsletter processing result:', {
+    wasYAML: !!newsletter,
+    blockCount: processedNewsletter.blocks.length,
+    hasNewsletterMd: !!processedNewsletter.newsletter_md
+  });
+
+  // Use the custom hook for image management
+  const { images, loadingImages, imageErrors } = useNewsletterImages(
+    processedNewsletter.blocks,
+    isPlaceholderContent,
+    contentTaskId
+  );
+
+  // Process the newsletter content for display
+  let displayContent = '';
+  if (newsletter && newsletter.newsletter_md) {
+    // Use the YAML newsletter_md section
+    displayContent = processNewsletterMarkdown(newsletter.newsletter_md);
+  } else {
+    // Process the raw content through markdown
+    displayContent = processNewsletterMarkdown(content);
+  }
+
+  // Extract main headline from processed content
+  const headline = extractTitleFromContent(content, campaignTitle) || campaignTitle || 'Newsletter Update';
+  
+  // Extract intro from content
+  const intro = generateIntroFromContent(content, campaignTitle);
 
   return (
     <div className={`max-w-4xl mx-auto ${className || ''}`}>
@@ -130,20 +144,27 @@ export const MagazineNewsletterDisplay = ({
         )}
       </div>
 
-      {/* Content Blocks */}
-      <div className="space-y-12">
-        {processedNewsletter.blocks.map((block, index) => (
-          <NewsletterContentBlock
-            key={index}
-            block={block}
-            index={index}
-            isStructuredNewsletter={!!newsletter}
-            images={images}
-            imageErrors={imageErrors}
-            loadingImages={loadingImages}
-          />
-        ))}
-      </div>
+      {/* Main Content */}
+      {displayContent ? (
+        <div className="prose prose-lg max-w-none mb-12">
+          <div dangerouslySetInnerHTML={{ __html: displayContent }} />
+        </div>
+      ) : (
+        /* Content Blocks for structured display */
+        <div className="space-y-12">
+          {processedNewsletter.blocks.map((block, index) => (
+            <NewsletterContentBlock
+              key={index}
+              block={block}
+              index={index}
+              isStructuredNewsletter={!!newsletter}
+              images={images}
+              imageErrors={imageErrors}
+              loadingImages={loadingImages}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Footer */}
       <div className="mt-16 pt-8 border-t border-gray-200 text-center">

@@ -1,4 +1,3 @@
-
 interface NewsletterBlock {
   title: string;
   body: string;
@@ -28,6 +27,12 @@ export interface StructuredNewsletter {
 
 export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter | null => {
   try {
+    // Check if content contains YAML structure indicators
+    if (!yamlContent.includes('blocks:') && !yamlContent.includes('- title:')) {
+      console.log('Content does not appear to be YAML structured newsletter');
+      return null;
+    }
+
     // Simple YAML parsing for our specific structure
     const lines = yamlContent.split('\n');
     const result: any = {
@@ -123,11 +128,51 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
     }
     
     result.newsletter_md = newsletterMd.trim();
+    
+    // Validate that we have meaningful blocks
+    if (result.blocks.length === 0) {
+      console.log('No valid blocks found in YAML parsing');
+      return null;
+    }
+    
+    console.log('Successfully parsed YAML newsletter with', result.blocks.length, 'blocks');
     return result as StructuredNewsletter;
   } catch (error) {
     console.error('Error parsing newsletter YAML:', error);
     return null;
   }
+};
+
+// Enhanced markdown processing for newsletter content
+export const processNewsletterMarkdown = (content: string): string => {
+  if (!content) return '';
+  
+  console.log('Processing newsletter markdown, input length:', content.length);
+  
+  let processed = content;
+  
+  // Convert markdown bold syntax to HTML
+  processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>');
+  
+  // Convert markdown headers to HTML with proper styling
+  processed = processed
+    .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold mb-6 text-slate-900">$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-semibold mb-4 mt-8 text-slate-900">$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3 class="text-xl font-semibold mb-3 mt-6 text-slate-900">$1</h3>');
+  
+  // Convert paragraphs - split by double newlines and wrap in paragraph tags
+  const paragraphs = processed.split(/\n\s*\n/).filter(p => p.trim());
+  processed = paragraphs.map(para => {
+    const trimmed = para.trim();
+    // Skip if already wrapped in HTML tags
+    if (trimmed.match(/^<(h[1-6]|div|p)/)) {
+      return trimmed;
+    }
+    return `<p class="mb-4 text-slate-700 leading-relaxed">${trimmed}</p>`;
+  }).join('\n');
+  
+  console.log('Processed newsletter markdown, output length:', processed.length);
+  return processed;
 };
 
 export const formatNewsletterForDisplay = (newsletter: StructuredNewsletter): string => {

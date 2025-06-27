@@ -1,127 +1,147 @@
 
-export const createBlocksFromPlainText = (rawContent: string, campaignTitle?: string) => {
-  if (!rawContent || rawContent.trim().length === 0) {
-    console.log('🚫 Creating placeholder block due to empty content');
-    return [{
-      title: 'Newsletter Content Loading',
-      body: 'Your newsletter content is being generated with expert gardening advice...',
-      cta: 'Visit us for expert advice',
-      link: '',
-      image_prompt: 'newsletter professional garden center informative',
-      alt_text: 'Newsletter content image'
-    }];
-  }
+// Helper functions for newsletter content processing and display
 
-  // For legitimate content, create proper blocks
-  const lines = rawContent.split('\n').filter(line => line.trim().length > 0);
+export const createBlocksFromPlainText = (content: string, campaignTitle?: string) => {
+  if (!content) return [];
   
-  if (lines.length === 0) {
-    return [{
-      title: 'Newsletter Update',
-      body: rawContent.trim(),
-      cta: '',
-      link: '',
-      image_prompt: `newsletter professional ${campaignTitle || 'garden center'} informative`,
-      alt_text: 'Newsletter content image'
-    }];
-  }
-
-  // If we have multiple lines, create sections
-  if (lines.length > 2) {
-    const sections = [];
-    let currentSection = '';
+  console.log('Creating blocks from plain text, content length:', content.length);
+  
+  // If content looks like raw YAML, try to extract meaningful content
+  if (content.includes('blocks:') && content.includes('- title:')) {
+    console.log('Detected raw YAML content, extracting meaningful parts');
+    
+    const blocks = [];
+    const lines = content.split('\n');
+    let currentBlock = { title: '', body: '', cta: '', link: '', image_prompt: '', alt_text: '' };
     
     for (const line of lines) {
-      // Check if this looks like a header (short line that might be a title)
-      const isHeader = line.length < 60 && (
-        line === line.toUpperCase() ||
-        line.includes('WEEK') ||
-        line.includes('FOCUS') ||
-        line.includes(':') ||
-        /^[A-Z][A-Za-z\s]+$/.test(line.trim())
-      );
-      
-      if (isHeader && currentSection.length > 50) {
-        sections.push(currentSection.trim());
-        currentSection = line + '\n';
-      } else {
-        currentSection += line + '\n';
+      const trimmed = line.trim();
+      if (trimmed.startsWith('- title:')) {
+        if (currentBlock.title) {
+          blocks.push({ ...currentBlock });
+        }
+        currentBlock = {
+          title: trimmed.replace('- title:', '').replace(/"/g, '').trim(),
+          body: '',
+          cta: '',
+          link: '',
+          image_prompt: '',
+          alt_text: ''
+        };
+      } else if (trimmed.startsWith('body:')) {
+        currentBlock.body = trimmed.replace('body:', '').replace(/"/g, '').trim();
+      } else if (trimmed.startsWith('cta:')) {
+        currentBlock.cta = trimmed.replace('cta:', '').replace(/"/g, '').trim();
+      } else if (trimmed.startsWith('link:')) {
+        currentBlock.link = trimmed.replace('link:', '').replace(/"/g, '').trim();
+      } else if (trimmed.startsWith('image_prompt:')) {
+        currentBlock.image_prompt = trimmed.replace('image_prompt:', '').replace(/"/g, '').trim();
+      } else if (trimmed.startsWith('alt_text:')) {
+        currentBlock.alt_text = trimmed.replace('alt_text:', '').replace(/"/g, '').trim();
       }
     }
     
-    if (currentSection.trim().length > 0) {
-      sections.push(currentSection.trim());
+    if (currentBlock.title) {
+      blocks.push(currentBlock);
     }
     
-    if (sections.length > 1) {
-      return sections.map((section, index) => {
-        const sectionLines = section.split('\n');
-        const title = sectionLines[0]?.trim() || `Section ${index + 1}`;
-        const body = sectionLines.slice(1).join('\n').trim() || section;
-        
-        return {
-          title: title.length > 100 ? `Section ${index + 1}` : title,
-          body: body || section,
-          cta: index === sections.length - 1 ? 'Visit us for more information' : '',
-          link: '',
-          image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
-          alt_text: `${title} - newsletter section image`
-        };
-      });
-    }
+    console.log('Extracted', blocks.length, 'blocks from YAML content');
+    return blocks;
   }
   
-  // For shorter content or single sections, create one main block
-  const title = lines[0]?.trim() || 'Newsletter Update';
-  const body = lines.length > 1 ? lines.slice(1).join('\n').trim() : rawContent.trim();
+  // For regular content, split into logical sections
+  const sections = content.split(/\n\s*\n/).filter(section => section.trim());
   
-  return [{
-    title: title.length > 100 ? 'Newsletter Update' : title,
-    body: body || rawContent.trim(),
-    cta: 'Visit us for more information',
-    link: '',
-    image_prompt: `newsletter professional ${campaignTitle || 'garden center'} ${title.toLowerCase().replace(/[^a-z0-9\s]/g, '')} informative`,
-    alt_text: `${title} - newsletter image`
-  }];
+  return sections.map((section, index) => {
+    const lines = section.split('\n').filter(line => line.trim());
+    const title = lines[0]?.replace(/^#+\s*/, '').replace(/\*\*(.*?)\*\*/, '$1').trim() || `Section ${index + 1}`;
+    const body = lines.slice(1).join(' ').trim() || lines[0]?.trim() || '';
+    
+    return {
+      title,
+      body,
+      cta: '',
+      link: '',
+      image_prompt: `${campaignTitle || 'garden'} ${title}`.toLowerCase(),
+      alt_text: `Image for ${title}`
+    };
+  });
 };
 
-export const calculateReadingTime = (text: string): string => {
-  if (!text) return '≈1 min';
-  const wordCount = text.replace(/<[^>]*>/g, '').split(/\s+/).length;
-  const minutes = Math.ceil(wordCount / 200);
-  return `≈${minutes} min`;
+export const calculateReadingTime = (content: string): string => {
+  if (!content) return '1 min read';
+  
+  const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
+  const readingTime = Math.max(1, Math.ceil(wordCount / 200)); // 200 words per minute
+  return `${readingTime} min read`;
 };
 
-export const extractTitleFromContent = (content: string, campaignTitle?: string): string => {
-  const lines = content.split('\n').filter(line => line.trim().length > 0);
-  if (lines.length > 0) {
-    const firstLine = lines[0].trim();
-    if (firstLine.length < 100 && !firstLine.endsWith('.') && !firstLine.includes('\n')) {
-      return firstLine;
-    }
+export const extractTitleFromContent = (content: string, fallback?: string): string => {
+  if (!content) return fallback || 'Newsletter';
+  
+  // Try to find a markdown header
+  const headerMatch = content.match(/^#+\s*(.+)$/m);
+  if (headerMatch) {
+    return headerMatch[1].replace(/\*\*(.*?)\*\*/, '$1').trim();
   }
-  return campaignTitle || 'Newsletter Update';
+  
+  // Try to find bold text that looks like a title
+  const boldMatch = content.match(/\*\*([^*]+)\*\*/);
+  if (boldMatch && boldMatch[1].length < 100) {
+    return boldMatch[1].trim();
+  }
+  
+  // Use first line if it's short enough
+  const firstLine = content.split('\n')[0]?.trim();
+  if (firstLine && firstLine.length < 100 && !firstLine.includes(':')) {
+    return firstLine.replace(/\*\*(.*?)\*\*/, '$1').trim();
+  }
+  
+  return fallback || 'Newsletter';
 };
 
 export const generateIntroFromContent = (content: string, campaignTitle?: string): string => {
-  const lines = content.split('\n').filter(line => line.trim().length > 20);
-  const firstMeaningfulLine = lines.find(line => 
-    !line.includes('#') && 
-    !line.includes('WEEK') && 
-    line.length > 30 &&
-    line.length < 200
-  );
-  return firstMeaningfulLine || `Discover expert gardening insights for ${campaignTitle || 'seasonal care'}`;
+  if (!content) return '';
+  
+  // Look for content after the first title/header
+  const lines = content.split('\n').filter(line => line.trim());
+  
+  // Skip the first line if it looks like a title
+  const startIndex = lines[0]?.match(/^#+|^\*\*.*\*\*$/) ? 1 : 0;
+  
+  // Find the first substantial paragraph
+  for (let i = startIndex; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.length > 50 && !line.includes(':') && !line.startsWith('-')) {
+      return line.replace(/\*\*(.*?)\*\*/g, '$1').substring(0, 200) + (line.length > 200 ? '...' : '');
+    }
+  }
+  
+  return campaignTitle ? `Discover this week's ${campaignTitle.toLowerCase()} insights and tips.` : '';
 };
 
 export const checkIsPlaceholderContent = (content: string): boolean => {
-  return !content || 
-    content.trim().length === 0 ||
-    content.trim() === 'Newsletter Update' ||
-    content.trim() === 'Newsletter Update.' ||
-    content === 'Newsletter Update. Welcome to our latest newsletter update.' ||
-    // Only flag as placeholder if content is extremely minimal (less than 50 characters and generic)
-    (content.trim().length < 50 && 
-     (content.includes('Welcome to our latest newsletter update') || 
-      content === 'Newsletter Update. Welcome to our latest newsletter update'));
+  if (!content || content.trim().length === 0) {
+    return true;
+  }
+  
+  // Check for common placeholder patterns
+  const placeholderPatterns = [
+    /Seasonal Gardening Focus - Week/i,
+    /This week's theme:/i,
+    /content will be generated/i,
+    /placeholder/i
+  ];
+  
+  const hasPlaceholderPattern = placeholderPatterns.some(pattern => pattern.test(content));
+  const isTooShort = content.replace(/\s/g, '').length < 50;
+  
+  console.log('Placeholder check:', {
+    hasPlaceholderPattern,
+    isTooShort,
+    contentLength: content.length,
+    isPlaceholder: hasPlaceholderPattern || isTooShort
+  });
+  
+  return hasPlaceholderPattern || isTooShort;
 };
