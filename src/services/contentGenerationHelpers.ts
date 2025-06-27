@@ -2,37 +2,34 @@
 import { fetchSmartImage } from './unsplashService';
 import { extractKeywordsFromContent } from '@/utils/markdownUtils';
 
-export async function attachImagesToTask(task: any, holidayName?: string): Promise<any> {
+export async function attachImagesToTask(taskId: string | null, holidayName?: string): Promise<any> {
   try {
-    console.log(`[IMAGE_ATTACH] Processing task: ${task.post_type} - ${holidayName || task.campaigns?.title || 'Unknown'}`);
+    console.log(`[IMAGE_ATTACH] Processing task for: ${holidayName || 'Unknown'}`);
     
-    // Extract primary keyword from holiday name, campaign title, or fallback
-    const title = holidayName || task.campaigns?.title || 'Garden Care';
+    // Extract primary keyword from holiday name or fallback
+    const title = holidayName || 'Garden Care';
     const primary = title.split(':')[0] || title.split(' - ')[0] || title;
     
     // Determine secondary context based on content analysis
     let secondary = '';
-    const content = task.ai_output || '';
     const titleLower = title.toLowerCase();
     
-    if (titleLower.includes('water') || content.toLowerCase().includes('water')) {
+    if (titleLower.includes('water')) {
       secondary = 'water garden aquatic';
-    } else if (/veggies?|vegetable|tomato|pepper|cucumber/i.test(titleLower + content)) {
+    } else if (/veggies?|vegetable|tomato|pepper|cucumber/i.test(titleLower)) {
       secondary = 'vegetable produce edible';
-    } else if (/rose|flower|bloom|petal/i.test(titleLower + content)) {
+    } else if (/rose|flower|bloom|petal/i.test(titleLower)) {
       secondary = 'flower bloom colorful';
-    } else if (/tree|oak|maple|pine|shade/i.test(titleLower + content)) {
+    } else if (/tree|oak|maple|pine|shade/i.test(titleLower)) {
       secondary = 'tree landscaping shade';
-    } else if (/herb|basil|mint|oregano|culinary/i.test(titleLower + content)) {
+    } else if (/herb|basil|mint|oregano|culinary/i.test(titleLower)) {
       secondary = 'herb culinary cooking';
-    } else if (/lawn|grass|turf|mow/i.test(titleLower + content)) {
+    } else if (/lawn|grass|turf|mow/i.test(titleLower)) {
       secondary = 'lawn grass green';
-    } else if (/succulent|cactus|drought/i.test(titleLower + content)) {
+    } else if (/succulent|cactus|drought/i.test(titleLower)) {
       secondary = 'succulent desert drought';
     } else {
-      // Extract keywords from content for context
-      const keywords = extractKeywordsFromContent(content);
-      secondary = keywords.slice(0, 2).join(' ');
+      secondary = 'garden center nursery plants';
     }
     
     console.log(`[IMAGE_ATTACH] Query: "${primary}" + "${secondary}"`);
@@ -40,16 +37,15 @@ export async function attachImagesToTask(task: any, holidayName?: string): Promi
     const image = await fetchSmartImage(primary, secondary);
     
     if (image) {
-      task.image = image;
-      console.log(`[IMAGE_ATTACH] Successfully attached image for: ${primary}`);
+      console.log(`[IMAGE_ATTACH] Successfully found image for: ${primary}`);
+      return { image };
     } else {
       console.warn(`[IMAGE_ATTACH] No image found for: ${primary}`);
+      return null;
     }
-    
-    return task;
   } catch (error) {
-    console.error('[IMAGE_ATTACH] Error attaching images:', error);
-    return task; // Return task without image rather than failing
+    console.error('[IMAGE_ATTACH] Error fetching images:', error);
+    return null;
   }
 }
 

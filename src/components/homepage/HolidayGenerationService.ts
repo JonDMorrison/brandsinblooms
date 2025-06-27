@@ -112,24 +112,25 @@ export async function generateHolidayContent(
 
       console.log(`✅ ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}, attempts: ${attempts}`);
 
-      // Create task data structure with proper validation
+      // Get image for this task using the helper function
+      console.log(`🖼️ ${type.toUpperCase()} DEBUG: Fetching smart image`);
+      const imageData = await attachImagesToTask(null, holiday.holiday_name);
+
+      // Create task data structure WITHOUT the non-existent 'image' column
       const taskData: any = {
         holiday_id: holiday.id,
         post_type: type,
         ai_output: output,
         status: 'review',
         scheduled_date: holiday.holiday_date,
-        notes: `Generated for ${holiday.holiday_name} (${attempts} attempts)`
+        notes: `Generated for ${holiday.holiday_name} (${attempts} attempts)`,
+        attachments: imageData?.image ? JSON.stringify({ image: imageData.image }) : null
       };
-
-      // Attach smart images to the task - FIXED: Pass holiday name
-      console.log(`🖼️ ${type.toUpperCase()} DEBUG: Attaching smart images`);
-      const taskWithImage = await attachImagesToTask(taskData, holiday.holiday_name);
 
       // CRITICAL: Always set tenant_id for holiday tasks to ensure they appear in Ready to Post
       if (tenant?.id) {
-        taskWithImage.tenant_id = tenant.id;
-        taskWithImage.created_by_user_id = user.id;
+        taskData.tenant_id = tenant.id;
+        taskData.created_by_user_id = user.id;
         console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with tenant_id: ${tenant.id}`);
       } else {
         // Fallback: try to get tenant from user if not provided
@@ -140,35 +141,36 @@ export async function generateHolidayContent(
           .single();
         
         if (userTenant) {
-          taskWithImage.tenant_id = userTenant.id;
-          taskWithImage.created_by_user_id = user.id;
+          taskData.tenant_id = userTenant.id;
+          taskData.created_by_user_id = user.id;
           console.log(`📊 ${type.toUpperCase()} DEBUG: Using fallback tenant_id: ${userTenant.id}`);
         } else {
-          taskWithImage.user_id = user.id;
+          taskData.user_id = user.id;
           console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with user_id: ${user.id}`);
         }
       }
 
       // Validate required fields before database insertion
-      if (!taskWithImage.holiday_id || !taskWithImage.post_type || !taskWithImage.ai_output) {
+      if (!taskData.holiday_id || !taskData.post_type || !taskData.ai_output || !taskData.tenant_id) {
         console.error(`❌ ${type.toUpperCase()} DEBUG: Missing required fields:`, {
-          holiday_id: !!taskWithImage.holiday_id,
-          post_type: !!taskWithImage.post_type,
-          ai_output: !!taskWithImage.ai_output
+          holiday_id: !!taskData.holiday_id,
+          post_type: !!taskData.post_type,
+          ai_output: !!taskData.ai_output,
+          tenant_id: !!taskData.tenant_id
         });
         results.push({ type, success: false, error: 'Missing required task fields' });
         continue;
       }
 
       console.log(`📊 ${type.toUpperCase()} DEBUG: Task data before insert:`, {
-        ...taskWithImage,
-        ai_output_length: taskWithImage.ai_output?.length,
-        has_image: !!(taskWithImage as any).image
+        ...taskData,
+        ai_output_length: taskData.ai_output?.length,
+        has_attachments: !!taskData.attachments
       });
 
       const { data: task, error } = await supabase
         .from('content_tasks')
-        .insert(taskWithImage)
+        .insert(taskData)
         .select()
         .single();
 
@@ -180,7 +182,7 @@ export async function generateHolidayContent(
           hint: error.hint,
           code: error.code
         });
-        console.error(`❌ ${type.toUpperCase()} DEBUG: Failed task data:`, taskWithImage);
+        console.error(`❌ ${type.toUpperCase()} DEBUG: Failed task data:`, taskData);
         results.push({ type, success: false, error: `Database error: ${error.message}` });
       } else {
         console.log(`✅ ${type.toUpperCase()} DEBUG: Created task successfully:`, task.id);
@@ -190,7 +192,7 @@ export async function generateHolidayContent(
           status: task.status,
           tenant_id: task.tenant_id,
           ai_output_length: task.ai_output?.length,
-          has_image: !!(task as any).image,
+          has_attachments: !!task.attachments,
           ai_output_preview: task.ai_output?.substring(0, 100)
         });
         results.push({ type, success: true, taskId: task.id });
