@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { HolidayItem } from "./HolidayItem";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FivePostModal } from "@/components/shared/FivePostModal";
-import { sortHolidaysByProximity } from "@/utils/holidayDateUtils";
-import { ChevronDown } from "lucide-react";
 
 interface Holiday {
   id: string;
@@ -30,7 +27,6 @@ export const SeasonalHolidaysCard = ({ onContentGenerated }: SeasonalHolidaysCar
   const [holidayTasksMap, setHolidayTasksMap] = useState<Record<string, any[]>>({});
   const [isGeneratingMap, setIsGeneratingMap] = useState<Record<string, boolean>>({});
   const [modalOpenHolidayId, setModalOpenHolidayId] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(6);
 
   useEffect(() => {
     fetchHolidays();
@@ -56,9 +52,7 @@ export const SeasonalHolidaysCard = ({ onContentGenerated }: SeasonalHolidaysCar
         console.error("Error fetching holidays:", error);
         toast.error("Failed to load holidays");
       } else {
-        // Sort holidays by date proximity (nearest first)
-        const sortedHolidays = sortHolidaysByProximity(data || []);
-        setHolidays(sortedHolidays);
+        setHolidays(data || []);
       }
     } catch (error) {
       console.error("Exception fetching holidays:", error);
@@ -152,49 +146,24 @@ export const SeasonalHolidaysCard = ({ onContentGenerated }: SeasonalHolidaysCar
     }
   };
 
-  const handleLoadMore = () => {
-    setVisibleCount(prev => Math.min(prev + 6, holidays.length));
-  };
-
-  const visibleHolidays = holidays.slice(0, visibleCount);
-  const remainingCount = holidays.length - visibleCount;
-  const showLoadMore = remainingCount > 0;
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Seasonal Holiday Opportunities</CardTitle>
       </CardHeader>
-      <CardContent>
-        {/* Holiday Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          {visibleHolidays.map((holiday, index) => (
-            <HolidayItem
-              key={holiday.id}
-              holiday={holiday}
-              onGenerateContent={handleGenerateContent}
-              onViewContent={handleViewContent}
-              isGenerating={!!isGeneratingMap[holiday.id]}
-              contentState={contentStates[holiday.id]}
-              isFirst={index === 0}
-              holidayTasks={holidayTasksMap[holiday.id] || []}
-            />
-          ))}
-        </div>
-
-        {/* Load More Button */}
-        {showLoadMore && (
-          <div className="flex justify-center">
-            <Button
-              variant="outline"
-              onClick={handleLoadMore}
-              className="flex items-center gap-2"
-            >
-              <ChevronDown className="w-4 h-4" />
-              Load More ({remainingCount} more)
-            </Button>
-          </div>
-        )}
+      <CardContent className="space-y-6">
+        {holidays.map((holiday, index) => (
+          <HolidayItem
+            key={holiday.id}
+            holiday={holiday}
+            onGenerateContent={handleGenerateContent}
+            onViewContent={handleViewContent}
+            isGenerating={!!isGeneratingMap[holiday.id]}
+            contentState={contentStates[holiday.id]}
+            isFirst={index === 0}
+            holidayTasks={holidayTasksMap[holiday.id] || []}
+          />
+        ))}
       </CardContent>
 
       {modalOpenHolidayId && holidayTasksMap[modalOpenHolidayId] && (
