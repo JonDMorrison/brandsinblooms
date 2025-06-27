@@ -23,6 +23,7 @@ import ReviewQueuePage from './pages/ContentTasksPage';
 import DevSocialPageWrapper from './pages/DevSocialPage';
 import PublishPage from "./pages/PublishPage";
 import NewDashboard from "./pages/NewDashboard";
+import DashboardSocial from "./pages/DashboardSocial";
 
 const App = () => {
   return (
@@ -34,6 +35,7 @@ const App = () => {
               <Route path="/" element={<SmartRootRoute />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/new-dashboard" element={<NewDashboard />} />
+              <Route path="/dashboard/social" element={<DashboardSocial />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/account" element={<AccountSettings />} />
