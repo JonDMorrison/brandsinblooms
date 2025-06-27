@@ -226,13 +226,11 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
               </Badge>
             </div>
 
-            {/* Featured Image */}
-            <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
-              <div className="text-center text-purple-600">
-                <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-                <p className="text-sm">Magazine-style newsletter</p>
-              </div>
-            </div>
+            {/* Featured Image - Now using dynamic renderImage */}
+            {renderImage(
+              "aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200",
+              "Newsletter featured image"
+            )}
 
             {/* Content Preview */}
             <div className="space-y-4">
@@ -289,13 +287,11 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </Badge>
         </div>
 
-        {/* Featured Image */}
-        <div className="aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 flex items-center justify-center border border-purple-200">
-          <div className="text-center text-purple-600">
-            <ImageIcon className="w-8 h-8 mx-auto mb-2" />
-            <p className="text-sm">Newsletter content</p>
-          </div>
-        </div>
+        {/* Featured Image - Now using dynamic renderImage */}
+        {renderImage(
+          "aspect-video bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200",
+          "Newsletter featured image"
+        )}
 
         {/* Content */}
         <div className="space-y-4">
