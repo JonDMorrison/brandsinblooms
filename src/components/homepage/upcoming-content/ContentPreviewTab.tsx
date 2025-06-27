@@ -76,8 +76,8 @@ export const ContentPreviewTab = ({
       name: 'Video Script',
       icon: Video,
       description: 'Script for video content',
-      color: 'text-red-700',
-      bgColor: 'bg-gradient-to-br from-red-50 to-orange-50 border-red-200'
+      color: 'text-[#3E5A6B]',
+      bgColor: 'bg-gradient-to-br from-red-50 to-pink-50 border-red-200'
     }
   ];
 
