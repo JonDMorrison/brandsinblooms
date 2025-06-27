@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -125,7 +126,7 @@ export const WeeklyThemeSection = ({
                         </p>
                       </div>
                     ) : campaignTasks.length === 0 ? (
-                      <div className="text-center py-4">
+                      <div className="py-4">
                         <Button 
                           onClick={handleGenerateContent}
                           disabled={isGenerating}
@@ -161,8 +162,8 @@ export const WeeklyThemeSection = ({
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8 bg-white/50 rounded-lg border border-green-200">
-                  <Calendar className="w-12 h-12 mx-auto mb-3 text-green-400" />
+                <div className="py-8 bg-white/50 rounded-lg border border-green-200">
+                  <Calendar className="w-12 h-12 mb-3 text-green-400" />
                   <p className="text-green-700 font-medium mb-2">No Weekly Theme Set</p>
                   <p className="text-green-600 text-sm mb-4">
                     Create a campaign to set this week's content theme
