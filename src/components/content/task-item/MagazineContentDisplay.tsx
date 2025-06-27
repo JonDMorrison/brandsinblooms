@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Hash, Image as ImageIcon, Mail } from 'lucide-react';
@@ -442,6 +443,8 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   }
 
   if (postType === 'instagram') {
+    const { text, hashtags } = formatContent(content);
+    
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
         {/* Header */}
@@ -482,6 +485,8 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   }
 
   if (postType === 'facebook') {
+    const { text, hashtags } = formatContent(content);
+    
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
         {/* Header */}
@@ -572,6 +577,8 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   }
 
   if (postType === 'video') {
+    const { text, hashtags } = formatContent(content);
+    
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
         {/* Header */}
@@ -606,6 +613,8 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   }
 
   // Default fallback for other content types
+  const { text, hashtags } = formatContent(content);
+  
   return (
     <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
       <div className="flex items-center gap-3 mb-4">
