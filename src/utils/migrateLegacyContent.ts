@@ -31,7 +31,7 @@ export async function migrateLegacyReadyToPosts() {
       try {
         // Check if already migrated
         const { data: existing } = await supabase
-          .from('generated_content')
+          .from('generated_content' as any)
           .select('id')
           .eq('caption', task.ai_output)
           .eq('user_id', task.user_id)
@@ -44,7 +44,7 @@ export async function migrateLegacyReadyToPosts() {
 
         // Create generated content from legacy task
         const { error: insertError } = await supabase
-          .from('generated_content')
+          .from('generated_content' as any)
           .insert({
             user_id: task.user_id,
             caption: task.ai_output,

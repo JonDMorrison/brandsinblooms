@@ -52,7 +52,7 @@ export class PublishAPI {
 
   static async getGeneratedContent() {
     const { data, error } = await supabase
-      .from('generated_content')
+      .from('generated_content' as any)
       .select('*')
       .neq('status', 'ARCHIVED')
       .order('created_at', { ascending: false });
@@ -63,7 +63,7 @@ export class PublishAPI {
 
   static async getScheduledPosts() {
     const { data, error } = await supabase
-      .from('scheduled_posts')
+      .from('scheduled_posts' as any)
       .select(`
         *,
         generated_content (
@@ -86,7 +86,7 @@ export class PublishAPI {
 
   static async createGeneratedContent(caption: string, mediaUrl?: string) {
     const { data, error } = await supabase
-      .from('generated_content')
+      .from('generated_content' as any)
       .insert({
         caption,
         media_url: mediaUrl,
@@ -101,7 +101,7 @@ export class PublishAPI {
 
   static async updateGeneratedContent(id: string, updates: Partial<{ caption: string; media_url: string; status: string }>) {
     const { data, error } = await supabase
-      .from('generated_content')
+      .from('generated_content' as any)
       .update(updates)
       .eq('id', id)
       .select()

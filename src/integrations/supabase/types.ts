@@ -471,6 +471,36 @@ export type Database = {
         }
         Relationships: []
       }
+      generated_content: {
+        Row: {
+          caption: string
+          created_at: string | null
+          id: string
+          media_url: string | null
+          status: Database["public"]["Enums"]["content_status"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          caption: string
+          created_at?: string | null
+          id?: string
+          media_url?: string | null
+          status?: Database["public"]["Enums"]["content_status"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          caption?: string
+          created_at?: string | null
+          id?: string
+          media_url?: string | null
+          status?: Database["public"]["Enums"]["content_status"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       holiday_generation_logs: {
         Row: {
           created_at: string
@@ -752,6 +782,44 @@ export type Database = {
         }
         Relationships: []
       }
+      post_metrics: {
+        Row: {
+          collected_at: string | null
+          comments: number | null
+          id: string
+          impressions: number | null
+          likes: number | null
+          reach: number | null
+          scheduled_id: string
+        }
+        Insert: {
+          collected_at?: string | null
+          comments?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          reach?: number | null
+          scheduled_id: string
+        }
+        Update: {
+          collected_at?: string | null
+          comments?: number | null
+          id?: string
+          impressions?: number | null
+          likes?: number | null
+          reach?: number | null
+          scheduled_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_metrics_scheduled_id_fkey"
+            columns: ["scheduled_id"]
+            isOneToOne: false
+            referencedRelation: "scheduled_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_performance: {
         Row: {
           collected_at: string | null
@@ -804,6 +872,59 @@ export type Database = {
             columns: ["content_task_id"]
             isOneToOne: false
             referencedRelation: "content_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduled_posts: {
+        Row: {
+          content_id: string
+          created_at: string | null
+          error_message: string | null
+          id: string
+          insights_fetched: boolean | null
+          platform: Database["public"]["Enums"]["platform_type"]
+          publish_at: string
+          published_id: string | null
+          retry_count: number | null
+          status: Database["public"]["Enums"]["post_status"] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content_id: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          insights_fetched?: boolean | null
+          platform: Database["public"]["Enums"]["platform_type"]
+          publish_at: string
+          published_id?: string | null
+          retry_count?: number | null
+          status?: Database["public"]["Enums"]["post_status"] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content_id?: string
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          insights_fetched?: boolean | null
+          platform?: Database["public"]["Enums"]["platform_type"]
+          publish_at?: string
+          published_id?: string | null
+          retry_count?: number | null
+          status?: Database["public"]["Enums"]["post_status"] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_posts_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "generated_content"
             referencedColumns: ["id"]
           },
         ]
@@ -1269,6 +1390,9 @@ export type Database = {
     }
     Enums: {
       billing_interval: "monthly" | "annual"
+      content_status: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED"
+      platform_type: "FB" | "IG_FEED" | "IG_REEL"
+      post_status: "QUEUED" | "PUBLISHED" | "ERROR"
       subscription_plan: "free_trial" | "sprout" | "bloom" | "expired"
     }
     CompositeTypes: {
@@ -1386,6 +1510,9 @@ export const Constants = {
   public: {
     Enums: {
       billing_interval: ["monthly", "annual"],
+      content_status: ["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"],
+      platform_type: ["FB", "IG_FEED", "IG_REEL"],
+      post_status: ["QUEUED", "PUBLISHED", "ERROR"],
       subscription_plan: ["free_trial", "sprout", "bloom", "expired"],
     },
   },
