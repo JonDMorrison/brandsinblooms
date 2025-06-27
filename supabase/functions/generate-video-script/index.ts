@@ -42,11 +42,11 @@ serve(async (req) => {
       }
     }
 
-    // Build enhanced company context for 90-second holiday teaching videos
+    // Build enhanced company context for natural teaching conversation
     let companyContext = '';
     if (companyProfile) {
       companyContext = `
-COMPANY PROFILE FOR SINGLE-PERSON TEACHING VIDEO:
+COMPANY PROFILE FOR NATURAL TEACHING CONVERSATION:
 Company Name: ${companyProfile.company_name || 'Garden Center'}
 Overview: ${companyProfile.company_overview || ''}
 Brand Voice: ${companyProfile.brand_voice || ''}
@@ -54,103 +54,71 @@ Target Audience: ${companyProfile.target_audience || ''}
 Location Info: ${companyProfile.location_info || ''}
 Specializations: ${companyProfile.specializations || ''}
 
-STRICT SINGLE-PERSON TEACHING VIDEO REQUIREMENTS:
-- Duration: EXACTLY 90 seconds MAXIMUM
-- Format: ONE PERSON standing/sitting in front of ONE STATIC CAMERA
-- Structure: Opening Hook (10-15s) → Problem Explanation (15-20s) → Teaching Solution (45-50s) → Summary/Action (10-15s)
-- Include [GESTURE] and [PROP] suggestions for demonstrations
-- Focus on ONE specific holiday gardening topic with step-by-step instruction
+NATURAL TEACHING CONVERSATION REQUIREMENTS:
+- Duration: 90 seconds of natural speaking (about 200-250 words)
+- Style: Conversational teaching like explaining to a friend or customer
+- Focus: ONE specific holiday gardening topic with practical advice
+- Flow: Natural introduction → explain the topic → share practical tips → wrap up with encouragement
+- Voice: Knowledgeable garden center owner sharing expertise
+- NO production cues, timing markers, or artificial structure
+- Sound completely natural and conversational
 - Include "why" explanations, not just "how"
-- Add common mistake warnings and tips
+- Add helpful warnings about common mistakes
 - Make it region-specific using their location information
-- Use natural speaking rhythm with pause indicators
-- Sound like a knowledgeable garden center owner teaching their community about holiday gardening
+- Use natural speaking rhythm without any cue markers
 
 ABSOLUTE PROHIBITIONS:
-- NEVER write "SCENE 1", "SCENE 2", or any scene divisions
-- NEVER suggest camera movements, pans, or position changes
-- NEVER include text overlays, graphics, or end screens
-- NEVER require multiple locations or setups
-- NEVER use "Green Thumbs", "green thumb", or variations
-- NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) for lists
-- NEVER start with "Welcome to" or mention week numbers
+- NEVER use timing markers like [0:00-0:15] or any time references
+- NEVER use gesture cues like [GESTURE], [PROP], [PAUSE], or [EMPHASIZE]
+- NEVER mention cameras, filming, or production elements
+- NEVER use structured segments or artificial divisions
+- NEVER use "Welcome to" or formal introductions
 - NEVER use emojis anywhere in the content
-- Write ONLY in flowing paragraphs with natural speaking rhythm
-- Include timing markers like [0:00-0:15] for each segment
+- NEVER use bullet points, numbered lists, or dashes
+- Write in flowing, natural paragraphs like normal conversation
 - MUST be directly related to the holiday/seasonal topic provided
 `;
     } else {
       companyContext = `
-STRICT SINGLE-PERSON TEACHING VIDEO REQUIREMENTS:
-- Duration: EXACTLY 90 seconds MAXIMUM
-- Format: ONE PERSON standing/sitting in front of ONE STATIC CAMERA
-- Structure: Opening Hook (10-15s) → Problem Explanation (15-20s) → Teaching Solution (45-50s) → Summary/Action (10-15s)
-- Include [GESTURE] and [PROP] suggestions for demonstrations
-- Focus on ONE specific holiday gardening topic with step-by-step instruction
-- Include "why" explanations and common mistake warnings
-- Use natural speaking rhythm with pause indicators
-- Sound like a knowledgeable garden center owner teaching about holiday gardening
+NATURAL TEACHING CONVERSATION REQUIREMENTS:
+- Duration: 90 seconds of natural speaking (about 200-250 words)
+- Style: Conversational teaching like explaining to a friend or customer
+- Focus: ONE specific holiday gardening topic with practical advice
+- Flow: Natural introduction → explain the topic → share practical tips → wrap up
+- Voice: Knowledgeable garden center owner sharing expertise
+- NO production cues, timing markers, or artificial structure
+- Sound completely natural and conversational
+- Include "why" explanations and helpful warnings
 - MUST be directly related to the holiday/seasonal topic provided
 
 ABSOLUTE PROHIBITIONS:
-- NEVER write "SCENE 1", "SCENE 2", or any scene divisions
-- NEVER suggest camera movements, pans, or position changes
-- NEVER include text overlays, graphics, or end screens
-- NEVER require multiple locations or setups
-- NEVER use "Green Thumbs", "green thumb", or variations
+- NEVER use timing markers or production cues
+- NEVER mention cameras, filming, or production
+- NEVER use structured segments or artificial divisions
 - NEVER use bullet points, numbered lists, or dashes
-- NEVER start with "Welcome to" or mention week numbers
 - NEVER use emojis
-- Write in flowing paragraphs with natural speaking rhythm
-- Include timing markers like [0:00-0:15] for each segment
+- Write in flowing, natural conversation style
 `;
     }
 
-    const prompt = `Create a 90-second maximum single-person teaching video script about "${campaignTitle}" for a garden center owner/expert. This MUST be specifically about ${campaignTitle} and holiday/seasonal gardening topics. ${companyContext}
+    const prompt = `Create a natural, conversational teaching script about "${campaignTitle}" for a knowledgeable garden center owner. This should sound like someone explaining gardening advice to a customer or friend, covering this specific holiday/seasonal topic in about 90 seconds of natural speaking. ${companyContext}
 
-SINGLE-PERSON TEACHING SCRIPT FORMAT (EXACTLY 90 SECONDS MAXIMUM):
+NATURAL CONVERSATION SCRIPT (90 seconds of speaking):
 
-[0:00-0:15] OPENING HOOK (10-15 seconds):
-- Start with a compelling seasonal problem related to ${campaignTitle}
-- Create curiosity or urgency about this holiday gardening topic
-- [GESTURE] Simple hand movements to emphasize points
-- Speaker looks directly at camera, no movement required
+Write this as a flowing, natural conversation where someone knowledgeable is explaining ${campaignTitle} and related holiday gardening advice. The person should sound helpful, knowledgeable, and conversational - like they're talking to someone who just walked into their garden center asking for advice about this topic.
 
-[0:15-0:35] PROBLEM EXPLANATION (15-20 seconds): 
-- Explain the specific ${campaignTitle} gardening challenge in detail
-- Share why this matters for holiday garden success
-- Mention common mistakes people make during this season
-- [PROP] Hold up or point to relevant item if needed
+Structure it naturally:
+- Start by connecting with the seasonal opportunity of ${campaignTitle}
+- Explain why this timing matters for gardeners
+- Share practical, actionable advice they can use right now
+- Include helpful warnings about common mistakes people make
+- End with encouragement and confidence in their success
 
-[0:35-1:25] TEACHING SOLUTION (45-50 seconds):
-- Provide clear step-by-step instruction for the holiday gardening solution
-- Explain the "why" behind each step related to ${campaignTitle}
-- Include season-specific timing and techniques
-- [PROP] Demonstrate with simple props within arm's reach
-- [GESTURE] Use hands to show sizes, directions, techniques
-- Add natural [PAUSE] points for emphasis
-- Mark key teaching points with [EMPHASIZE]
+Make this sound completely natural - no artificial structure, no production language, no cues. Just pure conversational teaching about ${campaignTitle} and how it relates to gardening success. The entire script should focus on this specific holiday theme and provide genuine value to gardeners.
 
-[1:25-1:30] SUMMARY AND ACTION (10-15 seconds):
-- Summarize the key ${campaignTitle} teaching point
-- Provide clear next steps for viewers regarding this holiday
-- Connect naturally to their garden center business
-- End with direct eye contact to camera
+Sound like a trusted local expert sharing valuable knowledge about this specific holiday gardening opportunity. Keep it conversational, helpful, and focused on practical advice people can immediately use for ${campaignTitle}.`;
 
-FILMING REQUIREMENTS:
-- Everything must be achievable by ONE PERSON in front of ONE CAMERA
-- No camera movement or position changes
-- All props must be within easy reach of the speaker
-- Use conversational tone like explaining to a neighbor
-- Include [PAUSE] markers for natural speaking rhythm
-- Include [EMPHASIZE] markers for key points
-- Realistic timing for actual speaking pace
-
-CRITICAL: This video MUST be specifically about ${campaignTitle} and related holiday gardening topics. Do not create generic gardening content. Focus on what makes this holiday special for gardeners. The entire script should revolve around the holiday theme provided and be achievable with one person, one camera, and simple props.
-
-Make this educational, practical, and holiday-specific. Focus on ONE clear teaching point that viewers can immediately apply for ${campaignTitle}. Sound like a trusted local expert sharing valuable knowledge about this specific holiday gardening opportunity.`;
-
-    console.log('Generating single-person holiday teaching video script');
+    console.log('Generating natural teaching conversation script');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -161,30 +129,29 @@ Make this educational, practical, and holiday-specific. Focus on ONE clear teach
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: `You are a professional video script writer specializing in 90-second maximum single-person educational content for garden centers. Create teaching scripts that are perfectly timed for one person standing or sitting in front of one static camera. 
+          { role: 'system', content: `You are a professional content writer specializing in natural, conversational teaching content for garden centers. Create authentic teaching conversations that sound like a knowledgeable garden center owner explaining gardening advice to customers.
 
 ABSOLUTE RULES YOU MUST NEVER BREAK:
-- NEVER write "SCENE 1", "SCENE 2", or any scene divisions
-- NEVER suggest camera movements, pans, zooms, or position changes  
-- NEVER include text overlays, graphics, end screens, or visual effects
-- NEVER require multiple locations, setups, or complex production
-- NEVER use "Green Thumbs", "green thumb", or any variation
-- NEVER use bullet points (•), numbered lists (1., 2., 3.), or dashes (-) for lists
-- NEVER start with "Welcome to" or mention week numbers
+- NEVER use timing markers like [0:00-0:15] or any time references
+- NEVER use production cues like [GESTURE], [PROP], [PAUSE], [EMPHASIZE], or any bracketed instructions
+- NEVER mention cameras, filming, production, or any technical elements
+- NEVER use structured segments, scene divisions, or artificial formatting
+- NEVER use bullet points, numbered lists, or dashes for organization
+- NEVER use "Welcome to" or formal broadcast-style introductions
 - NEVER use emojis anywhere
 
 WHAT YOU MUST DO:
-- Write for ONE PERSON teaching in front of ONE STATIC CAMERA
-- Include detailed timing breakdowns [0:00-0:15] format
-- Add simple [GESTURE] and [PROP] suggestions only
-- Write in flowing paragraphs with natural speaking rhythm
+- Write in completely natural, flowing conversation style
+- Sound like a knowledgeable person explaining gardening to a friend
 - Focus on the specific holiday topic provided
-- Sound like a knowledgeable garden center owner teaching their community
-- Keep everything achievable with minimal equipment and setup` },
+- Include practical advice and helpful warnings
+- Write about 200-250 words for 90 seconds of natural speaking
+- Make it sound authentic and conversational throughout
+- Keep everything focused on the holiday gardening topic provided` },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 1200,
+        max_tokens: 800,
       }),
     });
 
@@ -195,7 +162,7 @@ WHAT YOU MUST DO:
     const data = await response.json();
     const videoScript = data.choices[0].message.content;
 
-    console.log('Generated single-person holiday teaching video script:', videoScript);
+    console.log('Generated natural teaching conversation script:', videoScript);
 
     return new Response(JSON.stringify({ script: videoScript }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

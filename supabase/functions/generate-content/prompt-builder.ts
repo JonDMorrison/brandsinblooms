@@ -21,7 +21,7 @@ export function buildContentPrompt(
     facebook: { format: 'Facebook post', wordCount: '100-200', cta: 'stop by for expert advice' },
     blog: { format: 'blog article', wordCount: '400-600', cta: 'schedule a consultation' },
     newsletter: { format: 'email newsletter', wordCount: '300-400', cta: 'visit this weekend' },
-    video: { format: 'video script', wordCount: '90-120 seconds', cta: 'come in for supplies' }
+    video: { format: 'natural teaching conversation', wordCount: '200-250 words (90 seconds)', cta: 'come in for supplies' }
   };
 
   const contentParams = contentFormatMap[postType.toLowerCase()] || contentFormatMap.instagram;
@@ -179,26 +179,22 @@ EXCELLENCE MARKERS:
 
     case 'video':
       return `
-Video Script Excellence → 90-120 seconds, visual plant demonstration
+Video Script Excellence → 200-250 words, natural teaching conversation
 
-QUALITY STRUCTURE:
-• Character: Viewer gardener's visual plant challenge
-• Problem: Show plant issue + emotional gardening frustration
-• Guide: On-camera ${companyName} team expertise and empathy
-• Plan: Demonstrate 2-3 hands-on plant care techniques
-• Success: Visual before/after plant transformation
-• CTA: Visit for supplies and hands-on consultation
+NATURAL CONVERSATION STRUCTURE:
+• Opening: Connect with seasonal opportunity naturally
+• Problem: Explain gardening challenge and why timing matters
+• Teaching: Share practical advice and common mistake warnings
+• Conclusion: Encourage confidence and suggest visit to ${companyName}
 
-SCRIPT FORMAT:
-[VISUAL: specific plant demonstration] 
-NARRATION: "Natural conversational explanation"
-
-EXCELLENCE MARKERS:
-- Shows actual plants and techniques, not just talking
-- Demonstrates regional plant varieties and care methods
-- Uses visual storytelling to show plant transformations
-- Sounds like personal consultation from plant expert
-- Creates desire to visit for hands-on plant selection`;
+CONVERSATION EXCELLENCE MARKERS:
+- Sounds like explaining gardening to a friend or customer
+- Uses natural, flowing speech patterns
+- Includes specific regional plant varieties and timing
+- Addresses real gardening challenges for the season
+- NO production cues, timing markers, or artificial structure
+- Pure conversational teaching about gardening expertise
+- Focuses entirely on helping gardeners succeed this season`;
 
     default:
       return `
