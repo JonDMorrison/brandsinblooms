@@ -37,11 +37,25 @@ export const ImageCarousel = ({
   const { user } = useAuth();
   const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const [favoriteImages, setFavoriteImages] = useState<Set<string>>(new Set());
+  const [imageOrder, setImageOrder] = useState<ImageSuggestion[]>(images);
+
+  // Update image order when images prop changes
+  React.useEffect(() => {
+    setImageOrder(images);
+  }, [images]);
 
   // Limit to exactly 4 images
-  const displayImages = images.slice(0, 4);
+  const displayImages = imageOrder.slice(0, 4);
   const featuredImage = displayImages[0];
   const alternativeImages = displayImages.slice(1, 4);
+
+  const handleImageClick = (clickedImage: ImageSuggestion, isFeatured: boolean) => {
+    if (isFeatured) return; // Don't do anything if clicking the featured image
+    
+    // Move clicked image to the front (make it featured)
+    const newOrder = [clickedImage, ...imageOrder.filter(img => img.id !== clickedImage.id)];
+    setImageOrder(newOrder);
+  };
 
   const handleDownload = (imageUrl: string, photographer: string) => {
     if (usingPlaceholders) {
@@ -119,9 +133,10 @@ export const ImageCarousel = ({
 
   const ImageCard = ({ image, isFeatured = false }: { image: ImageSuggestion, isFeatured?: boolean }) => (
     <div
-      className="relative group cursor-pointer"
+      className={`relative group cursor-pointer ${!isFeatured ? 'hover:opacity-80 transition-opacity' : ''}`}
       onMouseEnter={() => setHoveredImage(image.id)}
       onMouseLeave={() => setHoveredImage(null)}
+      onClick={() => handleImageClick(image, isFeatured)}
     >
       <div className={`${isFeatured ? 'aspect-video' : 'aspect-video'} rounded-lg overflow-hidden bg-gray-100 relative`}>
         <img
@@ -139,32 +154,11 @@ export const ImageCarousel = ({
           </Badge>
         )}
         
-        {/* Hover overlay */}
-        {hoveredImage === image.id && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center transition-opacity">
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => handleDownload(image.download_url, image.photographer)}
-              >
-                <Download className="w-4 h-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => handleCopyCredit(image.photographer)}
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => handleFavorite(image)}
-                disabled={favoriteImages.has(image.id)}
-              >
-                <Heart className={`w-4 h-4 ${favoriteImages.has(image.id) ? 'fill-red-500 text-red-500' : ''}`} />
-              </Button>
+        {/* Click hint for alternatives */}
+        {!isFeatured && hoveredImage === image.id && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity">
+            <div className="text-white text-sm font-medium bg-black/60 px-3 py-1 rounded-full">
+              Click to feature
             </div>
           </div>
         )}
