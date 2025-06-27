@@ -42,8 +42,8 @@ function App() {
       <ThemeProvider defaultTheme="system" storageKey="vite-react-theme">
         <NetworkErrorBoundary>
           <AuthProvider>
-            <SubscriptionProvider>
-              <Router>
+            <Router>
+              <SubscriptionProvider>
                 <Routes>
                   <Route path="/" element={<SmartRootRoute />} />
                   <Route path="/auth/*" element={
@@ -70,9 +70,9 @@ function App() {
                   <Route path="/dev-social" element={<DevSocialPageWrapper />} />
                   <Route path="/social-media" element={<ProtectedRoute><SocialMediaPage /></ProtectedRoute>} />
                 </Routes>
-              </Router>
-              <Toaster />
-            </SubscriptionProvider>
+                <Toaster />
+              </SubscriptionProvider>
+            </Router>
           </AuthProvider>
         </NetworkErrorBoundary>
       </ThemeProvider>
