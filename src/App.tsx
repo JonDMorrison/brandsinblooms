@@ -26,13 +26,13 @@ import PublishPage from "./pages/PublishPage";
 const App = () => {
   return (
     <AuthProvider>
-      <SubscriptionProvider>
-        <ContentGenerationProvider>
-          <Router>
+      <Router>
+        <SubscriptionProvider>
+          <ContentGenerationProvider>
             <AppRoutes />
-          </Router>
-        </ContentGenerationProvider>
-      </SubscriptionProvider>
+          </ContentGenerationProvider>
+        </SubscriptionProvider>
+      </Router>
     </AuthProvider>
   );
 };
