@@ -8,7 +8,7 @@ export const colors: Config["theme"]["extend"]["colors"] = {
   background: 'rgb(var(--background))',
   foreground: 'rgb(var(--foreground))',
   
-  // Enhanced Brand Colors - New token system
+  // Enhanced Brand Colors - Clean green and blue system
   'brand-green': {
     DEFAULT: 'rgb(var(--brand-green))',
     50: '#E8F5E8',
@@ -36,126 +36,162 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     900: '#1E3A8A',
   },
   
-  // Status Chip Color System
+  // Status Chip Color System - Clean greens and blues only
   'chip': {
-    draft: 'rgb(var(--chip-draft))',      // #9CA3AF
-    generated: 'rgb(var(--chip-generated))', // #3B82F6
-    approved: 'rgb(var(--chip-approved))',   // #22C55E
-    scheduled: 'rgb(var(--chip-scheduled))', // #FBBF24
-    posted: 'rgb(var(--chip-posted))',       // #10B981
+    draft: 'rgb(var(--chip-draft))',      // #9CA3AF (gray)
+    generated: 'rgb(var(--chip-generated))', // #3B82F6 (blue)
+    approved: 'rgb(var(--chip-approved))',   // #22C55E (green)
+    scheduled: 'rgb(var(--chip-scheduled))', // #2563EB (blue instead of yellow)
+    posted: 'rgb(var(--chip-posted))',       // #10B981 (green)
   },
   
-  // COMPLETELY OVERRIDE YELLOW/AMBER WITH GARDEN GREEN AND ORANGE
+  // COMPLETELY OVERRIDE YELLOW/AMBER/ORANGE/PURPLE WITH CLEAN ALTERNATIVES
   yellow: {
-    50: '#E8F5E8',    // Garden green very light
-    100: '#C8E6C9',   // Garden green light
-    200: '#A5D6A7',   // Garden green lighter
-    300: '#81C784',   // Garden green medium light
-    400: '#66BB6A',   // Garden green medium
-    500: '#4CAF50',   // Garden green primary
-    600: '#43A047',   // Garden green medium dark
-    700: '#388E3C',   // Garden green dark
-    800: '#2E7D32',   // Garden green darker
-    900: '#1B5E20',   // Garden green darkest
+    50: '#F8FAFC',    // Light gray instead of yellow
+    100: '#F1F5F9',   // Light gray
+    200: '#E2E8F0',   // Light gray
+    300: '#CBD5E1',   // Medium gray
+    400: '#94A3B8',   // Medium gray
+    500: '#64748B',   // Slate gray
+    600: '#475569',   // Dark gray
+    700: '#334155',   // Darker gray
+    800: '#1E293B',   // Very dark gray
+    900: '#0F172A',   // Almost black
   },
   amber: {
-    50: '#FFF3E0',    // Orange very light for warnings
-    100: '#FFE0B2',   // Orange light
-    200: '#FFCC80',   // Orange lighter
-    300: '#FFB74D',   // Orange medium light
-    400: '#FFA726',   // Orange medium
-    500: '#FF9800',   // Orange primary
-    600: '#FB8C00',   // Orange medium dark
-    700: '#F57C00',   // Orange dark
-    800: '#EF6C00',   // Orange darker
-    900: '#E65100',   // Orange darkest
+    50: '#F8FAFC',    // Light gray instead of amber
+    100: '#F1F5F9',   // Light gray
+    200: '#E2E8F0',   // Light gray
+    300: '#CBD5E1',   // Medium gray
+    400: '#94A3B8',   // Medium gray
+    500: '#64748B',   // Slate gray
+    600: '#475569',   // Dark gray
+    700: '#334155',   // Darker gray
+    800: '#1E293B',   // Very dark gray
+    900: '#0F172A',   // Almost black
+  },
+  orange: {
+    50: '#F8FAFC',    // Light gray instead of orange
+    100: '#F1F5F9',   // Light gray
+    200: '#E2E8F0',   // Light gray
+    300: '#CBD5E1',   // Medium gray
+    400: '#94A3B8',   // Medium gray
+    500: '#64748B',   // Slate gray
+    600: '#475569',   // Dark gray
+    700: '#334155',   // Darker gray
+    800: '#1E293B',   // Very dark gray
+    900: '#0F172A',   // Almost black
+  },
+  purple: {
+    50: '#F8FAFC',    // Light gray instead of purple
+    100: '#F1F5F9',   // Light gray
+    200: '#E2E8F0',   // Light gray
+    300: '#CBD5E1',   // Medium gray
+    400: '#94A3B8',   // Medium gray
+    500: '#64748B',   // Slate gray
+    600: '#475569',   // Dark gray
+    700: '#334155',   // Darker gray
+    800: '#1E293B',   // Very dark gray
+    900: '#0F172A',   // Almost black
+  },
+  pink: {
+    50: '#F8FAFC',    // Light gray instead of pink/fuschia
+    100: '#F1F5F9',   // Light gray
+    200: '#E2E8F0',   // Light gray
+    300: '#CBD5E1',   // Medium gray
+    400: '#94A3B8',   // Medium gray
+    500: '#64748B',   // Slate gray
+    600: '#475569',   // Dark gray
+    700: '#334155',   // Darker gray
+    800: '#1E293B',   // Very dark gray
+    900: '#0F172A',   // Almost black
   },
   
-  // ADD GARDEN GREEN COLOR SYSTEM
+  // Garden green system - primary brand color
   'garden-green': {
-    DEFAULT: '#4CAF50',
+    DEFAULT: '#22C55E',
     50: '#E8F5E8',
     100: '#C8E6C9',
     200: '#A5D6A7',
     300: '#81C784',
     400: '#66BB6A',
-    500: '#4CAF50',
-    600: '#43A047',
-    700: '#388E3C',
-    800: '#2E7D32',
-    900: '#1B5E20',
+    500: '#22C55E',
+    600: '#16A34A',
+    700: '#15803D',
+    800: '#166534',
+    900: '#14532D',
     'light': '#81C784',
-    'dark': '#2E7D32'
+    'dark': '#166534'
   },
-  'garden-green-dark': '#2E7D32',
+  'garden-green-dark': '#166534',
   'garden-green-light': '#81C784',
   'garden-background': '#F8FAF8',
   'garden-sage': '#F0F4F0',
   
   primary: {
-    DEFAULT: '#4CAF50', // Garden green instead of yellow
+    DEFAULT: '#22C55E', // Garden green
     50: '#E8F5E8',
     100: '#C8E6C9',
     200: '#A5D6A7',
     300: '#81C784',
     400: '#66BB6A',
-    500: '#4CAF50',
-    600: '#43A047',
-    700: '#388E3C',
-    800: '#2E7D32',
-    900: '#1B5E20',
+    500: '#22C55E',
+    600: '#16A34A',
+    700: '#15803D',
+    800: '#166534',
+    900: '#14532D',
     foreground: '#FFFFFF'
   },
   secondary: {
-    DEFAULT: '#F5F5F5',
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    200: '#EEEEEE',
-    300: '#E0E0E0',
-    400: '#BDBDBD',
-    500: '#9E9E9E',
-    600: '#757575',
-    700: '#616161',
-    800: '#424242',
-    900: '#212121',
+    DEFAULT: '#F1F5F9',
+    50: '#F8FAFC',
+    100: '#F1F5F9',
+    200: '#E2E8F0',
+    300: '#CBD5E1',
+    400: '#94A3B8',
+    500: '#64748B',
+    600: '#475569',
+    700: '#334155',
+    800: '#1E293B',
+    900: '#0F172A',
     foreground: '#000000'
   },
   success: {
-    DEFAULT: '#4CAF50',
+    DEFAULT: '#22C55E',
     50: '#E8F5E8',
     100: '#C8E6C9',
-    500: '#4CAF50',
-    600: '#43A047',
+    500: '#22C55E',
+    600: '#16A34A',
     foreground: '#FFFFFF'
   },
   warning: {
-    DEFAULT: '#FF9800', // Orange for warnings instead of yellow
-    50: '#FFF3E0',
-    100: '#FFE0B2',
-    500: '#FF9800',
-    600: '#F57C00',
+    DEFAULT: '#64748B', // Slate gray for warnings instead of orange
+    50: '#F8FAFC',
+    100: '#F1F5F9',
+    500: '#64748B',
+    600: '#475569',
     foreground: '#FFFFFF'
   },
   destructive: {
-    DEFAULT: '#F44336',
-    50: '#FFEBEE',
-    100: '#FFCDD2',
-    500: '#F44336',
-    600: '#E53935',
+    DEFAULT: '#DC2626', // Keep red for destructive actions
+    50: '#FEF2F2',
+    100: '#FEE2E2',
+    500: '#DC2626',
+    600: '#B91C1C',
     foreground: '#FFFFFF'
   },
   muted: {
-    DEFAULT: '#F5F5F5',
-    50: '#FAFAFA',
-    100: '#F5F5F5',
-    foreground: '#757575'
+    DEFAULT: '#F1F5F9',
+    50: '#F8FAFC',
+    100: '#F1F5F9',
+    foreground: '#64748B'
   },
   accent: {
-    DEFAULT: '#4CAF50', // Garden green instead of blue
+    DEFAULT: '#22C55E', // Garden green
     50: '#E8F5E8',
     100: '#C8E6C9',
-    500: '#4CAF50',
-    foreground: '#FFFFFF' // White text on green
+    500: '#22C55E',
+    foreground: '#FFFFFF'
   },
   popover: {
     DEFAULT: '#FFFFFF',
@@ -165,16 +201,16 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     DEFAULT: '#FFFFFF',
     foreground: '#000000'
   },
-  // Semantic color system
+  // Semantic color system - clean grays and greens
   surface: {
     primary: '#FFFFFF',
-    secondary: '#F8F9FA',
-    tertiary: '#F1F3F4',
+    secondary: '#F8FAFC',
+    tertiary: '#F1F5F9',
   },
   text: {
-    primary: '#202124',
-    secondary: '#5F6368',
-    tertiary: '#9AA0A6',
+    primary: '#0F172A',
+    secondary: '#475569',
+    tertiary: '#64748B',
     inverse: '#FFFFFF',
   }
 };

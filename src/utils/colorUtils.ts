@@ -1,35 +1,63 @@
 
 /**
- * Universal color mapping utilities to eliminate yellow/amber from the entire application
+ * Universal color mapping utilities to eliminate yellow/amber/orange/purple from the entire application
  */
 
 export const COLOR_MAPPINGS = {
-  // Yellow to Garden Green mappings
+  // Yellow to Gray mappings
   yellow: {
-    50: '#E8F5E8',   // Garden green very light
-    100: '#C8E6C9',  // Garden green light
-    200: '#A5D6A7',  // Garden green lighter
-    300: '#81C784',  // Garden green medium light
-    400: '#66BB6A',  // Garden green medium
-    500: '#4CAF50',  // Garden green primary
-    600: '#43A047',  // Garden green medium dark
-    700: '#388E3C',  // Garden green dark
-    800: '#2E7D32',  // Garden green darker
-    900: '#1B5E20',  // Garden green darkest
+    50: '#F8FAFC',   // Light gray
+    100: '#F1F5F9',  // Light gray
+    200: '#E2E8F0',  // Light gray
+    300: '#CBD5E1',  // Medium gray
+    400: '#94A3B8',  // Medium gray
+    500: '#64748B',  // Slate gray
+    600: '#475569',  // Dark gray
+    700: '#334155',  // Darker gray
+    800: '#1E293B',  // Very dark gray
+    900: '#0F172A',  // Almost black
   },
   
-  // Amber to Orange mappings (for warnings)
+  // Amber to Gray mappings
   amber: {
-    50: '#FFF3E0',   // Orange very light
-    100: '#FFE0B2',  // Orange light
-    200: '#FFCC80',  // Orange lighter
-    300: '#FFB74D',  // Orange medium light
-    400: '#FFA726',  // Orange medium
-    500: '#FF9800',  // Orange primary
-    600: '#FB8C00',  // Orange medium dark
-    700: '#F57C00',  // Orange dark
-    800: '#EF6C00',  // Orange darker
-    900: '#E65100',  // Orange darkest
+    50: '#F8FAFC',   // Light gray
+    100: '#F1F5F9',  // Light gray
+    200: '#E2E8F0',  // Light gray
+    300: '#CBD5E1',  // Medium gray
+    400: '#94A3B8',  // Medium gray
+    500: '#64748B',  // Slate gray
+    600: '#475569',  // Dark gray
+    700: '#334155',  // Darker gray
+    800: '#1E293B',  // Very dark gray
+    900: '#0F172A',  // Almost black
+  },
+  
+  // Orange to Gray mappings
+  orange: {
+    50: '#F8FAFC',   // Light gray
+    100: '#F1F5F9',  // Light gray
+    200: '#E2E8F0',  // Light gray
+    300: '#CBD5E1',  // Medium gray
+    400: '#94A3B8',  // Medium gray
+    500: '#64748B',  // Slate gray
+    600: '#475569',  // Dark gray
+    700: '#334155',  // Darker gray
+    800: '#1E293B',  // Very dark gray
+    900: '#0F172A',  // Almost black
+  },
+  
+  // Purple to Gray mappings
+  purple: {
+    50: '#F8FAFC',   // Light gray
+    100: '#F1F5F9',  // Light gray
+    200: '#E2E8F0',  // Light gray
+    300: '#CBD5E1',  // Medium gray
+    400: '#94A3B8',  // Medium gray
+    500: '#64748B',  // Slate gray
+    600: '#475569',  // Dark gray
+    700: '#334155',  // Darker gray
+    800: '#1E293B',  // Very dark gray
+    900: '#0F172A',  // Almost black
   }
 };
 
@@ -43,51 +71,50 @@ const isValidColorShade = (shade: string): shade is ColorShade => {
 };
 
 /**
- * Convert yellow/amber color to appropriate alternative
+ * Convert unwanted colors to appropriate alternatives
  */
-export const mapYellowColor = (color: string): string => {
-  // Handle Tailwind class names
-  if (color.startsWith('yellow-')) {
-    const shadeString = color.replace('yellow-', '');
-    if (isValidColorShade(shadeString)) {
-      return COLOR_MAPPINGS.yellow[shadeString] || '#4CAF50';
+export const mapUnwantedColor = (color: string): string => {
+  // Handle Tailwind class names for yellow/amber/orange/purple
+  const unwantedColors = ['yellow', 'amber', 'orange', 'purple', 'pink', 'fuchsia'];
+  
+  for (const unwantedColor of unwantedColors) {
+    if (color.startsWith(`${unwantedColor}-`)) {
+      const shadeString = color.replace(`${unwantedColor}-`, '');
+      if (isValidColorShade(shadeString)) {
+        return COLOR_MAPPINGS.yellow[shadeString] || '#64748B'; // Default to slate
+      }
+      return '#64748B'; // Default slate gray
     }
-    return '#4CAF50'; // Default garden green
   }
   
-  if (color.startsWith('amber-')) {
-    const shadeString = color.replace('amber-', '');
-    if (isValidColorShade(shadeString)) {
-      return COLOR_MAPPINGS.amber[shadeString] || '#FF9800';
-    }
-    return '#FF9800'; // Default orange
-  }
-  
-  // Handle hex values
-  const yellowHexValues = [
-    '#FBBC05', '#FDD835', '#FFEB3B', '#FFC107', '#FFD600',
-    '#F59E0B', '#D97706', '#FBBF24', '#F59E0B'
+  // Handle hex values for unwanted colors
+  const unwantedHexValues = [
+    '#FBBC05', '#FDD835', '#FFEB3B', '#FFC107', '#FFD600', // Yellow
+    '#F59E0B', '#D97706', '#FBBF24', // Amber
+    '#FF9800', '#FB8C00', '#F57C00', '#EF6C00', '#E65100', // Orange
+    '#9C27B0', '#8E24AA', '#7B1FA2', '#6A1B9A', '#4A148C', // Purple
+    '#E91E63', '#C2185B', '#AD1457', '#880E4F', // Pink
   ];
   
-  if (yellowHexValues.includes(color.toUpperCase())) {
-    return '#4CAF50'; // Garden green
+  if (unwantedHexValues.includes(color.toUpperCase())) {
+    return '#64748B'; // Slate gray
   }
   
-  return color; // Return original if not yellow/amber
+  return color; // Return original if not unwanted color
 };
 
 /**
- * Get appropriate status color (no yellow allowed)
+ * Get appropriate status color (no unwanted colors allowed)
  */
 export const getStatusColor = (status: string) => {
   const statusColors = {
     draft: 'bg-gray-100 text-gray-800 border-gray-200',
-    review: 'bg-orange-100 text-orange-800 border-orange-200', // Orange for warnings
+    review: 'bg-slate-100 text-slate-800 border-slate-200', // Gray instead of orange
     scheduled: 'bg-blue-100 text-blue-800 border-blue-200',   // Blue instead of yellow
     posted: 'bg-green-100 text-green-800 border-green-200',
     approved: 'bg-green-100 text-green-800 border-green-200',
     pending: 'bg-blue-100 text-blue-800 border-blue-200',
-    generating: 'bg-purple-100 text-purple-800 border-purple-200',
+    generating: 'bg-blue-100 text-blue-800 border-blue-200', // Blue instead of purple
     completed: 'bg-green-100 text-green-800 border-green-200',
     published: 'bg-gray-100 text-gray-800 border-gray-200',
   };
@@ -96,34 +123,49 @@ export const getStatusColor = (status: string) => {
 };
 
 /**
- * Validate that no yellow/amber colors are being used
+ * Validate that no unwanted colors are being used
  */
-export const validateNoYellow = (className: string): boolean => {
-  const yellowPatterns = [
-    /yellow-\d+/,
-    /amber-\d+/,
-    /bg-yellow/,
-    /text-yellow/,
-    /border-yellow/,
-    /bg-amber/,
-    /text-amber/,
-    /border-amber/,
+export const validateNoUnwantedColors = (className: string): boolean => {
+  const unwantedPatterns = [
+    /yellow-\d+/, /amber-\d+/, /orange-\d+/, /purple-\d+/, /pink-\d+/, /fuchsia-\d+/,
+    /bg-yellow/, /text-yellow/, /border-yellow/,
+    /bg-amber/, /text-amber/, /border-amber/,
+    /bg-orange/, /text-orange/, /border-orange/,
+    /bg-purple/, /text-purple/, /border-purple/,
+    /bg-pink/, /text-pink/, /border-pink/,
+    /bg-fuchsia/, /text-fuchsia/, /border-fuchsia/,
   ];
   
-  return !yellowPatterns.some(pattern => pattern.test(className));
+  return !unwantedPatterns.some(pattern => pattern.test(className));
 };
 
 /**
- * Clean a className string of any yellow/amber references
+ * Clean a className string of any unwanted color references
  */
-export const cleanYellowFromClassName = (className: string): string => {
+export const cleanUnwantedColorsFromClassName = (className: string): string => {
   return className
-    .replace(/yellow-\d+/g, 'green-500')
-    .replace(/amber-\d+/g, 'orange-500')
-    .replace(/bg-yellow/g, 'bg-green')
-    .replace(/text-yellow/g, 'text-green')
-    .replace(/border-yellow/g, 'border-green')
-    .replace(/bg-amber/g, 'bg-orange')
-    .replace(/text-amber/g, 'text-orange')
-    .replace(/border-amber/g, 'border-orange');
+    .replace(/yellow-\d+/g, 'slate-500')
+    .replace(/amber-\d+/g, 'slate-500')
+    .replace(/orange-\d+/g, 'slate-500')
+    .replace(/purple-\d+/g, 'slate-500')
+    .replace(/pink-\d+/g, 'slate-500')
+    .replace(/fuchsia-\d+/g, 'slate-500')
+    .replace(/bg-yellow/g, 'bg-slate')
+    .replace(/text-yellow/g, 'text-slate')
+    .replace(/border-yellow/g, 'border-slate')
+    .replace(/bg-amber/g, 'bg-slate')
+    .replace(/text-amber/g, 'text-slate')
+    .replace(/border-amber/g, 'border-slate')
+    .replace(/bg-orange/g, 'bg-slate')
+    .replace(/text-orange/g, 'text-slate')
+    .replace(/border-orange/g, 'border-slate')
+    .replace(/bg-purple/g, 'bg-slate')
+    .replace(/text-purple/g, 'text-slate')
+    .replace(/border-purple/g, 'border-slate')
+    .replace(/bg-pink/g, 'bg-slate')
+    .replace(/text-pink/g, 'text-slate')
+    .replace(/border-pink/g, 'border-slate')
+    .replace(/bg-fuchsia/g, 'bg-slate')
+    .replace(/text-fuchsia/g, 'text-slate')
+    .replace(/border-fuchsia/g, 'border-slate');
 };

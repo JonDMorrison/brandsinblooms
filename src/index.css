@@ -52,12 +52,12 @@
     --brand-green: 144 57.1% 31.4%;
     --brand-blue: 220 72.2% 46.3%;
     
-    /* Chip Colors */
-    --chip-draft: 210 11.1% 62.7%;
-    --chip-generated: 219.4 90.2% 50.6%;
-    --chip-approved: 131.7 72.7% 45.9%;
-    --chip-scheduled: 45.9 94.4% 56.7%;
-    --chip-posted: 154.6 82.4% 40.8%;
+    /* Chip Colors - Clean system with no unwanted colors */
+    --chip-draft: 148 163 184; /* Gray */
+    --chip-generated: 59 130 246; /* Blue */
+    --chip-approved: 34 197 94; /* Green */
+    --chip-scheduled: 37 99 235; /* Blue instead of yellow */
+    --chip-posted: 16 185 129; /* Green */
   }
 
   .dark {
