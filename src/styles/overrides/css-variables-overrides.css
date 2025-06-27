@@ -1,7 +1,11 @@
 
-/* Override any CSS custom properties that might contain unwanted colors */
+/* Clean brand color CSS variables - no unwanted colors */
 :root {
-  /* Yellow overrides */
+  /* Brand color variables */
+  --brand-steel-blue: 62, 90, 107; /* #3E5A6B */
+  --brand-teal-mint: 104, 190, 185; /* #68BEB9 */
+  
+  /* Neutralized unwanted colors to clean alternatives */
   --yellow-50: 248, 250, 252 !important; /* Light gray */
   --yellow-100: 241, 245, 249 !important;
   --yellow-200: 226, 232, 240 !important;
@@ -13,8 +17,7 @@
   --yellow-800: 30, 41, 59 !important;
   --yellow-900: 15, 23, 42 !important;
   
-  /* Amber overrides */
-  --amber-50: 248, 250, 252 !important; /* Light gray */
+  --amber-50: 248, 250, 252 !important;
   --amber-100: 241, 245, 249 !important;
   --amber-200: 226, 232, 240 !important;
   --amber-300: 203, 213, 225 !important;
@@ -25,8 +28,7 @@
   --amber-800: 30, 41, 59 !important;
   --amber-900: 15, 23, 42 !important;
   
-  /* Orange overrides */
-  --orange-50: 248, 250, 252 !important; /* Light gray */
+  --orange-50: 248, 250, 252 !important;
   --orange-100: 241, 245, 249 !important;
   --orange-200: 226, 232, 240 !important;
   --orange-300: 203, 213, 225 !important;
@@ -37,8 +39,7 @@
   --orange-800: 30, 41, 59 !important;
   --orange-900: 15, 23, 42 !important;
   
-  /* Purple overrides */
-  --purple-50: 248, 250, 252 !important; /* Light gray */
+  --purple-50: 248, 250, 252 !important;
   --purple-100: 241, 245, 249 !important;
   --purple-200: 226, 232, 240 !important;
   --purple-300: 203, 213, 225 !important;
@@ -49,8 +50,7 @@
   --purple-800: 30, 41, 59 !important;
   --purple-900: 15, 23, 42 !important;
   
-  /* Pink overrides */
-  --pink-50: 248, 250, 252 !important; /* Light gray */
+  --pink-50: 248, 250, 252 !important;
   --pink-100: 241, 245, 249 !important;
   --pink-200: 226, 232, 240 !important;
   --pink-300: 203, 213, 225 !important;
@@ -61,8 +61,7 @@
   --pink-800: 30, 41, 59 !important;
   --pink-900: 15, 23, 42 !important;
   
-  /* Fuchsia overrides */
-  --fuchsia-50: 248, 250, 252 !important; /* Light gray */
+  --fuchsia-50: 248, 250, 252 !important;
   --fuchsia-100: 241, 245, 249 !important;
   --fuchsia-200: 226, 232, 240 !important;
   --fuchsia-300: 203, 213, 225 !important;

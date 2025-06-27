@@ -1,34 +1,33 @@
 
-/* Apply to any element that might have yellow classes */
-*[class*="yellow"],
-*[class*="amber"] {
-  /* Force override any class containing yellow or amber */
-  background-color: #FFFFFF !important;
-  color: rgb(46 125 50) !important;
-  border-color: rgb(229 231 235) !important;
+/* Clean fallback overrides - brand colors only */
+
+/* Final fallback for any missed unwanted elements */
+body *[style*="yellow"],
+body *[style*="amber"],
+body *[style*="orange"],
+body *[style*="purple"],
+body *[style*="fuchsia"],
+body *[style*="#FFC107"],
+body *[style*="#FBBC05"],
+body *[style*="#FDD835"],
+body *[style*="#FFEB3B"],
+body *[style*="#FF9800"],
+body *[style*="#9C27B0"],
+body *[style*="#E91E63"] {
+  background-color: #F8FAFC !important;
+  color: #3E5A6B !important;
+  border-color: #68BEB9 !important;
 }
 
-/* Final fallback for any missed yellow elements */
-body .purge-yellow *[style*="yellow"],
-body .purge-yellow *[style*="amber"],
-body .purge-yellow *[style*="#FFC107"],
-body .purge-yellow *[style*="#FBBC05"],
-body .purge-yellow *[style*="#FDD835"],
-body .purge-yellow *[style*="#FFEB3B"] {
-  background-color: #FFFFFF !important;
-  color: rgb(46 125 50) !important;
-  border-color: rgb(229 231 235) !important;
-}
-
-/* ULTIMATE NUCLEAR OPTION - Override browser default selection colors */
+/* Clean selection colors using brand palette */
 ::selection {
-  background-color: rgb(219 234 254) !important; /* Blue selection instead of yellow */
-  color: rgb(30 64 175) !important;
+  background-color: rgba(104, 190, 185, 0.2) !important; /* Brand teal selection */
+  color: #3E5A6B !important; /* Brand steel-blue text */
 }
 
 ::-moz-selection {
-  background-color: rgb(219 234 254) !important; /* Blue selection for Firefox */
-  color: rgb(30 64 175) !important;
+  background-color: rgba(104, 190, 185, 0.2) !important;
+  color: #3E5A6B !important;
 }
 
 /* Override any potential highlight colors */

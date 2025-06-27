@@ -8,138 +8,130 @@ export const colors: Config["theme"]["extend"]["colors"] = {
   background: 'rgb(var(--background))',
   foreground: 'rgb(var(--foreground))',
   
-  // Enhanced Brand Colors - Clean green and blue system
-  'brand-green': {
-    DEFAULT: 'rgb(var(--brand-green))',
-    50: '#E8F5E8',
-    100: '#C8E6C9',
-    200: '#A5D6A7',
-    300: '#81C784',
-    400: '#66BB6A',
-    500: '#22C55E', // Primary brand green
-    600: '#16A34A',
-    700: '#15803D',
-    800: '#166534',
-    900: '#14532D',
+  // Clean Brand Colors
+  'brand-steel-blue': {
+    DEFAULT: '#3E5A6B',
+    50: '#F0F2F4',
+    100: '#E1E6EA',
+    200: '#C3CDD5',
+    300: '#A5B4C0',
+    400: '#879BAB',
+    500: '#3E5A6B', // Primary brand steel-blue
+    600: '#354F5F',
+    700: '#2C4253',
+    800: '#233547',
+    900: '#1A283B',
   },
-  'brand-blue': {
-    DEFAULT: 'rgb(var(--brand-blue))',
-    50: '#EFF6FF',
-    100: '#DBEAFE',
-    200: '#BFDBFE',
-    300: '#93C5FD',
-    400: '#60A5FA',
-    500: '#2563EB', // Primary brand blue
-    600: '#1D4ED8',
-    700: '#1E40AF',
-    800: '#1E3A8A',
-    900: '#1E3A8A',
+  'brand-teal-mint': {
+    DEFAULT: '#68BEB9',
+    50: '#F0FFFE',
+    100: '#E1FFFE',
+    200: '#C3FFFC',
+    300: '#A5FFFA',
+    400: '#87DFD8',
+    500: '#68BEB9', // Primary brand teal-mint
+    600: '#5AA8A3',
+    700: '#4C928D',
+    800: '#3E7C77',
+    900: '#306661',
   },
   
-  // Status Chip Color System - Clean greens and blues only
+  // Status Chip Color System - Clean with brand colors
   'chip': {
     draft: 'rgb(var(--chip-draft))',      // #9CA3AF (gray)
     generated: 'rgb(var(--chip-generated))', // #3B82F6 (blue)
-    approved: 'rgb(var(--chip-approved))',   // #22C55E (green)
-    scheduled: 'rgb(var(--chip-scheduled))', // #2563EB (blue instead of yellow)
-    posted: 'rgb(var(--chip-posted))',       // #10B981 (green)
+    approved: 'rgb(var(--chip-approved))',   // Brand teal-mint
+    scheduled: 'rgb(var(--chip-scheduled))', // Blue
+    posted: 'rgb(var(--chip-posted))',       // Brand teal-mint
   },
   
-  // COMPLETELY OVERRIDE YELLOW/AMBER/ORANGE/PURPLE WITH CLEAN ALTERNATIVES
+  // Neutralized color overrides - all set to clean alternatives
   yellow: {
-    50: '#F8FAFC',    // Light gray instead of yellow
-    100: '#F1F5F9',   // Light gray
-    200: '#E2E8F0',   // Light gray
-    300: '#CBD5E1',   // Medium gray
-    400: '#94A3B8',   // Medium gray
+    50: '#F8FAFC',    // Light gray
+    100: '#F1F5F9',   
+    200: '#E2E8F0',   
+    300: '#CBD5E1',   
+    400: '#94A3B8',   
     500: '#64748B',   // Slate gray
-    600: '#475569',   // Dark gray
-    700: '#334155',   // Darker gray
-    800: '#1E293B',   // Very dark gray
-    900: '#0F172A',   // Almost black
+    600: '#475569',   
+    700: '#334155',   
+    800: '#1E293B',   
+    900: '#0F172A',   
   },
   amber: {
-    50: '#F8FAFC',    // Light gray instead of amber
-    100: '#F1F5F9',   // Light gray
-    200: '#E2E8F0',   // Light gray
-    300: '#CBD5E1',   // Medium gray
-    400: '#94A3B8',   // Medium gray
-    500: '#64748B',   // Slate gray
-    600: '#475569',   // Dark gray
-    700: '#334155',   // Darker gray
-    800: '#1E293B',   // Very dark gray
-    900: '#0F172A',   // Almost black
+    50: '#F8FAFC',    // Light gray
+    100: '#F1F5F9',   
+    200: '#E2E8F0',   
+    300: '#CBD5E1',   
+    400: '#94A3B8',   
+    500: '#64748B',   
+    600: '#475569',   
+    700: '#334155',   
+    800: '#1E293B',   
+    900: '#0F172A',   
   },
   orange: {
-    50: '#F8FAFC',    // Light gray instead of orange
-    100: '#F1F5F9',   // Light gray
-    200: '#E2E8F0',   // Light gray
-    300: '#CBD5E1',   // Medium gray
-    400: '#94A3B8',   // Medium gray
-    500: '#64748B',   // Slate gray
-    600: '#475569',   // Dark gray
-    700: '#334155',   // Darker gray
-    800: '#1E293B',   // Very dark gray
-    900: '#0F172A',   // Almost black
+    50: '#F8FAFC',    // Light gray
+    100: '#F1F5F9',   
+    200: '#E2E8F0',   
+    300: '#CBD5E1',   
+    400: '#94A3B8',   
+    500: '#64748B',   
+    600: '#475569',   
+    700: '#334155',   
+    800: '#1E293B',   
+    900: '#0F172A',   
   },
   purple: {
-    50: '#F8FAFC',    // Light gray instead of purple
-    100: '#F1F5F9',   // Light gray
-    200: '#E2E8F0',   // Light gray
-    300: '#CBD5E1',   // Medium gray
-    400: '#94A3B8',   // Medium gray
-    500: '#64748B',   // Slate gray
-    600: '#475569',   // Dark gray
-    700: '#334155',   // Darker gray
-    800: '#1E293B',   // Very dark gray
-    900: '#0F172A',   // Almost black
+    50: '#F8FAFC',    // Light gray
+    100: '#F1F5F9',   
+    200: '#E2E8F0',   
+    300: '#CBD5E1',   
+    400: '#94A3B8',   
+    500: '#64748B',   
+    600: '#475569',   
+    700: '#334155',   
+    800: '#1E293B',   
+    900: '#0F172A',   
   },
   pink: {
-    50: '#F8FAFC',    // Light gray instead of pink/fuschia
-    100: '#F1F5F9',   // Light gray
-    200: '#E2E8F0',   // Light gray
-    300: '#CBD5E1',   // Medium gray
-    400: '#94A3B8',   // Medium gray
-    500: '#64748B',   // Slate gray
-    600: '#475569',   // Dark gray
-    700: '#334155',   // Darker gray
-    800: '#1E293B',   // Very dark gray
-    900: '#0F172A',   // Almost black
+    50: '#F8FAFC',    // Light gray
+    100: '#F1F5F9',   
+    200: '#E2E8F0',   
+    300: '#CBD5E1',   
+    400: '#94A3B8',   
+    500: '#64748B',   
+    600: '#475569',   
+    700: '#334155',   
+    800: '#1E293B',   
+    900: '#0F172A',   
+  },
+  fuchsia: {
+    50: '#F8FAFC',    // Light gray
+    100: '#F1F5F9',   
+    200: '#E2E8F0',   
+    300: '#CBD5E1',   
+    400: '#94A3B8',   
+    500: '#64748B',   
+    600: '#475569',   
+    700: '#334155',   
+    800: '#1E293B',   
+    900: '#0F172A',   
   },
   
-  // Garden green system - primary brand color
-  'garden-green': {
-    DEFAULT: '#22C55E',
-    50: '#E8F5E8',
-    100: '#C8E6C9',
-    200: '#A5D6A7',
-    300: '#81C784',
-    400: '#66BB6A',
-    500: '#22C55E',
-    600: '#16A34A',
-    700: '#15803D',
-    800: '#166534',
-    900: '#14532D',
-    'light': '#81C784',
-    'dark': '#166534'
-  },
-  'garden-green-dark': '#166534',
-  'garden-green-light': '#81C784',
-  'garden-background': '#F8FAF8',
-  'garden-sage': '#F0F4F0',
-  
+  // Updated primary colors using brand palette
   primary: {
-    DEFAULT: '#22C55E', // Garden green
-    50: '#E8F5E8',
-    100: '#C8E6C9',
-    200: '#A5D6A7',
-    300: '#81C784',
-    400: '#66BB6A',
-    500: '#22C55E',
-    600: '#16A34A',
-    700: '#15803D',
-    800: '#166534',
-    900: '#14532D',
+    DEFAULT: '#68BEB9', // Brand teal-mint
+    50: '#F0FFFE',
+    100: '#E1FFFE',
+    200: '#C3FFFC',
+    300: '#A5FFFA',
+    400: '#87DFD8',
+    500: '#68BEB9',
+    600: '#5AA8A3',
+    700: '#4C928D',
+    800: '#3E7C77',
+    900: '#306661',
     foreground: '#FFFFFF'
   },
   secondary: {
@@ -157,15 +149,15 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     foreground: '#000000'
   },
   success: {
-    DEFAULT: '#22C55E',
-    50: '#E8F5E8',
-    100: '#C8E6C9',
-    500: '#22C55E',
-    600: '#16A34A',
+    DEFAULT: '#68BEB9',
+    50: '#F0FFFE',
+    100: '#E1FFFE',
+    500: '#68BEB9',
+    600: '#5AA8A3',
     foreground: '#FFFFFF'
   },
   warning: {
-    DEFAULT: '#64748B', // Slate gray for warnings instead of orange
+    DEFAULT: '#64748B', // Neutral slate instead of orange/yellow
     50: '#F8FAFC',
     100: '#F1F5F9',
     500: '#64748B',
@@ -187,10 +179,10 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     foreground: '#64748B'
   },
   accent: {
-    DEFAULT: '#22C55E', // Garden green
-    50: '#E8F5E8',
-    100: '#C8E6C9',
-    500: '#22C55E',
+    DEFAULT: '#68BEB9', // Brand teal-mint
+    50: '#F0FFFE',
+    100: '#E1FFFE',
+    500: '#68BEB9',
     foreground: '#FFFFFF'
   },
   popover: {
@@ -201,14 +193,14 @@ export const colors: Config["theme"]["extend"]["colors"] = {
     DEFAULT: '#FFFFFF',
     foreground: '#000000'
   },
-  // Semantic color system - clean grays and greens
+  // Semantic color system - clean with brand colors
   surface: {
     primary: '#FFFFFF',
     secondary: '#F8FAFC',
     tertiary: '#F1F5F9',
   },
   text: {
-    primary: '#0F172A',
+    primary: '#3E5A6B', // Brand steel-blue for headings
     secondary: '#475569',
     tertiary: '#64748B',
     inverse: '#FFFFFF',

@@ -1,5 +1,15 @@
 
-/* Override ANY inline unwanted color styles with clean alternatives */
+/* Clean inline style overrides - brand colors only */
+
+/* Replace any unwanted inline colors with brand colors */
+[style*="color: #FBBC05"], [style*="color: #FDD835"], [style*="color: #FFEB3B"], [style*="color: #FFC107"], [style*="color: #FFD600"],
+[style*="color: #F59E0B"], [style*="color: #D97706"], [style*="color: #FBBF24"],
+[style*="color: #FF9800"], [style*="color: #FB8C00"], [style*="color: #F57C00"], [style*="color: #EF6C00"], [style*="color: #E65100"],
+[style*="color: #9C27B0"], [style*="color: #8E24AA"], [style*="color: #7B1FA2"], [style*="color: #6A1B9A"], [style*="color: #4A148C"],
+[style*="color: #E91E63"], [style*="color: #C2185B"], [style*="color: #AD1457"], [style*="color: #880E4F"] {
+  color: #3E5A6B !important; /* Brand steel-blue */
+}
+
 [style*="background-color: #FBBC05"], [style*="background-color: #FDD835"], [style*="background-color: #FFEB3B"], [style*="background-color: #FFC107"], [style*="background-color: #FFD600"],
 [style*="background-color: #F59E0B"], [style*="background-color: #D97706"], [style*="background-color: #FBBF24"],
 [style*="background-color: #FF9800"], [style*="background-color: #FB8C00"], [style*="background-color: #F57C00"], [style*="background-color: #EF6C00"], [style*="background-color: #E65100"],
@@ -10,27 +20,13 @@
 [style*="background: #FF9800"], [style*="background: #FB8C00"], [style*="background: #F57C00"], [style*="background: #EF6C00"], [style*="background: #E65100"],
 [style*="background: #9C27B0"], [style*="background: #8E24AA"], [style*="background: #7B1FA2"], [style*="background: #6A1B9A"], [style*="background: #4A148C"],
 [style*="background: #E91E63"], [style*="background: #C2185B"], [style*="background: #AD1457"], [style*="background: #880E4F"] {
-  background-color: #F8FAFC !important; /* Force light gray */
-}
-
-[style*="color: #FBBC05"], [style*="color: #FDD835"], [style*="color: #FFEB3B"], [style*="color: #FFC107"], [style*="color: #FFD600"],
-[style*="color: #F59E0B"], [style*="color: #D97706"], [style*="color: #FBBF24"],
-[style*="color: #FF9800"], [style*="color: #FB8C00"], [style*="color: #F57C00"], [style*="color: #EF6C00"], [style*="color: #E65100"],
-[style*="color: #9C27B0"], [style*="color: #8E24AA"], [style*="color: #7B1FA2"], [style*="color: #6A1B9A"], [style*="color: #4A148C"],
-[style*="color: #E91E63"], [style*="color: #C2185B"], [style*="color: #AD1457"], [style*="color: #880E4F"] {
-  color: #334155 !important; /* Dark slate gray */
+  background-color: #F8FAFC !important; /* Clean light gray */
 }
 
 [style*="border-color: #FBBC05"], [style*="border-color: #FDD835"], [style*="border-color: #FFEB3B"], [style*="border-color: #FFC107"], [style*="border-color: #FFD600"],
 [style*="border-color: #F59E0B"], [style*="border-color: #D97706"], [style*="border-color: #FBBF24"],
 [style*="border-color: #FF9800"], [style*="border-color: #FB8C00"], [style*="border-color: #F57C00"], [style*="border-color: #EF6C00"], [style*="border-color: #E65100"],
 [style*="border-color: #9C27B0"], [style*="border-color: #8E24AA"], [style*="border-color: #7B1FA2"], [style*="border-color: #6A1B9A"], [style*="border-color: #4A148C"],
-[style*="border-color: #E91E63"], [style*="border-color: #C2185B"], [style*="border-color: #AD1457"], [style*="border-color: #880E4F"],
-[style*="border: 1px solid #FBBC05"], [style*="border: 1px solid #FDD835"], [style*="border: 1px solid #FFEB3B"], [style*="border: 1px solid #FFC107"],
-[style*="border: 1px solid #F59E0B"], [style*="border: 1px solid #D97706"], [style*="border: 1px solid #FBBF24"],
-[style*="border: 1px solid #FF9800"], [style*="border: 1px solid #FB8C00"], [style*="border: 1px solid #F57C00"],
-[style*="border: 1px solid #9C27B0"], [style*="border: 1px solid #8E24AA"], [style*="border: 1px solid #7B1FA2"],
-[style*="border: 1px solid #E91E63"], [style*="border: 1px solid #C2185B"], [style*="border: 1px solid #AD1457"] {
-  border-color: #E2E8F0 !important; /* Light gray border */
-  border: 1px solid #E2E8F0 !important;
+[style*="border-color: #E91E63"], [style*="border-color: #C2185B"], [style*="border-color: #AD1457"], [style*="border-color: #880E4F"] {
+  border-color: #68BEB9 !important; /* Brand teal-mint */
 }

@@ -15,18 +15,8 @@
 @import './styles/mobile-typography.css';
 @import './styles/mobile-overrides.css';
 @import './styles/swipeable-list.css';
-@import './styles/dev-debug.css';
+/* @import './styles/dev-debug.css'; */
 @import './styles/global-overrides.css';
-@import './styles/overrides/yellow-amber-elimination.css';
-@import './styles/overrides/component-overrides.css';
-@import './styles/overrides/inline-style-overrides.css';
-@import './styles/overrides/css-variables-overrides.css';
-@import './styles/overrides/fallback-overrides.css';
-@import './styles/overrides/svg-overrides.css';
-@import './styles/overrides/background-fixes.css';
-@import './styles/overrides/button-visibility-fixes.css';
-@import './styles/overrides/admin-table-fixes.css';
-@import './styles/overrides/chat-widget-removal.css';
 @import './styles/publish-animations.css';
 
 @tailwind base;
@@ -45,19 +35,19 @@
     --card-foreground: 222.2 47.4% 11.2%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 53.7 72.2% 50%;
+    --ring: 169 49% 46%; /* Brand teal-mint #68BEB9 */
     --radius: 0.5rem;
     
-    /* Brand Colors */
-    --brand-green: 144 57.1% 31.4%;
-    --brand-blue: 220 72.2% 46.3%;
+    /* Clean Brand Colors */
+    --brand-steel-blue: 208 30% 33%; /* #3E5A6B */
+    --brand-teal-mint: 169 49% 46%; /* #68BEB9 */
     
-    /* Chip Colors - Clean system with no unwanted colors */
+    /* Chip Colors - Clean system with brand colors */
     --chip-draft: 148 163 184; /* Gray */
     --chip-generated: 59 130 246; /* Blue */
-    --chip-approved: 34 197 94; /* Green */
-    --chip-scheduled: 37 99 235; /* Blue instead of yellow */
-    --chip-posted: 16 185 129; /* Green */
+    --chip-approved: 169 49% 46%; /* Brand teal */
+    --chip-scheduled: 37 99 235; /* Blue */
+    --chip-posted: 169 49% 46%; /* Brand teal */
   }
 
   .dark {
@@ -73,7 +63,7 @@
     --card-foreground: 213 31% 91%;
     --border: 216 34% 17%;
     --input: 216 34% 17%;
-    --ring: 145 85% 45%;
+    --ring: 169 49% 46%; /* Brand teal for dark mode */
   }
 }
 
@@ -86,5 +76,10 @@
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
+  }
+  
+  /* Brand heading colors */
+  h1, h2, h3, h4, h5, h6 {
+    color: rgb(62 90 107); /* Brand steel-blue #3E5A6B */
   }
 }

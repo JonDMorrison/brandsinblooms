@@ -1,6 +1,5 @@
 
-/* Import all refactored override files */
-@import './overrides/chat-widget-removal.css';
+/* Import all clean override files */
 @import './overrides/background-fixes.css';
 @import './overrides/admin-table-fixes.css';
 @import './overrides/yellow-amber-elimination.css';
@@ -10,3 +9,4 @@
 @import './overrides/svg-overrides.css';
 @import './overrides/fallback-overrides.css';
 @import './overrides/button-visibility-fixes.css';
+@import './overrides/chat-widget-removal.css';
