@@ -62,15 +62,21 @@ export const useSmartTime = (): UseSmartTimeReturn => {
       const timeWindows: { [key: string]: number[] } = {};
       
       analyticsData.forEach(record => {
-        if (record.metric_type === 'engagement_rate' && record.metadata?.hour) {
-          const hour = parseInt(record.metadata.hour);
-          const window = Math.floor(hour / 3) * 3; // 0, 3, 6, 9, 12, 15, 18, 21
-          const windowKey = `${window}:00`;
-          
-          if (!timeWindows[windowKey]) {
-            timeWindows[windowKey] = [];
+        if (record.metric_type === 'engagement_rate' && record.metadata) {
+          // Type-safe metadata access
+          const metadata = record.metadata as any;
+          if (metadata && typeof metadata === 'object' && metadata.hour) {
+            const hour = parseInt(metadata.hour);
+            if (!isNaN(hour)) {
+              const window = Math.floor(hour / 3) * 3; // 0, 3, 6, 9, 12, 15, 18, 21
+              const windowKey = `${String(window).padStart(2, '0')}:00`;
+              
+              if (!timeWindows[windowKey]) {
+                timeWindows[windowKey] = [];
+              }
+              timeWindows[windowKey].push(record.metric_value);
+            }
           }
-          timeWindows[windowKey].push(record.metric_value);
         }
       });
 

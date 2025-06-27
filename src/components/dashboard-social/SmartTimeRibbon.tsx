@@ -80,8 +80,9 @@ export const SmartTimeRibbon = () => {
       id: scheduledPost.content_id,
       ai_output: scheduledPost.content?.caption || '',
       post_type: scheduledPost.platform,
-      status: 'scheduled',
+      status: 'scheduled' as const,
       scheduled_date: format(new Date(scheduledPost.publish_at), 'yyyy-MM-dd'),
+      created_at: new Date().toISOString(), // Add required created_at field
       _scheduledPostId: scheduledPost.id // Keep reference for updates
     };
     

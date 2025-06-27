@@ -46,7 +46,7 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
             media_url
           )
         `)
-        .neq('status', 'ARCHIVED')
+        .in('status', ['QUEUED', 'PUBLISHED', 'ERROR'])
         .order('publish_at', { ascending: true });
 
       if (tenant?.id) {
@@ -132,9 +132,10 @@ export const useScheduledPosts = (): UseScheduledPostsReturn => {
 
   const deleteScheduledPost = async (scheduledId: string) => {
     try {
+      // Instead of ARCHIVED, we'll just delete the record
       const { error } = await supabase
         .from('scheduled_posts')
-        .update({ status: 'ARCHIVED' })
+        .delete()
         .eq('id', scheduledId);
 
       if (error) throw error;
