@@ -167,73 +167,73 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   return (
     <>
       <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50" data-section="ready-to-post-section">
-        
-<CardHeader>
-  <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
-    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
-      5
-    </div>
-    <CheckCircle2 className="w-5 h-5" />
-    Draft posts ready
-    <Badge className="bg-blue-100 text-blue-800 border-blue-300">
-      {readyTasks.length} items
-    </Badge>
-  </CardTitle>
-  <CardDescription className="text-blue-700 flex items-center gap-2">
-    <Clock className="w-4 h-4" />
-    Open Publish Portal to schedule and publish
-  </CardDescription>
-</CardHeader>
-<CardContent className="space-y-4">
-  {/* Social Connection Status */}
-  <SocialConnectionStatus
-    connections={socialConnections}
-    onConnectPlatform={handleConnectPlatform}
-    onRefreshConnections={fetchSocialConnections}
-  />
-  
-  {/* Open Publish Portal Button */}
-  <div className="text-center py-6">
-    <Button 
-      onClick={() => window.location.href = '/publish'}
-      className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white px-6 py-3"
-    >
-      <Sparkles className="w-4 h-4 mr-2" />
-      Open Publish Portal
-    </Button>
-    <p className="text-blue-600 text-sm mt-2">
-      Professional scheduling and publishing tools
-    </p>
-  </div>
-  
-  {/* Legacy content list - keep for transition */}
-  <div className="space-y-3">
-    {readyTasks.slice(0, 3).map((task, index) => (
-      <AccordionReadyToPostItem
-        key={task.id}
-        task={task}
-        onViewFull={handleViewFull}
-        onTaskUpdate={fetchReadyTasks}
-        isFirst={index === 0}
-        socialConnections={socialConnections}
-      />
-    ))}
-  </div>
-  
-  {readyTasks.length > 3 && (
-    <div className="text-center pt-4 mt-4 border-t border-blue-200">
-      <p className="text-blue-600 text-sm">
-        Showing 3 of {readyTasks.length} ready pieces • 
-        <button 
-          onClick={() => window.location.href = '/publish'}
-          className="text-[#68BEB9] hover:underline ml-1"
-        >
-          View all in Publish Portal
-        </button>
-      </p>
-    </div>
-  )}
-</CardContent>
+        <CardHeader>
+          <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+              5
+            </div>
+            <CheckCircle2 className="w-5 h-5" />
+            Draft posts ready
+            <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+              {readyTasks.length} items
+            </Badge>
+          </CardTitle>
+          <CardDescription className="text-blue-700 flex items-center gap-2">
+            <Clock className="w-4 h-4" />
+            Open Publish Portal to schedule and publish
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Social Connection Status */}
+          <SocialConnectionStatus
+            connections={socialConnections}
+            onConnectPlatform={handleConnectPlatform}
+            onRefreshConnections={fetchSocialConnections}
+          />
+          
+          {/* Open Publish Portal Button */}
+          <div className="text-center py-6">
+            <Button 
+              onClick={() => window.location.href = '/publish'}
+              className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white px-6 py-3"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Open Publish Portal
+            </Button>
+            <p className="text-blue-600 text-sm mt-2">
+              Professional scheduling and publishing tools
+            </p>
+          </div>
+          
+          {/* Legacy content list - keep for transition */}
+          <div className="space-y-3">
+            {readyTasks.slice(0, 3).map((task, index) => (
+              <AccordionReadyToPostItem
+                key={task.id}
+                task={task}
+                onViewFull={handleViewFull}
+                onTaskUpdate={fetchReadyTasks}
+                isFirst={index === 0}
+                socialConnections={socialConnections}
+              />
+            ))}
+          </div>
+          
+          {readyTasks.length > 3 && (
+            <div className="text-center pt-4 mt-4 border-t border-blue-200">
+              <p className="text-blue-600 text-sm">
+                Showing 3 of {readyTasks.length} ready pieces • 
+                <button 
+                  onClick={() => window.location.href = '/publish'}
+                  className="text-[#68BEB9] hover:underline ml-1"
+                >
+                  View all in Publish Portal
+                </button>
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Content Viewer Dialog */}
       {selectedTask && (
