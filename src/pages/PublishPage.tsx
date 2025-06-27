@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ComposerTray } from '@/components/publish/ComposerTray';
@@ -61,8 +62,15 @@ const PublishPage = () => {
     try {
       setLoading(true);
       
-      // Fetch only approved Facebook and Instagram content tasks
-      const { data: contentTasks, error: contentError } = await supabase
+      console.log('Fetching content with params:', {
+        tenant_id: tenant?.id,
+        user_id: user?.id,
+        using_tenant: !!tenant?.id
+      });
+      
+      // Fetch approved Facebook and Instagram content tasks
+      // Try both tenant-based and user-based queries to see what content exists
+      const query = supabase
         .from('content_tasks')
         .select(`
           *,
@@ -74,10 +82,40 @@ const PublishPage = () => {
         `)
         .eq('status', 'approved')
         .in('post_type', ['facebook', 'instagram'])
-        .eq(tenant?.id ? 'tenant_id' : 'user_id', tenant?.id || user?.id)
         .order('created_at', { ascending: false });
 
-      if (contentError) throw contentError;
+      // Apply the appropriate filter based on tenant setup
+      if (tenant?.id) {
+        query.eq('tenant_id', tenant.id);
+      } else {
+        query.eq('user_id', user?.id);
+      }
+
+      const { data: contentTasks, error: contentError } = await query;
+
+      console.log('Content query result:', { contentTasks, contentError });
+
+      if (contentError) {
+        console.error('Content fetch error:', contentError);
+        throw contentError;
+      }
+
+      // Also try to fetch all content tasks to see what's available for debugging
+      const { data: allTasks, error: allTasksError } = await supabase
+        .from('content_tasks')
+        .select(`
+          *,
+          campaigns (
+            title,
+            user_id,
+            tenant_id
+          )
+        `)
+        .in('post_type', ['facebook', 'instagram'])
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      console.log('All available tasks (debug):', { allTasks, allTasksError });
 
       // Transform content_tasks to GeneratedContent format
       const generatedContent: GeneratedContent[] = (contentTasks || []).map(task => ({
@@ -89,6 +127,8 @@ const PublishPage = () => {
         campaignId: task.campaign_id,
         createdAt: task.created_at
       }));
+
+      console.log('Generated content:', generatedContent);
 
       // Fetch social connections
       const { data: connections, error: connectionsError } = await supabase
@@ -112,7 +152,10 @@ const PublishPage = () => {
         socialConnections
       });
 
-      // DON'T auto-select first content item - let user click to select
+      console.log('Final publish data:', {
+        contentCount: generatedContent.length,
+        connectionsCount: socialConnections.length
+      });
 
     } catch (error) {
       console.error('Error initializing publish data:', error);
@@ -245,6 +288,12 @@ const PublishPage = () => {
           <div className="flex-shrink-0 px-4 sm:px-6 py-4 bg-white border-b border-gray-200">
             <h1 className="text-xl sm:text-2xl font-semibold text-[#3E5A6B] mb-1">Publish Portal</h1>
             <p className="text-sm sm:text-base text-gray-600">Schedule and publish your approved Facebook and Instagram content</p>
+            {/* Debug info */}
+            {publishData && (
+              <p className="text-xs text-gray-500 mt-1">
+                Found {publishData.content.length} approved posts, {publishData.socialConnections.length} connections
+              </p>
+            )}
           </div>
 
           {/* Main Content Area - Flexible with bottom padding for sticky calendar */}
