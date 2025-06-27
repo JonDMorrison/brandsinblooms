@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SidebarLayout } from '@/components/SidebarLayout';
+import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { TodayFocusCard } from '@/components/dashboard-social/TodayFocusCard';
 import { DraftTray } from '@/components/dashboard-social/DraftTray';
@@ -30,14 +30,14 @@ const DashboardSocialContent = () => {
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <div className="min-h-screen bg-[#F9FAFB] p-6">
-        <div className="max-w-[1180px] mx-auto">
+        <div className="max-w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">Social Dashboard</h1>
             <p className="text-gray-600">Your daily content creation rhythm</p>
           </div>
 
-          {/* Main Grid */}
+          {/* Main Grid - Now with more space */}
           <div className="grid grid-cols-12 gap-6 mb-6">
             {/* Today's Focus - Columns 1-3 */}
             <div className="col-span-3">
@@ -65,11 +65,11 @@ const DashboardSocialContent = () => {
 
 const DashboardSocial = () => {
   return (
-    <SidebarLayout>
+    <FullWidthLayout>
       <DashboardProvider>
         <DashboardSocialContent />
       </DashboardProvider>
-    </SidebarLayout>
+    </FullWidthLayout>
   );
 };
 

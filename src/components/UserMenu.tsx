@@ -1,7 +1,21 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { User, Settings, LogOut, RotateCcw, AlertTriangle } from "lucide-react";
+import { 
+  User, 
+  Settings, 
+  LogOut, 
+  RotateCcw, 
+  AlertTriangle,
+  LayoutDashboard,
+  Calendar,
+  Share2,
+  ClipboardList,
+  Building2,
+  Users,
+  CreditCard,
+  TrendingUp
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -93,6 +107,10 @@ export const UserMenu = () => {
 
   const isAdmin = user?.email && isSuperAdmin(user.email);
 
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -108,7 +126,7 @@ export const UserMenu = () => {
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuContent className="w-60" align="end" forceMount>
           <div className="flex items-center justify-start gap-2 p-2">
             <div className="flex flex-col space-y-1 leading-none">
               <p className="font-medium text-sm">{user?.email}</p>
@@ -119,13 +137,52 @@ export const UserMenu = () => {
           </div>
           <DropdownMenuSeparator />
           
-          <DropdownMenuItem onClick={() => navigate('/account')}>
+          {/* Navigation Section */}
+          <DropdownMenuItem onClick={() => handleNavigation('/')}>
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Dashboard
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleNavigation('/calendar')}>
+            <Calendar className="mr-2 h-4 w-4" />
+            Calendar
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleNavigation('/social')}>
+            <Share2 className="mr-2 h-4 w-4" />
+            Content Planner
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleNavigation('/social-media')}>
+            <TrendingUp className="mr-2 h-4 w-4" />
+            Analytics & Scheduling
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleNavigation('/content-tasks')}>
+            <ClipboardList className="mr-2 h-4 w-4" />
+            Content Tasks
+          </DropdownMenuItem>
+          
+          <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
+            <Building2 className="mr-2 h-4 w-4" />
+            Company Profile
+          </DropdownMenuItem>
+          
+          <DropdownMenuSeparator />
+          
+          {/* Account Section */}
+          <DropdownMenuItem onClick={() => handleNavigation('/account')}>
             <User className="mr-2 h-4 w-4" />
             Account Settings
           </DropdownMenuItem>
           
+          <DropdownMenuItem onClick={() => handleNavigation('/billing')}>
+            <CreditCard className="mr-2 h-4 w-4" />
+            Billing
+          </DropdownMenuItem>
+          
           {isAdmin && (
-            <DropdownMenuItem onClick={() => navigate('/admin')}>
+            <DropdownMenuItem onClick={() => handleNavigation('/admin')}>
               <Settings className="mr-2 h-4 w-4" />
               Admin Dashboard
             </DropdownMenuItem>

@@ -35,12 +35,11 @@ const App = () => {
               <Route path="/" element={<SmartRootRoute />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/new-dashboard" element={<NewDashboard />} />
-              <Route path="/dashboard/social" element={<DashboardSocial />} />
+              <Route path="/social" element={<DashboardSocial />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/account" element={<AccountSettings />} />
               <Route path="/company-profile" element={<CompanyProfile />} />
-              <Route path="/social" element={<SocialAccounts />} />
               <Route path="/social-accounts" element={<SocialAccounts />} />
               <Route path="/billing" element={<BillingPage />} />
               <Route path="/calendar" element={<CalendarPage />} />

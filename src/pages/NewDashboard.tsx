@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { SidebarLayout } from '@/components/SidebarLayout';
+import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,25 +99,25 @@ const NewDashboard = () => {
 
   if (loading) {
     return (
-      <SidebarLayout>
+      <FullWidthLayout>
         <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
           <LoadingSpinner size="lg" text="Loading BloomSuite Dashboard..." />
         </div>
-      </SidebarLayout>
+      </FullWidthLayout>
     );
   }
 
   return (
-    <SidebarLayout>
+    <FullWidthLayout>
       <div className="min-h-screen bg-[#F9FAFB] p-6">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
             <p className="text-gray-600">Your content creation command center</p>
           </div>
 
-          {/* Main Dashboard Grid */}
+          {/* Main Dashboard Grid - Now with full width */}
           <div className="grid grid-cols-12 gap-6 mb-6">
             {/* Today's Focus - Left Column */}
             <div className="col-span-3">
@@ -153,7 +153,7 @@ const NewDashboard = () => {
           />
         </div>
       </div>
-    </SidebarLayout>
+    </FullWidthLayout>
   );
 };
 
