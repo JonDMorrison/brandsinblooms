@@ -1,10 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Instagram, Facebook, FileText, Hash, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { ImageCarousel } from '@/components/ui/image-carousel';
+import { processNewsletterContent, convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -288,40 +288,12 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
     return { text: textWithoutHashtags, hashtags };
   };
 
-  // Enhanced content processing for newsletter
-  const processNewsletterContent = (content: string) => {
-    // Check if this is structured YAML newsletter
-    const isStructuredNewsletter = content.includes('newsletter_md:') || content.includes('blocks:');
-    
-    if (isStructuredNewsletter) {
-      // Try to parse as YAML newsletter
-      const parsedNewsletter = parseNewsletterYAML(content);
-      
-      if (parsedNewsletter) {
-        return {
-          isStructured: true,
-          parsedNewsletter,
-          text: parsedNewsletter.newsletter_md || '',
-          hashtags: []
-        };
-      }
-    }
-    
-    // Fallback to regular content processing
-    const { text, hashtags } = formatContent(content);
-    return {
-      isStructured: false,
-      parsedNewsletter: null,
-      text,
-      hashtags
-    };
-  };
-
   if (postType === 'newsletter') {
-    const { isStructured, parsedNewsletter, text, hashtags } = processNewsletterContent(content);
+    // Use the new newsletter processor
+    const processedNewsletter = processNewsletterContent(content, campaignTitle);
     
-    if (isStructured && parsedNewsletter) {
-      // Structured newsletter - show simplified preview since full display is in sidebar
+    if (processedNewsletter.isStructured && processedNewsletter.blocks.length > 0) {
+      // Structured newsletter - show enhanced preview
       return (
         <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
           {/* Header */}
@@ -338,43 +310,31 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
             "Newsletter featured image"
           )}
 
-          {/* Content Preview */}
-          <div className="space-y-4">
+          {/* Newsletter Content with proper HTML rendering */}
+          <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-                {parsedNewsletter.meta.theme || 'Newsletter'}
+                {processedNewsletter.meta.theme || 'Newsletter'}
               </h2>
               <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
             </div>
             
-            <div className="prose prose-sm max-w-none">
-              <p className="text-gray-600 italic mb-4">
-                {parsedNewsletter.blocks.length}-section magazine-style newsletter with engaging headlines and content blocks. Click to view full layout.
-              </p>
-              
-              {parsedNewsletter.blocks.slice(0, 2).map((block, index) => (
-                <div key={index} className="mb-3">
-                  <h4 className="font-semibold text-gray-800 text-sm mb-1">
-                    {block.title}
-                  </h4>
-                  <p className="text-gray-600 text-xs">
-                    {block.body.length > 100 ? `${block.body.substring(0, 100)}...` : block.body}
-                  </p>
-                </div>
-              ))}
-              
-              {parsedNewsletter.blocks.length > 2 && (
-                <p className="text-gray-500 text-xs italic">
-                  +{parsedNewsletter.blocks.length - 2} more sections...
-                </p>
-              )}
-            </div>
+            {/* Render the newsletter_md content with proper HTML formatting */}
+            {processedNewsletter.newsletter_md && (
+              <div className="prose prose-sm max-w-none">
+                <div 
+                  dangerouslySetInnerHTML={{ 
+                    __html: convertNewsletterMarkdownToHtml(processedNewsletter.newsletter_md) 
+                  }} 
+                />
+              </div>
+            )}
           </div>
 
           {/* Newsletter Footer */}
           <div className="mt-6 pt-4 border-t border-purple-200">
             <p className="text-center text-sm text-purple-600 italic">
-              ≈{parsedNewsletter.meta.reading_time} • {parsedNewsletter.blocks.length} sections
+              {processedNewsletter.meta.reading_time} • {processedNewsletter.blocks.length} sections
             </p>
           </div>
 
@@ -384,8 +344,8 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
       );
     }
 
-    // Fallback for plain text newsletter - only render if text exists and is not empty
-    if (text && text.trim().length > 0) {
+    // Fallback for plain text newsletter with proper formatting
+    if (content && content.trim().length > 0) {
       return (
         <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
           {/* Header */}
@@ -402,14 +362,14 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
             "Newsletter featured image"
           )}
 
-          {/* Content - only render paragraphs with actual content */}
+          {/* Content with proper HTML formatting */}
           <div className="space-y-4">
             <div className="prose prose-sm max-w-none">
-              {text.split('\n\n').filter(paragraph => paragraph.trim().length > 0).map((paragraph, index) => (
-                <p key={index} className="text-gray-700 leading-relaxed mb-4">
-                  {paragraph.trim()}
-                </p>
-              ))}
+              <div 
+                dangerouslySetInnerHTML={{ 
+                  __html: convertNewsletterMarkdownToHtml(content) 
+                }} 
+              />
             </div>
           </div>
 
