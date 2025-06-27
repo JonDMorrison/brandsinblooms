@@ -153,26 +153,50 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
 
   // Helper function to render thumbnail alternatives section
   const renderThumbnailSection = () => {
-    if (loadingImage || images.length <= 1) {
+    console.log('[MAGAZINE_DISPLAY] renderThumbnailSection called with:', {
+      loadingImage,
+      imagesLength: images.length,
+      imagesArray: images,
+      hasValidThumbnails: images.slice(1).length > 0
+    });
+
+    if (loadingImage) {
+      console.log('[MAGAZINE_DISPLAY] Still loading images, not showing thumbnails');
+      return null;
+    }
+
+    if (images.length < 2) {
+      console.log('[MAGAZINE_DISPLAY] Not enough images for thumbnails, need at least 2, have:', images.length);
       return null;
     }
 
     const thumbnails = images.slice(1); // Get alternatives (skip featured image)
+    console.log('[MAGAZINE_DISPLAY] Thumbnails to render:', thumbnails);
     
     return (
       <div className="mt-8 pt-6 border-t border-gray-200">
         <h4 className="text-sm font-medium text-gray-700 mb-3">Alternative Images</h4>
         <div className="grid grid-cols-3 gap-3">
-          {thumbnails.map((image, index) => (
-            <div key={image.id} className="relative group cursor-pointer">
-              <img
-                src={image.thumb_url}
-                alt={image.alt}
-                className="w-full h-20 object-cover rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded-lg" />
-            </div>
-          ))}
+          {thumbnails.map((image, index) => {
+            console.log('[MAGAZINE_DISPLAY] Rendering thumbnail:', { index, image });
+            return (
+              <div key={image.id || index} className="relative group cursor-pointer">
+                <img
+                  src={image.thumb_url}
+                  alt={image.alt}
+                  className="w-full h-20 object-cover rounded-lg border border-gray-200 hover:border-gray-400 transition-colors"
+                  onError={(e) => {
+                    console.error('[MAGAZINE_DISPLAY] Thumbnail image failed to load:', image.thumb_url);
+                    e.currentTarget.style.display = 'none';
+                  }}
+                  onLoad={() => {
+                    console.log('[MAGAZINE_DISPLAY] Thumbnail image loaded successfully:', image.thumb_url);
+                  }}
+                />
+                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded-lg" />
+              </div>
+            );
+          })}
         </div>
       </div>
     );
