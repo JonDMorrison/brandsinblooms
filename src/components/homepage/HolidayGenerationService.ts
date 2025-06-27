@@ -112,15 +112,14 @@ export async function generateHolidayContent(
 
       console.log(`✅ ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}, attempts: ${attempts}`);
 
-      // Create task data structure
+      // Create task data structure - FIXED: removed invalid 'holidays' field
       const taskData: any = {
         holiday_id: holiday.id,
         post_type: type,
         ai_output: output,
         status: 'review',
         scheduled_date: holiday.holiday_date,
-        notes: `Generated for ${holiday.holiday_name} (${attempts} attempts)`,
-        holidays: holiday // Include holiday data for image attachment
+        notes: `Generated for ${holiday.holiday_name} (${attempts} attempts)`
       };
 
       // Attach smart images to the task
