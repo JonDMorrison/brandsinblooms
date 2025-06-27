@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Instagram, Facebook, FileText, Video, Hash, Image as ImageIcon, Mail } from 'lucide-react';
+import { Instagram, Facebook, FileText, Hash, Image as ImageIcon, Mail } from 'lucide-react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { ImageCarousel } from '@/components/ui/image-carousel';
@@ -251,7 +251,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
       case 'instagram': return <Instagram className="w-5 h-5 text-pink-500" />;
       case 'facebook': return <Facebook className="w-5 h-5 text-blue-600" />;
       case 'blog': return <FileText className="w-5 h-5 text-green-600" />;
-      case 'video': return <Video className="w-5 h-5 text-red-500" />;
+      case 'video': return <FileText className="w-5 h-5 text-green-600" />;
       case 'newsletter': return <Mail className="w-5 h-5 text-purple-500" />;
       default: return <FileText className="w-5 h-5 text-gray-500" />;
     }
@@ -262,7 +262,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
       case 'instagram': return 'from-pink-50 to-purple-50 border-pink-200';
       case 'facebook': return 'from-blue-50 to-indigo-50 border-blue-200';
       case 'blog': return 'from-green-50 to-emerald-50 border-green-200';
-      case 'video': return 'from-red-50 to-orange-50 border-red-200';
+      case 'video': return 'from-green-50 to-emerald-50 border-green-200';
       case 'newsletter': return 'from-purple-50 to-indigo-50 border-purple-200';
       default: return 'from-gray-50 to-slate-50 border-gray-200';
     }
@@ -532,12 +532,12 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           {getPostTypeIcon()}
-          <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
-            Video Script (90s Max)
+          <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+            Teaching Content
           </Badge>
         </div>
 
-        {/* Script Content - Natural conversation flow */}
+        {/* Teaching Content - Natural conversation flow */}
         <div className="space-y-4">
           <div className="prose prose-sm max-w-none">
             {text.split('\n\n').map((paragraph, index) => (
