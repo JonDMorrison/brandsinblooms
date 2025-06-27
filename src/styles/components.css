@@ -1,3 +1,4 @@
+
 /* General Component Styles */
 .container {
   @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
@@ -265,7 +266,8 @@
 }
 
 .accordion-row--open {
-  @apply ring-1 ring-garden-green/20;
+  @apply ring-1;
+  --tw-ring-color: rgba(104, 190, 185, 0.2);
 }
 
 .accordion-content {
