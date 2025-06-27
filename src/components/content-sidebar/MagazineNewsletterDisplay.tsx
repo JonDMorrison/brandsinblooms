@@ -124,7 +124,7 @@ export const MagazineNewsletterDisplay = ({
 
       {/* Main Content with Enhanced Formatting */}
       {processedNewsletter.newsletter_md ? (
-        <div className="prose prose-lg max-w-none mb-12">
+        <div className="prose prose-lg max-w-none mb-12 newsletter-enhanced-content">
           <div 
             className="newsletter-content"
             dangerouslySetInnerHTML={{ 
@@ -156,44 +156,46 @@ export const MagazineNewsletterDisplay = ({
         </p>
       </div>
 
-      {/* Enhanced Newsletter Styles */}
-      <style jsx>{`
-        .newsletter-content h2 {
-          background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-          border-radius: 8px;
-          padding: 12px 16px;
-          margin: 2rem 0 1rem 0;
-          border-left: 4px solid #68BEB9;
-        }
-        
-        .newsletter-content h3 {
-          background: #f1f5f9;
-          border-radius: 6px;
-          padding: 8px 12px;
-          margin: 1.5rem 0 0.75rem 0;
-          border-left: 3px solid #94a3b8;
-        }
-        
-        .newsletter-content .newsletter-section {
-          background: rgba(248, 250, 252, 0.5);
-          border-radius: 12px;
-          padding: 1.5rem;
-          margin: 2rem 0;
-          border: 1px solid #e2e8f0;
-        }
-        
-        .newsletter-content p {
-          line-height: 1.7;
-          margin-bottom: 1rem;
-        }
-        
-        .newsletter-content ul {
-          background: #fefefe;
-          border-radius: 8px;
-          padding: 1rem 1.5rem;
-          border-left: 3px solid #22c55e;
-        }
-      `}</style>
+      {/* Enhanced Newsletter Styles using CSS classes */}
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          .newsletter-enhanced-content .newsletter-content h2 {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 2rem 0 1rem 0;
+            border-left: 4px solid #68BEB9;
+          }
+          
+          .newsletter-enhanced-content .newsletter-content h3 {
+            background: #f1f5f9;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin: 1.5rem 0 0.75rem 0;
+            border-left: 3px solid #94a3b8;
+          }
+          
+          .newsletter-enhanced-content .newsletter-content .newsletter-section {
+            background: rgba(248, 250, 252, 0.5);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border: 1px solid #e2e8f0;
+          }
+          
+          .newsletter-enhanced-content .newsletter-content p {
+            line-height: 1.7;
+            margin-bottom: 1rem;
+          }
+          
+          .newsletter-enhanced-content .newsletter-content ul {
+            background: #fefefe;
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            border-left: 3px solid #22c55e;
+          }
+        `
+      }} />
     </div>
   );
 };
