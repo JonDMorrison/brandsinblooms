@@ -119,11 +119,11 @@ export const ImageCarousel = ({
 
   const ImageCard = ({ image, isFeatured = false }: { image: ImageSuggestion, isFeatured?: boolean }) => (
     <div
-      className={`relative group cursor-pointer ${isFeatured ? 'col-span-2 row-span-2' : ''}`}
+      className="relative group cursor-pointer"
       onMouseEnter={() => setHoveredImage(image.id)}
       onMouseLeave={() => setHoveredImage(null)}
     >
-      <div className={`${isFeatured ? 'aspect-square' : 'aspect-video'} rounded-lg overflow-hidden bg-gray-100 relative`}>
+      <div className={`${isFeatured ? 'aspect-video' : 'aspect-video'} rounded-lg overflow-hidden bg-gray-100 relative`}>
         <img
           src={image.thumb_url}
           alt={image.alt}
@@ -199,15 +199,23 @@ export const ImageCarousel = ({
         </div>
       </div>
 
-      {/* Featured + Alternatives Grid Layout */}
-      <div className="grid grid-cols-4 grid-rows-2 gap-4 h-64">
-        {/* Featured Image - Takes up left 2x2 space */}
-        {featuredImage && <ImageCard image={featuredImage} isFeatured={true} />}
+      {/* New Vertical Layout */}
+      <div className="space-y-4">
+        {/* Featured Image - Full Width */}
+        {featuredImage && (
+          <div className="w-full">
+            <ImageCard image={featuredImage} isFeatured={true} />
+          </div>
+        )}
         
-        {/* Alternative Images - Take up remaining right side */}
-        {alternativeImages.map((image) => (
-          <ImageCard key={image.id} image={image} />
-        ))}
+        {/* Alternative Images - 3 Column Grid */}
+        {alternativeImages.length > 0 && (
+          <div className="grid grid-cols-3 gap-4">
+            {alternativeImages.map((image) => (
+              <ImageCard key={image.id} image={image} />
+            ))}
+          </div>
+        )}
       </div>
 
       {usingPlaceholders && (
