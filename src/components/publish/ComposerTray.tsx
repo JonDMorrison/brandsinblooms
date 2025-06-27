@@ -2,8 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GeneratedContent {
@@ -23,19 +21,6 @@ interface ComposerTrayProps {
 }
 
 export const ComposerTray = ({ content, selectedContent, onContentSelect }: ComposerTrayProps) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-
-  // Responsive behavior
-  useEffect(() => {
-    const handleResize = () => {
-      setIsCollapsed(window.innerWidth < 1200);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT':
@@ -76,54 +61,12 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
 
   const draftCount = content.filter(c => c.status === 'DRAFT').length;
 
-  if (isCollapsed) {
-    return (
-      <div className="w-16 bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col items-center p-2">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsCollapsed(false)}
-          className="w-10 h-10 p-0 mb-4"
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-        
-        {content.slice(0, 5).map((item) => (
-          <Button
-            key={item.id}
-            variant="ghost"
-            size="sm"
-            onClick={() => onContentSelect(item)}
-            className={cn(
-              "w-10 h-10 p-0 mb-2 text-lg rounded-lg border transition-all",
-              selectedContent?.id === item.id
-                ? "border-[#68BEB9] bg-[#68BEB9]/10"
-                : "border-gray-200 hover:border-[#68BEB9]/30"
-            )}
-          >
-            {getPlatformIcon(item.platform)}
-          </Button>
-        ))}
-      </div>
-    );
-  }
-
   return (
     <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
       {/* Header - Fixed */}
       <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gray-50/50">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[#3E5A6B]">Social Content Queue</h2>
-          {window.innerWidth >= 1200 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsCollapsed(true)}
-              className="lg:hidden w-8 h-8 p-0"
-            >
-              <Menu className="w-4 h-4" />
-            </Button>
-          )}
         </div>
         
         {/* Section Label */}
