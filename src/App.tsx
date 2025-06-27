@@ -4,6 +4,7 @@ import {
   BrowserRouter as Router,
   Route,
   Routes,
+  Navigate,
 } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
@@ -30,6 +31,7 @@ const App = () => {
           <ContentGenerationProvider>
             <Routes>
               <Route path="/" element={<SmartRootRoute />} />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/account" element={<AccountSettings />} />
