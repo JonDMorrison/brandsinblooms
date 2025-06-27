@@ -6,7 +6,7 @@ export const createBlocksFromPlainText = (content: string, campaignTitle?: strin
   
   console.log('Creating blocks from plain text, content length:', content.length);
   
-  // If content looks like raw YAML, try to extract meaningful content
+  // Handle raw YAML content extraction
   if (content.includes('blocks:') && content.includes('- title:')) {
     console.log('Detected raw YAML content, extracting meaningful parts');
     
@@ -49,13 +49,21 @@ export const createBlocksFromPlainText = (content: string, campaignTitle?: strin
     return blocks;
   }
   
-  // For regular content, split into logical sections
+  // Enhanced section detection for regular content
   const sections = content.split(/\n\s*\n/).filter(section => section.trim());
   
   return sections.map((section, index) => {
     const lines = section.split('\n').filter(line => line.trim());
-    const title = lines[0]?.replace(/^#+\s*/, '').replace(/\*\*(.*?)\*\*/, '$1').trim() || `Section ${index + 1}`;
-    const body = lines.slice(1).join(' ').trim() || lines[0]?.trim() || '';
+    
+    // Enhanced title extraction
+    let title = extractSectionTitle(lines[0]) || `Section ${index + 1}`;
+    let body = lines.slice(1).join(' ').trim();
+    
+    // If no body content, use the first line as body and create a generic title
+    if (!body && lines[0]) {
+      body = lines[0].trim();
+      title = generateTitleFromContent(body, index);
+    }
     
     return {
       title,
@@ -91,6 +99,15 @@ export const extractTitleFromContent = (content: string, fallback?: string): str
     return boldMatch[1].trim();
   }
   
+  // Look for section headers
+  const lines = content.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (isHeaderLine(trimmed)) {
+      return trimmed.replace(/\*\*(.*?)\*\*/, '$1').trim();
+    }
+  }
+  
   // Use first line if it's short enough
   const firstLine = content.split('\n')[0]?.trim();
   if (firstLine && firstLine.length < 100 && !firstLine.includes(':')) {
@@ -107,12 +124,12 @@ export const generateIntroFromContent = (content: string, campaignTitle?: string
   const lines = content.split('\n').filter(line => line.trim());
   
   // Skip the first line if it looks like a title
-  const startIndex = lines[0]?.match(/^#+|^\*\*.*\*\*$/) ? 1 : 0;
+  const startIndex = lines[0]?.match(/^#+|^\*\*.*\*\*$|^[A-Z][A-Z\s]{5,50}:?$/) ? 1 : 0;
   
   // Find the first substantial paragraph
   for (let i = startIndex; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (line.length > 50 && !line.includes(':') && !line.startsWith('-')) {
+    if (line.length > 50 && !line.includes(':') && !line.startsWith('-') && !isHeaderLine(line)) {
       return line.replace(/\*\*(.*?)\*\*/g, '$1').substring(0, 200) + (line.length > 200 ? '...' : '');
     }
   }
@@ -144,4 +161,63 @@ export const checkIsPlaceholderContent = (content: string): boolean => {
   });
   
   return hasPlaceholderPattern || isTooShort;
+};
+
+// Helper functions for enhanced content processing
+const extractSectionTitle = (line: string): string | null => {
+  if (!line) return null;
+  
+  const trimmed = line.trim();
+  
+  // Remove markdown syntax and extract clean title
+  let title = trimmed
+    .replace(/^#+\s*/, '')
+    .replace(/\*\*(.*?)\*\*/, '$1')
+    .replace(/__(.*?)__/, '$1')
+    .trim();
+  
+  // Check if it looks like a title
+  if (isHeaderLine(title)) {
+    return title;
+  }
+  
+  return null;
+};
+
+const generateTitleFromContent = (content: string, index: number): string => {
+  // Try to extract a meaningful title from content
+  const words = content.replace(/[^\w\s]/g, '').split(/\s+/).slice(0, 6);
+  const title = words.join(' ');
+  
+  // Common newsletter topics
+  const topics = [
+    'Garden Focus', 'Plant Care', 'Seasonal Tips', 'Growing Guide',
+    'Expert Advice', 'Garden Update', 'Plant Spotlight', 'Care Instructions'
+  ];
+  
+  // Use topic-based title if content is too generic
+  if (title.length < 10) {
+    return topics[index % topics.length] || `Content ${index + 1}`;
+  }
+  
+  return title.length > 50 ? title.substring(0, 47) + '...' : title;
+};
+
+const isHeaderLine = (line: string): boolean => {
+  if (!line) return false;
+  
+  const trimmed = line.trim();
+  
+  // Known section headers
+  const headerPatterns = [
+    /^(this week's focus|garden focus|what's happening|expert tips|seasonal highlights|plant care tips|garden maintenance|special offers|featured plants|growing tips)$/i,
+    /^[A-Z][A-Z\s&'-]{5,50}:?\s*$/,
+    /^\d+\.\s*[A-Z]/,
+    /^Week\s+\d+/i
+  ];
+  
+  return headerPatterns.some(pattern => pattern.test(trimmed)) ||
+    (trimmed.length < 60 && trimmed === trimmed.toUpperCase() && trimmed.split(' ').length <= 6) ||
+    (trimmed.endsWith(':') && trimmed.length < 80) ||
+    (trimmed.length < 100 && !trimmed.includes('.') && trimmed.split(' ').length <= 8);
 };

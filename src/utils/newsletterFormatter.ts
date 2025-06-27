@@ -6,65 +6,56 @@ export const formatNewsletterContent = (content: string): string => {
   let cleanContent = content.replace(/<[^>]*>/g, '');
   
   // Convert markdown bold syntax (**text**) to HTML bold tags
-  cleanContent = cleanContent.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  cleanContent = cleanContent.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>');
   
-  // Split into paragraphs
-  const paragraphs = cleanContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
-  
+  // Enhanced header detection and formatting
+  const lines = cleanContent.split('\n').filter(line => line.trim());
   let formattedContent = '';
   
-  paragraphs.forEach((paragraph, index) => {
-    const trimmed = paragraph.trim();
-    if (!trimmed) return;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
     
-    // Check if this looks like a header (short, uppercase, or ends with colon)
-    const isHeader = trimmed.length < 60 && (
-      trimmed === trimmed.toUpperCase() ||
-      trimmed.endsWith(':') ||
-      /^[A-Z][A-Za-z\s]+$/.test(trimmed) ||
-      trimmed.includes('WEEK') ||
-      trimmed.includes('FOCUS') ||
-      // Check for specific section headers we add
-      trimmed === 'Gardening Focus' ||
-      trimmed === "What's Happening" ||
-      trimmed === 'Expert Tips'
-    );
+    // Check if this is a header
+    const isHeader = isLineHeader(line);
     
     if (isHeader) {
-      formattedContent += `<div class="font-bold text-lg mt-6 mb-3 text-slate-900">${trimmed}</div>\n`;
+      formattedContent += `<div class="newsletter-section mt-8 first:mt-0">`;
+      formattedContent += `<h3 class="text-xl font-bold text-slate-900 mb-4 pb-2 border-b border-slate-200 bg-slate-50 px-4 py-2 rounded-lg">${line}</h3>`;
     } else {
-      // Break long paragraphs into shorter ones
-      const sentences = trimmed.split(/(?<=[.!?])\s+/);
-      let currentParagraph = '';
+      // Process as paragraph content
+      const sentences = line.split(/(?<=[.!?])\s+/);
+      let paragraph = '';
       
-      sentences.forEach((sentence, sentenceIndex) => {
-        currentParagraph += sentence + ' ';
+      for (let j = 0; j < sentences.length; j++) {
+        paragraph += sentences[j] + ' ';
         
-        // Create new paragraph after 2-3 sentences or if content is getting long
-        if ((sentenceIndex + 1) % 3 === 0 || currentParagraph.length > 200) {
-          formattedContent += `<p class="mb-4 text-slate-700 leading-relaxed">${currentParagraph.trim()}</p>\n`;
-          currentParagraph = '';
+        // Create paragraph breaks for better readability
+        if ((j + 1) % 3 === 0 || paragraph.length > 200) {
+          formattedContent += `<p class="mb-4 text-slate-700 leading-relaxed">${paragraph.trim()}</p>`;
+          paragraph = '';
         }
-      });
+      }
       
-      // Add remaining content as paragraph
-      if (currentParagraph.trim()) {
-        formattedContent += `<p class="mb-4 text-slate-700 leading-relaxed">${currentParagraph.trim()}</p>\n`;
+      // Add remaining content
+      if (paragraph.trim()) {
+        formattedContent += `<p class="mb-4 text-slate-700 leading-relaxed">${paragraph.trim()}</p>`;
       }
     }
-  });
+    
+    // Close section div for headers
+    if (isHeader && (i === lines.length - 1 || isLineHeader(lines[i + 1]?.trim()))) {
+      formattedContent += `</div>`;
+    }
+  }
   
-  // Add section breaks for better visual separation
-  formattedContent = formattedContent.replace(
-    /(<div class="font-bold[^>]*>.*?<\/div>)/g, 
-    '<div class="border-t border-gray-200 pt-6 mt-6 first:border-t-0 first:pt-0 first:mt-0">$1'
-  );
+  // Close any remaining open section divs
+  const openDivs = (formattedContent.match(/<div class="newsletter-section/g) || []).length;
+  const closeDivs = (formattedContent.match(/<\/div>/g) || []).length;
   
-  // Close the section divs
-  formattedContent = formattedContent.replace(
-    /(<div class="font-bold[^>]*>.*?<\/div>(?:(?!<div class="font-bold|$).)*)/g,
-    '$1</div>'
-  );
+  for (let i = 0; i < openDivs - closeDivs; i++) {
+    formattedContent += '</div>';
+  }
   
   return formattedContent;
 };
@@ -72,7 +63,6 @@ export const formatNewsletterContent = (content: string): string => {
 export const addNewsletterSections = (content: string): string => {
   if (!content) return '';
   
-  // Look for natural topic breaks and add section headers
   const lines = content.split('\n').filter(line => line.trim().length > 0);
   let processedContent = '';
   let currentSection = '';
@@ -80,7 +70,7 @@ export const addNewsletterSections = (content: string): string => {
   lines.forEach((line, index) => {
     const trimmed = line.trim();
     
-    // Detect topic changes based on keywords
+    // Detect topic changes and section breaks
     const gardenKeywords = ['plant', 'garden', 'seed', 'soil', 'water', 'grow', 'bloom', 'seasonal', 'maintenance'];
     const businessKeywords = ['sale', 'offer', 'visit', 'store', 'special', 'promotion', 'event'];
     const tipKeywords = ['tip', 'advice', 'remember', 'important', 'best practice', 'expert'];
@@ -89,17 +79,17 @@ export const addNewsletterSections = (content: string): string => {
     const hasBusinessKeywords = businessKeywords.some(keyword => trimmed.toLowerCase().includes(keyword));
     const hasTipKeywords = tipKeywords.some(keyword => trimmed.toLowerCase().includes(keyword));
     
-    // Add section headers based on content type (without markdown syntax)
+    // Add section headers based on content analysis
     if (index === 0 || (hasGardenKeywords && currentSection !== 'garden')) {
       if (hasGardenKeywords && index > 0) {
-        processedContent += '\nGardening Focus\n\n';
+        processedContent += '\n\nGardening Focus\n\n';
         currentSection = 'garden';
       }
     } else if (hasBusinessKeywords && currentSection !== 'business') {
-      processedContent += '\nWhat\'s Happening\n\n';
+      processedContent += '\n\nWhat\'s Happening\n\n';
       currentSection = 'business';
     } else if (hasTipKeywords && currentSection !== 'tips') {
-      processedContent += '\nExpert Tips\n\n';
+      processedContent += '\n\nExpert Tips\n\n';
       currentSection = 'tips';
     }
     
@@ -107,4 +97,21 @@ export const addNewsletterSections = (content: string): string => {
   });
   
   return processedContent;
+};
+
+// Helper function to determine if a line should be treated as a header
+const isLineHeader = (line: string): boolean => {
+  if (!line) return false;
+  
+  // Known newsletter section patterns
+  const headerPatterns = [
+    /^(this week's focus|garden focus|what's happening|expert tips|seasonal highlights|plant care tips|garden maintenance|special offers|featured plants|growing tips)$/i,
+    /^[A-Z][A-Z\s&'-]{5,50}:?\s*$/,
+    /^\d+\.\s*[A-Z]/,
+    /^Week\s+\d+/i
+  ];
+  
+  return headerPatterns.some(pattern => pattern.test(line.trim())) ||
+    (line.length < 60 && line === line.toUpperCase() && line.split(' ').length <= 6) ||
+    (line.endsWith(':') && line.length < 80);
 };

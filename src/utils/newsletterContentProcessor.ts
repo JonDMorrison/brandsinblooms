@@ -1,240 +1,249 @@
 
-interface NewsletterBlock {
-  title: string;
-  body: string;
-  cta?: string;
-  link?: string;
-  image_prompt?: string;
-  alt_text?: string;
-}
-
-interface NewsletterMeta {
-  reading_time: string;
-  theme: string;
-  week_focus: string;
-}
-
-export interface ProcessedNewsletter {
-  newsletter_md: string;
-  blocks: NewsletterBlock[];
-  meta: NewsletterMeta;
+// Enhanced newsletter content processing utility
+interface ProcessedNewsletter {
   isStructured: boolean;
+  newsletter_md: string;
+  blocks: Array<{
+    title: string;
+    body: string;
+    cta: string;
+    link: string;
+    image_prompt: string;
+    alt_text: string;
+  }>;
+  meta: {
+    reading_time: string;
+    theme: string;
+    week_focus: string;
+  };
 }
 
-// Enhanced markdown to HTML conversion for newsletters
-export const convertNewsletterMarkdownToHtml = (content: string): string => {
-  if (!content) return '';
-  
-  let html = content;
-  
-  // Convert headers with proper styling
-  html = html
-    .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-8 mb-6 leading-tight">$1</h1>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-semibold text-gray-900 mt-6 mb-4 leading-tight">$1</h2>')
-    .replace(/^### (.+)$/gm, '<h3 class="text-xl font-medium text-gray-900 mt-4 mb-3">$1</h3>');
-  
-  // Convert bold and italic text
-  html = html
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-gray-900">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em class="italic text-gray-700">$1</em>');
-  
-  // Split into paragraphs and convert
-  const paragraphs = html.split(/\n\s*\n/).filter(p => p.trim());
-  
-  html = paragraphs.map(paragraph => {
-    const trimmed = paragraph.trim();
-    
-    // Skip if already wrapped in HTML tags (headers, etc.)
-    if (trimmed.match(/^<(h[1-6]|div|ul|ol)/)) {
-      return trimmed;
-    }
-    
-    // Handle lines with just emphasis formatting
-    if (trimmed.match(/^\*[^*]+\*$/)) {
-      return `<p class="text-lg italic text-gray-700 mb-4 leading-relaxed">${trimmed}</p>`;
-    }
-    
-    // Regular paragraphs
-    return `<p class="text-gray-700 mb-4 leading-relaxed">${trimmed}</p>`;
-  }).join('\n');
-  
-  // Handle horizontal rules
-  html = html.replace(/^---$/gm, '<hr class="border-t border-gray-200 my-8">');
-  
-  return html;
-};
-
-// Create blocks from plain text content
-export const createBlocksFromPlainText = (content: string, campaignTitle?: string): NewsletterBlock[] => {
-  if (!content) return [];
-  
-  const sections = content.split(/\n\s*\n/).filter(section => section.trim());
-  const blocks: NewsletterBlock[] = [];
-  
-  for (let i = 0; i < sections.length; i++) {
-    const section = sections[i].trim();
-    
-    // Check if section starts with a header
-    const headerMatch = section.match(/^#+\s*(.+)/);
-    if (headerMatch) {
-      const title = headerMatch[1];
-      const body = section.replace(/^#+\s*.+\n?/, '').trim();
-      
-      if (body) {
-        blocks.push({
-          title,
-          body,
-          cta: '',
-          link: '#',
-          image_prompt: `${title.toLowerCase()} ${campaignTitle || 'garden'} content`,
-          alt_text: `${title} illustration`
-        });
-      }
-    } else if (section.length > 50) {
-      // Create a block from substantial content without header
-      const title = `Section ${i + 1}`;
-      blocks.push({
-        title,
-        body: section,
-        cta: '',
-        link: '#',
-        image_prompt: `${campaignTitle || 'newsletter'} content section`,
-        alt_text: 'Newsletter content illustration'
-      });
-    }
-  }
-  
-  return blocks;
-};
-
-// Calculate reading time
-export const calculateReadingTime = (content: string): string => {
-  if (!content) return '≈1 min';
-  
-  const wordsPerMinute = 200;
-  const wordCount = content.split(/\s+/).length;
-  const minutes = Math.ceil(wordCount / wordsPerMinute);
-  
-  return `≈${minutes} min`;
-};
-
-// Process newsletter content - main function
 export const processNewsletterContent = (content: string, campaignTitle?: string): ProcessedNewsletter => {
   if (!content) {
     return {
+      isStructured: false,
       newsletter_md: '',
       blocks: [],
       meta: {
-        reading_time: '≈1 min',
+        reading_time: '1 min read',
         theme: campaignTitle || 'Newsletter',
         week_focus: 'Content Update'
-      },
-      isStructured: false
+      }
     };
   }
+
+  // Check if content is YAML structured
+  const isYAMLStructured = content.includes('blocks:') && content.includes('- title:');
   
-  // Check if this is structured YAML content
-  const isStructuredYAML = content.includes('newsletter_md:') && content.includes('blocks:');
-  
-  if (isStructuredYAML) {
-    // Try to parse structured content
-    try {
-      const lines = content.split('\n');
-      let currentSection = '';
-      let newsletterMd = '';
-      let inNewsletterMd = false;
-      let currentBlock: any = {};
-      const blocks: NewsletterBlock[] = [];
-      const meta: any = {
-        reading_time: '≈3 min',
-        theme: campaignTitle || 'Newsletter',
-        week_focus: 'Content Update'
-      };
-      
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        const trimmed = line.trim();
-        
-        if (trimmed === 'newsletter_md: |') {
-          inNewsletterMd = true;
-          currentSection = 'newsletter_md';
-          continue;
-        }
-        
-        if (trimmed === 'blocks:') {
-          inNewsletterMd = false;
-          currentSection = 'blocks';
-          continue;
-        }
-        
-        if (trimmed === 'meta:') {
-          currentSection = 'meta';
-          continue;
-        }
-        
-        if (inNewsletterMd && currentSection === 'newsletter_md') {
-          newsletterMd += line + '\n';
-          continue;
-        }
-        
-        if (currentSection === 'blocks' && trimmed.startsWith('- title:')) {
-          if (Object.keys(currentBlock).length > 0) {
-            blocks.push(currentBlock);
-          }
-          currentBlock = {
-            title: trimmed.replace('- title:', '').replace(/"/g, '').trim()
-          };
-        } else if (currentSection === 'blocks' && trimmed.startsWith('body:')) {
-          currentBlock.body = trimmed.replace('body:', '').replace(/"/g, '').trim();
-        } else if (currentSection === 'blocks' && trimmed.startsWith('cta:')) {
-          currentBlock.cta = trimmed.replace('cta:', '').replace(/"/g, '').trim();
-        } else if (currentSection === 'blocks' && trimmed.startsWith('link:')) {
-          currentBlock.link = trimmed.replace('link:', '').replace(/"/g, '').trim();
-        } else if (currentSection === 'blocks' && trimmed.startsWith('image_prompt:')) {
-          currentBlock.image_prompt = trimmed.replace('image_prompt:', '').replace(/"/g, '').trim();
-        } else if (currentSection === 'blocks' && trimmed.startsWith('alt_text:')) {
-          currentBlock.alt_text = trimmed.replace('alt_text:', '').replace(/"/g, '').trim();
-        }
-        
-        if (currentSection === 'meta') {
-          if (trimmed.startsWith('reading_time:')) {
-            meta.reading_time = trimmed.replace('reading_time:', '').replace(/"/g, '').trim();
-          } else if (trimmed.startsWith('theme:')) {
-            meta.theme = trimmed.replace('theme:', '').replace(/"/g, '').trim();
-          } else if (trimmed.startsWith('week_focus:')) {
-            meta.week_focus = trimmed.replace('week_focus:', '').replace(/"/g, '').trim();
-          }
-        }
-      }
-      
-      // Add last block
-      if (Object.keys(currentBlock).length > 0) {
-        blocks.push(currentBlock);
-      }
-      
+  if (isYAMLStructured) {
+    // Parse YAML structure
+    const yamlResult = parseSimpleYAML(content);
+    if (yamlResult) {
       return {
-        newsletter_md: newsletterMd.trim(),
-        blocks,
-        meta,
-        isStructured: true
+        isStructured: true,
+        ...yamlResult,
+        meta: {
+          reading_time: yamlResult.meta?.reading_time || calculateReadingTime(content),
+          theme: yamlResult.meta?.theme || campaignTitle || 'Newsletter',
+          week_focus: yamlResult.meta?.week_focus || 'Content Update'
+        }
       };
-    } catch (error) {
-      console.error('Error parsing structured newsletter:', error);
-      // Fall back to plain text processing
     }
   }
-  
-  // Process as plain text/markdown
-  const blocks = createBlocksFromPlainText(content, campaignTitle);
-  
+
+  // Process as plain text newsletter
   return {
+    isStructured: false,
     newsletter_md: content,
-    blocks,
+    blocks: createBlocksFromPlainText(content, campaignTitle),
     meta: {
       reading_time: calculateReadingTime(content),
       theme: campaignTitle || 'Newsletter',
       week_focus: 'Content Update'
-    },
-    isStructured: false
+    }
   };
+};
+
+export const convertNewsletterMarkdownToHtml = (content: string): string => {
+  if (!content) return '';
+
+  let processed = content;
+
+  // Enhanced header detection and conversion
+  processed = processed
+    // Main headers (# or ##)
+    .replace(/^#{1,2}\s+(.+)$/gm, '<h2 class="text-2xl font-bold text-slate-900 mt-8 mb-4 pb-2 border-b border-slate-200">$1</h2>')
+    // Sub headers (###)
+    .replace(/^#{3}\s+(.+)$/gm, '<h3 class="text-xl font-semibold text-slate-800 mt-6 mb-3">$1</h3>')
+    // Smaller headers (####)
+    .replace(/^#{4,}\s+(.+)$/gm, '<h4 class="text-lg font-medium text-slate-700 mt-4 mb-2">$1</h4>');
+
+  // Detect and format section headers (lines that look like headers but aren't markdown)
+  processed = processed.replace(/^([A-Z][A-Z\s&'-]{5,50}):?\s*$/gm, (match, title) => {
+    return `<h3 class="text-xl font-semibold text-slate-800 mt-6 mb-3 text-center bg-slate-50 py-2 px-4 rounded-lg border-l-4 border-primary">${title}</h3>`;
+  });
+
+  // Common newsletter section headers
+  const sectionHeaders = [
+    'This Week\'s Focus',
+    'Garden Focus',
+    'What\'s Happening',
+    'Expert Tips',
+    'Seasonal Highlights',
+    'Plant Care Tips',
+    'Garden Maintenance',
+    'Special Offers',
+    'Featured Plants',
+    'Growing Tips'
+  ];
+
+  sectionHeaders.forEach(header => {
+    const regex = new RegExp(`^${header}\\s*:?\\s*$`, 'gmi');
+    processed = processed.replace(regex, `<h3 class="text-xl font-semibold text-slate-800 mt-6 mb-3 text-center bg-slate-50 py-2 px-4 rounded-lg border-l-4 border-primary">${header}</h3>`);
+  });
+
+  // Bold text formatting
+  processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>');
+  processed = processed.replace(/__(.*?)__/g, '<strong class="font-semibold text-slate-900">$1</strong>');
+
+  // Italic text formatting
+  processed = processed.replace(/\*(.*?)\*/g, '<em class="italic text-slate-700">$1</em>');
+  processed = processed.replace(/_(.*?)_/g, '<em class="italic text-slate-700">$1</em>');
+
+  // List formatting
+  processed = processed.replace(/^[-•]\s+(.+)$/gm, '<li class="ml-6 mb-2 text-slate-700">• $1</li>');
+  processed = processed.replace(/^\d+\.\s+(.+)$/gm, '<li class="ml-6 mb-2 text-slate-700 list-decimal">$1</li>');
+
+  // Convert paragraphs - split by double newlines
+  const sections = processed.split(/\n\s*\n/).filter(section => section.trim());
+  
+  processed = sections.map(section => {
+    const trimmed = section.trim();
+    
+    // Skip if already HTML tagged
+    if (trimmed.match(/^<(h[1-6]|div|li|ul|ol|p)/)) {
+      return trimmed;
+    }
+
+    // Handle lists
+    if (trimmed.includes('<li class="ml-6')) {
+      return `<ul class="space-y-1 my-4">${trimmed}</ul>`;
+    }
+
+    // Regular paragraphs
+    return `<p class="mb-4 text-slate-700 leading-relaxed">${trimmed}</p>`;
+  }).join('\n');
+
+  // Add section spacing
+  processed = processed.replace(/(<h[2-4][^>]*>)/g, '<div class="mt-8 first:mt-0">$1');
+  processed = processed.replace(/(<\/h[2-4]>)/g, '$1</div>');
+
+  return processed;
+};
+
+const parseSimpleYAML = (content: string) => {
+  try {
+    const lines = content.split('\n');
+    const result: any = {
+      blocks: [],
+      meta: {},
+      newsletter_md: ''
+    };
+    
+    let currentSection = '';
+    let inNewsletterMd = false;
+    let currentBlock: any = {};
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      
+      if (trimmed === 'newsletter_md: |') {
+        inNewsletterMd = true;
+        currentSection = 'newsletter_md';
+        continue;
+      }
+      
+      if (trimmed === 'blocks:') {
+        inNewsletterMd = false;
+        currentSection = 'blocks';
+        continue;
+      }
+      
+      if (trimmed === 'meta:') {
+        currentSection = 'meta';
+        continue;
+      }
+      
+      if (inNewsletterMd) {
+        result.newsletter_md += line + '\n';
+        continue;
+      }
+      
+      if (currentSection === 'blocks' && trimmed.startsWith('- title:')) {
+        if (Object.keys(currentBlock).length > 0) {
+          result.blocks.push(currentBlock);
+        }
+        currentBlock = {
+          title: trimmed.replace('- title:', '').replace(/"/g, '').trim(),
+          body: '',
+          cta: '',
+          link: '',
+          image_prompt: '',
+          alt_text: ''
+        };
+      } else if (currentSection === 'blocks') {
+        if (trimmed.startsWith('body:')) {
+          currentBlock.body = trimmed.replace('body:', '').replace(/"/g, '').trim();
+        } else if (trimmed.startsWith('cta:')) {
+          currentBlock.cta = trimmed.replace('cta:', '').replace(/"/g, '').trim();
+        } else if (trimmed.startsWith('link:')) {
+          currentBlock.link = trimmed.replace('link:', '').replace(/"/g, '').trim();
+        } else if (trimmed.startsWith('image_prompt:')) {
+          currentBlock.image_prompt = trimmed.replace('image_prompt:', '').replace(/"/g, '').trim();
+        } else if (trimmed.startsWith('alt_text:')) {
+          currentBlock.alt_text = trimmed.replace('alt_text:', '').replace(/"/g, '').trim();
+        }
+      }
+    }
+    
+    if (Object.keys(currentBlock).length > 0) {
+      result.blocks.push(currentBlock);
+    }
+    
+    result.newsletter_md = result.newsletter_md.trim();
+    return result.blocks.length > 0 || result.newsletter_md ? result : null;
+  } catch (error) {
+    console.error('Error parsing YAML:', error);
+    return null;
+  }
+};
+
+const createBlocksFromPlainText = (content: string, campaignTitle?: string) => {
+  if (!content) return [];
+  
+  // Split content into logical sections
+  const sections = content.split(/\n\s*\n/).filter(section => section.trim());
+  
+  return sections.map((section, index) => {
+    const lines = section.split('\n').filter(line => line.trim());
+    const title = lines[0]?.replace(/^#+\s*/, '').replace(/\*\*(.*?)\*\*/, '$1').trim() || `Section ${index + 1}`;
+    const body = lines.slice(1).join(' ').trim() || lines[0]?.trim() || '';
+    
+    return {
+      title,
+      body,
+      cta: '',
+      link: '',
+      image_prompt: `${campaignTitle || 'garden'} ${title}`.toLowerCase(),
+      alt_text: `Image for ${title}`
+    };
+  });
+};
+
+const calculateReadingTime = (content: string): string => {
+  if (!content) return '1 min read';
+  
+  const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
+  const readingTime = Math.max(1, Math.ceil(wordCount / 200));
+  return `${readingTime} min read`;
 };
