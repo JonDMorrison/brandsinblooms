@@ -99,28 +99,46 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
 
   return (
     <div className="space-y-4">
-      {isEditing ? (
-        <div className="space-y-2">
-          <Textarea
-            value={editedContent}
-            onChange={(e) => setEditedContent(e.target.value)}
-            className="min-h-[200px] resize-none"
-            placeholder={`Edit your ${task.post_type} content...`}
-            disabled={isSaving}
+      {/* Header with prominent TaskActions on the right */}
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-gray-900 capitalize">
+            {task.post_type} Content
+          </h3>
+          <p className="text-sm text-gray-600">
+            {isEditing ? 'Edit your content below' : 'Review and manage your content'}
+          </p>
+        </div>
+        
+        {/* Prominent TaskActions positioned at top right */}
+        <div className="flex-shrink-0">
+          <TaskActions
+            task={task}
+            onTaskUpdate={onTaskUpdate}
+            onEdit={handleEdit}
+            isEditing={isEditing}
+            onSave={handleSave}
+            onCancel={handleCancel}
           />
         </div>
-      ) : (
-        renderDisplayComponent()
-      )}
+      </div>
 
-      <TaskActions
-        task={task}
-        onTaskUpdate={onTaskUpdate}
-        onEdit={handleEdit}
-        isEditing={isEditing}
-        onSave={handleSave}
-        onCancel={handleCancel}
-      />
+      {/* Content Area */}
+      <div className="space-y-4">
+        {isEditing ? (
+          <div className="space-y-2">
+            <Textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="min-h-[200px] resize-none"
+              placeholder={`Edit your ${task.post_type} content...`}
+              disabled={isSaving}
+            />
+          </div>
+        ) : (
+          renderDisplayComponent()
+        )}
+      </div>
     </div>
   );
 };
