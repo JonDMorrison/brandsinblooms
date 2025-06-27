@@ -181,7 +181,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
             console.log('[MAGAZINE_DISPLAY] Rendering thumbnail:', { index, image });
             return (
               <div key={image.id || index} className="relative group cursor-pointer">
-                <div className="aspect-square overflow-hidden rounded-lg border border-gray-200 hover:border-gray-400 transition-colors">
+                <div className="aspect-[4/3] overflow-hidden rounded-lg border border-gray-200 hover:border-gray-400 transition-colors h-24">
                   <img
                     src={image.thumb_url}
                     alt={image.alt}
