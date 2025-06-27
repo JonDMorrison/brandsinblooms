@@ -17,7 +17,11 @@ interface ContentState {
   contentCount: number;
 }
 
-export const SeasonalHolidaysCard = () => {
+interface SeasonalHolidaysCardProps {
+  onContentGenerated?: () => void;
+}
+
+export const SeasonalHolidaysCard = ({ onContentGenerated }: SeasonalHolidaysCardProps) => {
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [contentStates, setContentStates] = useState<Record<string, ContentState>>({});
   const [holidayTasksMap, setHolidayTasksMap] = useState<Record<string, any[]>>({});
@@ -108,6 +112,11 @@ export const SeasonalHolidaysCard = () => {
       await fetchContentState(holidayId);
       await fetchHolidayTasks(holidayId);
       toast.success("Content generated successfully");
+      
+      // Call the onContentGenerated callback if provided
+      if (onContentGenerated) {
+        onContentGenerated();
+      }
     } catch (error) {
       console.error("Error generating content:", error);
       toast.error("Failed to generate content");
