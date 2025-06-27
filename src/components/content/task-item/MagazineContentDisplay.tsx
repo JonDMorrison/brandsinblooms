@@ -129,6 +129,13 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
             src={featuredImage.thumb_url}
             alt={featuredImage.alt}
             className="w-full h-full object-cover rounded-lg"
+            onError={(e) => {
+              console.error('Featured image failed to load:', featuredImage.thumb_url);
+              e.currentTarget.style.display = 'none';
+            }}
+            onLoad={() => {
+              console.log('Featured image loaded successfully:', featuredImage.thumb_url);
+            }}
           />
         </div>
       );
@@ -501,9 +508,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
         {/* Article Content with Floating Featured Image */}
         <div className="relative">
           {/* Floating Featured Image - Top Right */}
-          <div className="w-1/4 float-right ml-6 mb-4">
+          <div className="w-1/3 float-right ml-6 mb-4">
             {renderFeaturedImage(
-              "bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg border border-green-200 p-2 h-32",
+              "bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg border border-green-200 p-2 h-48",
               "Featured image"
             )}
           </div>
