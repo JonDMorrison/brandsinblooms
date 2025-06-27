@@ -1,4 +1,5 @@
 
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -100,7 +101,7 @@ export const WeeklyThemeSection = ({
                   <div className="bg-white/70 rounded-lg p-4 border border-green-200">
                     <div className="flex items-start gap-3 mb-3">
                       <Sparkles className="w-5 h-5 text-green-600 mt-0.5" />
-                      <div>
+                      <div className="text-left">
                         <h4 className="font-medium text-green-900 mb-1">
                           {currentCampaign.theme || currentCampaign.title}
                         </h4>
@@ -163,18 +164,20 @@ export const WeeklyThemeSection = ({
                 </div>
               ) : (
                 <div className="py-8 bg-white/50 rounded-lg border border-green-200">
-                  <Calendar className="w-12 h-12 mb-3 text-green-400" />
-                  <p className="text-green-700 font-medium mb-2">No Weekly Theme Set</p>
-                  <p className="text-green-600 text-sm mb-4">
-                    Create a campaign to set this week's content theme
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    className="border-green-300 text-green-700 hover:bg-green-50"
-                    onClick={onCampaignCreated}
-                  >
-                    Create Campaign
-                  </Button>
+                  <div className="flex flex-col items-start">
+                    <Calendar className="w-12 h-12 mb-3 text-green-400" />
+                    <p className="text-green-700 font-medium mb-2">No Weekly Theme Set</p>
+                    <p className="text-green-600 text-sm mb-4">
+                      Create a campaign to set this week's content theme
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="border-green-300 text-green-700 hover:bg-green-50"
+                      onClick={onCampaignCreated}
+                    >
+                      Create Campaign
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -194,3 +197,4 @@ export const WeeklyThemeSection = ({
     </>
   );
 };
+
