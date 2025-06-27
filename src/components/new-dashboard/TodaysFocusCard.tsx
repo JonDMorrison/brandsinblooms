@@ -2,6 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { getDynamicIcon } from './iconUtils';
 
 interface TodaysFocusCardProps {
   campaign: any;
@@ -20,6 +21,9 @@ export const TodaysFocusCard = ({ campaign, onComplete }: TodaysFocusCardProps) 
   };
 
   const completionPercentage = getCompletionPercentage();
+
+  // Get dynamic icon based on campaign content
+  const { icon: DynamicIcon, color: iconColor } = getDynamicIcon(campaign);
 
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-4 h-full flex flex-col items-center justify-center border border-white/20">
@@ -52,19 +56,13 @@ export const TodaysFocusCard = ({ campaign, onComplete }: TodaysFocusCardProps) 
           />
         </svg>
         
-        {/* Bee Icon */}
+        {/* Dynamic Topic Icon */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-10 h-10 bg-[#68BEB9] rounded-full flex items-center justify-center">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-white">
-              <path
-                d="M12 2C10.3 2 9 3.3 9 5s1.3 3 3 3 3-1.3 3-3-1.3-3-3-3zm0 14c-2.2 0-4-1.8-4-4s1.8-4 4-4 4 1.8 4 4-1.8 4-4 4z"
-                fill="currentColor"
-              />
-              <path
-                d="M7 9c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
-                fill="currentColor"
-              />
-            </svg>
+          <div 
+            className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
+            style={{ backgroundColor: iconColor }}
+          >
+            <DynamicIcon className="w-5 h-5 text-white" />
           </div>
         </div>
       </div>
