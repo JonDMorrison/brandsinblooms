@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
-import { Bold, Italic, Link, Crop, Image, Settings } from 'lucide-react';
+import { Bold, Italic, Link, Crop, Image, Settings, MousePointer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GeneratedContent {
@@ -48,12 +48,23 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
   if (!selectedContent) {
     return (
       <Card className="h-full flex items-center justify-center bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="text-center p-8">
-          <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">✨</span>
+        <div className="text-center p-8 max-w-md">
+          <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <MousePointer className="w-10 h-10 text-gray-400" />
           </div>
-          <h3 className="text-xl font-semibold text-[#3E5A6B] mb-2">Select content to edit</h3>
-          <p className="text-gray-600">Choose an item from the left panel to start editing</p>
+          <h3 className="text-xl font-semibold text-[#3E5A6B] mb-3">Ready to publish?</h3>
+          <p className="text-gray-600 mb-4">
+            Select a post from the <strong>Social Content Queue</strong> on the left to start editing and publishing your content.
+          </p>
+          <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
+            <p className="font-medium mb-2">What you can do here:</p>
+            <ul className="text-left space-y-1">
+              <li>• Edit captions and content</li>
+              <li>• Add or change images</li>
+              <li>• Schedule posts for later</li>
+              <li>• Publish immediately to social media</li>
+            </ul>
+          </div>
         </div>
       </Card>
     );
@@ -103,7 +114,13 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
         <div className="p-6 space-y-6">
           {/* Media Section */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-[#3E5A6B]">Media</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-[#3E5A6B]">Media</label>
+              <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                {selectedContent.platform?.toUpperCase()} Post
+              </div>
+            </div>
+            
             <div className="w-full max-w-sm aspect-square bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center relative overflow-hidden">
               {mediaUrl ? (
                 <img 
@@ -116,7 +133,7 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
                     const parent = target.parentElement;
                     if (parent) {
                       parent.innerHTML = `
-                        <div class="text-center">
+                        <div class="text-center p-6">
                           <div class="w-12 h-12 text-gray-400 mx-auto mb-3">📷</div>
                           <p class="text-gray-600 font-medium mb-1">Media not available</p>
                           <p class="text-gray-500 text-sm">Click to upload new media</p>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ComposerTray } from '@/components/publish/ComposerTray';
@@ -9,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { fetchSmartImage } from '@/services/unsplashService';
 
 interface PublishData {
   content: GeneratedContent[];
@@ -111,10 +111,7 @@ const PublishPage = () => {
         socialConnections
       });
 
-      // Auto-select first content item
-      if (generatedContent.length > 0) {
-        setSelectedContent(generatedContent[0]);
-      }
+      // DON'T auto-select first content item - let user click to select
 
     } catch (error) {
       console.error('Error initializing publish data:', error);
@@ -124,9 +121,29 @@ const PublishPage = () => {
     }
   };
 
-  const handleContentSelect = (content: GeneratedContent) => {
+  const handleContentSelect = async (content: GeneratedContent) => {
     setSelectedContent(content);
-    setDrawerOpen(true);
+    
+    // If content doesn't have media, try to fetch from Unsplash
+    if (!content.mediaUrl && content.caption) {
+      try {
+        const image = await fetchSmartImage(content.caption, 'garden center social media');
+        if (image) {
+          const updatedContent = { ...content, mediaUrl: image.url };
+          setSelectedContent(updatedContent);
+          
+          // Update the local state
+          if (publishData) {
+            const updatedContentList = publishData.content.map(c => 
+              c.id === content.id ? updatedContent : c
+            );
+            setPublishData({ ...publishData, content: updatedContentList });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching Unsplash image:', error);
+      }
+    }
   };
 
   const handleSchedulePost = async (scheduleData: {
