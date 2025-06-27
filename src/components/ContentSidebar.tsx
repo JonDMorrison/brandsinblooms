@@ -10,6 +10,7 @@ import { QuickCopyActions } from "./content-sidebar/QuickCopyActions";
 import { ContentApproval } from "./content-sidebar/ContentApproval";
 import { ContentHeader } from "./content-sidebar/ContentHeader";
 import { ImageSuggestionPanel } from "./content-sidebar/ImageSuggestionPanel";
+import { ApprovalButton } from "./content-sidebar/ApprovalButton";
 import { Edit, Save, X } from "lucide-react";
 
 interface ContentSidebarProps {
@@ -87,6 +88,11 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
     setIsEditing(false);
   };
 
+  const handleContentApproved = (contentId: string) => {
+    console.log('Content approved with ID:', contentId);
+    if (onTaskUpdate) onTaskUpdate();
+  };
+
   if (!task) return null;
 
   return (
@@ -101,6 +107,14 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
               <Badge variant="outline">
                 {new Date(task.scheduled_date).toLocaleDateString()}
               </Badge>
+              
+              {/* Add Approval Button */}
+              <ApprovalButton 
+                taskId={task.id}
+                currentStatus={task.status}
+                onApproved={handleContentApproved}
+              />
+              
               {!isEditing ? (
                 <Button 
                   variant="ghost" 

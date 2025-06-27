@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -8,8 +7,11 @@ import { cn } from '@/lib/utils';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useSmartTime } from '@/hooks/useSmartTime';
+import { usePublishFlow } from '@/hooks/usePublishFlow';
+import { useRealtimePublishUpdates } from '@/hooks/useRealtimePublishUpdates';
 import { TimePopover } from './TimePopover';
 import { ScheduledContentPill } from './ScheduledContentPill';
+import { PublishStatusPill } from '../publish/PublishStatusPill';
 
 export const SmartTimeRibbon = () => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
@@ -18,14 +20,14 @@ export const SmartTimeRibbon = () => {
   const [targetDate, setTargetDate] = useState<Date>(new Date());
 
   const { scheduleDraft, setActiveDraft } = useDashboard();
-  const { 
-    scheduledPosts, 
-    schedulePost, 
-    reschedulePost, 
-    unschedulePost, 
-    deleteScheduledPost 
-  } = useScheduledPosts();
+  const { scheduledPosts, schedulePost, reschedulePost, unschedulePost, deleteScheduledPost, refreshScheduledPosts } = useScheduledPosts();
   const { getBestTimesForPlatform } = useSmartTime();
+  const { approveDraft, scheduleDraft: scheduleApprovedContent } = usePublishFlow();
+  
+  // Listen for real-time publish updates
+  useRealtimePublishUpdates((update) => {
+    refreshScheduledPosts();
+  });
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -57,7 +59,6 @@ export const SmartTimeRibbon = () => {
     let scheduledDate = date;
     
     if (time === 'best') {
-      // Use best time for the primary platform (simplified)
       const bestTimes = getBestTimesForPlatform('facebook');
       const [hours, minutes] = bestTimes[0].split(':').map(Number);
       scheduledDate = new Date(date);
@@ -68,10 +69,15 @@ export const SmartTimeRibbon = () => {
       scheduledDate.setHours(hours, minutes, 0, 0);
     }
 
-    // Schedule the draft using existing logic
-    await scheduleDraft(draggedTaskId, format(scheduledDate, 'yyyy-MM-dd'));
+    // First approve the draft to create generated content
+    const contentId = await approveDraft(draggedTaskId);
+    if (contentId) {
+      // Then schedule the approved content
+      await scheduleApprovedContent(contentId, scheduledDate, 'facebook');
+    }
     
     setDraggedTaskId(null);
+    setShowTimePopover(false);
   };
 
   const handleEditScheduledPost = (scheduledPost: any) => {
@@ -139,16 +145,15 @@ export const SmartTimeRibbon = () => {
                       </div>
                     </div>
 
-                    {/* Scheduled Posts */}
+                    {/* Scheduled Posts with Enhanced Status Pills */}
                     <div className="space-y-2">
                       {scheduledForDay.map((scheduledPost) => (
-                        <ScheduledContentPill
+                        <PublishStatusPill
                           key={scheduledPost.id}
-                          scheduledPost={scheduledPost}
-                          onEdit={handleEditScheduledPost}
-                          onReschedule={handleReschedulePost}
-                          onUnschedule={unschedulePost}
-                          onDelete={deleteScheduledPost}
+                          status={scheduledPost.status as any}
+                          platform={scheduledPost.platform}
+                          publishTime={scheduledPost.publish_at}
+                          error={scheduledPost.error_message}
                         />
                       ))}
                     </div>
