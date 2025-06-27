@@ -231,7 +231,6 @@ export const WeeklyThemeSection = ({
           posts={campaignTasks}
           onApprove={handleApprove}
           onRegenerate={handleRegenerate}
-          campaignTheme={currentCampaign.theme || currentCampaign.title}
         />
       )}
     </>

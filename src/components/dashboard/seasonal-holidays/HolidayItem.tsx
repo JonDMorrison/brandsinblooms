@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +15,7 @@ interface HolidayItemProps {
   isGenerating: boolean;
   contentState?: any;
   isFirst?: boolean;
-  holidayTasks?: any[];
+  holidayTasks?: any[]; // Add tasks prop for modal
 }
 
 export const HolidayItem = ({ 
@@ -97,6 +96,11 @@ export const HolidayItem = ({
                 <span>{formatHolidayDate(holiday.holiday_date)}</span>
               </div>
             </div>
+            {hasContent && (
+              <Badge variant="success" className="text-xs">
+                {contentState.contentCount} post{contentState.contentCount !== 1 ? 's' : ''}
+              </Badge>
+            )}
           </div>
         </CardHeader>
 
@@ -133,7 +137,6 @@ export const HolidayItem = ({
           posts={holidayTasks}
           onApprove={handleApprove}
           onRegenerate={handleRegenerate}
-          campaignTheme={holiday.holiday_name}
         />
       )}
     </>
