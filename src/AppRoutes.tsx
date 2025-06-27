@@ -9,18 +9,18 @@ import { Suspense, lazy } from "react";
 
 // Lazy load components for better performance - handling named exports
 const Index = lazy(() => import("./pages/Index"));
-const CompanyProfilePage = lazy(() => import("./components/CompanyProfilePage").then(module => ({ default: module.CompanyProfilePage || module.default })));
-const TeamPage = lazy(() => import("./components/TeamPage").then(module => ({ default: module.TeamPage || module.default })));
-const LandingPage = lazy(() => import("./components/LandingPage").then(module => ({ default: module.LandingPage || module.default })));
-const OnboardingFlow = lazy(() => import("./components/OnboardingFlow").then(module => ({ default: module.OnboardingFlow || module.default })));
-const CalendarView = lazy(() => import("./components/CalendarView").then(module => ({ default: module.CalendarView || module.default })));
-const Homepage = lazy(() => import("./components/Homepage").then(module => ({ default: module.Homepage || module.default })));
-const SocialPlannerPage = lazy(() => import("./components/social/SocialPlannerPage").then(module => ({ default: module.SocialPlannerPage || module.default })));
-const ContentLibrary = lazy(() => import("./components/content-library/ContentLibrary").then(module => ({ default: module.ContentLibrary || module.default })));
-const AnalyticsDashboard = lazy(() => import("./components/analytics/AnalyticsDashboard").then(module => ({ default: module.AnalyticsDashboard || module.default })));
-const AdminDashboard = lazy(() => import("./components/admin/AdminDashboard").then(module => ({ default: module.AdminDashboard || module.default })));
-const DevSocialPage = lazy(() => import("./components/social/DevSocialPage").then(module => ({ default: module.DevSocialPage || module.default })));
-const CompleteLandingPage = lazy(() => import("./components/landing/CompleteLandingPage").then(module => ({ default: module.CompleteLandingPage || module.default })));
+const CompanyProfilePage = lazy(() => import("./components/CompanyProfilePage").then(module => ({ default: module.CompanyProfilePage })));
+const TeamPage = lazy(() => import("./components/TeamPage").then(module => ({ default: module.TeamPage })));
+const LandingPage = lazy(() => import("./components/LandingPage").then(module => ({ default: module.LandingPage })));
+const OnboardingFlow = lazy(() => import("./components/OnboardingFlow").then(module => ({ default: module.OnboardingFlow })));
+const CalendarView = lazy(() => import("./components/CalendarView").then(module => ({ default: module.CalendarView })));
+const Homepage = lazy(() => import("./components/Homepage").then(module => ({ default: module.Homepage })));
+const SocialPlannerPage = lazy(() => import("./components/social/SocialPlannerPage").then(module => ({ default: module.SocialPlannerPage })));
+const ContentLibrary = lazy(() => import("./components/content-library/ContentLibrary").then(module => ({ default: module.ContentLibrary })));
+const AnalyticsDashboard = lazy(() => import("./components/analytics/AnalyticsDashboard").then(module => ({ default: module.AnalyticsDashboard })));
+const AdminDashboard = lazy(() => import("./components/admin/AdminDashboard").then(module => ({ default: module.AdminDashboard })));
+const DevSocialPage = lazy(() => import("./components/social/DevSocialPage").then(module => ({ default: module.DevSocialPage })));
+const CompleteLandingPage = lazy(() => import("./components/landing/CompleteLandingPage").then(module => ({ default: module.CompleteLandingPage })));
 
 const LoadingSpinner = () => (
   <div className="min-h-screen bg-white flex items-center justify-center">
