@@ -27,7 +27,7 @@ export const useUndoToast = () => {
       action: {
         label: 'Undo',
         onClick: () => {
-          toast.dismiss(toastId);
+          toast.dismiss(String(toastId));
           setActiveToastId(null);
           onUndo?.();
         }
@@ -37,17 +37,17 @@ export const useUndoToast = () => {
       }
     });
 
-    setActiveToastId(toastId);
+    setActiveToastId(String(toastId));
 
     // Execute the action after the toast duration
     setTimeout(() => {
-      if (activeToastId === toastId) {
+      if (activeToastId === String(toastId)) {
         onComplete?.();
         setActiveToastId(null);
       }
     }, duration + 100);
 
-    return toastId;
+    return String(toastId);
   }, [activeToastId]);
 
   const dismissUndoToast = useCallback(() => {

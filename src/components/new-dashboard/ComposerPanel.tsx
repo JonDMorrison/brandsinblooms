@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -52,7 +51,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       action: {
         label: 'Undo',
         onClick: () => {
-          toast.dismiss(toastId);
+          toast.dismiss(String(toastId));
           setUndoToastId(null);
           // Re-schedule the post (simplified - in real app would restore exact time)
           toast.info('Post restored to schedule');
@@ -63,11 +62,11 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       }
     });
 
-    setUndoToastId(toastId);
+    setUndoToastId(String(toastId));
 
     // Actually unschedule after a brief delay to allow undo
     setTimeout(async () => {
-      if (undoToastId === toastId) {
+      if (undoToastId === String(toastId)) {
         await unschedulePost(scheduledPostId);
         if (onTaskUpdate) onTaskUpdate();
       }
@@ -80,7 +79,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       action: {
         label: 'Undo',
         onClick: () => {
-          toast.dismiss(toastId);
+          toast.dismiss(String(toastId));
           toast.info('Delete cancelled');
         }
       }
