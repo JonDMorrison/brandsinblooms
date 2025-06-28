@@ -1,122 +1,147 @@
 
 import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Calendar, FileText, Image, Video } from 'lucide-react';
+import { format } from 'date-fns';
+import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
-import { 
-  FileText, 
-  Video, 
-  Mail, 
-  Edit,
-  Instagram,
-  Facebook
-} from 'lucide-react';
 
 interface DraftTrayProps {
-  tasks: any[];
-  selectedDraft: any;
-  onSelectDraft: (draft: any) => void;
+  tasks?: any[];
+  selectedDraft?: any;
+  onSelectDraft?: (draft: any) => void;
 }
 
-export const DraftTray = ({ tasks, selectedDraft, onSelectDraft }: DraftTrayProps) => {
-  const getTaskIcon = (postType: string) => {
-    switch (postType) {
-      case 'facebook':
-        return Facebook;
-      case 'instagram':
-        return Instagram;
+export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft }: DraftTrayProps) => {
+  const getPostTypeIcon = (postType: string) => {
+    switch (postType?.toLowerCase()) {
       case 'video':
-        return Video;
-      case 'newsletter':
-        return Mail;
-      case 'blog':
-        return FileText;
+      case 'reel':
+        return <Video className="w-4 h-4" />;
+      case 'image':
+        return <Image className="w-4 h-4" />;
       default:
-        return Edit;
+        return <FileText className="w-4 h-4" />;
     }
   };
 
-  const getTaskTitle = (task: any) => {
-    const typeMap: { [key: string]: string } = {
-      facebook: 'Facebook',
-      instagram: 'Instagram',
-      video: 'Video Script',
-      newsletter: 'Newsletter',
-      blog: 'Blog'
-    };
-    return typeMap[task.post_type] || 'Content Draft';
-  };
-
-  const getTaskBgColor = (postType: string) => {
-    switch (postType) {
+  const getPostTypeColor = (postType: string) => {
+    switch (postType?.toLowerCase()) {
       case 'facebook':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'instagram':
-        return 'bg-[#68BEB9]/10';
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       case 'video':
-        return 'bg-orange-100';
-      case 'newsletter':
-        return 'bg-blue-100';
-      case 'blog':
-        return 'bg-green-100';
+      case 'reel':
+        return 'bg-pink-100 text-pink-800 border-pink-200';
       default:
-        return 'bg-gray-100';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
+
+  const availableDrafts = tasks.filter(task => 
+    task.status === 'approved' || task.status === 'generated'
+  );
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-4 h-full border border-white/20">
-      <h2 className="text-lg font-semibold text-[#3E5A6B] mb-4">Draft Tray</h2>
-      
-      <div className="space-y-3 h-[180px] overflow-y-auto">
-        {tasks.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-              <Edit className="w-6 h-6 text-gray-400" />
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
+        <CardTitle className="text-lg font-semibold text-[#3E5A6B]">Draft Tray</CardTitle>
+        <p className="text-sm text-gray-600">
+          {availableDrafts.length} draft{availableDrafts.length !== 1 ? 's' : ''} ready to schedule
+        </p>
+      </CardHeader>
+
+      <CardContent className="flex-1 overflow-hidden">
+        <Droppable droppableId="draft-tray">
+          {(provided, snapshot) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className={cn(
+                "h-full overflow-y-auto space-y-3",
+                snapshot.isDraggingOver && "bg-[#68BEB9]/5 rounded-lg"
+              )}
+            >
+              {availableDrafts.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-center">
+                  <div>
+                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">No drafts ready</p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Generate content to see drafts here
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                availableDrafts.map((draft, index) => (
+                  <Draggable
+                    key={draft.id}
+                    draggableId={draft.id}
+                    index={index}
+                  >
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className={cn(
+                          "p-4 border-2 rounded-lg cursor-pointer transition-all duration-200",
+                          selectedDraft?.id === draft.id 
+                            ? "border-[#68BEB9] bg-[#68BEB9]/5 shadow-md" 
+                            : "border-gray-200 hover:border-[#68BEB9]/50 hover:shadow-sm",
+                          snapshot.isDragging && "shadow-lg scale-105 rotate-2 bg-white border-[#68BEB9]"
+                        )}
+                        onClick={() => onSelectDraft?.(draft)}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            {getPostTypeIcon(draft.post_type)}
+                            <Badge 
+                              variant="outline" 
+                              className={cn("text-xs", getPostTypeColor(draft.post_type))}
+                            >
+                              {draft.post_type || 'Post'}
+                            </Badge>
+                          </div>
+                          <Badge variant={draft.status === 'approved' ? 'default' : 'secondary'}>
+                            {draft.status}
+                          </Badge>
+                        </div>
+
+                        <p className="text-sm text-gray-700 line-clamp-3 mb-2">
+                          {draft.ai_output?.substring(0, 120)}...
+                        </p>
+
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {format(new Date(draft.created_at), 'MMM d')}
+                          </div>
+                          {draft.campaigns?.title && (
+                            <span className="truncate max-w-[100px]">
+                              {draft.campaigns.title}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Drag indicator */}
+                        {snapshot.isDragging && (
+                          <div className="absolute -top-2 -right-2 bg-[#68BEB9] text-white text-xs px-2 py-1 rounded-full">
+                            Scheduling...
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </Draggable>
+                ))
+              )}
+              {provided.placeholder}
             </div>
-            <p className="text-gray-500 text-sm">No drafts available</p>
-          </div>
-        ) : (
-          tasks.map((task) => {
-            const Icon = getTaskIcon(task.post_type);
-            const isSelected = selectedDraft?.id === task.id;
-            
-            return (
-              <div
-                key={task.id}
-                onClick={() => onSelectDraft(task)}
-                className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200",
-                  "hover:shadow-sm border",
-                  isSelected 
-                    ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-sm" 
-                    : "border-gray-200 bg-white hover:border-[#68BEB9]/30"
-                )}
-              >
-                <div className={cn(
-                  "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                  getTaskBgColor(task.post_type)
-                )}>
-                  <Icon className="w-5 h-5 text-[#3E5A6B]" />
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-[#3E5A6B] text-sm truncate">
-                    {getTaskTitle(task)}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {task.status === 'draft' ? 'Draft' : 'Generated'}
-                  </p>
-                </div>
-                
-                {/* Drag handle hint */}
-                <div className="flex flex-col gap-0.5">
-                  <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                  <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                  <div className="w-1 h-1 bg-gray-300 rounded-full"></div>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-    </div>
+          )}
+        </Droppable>
+      </CardContent>
+    </Card>
   );
 };

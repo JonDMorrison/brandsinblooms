@@ -9,6 +9,7 @@ import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { toast } from 'sonner';
 
 interface DashboardData {
@@ -97,6 +98,22 @@ const NewDashboard = () => {
     fetchDashboardData();
   };
 
+  const handleDragEnd = async (result: DropResult) => {
+    const { destination, source, draggableId } = result;
+
+    if (!destination) return;
+
+    // Handle drag from draft tray to calendar
+    if (
+      source.droppableId === 'draft-tray' &&
+      destination.droppableId.startsWith('calendar-day-')
+    ) {
+      // The SmartTimeRibbon component will handle the actual scheduling
+      // This is just to provide feedback that the drag was successful
+      toast.info('Ready to schedule - select your preferred time');
+    }
+  };
+
   if (loading) {
     return (
       <FullWidthLayout>
@@ -109,52 +126,54 @@ const NewDashboard = () => {
 
   return (
     <FullWidthLayout>
-      <div className="min-h-screen bg-[#F9FAFB] p-6">
-        <div className="max-w-full mx-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
-            <p className="text-gray-600">Your content creation command center</p>
-          </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="min-h-screen bg-[#F9FAFB] p-6">
+          <div className="max-w-full mx-auto">
+            {/* Header */}
+            <div className="mb-8">
+              <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
+              <p className="text-gray-600">Your content creation command center</p>
+            </div>
 
-          {/* Main Dashboard Grid - Updated layout: 4 cols left, 8 cols right */}
-          <div className="grid grid-cols-12 gap-6 mb-6">
-            {/* Left Column - Today's Focus + Draft Tray stacked */}
-            <div className="col-span-4 space-y-6">
-              {/* Today's Focus Carousel */}
-              <div className="h-[480px]">
-                <FocusCarousel onTaskUpdate={handleTaskUpdate} />
+            {/* Main Dashboard Grid - Updated layout: 4 cols left, 8 cols right */}
+            <div className="grid grid-cols-12 gap-6 mb-6">
+              {/* Left Column - Today's Focus + Draft Tray stacked */}
+              <div className="col-span-4 space-y-6">
+                {/* Today's Focus Carousel */}
+                <div className="h-[480px]">
+                  <FocusCarousel onTaskUpdate={handleTaskUpdate} />
+                </div>
+
+                {/* Draft Tray */}
+                <div className="h-[240px]">
+                  <DraftTray 
+                    tasks={dashboardData?.tasks || []}
+                    selectedDraft={selectedDraft}
+                    onSelectDraft={setSelectedDraft}
+                  />
+                </div>
               </div>
 
-              {/* Draft Tray */}
-              <div className="h-[240px]">
-                <DraftTray 
-                  tasks={dashboardData?.tasks || []}
-                  selectedDraft={selectedDraft}
-                  onSelectDraft={setSelectedDraft}
-                />
+              {/* Right Column - Composer Panel (full height) */}
+              <div className="col-span-8">
+                <div className="h-[740px]">
+                  <ComposerPanel 
+                    selectedDraft={selectedDraft}
+                    socialConnections={dashboardData?.socialConnections || []}
+                    onTaskUpdate={handleTaskUpdate}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Right Column - Composer Panel (full height) */}
-            <div className="col-span-8">
-              <div className="h-[740px]">
-                <ComposerPanel 
-                  selectedDraft={selectedDraft}
-                  socialConnections={dashboardData?.socialConnections || []}
-                  onTaskUpdate={handleTaskUpdate}
-                />
-              </div>
-            </div>
+            {/* Smart-Time Ribbon - Full Width */}
+            <SmartTimeRibbon 
+              tasks={dashboardData?.tasks || []}
+              onScheduleUpdate={handleTaskUpdate}
+            />
           </div>
-
-          {/* Smart-Time Ribbon - Full Width */}
-          <SmartTimeRibbon 
-            tasks={dashboardData?.tasks || []}
-            onScheduleUpdate={handleTaskUpdate}
-          />
         </div>
-      </div>
+      </DragDropContext>
     </FullWidthLayout>
   );
 };
