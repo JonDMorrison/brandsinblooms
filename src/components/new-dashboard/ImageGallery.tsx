@@ -101,15 +101,15 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         </div>
 
         {!selectedDraft ? (
-          <div className="flex flex-col items-center justify-center h-[300px] text-center">
+          <div className="flex flex-col items-center justify-center h-[160px] text-center">
             <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
             <p className="text-xs text-gray-500">Select a draft to see relevant images</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-2 h-[400px]">
+          <div className="grid grid-cols-4 gap-3 h-[160px]">
             {loading ? (
               Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="bg-gray-200 rounded-lg animate-pulse flex items-center justify-center h-20">
+                <div key={index} className="bg-gray-200 rounded-lg animate-pulse flex items-center justify-center h-full">
                   <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                 </div>
               ))
@@ -117,7 +117,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
               images.map((image) => (
                 <div
                   key={image.id}
-                  className="relative cursor-pointer group rounded-lg overflow-hidden bg-gray-100 h-20"
+                  className="relative cursor-pointer group rounded-lg overflow-hidden bg-gray-100 h-full"
                   onClick={() => handleImageClick(image)}
                 >
                   <img
@@ -135,7 +135,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
                 </div>
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center text-center py-8">
+              <div className="col-span-4 flex flex-col items-center justify-center text-center h-full">
                 <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
                 <p className="text-xs text-gray-500">No images found</p>
                 <Button
