@@ -1,43 +1,41 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar, Clock, Edit, Save, Trash2, Undo2 } from 'lucide-react';
+import { Edit, Save, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { usePublishFlow } from '@/hooks/usePublishFlow';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ComposerPanelProps {
   selectedDraft?: any;
   socialConnections?: any[];
   onTaskUpdate?: () => void;
+  onApproved?: (draftId: string) => void;
 }
 
-export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpdate }: ComposerPanelProps) => {
-  const [mode, setMode] = useState<'draft' | 'scheduled'>('draft');
+export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpdate, onApproved }: ComposerPanelProps) => {
   const [editContent, setEditContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
-  const [undoToastId, setUndoToastId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [approving, setApproving] = useState(false);
 
-  const { scheduledPosts, reschedulePost, unschedulePost, deleteScheduledPost } = useScheduledPosts();
-  const { scheduleDraft } = usePublishFlow();
+  const { scheduledPosts } = useScheduledPosts();
 
   // Find if selected draft has scheduled posts
   const relatedScheduledPosts = scheduledPosts.filter(post => 
     post.content_id === selectedDraft?.id
   );
 
-  useEffect(() => {
-    if (relatedScheduledPosts.length > 0) {
-      setMode('scheduled');
-    } else {
-      setMode('draft');
-    }
-  }, [relatedScheduledPosts.length, selectedDraft]);
+  const isScheduled = relatedScheduledPosts.length > 0;
+  const isApproved = selectedDraft?.status === 'approved';
+  const isDraft = selectedDraft?.status === 'draft' || selectedDraft?.status === 'generated';
 
   useEffect(() => {
     if (selectedDraft?.ai_output) {
@@ -45,63 +43,60 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     }
   }, [selectedDraft]);
 
-  const handleUnschedule = async (scheduledPostId: string) => {
-    // Show undo toast with 8-second countdown
-    const toastId = toast.success('Post unscheduled', {
-      duration: 8000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          toast.dismiss(String(toastId));
-          setUndoToastId(null);
-          // Re-schedule the post (simplified - in real app would restore exact time)
-          toast.info('Post restored to schedule');
-        }
-      },
-      onDismiss: () => {
-        setUndoToastId(null);
-      }
-    });
+  const handleSave = async () => {
+    if (!selectedDraft || !editContent.trim()) return;
 
-    setUndoToastId(String(toastId));
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ 
+          ai_output: editContent,
+          status: 'draft'
+        })
+        .eq('id', selectedDraft.id);
 
-    // Actually unschedule after a brief delay to allow undo
-    setTimeout(async () => {
-      if (undoToastId === String(toastId)) {
-        await unschedulePost(scheduledPostId);
-        if (onTaskUpdate) onTaskUpdate();
-      }
-    }, 8100);
-  };
+      if (error) throw error;
 
-  const handleDelete = async (scheduledPostId: string) => {
-    const toastId = toast.error('Scheduled post deleted', {
-      duration: 8000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          toast.dismiss(String(toastId));
-          toast.info('Delete cancelled');
-        }
-      }
-    });
-
-    setTimeout(async () => {
-      await deleteScheduledPost(scheduledPostId);
+      toast.success('Draft saved');
       if (onTaskUpdate) onTaskUpdate();
-    }, 8100);
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast.error('Failed to save draft');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleReschedule = async (scheduledPostId: string) => {
-    // For now, just show a placeholder - full reschedule UI would be more complex
-    toast.info('Reschedule feature coming soon');
+  const handleApprove = async () => {
+    if (!selectedDraft || !editContent.trim()) return;
+
+    setApproving(true);
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ 
+          ai_output: editContent,
+          status: 'approved'
+        })
+        .eq('id', selectedDraft.id);
+
+      if (error) throw error;
+
+      toast.success('Marked approved – drag to Smart-Time Ribbon to schedule');
+      if (onApproved) onApproved(selectedDraft.id);
+      if (onTaskUpdate) onTaskUpdate();
+    } catch (error) {
+      console.error('Error approving draft:', error);
+      toast.error('Failed to approve draft');
+    } finally {
+      setApproving(false);
+    }
   };
 
   const handleSaveEdit = async () => {
-    // In a real implementation, you'd update the content task
-    toast.success('Content updated');
+    await handleSave();
     setIsEditing(false);
-    if (onTaskUpdate) onTaskUpdate();
   };
 
   const renderContent = () => {
@@ -145,8 +140,13 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-[#3E5A6B]">Composer</CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant={mode === 'draft' ? 'default' : 'secondary'}>
-              {mode === 'draft' ? 'Draft' : `${relatedScheduledPosts.length} Scheduled`}
+            <Badge 
+              variant={isApproved ? 'default' : 'secondary'}
+              className={cn(
+                isApproved && "bg-[#68BEB9] text-white hover:bg-[#56a7a1]"
+              )}
+            >
+              {isScheduled ? 'SCHEDULED' : isApproved ? 'APPROVED' : 'DRAFT'}
             </Badge>
             {socialConnections.length === 0 && (
               <Badge variant="outline" className="text-orange-600">
@@ -158,26 +158,20 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         
         {/* Mode Indicator */}
         <div className="flex items-center gap-2 text-sm text-gray-600">
-          {mode === 'draft' ? (
-            <>
-              <Edit className="w-4 h-4" />
-              <span>Editing draft content</span>
-            </>
-          ) : (
-            <>
-              <Calendar className="w-4 h-4" />
-              <span>Managing scheduled posts</span>
-            </>
-          )}
+          <Edit className="w-4 h-4" />
+          <span>
+            {isScheduled ? 'Managing scheduled content' : 
+             isApproved ? 'Approved content ready for scheduling' : 
+             'Editing draft content'}
+          </span>
         </div>
       </CardHeader>
 
       <CardContent className="flex-1 flex flex-col overflow-hidden">
-        {mode === 'draft' ? (
-          // Draft Mode
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-medium text-[#3E5A6B]">Content</h3>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-medium text-[#3E5A6B]">Content</h3>
+            {!isScheduled && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -186,122 +180,61 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                 <Edit className="w-4 h-4 mr-2" />
                 {isEditing ? 'Cancel' : 'Edit'}
               </Button>
-            </div>
-
-            {isEditing ? (
-              <div className="flex-1 flex flex-col overflow-hidden">
-                <Textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="flex-1 min-h-[200px] resize-none"
-                  placeholder="Write your content here..."
-                />
-                <div className="flex justify-end gap-2 mt-4">
-                  <Button variant="outline" onClick={() => setIsEditing(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSaveEdit}>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              renderContent()
             )}
+          </div>
 
-            {/* Draft Actions */}
+          {isEditing ? (
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <Textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="flex-1 min-h-[200px] resize-none"
+                placeholder="Write your content here..."
+              />
+              <div className="flex justify-end gap-2 mt-4">
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveEdit} disabled={saving}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            renderContent()
+          )}
+
+          {/* Action Bar - Only show for non-scheduled content */}
+          {!isScheduled && (
             <div className="mt-4 p-4 border-t flex-shrink-0">
               <div className="text-sm text-gray-600 mb-3">
-                Ready to schedule? Drag this draft to the Smart-Time Ribbon above.
+                {isApproved 
+                  ? "Ready to schedule! Drag this draft to the Smart-Time Ribbon above." 
+                  : "Save your changes or approve when ready to schedule."}
               </div>
               <div className="flex gap-2">
                 <Button 
                   variant="outline" 
-                  className="flex-1"
-                  disabled={socialConnections.length === 0}
+                  className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
+                  onClick={handleSave}
+                  disabled={saving || approving || socialConnections.length === 0}
                 >
-                  <Clock className="w-4 h-4 mr-2" />
-                  Schedule Later
+                  <Save className="w-4 h-4 mr-2" />
+                  {saving ? 'Saving...' : 'Save'}
                 </Button>
                 <Button 
                   className="flex-1 bg-[#68BEB9] hover:bg-[#56a7a1]"
-                  disabled={socialConnections.length === 0}
+                  onClick={handleApprove}
+                  disabled={saving || approving || socialConnections.length === 0}
                 >
-                  Publish Now
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  {approving ? 'Approving...' : 'Approve & Post'}
                 </Button>
               </div>
             </div>
-          </div>
-        ) : (
-          // Scheduled Mode
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <h3 className="font-medium text-[#3E5A6B] mb-4">Scheduled Posts</h3>
-            
-            <div className="flex-1 space-y-3 overflow-y-auto">
-              {relatedScheduledPosts.map((post) => (
-                <div key={post.id} className="p-4 border rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={
-                        post.status === 'PUBLISHED' ? 'default' :
-                        post.status === 'ERROR' ? 'destructive' : 'secondary'
-                      }>
-                        {post.status}
-                      </Badge>
-                      <span className="text-sm font-medium capitalize">
-                        {post.platform.replace('_', ' ')}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {format(new Date(post.publish_at), 'MMM d, h:mm a')}
-                    </div>
-                  </div>
-
-                  <div className="text-sm text-gray-700 mb-3 break-words">
-                    {post.content?.caption?.substring(0, 100)}...
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleReschedule(post.id)}
-                      disabled={post.status === 'PUBLISHED'}
-                    >
-                      <Calendar className="w-3 h-3 mr-1" />
-                      Reschedule
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleUnschedule(post.id)}
-                      disabled={post.status === 'PUBLISHED'}
-                    >
-                      <Undo2 className="w-3 h-3 mr-1" />
-                      Unschedule
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(post.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="w-3 h-3 mr-1" />
-                      Delete
-                    </Button>
-                  </div>
-
-                  {post.error_message && (
-                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700 break-words">
-                      Error: {post.error_message}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </CardContent>
     </Card>
   );

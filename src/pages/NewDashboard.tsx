@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,6 +25,7 @@ const NewDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
+  const [justApprovedId, setJustApprovedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -149,6 +149,12 @@ const NewDashboard = () => {
     }
   };
 
+  const handleApproved = (draftId: string) => {
+    setJustApprovedId(draftId);
+    // Clear the hint after showing it
+    setTimeout(() => setJustApprovedId(null), 100);
+  };
+
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
@@ -247,6 +253,7 @@ const NewDashboard = () => {
                     tasks={dashboardData?.tasks || []}
                     selectedDraft={selectedDraft}
                     onSelectDraft={setSelectedDraft}
+                    justApprovedId={justApprovedId}
                   />
                 </div>
               </div>
@@ -259,6 +266,7 @@ const NewDashboard = () => {
                     selectedDraft={selectedDraft}
                     socialConnections={dashboardData?.socialConnections || []}
                     onTaskUpdate={handleTaskUpdate}
+                    onApproved={handleApproved}
                   />
                 </div>
 
