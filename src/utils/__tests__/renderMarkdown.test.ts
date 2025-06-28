@@ -1,4 +1,6 @@
 
+/// <reference types="vitest/globals" />
+
 import { renderMarkdownToMagazineHtml, extractNewsletterThumbnail } from '../renderMarkdown';
 
 describe('renderMarkdownToMagazineHtml', () => {
