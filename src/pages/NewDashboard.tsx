@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -11,6 +12,7 @@ import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 interface DashboardData {
   currentCampaign: any;
@@ -98,19 +100,113 @@ const NewDashboard = () => {
     fetchDashboardData();
   };
 
+  const scheduleDraft = async (draftId: string, publishAt: string, platform: string = 'facebook') => {
+    if (!user) throw new Error('User not authenticated');
+
+    try {
+      // First, create generated content from the draft
+      const draft = dashboardData?.tasks.find(t => t.id === draftId);
+      if (!draft) throw new Error('Draft not found');
+
+      const { data: generatedContent, error: contentError } = await supabase
+        .from('generated_content')
+        .insert({
+          user_id: user.id,
+          caption: draft.ai_output || '',
+          status: 'SCHEDULED'
+        })
+        .select()
+        .single();
+
+      if (contentError) throw contentError;
+
+      // Then schedule the post
+      const { error: scheduleError } = await supabase
+        .from('scheduled_posts')
+        .insert({
+          content_id: generatedContent.id,
+          user_id: user.id,
+          platform: platform as any,
+          publish_at: publishAt,
+          status: 'QUEUED'
+        });
+
+      if (scheduleError) throw scheduleError;
+
+      // Update the draft status
+      await supabase
+        .from('content_tasks')
+        .update({ status: 'approved' })
+        .eq('id', draftId);
+
+      // Refresh data
+      await fetchDashboardData();
+
+      return generatedContent.id;
+    } catch (error) {
+      console.error('Error scheduling draft:', error);
+      throw error;
+    }
+  };
+
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
     if (!destination) return;
 
-    // Handle drag from draft tray to calendar
+    // Handle drag from draft tray to calendar day
     if (
       source.droppableId === 'draft-tray' &&
-      destination.droppableId.startsWith('calendar-day-')
+      destination.droppableId.startsWith('day-')
     ) {
-      // The SmartTimeRibbon component will handle the actual scheduling
-      // This is just to provide feedback that the drag was successful
-      toast.info('Ready to schedule - select your preferred time');
+      try {
+        const dateStr = destination.droppableId.replace('day-', '');
+        const publishAt = new Date(dateStr + 'T12:00:00').toISOString();
+        
+        // Schedule the draft immediately
+        const contentId = await scheduleDraft(draggableId, publishAt);
+        
+        // Show success toast with undo option
+        const toastId = toast.success(`Scheduled for ${format(new Date(publishAt), 'MMM d, yyyy')}`, {
+          duration: 8000,
+          action: {
+            label: 'Undo',
+            onClick: async () => {
+              try {
+                // Delete the scheduled post
+                await supabase
+                  .from('scheduled_posts')
+                  .delete()
+                  .eq('content_id', contentId);
+
+                // Delete the generated content
+                await supabase
+                  .from('generated_content')
+                  .delete()
+                  .eq('id', contentId);
+
+                // Reset draft status
+                await supabase
+                  .from('content_tasks')
+                  .update({ status: 'generated' })
+                  .eq('id', draggableId);
+
+                // Refresh data
+                await fetchDashboardData();
+                
+                toast.success('Scheduling undone');
+              } catch (error) {
+                console.error('Error undoing schedule:', error);
+                toast.error('Failed to undo scheduling');
+              }
+            }
+          }
+        });
+        
+      } catch (error) {
+        console.error('Error scheduling draft:', error);
+        toast.error('Failed to schedule draft');
+      }
     }
   };
 
