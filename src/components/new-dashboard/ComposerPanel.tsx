@@ -121,7 +121,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     // Regular content display for other post types
     return (
       <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto">
-        <p className="whitespace-pre-wrap text-gray-700">
+        <p className="whitespace-pre-wrap text-gray-700 break-words">
           {content}
         </p>
       </div>
@@ -140,7 +140,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   }
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col overflow-hidden">
       <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-[#3E5A6B]">Composer</CardTitle>
@@ -172,10 +172,10 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col">
+      <CardContent className="flex-1 flex flex-col overflow-hidden">
         {mode === 'draft' ? (
           // Draft Mode
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-medium text-[#3E5A6B]">Content</h3>
               <Button
@@ -189,7 +189,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             </div>
 
             {isEditing ? (
-              <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col overflow-hidden">
                 <Textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
@@ -211,7 +211,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             )}
 
             {/* Draft Actions */}
-            <div className="mt-4 p-4 border-t">
+            <div className="mt-4 p-4 border-t flex-shrink-0">
               <div className="text-sm text-gray-600 mb-3">
                 Ready to schedule? Drag this draft to the Smart-Time Ribbon above.
               </div>
@@ -235,10 +235,10 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
           </div>
         ) : (
           // Scheduled Mode
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <h3 className="font-medium text-[#3E5A6B] mb-4">Scheduled Posts</h3>
             
-            <div className="flex-1 space-y-3">
+            <div className="flex-1 space-y-3 overflow-y-auto">
               {relatedScheduledPosts.map((post) => (
                 <div key={post.id} className="p-4 border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
@@ -258,7 +258,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                     </div>
                   </div>
 
-                  <div className="text-sm text-gray-700 mb-3">
+                  <div className="text-sm text-gray-700 mb-3 break-words">
                     {post.content?.caption?.substring(0, 100)}...
                   </div>
 
@@ -293,7 +293,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                   </div>
 
                   {post.error_message && (
-                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                    <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700 break-words">
                       Error: {post.error_message}
                     </div>
                   )}
