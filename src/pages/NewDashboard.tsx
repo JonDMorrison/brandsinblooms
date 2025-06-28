@@ -127,7 +127,8 @@ const NewDashboard = () => {
   return (
     <FullWidthLayout>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="min-h-screen bg-[#F9FAFB] p-6">
+        {/* Main content with bottom padding to account for fixed ribbon */}
+        <div className="min-h-screen bg-[#F9FAFB] p-6 pb-60">
           <div className="max-w-full mx-auto">
             {/* Header */}
             <div className="mb-8">
@@ -165,14 +166,14 @@ const NewDashboard = () => {
                 </div>
               </div>
             </div>
-
-            {/* Smart-Time Ribbon - Full Width */}
-            <SmartTimeRibbon 
-              tasks={dashboardData?.tasks || []}
-              onScheduleUpdate={handleTaskUpdate}
-            />
           </div>
         </div>
+
+        {/* Fixed Smart-Time Ribbon at bottom */}
+        <SmartTimeRibbon 
+          tasks={dashboardData?.tasks || []}
+          onScheduleUpdate={handleTaskUpdate}
+        />
       </DragDropContext>
     </FullWidthLayout>
   );
