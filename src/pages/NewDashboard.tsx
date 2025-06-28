@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
+import { ImageGallery } from '@/components/new-dashboard/ImageGallery';
 import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
@@ -155,14 +155,20 @@ const NewDashboard = () => {
                 </div>
               </div>
 
-              {/* Right Column - Composer Panel (full height) */}
-              <div className="col-span-8">
-                <div className="h-[740px]">
+              {/* Right Column - Composer Panel + Image Gallery stacked */}
+              <div className="col-span-8 space-y-6">
+                {/* Composer Panel (reduced height) */}
+                <div className="h-[480px]">
                   <ComposerPanel 
                     selectedDraft={selectedDraft}
                     socialConnections={dashboardData?.socialConnections || []}
                     onTaskUpdate={handleTaskUpdate}
                   />
+                </div>
+
+                {/* Image Gallery */}
+                <div className="h-[240px]">
+                  <ImageGallery selectedDraft={selectedDraft} />
                 </div>
               </div>
             </div>
