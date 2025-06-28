@@ -18,13 +18,21 @@ serve(async (req) => {
   }
 
   try {
-    const { query, contentTaskId, maxImages = 4 } = await req.json();
+    const { 
+      query, 
+      contentTaskId, 
+      maxImages = 4,
+      orientation = 'squarish',
+      orderBy = 'popular',
+      contentFilter = 'high'
+    } = await req.json();
 
     if (!query) {
       throw new Error('Query parameter is required');
     }
 
-    console.log(`[UNSPLASH] Fetching exactly ${maxImages} images for query: ${query}`);
+    console.log(`[UNSPLASH] Enhanced fetch: ${maxImages} ${orientation} images for query: ${query}`);
+    console.log(`[UNSPLASH] Parameters: orderBy=${orderBy}, contentFilter=${contentFilter}`);
     console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey}`);
 
     if (!unsplashAccessKey) {
@@ -32,15 +40,23 @@ serve(async (req) => {
       throw new Error('Unsplash API key not configured');
     }
 
-    // Fetch images from Unsplash API - request exactly what we need
-    const unsplashResponse = await fetch(
-      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${maxImages}&orientation=landscape`,
-      {
-        headers: {
-          'Authorization': `Client-ID ${unsplashAccessKey}`,
-        },
-      }
-    );
+    // Enhanced Unsplash API call with quality parameters
+    const searchParams = new URLSearchParams({
+      query: encodeURIComponent(query),
+      per_page: maxImages.toString(),
+      orientation: orientation,
+      order_by: orderBy,
+      content_filter: contentFilter
+    });
+
+    const unsplashUrl = `https://api.unsplash.com/search/photos?${searchParams.toString()}`;
+    console.log(`[UNSPLASH] Request URL: ${unsplashUrl}`);
+
+    const unsplashResponse = await fetch(unsplashUrl, {
+      headers: {
+        'Authorization': `Client-ID ${unsplashAccessKey}`,
+      },
+    });
 
     console.log(`[UNSPLASH] API Response status: ${unsplashResponse.status}`);
 
@@ -53,9 +69,9 @@ serve(async (req) => {
     const unsplashData = await unsplashResponse.json();
     const images = unsplashData.results || [];
 
-    console.log(`[UNSPLASH] Found ${images.length} images from Unsplash`);
+    console.log(`[UNSPLASH] Found ${images.length} high-quality images from Unsplash`);
 
-    // Limit to exactly maxImages (4)
+    // Limit to exactly maxImages
     const limitedImages = images.slice(0, maxImages);
 
     // If contentTaskId is provided, store the images in the database
@@ -81,10 +97,10 @@ serve(async (req) => {
         throw new Error('Failed to store image suggestions');
       }
 
-      console.log(`[UNSPLASH] Stored ${imageSuggestions.length} image suggestions for task ${contentTaskId}`);
+      console.log(`[UNSPLASH] Stored ${imageSuggestions.length} enhanced image suggestions for task ${contentTaskId}`);
     }
 
-    // Return exactly 4 images
+    // Return enhanced, high-quality images
     const formattedImages = limitedImages.map((image: any) => ({
       id: image.id,
       thumb_url: image.urls.thumb,
@@ -96,12 +112,13 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       images: formattedImages,
-      query: query
+      query: query,
+      parameters: { orientation, orderBy, contentFilter }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('[UNSPLASH] Error in fetch-unsplash-images function:', error);
+    console.error('[UNSPLASH] Error in enhanced fetch-unsplash-images function:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

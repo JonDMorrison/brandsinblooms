@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -17,27 +16,110 @@ interface UnsplashImage {
   photographer: string;
 }
 
+// Utility to get current season
+const getSeason = (): string => {
+  const month = new Date().getMonth() + 1; // 1-12
+  if (month >= 3 && month <= 5) return 'spring';
+  if (month >= 6 && month <= 8) return 'summer';
+  if (month >= 9 && month <= 11) return 'fall';
+  return 'winter';
+};
+
+// Curated fallback queries for garden centre content
+const gardenCentreFallbacks = [
+  "native pollinator plants",
+  "colourful summer annuals", 
+  "container herb garden",
+  "fall mums display",
+  "winter houseplants care",
+  "seasonal garden displays",
+  "outdoor plant arrangements",
+  "garden centre nursery plants"
+];
+
+// Sample function to pick random fallback
+const sample = (array: string[]): string => {
+  return array[Math.floor(Math.random() * array.length)];
+};
+
 export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
   const [images, setImages] = useState<UnsplashImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<UnsplashImage | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
 
-  // Extract keywords from draft content
-  const extractKeywords = (content: string, fallback = 'garden plants'): string => {
+  // Enhanced keyword extraction with gardening context
+  const extractKeywords = (content: string): string[] => {
     if (!content || content.trim().length === 0) {
-      return fallback;
+      return [];
     }
 
-    // Simple keyword extraction - take first few meaningful words
-    const words = content
-      .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 3)
-      .slice(0, 3);
+    // Clean HTML and normalize content
+    const cleanContent = content
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&[^;]+;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
 
-    return words.length > 0 ? words.join(' ') : fallback;
+    // Look for garden-specific themes
+    const gardenThemes = {
+      drought: /\b(drought|dry|water.?saving|xeriscaping)\b/gi,
+      pollinator: /\b(pollinator|bee|butterfly|native|wildflower)\b/gi,
+      herbs: /\b(herb|basil|rosemary|thyme|culinary|cooking)\b/gi,
+      houseplants: /\b(houseplant|indoor|succulent|tropical|philodendron)\b/gi,
+      seasonal: /\b(spring|summer|fall|autumn|winter|seasonal)\b/gi,
+      flowers: /\b(flower|bloom|blossom|annual|perennial|bulb)\b/gi,
+      vegetables: /\b(vegetable|tomato|pepper|garden|harvest)\b/gi,
+      lawn: /\b(lawn|grass|turf|sod|fertilizer)\b/gi,
+      trees: /\b(tree|shrub|evergreen|deciduous|maple|oak)\b/gi
+    };
+
+    // Find the most relevant theme
+    let bestTheme = '';
+    let maxMatches = 0;
+    
+    for (const [theme, regex] of Object.entries(gardenThemes)) {
+      const matches = cleanContent.match(regex);
+      if (matches && matches.length > maxMatches) {
+        maxMatches = matches.length;
+        bestTheme = theme;
+      }
+    }
+
+    // Extract meaningful words based on theme or general content
+    const words = cleanContent
+      .split(/\s+/)
+      .filter(word => 
+        word.length > 3 && 
+        !['your', 'this', 'that', 'they', 'them', 'their', 'here', 'there', 'when', 'what', 'where', 'how', 'why', 'who', 'will', 'have', 'been', 'with', 'from', 'about', 'into', 'through', 'during', 'before', 'after'].includes(word)
+      )
+      .slice(0, 5);
+
+    return words;
+  };
+
+  // Build enhanced search query with season and garden context
+  const buildSearchQuery = (draft: any): string => {
+    const content = draft?.ai_output || draft?.prompt || '';
+    const coreKeywords = extractKeywords(content);
+    const season = getSeason();
+    
+    console.log('[IMAGE_GALLERY] Core keywords extracted:', coreKeywords);
+
+    let baseQuery: string;
+    
+    if (coreKeywords.length >= 3) {
+      baseQuery = coreKeywords.slice(0, 3).join(' ');
+    } else {
+      baseQuery = sample(gardenCentreFallbacks);
+      console.log('[IMAGE_GALLERY] Using fallback query:', baseQuery);
+    }
+
+    const enhancedQuery = `${baseQuery} garden centre nursery ${season}`.trim();
+    console.log('[IMAGE_GALLERY] Final enhanced query:', enhancedQuery);
+    
+    return enhancedQuery;
   };
 
   const fetchImages = async (forceRefresh = false) => {
@@ -46,26 +128,44 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
     setLoading(true);
     try {
       const query = selectedDraft 
-        ? extractKeywords(selectedDraft.ai_output || selectedDraft.prompt || '')
-        : 'garden plants';
+        ? buildSearchQuery(selectedDraft)
+        : `garden centre plants ${getSeason()}`;
 
-      console.log('Fetching images for query:', query);
+      console.log('[IMAGE_GALLERY] Fetching enhanced images for query:', query);
 
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
           query,
-          maxImages: 4
+          maxImages: 4,
+          orientation: 'squarish',
+          orderBy: 'popular',
+          contentFilter: 'high'
         }
       });
 
       if (error) {
-        console.error('Error fetching images:', error);
+        console.error('[IMAGE_GALLERY] Error fetching images:', error);
+        
+        // Fallback to simpler query
+        console.log('[IMAGE_GALLERY] Trying fallback query...');
+        const fallbackData = await supabase.functions.invoke('fetch-unsplash-images', {
+          body: { 
+            query: 'garden flowers high quality',
+            maxImages: 4,
+            orientation: 'squarish',
+            orderBy: 'popular',
+            contentFilter: 'high'
+          }
+        });
+        
+        setImages(fallbackData?.data?.images || []);
         return;
       }
 
       setImages(data?.images || []);
     } catch (error) {
-      console.error('Error fetching images:', error);
+      console.error('[IMAGE_GALLERY] Exception fetching images:', error);
+      setImages([]);
     } finally {
       setLoading(false);
     }
