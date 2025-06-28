@@ -9,6 +9,7 @@ import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { usePublishFlow } from '@/hooks/usePublishFlow';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
 
 interface ComposerPanelProps {
   selectedDraft?: any;
@@ -103,6 +104,30 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     if (onTaskUpdate) onTaskUpdate();
   };
 
+  const renderContent = () => {
+    const content = selectedDraft.ai_output || 'No content generated yet';
+    
+    if (selectedDraft.post_type === 'newsletter') {
+      return (
+        <div className="flex-1 overflow-y-auto">
+          <NewsletterPreview 
+            content={content}
+            className="min-h-[200px]"
+          />
+        </div>
+      );
+    }
+    
+    // Regular content display for other post types
+    return (
+      <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto">
+        <p className="whitespace-pre-wrap text-gray-700">
+          {content}
+        </p>
+      </div>
+    );
+  };
+
   if (!selectedDraft) {
     return (
       <Card className="h-full flex items-center justify-center">
@@ -182,11 +207,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                 </div>
               </div>
             ) : (
-              <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto">
-                <p className="whitespace-pre-wrap text-gray-700">
-                  {selectedDraft.ai_output || 'No content generated yet'}
-                </p>
-              </div>
+              renderContent()
             )}
 
             {/* Draft Actions */}

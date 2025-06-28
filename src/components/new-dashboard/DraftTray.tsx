@@ -1,11 +1,11 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Image, Video } from 'lucide-react';
+import { Calendar, FileText, Image, Video, Mail } from 'lucide-react';
 import { format } from 'date-fns';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
+import { extractNewsletterThumbnail } from '@/utils/renderMarkdown';
 
 interface DraftTrayProps {
   tasks?: any[];
@@ -21,6 +21,8 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft }: DraftTra
         return <Video className="w-4 h-4" />;
       case 'image':
         return <Image className="w-4 h-4" />;
+      case 'newsletter':
+        return <Mail className="w-4 h-4" />;
       default:
         return <FileText className="w-4 h-4" />;
     }
@@ -32,12 +34,23 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft }: DraftTra
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'instagram':
         return 'bg-purple-100 text-purple-800 border-purple-200';
+      case 'newsletter':
+        return 'bg-green-100 text-green-800 border-green-200';
       case 'video':
       case 'reel':
         return 'bg-pink-100 text-pink-800 border-pink-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
+  };
+
+  const getContentPreview = (draft: any) => {
+    if (draft.post_type === 'newsletter') {
+      // Use magazine-style thumbnail for newsletters
+      return extractNewsletterThumbnail(draft.ai_output || '', 120);
+    }
+    // Regular preview for other content types
+    return draft.ai_output?.substring(0, 120) + '...';
   };
 
   const availableDrafts = tasks.filter(task => 
@@ -111,7 +124,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft }: DraftTra
                         </div>
 
                         <p className="text-sm text-gray-700 line-clamp-3 mb-2">
-                          {draft.ai_output?.substring(0, 120)}...
+                          {getContentPreview(draft)}
                         </p>
 
                         <div className="flex items-center justify-between text-xs text-gray-500">
