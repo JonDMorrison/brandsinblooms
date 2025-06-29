@@ -46,9 +46,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
     return draft.status === 'approved';
   };
 
-  const itemHeight = density === 'compact' ? 96 : 120;
-  const maxVisibleItems = Math.floor(240 / itemHeight); // Tray height is 240px
-
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0 pb-3">
@@ -70,7 +67,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
         </p>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-hidden p-0">
+      <CardContent className="flex-1 overflow-hidden p-0 min-h-0">
         <Droppable droppableId="draft-tray">
           {(provided, snapshot) => (
             <div
@@ -80,7 +77,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                 "h-full overflow-y-auto px-4 pb-4",
                 snapshot.isDraggingOver && "bg-[#68BEB9]/5 rounded-lg"
               )}
-              style={{ maxHeight: '240px' }}
             >
               {sortedTasks.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-center py-8">
