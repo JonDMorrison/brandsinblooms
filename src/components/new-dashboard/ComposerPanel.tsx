@@ -100,6 +100,17 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   };
 
   const renderContent = () => {
+    if (!selectedDraft) {
+      return (
+        <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto flex items-center justify-center">
+          <div className="text-center">
+            <div className="text-gray-500 mb-2">No draft selected</div>
+            <p className="text-sm text-gray-400">Select a draft from the tray to compose or manage</p>
+          </div>
+        </div>
+      );
+    }
+
     const content = selectedDraft.ai_output || 'No content generated yet';
     
     if (selectedDraft.post_type === 'newsletter') {
@@ -123,31 +134,22 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     );
   };
 
-  if (!selectedDraft) {
-    return (
-      <Card className="h-full flex items-center justify-center">
-        <CardContent className="text-center">
-          <div className="text-gray-500 mb-2">No draft selected</div>
-          <p className="text-sm text-gray-400">Select a draft from the tray to compose or manage</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="h-full flex flex-col overflow-hidden">
       <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold text-[#3E5A6B]">Composer</CardTitle>
           <div className="flex items-center gap-2">
-            <Badge 
-              variant={isApproved ? 'default' : 'secondary'}
-              className={cn(
-                isApproved && "bg-[#68BEB9] text-white hover:bg-[#56a7a1]"
-              )}
-            >
-              {isScheduled ? 'SCHEDULED' : isApproved ? 'APPROVED' : 'DRAFT'}
-            </Badge>
+            {selectedDraft && (
+              <Badge 
+                variant={isApproved ? 'default' : 'secondary'}
+                className={cn(
+                  isApproved && "bg-[#68BEB9] text-white hover:bg-[#56a7a1]"
+                )}
+              >
+                {isScheduled ? 'SCHEDULED' : isApproved ? 'APPROVED' : 'DRAFT'}
+              </Badge>
+            )}
             {socialConnections.length === 0 && (
               <Badge variant="outline" className="text-orange-600">
                 No connections
@@ -160,7 +162,8 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Edit className="w-4 h-4" />
           <span>
-            {isScheduled ? 'Managing scheduled content' : 
+            {!selectedDraft ? 'Select a draft to start editing' :
+             isScheduled ? 'Managing scheduled content' : 
              isApproved ? 'Approved content ready for scheduling' : 
              'Editing draft content'}
           </span>
@@ -171,7 +174,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-[#3E5A6B]">Content</h3>
-            {!isScheduled && (
+            {selectedDraft && !isScheduled && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -183,7 +186,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             )}
           </div>
 
-          {isEditing ? (
+          {isEditing && selectedDraft ? (
             <div className="flex-1 flex flex-col overflow-hidden">
               <Textarea
                 value={editContent}
@@ -205,35 +208,72 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             renderContent()
           )}
 
-          {/* Action Bar - Only show for non-scheduled content */}
-          {!isScheduled && (
-            <div className="mt-4 p-4 border-t flex-shrink-0">
-              <div className="text-sm text-gray-600 mb-3">
-                {isApproved 
-                  ? "Ready to schedule! Drag this draft to the Smart-Time Ribbon above." 
-                  : "Save your changes or approve when ready to schedule."}
+          {/* Action Bar - Always visible but content changes based on state */}
+          <div className="mt-4 p-4 border-t flex-shrink-0">
+            {!selectedDraft ? (
+              <div className="text-center">
+                <div className="text-sm text-gray-600 mb-3">
+                  This is where you'll edit and approve your content before scheduling.
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 border-gray-300 text-gray-500"
+                    disabled
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Draft
+                  </Button>
+                  <Button 
+                    className="flex-1 bg-gray-300 text-gray-500"
+                    disabled
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Approve & Post
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Select a draft from the tray to get started
+                </p>
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
-                  onClick={handleSave}
-                  disabled={saving || approving || socialConnections.length === 0}
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-                <Button 
-                  className="flex-1 bg-[#68BEB9] hover:bg-[#56a7a1]"
-                  onClick={handleApprove}
-                  disabled={saving || approving || socialConnections.length === 0}
-                >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  {approving ? 'Approving...' : 'Approve & Post'}
-                </Button>
+            ) : isScheduled ? (
+              <div className="text-center">
+                <div className="text-sm text-gray-600 mb-3">
+                  This content is already scheduled for posting.
+                </div>
+                <div className="text-xs text-gray-500">
+                  Scheduled for: {relatedScheduledPosts[0] ? format(new Date(relatedScheduledPosts[0].publish_at), 'MMM d, yyyy \'at\' h:mm a') : 'Unknown time'}
+                </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div>
+                <div className="text-sm text-gray-600 mb-3">
+                  {isApproved 
+                    ? "Ready to schedule! Drag this draft to the Smart-Time Ribbon above." 
+                    : "Save your changes or approve when ready to schedule."}
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
+                    onClick={handleSave}
+                    disabled={saving || approving || socialConnections.length === 0}
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button 
+                    className="flex-1 bg-[#68BEB9] hover:bg-[#56a7a1]"
+                    onClick={handleApprove}
+                    disabled={saving || approving || socialConnections.length === 0}
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    {approving ? 'Approving...' : 'Approve & Post'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>
