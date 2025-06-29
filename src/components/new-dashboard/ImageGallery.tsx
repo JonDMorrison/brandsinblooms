@@ -16,30 +16,130 @@ interface UnsplashImage {
   photographer: string;
 }
 
-// Utility to get current season
-const getSeason = (): string => {
-  const month = new Date().getMonth() + 1; // 1-12
-  if (month >= 3 && month <= 5) return 'spring';
-  if (month >= 6 && month <= 8) return 'summer';
-  if (month >= 9 && month <= 11) return 'fall';
-  return 'winter';
+// Enhanced keyword extraction focused on actual content
+const extractMeaningfulKeywords = (content: string): string[] => {
+  if (!content || content.trim().length === 0) {
+    return [];
+  }
+
+  console.log('[IMAGE_GALLERY] Analyzing content:', content.substring(0, 200));
+
+  // Clean and normalize content
+  const cleanContent = content
+    .replace(/<[^>]*>/g, ' ')           // Remove HTML
+    .replace(/&[^;]+;/g, ' ')          // Remove HTML entities
+    .replace(/[^\w\s]/g, ' ')          // Remove punctuation but keep words
+    .replace(/\s+/g, ' ')              // Normalize whitespace
+    .trim()
+    .toLowerCase();
+
+  // Extract meaningful nouns and descriptive words
+  const meaningfulWords = cleanContent
+    .split(/\s+/)
+    .filter(word => {
+      // Filter out common words and keep meaningful terms
+      const stopWords = [
+        'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+        'from', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below',
+        'between', 'among', 'throughout', 'alongside', 'within', 'without', 'toward',
+        'your', 'our', 'their', 'this', 'that', 'these', 'those', 'here', 'there',
+        'when', 'where', 'why', 'how', 'what', 'who', 'which', 'will', 'would', 'could',
+        'should', 'have', 'has', 'had', 'been', 'being', 'are', 'is', 'was', 'were',
+        'can', 'may', 'might', 'must', 'shall', 'need', 'want', 'like', 'make', 'get',
+        'take', 'come', 'go', 'see', 'know', 'think', 'say', 'tell', 'ask', 'give',
+        'find', 'feel', 'seem', 'look', 'turn', 'keep', 'put', 'set', 'become', 'made'
+      ];
+      
+      return word.length > 2 && !stopWords.includes(word) && !/^\d+$/.test(word);
+    })
+    .slice(0, 8); // Get top 8 meaningful words
+
+  console.log('[IMAGE_GALLERY] Extracted meaningful keywords:', meaningfulWords);
+  return meaningfulWords;
 };
 
-// Curated fallback queries for garden centre content
-const gardenCentreFallbacks = [
-  "native pollinator plants",
-  "colourful summer annuals", 
-  "container herb garden",
-  "fall mums display",
-  "winter houseplants care",
-  "seasonal garden displays",
-  "outdoor plant arrangements",
-  "garden centre nursery plants"
-];
+// Build content-focused search query
+const buildContentQuery = (draft: any): string => {
+  const content = draft?.ai_output || draft?.prompt || '';
+  const keywords = extractMeaningfulKeywords(content);
+  
+  console.log('[IMAGE_GALLERY] Building query for content type:', draft?.post_type);
 
-// Sample function to pick random fallback
-const sample = (array: string[]): string => {
-  return array[Math.floor(Math.random() * array.length)];
+  if (keywords.length === 0) {
+    // Fallback based on post type and context
+    const fallbacks = {
+      instagram: 'lifestyle photography',
+      facebook: 'community engagement',
+      newsletter: 'professional content',
+      email: 'business communication',
+      video: 'dynamic content'
+    };
+    
+    const fallback = fallbacks[draft?.post_type] || 'professional photography';
+    console.log('[IMAGE_GALLERY] Using fallback query:', fallback);
+    return fallback;
+  }
+
+  // Use top 2-3 most relevant keywords
+  let query = keywords.slice(0, 3).join(' ');
+  
+  // Add context based on the primary keyword theme
+  const primaryKeyword = keywords[0];
+  
+  // Only add contextual terms if they enhance the search
+  if (/plant|flower|garden|grow|bloom|seed|soil/.test(keywords.join(' '))) {
+    query += ' gardening';
+  } else if (/food|recipe|cook|eat|ingredient/.test(keywords.join(' '))) {
+    query += ' food photography';
+  } else if (/business|professional|work|office/.test(keywords.join(' '))) {
+    query += ' professional';
+  } else if (/home|house|interior|decor/.test(keywords.join(' '))) {
+    query += ' home lifestyle';
+  } else if (/outdoor|nature|landscape/.test(keywords.join(' '))) {
+    query += ' outdoor';
+  }
+
+  console.log('[IMAGE_GALLERY] Final content-focused query:', query);
+  return query;
+};
+
+// Curated fallback queries for when content analysis fails
+const getRandomFallback = (postType: string): string => {
+  const fallbacks = {
+    instagram: [
+      'lifestyle photography',
+      'modern aesthetic',
+      'clean minimal design',
+      'natural lighting'
+    ],
+    facebook: [
+      'community lifestyle',
+      'social gathering',
+      'friendly atmosphere',
+      'engaging content'
+    ],
+    newsletter: [
+      'professional business',
+      'clean modern office',
+      'business communication',
+      'corporate lifestyle'
+    ],
+    email: [
+      'professional communication',
+      'business meeting',
+      'office environment',
+      'clean workspace'
+    ],
+    video: [
+      'dynamic content',
+      'engaging visuals',
+      'motion graphics',
+      'video production'
+    ]
+  };
+
+  const typeSpecificFallbacks = fallbacks[postType] || fallbacks.instagram;
+  return typeSpecificFallbacks[Math.floor(Math.random() * typeSpecificFallbacks.length)];
 };
 
 export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
@@ -47,80 +147,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<UnsplashImage | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
-
-  // Enhanced keyword extraction with gardening context
-  const extractKeywords = (content: string): string[] => {
-    if (!content || content.trim().length === 0) {
-      return [];
-    }
-
-    // Clean HTML and normalize content
-    const cleanContent = content
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/&[^;]+;/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toLowerCase();
-
-    // Look for garden-specific themes
-    const gardenThemes = {
-      drought: /\b(drought|dry|water.?saving|xeriscaping)\b/gi,
-      pollinator: /\b(pollinator|bee|butterfly|native|wildflower)\b/gi,
-      herbs: /\b(herb|basil|rosemary|thyme|culinary|cooking)\b/gi,
-      houseplants: /\b(houseplant|indoor|succulent|tropical|philodendron)\b/gi,
-      seasonal: /\b(spring|summer|fall|autumn|winter|seasonal)\b/gi,
-      flowers: /\b(flower|bloom|blossom|annual|perennial|bulb)\b/gi,
-      vegetables: /\b(vegetable|tomato|pepper|garden|harvest)\b/gi,
-      lawn: /\b(lawn|grass|turf|sod|fertilizer)\b/gi,
-      trees: /\b(tree|shrub|evergreen|deciduous|maple|oak)\b/gi
-    };
-
-    // Find the most relevant theme
-    let bestTheme = '';
-    let maxMatches = 0;
-    
-    for (const [theme, regex] of Object.entries(gardenThemes)) {
-      const matches = cleanContent.match(regex);
-      if (matches && matches.length > maxMatches) {
-        maxMatches = matches.length;
-        bestTheme = theme;
-      }
-    }
-
-    // Extract meaningful words based on theme or general content
-    const words = cleanContent
-      .split(/\s+/)
-      .filter(word => 
-        word.length > 3 && 
-        !['your', 'this', 'that', 'they', 'them', 'their', 'here', 'there', 'when', 'what', 'where', 'how', 'why', 'who', 'will', 'have', 'been', 'with', 'from', 'about', 'into', 'through', 'during', 'before', 'after'].includes(word)
-      )
-      .slice(0, 5);
-
-    return words;
-  };
-
-  // Build enhanced search query with season and garden context
-  const buildSearchQuery = (draft: any): string => {
-    const content = draft?.ai_output || draft?.prompt || '';
-    const coreKeywords = extractKeywords(content);
-    const season = getSeason();
-    
-    console.log('[IMAGE_GALLERY] Core keywords extracted:', coreKeywords);
-
-    let baseQuery: string;
-    
-    if (coreKeywords.length >= 3) {
-      baseQuery = coreKeywords.slice(0, 3).join(' ');
-    } else {
-      baseQuery = sample(gardenCentreFallbacks);
-      console.log('[IMAGE_GALLERY] Using fallback query:', baseQuery);
-    }
-
-    const enhancedQuery = `${baseQuery} garden centre nursery ${season}`.trim();
-    console.log('[IMAGE_GALLERY] Final enhanced query:', enhancedQuery);
-    
-    return enhancedQuery;
-  };
+  const [lastQuery, setLastQuery] = useState<string>('');
 
   const fetchImages = async (forceRefresh = false) => {
     if (!selectedDraft && !forceRefresh) return;
@@ -128,17 +155,18 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
     setLoading(true);
     try {
       const query = selectedDraft 
-        ? buildSearchQuery(selectedDraft)
-        : `garden centre plants ${getSeason()}`;
+        ? buildContentQuery(selectedDraft)
+        : getRandomFallback('instagram');
 
-      console.log('[IMAGE_GALLERY] Fetching enhanced images for query:', query);
+      setLastQuery(query);
+      console.log('[IMAGE_GALLERY] Fetching images with improved query:', query);
 
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
           query,
           maxImages: 4,
           orientation: 'squarish',
-          orderBy: 'popular',
+          orderBy: 'relevant', // Changed from 'popular' to 'relevant'
           contentFilter: 'high'
         }
       });
@@ -146,19 +174,21 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
       if (error) {
         console.error('[IMAGE_GALLERY] Error fetching images:', error);
         
-        // Fallback to simpler query
-        console.log('[IMAGE_GALLERY] Trying fallback query...');
+        // Try a simpler, more generic query as fallback
+        console.log('[IMAGE_GALLERY] Trying simpler fallback query...');
+        const simpleQuery = getRandomFallback(selectedDraft?.post_type || 'instagram');
         const fallbackData = await supabase.functions.invoke('fetch-unsplash-images', {
           body: { 
-            query: 'garden flowers high quality',
+            query: simpleQuery,
             maxImages: 4,
             orientation: 'squarish',
-            orderBy: 'popular',
+            orderBy: 'relevant',
             contentFilter: 'high'
           }
         });
         
         setImages(fallbackData?.data?.images || []);
+        setLastQuery(simpleQuery);
         return;
       }
 
@@ -184,13 +214,21 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
     <>
       <div className="bg-gradient-to-b from-[#68BEB9]/10 to-[#68BEB9]/5 rounded-lg p-4 h-full">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-[#3E5A6B]">Images</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-medium text-[#3E5A6B]">Images</h3>
+            {lastQuery && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                "{lastQuery}"
+              </span>
+            )}
+          </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => fetchImages(true)}
             disabled={loading}
             className="h-6 w-6 p-0"
+            title="Get different images"
           >
             {loading ? (
               <Loader2 className="w-3 h-3 animate-spin" />
@@ -237,14 +275,14 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
             ) : (
               <div className="col-span-4 flex flex-col items-center justify-center text-center h-full">
                 <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
-                <p className="text-xs text-gray-500">No images found</p>
+                <p className="text-xs text-gray-500 mb-1">No images found for "{lastQuery}"</p>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => fetchImages(true)}
                   className="mt-2 text-xs"
                 >
-                  Try again
+                  Try different search
                 </Button>
               </div>
             )}
