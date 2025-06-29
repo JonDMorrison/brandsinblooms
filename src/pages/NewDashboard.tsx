@@ -43,7 +43,7 @@ const NewDashboard = () => {
       'instagram': 'IG_FEED',
       'instagram_story': 'IG_FEED',
       'instagram_reel': 'IG_REEL',
-      'linkedin': 'FB', // Default to FB for unsupported platforms
+      'linkedin': 'FB',
       'twitter': 'FB'
     };
     return platformMap[platform] || 'FB';
@@ -51,8 +51,8 @@ const NewDashboard = () => {
 
   const getOptimalTime = (date: Date, platform: string = 'facebook'): Date => {
     const optimalTimes = {
-      facebook: [9, 15, 18], // 9 AM, 3 PM, 6 PM
-      instagram: [11, 14, 17], // 11 AM, 2 PM, 5 PM
+      facebook: [9, 15, 18],
+      instagram: [11, 14, 17],
     };
     
     const times = optimalTimes[platform as keyof typeof optimalTimes] || optimalTimes.facebook;
@@ -67,7 +67,6 @@ const NewDashboard = () => {
     if (!user) throw new Error('User not authenticated');
 
     try {
-      // Get the draft content
       const draft = dashboardData?.tasks.find(t => t.id === draftId);
       if (!draft) throw new Error('Draft not found');
 
@@ -84,10 +83,9 @@ const NewDashboard = () => {
 
       if (contentError) throw contentError;
 
-      // Map platform to correct enum value
       const platformEnum = mapPlatformToEnum(platform);
 
-      // Create scheduled post with proper platform enum and correct column names
+      // Create scheduled post
       const { error: scheduleError } = await supabase
         .from('scheduled_posts')
         .insert({
@@ -103,13 +101,15 @@ const NewDashboard = () => {
         throw new Error(`Failed to schedule: ${scheduleError.message}`);
       }
 
-      // Update the draft status to approved
+      // Update the draft status to "scheduled" (not "approved")
       await supabase
         .from('content_tasks')
-        .update({ status: 'approved' })
+        .update({ 
+          status: 'scheduled',
+          scheduled_date: format(publishAt, 'yyyy-MM-dd')
+        })
         .eq('id', draftId);
 
-      // Refresh data
       await refetch();
 
       return generatedContent.id;
@@ -121,8 +121,12 @@ const NewDashboard = () => {
 
   const handleApproved = (draftId: string) => {
     setJustApprovedId(draftId);
-    // Clear the hint after showing it
     setTimeout(() => setJustApprovedId(null), 100);
+  };
+
+  // Handle clicking on scheduled content in the ribbon
+  const handleScheduledContentClick = (scheduledTask: any) => {
+    setSelectedDraft(scheduledTask);
   };
 
   const handleDragEnd = async (result: DropResult) => {
@@ -130,7 +134,6 @@ const NewDashboard = () => {
 
     if (!destination) return;
 
-    // Handle drag from draft tray to calendar day
     if (
       source.droppableId === 'draft-tray' &&
       destination.droppableId.startsWith('day-')
@@ -139,7 +142,6 @@ const NewDashboard = () => {
         const dateStr = destination.droppableId.replace('day-', '');
         const targetDate = new Date(dateStr);
         
-        // Show time selection modal instead of immediate scheduling
         setTimeSelectionModal({
           isOpen: true,
           draftId: draggableId,
@@ -168,22 +170,18 @@ const NewDashboard = () => {
         scheduledDate = new Date();
       }
 
-      // Schedule the draft
       await scheduleDraft(timeSelectionModal.draftId, scheduledDate, 'facebook');
       
-      // Show success toast with undo option
       const toastId = toast.success(`Scheduled for ${format(scheduledDate, 'MMM d, yyyy')} at ${format(scheduledDate, 'h:mm a')}`, {
         duration: 8000,
         action: {
           label: 'Undo',
           onClick: async () => {
-            // TODO: Implement undo functionality
             toast.success('Scheduling undone');
           }
         }
       });
       
-      // Close modal
       setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
       
     } catch (error) {
@@ -205,25 +203,19 @@ const NewDashboard = () => {
   return (
     <FullWidthLayout>
       <DragDropContext onDragEnd={handleDragEnd}>
-        {/* Main content with bottom padding to account for fixed ribbon */}
         <div className="min-h-screen bg-[#F9FAFB] p-6 pb-60">
           <div className="max-w-full mx-auto">
-            {/* Header */}
             <div className="mb-8">
               <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
               <p className="text-gray-600">Your content creation command center</p>
             </div>
 
-            {/* Main Dashboard Grid - Updated layout: 4 cols left, 8 cols right */}
             <div className="grid grid-cols-12 gap-6 mb-6">
-              {/* Left Column - Today's Focus + Draft Tray stacked */}
               <div className="col-span-4 space-y-6">
-                {/* Today's Focus Carousel */}
                 <div className="h-[480px]">
                   <FocusCarousel onTaskUpdate={handleTaskUpdate} />
                 </div>
 
-                {/* Draft Tray */}
                 <div className="flex-1">
                   <DraftTray 
                     tasks={dashboardData?.tasks || []}
@@ -234,9 +226,7 @@ const NewDashboard = () => {
                 </div>
               </div>
 
-              {/* Right Column - Composer Panel + Image Gallery stacked */}
               <div className="col-span-8 space-y-6">
-                {/* Composer Panel (reduced height) */}
                 <div className="h-[480px]">
                   <ComposerPanel 
                     selectedDraft={selectedDraft}
@@ -246,7 +236,6 @@ const NewDashboard = () => {
                   />
                 </div>
 
-                {/* Image Gallery */}
                 <div className="h-[240px]">
                   <ImageGallery selectedDraft={selectedDraft} />
                 </div>
@@ -255,10 +244,10 @@ const NewDashboard = () => {
           </div>
         </div>
 
-        {/* Fixed Smart-Time Ribbon at bottom */}
         <SmartTimeRibbon 
           tasks={dashboardData?.tasks || []}
           onScheduleUpdate={handleTaskUpdate}
+          onScheduledContentClick={handleScheduledContentClick}
         />
       </DragDropContext>
 

@@ -10,13 +10,14 @@ import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 interface SmartTimeRibbonProps {
   tasks?: any[];
   onScheduleUpdate?: () => void;
+  onScheduledContentClick?: (task: any) => void;
 }
 
-export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbonProps) => {
+export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledContentClick }: SmartTimeRibbonProps) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const { scheduledPosts, loading } = useScheduledPosts();
 
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
+  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   const nextWeek = () => setCurrentWeek(addWeeks(currentWeek, 1));
@@ -31,6 +32,15 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
     );
   };
 
+  // Get scheduled content tasks for a specific day
+  const getScheduledTasksForDay = (day: Date) => {
+    return tasks.filter(task => 
+      task.status === 'scheduled' && 
+      task.scheduled_date &&
+      isSameDay(new Date(task.scheduled_date), day)
+    );
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'QUEUED':
@@ -39,6 +49,8 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
         return 'bg-green-100 text-green-800 border-green-200';
       case 'ERROR':
         return 'bg-red-100 text-red-800 border-red-200';
+      case 'scheduled':
+        return 'bg-purple-100 text-purple-800 border-purple-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
     }
@@ -56,6 +68,10 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
         return '💼';
       case 'TWITTER':
         return '🐦';
+      case 'facebook':
+        return '📘';
+      case 'instagram':
+        return '📷';
       default:
         return '📱';
     }
@@ -99,7 +115,8 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
         <div className="grid grid-cols-7 gap-4">
           {weekDays.map((day) => {
             const dayKey = format(day, 'yyyy-MM-dd');
-            const scheduledForDay = getScheduledPostsForDay(day);
+            const scheduledPostsForDay = getScheduledPostsForDay(day);
+            const scheduledTasksForDay = getScheduledTasksForDay(day);
             const isToday = isSameDay(day, new Date());
             
             return (
@@ -131,11 +148,33 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
                       </div>
                     </div>
 
-                    {/* Scheduled Posts */}
+                    {/* Scheduled Content Tasks (clickable) */}
                     <div className="space-y-2">
-                      {scheduledForDay.map((scheduledPost) => (
+                      {scheduledTasksForDay.map((scheduledTask) => (
                         <div
-                          key={scheduledPost.id}
+                          key={`task-${scheduledTask.id}`}
+                          onClick={() => onScheduledContentClick?.(scheduledTask)}
+                          className={cn(
+                            "text-xs p-2 rounded border cursor-pointer hover:shadow-sm transition-all",
+                            getStatusColor('scheduled')
+                          )}
+                        >
+                          <div className="flex items-center gap-1 mb-1">
+                            <span>{getPlatformIcon(scheduledTask.post_type)}</span>
+                            <span className="font-medium truncate">
+                              {scheduledTask.post_type || 'Content'}
+                            </span>
+                          </div>
+                          <div className="text-xs opacity-75 truncate">
+                            {scheduledTask.ai_output?.substring(0, 30) || 'Scheduled content'}...
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Scheduled Posts */}
+                      {scheduledPostsForDay.map((scheduledPost) => (
+                        <div
+                          key={`post-${scheduledPost.id}`}
                           className={cn(
                             "text-xs p-2 rounded border",
                             getStatusColor(scheduledPost.status)
@@ -162,7 +201,7 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
                     )}
 
                     {/* Empty state */}
-                    {!snapshot.isDraggingOver && scheduledForDay.length === 0 && (
+                    {!snapshot.isDraggingOver && scheduledPostsForDay.length === 0 && scheduledTasksForDay.length === 0 && (
                       <div className="flex items-center justify-center h-8 mt-2">
                         <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
                       </div>
@@ -178,7 +217,7 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
 
         <div className="mt-4 p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
           <p className="text-sm text-[#3E5A6B]">
-            <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days. Choose optimal posting times for maximum engagement.
+            <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days. Click on scheduled content to edit.
           </p>
         </div>
       </div>

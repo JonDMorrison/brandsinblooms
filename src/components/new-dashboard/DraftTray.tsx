@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -74,6 +73,8 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
     switch (status) {
       case 'approved':
         return { label: 'Approved', variant: 'default' as const, className: 'bg-[#68BEB9] text-white' };
+      case 'scheduled':
+        return { label: 'Scheduled', variant: 'secondary' as const, className: 'bg-blue-500 text-white' };
       case 'draft':
       case 'generated':
         return { label: 'Draft', variant: 'secondary' as const, className: '' };
@@ -82,16 +83,17 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
     }
   };
 
-  // Sort tasks: approved first, then others
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.status === 'approved' && b.status !== 'approved') return -1;
-    if (b.status === 'approved' && a.status !== 'approved') return 1;
-    return 0;
-  });
-
-  const availableDrafts = sortedTasks.filter(task => 
-    task.status === 'approved' || task.status === 'generated' || task.status === 'draft'
-  );
+  // Filter out scheduled tasks - they should not appear in the draft tray
+  const availableDrafts = tasks
+    .filter(task => 
+      (task.status === 'approved' || task.status === 'generated' || task.status === 'draft') &&
+      task.status !== 'scheduled' // Explicitly exclude scheduled tasks
+    )
+    .sort((a, b) => {
+      if (a.status === 'approved' && b.status !== 'approved') return -1;
+      if (b.status === 'approved' && a.status !== 'approved') return 1;
+      return 0;
+    });
 
   return (
     <Card className="h-full flex flex-col">
@@ -152,6 +154,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                           )}
                           onClick={() => onSelectDraft?.(draft)}
                         >
+                          {/* ... keep existing draft card content the same */}
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
                               {getPostTypeIcon(draft.post_type)}
@@ -193,7 +196,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                             )}
                           </div>
 
-                          {/* Drag Hint Overlay */}
                           {showHint && (
                             <div className="absolute inset-0 bg-[#68BEB9]/90 rounded-lg flex items-center justify-center text-white font-medium text-sm animate-in fade-in-0 slide-in-from-top-2">
                               <div className="flex items-center gap-2">
@@ -203,7 +205,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                             </div>
                           )}
 
-                          {/* Drag indicator for approved items */}
                           {snapshot.isDragging && (
                             <div className="absolute -top-2 -right-2 bg-[#68BEB9] text-white text-xs px-2 py-1 rounded-full">
                               Scheduling...
