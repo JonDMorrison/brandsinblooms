@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 import { colors } from "./src/config/tailwind/colors";
 import { fontFamily, fontSize, fontWeight } from "./src/config/tailwind/typography";
@@ -25,8 +24,10 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				...fontFamily,
-				display: ['Inter', 'system-ui', 'sans-serif'],
+				sans: ['Inter', 'Quicksand', 'system-ui', 'sans-serif'],
+				quicksand: ['Quicksand', 'Inter', 'system-ui', 'sans-serif'],
+				inter: ['Inter', 'system-ui', 'sans-serif'],
+				display: ['Quicksand', 'Inter', 'system-ui', 'sans-serif'],
 			},
 			fontSize,
 			fontWeight,
@@ -36,53 +37,107 @@ export default {
 			},
 			colors: {
 				...colors,
+				// Brand colors - primary palette
+				'brand-teal-mint': {
+					DEFAULT: '#68BEB9',
+					50: '#F0FFFE',
+					100: '#E1FFFE',
+					200: '#C3FFFC',
+					300: '#A5FFFA',
+					400: '#87DFD8',
+					500: '#68BEB9', // Primary brand teal-mint
+					600: '#5AA8A3',
+					700: '#4C928D',
+					800: '#3E7C77',
+					900: '#306661',
+				},
+				'brand-steel-blue': {
+					DEFAULT: '#3E5A6B',
+					50: '#F0F2F4',
+					100: '#E1E6EA',
+					200: '#C3CDD5',
+					300: '#A5B4C0',
+					400: '#879BAB',
+					500: '#3E5A6B', // Primary brand steel-blue
+					600: '#354F5F',
+					700: '#2C4253',
+					800: '#233547',
+					900: '#1A283B',
+				},
+				// Override primary and accent to use brand colors
 				primary: {
-					...colors.primary,
-					DEFAULT: '#15803d', // Garden green for blog polish
+					DEFAULT: '#68BEB9', // Brand teal-mint
+					50: '#F0FFFE',
+					100: '#E1FFFE',
+					200: '#C3FFFC',
+					300: '#A5FFFA',
+					400: '#87DFD8',
+					500: '#68BEB9',
+					600: '#5AA8A3',
+					700: '#4C928D',
+					800: '#3E7C77',
+					900: '#306661',
+					foreground: '#FFFFFF'
 				},
-				// Enhanced brand tokens
-				'brand-green': {
-					DEFAULT: 'rgb(var(--brand-green))',
-					50: '#E8F5E8',
-					100: '#C8E6C9',
-					200: '#A5D6A7',
-					300: '#81C784',
-					400: '#66BB6A',
-					500: '#22C55E', // Primary brand green
-					600: '#16A34A',
-					700: '#15803D', // Updated for blog polish
-					800: '#166534',
-					900: '#14532D',
+				accent: {
+					DEFAULT: '#68BEB9', // Brand teal-mint
+					50: '#F0FFFE',
+					100: '#E1FFFE',
+					500: '#68BEB9',
+					foreground: '#FFFFFF'
 				},
-				'brand-blue': {
-					DEFAULT: 'rgb(var(--brand-blue))',
-					50: '#EFF6FF',
-					100: '#DBEAFE',
-					200: '#BFDBFE',
-					300: '#93C5FD',
-					400: '#60A5FA',
-					500: '#2563EB', // Primary brand blue
-					600: '#1D4ED8',
-					700: '#1E40AF',
-					800: '#1E3A8A',
-					900: '#1E3A8A',
+				secondary: {
+					DEFAULT: '#F1F5F9',
+					50: '#F8FAFC',
+					100: '#F1F5F9',
+					200: '#E2E8F0',
+					300: '#CBD5E1',
+					400: '#94A3B8',
+					500: '#64748B',
+					600: '#475569',
+					700: '#334155',
+					800: '#1E293B',
+					900: '#0F172A',
+					foreground: '#000000'
 				},
-				// Status chip colors
-				'chip': {
-					draft: 'rgb(var(--chip-draft))',
-					generated: 'rgb(var(--chip-generated))',
-					approved: 'rgb(var(--chip-approved))',
-					scheduled: 'rgb(var(--chip-scheduled))',
-					posted: 'rgb(var(--chip-posted))',
+				success: {
+					DEFAULT: '#68BEB9',
+					50: '#F0FFFE',
+					100: '#E1FFFE',
+					500: '#68BEB9',
+					600: '#5AA8A3',
+					foreground: '#FFFFFF'
 				},
-				// Enhanced gray scale
-				gray: {
-					...colors.gray,
-					50: 'rgb(var(--gray-50))',
-					100: 'rgb(var(--gray-100))',
-					200: 'rgb(var(--gray-200))',
-					700: 'rgb(var(--gray-700))',
-				}
+				warning: {
+					DEFAULT: '#64748B', // Neutral slate instead of orange/yellow
+					50: '#F8FAFC',
+					100: '#F1F5F9',
+					500: '#64748B',
+					600: '#475569',
+					foreground: '#FFFFFF'
+				},
+				destructive: {
+					DEFAULT: '#DC2626', // Keep red for destructive actions
+					50: '#FEF2F2',
+					100: '#FEE2E2',
+					500: '#DC2626',
+					600: '#B91C1C',
+					foreground: '#FFFFFF'
+				},
+				muted: {
+					DEFAULT: '#F1F5F9',
+					50: '#F8FAFC',
+					100: '#F1F5F9',
+					foreground: '#64748B'
+				},
+				popover: {
+					DEFAULT: '#FFFFFF',
+					foreground: '#000000'
+				},
+				card: {
+					DEFAULT: '#FFFFFF',
+					foreground: '#000000'
+				},
 			},
 			borderRadius,
 			boxShadow,
@@ -113,13 +168,13 @@ export default {
 						'--tw-prose-body': '#374151',
 						'--tw-prose-headings': '#111827',
 						'--tw-prose-lead': '#4b5563',
-						'--tw-prose-links': '#15803d',
+						'--tw-prose-links': '#68BEB9', // Brand teal-mint for links
 						'--tw-prose-bold': '#111827',
-						'--tw-prose-counters': '#15803d',
-						'--tw-prose-bullets': '#15803d',
+						'--tw-prose-counters': '#68BEB9', // Brand teal-mint for counters
+						'--tw-prose-bullets': '#68BEB9', // Brand teal-mint for bullets
 						'--tw-prose-hr': '#e5e7eb',
 						'--tw-prose-quotes': '#111827',
-						'--tw-prose-quote-borders': '#15803d',
+						'--tw-prose-quote-borders': '#68BEB9', // Brand teal-mint for quote borders
 						'--tw-prose-captions': '#6b7280',
 						'--tw-prose-code': '#111827',
 						'--tw-prose-pre-code': '#e5e7eb',
@@ -129,6 +184,7 @@ export default {
 						maxWidth: 'none',
 						color: 'var(--tw-prose-body)',
 						lineHeight: '1.75',
+						fontFamily: 'Inter, Quicksand, system-ui, sans-serif',
 						'> :first-child': {
 							marginTop: '0',
 						},
@@ -201,30 +257,6 @@ export default {
 							marginTop: '1.6em',
 							marginBottom: '1.6em',
 							paddingLeft: '1em',
-						},
-					},
-				},
-				lg: {
-					css: {
-						fontSize: '1.125rem',
-						lineHeight: '1.7777778',
-						h1: {
-							fontSize: '2.6666667em',
-							marginTop: '0',
-							marginBottom: '0.8333333em',
-							lineHeight: '1',
-						},
-						h2: {
-							fontSize: '1.6666667em',
-							marginTop: '1.8666667em',
-							marginBottom: '1.0666667em',
-							lineHeight: '1.3333333',
-						},
-						h3: {
-							fontSize: '1.3333333em',
-							marginTop: '1.6666667em',
-							marginBottom: '0.6666667em',
-							lineHeight: '1.5',
 						},
 					},
 				},
