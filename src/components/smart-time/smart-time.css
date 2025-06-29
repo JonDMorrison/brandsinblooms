@@ -1,0 +1,16 @@
+
+.smartDockGhost {
+  @apply absolute inset-x-0 bottom-0 h-60 bg-white/40 border-2 border-dashed border-[#68BEB9]/50 rounded-t-xl pointer-events-none opacity-30;
+}
+
+.smartDockCollapsed {
+  @apply fixed inset-x-0 bottom-0 z-30 h-10 bg-[#68BEB9]/90 backdrop-blur rounded-t-xl shadow-lg;
+}
+
+.smartDockExpanded {
+  @apply fixed inset-x-0 bottom-0 z-30 h-60 bg-white/90 backdrop-blur border-t border-gray-200 rounded-t-xl shadow-lg;
+}
+
+.smartDockTransition {
+  @apply transition-all duration-200 ease-in-out;
+}

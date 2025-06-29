@@ -1,159 +1,29 @@
-
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap');
-@import './styles/base.css';
-@import './styles/components.css';
-@import './styles/animations.css';
-@import './styles/mobile-responsive.css';
-@import './styles/design-system.css';
-@import './styles/dashboard.css';
-@import './styles/apple-polish.css';
-@import './styles/responsive.css';
-@import './styles/mobile-layout.css';
-@import './styles/mobile-components.css';
-@import './styles/mobile-buttons.css';
-@import './styles/mobile-interactions.css';
-@import './styles/mobile-typography.css';
-@import './styles/mobile-overrides.css';
-@import './styles/swipeable-list.css';
-/* @import './styles/dev-debug.css'; */
-@import './styles/global-overrides.css';
-@import './styles/publish-animations.css';
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+@import './components/smart-time/smart-time.css';
 
 @layer base {
-  :root {
-    --background-rgb: 255, 255, 255;
-    --foreground-rgb: 34, 42, 53;
-    --muted-rgb: 241, 245, 249;
-    --muted-foreground-rgb: 100, 116, 139;
-    --popover-rgb: 255, 255, 255;
-    --popover-foreground-rgb: 34, 42, 53;
-    --card-rgb: 255, 255, 255;
-    --card-foreground-rgb: 34, 42, 53;
-    --border-rgb: 226, 232, 240;
-    --input-rgb: 226, 232, 240;
-    --ring-rgb: 104, 190, 185; /* Brand teal-mint #68BEB9 */
-    --radius: 0.5rem;
-    
-    /* Clean Brand Colors */
-    --brand-steel-blue-rgb: 62, 90, 107; /* #3E5A6B */
-    --brand-teal-mint-rgb: 104, 190, 185; /* #68BEB9 */
-    
-    /* Garden Theme Colors - mapped to brand colors */
-    --garden-green-rgb: 104, 190, 185; /* Brand teal-mint RGB values */
-    --garden-background-rgb: 255, 255, 255; /* White background */
-    
-    /* Chip Colors - Clean system with brand colors */
-    --chip-draft-rgb: 148, 163, 184; /* Gray */
-    --chip-generated-rgb: 59, 130, 246; /* Blue */
-    --chip-approved-rgb: 104, 190, 185; /* Brand teal */
-    --chip-scheduled-rgb: 37, 99, 235; /* Blue */
-    --chip-posted-rgb: 104, 190, 185; /* Brand teal */
-
-    /* NUCLEAR OVERRIDE - Force all unwanted color variables to brand colors */
-    --yellow-50-rgb: 248, 250, 252;
-    --yellow-100-rgb: 241, 245, 249;
-    --yellow-200-rgb: 226, 232, 240;
-    --yellow-300-rgb: 203, 213, 225;
-    --yellow-400-rgb: 148, 163, 184;
-    --yellow-500-rgb: 100, 116, 139;
-    --yellow-600-rgb: 71, 85, 105;
-    --yellow-700-rgb: 51, 65, 85;
-    --yellow-800-rgb: 30, 41, 59;
-    --yellow-900-rgb: 15, 23, 42;
-    
-    --amber-50-rgb: 248, 250, 252;
-    --amber-100-rgb: 241, 245, 249;
-    --amber-200-rgb: 226, 232, 240;
-    --amber-300-rgb: 203, 213, 225;
-    --amber-400-rgb: 148, 163, 184;
-    --amber-500-rgb: 100, 116, 139;
-    --amber-600-rgb: 71, 85, 105;
-    --amber-700-rgb: 51, 65, 85;
-    --amber-800-rgb: 30, 41, 59;
-    --amber-900-rgb: 15, 23, 42;
-    
-    --orange-50-rgb: 248, 250, 252;
-    --orange-100-rgb: 241, 245, 249;
-    --orange-200-rgb: 226, 232, 240;
-    --orange-300-rgb: 203, 213, 225;
-    --orange-400-rgb: 148, 163, 184;
-    --orange-500-rgb: 100, 116, 139;
-    --orange-600-rgb: 71, 85, 105;
-    --orange-700-rgb: 51, 65, 85;
-    --orange-800-rgb: 30, 41, 59;
-    --orange-900-rgb: 15, 23, 42;
-    
-    --purple-50-rgb: 248, 250, 252;
-    --purple-100-rgb: 241, 245, 249;
-    --purple-200-rgb: 226, 232, 240;
-    --purple-300-rgb: 203, 213, 225;
-    --purple-400-rgb: 148, 163, 184;
-    --purple-500-rgb: 100, 116, 139;
-    --purple-600-rgb: 71, 85, 105;
-    --purple-700-rgb: 51, 65, 85;
-    --purple-800-rgb: 30, 41, 59;
-    --purple-900-rgb: 15, 23, 42;
-    
-    --pink-50-rgb: 248, 250, 252;
-    --pink-100-rgb: 241, 245, 249;
-    --pink-200-rgb: 226, 232, 240;
-    --pink-300-rgb: 203, 213, 225;
-    --pink-400-rgb: 148, 163, 184;
-    --pink-500-rgb: 100, 116, 139;
-    --pink-600-rgb: 71, 85, 105;
-    --pink-700-rgb: 51, 65, 85;
-    --pink-800-rgb: 30, 41, 59;
-    --pink-900-rgb: 15, 23, 42;
-    
-    --fuchsia-50-rgb: 248, 250, 252;
-    --fuchsia-100-rgb: 241, 245, 249;
-    --fuchsia-200-rgb: 226, 232, 240;
-    --fuchsia-300-rgb: 203, 213, 225;
-    --fuchsia-400-rgb: 148, 163, 184;
-    --fuchsia-500-rgb: 100, 116, 139;
-    --fuchsia-600-rgb: 71, 85, 105;
-    --fuchsia-700-rgb: 51, 65, 85;
-    --fuchsia-800-rgb: 30, 41, 59;
-    --fuchsia-900-rgb: 15, 23, 42;
-  }
-
-  .dark {
-    --background-rgb: 15, 23, 42;
-    --foreground-rgb: 248, 250, 252;
-    --muted-rgb: 30, 41, 59;
-    --muted-foreground-rgb: 148, 163, 184;
-    --accent-rgb: 51, 65, 85;
-    --accent-foreground-rgb: 241, 245, 249;
-    --popover-rgb: 15, 23, 42;
-    --popover-foreground-rgb: 203, 213, 225;
-    --card-rgb: 15, 23, 42;
-    --card-foreground-rgb: 248, 250, 252;
-    --border-rgb: 51, 65, 85;
-    --input-rgb: 51, 65, 85;
-    --ring-rgb: 104, 190, 185; /* Brand teal for dark mode */
-    --garden-green-rgb: 104, 190, 185; /* Brand teal-mint RGB values */
-    --garden-background-rgb: 15, 23, 42; /* Dark background */
+  html {
+    @apply antialiased;
   }
 }
 
-@layer base {
-  * {
-    border-color: rgb(var(--border-rgb));
-  }
-  body {
-    background-color: rgb(var(--background-rgb));
-    color: rgb(var(--foreground-rgb));
-    font-feature-settings:
-      "rlig" 1,
-      "calt" 1;
-  }
-  
-  /* Brand heading colors */
-  h1, h2, h3, h4, h5, h6 {
-    color: rgb(var(--brand-steel-blue-rgb)); /* Brand steel-blue #3E5A6B */
-  }
+body {
+  @apply bg-gray-50 text-gray-900;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  border: 1px solid transparent;
+  -webkit-text-fill-color: inherit;
+  -webkit-box-shadow: 0 0 0px 1000px #fff inset;
+  transition: background-color 5000s ease-in-out 0s;
 }

@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { ImageGallery } from '@/components/new-dashboard/ImageGallery';
-import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
+import { SmartTimeDock } from '@/components/smart-time';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { toast } from 'sonner';
@@ -244,7 +243,7 @@ const NewDashboard = () => {
           </div>
         </div>
 
-        <SmartTimeRibbon 
+        <SmartTimeDock
           scheduledByDate={dashboardData?.scheduledByDate}
           socialConnections={dashboardData?.socialConnections || []}
           onScheduleUpdate={handleTaskUpdate}
