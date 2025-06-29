@@ -8,189 +8,208 @@ export interface FocusTheme {
   id: string;
   title: string;
   description: string;
-  category: 'plant_care' | 'decor' | 'sale' | 'holidays';
   teaser: string;
-  status?: 'generated' | 'skipped' | null;
+  category: 'plant_care' | 'decor' | 'sale' | 'holidays';
+  tags: string[];
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  timeToComplete: string;
+  seasonality?: string[];
 }
 
-export interface ThemeFilters {
-  plant_care: boolean;
-  decor: boolean;
-  sale: boolean;
-  holidays: boolean;
-}
-
-const DEFAULT_FILTERS: ThemeFilters = {
-  plant_care: true,
-  decor: true,
-  sale: true,
-  holidays: true
-};
-
-// Sample themes data - in a real app this would come from the database
 const SAMPLE_THEMES: FocusTheme[] = [
   {
-    id: 'summer-annuals',
-    title: 'Summer Annual Selection',
-    description: 'Guide customers on choosing heat-loving annual flowers for summer gardens',
+    id: 'winter-prep-2024',
+    title: 'Winter Garden Preparation',
+    description: 'Essential steps to protect your plants and prepare your garden for the winter months.',
+    teaser: 'Winterizing tips, plant protection strategies, and seasonal garden maintenance.',
     category: 'plant_care',
-    teaser: "We'll create: 'How to choose heat-loving annuals' + 4 matching pieces"
+    tags: ['winter', 'protection', 'maintenance', 'seasonal'],
+    difficulty: 'intermediate',
+    timeToComplete: '2-3 hours',
+    seasonality: ['winter', 'fall']
   },
   {
-    id: 'container-gardens',
-    title: 'Container Garden Design',
-    description: 'Tips for creating beautiful container arrangements',
+    id: 'holiday-decor-2024',
+    title: 'Festive Garden Decorations',
+    description: 'Transform your garden into a winter wonderland with beautiful holiday decorations.',
+    teaser: 'DIY holiday crafts, outdoor lighting ideas, and festive plant arrangements.',
     category: 'decor',
-    teaser: "We'll create: 'Container garden design basics' + 4 styling pieces"
+    tags: ['holidays', 'decorations', 'lighting', 'crafts'],
+    difficulty: 'beginner',
+    timeToComplete: '1-2 hours',
+    seasonality: ['winter']
   },
   {
-    id: 'summer-sale',
-    title: 'Mid-Summer Plant Sale',
-    description: 'Promote summer clearance and new arrivals',
+    id: 'year-end-sale-2024',
+    title: 'Year-End Garden Sale',
+    description: 'Clear out inventory and offer great deals on gardening supplies and plants.',
+    teaser: 'Promotional strategies, clearance sales, and customer engagement ideas.',
     category: 'sale',
-    teaser: "We'll create: 'Summer sale highlights' + 4 promotional pieces"
+    tags: ['promotion', 'sale', 'clearance', 'marketing'],
+    difficulty: 'beginner',
+    timeToComplete: '30 minutes',
+    seasonality: ['winter']
   },
   {
-    id: 'independence-day',
-    title: 'Independence Day Gardening',
-    description: 'Red, white, and blue themed garden content',
-    category: 'holidays',
-    teaser: "We'll create: 'Patriotic garden ideas' + 4 festive pieces"
-  },
-  {
-    id: 'drought-resistant',
-    title: 'Drought-Resistant Plants',
-    description: 'Water-wise gardening for hot summer months',
+    id: 'new-year-planning-2025',
+    title: 'New Year Garden Planning',
+    description: 'Start the new year right with comprehensive garden planning and goal setting.',
+    teaser: 'Garden design, seed planning, seasonal calendar, and growth tracking.',
     category: 'plant_care',
-    teaser: "We'll create: 'Drought-resistant plant guide' + 4 care pieces"
+    tags: ['planning', 'goals', 'design', 'seeds'],
+    difficulty: 'intermediate',
+    timeToComplete: '1-2 hours',
+    seasonality: ['winter', 'spring']
   },
   {
-    id: 'outdoor-decor',
-    title: 'Summer Garden Decor',
-    description: 'Decorative elements for outdoor spaces',
-    category: 'decor',
-    teaser: "We'll create: 'Summer garden decorating' + 4 design pieces"
-  },
-  {
-    id: 'herb-garden',
-    title: 'Summer Herb Garden',
-    description: 'Growing and using fresh herbs in summer',
+    id: 'indoor-gardening-winter',
+    title: 'Indoor Winter Gardening',
+    description: 'Keep your green thumb active during winter with indoor gardening projects.',
+    teaser: 'Houseplants, herb gardens, sprouting, and winter growing techniques.',
     category: 'plant_care',
-    teaser: "We'll create: 'Summer herb gardening' + 4 growing pieces"
+    tags: ['indoor', 'houseplants', 'herbs', 'winter'],
+    difficulty: 'beginner',
+    timeToComplete: '1 hour',
+    seasonality: ['winter']
   }
 ];
+
+export interface FocusFilters {
+  categories: string[];
+  difficulty: string[];
+  timeCommitment: string[];
+  showCompleted: boolean;
+}
 
 export const useFocusThemes = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
   const [themes, setThemes] = useState<FocusTheme[]>([]);
-  const [filters, setFilters] = useState<ThemeFilters>(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (user) {
-      loadThemes();
-      loadFilters();
-    }
-  }, [user, tenant]);
+  const [filters, setFilters] = useState<FocusFilters>({
+    categories: [],
+    difficulty: [],
+    timeCommitment: [],
+    showCompleted: false
+  });
 
   const loadThemes = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      // Fetch theme status from database
-      const { data: statusData } = await supabase
-        .from('user_theme_status')
-        .select('theme_id, status')
-        .eq('user_id', user?.id)
-        .eq('tenant_id', tenant?.id || null);
+      // Only fetch user_theme_status if we have a tenant_id
+      let userThemeStatuses: any[] = [];
+      if (tenant?.id) {
+        const { data: statusData } = await supabase
+          .from('user_theme_status')
+          .select('theme_id, status')
+          .eq('tenant_id', tenant.id);
+        
+        userThemeStatuses = statusData || [];
+      }
 
-      const statusMap = new Map(statusData?.map(s => [s.theme_id, s.status as 'generated' | 'skipped']) || []);
+      // Filter themes based on user status and filters
+      let filteredThemes = SAMPLE_THEMES.filter(theme => {
+        // Skip if user has already generated or skipped this theme (only if we have tenant data)
+        if (tenant?.id) {
+          const userStatus = userThemeStatuses.find(s => s.theme_id === theme.id);
+          if (userStatus && ['generated', 'skipped'].includes(userStatus.status)) {
+            return filters.showCompleted;
+          }
+        }
 
-      // Combine sample themes with status
-      const themesWithStatus: FocusTheme[] = SAMPLE_THEMES.map(theme => ({
-        ...theme,
-        status: statusMap.get(theme.id) || null
-      }));
+        // Apply category filter
+        if (filters.categories.length > 0 && !filters.categories.includes(theme.category)) {
+          return false;
+        }
 
-      setThemes(themesWithStatus);
+        // Apply difficulty filter
+        if (filters.difficulty.length > 0 && !filters.difficulty.includes(theme.difficulty)) {
+          return false;
+        }
+
+        // Apply time commitment filter
+        if (filters.timeCommitment.length > 0) {
+          const timeMatch = filters.timeCommitment.some(time => {
+            if (time === 'quick' && theme.timeToComplete.includes('30 minutes')) return true;
+            if (time === 'short' && theme.timeToComplete.includes('1 hour')) return true;
+            if (time === 'medium' && theme.timeToComplete.includes('2-3 hours')) return true;
+            return false;
+          });
+          if (!timeMatch) return false;
+        }
+
+        return true;
+      });
+
+      setThemes(filteredThemes);
     } catch (error) {
       console.error('Error loading themes:', error);
+      // Fallback to all themes if there's an error
       setThemes(SAMPLE_THEMES);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadFilters = () => {
-    const saved = localStorage.getItem(`focus-filters-${tenant?.id || 'default'}`);
-    if (saved) {
-      try {
-        setFilters(JSON.parse(saved));
-      } catch {
-        setFilters(DEFAULT_FILTERS);
-      }
-    }
-  };
+  useEffect(() => {
+    loadThemes();
+  }, [user, tenant, filters]);
 
-  const updateFilters = (newFilters: ThemeFilters) => {
-    setFilters(newFilters);
-    localStorage.setItem(`focus-filters-${tenant?.id || 'default'}`, JSON.stringify(newFilters));
+  const updateFilters = (newFilters: Partial<FocusFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
   const skipTheme = async (themeId: string) => {
+    if (!user || !tenant?.id) return;
+
     try {
       await supabase
         .from('user_theme_status')
         .upsert({
-          user_id: user?.id,
-          tenant_id: tenant?.id,
+          user_id: user.id,
+          tenant_id: tenant.id,
           theme_id: themeId,
           status: 'skipped',
-          updated_at: new Date().toISOString()
+          expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 1 year
         });
 
-      // Update local state
-      setThemes(prev => prev.map(theme => 
-        theme.id === themeId ? { ...theme, status: 'skipped' as const } : theme
-      ));
+      // Reload themes to reflect the change
+      await loadThemes();
     } catch (error) {
       console.error('Error skipping theme:', error);
     }
   };
 
   const markGenerated = async (themeId: string) => {
+    if (!user || !tenant?.id) return;
+
     try {
       await supabase
         .from('user_theme_status')
         .upsert({
-          user_id: user?.id,
-          tenant_id: tenant?.id,
+          user_id: user.id,
+          tenant_id: tenant.id,
           theme_id: themeId,
-          status: 'generated',
-          updated_at: new Date().toISOString()
+          status: 'generated'
         });
 
-      // Update local state
-      setThemes(prev => prev.map(theme => 
-        theme.id === themeId ? { ...theme, status: 'generated' as const } : theme
-      ));
+      // Reload themes to reflect the change
+      await loadThemes();
     } catch (error) {
       console.error('Error marking theme as generated:', error);
     }
   };
 
-  // Filter themes based on current filters and exclude skipped ones
-  const filteredThemes = themes.filter(theme => {
-    if (theme.status === 'skipped') return false;
-    return filters[theme.category];
-  });
-
   return {
-    themes: filteredThemes,
-    filters,
+    themes,
     loading,
+    filters,
     updateFilters,
     skipTheme,
-    markGenerated,
-    refreshThemes: loadThemes
+    markGenerated
   };
 };
