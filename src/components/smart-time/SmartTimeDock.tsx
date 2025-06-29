@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
@@ -26,12 +25,10 @@ export const SmartTimeDock = ({
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   
   const queryClient = useQueryClient();
-  const idleRef = useRef<NodeJS.Timeout>();
-
-  // Get drag state - we'll need to add this to the drag context
-  const isDragging = false; // TODO: Connect to drag layer when available
+  const idleTimeoutRef = useRef<NodeJS.Timeout>();
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekLabel = `${format(weekStart, 'MMM d')} – ${format(addDays(weekStart, 6), 'MMM d')}`;
@@ -52,26 +49,58 @@ export const SmartTimeDock = ({
     return times.slice(0, 2);
   };
 
-  // Auto-expand on drag
+  // Auto-expand on drag start
   useEffect(() => {
     if (isDragging && !open) {
       setOpen(true);
     }
   }, [isDragging, open]);
 
-  // Auto-collapse after 6s idle
+  // Auto-collapse after 5s idle when open
   useEffect(() => {
     if (!open) return;
     
-    clearTimeout(idleRef.current);
-    idleRef.current = setTimeout(() => {
+    // Clear existing timeout
+    if (idleTimeoutRef.current) {
+      clearTimeout(idleTimeoutRef.current);
+    }
+    
+    // Set new timeout for 5 seconds
+    idleTimeoutRef.current = setTimeout(() => {
       if (!isDragging) {
         setOpen(false);
       }
-    }, 6000);
+    }, 5000);
     
-    return () => clearTimeout(idleRef.current);
+    return () => {
+      if (idleTimeoutRef.current) {
+        clearTimeout(idleTimeoutRef.current);
+      }
+    };
   }, [open, isDragging]);
+
+  // Listen for drag events on the document
+  useEffect(() => {
+    const handleDragStart = (e: DragEvent) => {
+      // Check if the dragged element is from draft tray (has data-draft-card attribute)
+      const target = e.target as HTMLElement;
+      if (target?.closest('[data-draft-card]') || target?.hasAttribute('data-draft-card')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleDragEnd = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('dragend', handleDragEnd);
+
+    return () => {
+      document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('dragend', handleDragEnd);
+    };
+  }, []);
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
