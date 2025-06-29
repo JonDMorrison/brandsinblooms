@@ -1,17 +1,19 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit, Save, CheckCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Edit, Save, CheckCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
-import { usePublishFlow } from '@/hooks/usePublishFlow';
+import { useUnsplash } from '@/hooks/useUnsplash';
+import { ImagePicker } from '@/components/composer/ImagePicker';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
 import { supabase } from '@/integrations/supabase/client';
+import { ImageAttachment } from '@/lib/contentTypes';
 
 interface ComposerPanelProps {
   selectedDraft?: any;
@@ -25,10 +27,13 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [images, setImages] = useState<ImageAttachment[]>([]);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [postWithoutImage, setPostWithoutImage] = useState(false);
 
   const { scheduledPosts } = useScheduledPosts();
+  const { getSmartImages, searchImages, refreshImages, loading: imagesLoading } = useUnsplash();
 
-  // Find if selected draft has scheduled posts
   const relatedScheduledPosts = scheduledPosts.filter(post => 
     post.content_id === selectedDraft?.id
   );
@@ -37,22 +42,89 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const isApproved = selectedDraft?.status === 'approved';
   const isDraft = selectedDraft?.status === 'draft' || selectedDraft?.status === 'generated';
 
+  const isInstagram = selectedDraft?.post_type?.toLowerCase().includes('instagram');
+  const needsImage = isInstagram || (!postWithoutImage && selectedDraft?.post_type?.toLowerCase() === 'facebook');
+  const hasValidImage = selectedImageId && images.find(img => img.id === selectedImageId);
+  const canApprove = hasValidImage || (!needsImage && postWithoutImage);
+
   useEffect(() => {
     if (selectedDraft?.ai_output) {
       setEditContent(selectedDraft.ai_output);
+      
+      // Load existing image attachment
+      if (selectedDraft.attachments?.image) {
+        const existingImage = selectedDraft.attachments.image;
+        setImages([existingImage]);
+        setSelectedImageId(existingImage.id);
+      } else {
+        // Fetch new images based on content
+        fetchImagesForDraft();
+      }
     }
   }, [selectedDraft]);
+
+  const fetchImagesForDraft = async () => {
+    if (!selectedDraft?.ai_output) return;
+    
+    const query = extractKeywordsFromContent(selectedDraft.ai_output);
+    const fetchedImages = await getSmartImages(query);
+    setImages(fetchedImages);
+    
+    // Auto-select first image
+    if (fetchedImages.length > 0) {
+      setSelectedImageId(fetchedImages[0].id);
+    }
+  };
+
+  const extractKeywordsFromContent = (content: string): string => {
+    // Simple keyword extraction - could be enhanced
+    const words = content
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 3)
+      .slice(0, 3);
+    
+    return words.join(' ') || selectedDraft?.post_type || 'lifestyle';
+  };
+
+  const handleImageSelect = (imageId: string) => {
+    setSelectedImageId(imageId);
+    setPostWithoutImage(false);
+  };
+
+  const handleImageRefresh = async () => {
+    if (!selectedDraft?.ai_output) return;
+    const query = extractKeywordsFromContent(selectedDraft.ai_output);
+    const newImages = await refreshImages(query);
+    setImages(newImages);
+    setSelectedImageId(newImages.length > 0 ? newImages[0].id : null);
+  };
+
+  const handleImageSearch = async (query: string) => {
+    const searchResults = await searchImages(query);
+    setImages(searchResults);
+    setSelectedImageId(searchResults.length > 0 ? searchResults[0].id : null);
+  };
+
+  const getSelectedImage = (): ImageAttachment | null => {
+    return images.find(img => img.id === selectedImageId) || null;
+  };
 
   const handleSave = async () => {
     if (!selectedDraft || !editContent.trim()) return;
 
     setSaving(true);
     try {
+      const selectedImage = getSelectedImage();
+      const attachments = selectedImage ? { image: selectedImage } : null;
+
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: editContent,
-          status: 'draft'
+          status: 'draft',
+          attachments
         })
         .eq('id', selectedDraft.id);
 
@@ -70,14 +142,23 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
   const handleApprove = async () => {
     if (!selectedDraft || !editContent.trim()) return;
+    
+    if (!canApprove) {
+      toast.error(isInstagram ? 'Instagram posts require an image' : 'Please select an image or choose to post without one');
+      return;
+    }
 
     setApproving(true);
     try {
+      const selectedImage = getSelectedImage();
+      const attachments = selectedImage ? { image: selectedImage } : null;
+
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: editContent,
-          status: 'approved'
+          status: 'approved',
+          attachments
         })
         .eq('id', selectedDraft.id);
 
@@ -124,7 +205,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       );
     }
     
-    // Regular content display for other post types
     return (
       <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto">
         <p className="whitespace-pre-wrap text-gray-700 break-words">
@@ -158,7 +238,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
           </div>
         </div>
         
-        {/* Mode Indicator */}
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Edit className="w-4 h-4" />
           <span>
@@ -187,13 +266,50 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
           </div>
 
           {isEditing && selectedDraft ? (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden space-y-4">
               <Textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                className="flex-1 min-h-[200px] resize-none"
+                className="flex-1 min-h-[150px] resize-none"
                 placeholder="Write your content here..."
               />
+              
+              {selectedDraft.post_type !== 'newsletter' && (
+                <div className="space-y-3">
+                  <ImagePicker
+                    images={images}
+                    selected={selectedImageId}
+                    onSelect={handleImageSelect}
+                    onRefresh={handleImageRefresh}
+                    onSearch={handleImageSearch}
+                    loading={imagesLoading}
+                  />
+                  
+                  {!isInstagram && (
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="post-without-image"
+                        checked={postWithoutImage}
+                        onCheckedChange={(checked) => {
+                          setPostWithoutImage(!!checked);
+                          if (checked) setSelectedImageId(null);
+                        }}
+                      />
+                      <label htmlFor="post-without-image" className="text-sm text-gray-600">
+                        Post without an image
+                      </label>
+                    </div>
+                  )}
+                  
+                  {isInstagram && !hasValidImage && (
+                    <div className="flex items-center gap-2 text-red-600 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      Instagram posts need an image.
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="flex justify-end gap-2 mt-4">
                 <Button variant="outline" onClick={() => setIsEditing(false)}>
                   Cancel
@@ -208,7 +324,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             renderContent()
           )}
 
-          {/* Action Bar - Always visible but content changes based on state */}
           <div className="mt-4 p-4 border-t flex-shrink-0">
             {!selectedDraft ? (
               <div className="text-center">
@@ -265,7 +380,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                   <Button 
                     className="flex-1 bg-[#68BEB9] hover:bg-[#56a7a1]"
                     onClick={handleApprove}
-                    disabled={saving || approving || socialConnections.length === 0}
+                    disabled={saving || approving || socialConnections.length === 0 || !canApprove}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     {approving ? 'Approving...' : 'Approve & Post'}

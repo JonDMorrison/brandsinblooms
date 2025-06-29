@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -150,26 +149,37 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledConte
 
                     {/* Scheduled Content Tasks (clickable) */}
                     <div className="space-y-2">
-                      {scheduledTasksForDay.map((scheduledTask) => (
-                        <div
-                          key={`task-${scheduledTask.id}`}
-                          onClick={() => onScheduledContentClick?.(scheduledTask)}
-                          className={cn(
-                            "text-xs p-2 rounded border cursor-pointer hover:shadow-sm transition-all",
-                            getStatusColor('scheduled')
-                          )}
-                        >
-                          <div className="flex items-center gap-1 mb-1">
-                            <span>{getPlatformIcon(scheduledTask.post_type)}</span>
-                            <span className="font-medium truncate">
-                              {scheduledTask.post_type || 'Content'}
-                            </span>
+                      {scheduledTasksForDay.map((scheduledTask) => {
+                        const imageThumb = scheduledTask.attachments?.image?.thumb;
+                        
+                        return (
+                          <div
+                            key={`task-${scheduledTask.id}`}
+                            onClick={() => onScheduledContentClick?.(scheduledTask)}
+                            className={cn(
+                              "text-xs p-2 rounded border cursor-pointer hover:shadow-sm transition-all",
+                              getStatusColor('scheduled')
+                            )}
+                          >
+                            <div className="flex items-center gap-1 mb-1">
+                              {imageThumb && (
+                                <img 
+                                  src={imageThumb} 
+                                  alt="Scheduled content" 
+                                  className="w-4 h-4 rounded object-cover flex-shrink-0"
+                                />
+                              )}
+                              <span>{getPlatformIcon(scheduledTask.post_type)}</span>
+                              <span className="font-medium truncate">
+                                {scheduledTask.post_type || 'Content'}
+                              </span>
+                            </div>
+                            <div className="text-xs opacity-75 truncate">
+                              {scheduledTask.ai_output?.substring(0, 30) || 'Scheduled content'}...
+                            </div>
                           </div>
-                          <div className="text-xs opacity-75 truncate">
-                            {scheduledTask.ai_output?.substring(0, 30) || 'Scheduled content'}...
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                       {/* Scheduled Posts */}
                       {scheduledPostsForDay.map((scheduledPost) => (

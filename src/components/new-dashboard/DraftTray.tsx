@@ -130,6 +130,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                   const statusInfo = getStatusDisplay(draft.status);
                   const canDrag = isDraggable(draft);
                   const showHint = showDragHint === draft.id;
+                  const imageThumb = draft.attachments?.image?.thumb;
                   
                   return (
                     <Draggable
@@ -154,9 +155,16 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                           )}
                           onClick={() => onSelectDraft?.(draft)}
                         >
-                          {/* ... keep existing draft card content the same */}
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
+                              {/* Image thumbnail */}
+                              {imageThumb && (
+                                <img 
+                                  src={imageThumb} 
+                                  alt="Draft image" 
+                                  className="w-8 h-8 rounded object-cover flex-shrink-0"
+                                />
+                              )}
                               {getPostTypeIcon(draft.post_type)}
                               <Badge 
                                 variant="outline" 
