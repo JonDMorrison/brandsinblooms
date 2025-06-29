@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -154,7 +155,7 @@ export const ComposerPanel = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 h-[350px]">
+      <div className="grid grid-cols-4 gap-4 h-[380px]">
         {/* Editor - Left 3 columns */}
         <div className="col-span-3 flex flex-col">
           {/* Toolbar */}
@@ -189,10 +190,10 @@ export const ComposerPanel = () => {
               disabled={!activeDraft}
             />
             
-            {/* Bottom Bar */}
-            <div className="flex justify-between items-center mt-2 pt-2 border-t">
+            {/* Compact Bottom Bar */}
+            <div className="flex justify-between items-center mt-2 pt-1 border-t border-gray-100">
               <span className={`text-xs ${getCharacterLimitColor()}`}>
-                {characterCount} characters
+                {characterCount} chars
               </span>
               {activeDraft && (
                 <Button 
@@ -200,9 +201,9 @@ export const ComposerPanel = () => {
                   variant="ghost"
                   onClick={saveContent}
                   disabled={saving}
-                  className="text-[#68BEB9] hover:text-[#5AA8A3] hover:bg-[#68BEB9]/10"
+                  className="text-[#68BEB9] hover:text-[#5AA8A3] hover:bg-[#68BEB9]/10 h-6 px-2 text-xs"
                 >
-                  <Save className="w-4 h-4 mr-1" />
+                  <Save className="w-3 h-3 mr-1" />
                   {saving ? 'Saving...' : 'Save'}
                 </Button>
               )}
