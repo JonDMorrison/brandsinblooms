@@ -51,6 +51,22 @@ export const useDashboardData = () => {
 
       const { data: tasks } = await taskQuery;
 
+      // Fetch scheduled posts with their content task details
+      const { data: scheduledPosts } = await supabase
+        .from('scheduled_posts')
+        .select(`
+          *,
+          content_tasks!inner (
+            id,
+            ai_output,
+            post_type,
+            attachments,
+            campaign_id
+          )
+        `)
+        .eq('user_id', user.id)
+        .in('status', ['QUEUED', 'PUBLISHED']);
+
       // Fetch social connections
       const { data: connections } = await supabase
         .from('social_connections')
@@ -58,9 +74,47 @@ export const useDashboardData = () => {
         .eq('user_id', user.id)
         .eq('is_active', true);
 
+      // Separate tasks by status
+      const allTasks = tasks || [];
+      const drafts = allTasks.filter(task => ['draft', 'generated', 'approved', 'review'].includes(task.status));
+      const scheduledTasks = allTasks.filter(task => task.status === 'scheduled');
+
+      // Group scheduled tasks by date for the ribbon
+      const scheduledByDate = scheduledTasks.reduce((acc, task) => {
+        if (task.scheduled_date) {
+          const dateKey = new Date(task.scheduled_date).toISOString().split('T')[0];
+          if (!acc[dateKey]) acc[dateKey] = [];
+          
+          // Find matching scheduled post for additional metadata
+          const scheduledPost = scheduledPosts?.find(sp => sp.content_id === task.id);
+          
+          acc[dateKey].push({
+            ...task,
+            scheduledMeta: scheduledPost ? {
+              platform: scheduledPost.platform,
+              publish_at: scheduledPost.publish_at,
+              status: scheduledPost.status
+            } : null
+          });
+        }
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      console.log('📊 Dashboard data loaded:', {
+        tasksCount: allTasks.length,
+        draftsCount: drafts.length,
+        scheduledCount: scheduledTasks.length,
+        scheduledPosts: scheduledPosts?.length || 0,
+        connections: connections?.length || 0
+      });
+
       return {
         currentCampaign,
-        tasks: tasks || [],
+        tasks: allTasks,
+        drafts,
+        scheduledTasks,
+        scheduledByDate,
+        scheduledPosts: scheduledPosts || [],
         socialConnections: connections || []
       };
     },

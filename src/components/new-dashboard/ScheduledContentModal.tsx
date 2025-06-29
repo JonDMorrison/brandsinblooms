@@ -36,7 +36,7 @@ export const ScheduledContentModal = ({
     if (scheduledTask?.ai_output) {
       setContent(scheduledTask.ai_output);
       
-      // Load existing image attachment
+      // Load existing image attachment - handle JSONB properly
       if (scheduledTask.attachments?.image) {
         const existingImage = scheduledTask.attachments.image;
         setImages([existingImage]);
@@ -100,13 +100,14 @@ export const ScheduledContentModal = ({
     setSaving(true);
     try {
       const selectedImage = getSelectedImage();
-      const attachments = selectedImage ? { image: selectedImage } : null;
+      // Properly format the attachments as JSONB
+      const attachments = selectedImage ? JSON.stringify({ image: selectedImage }) : null;
 
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: content,
-          attachments
+          attachments: attachments as any
         })
         .eq('id', scheduledTask.id);
 

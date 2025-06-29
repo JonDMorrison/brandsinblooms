@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -7,19 +6,30 @@ import { Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { ScheduledContentModal } from './ScheduledContentModal';
+import { ScheduledContentPill } from './ScheduledContentPill';
+import { scheduleDraft } from '@/lib/dashboardAPI';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface SmartTimeRibbonProps {
-  tasks?: any[];
+  scheduledByDate?: Record<string, any[]>;
+  socialConnections?: any[];
   onScheduleUpdate?: () => void;
-  onScheduledContentClick?: (task: any) => void;
+  onDragEnd?: (result: any) => void;
 }
 
-export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledContentClick }: SmartTimeRibbonProps) => {
+export const SmartTimeRibbon = ({ 
+  scheduledByDate = {}, 
+  socialConnections = [],
+  onScheduleUpdate,
+  onDragEnd
+}: SmartTimeRibbonProps) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const { scheduledPosts, loading } = useScheduledPosts();
+  const queryClient = useQueryClient();
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -36,69 +46,14 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledConte
     );
   };
 
-  // Get scheduled content tasks for a specific day
+  // Get scheduled content tasks for a specific day from the new data structure
   const getScheduledTasksForDay = (day: Date) => {
-    return tasks.filter(task => 
-      task.status === 'scheduled' && 
-      task.scheduled_date &&
-      isSameDay(new Date(task.scheduled_date), day)
-    );
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'QUEUED':
-        return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'PUBLISHED':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'ERROR':
-        return 'bg-red-100 text-red-800 border-red-200';
-      case 'scheduled':
-        return 'bg-purple-100 text-purple-800 border-purple-200';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case 'FB':
-      case 'facebook':
-        return '📘';
-      case 'IG_FEED':
-      case 'IG_STORY':
-      case 'IG_REEL':
-      case 'instagram':
-        return '📷';
-      case 'LINKEDIN':
-        return '💼';
-      case 'TWITTER':
-        return '🐦';
-      default:
-        return '📱';
-    }
-  };
-
-  const getPlatformName = (platform: string) => {
-    switch (platform?.toLowerCase()) {
-      case 'fb':
-      case 'facebook':
-        return 'Facebook Post';
-      case 'ig_feed':
-      case 'ig_story':
-      case 'ig_reel':
-      case 'instagram':
-        return 'Instagram Post';
-      case 'linkedin':
-        return 'LinkedIn Post';
-      case 'twitter':
-        return 'Twitter Post';
-      default:
-        return 'Social Post';
-    }
+    const dateKey = format(day, 'yyyy-MM-dd');
+    return scheduledByDate[dateKey] || [];
   };
 
   const handleTaskClick = (task: any) => {
+    console.log('🖱️ Clicked scheduled task:', task);
     setSelectedTask(task);
     setIsModalOpen(true);
   };
@@ -109,8 +64,95 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledConte
   };
 
   const handleModalUpdate = () => {
+    console.log('📝 Content updated, refreshing data...');
+    queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
     if (onScheduleUpdate) onScheduleUpdate();
   };
+
+  // Handle drag and drop
+  const handleDragEnd = async (result: any) => {
+    console.log('🎯 Drag ended:', result);
+    
+    if (!result.destination) return;
+    
+    const { draggableId, destination } = result;
+    
+    // Extract date from droppable ID: "day-YYYY-MM-DD"
+    const dateMatch = destination.droppableId.match(/day-(.+)/);
+    if (!dateMatch) return;
+    
+    const targetDate = dateMatch[1];
+    const publishAt = new Date(`${targetDate}T14:00:00`).toISOString(); // Default to 2 PM
+    
+    console.log('📅 Scheduling for date:', targetDate, 'at:', publishAt);
+    
+    // Determine platform - for now default to Facebook, but this should come from the task or user selection
+    const platform = 'FACEBOOK'; // TODO: Get from task.post_type or let user choose
+    
+    try {
+      const result = await scheduleDraft({
+        taskId: draggableId,
+        publishAt,
+        platform
+      });
+      
+      if (result) {
+        console.log('✅ Successfully scheduled:', result);
+        
+        // Optimistically update the cache
+        queryClient.setQueryData(['dashboard-data'], (oldData: any) => {
+          if (!oldData) return oldData;
+          
+          // Move task from drafts to scheduled
+          const updatedTasks = oldData.tasks.map((task: any) => 
+            task.id === draggableId 
+              ? { ...task, status: 'scheduled', scheduled_date: publishAt }
+              : task
+          );
+          
+          const updatedDrafts = oldData.drafts.filter((task: any) => task.id !== draggableId);
+          const updatedScheduledTasks = [...oldData.scheduledTasks, result.updatedTask];
+          
+          // Update scheduledByDate
+          const updatedScheduledByDate = { ...oldData.scheduledByDate };
+          const dateKey = format(new Date(publishAt), 'yyyy-MM-dd');
+          if (!updatedScheduledByDate[dateKey]) {
+            updatedScheduledByDate[dateKey] = [];
+          }
+          updatedScheduledByDate[dateKey].push({
+            ...result.updatedTask,
+            scheduledMeta: {
+              platform: result.scheduledPost.platform,
+              publish_at: result.scheduledPost.publish_at,
+              status: result.scheduledPost.status
+            }
+          });
+          
+          return {
+            ...oldData,
+            tasks: updatedTasks,
+            drafts: updatedDrafts,
+            scheduledTasks: updatedScheduledTasks,
+            scheduledByDate: updatedScheduledByDate
+          };
+        });
+        
+        // Also trigger a background refetch to ensure consistency
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ['dashboard-data'] });
+        }, 1000);
+        
+        if (onScheduleUpdate) onScheduleUpdate();
+      }
+    } catch (error) {
+      console.error('❌ Failed to schedule:', error);
+      toast.error('Failed to schedule post');
+    }
+    
+    if (onDragEnd) onDragEnd(result);
+  };
+
+  const hasConnections = socialConnections.length > 0;
 
   if (loading) {
     return (
@@ -148,6 +190,14 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledConte
             </div>
           </div>
 
+          {!hasConnections && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-800 text-center">
+                <span className="font-medium">No social connections:</span> Connect your social accounts to schedule posts
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-7 gap-4">
             {weekDays.map((day) => {
               const dayKey = format(day, 'yyyy-MM-dd');
@@ -163,9 +213,11 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledConte
                       {...provided.droppableProps}
                       className={cn(
                         "min-h-[120px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
-                        snapshot.isDraggingOver 
+                        snapshot.isDraggingOver && hasConnections
                           ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md" 
-                          : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
+                          : hasConnections
+                          ? "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50"
+                          : "border-red-200 bg-red-50/30",
                         isToday && "ring-2 ring-[#68BEB9]/30"
                       )}
                     >
@@ -184,60 +236,50 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledConte
                         </div>
                       </div>
 
-                      {/* Scheduled Content Tasks (simplified cards) */}
+                      {/* Scheduled Content Tasks using new pill component */}
                       <div className="space-y-2">
-                        {scheduledTasksForDay.map((scheduledTask) => {
-                          return (
-                            <div
-                              key={`task-${scheduledTask.id}`}
-                              onClick={() => handleTaskClick(scheduledTask)}
-                              className={cn(
-                                "text-xs p-2 rounded border cursor-pointer hover:shadow-sm transition-all",
-                                getStatusColor('scheduled')
-                              )}
-                            >
-                              <div className="flex items-center gap-1 justify-center">
-                                <span>{getPlatformIcon(scheduledTask.post_type)}</span>
-                                <span className="font-medium">
-                                  {getPlatformName(scheduledTask.post_type)}
-                                </span>
-                              </div>
-                              <div className="text-center text-xs opacity-75 mt-1">
-                                {scheduledTask.scheduled_date ? 
-                                  format(new Date(scheduledTask.scheduled_date), 'h:mm a') : 
-                                  'Scheduled'
-                                }
-                              </div>
-                            </div>
-                          );
-                        })}
+                        {scheduledTasksForDay.map((scheduledTaskData) => (
+                          <ScheduledContentPill
+                            key={`task-${scheduledTaskData.id}`}
+                            task={scheduledTaskData}
+                            scheduledMeta={scheduledTaskData.scheduledMeta}
+                            onClick={() => handleTaskClick(scheduledTaskData)}
+                          />
+                        ))}
 
-                        {/* Scheduled Posts from Supabase */}
+                        {/* Legacy Scheduled Posts from Supabase (keeping for compatibility) */}
                         {scheduledPostsForDay.map((scheduledPost) => (
-                          <div
+                          <ScheduledContentPill
                             key={`post-${scheduledPost.id}`}
-                            className={cn(
-                              "text-xs p-2 rounded border",
-                              getStatusColor(scheduledPost.status)
-                            )}
-                          >
-                            <div className="flex items-center gap-1 justify-center">
-                              <span>{getPlatformIcon(scheduledPost.platform)}</span>
-                              <span className="font-medium">
-                                {getPlatformName(scheduledPost.platform)}
-                              </span>
-                            </div>
-                            <div className="text-center text-xs opacity-75 mt-1">
-                              {format(new Date(scheduledPost.publish_at), 'h:mm a')}
-                            </div>
-                          </div>
+                            task={{
+                              id: scheduledPost.id,
+                              post_type: scheduledPost.platform?.toLowerCase(),
+                              scheduled_date: scheduledPost.publish_at
+                            }}
+                            scheduledMeta={{
+                              platform: scheduledPost.platform,
+                              publish_at: scheduledPost.publish_at,
+                              status: scheduledPost.status
+                            }}
+                            onClick={() => {
+                              console.log('Legacy scheduled post clicked:', scheduledPost);
+                              // Handle legacy posts if needed
+                            }}
+                          />
                         ))}
                       </div>
 
                       {/* Drop zone indicator */}
-                      {snapshot.isDraggingOver && (
+                      {snapshot.isDraggingOver && hasConnections && (
                         <div className="flex items-center justify-center h-8 text-sm text-[#68BEB9] font-medium mt-2">
                           Drop to schedule
+                        </div>
+                      )}
+
+                      {/* No connections warning when dragging */}
+                      {snapshot.isDraggingOver && !hasConnections && (
+                        <div className="flex items-center justify-center h-8 text-sm text-red-600 font-medium mt-2">
+                          Connect social accounts first
                         </div>
                       )}
 
