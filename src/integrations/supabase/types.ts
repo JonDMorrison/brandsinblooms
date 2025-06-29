@@ -891,6 +891,7 @@ export type Database = {
           published_id: string | null
           retry_count: number | null
           status: Database["public"]["Enums"]["post_status"] | null
+          tenant_id: string | null
           updated_at: string | null
           user_id: string
         }
@@ -905,6 +906,7 @@ export type Database = {
           published_id?: string | null
           retry_count?: number | null
           status?: Database["public"]["Enums"]["post_status"] | null
+          tenant_id?: string | null
           updated_at?: string | null
           user_id: string
         }
@@ -919,6 +921,7 @@ export type Database = {
           published_id?: string | null
           retry_count?: number | null
           status?: Database["public"]["Enums"]["post_status"] | null
+          tenant_id?: string | null
           updated_at?: string | null
           user_id?: string
         }

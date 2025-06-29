@@ -51,7 +51,7 @@ export const useDashboardData = () => {
 
       const { data: tasks } = await taskQuery;
 
-      // Fetch scheduled posts with their content task details - filter by tenant_id or created_by_user_id
+      // Fetch scheduled posts with their content task details - use direct tenant_id filter
       const scheduledPostsQuery = supabase
         .from('scheduled_posts')
         .select(`
@@ -68,9 +68,9 @@ export const useDashboardData = () => {
         `)
         .in('status', ['QUEUED', 'PUBLISHED']);
 
-      // Apply proper filtering for scheduled posts
+      // Apply proper filtering for scheduled posts using the new tenant_id column
       if (tenant?.id) {
-        scheduledPostsQuery.eq('content_tasks.tenant_id', tenant.id);
+        scheduledPostsQuery.eq('tenant_id', tenant.id);
       } else {
         scheduledPostsQuery.eq('content_tasks.created_by_user_id', user.id);
       }
