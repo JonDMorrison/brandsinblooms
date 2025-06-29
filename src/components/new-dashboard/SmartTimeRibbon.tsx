@@ -6,10 +6,6 @@ import { format, addWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
-import { useSmartTime } from '@/hooks/useSmartTime';
-import { usePublishFlow } from '@/hooks/usePublishFlow';
-import { useRealtimePublishUpdates } from '@/hooks/useRealtimePublishUpdates';
-import { PublishStatusPill } from '@/components/publish/PublishStatusPill';
 
 interface SmartTimeRibbonProps {
   tasks?: any[];
@@ -18,14 +14,7 @@ interface SmartTimeRibbonProps {
 
 export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbonProps) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
-
-  const { scheduledPosts, deleteScheduledPost, refreshScheduledPosts } = useScheduledPosts();
-  
-  // Listen for real-time publish updates
-  useRealtimePublishUpdates((update) => {
-    refreshScheduledPosts();
-    if (onScheduleUpdate) onScheduleUpdate();
-  });
+  const { scheduledPosts, loading } = useScheduledPosts();
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -42,15 +31,57 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
     );
   };
 
-  const handleDeletePost = async (scheduledId: string) => {
-    await deleteScheduledPost(scheduledId);
-    if (onScheduleUpdate) onScheduleUpdate();
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'QUEUED':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'PUBLISHED':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'ERROR':
+        return 'bg-red-100 text-red-800 border-red-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
   };
 
+  const getPlatformIcon = (platform: string) => {
+    switch (platform) {
+      case 'FB':
+        return '📘';
+      case 'IG_FEED':
+      case 'IG_STORY':
+      case 'IG_REEL':
+        return '📷';
+      case 'LINKEDIN':
+        return '💼';
+      case 'TWITTER':
+        return '🐦';
+      default:
+        return '📱';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-6">
+        <div className="max-w-full mx-auto">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-48 mb-4"></div>
+            <div className="grid grid-cols-7 gap-4">
+              {[...Array(7)].map((_, i) => (
+                <div key={i} className="h-24 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-lg shadow-2xl border-t border-white/20 p-4">
+    <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-6 z-40">
       <div className="max-w-full mx-auto">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={prevWeek}>
@@ -65,10 +96,11 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-3">
-          {weekDays.map((day, index) => {
+        <div className="grid grid-cols-7 gap-4">
+          {weekDays.map((day) => {
             const dayKey = format(day, 'yyyy-MM-dd');
             const scheduledForDay = getScheduledPostsForDay(day);
+            const isToday = isSameDay(day, new Date());
             
             return (
               <Droppable key={dayKey} droppableId={`day-${dayKey}`}>
@@ -77,42 +109,46 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      "min-h-[100px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
+                      "min-h-[120px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
                       snapshot.isDraggingOver 
                         ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md" 
-                        : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50"
+                        : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
+                      isToday && "ring-2 ring-[#68BEB9]/30"
                     )}
                   >
-                    <div className="text-center mb-2">
-                      <div className="text-xs font-medium text-[#3E5A6B] mb-1">
+                    <div className="text-center mb-3">
+                      <div className={cn(
+                        "text-xs font-medium mb-1",
+                        isToday ? "text-[#68BEB9]" : "text-[#3E5A6B]"
+                      )}>
                         {getDayName(day)}
                       </div>
-                      <div className="text-lg font-semibold text-gray-900">
+                      <div className={cn(
+                        "text-lg font-semibold",
+                        isToday ? "text-[#68BEB9]" : "text-gray-900"
+                      )}>
                         {getDayNumber(day)}
                       </div>
                     </div>
 
-                    {/* Scheduled Posts with Enhanced Status Pills */}
-                    <div className="space-y-1">
+                    {/* Scheduled Posts */}
+                    <div className="space-y-2">
                       {scheduledForDay.map((scheduledPost) => (
-                        <div key={scheduledPost.id} className="group relative">
-                          <PublishStatusPill
-                            status={scheduledPost.status as any}
-                            platform={scheduledPost.platform}
-                            publishTime={scheduledPost.publish_at}
-                            error={scheduledPost.error_message}
-                          />
-                          
-                          {/* Quick Action Menu */}
-                          <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeletePost(scheduledPost.id)}
-                              className="h-5 w-5 p-0 text-red-500 hover:text-red-700"
-                            >
-                              ×
-                            </Button>
+                        <div
+                          key={scheduledPost.id}
+                          className={cn(
+                            "text-xs p-2 rounded border",
+                            getStatusColor(scheduledPost.status)
+                          )}
+                        >
+                          <div className="flex items-center gap-1 mb-1">
+                            <span>{getPlatformIcon(scheduledPost.platform)}</span>
+                            <span className="font-medium truncate">
+                              {format(new Date(scheduledPost.publish_at), 'h:mm a')}
+                            </span>
+                          </div>
+                          <div className="text-xs opacity-75 truncate">
+                            {scheduledPost.status}
                           </div>
                         </div>
                       ))}
@@ -120,14 +156,14 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
 
                     {/* Drop zone indicator */}
                     {snapshot.isDraggingOver && (
-                      <div className="flex items-center justify-center h-6 text-xs text-[#68BEB9] font-medium mt-1">
+                      <div className="flex items-center justify-center h-8 text-sm text-[#68BEB9] font-medium mt-2">
                         Drop to schedule
                       </div>
                     )}
 
                     {/* Empty state */}
                     {!snapshot.isDraggingOver && scheduledForDay.length === 0 && (
-                      <div className="flex items-center justify-center h-6 mt-1">
+                      <div className="flex items-center justify-center h-8 mt-2">
                         <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
                       </div>
                     )}
@@ -140,9 +176,9 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate }: SmartTimeRibbo
           })}
         </div>
 
-        <div className="mt-3 p-2 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
-          <p className="text-xs text-[#3E5A6B]">
-            <span className="font-medium">Tip:</span> Drag drafts from the tray to schedule them for specific days.
+        <div className="mt-4 p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
+          <p className="text-sm text-[#3E5A6B]">
+            <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days. Choose optimal posting times for maximum engagement.
           </p>
         </div>
       </div>

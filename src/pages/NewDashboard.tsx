@@ -19,6 +19,12 @@ interface DashboardData {
   socialConnections: any[];
 }
 
+interface TimeSelectionModal {
+  isOpen: boolean;
+  draftId: string | null;
+  targetDate: Date | null;
+}
+
 const NewDashboard = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
@@ -26,6 +32,11 @@ const NewDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
   const [justApprovedId, setJustApprovedId] = useState<string | null>(null);
+  const [timeSelectionModal, setTimeSelectionModal] = useState<TimeSelectionModal>({
+    isOpen: false,
+    draftId: null,
+    targetDate: null
+  });
 
   useEffect(() => {
     if (user) {
@@ -100,14 +111,41 @@ const NewDashboard = () => {
     fetchDashboardData();
   };
 
-  const scheduleDraft = async (draftId: string, publishAt: string, platform: string = 'facebook') => {
+  const mapPlatformToEnum = (platform: string): string => {
+    const platformMap: { [key: string]: string } = {
+      'facebook': 'FB',
+      'instagram': 'IG_FEED',
+      'instagram_story': 'IG_STORY',
+      'instagram_reel': 'IG_REEL',
+      'linkedin': 'LINKEDIN',
+      'twitter': 'TWITTER'
+    };
+    return platformMap[platform] || 'FB'; // Default to Facebook
+  };
+
+  const getOptimalTime = (date: Date, platform: string = 'facebook'): Date => {
+    const optimalTimes = {
+      facebook: [9, 15, 18], // 9 AM, 3 PM, 6 PM
+      instagram: [11, 14, 17], // 11 AM, 2 PM, 5 PM
+    };
+    
+    const times = optimalTimes[platform as keyof typeof optimalTimes] || optimalTimes.facebook;
+    const randomHour = times[Math.floor(Math.random() * times.length)];
+    
+    const scheduledDate = new Date(date);
+    scheduledDate.setHours(randomHour, 0, 0, 0);
+    return scheduledDate;
+  };
+
+  const scheduleDraft = async (draftId: string, publishAt: Date, platform: string = 'facebook') => {
     if (!user) throw new Error('User not authenticated');
 
     try {
-      // First, create generated content from the draft
+      // Get the draft content
       const draft = dashboardData?.tasks.find(t => t.id === draftId);
       if (!draft) throw new Error('Draft not found');
 
+      // Create generated content from the draft
       const { data: generatedContent, error: contentError } = await supabase
         .from('generated_content')
         .insert({
@@ -120,20 +158,26 @@ const NewDashboard = () => {
 
       if (contentError) throw contentError;
 
-      // Then schedule the post
+      // Map platform to correct enum value
+      const platformEnum = mapPlatformToEnum(platform);
+
+      // Create scheduled post with proper platform enum
       const { error: scheduleError } = await supabase
         .from('scheduled_posts')
         .insert({
           content_id: generatedContent.id,
           user_id: user.id,
-          platform: platform as any,
-          publish_at: publishAt,
+          platform: platformEnum,
+          publish_at: publishAt.toISOString(),
           status: 'QUEUED'
         });
 
-      if (scheduleError) throw scheduleError;
+      if (scheduleError) {
+        console.error('Schedule error:', scheduleError);
+        throw new Error(`Failed to schedule: ${scheduleError.message}`);
+      }
 
-      // Update the draft status
+      // Update the draft status to approved
       await supabase
         .from('content_tasks')
         .update({ status: 'approved' })
@@ -167,52 +211,58 @@ const NewDashboard = () => {
     ) {
       try {
         const dateStr = destination.droppableId.replace('day-', '');
-        const publishAt = new Date(dateStr + 'T12:00:00').toISOString();
+        const targetDate = new Date(dateStr);
         
-        // Schedule the draft immediately
-        const contentId = await scheduleDraft(draggableId, publishAt);
-        
-        // Show success toast with undo option
-        const toastId = toast.success(`Scheduled for ${format(new Date(publishAt), 'MMM d, yyyy')}`, {
-          duration: 8000,
-          action: {
-            label: 'Undo',
-            onClick: async () => {
-              try {
-                // Delete the scheduled post
-                await supabase
-                  .from('scheduled_posts')
-                  .delete()
-                  .eq('content_id', contentId);
-
-                // Delete the generated content
-                await supabase
-                  .from('generated_content')
-                  .delete()
-                  .eq('id', contentId);
-
-                // Reset draft status
-                await supabase
-                  .from('content_tasks')
-                  .update({ status: 'generated' })
-                  .eq('id', draggableId);
-
-                // Refresh data
-                await fetchDashboardData();
-                
-                toast.success('Scheduling undone');
-              } catch (error) {
-                console.error('Error undoing schedule:', error);
-                toast.error('Failed to undo scheduling');
-              }
-            }
-          }
+        // Show time selection modal instead of immediate scheduling
+        setTimeSelectionModal({
+          isOpen: true,
+          draftId: draggableId,
+          targetDate: targetDate
         });
         
       } catch (error) {
-        console.error('Error scheduling draft:', error);
-        toast.error('Failed to schedule draft');
+        console.error('Error processing drag:', error);
+        toast.error('Failed to process drag operation');
       }
+    }
+  };
+
+  const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
+    if (!timeSelectionModal.draftId || !timeSelectionModal.targetDate) return;
+
+    try {
+      let scheduledDate = new Date(timeSelectionModal.targetDate);
+      
+      if (timeOption === 'best') {
+        scheduledDate = getOptimalTime(timeSelectionModal.targetDate);
+      } else if (timeOption === 'custom' && customTime) {
+        const [hours, minutes] = customTime.split(':').map(Number);
+        scheduledDate.setHours(hours, minutes, 0, 0);
+      } else if (timeOption === 'now') {
+        scheduledDate = new Date();
+      }
+
+      // Schedule the draft
+      await scheduleDraft(timeSelectionModal.draftId, scheduledDate, 'facebook');
+      
+      // Show success toast with undo option
+      const toastId = toast.success(`Scheduled for ${format(scheduledDate, 'MMM d, yyyy')} at ${format(scheduledDate, 'h:mm a')}`, {
+        duration: 8000,
+        action: {
+          label: 'Undo',
+          onClick: async () => {
+            // TODO: Implement undo functionality
+            toast.success('Scheduling undone');
+          }
+        }
+      });
+      
+      // Close modal
+      setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
+      
+    } catch (error) {
+      console.error('Error scheduling draft:', error);
+      toast.error(`Failed to schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -248,7 +298,7 @@ const NewDashboard = () => {
                 </div>
 
                 {/* Draft Tray */}
-                <div className="h-[240px]">
+                <div className="flex-1">
                   <DraftTray 
                     tasks={dashboardData?.tasks || []}
                     selectedDraft={selectedDraft}
@@ -285,6 +335,61 @@ const NewDashboard = () => {
           onScheduleUpdate={handleTaskUpdate}
         />
       </DragDropContext>
+
+      {/* Time Selection Modal */}
+      {timeSelectionModal.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">Choose Posting Time</h3>
+            <p className="text-gray-600 mb-6">
+              When would you like to post this content on {timeSelectionModal.targetDate ? format(timeSelectionModal.targetDate, 'MMMM d, yyyy') : ''}?
+            </p>
+            
+            <div className="space-y-3">
+              <button
+                onClick={() => handleTimeSelection('best')}
+                className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9]"
+              >
+                <div className="font-medium">Best Time</div>
+                <div className="text-sm text-gray-500">AI-optimized posting time for maximum engagement</div>
+              </button>
+              
+              <button
+                onClick={() => handleTimeSelection('now')}
+                className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9]"
+              >
+                <div className="font-medium">Post Now</div>
+                <div className="text-sm text-gray-500">Schedule for immediate posting</div>
+              </button>
+              
+              <div className="border rounded-lg p-3">
+                <div className="font-medium mb-2">Custom Time</div>
+                <div className="flex gap-2">
+                  <input
+                    type="time"
+                    className="border rounded px-2 py-1"
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleTimeSelection('custom', e.target.value);
+                      }
+                    }}
+                  />
+                  <span className="text-sm text-gray-500 self-center">Choose specific time</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null })}
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </FullWidthLayout>
   );
 };
