@@ -16,63 +16,79 @@ export interface FocusTheme {
   seasonality?: string[];
 }
 
-const SAMPLE_THEMES: FocusTheme[] = [
-  {
-    id: 'winter-prep-2024',
-    title: 'Winter Garden Preparation',
-    description: 'Essential steps to protect your plants and prepare your garden for the winter months.',
-    teaser: 'Winterizing tips, plant protection strategies, and seasonal garden maintenance.',
-    category: 'plant_care',
-    tags: ['winter', 'protection', 'maintenance', 'seasonal'],
-    difficulty: 'intermediate',
-    timeToComplete: '2-3 hours',
-    seasonality: ['winter', 'fall']
-  },
-  {
-    id: 'holiday-decor-2024',
-    title: 'Festive Garden Decorations',
-    description: 'Transform your garden into a winter wonderland with beautiful holiday decorations.',
-    teaser: 'DIY holiday crafts, outdoor lighting ideas, and festive plant arrangements.',
-    category: 'decor',
-    tags: ['holidays', 'decorations', 'lighting', 'crafts'],
-    difficulty: 'beginner',
-    timeToComplete: '1-2 hours',
-    seasonality: ['winter']
-  },
-  {
-    id: 'year-end-sale-2024',
-    title: 'Year-End Garden Sale',
-    description: 'Clear out inventory and offer great deals on gardening supplies and plants.',
-    teaser: 'Promotional strategies, clearance sales, and customer engagement ideas.',
-    category: 'sale',
-    tags: ['promotion', 'sale', 'clearance', 'marketing'],
-    difficulty: 'beginner',
-    timeToComplete: '30 minutes',
-    seasonality: ['winter']
-  },
-  {
-    id: 'new-year-planning-2025',
-    title: 'New Year Garden Planning',
-    description: 'Start the new year right with comprehensive garden planning and goal setting.',
-    teaser: 'Garden design, seed planning, seasonal calendar, and growth tracking.',
-    category: 'plant_care',
-    tags: ['planning', 'goals', 'design', 'seeds'],
-    difficulty: 'intermediate',
-    timeToComplete: '1-2 hours',
-    seasonality: ['winter', 'spring']
-  },
-  {
-    id: 'indoor-gardening-winter',
-    title: 'Indoor Winter Gardening',
-    description: 'Keep your green thumb active during winter with indoor gardening projects.',
-    teaser: 'Houseplants, herb gardens, sprouting, and winter growing techniques.',
-    category: 'plant_care',
-    tags: ['indoor', 'houseplants', 'herbs', 'winter'],
-    difficulty: 'beginner',
-    timeToComplete: '1 hour',
-    seasonality: ['winter']
-  }
-];
+// Helper function to get current week number (1-52)
+const getCurrentWeekNumber = (): number => {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 1);
+  const diff = now.getTime() - start.getTime();
+  const oneWeek = 1000 * 60 * 60 * 24 * 7;
+  return Math.ceil(diff / oneWeek);
+};
+
+// Helper function to determine category based on content
+const categorizeTheme = (theme: any): 'plant_care' | 'decor' | 'sale' | 'holidays' => {
+  const title = theme.title?.toLowerCase() || '';
+  const content = theme.content_ideas?.toLowerCase() || '';
+  const seasonal = theme.seasonal_focus?.toLowerCase() || '';
+  
+  if (title.includes('sale') || title.includes('promotion') || content.includes('sale')) return 'sale';
+  if (title.includes('holiday') || title.includes('festive') || seasonal.includes('holiday')) return 'holidays';
+  if (title.includes('decor') || title.includes('design') || content.includes('decoration')) return 'decor';
+  return 'plant_care';
+};
+
+// Helper function to determine difficulty
+const getDifficulty = (theme: any): 'beginner' | 'intermediate' | 'advanced' => {
+  const content = theme.content_ideas?.toLowerCase() || '';
+  const notes = theme.target_audience_notes?.toLowerCase() || '';
+  
+  if (content.includes('advanced') || content.includes('expert') || notes.includes('experienced')) return 'advanced';
+  if (content.includes('beginner') || content.includes('easy') || notes.includes('new')) return 'beginner';
+  return 'intermediate';
+};
+
+// Helper function to estimate time commitment
+const getTimeCommitment = (theme: any): string => {
+  const content = theme.content_ideas?.toLowerCase() || '';
+  
+  if (content.includes('quick') || content.includes('simple')) return '30 minutes';
+  if (content.includes('comprehensive') || content.includes('detailed')) return '2-3 hours';
+  return '1 hour';
+};
+
+// Helper function to generate tags
+const generateTags = (theme: any): string[] => {
+  const tags: string[] = [];
+  const content = (theme.content_ideas || '').toLowerCase();
+  const seasonal = (theme.seasonal_focus || '').toLowerCase();
+  
+  if (seasonal.includes('spring')) tags.push('spring');
+  if (seasonal.includes('summer')) tags.push('summer');
+  if (seasonal.includes('fall') || seasonal.includes('autumn')) tags.push('fall');
+  if (seasonal.includes('winter')) tags.push('winter');
+  
+  if (content.includes('planting')) tags.push('planting');
+  if (content.includes('harvest')) tags.push('harvest');
+  if (content.includes('maintenance')) tags.push('maintenance');
+  if (content.includes('care')) tags.push('care');
+  if (content.includes('design')) tags.push('design');
+  if (content.includes('decoration')) tags.push('decoration');
+  
+  return tags.length > 0 ? tags : ['seasonal'];
+};
+
+// Transform database theme to FocusTheme format
+const transformTheme = (dbTheme: any): FocusTheme => ({
+  id: `week-${dbTheme.week_number}`,
+  title: dbTheme.title,
+  description: dbTheme.content_ideas || dbTheme.theme || 'Seasonal gardening activities and tips',
+  teaser: dbTheme.seasonal_focus || dbTheme.target_audience_notes || 'Professional garden center guidance',
+  category: categorizeTheme(dbTheme),
+  tags: generateTags(dbTheme),
+  difficulty: getDifficulty(dbTheme),
+  timeToComplete: getTimeCommitment(dbTheme),
+  seasonality: generateTags(dbTheme).filter(tag => ['spring', 'summer', 'fall', 'winter'].includes(tag))
+});
 
 export interface FocusFilters {
   categories: string[];
@@ -100,19 +116,52 @@ export const useFocusThemes = () => {
     }
 
     try {
-      // Only fetch user_theme_status if we have a tenant_id
+      const currentWeek = getCurrentWeekNumber();
+      
+      // Fetch themes around current week (current + next 4 weeks for variety)
+      const weekNumbers = [
+        currentWeek,
+        (currentWeek % 52) + 1,
+        ((currentWeek + 1) % 52) + 1,
+        ((currentWeek + 2) % 52) + 1,
+        ((currentWeek + 3) % 52) + 1
+      ];
+
+      console.log('🗓️ Fetching themes for weeks:', weekNumbers, 'Current week:', currentWeek);
+
+      const { data: masterThemes, error } = await supabase
+        .from('master_campaign_templates')
+        .select('*')
+        .in('week_number', weekNumbers)
+        .order('week_number');
+
+      if (error) {
+        console.error('Error fetching master themes:', error);
+        setThemes([]);
+        setLoading(false);
+        return;
+      }
+
+      console.log('📊 Fetched master themes:', masterThemes?.length || 0);
+
+      // Transform database themes to FocusTheme format
+      let transformedThemes = (masterThemes || []).map(transformTheme);
+
+      // Get user theme status if we have tenant data
       let userThemeStatuses: any[] = [];
-      if (tenant?.id) {
+      if (tenant?.id && transformedThemes.length > 0) {
+        const themeIds = transformedThemes.map(t => t.id);
         const { data: statusData } = await supabase
           .from('user_theme_status')
           .select('theme_id, status')
-          .eq('tenant_id', tenant.id);
+          .eq('tenant_id', tenant.id)
+          .in('theme_id', themeIds);
         
         userThemeStatuses = statusData || [];
       }
 
       // Filter themes based on user status and filters
-      let filteredThemes = SAMPLE_THEMES.filter(theme => {
+      let filteredThemes = transformedThemes.filter(theme => {
         // Skip if user has already generated or skipped this theme (only if we have tenant data)
         if (tenant?.id) {
           const userStatus = userThemeStatuses.find(s => s.theme_id === theme.id);
@@ -145,11 +194,11 @@ export const useFocusThemes = () => {
         return true;
       });
 
+      console.log('✅ Final filtered themes:', filteredThemes.length);
       setThemes(filteredThemes);
     } catch (error) {
       console.error('Error loading themes:', error);
-      // Fallback to all themes if there's an error
-      setThemes(SAMPLE_THEMES);
+      setThemes([]);
     } finally {
       setLoading(false);
     }
