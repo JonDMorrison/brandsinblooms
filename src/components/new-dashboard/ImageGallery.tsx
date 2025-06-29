@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, RefreshCw, Image as ImageIcon } from 'lucide-react';
+import { Loader2, RefreshCw, Image as ImageIcon, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ImageGalleryProps {
@@ -292,19 +293,30 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
 
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Image Preview</DialogTitle>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
+          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <DialogTitle className="text-lg font-semibold">Image Preview</DialogTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowImageModal(false)}
+              className="h-6 w-6 p-0 hover:bg-gray-100"
+              aria-label="Close modal"
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </DialogHeader>
           {selectedImage && (
-            <div className="space-y-4">
-              <img
-                src={selectedImage.download_url}
-                alt={selectedImage.alt}
-                className="w-full h-auto rounded-lg"
-              />
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">
+            <div className="space-y-4 overflow-y-auto">
+              <div className="max-h-[50vh] overflow-hidden rounded-lg">
+                <img
+                  src={selectedImage.download_url}
+                  alt={selectedImage.alt}
+                  className="w-full h-auto object-contain"
+                />
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <p className="text-sm text-gray-600 truncate flex-1 mr-4">
                   Photo by {selectedImage.photographer}
                 </p>
                 <Button
@@ -314,6 +326,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
                     // TODO: Implement "use in post" functionality
                     console.log('Use image in post:', selectedImage);
                   }}
+                  className="shrink-0"
                 >
                   Use in Post
                 </Button>
