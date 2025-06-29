@@ -20,11 +20,9 @@ export const FullWidthLayout = ({ children }: FullWidthLayoutProps) => {
       {/* Trial Banner */}
       <TrialBanner />
       
-      {/* Header with UserMenu */}
-      <div className="relative w-full">
-        <div className="fixed top-6 right-6 z-50">
-          <UserMenu />
-        </div>
+      {/* Fixed UserMenu - always visible in top-right */}
+      <div className="fixed top-6 right-6 z-50">
+        <UserMenu />
       </div>
       
       {/* Main Content */}

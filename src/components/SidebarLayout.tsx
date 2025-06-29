@@ -2,6 +2,7 @@
 import { ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { TrialBanner } from "@/components/TrialBanner";
+import { UserMenu } from "@/components/UserMenu";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/AppSidebar";
 
@@ -21,6 +22,11 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       <div className="min-h-screen w-full flex flex-col">
         {/* Trial Banner */}
         <TrialBanner />
+        
+        {/* Fixed UserMenu - always visible in top-right */}
+        <div className="fixed top-6 right-6 z-50">
+          <UserMenu />
+        </div>
         
         <div className="flex flex-1 w-full min-h-0 overflow-hidden">
           <AppSidebar />
