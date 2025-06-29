@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 import { colors } from "./src/config/tailwind/colors";
 import { fontFamily, fontSize, fontWeight } from "./src/config/tailwind/typography";
@@ -38,6 +39,7 @@ export default {
 			colors: {
 				...colors,
 				// Brand colors - primary palette
+				brand: '#68BEB9', // Primary brand color
 				'brand-teal-mint': {
 					DEFAULT: '#68BEB9',
 					50: '#F0FFFE',

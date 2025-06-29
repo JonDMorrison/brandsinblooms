@@ -5,11 +5,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Import design system styles */
-@import './styles/design-system.css';
-
 /* Only import debug styles in development */
 /* @import './styles/dev-debug.css'; */
+
+/* Import design system styles at the bottom */
+@import './styles/design-system.css';
 
 @layer base {
   :root {

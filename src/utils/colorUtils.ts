@@ -28,11 +28,11 @@ export const getStatusColor = (status: string) => {
     draft: 'bg-gray-100 text-gray-800 border-gray-200',
     review: 'bg-slate-100 text-slate-800 border-slate-200',
     scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
-    posted: 'bg-[#68BEB9]/10 text-[#3E5A6B] border-[#68BEB9]/20',
-    approved: 'bg-[#68BEB9]/10 text-[#3E5A6B] border-[#68BEB9]/20',
+    posted: 'bg-brand/10 text-[#3E5A6B] border-brand/20',
+    approved: 'bg-brand/10 text-[#3E5A6B] border-brand/20',
     pending: 'bg-blue-100 text-blue-800 border-blue-200',
     generating: 'bg-blue-100 text-blue-800 border-blue-200',
-    completed: 'bg-[#68BEB9]/10 text-[#3E5A6B] border-[#68BEB9]/20',
+    completed: 'bg-brand/10 text-[#3E5A6B] border-brand/20',
     published: 'bg-gray-100 text-gray-800 border-gray-200',
   };
   
@@ -44,19 +44,16 @@ export const getStatusColor = (status: string) => {
  */
 export const cleanUnwantedColorsFromClassName = (className: string): string => {
   return className
-    .replace(/text-orange-\d+/g, 'text-[#3E5A6B]')
-    .replace(/text-orange-500/g, 'text-[#3E5A6B]')
-    .replace(/text-orange-600/g, 'text-[#3E5A6B]')
-    .replace(/border-fuchsia-\d+/g, 'border-[#68BEB9]/40')
-    .replace(/border-purple-\d+/g, 'border-[#68BEB9]/40')
-    .replace(/border-fuchsia-500/g, 'border-[#68BEB9]/40')
-    .replace(/border-purple-500/g, 'border-[#68BEB9]/40')
-    .replace(/ring-orange-\d+/g, 'ring-[#68BEB9]')
-    .replace(/ring-orange-500/g, 'ring-[#68BEB9]')
+    .replace(/bg-blue-700/g, 'bg-brand')
+    .replace(/text-yellow-400/g, 'text-[#3E5A6B]')
+    .replace(/border-fuchsia-500/g, 'border-brand/40')
+    .replace(/border-purple-500/g, 'border-brand/40')
+    .replace(/ring-orange-500/g, 'ring-brand')
     .replace(/yellow-\d+/g, 'slate-500')
     .replace(/amber-\d+/g, 'slate-500')
     .replace(/orange-\d+/g, 'slate-500')
     .replace(/purple-\d+/g, 'slate-500')
     .replace(/pink-\d+/g, 'slate-500')
-    .replace(/fuchsia-\d+/g, 'slate-500');
+    .replace(/fuchsia-\d+/g, 'slate-500')
+    .replace(/\.debug-outline/g, '');
 };
