@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTenant } from '@/hooks/useTenant';
-import { supabase } from '@/integrations/supabase/client';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
@@ -12,12 +10,10 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-
-interface DashboardData {
-  currentCampaign: any;
-  tasks: any[];
-  socialConnections: any[];
-}
+import { useDashboardData } from '@/hooks/useDashboardData';
+import { useScheduledPosts } from '@/hooks/useScheduledPosts';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TimeSelectionModal {
   isOpen: boolean;
@@ -27,9 +23,8 @@ interface TimeSelectionModal {
 
 const NewDashboard = () => {
   const { user } = useAuth();
-  const { tenant } = useTenant();
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: dashboardData, isLoading, refetch } = useDashboardData();
+  const { schedulePost } = useScheduledPosts();
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
   const [justApprovedId, setJustApprovedId] = useState<string | null>(null);
   const [timeSelectionModal, setTimeSelectionModal] = useState<TimeSelectionModal>({
@@ -38,89 +33,20 @@ const NewDashboard = () => {
     targetDate: null
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchDashboardData();
-    }
-  }, [user, tenant]);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch current campaign
-      const campaignQuery = supabase
-        .from('campaigns')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (tenant?.id) {
-        campaignQuery.eq('tenant_id', tenant.id);
-      } else {
-        campaignQuery.eq('user_id', user?.id);
-      }
-
-      const { data: campaigns } = await campaignQuery;
-      const currentCampaign = campaigns?.[0] || null;
-
-      // Fetch tasks - including all content types
-      const taskQuery = supabase
-        .from('content_tasks')
-        .select(`
-          *,
-          campaigns (
-            title,
-            user_id,
-            tenant_id
-          )
-        `)
-        .in('status', ['draft', 'generated', 'approved', 'review'])
-        .order('created_at', { ascending: false });
-
-      if (tenant?.id) {
-        taskQuery.eq('tenant_id', tenant.id);
-      } else {
-        taskQuery.eq('user_id', user?.id);
-      }
-
-      const { data: tasks } = await taskQuery;
-
-      // Fetch social connections
-      const { data: connections } = await supabase
-        .from('social_connections')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('is_active', true);
-
-      setDashboardData({
-        currentCampaign,
-        tasks: tasks || [],
-        socialConnections: connections || []
-      });
-
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleTaskUpdate = () => {
-    fetchDashboardData();
+    refetch();
   };
 
-  const mapPlatformToEnum = (platform: string): string => {
-    const platformMap: { [key: string]: string } = {
+  const mapPlatformToEnum = (platform: string): "FB" | "IG_FEED" | "IG_REEL" => {
+    const platformMap: { [key: string]: "FB" | "IG_FEED" | "IG_REEL" } = {
       'facebook': 'FB',
       'instagram': 'IG_FEED',
-      'instagram_story': 'IG_STORY',
+      'instagram_story': 'IG_FEED',
       'instagram_reel': 'IG_REEL',
-      'linkedin': 'LINKEDIN',
-      'twitter': 'TWITTER'
+      'linkedin': 'FB', // Default to FB for unsupported platforms
+      'twitter': 'FB'
     };
-    return platformMap[platform] || 'FB'; // Default to Facebook
+    return platformMap[platform] || 'FB';
   };
 
   const getOptimalTime = (date: Date, platform: string = 'facebook'): Date => {
@@ -161,7 +87,7 @@ const NewDashboard = () => {
       // Map platform to correct enum value
       const platformEnum = mapPlatformToEnum(platform);
 
-      // Create scheduled post with proper platform enum
+      // Create scheduled post with proper platform enum and correct column names
       const { error: scheduleError } = await supabase
         .from('scheduled_posts')
         .insert({
@@ -184,7 +110,7 @@ const NewDashboard = () => {
         .eq('id', draftId);
 
       // Refresh data
-      await fetchDashboardData();
+      await refetch();
 
       return generatedContent.id;
     } catch (error) {
@@ -266,7 +192,7 @@ const NewDashboard = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <FullWidthLayout>
         <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
