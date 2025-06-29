@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -339,16 +338,32 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
-          <DialogHeader className="relative">
-            <DialogTitle className="text-lg font-semibold pr-32">Image Preview</DialogTitle>
-            {selectedImage && (
-              <div className="absolute right-0 top-0">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold">Image Preview</DialogTitle>
+          </DialogHeader>
+          {selectedImage && (
+            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+              {/* Image Container */}
+              <div className="relative mb-4">
+                <img
+                  src={selectedImage.download_url}
+                  alt={selectedImage.alt}
+                  className="w-full max-h-[50vh] object-contain rounded-lg"
+                />
+                {/* Photo credit overlay */}
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                  Photo by {selectedImage.photographer}
+                </div>
+              </div>
+              
+              {/* Use in Post Button */}
+              <div className="flex justify-center pt-2 border-t border-gray-100">
                 <Button
                   variant="default"
                   size="sm"
                   onClick={() => handleUseInPost(selectedImage)}
                   disabled={addingToPost || !selectedDraft}
-                  className="bg-[#68BEB9] hover:bg-[#5AA8A3] shadow-md"
+                  className="bg-[#68BEB9] hover:bg-[#5AA8A3] shadow-md px-6"
                 >
                   {addingToPost ? (
                     <>
@@ -359,21 +374,6 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
                     'Use in Post'
                   )}
                 </Button>
-              </div>
-            )}
-          </DialogHeader>
-          {selectedImage && (
-            <div className="space-y-4 overflow-y-auto">
-              <div className="max-h-[60vh] flex items-center justify-center rounded-lg relative">
-                <img
-                  src={selectedImage.download_url}
-                  alt={selectedImage.alt}
-                  className="max-w-full max-h-full object-contain"
-                />
-                {/* Photo credit overlay */}
-                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
-                  Photo by {selectedImage.photographer}
-                </div>
               </div>
             </div>
           )}
