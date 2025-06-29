@@ -45,9 +45,11 @@ export const getStatusColor = (status: string) => {
 export const cleanUnwantedColorsFromClassName = (className: string): string => {
   return className
     .replace(/bg-blue-700/g, 'bg-brand')
+    .replace(/bg-blue-800/g, 'bg-brand')
     .replace(/text-yellow-400/g, 'text-[#3E5A6B]')
-    .replace(/border-fuchsia-500/g, 'border-brand/40')
-    .replace(/border-purple-500/g, 'border-brand/40')
+    .replace(/border-fuchsia-500/g, 'border-slate-200')
+    .replace(/border-purple-500/g, 'border-slate-200')
+    .replace(/border-pink-500/g, 'border-slate-200')
     .replace(/ring-orange-500/g, 'ring-brand')
     .replace(/yellow-\d+/g, 'slate-500')
     .replace(/amber-\d+/g, 'slate-500')
@@ -55,5 +57,6 @@ export const cleanUnwantedColorsFromClassName = (className: string): string => {
     .replace(/purple-\d+/g, 'slate-500')
     .replace(/pink-\d+/g, 'slate-500')
     .replace(/fuchsia-\d+/g, 'slate-500')
-    .replace(/\.debug-outline/g, '');
+    .replace(/\.debug-outline/g, '')
+    .replace(/\.dev-border/g, '');
 };

@@ -5,11 +5,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Only import debug styles in development */
-/* @import './styles/dev-debug.css'; */
-
-/* Import design system styles at the bottom */
+/* Import design system styles at the bottom for proper cascading */
 @import './styles/design-system.css';
+
+/* Only import debug styles in development - commented out for production */
+/* @import './styles/dev-debug.css'; */
 
 @layer base {
   :root {
@@ -38,6 +38,10 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* Brand color overrides - eliminate any purple/blue leftovers */
+    --brand: 188 56% 58%; /* #68BEB9 */
+    --brand-foreground: 0 0% 100%;
   }
 
   .dark {
@@ -60,6 +64,10 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 188 56% 58%; /* Brand teal-mint #68BEB9 */
+
+    /* Brand color overrides for dark mode */
+    --brand: 188 56% 58%; /* #68BEB9 */
+    --brand-foreground: 0 0% 100%;
   }
 }
 
@@ -82,5 +90,31 @@
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+  }
+
+  /* Brand color utilities */
+  .bg-brand {
+    background-color: #68BEB9;
+  }
+  .text-brand {
+    color: #68BEB9;
+  }
+  .border-brand {
+    border-color: #68BEB9;
+  }
+  .ring-brand {
+    --tw-ring-color: #68BEB9;
+  }
+
+  /* Override any remaining problematic colors */
+  .bg-blue-700,
+  .bg-blue-800 {
+    background-color: #68BEB9 !important;
+  }
+  
+  .border-fuchsia-500,
+  .border-purple-500,
+  .border-pink-500 {
+    border-color: #E2E8F0 !important; /* slate-200 */
   }
 }

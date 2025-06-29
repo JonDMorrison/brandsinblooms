@@ -42,3 +42,6 @@
     ) !important;
   }
 }
+
+/* NOTE: This file should only be imported in development mode */
+/* Production builds should exclude this file entirely */
