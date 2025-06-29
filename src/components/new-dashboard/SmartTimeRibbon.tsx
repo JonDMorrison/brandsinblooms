@@ -6,6 +6,7 @@ import { format, addWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
+import { ScheduledContentModal } from './ScheduledContentModal';
 
 interface SmartTimeRibbonProps {
   tasks?: any[];
@@ -15,6 +16,9 @@ interface SmartTimeRibbonProps {
 
 export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledContentClick }: SmartTimeRibbonProps) => {
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   const { scheduledPosts, loading } = useScheduledPosts();
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
@@ -59,22 +63,53 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledConte
   const getPlatformIcon = (platform: string) => {
     switch (platform) {
       case 'FB':
+      case 'facebook':
         return '📘';
       case 'IG_FEED':
       case 'IG_STORY':
       case 'IG_REEL':
+      case 'instagram':
         return '📷';
       case 'LINKEDIN':
         return '💼';
       case 'TWITTER':
         return '🐦';
-      case 'facebook':
-        return '📘';
-      case 'instagram':
-        return '📷';
       default:
         return '📱';
     }
+  };
+
+  const getPlatformName = (platform: string) => {
+    switch (platform?.toLowerCase()) {
+      case 'fb':
+      case 'facebook':
+        return 'Facebook Post';
+      case 'ig_feed':
+      case 'ig_story':
+      case 'ig_reel':
+      case 'instagram':
+        return 'Instagram Post';
+      case 'linkedin':
+        return 'LinkedIn Post';
+      case 'twitter':
+        return 'Twitter Post';
+      default:
+        return 'Social Post';
+    }
+  };
+
+  const handleTaskClick = (task: any) => {
+    setSelectedTask(task);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedTask(null);
+  };
+
+  const handleModalUpdate = () => {
+    if (onScheduleUpdate) onScheduleUpdate();
   };
 
   if (loading) {
@@ -95,145 +130,147 @@ export const SmartTimeRibbon = ({ tasks = [], onScheduleUpdate, onScheduledConte
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-6 z-40">
-      <div className="max-w-full mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={prevWeek}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium text-gray-600 min-w-[120px] text-center">
-              {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
-            </span>
-            <Button variant="ghost" size="sm" onClick={nextWeek}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+    <>
+      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-6 z-40">
+        <div className="max-w-full mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" onClick={prevWeek}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm font-medium text-gray-600 min-w-[120px] text-center">
+                {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
+              </span>
+              <Button variant="ghost" size="sm" onClick={nextWeek}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-        </div>
 
-        <div className="grid grid-cols-7 gap-4">
-          {weekDays.map((day) => {
-            const dayKey = format(day, 'yyyy-MM-dd');
-            const scheduledPostsForDay = getScheduledPostsForDay(day);
-            const scheduledTasksForDay = getScheduledTasksForDay(day);
-            const isToday = isSameDay(day, new Date());
-            
-            return (
-              <Droppable key={dayKey} droppableId={`day-${dayKey}`}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={cn(
-                      "min-h-[120px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
-                      snapshot.isDraggingOver 
-                        ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md" 
-                        : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
-                      isToday && "ring-2 ring-[#68BEB9]/30"
-                    )}
-                  >
-                    <div className="text-center mb-3">
-                      <div className={cn(
-                        "text-xs font-medium mb-1",
-                        isToday ? "text-[#68BEB9]" : "text-[#3E5A6B]"
-                      )}>
-                        {getDayName(day)}
+          <div className="grid grid-cols-7 gap-4">
+            {weekDays.map((day) => {
+              const dayKey = format(day, 'yyyy-MM-dd');
+              const scheduledPostsForDay = getScheduledPostsForDay(day);
+              const scheduledTasksForDay = getScheduledTasksForDay(day);
+              const isToday = isSameDay(day, new Date());
+              
+              return (
+                <Droppable key={dayKey} droppableId={`day-${dayKey}`}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={cn(
+                        "min-h-[120px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
+                        snapshot.isDraggingOver 
+                          ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md" 
+                          : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
+                        isToday && "ring-2 ring-[#68BEB9]/30"
+                      )}
+                    >
+                      <div className="text-center mb-3">
+                        <div className={cn(
+                          "text-xs font-medium mb-1",
+                          isToday ? "text-[#68BEB9]" : "text-[#3E5A6B]"
+                        )}>
+                          {getDayName(day)}
+                        </div>
+                        <div className={cn(
+                          "text-lg font-semibold",
+                          isToday ? "text-[#68BEB9]" : "text-gray-900"
+                        )}>
+                          {getDayNumber(day)}
+                        </div>
                       </div>
-                      <div className={cn(
-                        "text-lg font-semibold",
-                        isToday ? "text-[#68BEB9]" : "text-gray-900"
-                      )}>
-                        {getDayNumber(day)}
-                      </div>
-                    </div>
 
-                    {/* Scheduled Content Tasks (clickable) */}
-                    <div className="space-y-2">
-                      {scheduledTasksForDay.map((scheduledTask) => {
-                        const imageThumb = scheduledTask.attachments?.image?.thumb;
-                        
-                        return (
-                          <div
-                            key={`task-${scheduledTask.id}`}
-                            onClick={() => onScheduledContentClick?.(scheduledTask)}
-                            className={cn(
-                              "text-xs p-2 rounded border cursor-pointer hover:shadow-sm transition-all flex items-start gap-2",
-                              getStatusColor('scheduled')
-                            )}
-                          >
-                            {imageThumb && (
-                              <img 
-                                src={imageThumb} 
-                                alt="Scheduled content" 
-                                className="w-6 h-6 rounded object-cover flex-shrink-0"
-                              />
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1 mb-1">
+                      {/* Scheduled Content Tasks (simplified cards) */}
+                      <div className="space-y-2">
+                        {scheduledTasksForDay.map((scheduledTask) => {
+                          return (
+                            <div
+                              key={`task-${scheduledTask.id}`}
+                              onClick={() => handleTaskClick(scheduledTask)}
+                              className={cn(
+                                "text-xs p-2 rounded border cursor-pointer hover:shadow-sm transition-all",
+                                getStatusColor('scheduled')
+                              )}
+                            >
+                              <div className="flex items-center gap-1 justify-center">
                                 <span>{getPlatformIcon(scheduledTask.post_type)}</span>
-                                <span className="font-medium truncate">
-                                  {scheduledTask.post_type || 'Content'}
+                                <span className="font-medium">
+                                  {getPlatformName(scheduledTask.post_type)}
                                 </span>
                               </div>
-                              <div className="text-xs opacity-75 truncate">
-                                {scheduledTask.ai_output?.substring(0, 25) || 'Scheduled content'}...
+                              <div className="text-center text-xs opacity-75 mt-1">
+                                {scheduledTask.scheduled_date ? 
+                                  format(new Date(scheduledTask.scheduled_date), 'h:mm a') : 
+                                  'Scheduled'
+                                }
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        })}
 
-                      {/* Scheduled Posts from Supabase */}
-                      {scheduledPostsForDay.map((scheduledPost) => (
-                        <div
-                          key={`post-${scheduledPost.id}`}
-                          className={cn(
-                            "text-xs p-2 rounded border",
-                            getStatusColor(scheduledPost.status)
-                          )}
-                        >
-                          <div className="flex items-center gap-1 mb-1">
-                            <span>{getPlatformIcon(scheduledPost.platform)}</span>
-                            <span className="font-medium truncate">
+                        {/* Scheduled Posts from Supabase */}
+                        {scheduledPostsForDay.map((scheduledPost) => (
+                          <div
+                            key={`post-${scheduledPost.id}`}
+                            className={cn(
+                              "text-xs p-2 rounded border",
+                              getStatusColor(scheduledPost.status)
+                            )}
+                          >
+                            <div className="flex items-center gap-1 justify-center">
+                              <span>{getPlatformIcon(scheduledPost.platform)}</span>
+                              <span className="font-medium">
+                                {getPlatformName(scheduledPost.platform)}
+                              </span>
+                            </div>
+                            <div className="text-center text-xs opacity-75 mt-1">
                               {format(new Date(scheduledPost.publish_at), 'h:mm a')}
-                            </span>
+                            </div>
                           </div>
-                          <div className="text-xs opacity-75 truncate">
-                            {scheduledPost.status}
-                          </div>
+                        ))}
+                      </div>
+
+                      {/* Drop zone indicator */}
+                      {snapshot.isDraggingOver && (
+                        <div className="flex items-center justify-center h-8 text-sm text-[#68BEB9] font-medium mt-2">
+                          Drop to schedule
                         </div>
-                      ))}
+                      )}
+
+                      {/* Empty state */}
+                      {!snapshot.isDraggingOver && scheduledPostsForDay.length === 0 && scheduledTasksForDay.length === 0 && (
+                        <div className="flex items-center justify-center h-8 mt-2">
+                          <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                        </div>
+                      )}
+
+                      {provided.placeholder}
                     </div>
+                  )}
+                </Droppable>
+              );
+            })}
+          </div>
 
-                    {/* Drop zone indicator */}
-                    {snapshot.isDraggingOver && (
-                      <div className="flex items-center justify-center h-8 text-sm text-[#68BEB9] font-medium mt-2">
-                        Drop to schedule
-                      </div>
-                    )}
-
-                    {/* Empty state */}
-                    {!snapshot.isDraggingOver && scheduledPostsForDay.length === 0 && scheduledTasksForDay.length === 0 && (
-                      <div className="flex items-center justify-center h-8 mt-2">
-                        <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
-                      </div>
-                    )}
-
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            );
-          })}
-        </div>
-
-        <div className="mt-4 p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
-          <p className="text-sm text-[#3E5A6B]">
-            <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days. Click on scheduled content to edit.
-          </p>
+          <div className="mt-4 p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
+            <p className="text-sm text-[#3E5A6B]">
+              <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days. Click on scheduled content to edit.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Scheduled Content Edit Modal */}
+      <ScheduledContentModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        scheduledTask={selectedTask}
+        onUpdate={handleModalUpdate}
+      />
+    </>
   );
 };
