@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -117,7 +118,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setSaving(true);
     try {
       const selectedImage = getSelectedImage();
-      const attachments = selectedImage ? { image: selectedImage } : null;
+      const attachments = selectedImage ? { image: selectedImage as any } : null;
 
       const { error } = await supabase
         .from('content_tasks')
@@ -151,7 +152,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setApproving(true);
     try {
       const selectedImage = getSelectedImage();
-      const attachments = selectedImage ? { image: selectedImage } : null;
+      const attachments = selectedImage ? { image: selectedImage as any } : null;
 
       const { error } = await supabase
         .from('content_tasks')
