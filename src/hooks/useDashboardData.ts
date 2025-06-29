@@ -29,7 +29,7 @@ export const useDashboardData = () => {
       const { data: campaigns } = await campaignQuery;
       const currentCampaign = campaigns?.[0] || null;
 
-      // Fetch tasks
+      // Fetch tasks - include 'scheduled' status so they appear in Smart Time Ribbon
       const taskQuery = supabase
         .from('content_tasks')
         .select(`
@@ -40,7 +40,7 @@ export const useDashboardData = () => {
             tenant_id
           )
         `)
-        .in('status', ['draft', 'generated', 'approved', 'review'])
+        .in('status', ['draft', 'generated', 'approved', 'review', 'scheduled'])
         .order('created_at', { ascending: false });
 
       if (tenant?.id) {
