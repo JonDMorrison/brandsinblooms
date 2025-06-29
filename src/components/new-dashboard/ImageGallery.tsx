@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -338,28 +339,16 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">Image Preview</DialogTitle>
-          </DialogHeader>
-          {selectedImage && (
-            <div className="space-y-4 overflow-y-auto">
-              <div className="max-h-[60vh] flex items-center justify-center rounded-lg">
-                <img
-                  src={selectedImage.download_url}
-                  alt={selectedImage.alt}
-                  className="max-w-full max-h-full object-contain"
-                />
-              </div>
-              <div className="flex items-center justify-between pt-2">
-                <p className="text-sm text-gray-600 truncate flex-1 mr-4">
-                  Photo by {selectedImage.photographer}
-                </p>
+          <DialogHeader className="relative">
+            <DialogTitle className="text-lg font-semibold pr-32">Image Preview</DialogTitle>
+            {selectedImage && (
+              <div className="absolute right-0 top-0">
                 <Button
                   variant="default"
                   size="sm"
                   onClick={() => handleUseInPost(selectedImage)}
                   disabled={addingToPost || !selectedDraft}
-                  className="shrink-0 bg-[#68BEB9] hover:bg-[#5AA8A3]"
+                  className="bg-[#68BEB9] hover:bg-[#5AA8A3] shadow-md"
                 >
                   {addingToPost ? (
                     <>
@@ -370,6 +359,21 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
                     'Use in Post'
                   )}
                 </Button>
+              </div>
+            )}
+          </DialogHeader>
+          {selectedImage && (
+            <div className="space-y-4 overflow-y-auto">
+              <div className="max-h-[60vh] flex items-center justify-center rounded-lg relative">
+                <img
+                  src={selectedImage.download_url}
+                  alt={selectedImage.alt}
+                  className="max-w-full max-h-full object-contain"
+                />
+                {/* Photo credit overlay */}
+                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
+                  Photo by {selectedImage.photographer}
+                </div>
               </div>
             </div>
           )}
