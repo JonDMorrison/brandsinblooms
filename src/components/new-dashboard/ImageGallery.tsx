@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Loader2, RefreshCw, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface ImageGalleryProps {
   selectedDraft: any;
@@ -148,6 +149,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
   const [selectedImage, setSelectedImage] = useState<UnsplashImage | null>(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
+  const [addingToPost, setAddingToPost] = useState(false);
 
   const fetchImages = async (forceRefresh = false) => {
     if (!selectedDraft && !forceRefresh) return;
@@ -208,6 +210,49 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
   const handleImageClick = (image: UnsplashImage) => {
     setSelectedImage(image);
     setShowImageModal(true);
+  };
+
+  const handleUseInPost = async (image: UnsplashImage) => {
+    if (!selectedDraft) {
+      toast.error('No draft selected');
+      return;
+    }
+
+    setAddingToPost(true);
+    try {
+      // Update the draft with the selected image
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ 
+          attachments: [
+            {
+              type: 'image',
+              url: image.download_url,
+              thumbnail: image.thumb_url,
+              alt: image.alt,
+              photographer: image.photographer,
+              source: 'unsplash'
+            }
+          ]
+        })
+        .eq('id', selectedDraft.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('Image added to post successfully!');
+      setShowImageModal(false);
+      
+      // Trigger a refresh of the parent component if needed
+      window.dispatchEvent(new CustomEvent('draft-updated'));
+      
+    } catch (error) {
+      console.error('Error adding image to post:', error);
+      toast.error('Failed to add image to post');
+    } finally {
+      setAddingToPost(false);
+    }
   };
 
   return (
@@ -310,15 +355,20 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
                   Photo by {selectedImage.photographer}
                 </p>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="sm"
-                  onClick={() => {
-                    // TODO: Implement "use in post" functionality
-                    console.log('Use image in post:', selectedImage);
-                  }}
-                  className="shrink-0"
+                  onClick={() => handleUseInPost(selectedImage)}
+                  disabled={addingToPost || !selectedDraft}
+                  className="shrink-0 bg-[#68BEB9] hover:bg-[#5AA8A3]"
                 >
-                  Use in Post
+                  {addingToPost ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    'Use in Post'
+                  )}
                 </Button>
               </div>
             </div>
