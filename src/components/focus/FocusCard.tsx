@@ -36,6 +36,18 @@ export const FocusCard = ({ theme, onGenerate, onSkip, isGenerating }: FocusCard
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  const handleGenerate = () => {
+    console.log('🎯 FocusCard: Generate button clicked for theme:', theme.id, theme.title);
+    console.log('🎯 FocusCard: onGenerate function:', typeof onGenerate);
+    console.log('🎯 FocusCard: isGenerating:', isGenerating);
+    
+    if (typeof onGenerate === 'function') {
+      onGenerate(theme.id);
+    } else {
+      console.error('❌ FocusCard: onGenerate is not a function:', onGenerate);
+    }
+  };
+
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-6 h-full flex flex-col items-center justify-center border border-white/20">
       <div className="flex items-center gap-2 mb-4">
@@ -77,7 +89,7 @@ export const FocusCard = ({ theme, onGenerate, onSkip, isGenerating }: FocusCard
             <TooltipTrigger asChild>
               <Button 
                 className="bg-[#68BEB9] hover:bg-[#5AA8A3] text-white font-medium px-6 py-3 rounded-full w-full shadow-md hover:shadow-lg transition-all duration-200"
-                onClick={() => onGenerate(theme.id)}
+                onClick={handleGenerate}
                 disabled={isGenerating}
               >
                 {isGenerating ? (
