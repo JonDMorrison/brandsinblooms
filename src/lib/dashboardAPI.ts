@@ -13,6 +13,22 @@ export interface ScheduleDraftResult {
   updatedTask: any;
 }
 
+// Map platform strings to the enum values expected by the database
+const mapPlatformToEnum = (platform: string): "FB" | "IG_FEED" | "IG_REEL" => {
+  const platformMap: { [key: string]: "FB" | "IG_FEED" | "IG_REEL" } = {
+    'facebook': 'FB',
+    'FACEBOOK': 'FB',
+    'instagram': 'IG_FEED',
+    'INSTAGRAM': 'IG_FEED',
+    'instagram_feed': 'IG_FEED',
+    'instagram_reel': 'IG_REEL',
+    'IG_FEED': 'IG_FEED',
+    'IG_REEL': 'IG_REEL',
+    'FB': 'FB'
+  };
+  return platformMap[platform] || 'FB';
+};
+
 export const scheduleDraft = async (params: ScheduleDraftParams): Promise<ScheduleDraftResult | null> => {
   console.log('🚀 Scheduling draft with params:', params);
   
@@ -39,13 +55,16 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     console.log('📋 Task fetched:', task);
 
-    // Create scheduled post entry
+    // Map platform to the correct enum value
+    const platformEnum = mapPlatformToEnum(params.platform);
+
+    // Create scheduled post entry - use content_id to match the expected column name
     const { data: scheduledPost, error: scheduleError } = await supabase
       .from('scheduled_posts')
       .insert({
         content_id: params.taskId,
         user_id: user.id,
-        platform: params.platform.toUpperCase(),
+        platform: platformEnum,
         publish_at: params.publishAt,
         status: 'QUEUED'
       })

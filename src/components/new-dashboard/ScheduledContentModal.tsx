@@ -100,8 +100,8 @@ export const ScheduledContentModal = ({
     setSaving(true);
     try {
       const selectedImage = getSelectedImage();
-      // Properly format the attachments as JSONB
-      const attachments = selectedImage ? JSON.stringify({ image: selectedImage }) : null;
+      // Properly format the attachments as JSONB - need to convert to JSON string
+      const attachments = selectedImage ? { image: selectedImage } : null;
 
       const { error } = await supabase
         .from('content_tasks')

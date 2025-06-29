@@ -245,9 +245,10 @@ const NewDashboard = () => {
         </div>
 
         <SmartTimeRibbon 
-          tasks={dashboardData?.tasks || []}
+          scheduledByDate={dashboardData?.scheduledByDate}
+          socialConnections={dashboardData?.socialConnections || []}
           onScheduleUpdate={handleTaskUpdate}
-          onScheduledContentClick={handleScheduledContentClick}
+          onDragEnd={handleDragEnd}
         />
       </DragDropContext>
 
