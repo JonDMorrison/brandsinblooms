@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -308,11 +307,11 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
           </DialogHeader>
           {selectedImage && (
             <div className="space-y-4 overflow-y-auto">
-              <div className="max-h-[50vh] overflow-hidden rounded-lg">
+              <div className="max-h-[60vh] flex items-center justify-center rounded-lg">
                 <img
                   src={selectedImage.download_url}
                   alt={selectedImage.alt}
-                  className="w-full h-auto object-contain"
+                  className="max-w-full max-h-full object-contain"
                 />
               </div>
               <div className="flex items-center justify-between pt-2">
