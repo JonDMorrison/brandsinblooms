@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -144,6 +145,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
+                          data-draft-card="true"
                           className={cn(
                             "relative p-4 border-2 rounded-lg transition-all duration-200",
                             selectedDraft?.id === draft.id 
