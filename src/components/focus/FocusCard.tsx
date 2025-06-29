@@ -95,15 +95,6 @@ export const FocusCard = ({ theme, onGenerate, onSkip, isGenerating }: FocusCard
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-
-        <Button 
-          variant="outline"
-          className="text-gray-600 border-gray-300 hover:bg-gray-50 font-medium px-6 py-2 rounded-full w-full transition-all duration-200"
-          onClick={() => onSkip(theme.id)}
-          disabled={isGenerating}
-        >
-          Skip
-        </Button>
       </div>
     </div>
   );
