@@ -50,7 +50,7 @@ export const PostNowButton: React.FC<PostNowButtonProps> = ({
       className={`
         flex items-center gap-2 font-medium transition-all duration-200
         ${platform === 'facebook' 
-          ? 'bg-[#1877F2] hover:bg-[#166FE5] text-white' 
+          ? 'bg-blue-600 hover:bg-blue-700 text-white' 
           : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white'
         }
       `}

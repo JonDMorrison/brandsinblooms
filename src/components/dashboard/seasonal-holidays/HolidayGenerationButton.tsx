@@ -27,7 +27,7 @@ export const HolidayGenerationButton = ({
         onClick={onGenerate}
         disabled={loading}
         size="sm"
-        className="bg-brand hover:bg-brand/90 w-full"
+        className="bg-purple-600 hover:bg-purple-700 w-full"
       >
         {loading ? (
           <>

@@ -240,15 +240,15 @@ const NewDashboard = () => {
 
             {/* Main Dashboard Grid - Updated layout: 4 cols left, 8 cols right */}
             <div className="grid grid-cols-12 gap-6 mb-6">
-              {/* Left Column - Today's Focus + Draft Tray stacked with flex layout */}
-              <div className="col-span-4 flex flex-col gap-6" style={{ height: 'calc(100vh - 240px - 8rem)' }}>
-                {/* Today's Focus Carousel - Fixed height */}
-                <div className="h-[480px] flex-shrink-0">
+              {/* Left Column - Today's Focus + Draft Tray stacked */}
+              <div className="col-span-4 space-y-6">
+                {/* Today's Focus Carousel */}
+                <div className="h-[480px]">
                   <FocusCarousel onTaskUpdate={handleTaskUpdate} />
                 </div>
 
-                {/* Draft Tray - Flexible height to fill remaining space */}
-                <div className="flex-1 min-h-[200px]">
+                {/* Draft Tray */}
+                <div className="h-[240px]">
                   <DraftTray 
                     tasks={dashboardData?.tasks || []}
                     selectedDraft={selectedDraft}
