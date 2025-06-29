@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -9,6 +8,7 @@ import { useFocusThemes } from '@/hooks/useFocusThemes';
 import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
+import { supabase } from '@/integrations/supabase/client';
 
 interface FocusCarouselProps {
   onTaskUpdate?: () => void;
@@ -29,17 +29,58 @@ export const FocusCarousel = ({ onTaskUpdate }: FocusCarouselProps) => {
     setCurrentIndex((prev) => (prev < themes.length - 1 ? prev + 1 : 0));
   };
 
-  const handleGenerate = async (themeId: string) => {
-    if (!user) return;
+  const createCampaignFromTheme = async (theme: any) => {
+    console.log('🏗️ Creating campaign from theme:', theme);
+    
+    const campaignData = {
+      title: theme.title,
+      theme: theme.title,
+      description: theme.description,
+      user_id: user?.id,
+      tenant_id: tenant?.id,
+      week_number: 1,
+      start_date: new Date().toISOString().split('T')[0],
+      source: 'focus_theme'
+    };
 
+    const { data: campaign, error } = await supabase
+      .from('campaigns')
+      .insert(campaignData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error creating campaign:', error);
+      throw new Error(`Failed to create campaign: ${error.message}`);
+    }
+
+    console.log('✅ Created campaign:', campaign);
+    return campaign;
+  };
+
+  const handleGenerate = async (themeId: string) => {
+    if (!user) {
+      toast.error('Please log in to generate content');
+      return;
+    }
+
+    console.log('🎯 FocusCarousel: Starting generation for theme:', themeId);
     setGeneratingTheme(themeId);
+    
     try {
       const theme = themes.find(t => t.id === themeId);
-      if (!theme) return;
+      if (!theme) {
+        throw new Error('Theme not found');
+      }
 
-      // Generate content using the existing service
+      console.log('📝 Step 1: Creating campaign from theme');
+      // Step 1: Create a real campaign from the theme
+      const campaign = await createCampaignFromTheme(theme);
+
+      console.log('🤖 Step 2: Generating content for campaign:', campaign.id);
+      // Step 2: Generate content using the real campaign ID
       const result = await generateCampaignContent(
-        themeId, // Using theme ID as campaign ID
+        campaign.id, // Use the real campaign ID
         theme.title,
         theme.description,
         user.id,
@@ -48,36 +89,40 @@ export const FocusCarousel = ({ onTaskUpdate }: FocusCarouselProps) => {
       );
 
       if (result.success) {
-        // Mark theme as generated
+        console.log('✅ Content generation successful:', result);
+        
+        // Step 3: Mark theme as generated
         await markGenerated(themeId);
         
-        // Show success toast
-        toast.success(`Added ${result.tasks?.length || 5} drafts • Open Draft Tray`, {
+        // Step 4: Show success toast
+        const taskCount = result.tasks?.length || 5;
+        toast.success(`Added ${taskCount} drafts • Open Draft Tray`, {
           duration: 5000,
           action: {
             label: 'View Drafts',
             onClick: () => {
-              // Focus could be added to open draft tray
               if (onTaskUpdate) onTaskUpdate();
             }
           }
         });
 
-        // Call task update to refresh the draft tray
+        // Step 5: Refresh the dashboard to show new drafts
         if (onTaskUpdate) {
+          console.log('🔄 Refreshing dashboard data');
           onTaskUpdate();
         }
 
-        // Move to next theme
+        // Move to next theme if available
         if (currentIndex < themes.length - 1) {
           setCurrentIndex(currentIndex + 1);
         }
       } else {
-        toast.error('Failed to generate content. Please try again.');
+        console.error('❌ Content generation failed:', result);
+        toast.error(`Failed to generate content: ${result.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error generating content:', error);
-      toast.error('Failed to generate content. Please try again.');
+      console.error('❌ Error in handleGenerate:', error);
+      toast.error(`Failed to generate content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setGeneratingTheme(null);
     }
