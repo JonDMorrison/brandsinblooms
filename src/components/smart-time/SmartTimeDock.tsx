@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useDragLayer } from 'react-beautiful-dnd';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
 import { ExpandedRibbon } from './ExpandedRibbon';
