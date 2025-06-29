@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, RefreshCw, Image as ImageIcon, X } from 'lucide-react';
+import { Loader2, RefreshCw, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ImageGalleryProps {
@@ -293,17 +293,8 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
       {/* Image Modal */}
       <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
-          <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <DialogHeader>
             <DialogTitle className="text-lg font-semibold">Image Preview</DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowImageModal(false)}
-              className="h-6 w-6 p-0 hover:bg-gray-100"
-              aria-label="Close modal"
-            >
-              <X className="w-4 h-4" />
-            </Button>
           </DialogHeader>
           {selectedImage && (
             <div className="space-y-4 overflow-y-auto">
