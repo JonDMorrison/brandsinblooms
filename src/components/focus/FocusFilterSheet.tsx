@@ -4,11 +4,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Filter } from 'lucide-react';
-import { ThemeFilters } from '@/hooks/useFocusThemes';
+import { FocusFilters } from '@/hooks/useFocusThemes';
 
 interface FocusFilterSheetProps {
-  filters: ThemeFilters;
-  onFiltersChange: (filters: ThemeFilters) => void;
+  filters: FocusFilters;
+  onFiltersChange: (filters: FocusFilters) => void;
 }
 
 export const FocusFilterSheet = ({ filters, onFiltersChange }: FocusFilterSheetProps) => {
@@ -19,7 +19,7 @@ export const FocusFilterSheet = ({ filters, onFiltersChange }: FocusFilterSheetP
     { id: 'holidays', label: 'Seasonal', description: 'Holiday and seasonal content' }
   ];
 
-  const handleFilterChange = (filterId: keyof ThemeFilters, checked: boolean) => {
+  const handleFilterChange = (filterId: keyof FocusFilters, checked: boolean) => {
     onFiltersChange({
       ...filters,
       [filterId]: checked
@@ -60,9 +60,9 @@ export const FocusFilterSheet = ({ filters, onFiltersChange }: FocusFilterSheetP
               <div key={option.id} className="flex items-start space-x-3">
                 <Checkbox
                   id={option.id}
-                  checked={filters[option.id as keyof ThemeFilters]}
+                  checked={filters[option.id as keyof FocusFilters]}
                   onCheckedChange={(checked) => 
-                    handleFilterChange(option.id as keyof ThemeFilters, !!checked)
+                    handleFilterChange(option.id as keyof FocusFilters, !!checked)
                   }
                 />
                 <div className="flex-1">
