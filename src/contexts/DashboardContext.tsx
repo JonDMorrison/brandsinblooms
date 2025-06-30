@@ -114,22 +114,33 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
 
   // Get ordered drafts based on current order
   const getOrderedDrafts = useCallback(() => {
-    if (!data?.tasks || draftOrder.length === 0) {
+    if (!data?.tasks) {
       return [];
     }
     
     const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
-    const taskMap = new Map();
-    
-    // Create a map of all available tasks
-    data.tasks
+    const availableTasks = data.tasks
       .filter((task: any) => 
         visibleStatuses.includes(task.status as TaskStatus) &&
         task.status !== TASK_STATUS.SCHEDULED
-      )
-      .forEach((task: any) => {
-        taskMap.set(task.id, task);
+      );
+    
+    // If we don't have a draft order yet (initializing), return tasks in their natural order
+    // This prevents the flash while the order is being set up
+    if (draftOrder.length === 0) {
+      return availableTasks.sort((a: any, b: any) => {
+        if (a.status === TASK_STATUS.APPROVED && b.status !== TASK_STATUS.APPROVED) return -1;
+        if (b.status === TASK_STATUS.APPROVED && a.status !== TASK_STATUS.APPROVED) return 1;
+        return 0;
       });
+    }
+    
+    const taskMap = new Map();
+    
+    // Create a map of all available tasks
+    availableTasks.forEach((task: any) => {
+      taskMap.set(task.id, task);
+    });
     
     // Return tasks in the specified order
     return draftOrder
