@@ -70,7 +70,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     setIsDockOpen(prev => !prev);
   }, []);
 
-  // Initialize draft order when data loads
+  // Initialize draft order when data loads - but only if order is empty or we have new tasks
   useEffect(() => {
     if (data?.tasks) {
       const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
@@ -87,12 +87,30 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
       
       const currentIds = availableDrafts.map((task: any) => task.id);
       
-      // Only update order if it's different from current
-      if (JSON.stringify(currentIds) !== JSON.stringify(draftOrder)) {
+      // Only initialize order if:
+      // 1. We have no existing order (first load)
+      // 2. We have new tasks that aren't in our current order
+      if (draftOrder.length === 0) {
+        console.log('🎯 Initializing draft order for first time:', currentIds);
         setDraftOrder(currentIds);
+      } else {
+        // Check for new tasks that need to be added to existing order
+        const newTasks = currentIds.filter(id => !draftOrder.includes(id));
+        const removedTasks = draftOrder.filter(id => !currentIds.includes(id));
+        
+        if (newTasks.length > 0 || removedTasks.length > 0) {
+          console.log('🎯 Adding new tasks to existing order:', { newTasks, removedTasks });
+          
+          // Remove tasks that no longer exist and add new tasks at the end
+          const updatedOrder = draftOrder
+            .filter(id => currentIds.includes(id)) // Remove deleted tasks
+            .concat(newTasks); // Add new tasks at the end
+          
+          setDraftOrder(updatedOrder);
+        }
       }
     }
-  }, [data?.tasks, draftOrder]);
+  }, [data?.tasks]); // Removed draftOrder from dependencies to prevent circular updates
 
   // Get ordered drafts based on current order
   const getOrderedDrafts = useCallback(() => {
