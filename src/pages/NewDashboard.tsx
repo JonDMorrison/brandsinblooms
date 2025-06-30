@@ -4,7 +4,6 @@ import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
-import { ImageGallery } from '@/components/new-dashboard/ImageGallery';
 import { SmartTimeDock } from '@/components/smart-time';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { UserMenu } from '@/components/UserMenu';
@@ -16,6 +15,7 @@ import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useAuth } from '@/contexts/AuthContext';
 import { scheduleDraft } from '@/lib/dashboardAPI';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { DashboardProvider } from '@/contexts/DashboardContext';
 
 interface TimeSelectionModal {
   isOpen: boolean;
@@ -23,7 +23,7 @@ interface TimeSelectionModal {
   targetDate: Date | null;
 }
 
-const NewDashboard = () => {
+const NewDashboardContent = () => {
   const { user } = useAuth();
   const { closeDock } = useDashboard();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
@@ -358,6 +358,14 @@ const NewDashboard = () => {
         </div>
       )}
     </>
+  );
+};
+
+const NewDashboard = () => {
+  return (
+    <DashboardProvider>
+      <NewDashboardContent />
+    </DashboardProvider>
   );
 };
 
