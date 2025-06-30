@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -101,7 +100,13 @@ const NewDashboard = () => {
   };
 
   const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
-    if (!timeSelectionModal.draftId || !timeSelectionModal.targetDate) return;
+    console.log('🎯 handleTimeSelection called with:', { timeOption, customTime, timeSelectionModal });
+    
+    if (!timeSelectionModal.draftId || !timeSelectionModal.targetDate) {
+      console.error('🎯 Missing required data for scheduling:', { draftId: timeSelectionModal.draftId, targetDate: timeSelectionModal.targetDate });
+      toast.error('Missing scheduling information');
+      return;
+    }
 
     setIsScheduling(true);
     
@@ -110,11 +115,14 @@ const NewDashboard = () => {
       
       if (timeOption === 'best') {
         scheduledDate = getOptimalTime(timeSelectionModal.targetDate);
+        console.log('🎯 Using optimal time:', scheduledDate);
       } else if (timeOption === 'custom' && customTime) {
         const [hours, minutes] = customTime.split(':').map(Number);
         scheduledDate.setHours(hours, minutes, 0, 0);
+        console.log('🎯 Using custom time:', scheduledDate);
       } else if (timeOption === 'now') {
         scheduledDate = new Date();
+        console.log('🎯 Using current time:', scheduledDate);
       }
 
       console.log('🎯 Scheduling draft with params:', {
@@ -230,7 +238,10 @@ const NewDashboard = () => {
             
             <div className="space-y-3">
               <button
-                onClick={() => handleTimeSelection('best')}
+                onClick={() => {
+                  console.log('🎯 Best Time button clicked');
+                  handleTimeSelection('best');
+                }}
                 disabled={isScheduling}
                 className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -239,7 +250,10 @@ const NewDashboard = () => {
               </button>
               
               <button
-                onClick={() => handleTimeSelection('now')}
+                onClick={() => {
+                  console.log('🎯 Post Now button clicked');
+                  handleTimeSelection('now');
+                }}
                 disabled={isScheduling}
                 className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -256,6 +270,7 @@ const NewDashboard = () => {
                     className="border rounded px-2 py-1 disabled:opacity-50"
                     onChange={(e) => {
                       if (e.target.value && !isScheduling) {
+                        console.log('🎯 Custom time selected:', e.target.value);
                         handleTimeSelection('custom', e.target.value);
                       }
                     }}
@@ -267,7 +282,10 @@ const NewDashboard = () => {
             
             <div className="flex gap-2 mt-6">
               <button
-                onClick={() => setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null })}
+                onClick={() => {
+                  console.log('🎯 Cancel button clicked');
+                  setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
+                }}
                 disabled={isScheduling}
                 className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
