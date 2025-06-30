@@ -15,12 +15,28 @@ interface DashboardContextType {
   stopDragging: () => void;
 }
 
+interface DashboardUIContextType {
+  isDockOpen: boolean;
+  openDock: () => void;
+  closeDock: () => void;
+  toggleDock: () => void;
+}
+
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
+const DashboardUIContext = createContext<DashboardUIContextType | undefined>(undefined);
 
 export const useDashboardContext = () => {
   const context = useContext(DashboardContext);
   if (!context) {
     throw new Error('useDashboardContext must be used within a DashboardProvider');
+  }
+  return context;
+};
+
+export const useDashboard = () => {
+  const context = useContext(DashboardUIContext);
+  if (!context) {
+    throw new Error('useDashboard must be used within a DashboardProvider');
   }
   return context;
 };
@@ -32,6 +48,7 @@ interface DashboardProviderProps {
 export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const { data, isLoading: loading, error, refetch } = useDashboardData();
   const [isDragging, setIsDragging] = useState(false);
+  const [isDockOpen, setIsDockOpen] = useState(false);
 
   const startDragging = useCallback(() => {
     console.log('🎯 Dashboard: Starting drag');
@@ -41,6 +58,18 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const stopDragging = useCallback(() => {
     console.log('🎯 Dashboard: Stopping drag');
     setIsDragging(false);
+  }, []);
+
+  const openDock = useCallback(() => {
+    setIsDockOpen(true);
+  }, []);
+
+  const closeDock = useCallback(() => {
+    setIsDockOpen(false);
+  }, []);
+
+  const toggleDock = useCallback(() => {
+    setIsDockOpen(prev => !prev);
   }, []);
 
   const handleDragEnd = useCallback((result: DropResult) => {
@@ -65,17 +94,26 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     stopDragging
   };
 
+  const uiContextValue = {
+    isDockOpen,
+    openDock,
+    closeDock,
+    toggleDock
+  };
+
   return (
     <DashboardContext.Provider value={contextValue}>
-      <DragDropContext onDragEnd={handleDragEnd}>
-        {children}
-        <SmartTimeRibbon
-          scheduledByDate={data?.scheduledByDate}
-          socialConnections={data?.socialConnections}
-          onScheduleUpdate={refetch}
-          onDragEnd={handleDragEnd}
-        />
-      </DragDropContext>
+      <DashboardUIContext.Provider value={uiContextValue}>
+        <DragDropContext onDragEnd={handleDragEnd}>
+          {children}
+          <SmartTimeRibbon
+            scheduledByDate={data?.scheduledByDate}
+            socialConnections={data?.socialConnections}
+            onScheduleUpdate={refetch}
+            onDragEnd={handleDragEnd}
+          />
+        </DragDropContext>
+      </DashboardUIContext.Provider>
     </DashboardContext.Provider>
   );
 };
