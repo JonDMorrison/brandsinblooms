@@ -99,14 +99,14 @@ export const ImagePicker = ({
         </form>
       )}
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         {images.map((image, index) => (
           <button
             key={image.id}
             onClick={() => onSelect(image.id)}
             onKeyDown={(e) => handleKeyDown(e, image.id, index)}
             className={cn(
-              "relative w-24 h-24 rounded-lg border-2 transition-all duration-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-[#68BEB9] focus:ring-offset-2",
+              "relative w-32 h-20 rounded-lg border-2 transition-all duration-200 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-[#68BEB9] focus:ring-offset-2",
               selected === image.id 
                 ? "border-[#68BEB9] shadow-md" 
                 : "border-gray-200 hover:border-[#68BEB9]"
