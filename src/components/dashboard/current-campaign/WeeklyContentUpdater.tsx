@@ -5,7 +5,7 @@ import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { cleanupDuplicateCampaigns, generateMeaningfulTheme } from '@/utils/campaignCleanup';
-import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
+import { generateCampaignContent, ContentGenerationResult } from '@/components/homepage/ContentGenerationServices';
 import { toast } from 'sonner';
 
 export const WeeklyContentUpdater = () => {
@@ -175,7 +175,7 @@ export const WeeklyContentUpdater = () => {
           tenant?.id
         );
 
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise<ContentGenerationResult>((_, reject) => 
           setTimeout(() => reject(new Error('Content generation timeout')), 45000) // 45 second timeout
         );
 

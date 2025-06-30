@@ -213,18 +213,18 @@ export const generateCampaignContent = async (
           setTimeout(() => reject(new Error(`${contentType} generation timeout`)), 30000)
         );
 
-        const { data: contentResult, error: contentError } = await Promise.race([
+        const result = await Promise.race([
           contentPromise,
           timeoutPromise
-        ]);
+        ]) as { data?: any; error?: any };
 
-        if (contentError) {
-          console.error(`❌ Error generating ${contentType} content:`, contentError);
-          errors.push(`Failed to generate ${contentType} content: ${contentError.message}`);
+        if (result.error) {
+          console.error(`❌ Error generating ${contentType} content:`, result.error);
+          errors.push(`Failed to generate ${contentType} content: ${result.error.message}`);
           continue;
         }
 
-        if (!contentResult?.content) {
+        if (!result.data?.content) {
           console.error(`❌ No content generated for ${contentType}`);
           errors.push(`No content generated for ${contentType}`);
           continue;
@@ -234,7 +234,7 @@ export const generateCampaignContent = async (
         const { error: updateError } = await supabase
           .from('content_tasks')
           .update({ 
-            ai_output: contentResult.content,
+            ai_output: result.data.content,
             status: 'review'
           })
           .eq('id', newTask.id);
@@ -246,7 +246,7 @@ export const generateCampaignContent = async (
         }
 
         console.log(`✅ Generated and saved ${contentType} content`);
-        generatedTasks.push({ ...newTask, ai_output: contentResult.content, status: 'review' });
+        generatedTasks.push({ ...newTask, ai_output: result.data.content, status: 'review' });
 
       } catch (error) {
         console.error(`❌ Error in ${contentType} generation:`, error);
