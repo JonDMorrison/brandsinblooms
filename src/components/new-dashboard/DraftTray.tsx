@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -102,18 +101,8 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
     }
   };
 
-  // Filter out scheduled tasks and show only approved/generated content
-  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
-  const availableDrafts = tasks
-    .filter(task => 
-      visibleStatuses.includes(task.status as TaskStatus) &&
-      task.status !== TASK_STATUS.SCHEDULED // Explicitly exclude scheduled tasks
-    )
-    .sort((a, b) => {
-      if (a.status === TASK_STATUS.APPROVED && b.status !== TASK_STATUS.APPROVED) return -1;
-      if (b.status === TASK_STATUS.APPROVED && a.status !== TASK_STATUS.APPROVED) return 1;
-      return 0;
-    });
+  // Use the tasks prop directly (now ordered from context)
+  const availableDrafts = tasks;
 
   return (
     <Card className="h-full flex flex-col">
@@ -175,6 +164,8 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                             draft.status === 'approved' && "border-l-4 border-l-[#68BEB9]"
                           )}
                           onClick={() => onSelectDraft?.(draft)}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">

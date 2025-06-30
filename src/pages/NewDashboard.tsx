@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { scheduleDraft } from '@/lib/dashboardAPI';
 import { useDashboardContext } from '@/contexts/DashboardContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
+import { reorderArray } from '@/utils/dragUtils';
 
 interface TimeSelectionModal {
   isOpen: boolean;
@@ -24,7 +25,7 @@ interface TimeSelectionModal {
 
 const NewDashboardContent = () => {
   const { user } = useAuth();
-  const { closeDock, isDragging } = useDashboardContext();
+  const { closeDock, isDragging, draftOrder, setDraftOrder, getOrderedDrafts } = useDashboardContext();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const { schedulePost } = useScheduledPosts();
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
@@ -93,6 +94,22 @@ const NewDashboardContent = () => {
     }
 
     console.log('🎯 Drag from', source.droppableId, 'to', destination.droppableId);
+
+    // Handle reordering within the draft-tray
+    if (
+      source.droppableId === 'draft-tray' &&
+      destination.droppableId === 'draft-tray' &&
+      source.index !== destination.index
+    ) {
+      console.log('🎯 Reordering within draft tray:', { from: source.index, to: destination.index });
+      
+      // Reorder the draft array
+      const newOrder = reorderArray(draftOrder, source.index, destination.index);
+      setDraftOrder(newOrder);
+      
+      console.log('🎯 New draft order:', newOrder);
+      return;
+    }
 
     // If it's just a reorder within the same container, don't close the dock
     if (source.droppableId === destination.droppableId) {
@@ -288,7 +305,7 @@ const NewDashboardContent = () => {
             <div className="col-span-4">
               <div className="h-[720px]">
                 <DraftTray 
-                  tasks={dashboardData?.tasks || []}
+                  tasks={getOrderedDrafts()}
                   selectedDraft={selectedDraft}
                   onSelectDraft={setSelectedDraft}
                   justApprovedId={justApprovedId}
