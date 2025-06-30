@@ -1,16 +1,15 @@
-
 import React from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
-import { DashboardProvider } from '@/contexts/DashboardContext';
+import { DashboardProvider } from '@/context/DashboardContext';
 import { TodayFocusCard } from '@/components/dashboard-social/TodayFocusCard';
 import { DraftTray } from '@/components/dashboard-social/DraftTray';
 import { ComposerPanel } from '@/components/dashboard-social/ComposerPanel';
 import { SmartTimeRibbon } from '@/components/dashboard-social/SmartTimeRibbon';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboardContext } from '@/context/DashboardContext';
 
 const DashboardSocialContent = () => {
-  const { scheduleDraft } = useDashboard();
+  const { scheduleDraft } = useDashboardContext();
 
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;

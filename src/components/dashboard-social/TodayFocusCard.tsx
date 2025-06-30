@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboardContext } from '@/context/DashboardContext';
 
 export const TodayFocusCard = () => {
-  const { currentCampaign, drafts, loading } = useDashboard();
+  const { currentCampaign, drafts, loading } = useDashboardContext();
 
   const getCampaignTitle = () => {
     if (!currentCampaign) return 'No Active Campaign';
@@ -72,7 +71,7 @@ export const TodayFocusCard = () => {
                   fill="currentColor"
                 />
                 <path
-                  d="M7 9c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm10 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+                  d="M7 9c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
                   fill="currentColor"
                 />
               </svg>

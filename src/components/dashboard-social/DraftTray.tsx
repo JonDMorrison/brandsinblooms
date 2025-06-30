@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboardContext } from '@/context/DashboardContext';
 import { Badge } from '@/components/ui/badge';
 import { 
   FileText, 
@@ -15,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export const DraftTray = () => {
-  const { drafts, activeDraft, setActiveDraft, loading } = useDashboard();
+  const { drafts, activeDraft, setActiveDraft, loading } = useDashboardContext();
 
   const getTaskIcon = (postType: string) => {
     switch (postType) {

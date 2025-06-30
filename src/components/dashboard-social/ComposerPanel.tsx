@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboardContext } from '@/context/DashboardContext';
 import { PulsePanel } from '@/components/dashboard-social/PulsePanel';
 import { 
   Bold, 
@@ -26,7 +26,7 @@ export const ComposerPanel = () => {
     updateDraftContent, 
     composerMode, 
     setComposerMode 
-  } = useDashboard();
+  } = useDashboardContext();
   
   const [content, setContent] = useState('');
   const [characterCount, setCharacterCount] = useState(0);

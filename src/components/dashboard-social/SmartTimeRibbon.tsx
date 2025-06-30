@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboardContext } from '@/context/DashboardContext';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useSmartTime } from '@/hooks/useSmartTime';
 import { usePublishFlow } from '@/hooks/usePublishFlow';
@@ -19,7 +19,7 @@ export const SmartTimeRibbon = () => {
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState<Date>(new Date());
 
-  const { scheduleDraft, setActiveDraft } = useDashboard();
+  const { scheduleDraft, setActiveDraft } = useDashboardContext();
   const { scheduledPosts, schedulePost, reschedulePost, unschedulePost, deleteScheduledPost, refreshScheduledPosts } = useScheduledPosts();
   const { getBestTimesForPlatform } = useSmartTime();
   const { approveDraft, scheduleDraft: scheduleApprovedContent } = usePublishFlow();
