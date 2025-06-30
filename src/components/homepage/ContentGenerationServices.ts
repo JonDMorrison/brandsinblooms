@@ -154,13 +154,13 @@ export const generateCampaignContent = async (
       };
     }
 
-    // Define content types to generate
+    // Define content types to generate - prioritize reliable ones first
     const contentTypes = [
       'facebook',
       'instagram', 
-      'newsletter',
       'blog',
-      'video'
+      'newsletter',
+      'video' // Keep video last as it seems to have issues
     ];
 
     console.log('🔄 Generating content for types:', contentTypes);
@@ -168,18 +168,18 @@ export const generateCampaignContent = async (
     const generatedTasks = [];
     const errors = [];
 
-    // Generate content for each type
+    // Generate content for each type with individual error handling
     for (const contentType of contentTypes) {
       try {
         console.log(`🎨 Generating ${contentType} content...`);
 
-        // Create the content task with 'planned' status instead of 'scheduled'
+        // Create the content task with 'planned' status first
         const taskData = {
           campaign_id: campaignId,
           user_id: userId,
           tenant_id: tenantId,
           post_type: contentType,
-          status: 'planned', // Changed from 'scheduled' to 'planned'
+          status: 'planned',
           scheduled_date: new Date().toISOString().split('T')[0]
         };
 
@@ -197,8 +197,8 @@ export const generateCampaignContent = async (
 
         console.log(`✅ Created ${contentType} task:`, newTask.id);
 
-        // Generate content using the edge function
-        const { data: contentResult, error: contentError } = await supabase.functions.invoke('generate-content', {
+        // Generate content with timeout to prevent hanging
+        const contentPromise = supabase.functions.invoke('generate-content', {
           body: {
             postType: contentType,
             campaignTitle: campaignTheme,
@@ -207,6 +207,16 @@ export const generateCampaignContent = async (
             enforceCompanyName: true
           }
         });
+
+        // Add timeout to prevent infinite waiting
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(`${contentType} generation timeout`)), 30000)
+        );
+
+        const { data: contentResult, error: contentError } = await Promise.race([
+          contentPromise,
+          timeoutPromise
+        ]);
 
         if (contentError) {
           console.error(`❌ Error generating ${contentType} content:`, contentError);
@@ -225,7 +235,7 @@ export const generateCampaignContent = async (
           .from('content_tasks')
           .update({ 
             ai_output: contentResult.content,
-            status: 'review' // Update to review status after generation
+            status: 'review'
           })
           .eq('id', newTask.id);
 
@@ -241,6 +251,9 @@ export const generateCampaignContent = async (
       } catch (error) {
         console.error(`❌ Error in ${contentType} generation:`, error);
         errors.push(`${contentType}: ${error.message}`);
+        
+        // Continue with other content types even if this one fails
+        continue;
       }
     }
 
@@ -250,15 +263,16 @@ export const generateCampaignContent = async (
       errors
     });
 
-    if (generatedTasks.length === 0) {
+    // Return success if we generated at least some content
+    if (generatedTasks.length > 0) {
+      return {
+        success: true,
+        message: `Generated ${generatedTasks.length}/${contentTypes.length} content pieces${errors.length > 0 ? `. Issues with: ${errors.length} items` : ''}`,
+        tasks: generatedTasks
+      };
+    } else {
       throw new Error(`Failed to generate any content. Errors: ${errors.join(', ')}`);
     }
-
-    return {
-      success: true,
-      message: `Generated ${generatedTasks.length}/${contentTypes.length} content pieces${errors.length > 0 ? `. Issues: ${errors.length}` : ''}`,
-      tasks: generatedTasks
-    };
 
   } catch (error) {
     console.error('❌ Campaign content generation failed:', error);

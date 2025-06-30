@@ -162,10 +162,11 @@ export const WeeklyContentUpdater = () => {
         console.log('🎯 Auto-generating content for campaign:', campaign.theme);
         
         const toastId = toast.loading('Setting up your weekly content...', { 
-          duration: 10000 
+          duration: 15000 // Increased timeout
         });
 
-        const result = await generateCampaignContent(
+        // Add timeout wrapper for the entire generation process
+        const generationPromise = generateCampaignContent(
           campaign.id,
           campaign.theme || campaign.title,
           campaign.description || '',
@@ -174,19 +175,29 @@ export const WeeklyContentUpdater = () => {
           tenant?.id
         );
 
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Content generation timeout')), 45000) // 45 second timeout
+        );
+
+        const result = await Promise.race([generationPromise, timeoutPromise]);
+
         if (result.success && mountedRef.current) {
           console.log('✅ Auto-generated content successfully');
-          toast.success('Your weekly content is ready for review!', { 
+          toast.success(`Your weekly content is ready! Generated ${result.tasks?.length || 0} pieces.`, { 
             id: toastId 
           });
         } else if (mountedRef.current) {
           console.error('❌ Auto-generation failed:', result.message);
-          toast.dismiss(toastId);
+          toast.error('Content generation had some issues, but partial content may be available.', {
+            id: toastId
+          });
         }
       } catch (error) {
         console.error('❌ Error auto-generating content:', error);
         if (mountedRef.current) {
-          toast.dismiss('auto-setup');
+          toast.error('Content generation timed out. Please try manually generating content.', {
+            duration: 8000
+          });
         }
       }
     };
@@ -201,7 +212,7 @@ export const WeeklyContentUpdater = () => {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [user, tenant]); // Removed isProcessing from dependencies to prevent infinite loop
+  }, [user, tenant]);
 
   return null; // This is a background component
 };
