@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -266,6 +265,49 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     );
   };
 
+  const renderImageSection = () => {
+    if (!selectedDraft || selectedDraft.post_type === 'newsletter') {
+      return null;
+    }
+
+    return (
+      <div className="mt-4 border-t pt-4">
+        <h4 className="text-sm font-medium text-[#3E5A6B] mb-3">Images</h4>
+        <ImagePicker
+          images={images}
+          selected={selectedImageId}
+          onSelect={handleImageSelect}
+          onRefresh={handleImageRefresh}
+          onSearch={handleImageSearch}
+          loading={imagesLoading}
+        />
+        
+        {!isInstagram && (
+          <div className="flex items-center space-x-2 mt-3">
+            <Checkbox
+              id="post-without-image"
+              checked={postWithoutImage}
+              onCheckedChange={(checked) => {
+                setPostWithoutImage(!!checked);
+                if (checked) setSelectedImageId(null);
+              }}
+            />
+            <label htmlFor="post-without-image" className="text-sm text-gray-600">
+              Post without an image
+            </label>
+          </div>
+        )}
+        
+        {isInstagram && !hasValidImage && (
+          <div className="flex items-center gap-2 text-red-600 text-sm mt-2">
+            <AlertCircle className="w-4 h-4" />
+            Instagram posts need an image.
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <TooltipProvider>
       <Card className="h-full flex flex-col overflow-hidden">
@@ -327,41 +369,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                   placeholder="Write your content here..."
                 />
               
-                {selectedDraft.post_type !== 'newsletter' && (
-                  <div className="space-y-3">
-                    <ImagePicker
-                      images={images}
-                      selected={selectedImageId}
-                      onSelect={handleImageSelect}
-                      onRefresh={handleImageRefresh}
-                      onSearch={handleImageSearch}
-                      loading={imagesLoading}
-                    />
-                  
-                    {!isInstagram && (
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="post-without-image"
-                          checked={postWithoutImage}
-                          onCheckedChange={(checked) => {
-                            setPostWithoutImage(!!checked);
-                            if (checked) setSelectedImageId(null);
-                          }}
-                        />
-                        <label htmlFor="post-without-image" className="text-sm text-gray-600">
-                          Post without an image
-                        </label>
-                      </div>
-                    )}
-                  
-                    {isInstagram && !hasValidImage && (
-                      <div className="flex items-center gap-2 text-red-600 text-sm">
-                        <AlertCircle className="w-4 h-4" />
-                        Instagram posts need an image.
-                      </div>
-                    )}
-                  </div>
-                )}
+                {renderImageSection()}
               
                 <div className="flex justify-end gap-2 mt-4">
                   <Button variant="outline" onClick={() => setIsEditing(false)}>
@@ -374,7 +382,10 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                 </div>
               </div>
             ) : (
-              renderContent()
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {renderContent()}
+                {!isEditing && renderImageSection()}
+              </div>
             )}
 
             <div className="mt-4 p-4 border-t flex-shrink-0">

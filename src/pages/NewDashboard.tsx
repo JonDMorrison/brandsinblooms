@@ -225,18 +225,14 @@ const NewDashboard = () => {
                 </div>
               </div>
 
-              <div className="col-span-8 space-y-6">
-                <div className="h-[480px]">
+              <div className="col-span-8">
+                <div className="h-[720px]">
                   <ComposerPanel 
                     selectedDraft={selectedDraft}
                     socialConnections={dashboardData?.socialConnections || []}
                     onTaskUpdate={handleTaskUpdate}
                     onApproved={handleApproved}
                   />
-                </div>
-
-                <div className="h-[240px]">
-                  <ImageGallery selectedDraft={selectedDraft} />
                 </div>
               </div>
             </div>
