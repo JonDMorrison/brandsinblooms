@@ -299,7 +299,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                 </div>
               </div>
             ) : (
-              Object.entries(groupedScheduled).map(([date, tasksForDate]) => (
+              Object.entries(groupedScheduled).map(([date, tasksForDate]: [string, any[]]) => (
                 <div key={date}>
                   <h4 className="text-sm font-medium text-[#3E5A6B] mb-2">{date}</h4>
                   <div className="space-y-2">

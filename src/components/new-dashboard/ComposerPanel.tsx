@@ -11,7 +11,6 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
-import { useDashboard } from '@/contexts/DashboardContext';
 import { useDashboardContext } from '@/contexts/DashboardContext';
 import { useComposerImages } from './hooks/useComposerImages';
 import { ApprovalButton } from './components/ApprovalButton';
@@ -42,8 +41,7 @@ const getPostTypeLabel = (postType: string) => {
 };
 
 export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpdate, onApproved }: ComposerPanelProps) => {
-  const { openDock } = useDashboard();
-  const { startDragging } = useDashboardContext();
+  const { openDock, startDragging } = useDashboardContext();
   const [editContent, setEditContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
