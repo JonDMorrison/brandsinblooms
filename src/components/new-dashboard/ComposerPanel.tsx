@@ -473,8 +473,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                   placeholder="Write your content here..."
                 />
               
-                {renderImageSection()}
-              
                 <div className="flex justify-end gap-2 mt-4 flex-shrink-0">
                   <Button variant="outline" onClick={() => setIsEditing(false)}>
                     Cancel
@@ -488,9 +486,10 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden">
                 {renderContent()}
-                {!isEditing && renderImageSection()}
               </div>
             )}
+
+            {renderImageSection()}
 
             <div className="mt-4 p-4 border-t flex-shrink-0">
               {!selectedDraft ? (
