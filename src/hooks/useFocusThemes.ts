@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
+import { calculateSeasonalScore, shouldShowPlanningAheadLabel, detectThemeSeason } from '@/utils/seasonalUtils';
 
 export interface FocusTheme {
   id: string;
@@ -15,6 +15,12 @@ export interface FocusTheme {
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   timeToComplete: string;
   seasonality?: string[];
+  // New seasonal properties
+  weekNumber: number;
+  seasonalScore: number;
+  label?: 'Planning Ahead' | 'Current Season';
+  isSeasonallyAppropriate: boolean;
+  themeSeason: 'spring' | 'summer' | 'fall' | 'winter' | 'neutral';
 }
 
 // Helper function to determine category based on content
@@ -69,18 +75,30 @@ const generateTags = (theme: any): string[] => {
   return tags.length > 0 ? tags : ['seasonal'];
 };
 
-// Transform database theme to FocusTheme format
-const transformTheme = (dbTheme: any): FocusTheme => ({
-  id: `week-${dbTheme.week_number}`,
-  title: dbTheme.title,
-  description: dbTheme.content_ideas || dbTheme.theme || 'Seasonal gardening activities and tips',
-  teaser: dbTheme.seasonal_focus || dbTheme.target_audience_notes || 'Professional garden center guidance',
-  category: categorizeTheme(dbTheme),
-  tags: generateTags(dbTheme),
-  difficulty: getDifficulty(dbTheme),
-  timeToComplete: getTimeCommitment(dbTheme),
-  seasonality: generateTags(dbTheme).filter(tag => ['spring', 'summer', 'fall', 'winter'].includes(tag))
-});
+// Enhanced transform function with seasonal data
+const transformTheme = (dbTheme: any, currentWeek: number): FocusTheme => {
+  const seasonalScore = calculateSeasonalScore(dbTheme, currentWeek);
+  const themeSeason = detectThemeSeason(dbTheme);
+  const showPlanningAhead = shouldShowPlanningAheadLabel(dbTheme, currentWeek);
+  
+  return {
+    id: `week-${dbTheme.week_number}`,
+    title: dbTheme.title,
+    description: dbTheme.content_ideas || dbTheme.theme || 'Seasonal gardening activities and tips',
+    teaser: dbTheme.seasonal_focus || dbTheme.target_audience_notes || 'Professional garden center guidance',
+    category: categorizeTheme(dbTheme),
+    tags: generateTags(dbTheme),
+    difficulty: getDifficulty(dbTheme),
+    timeToComplete: getTimeCommitment(dbTheme),
+    seasonality: generateTags(dbTheme).filter(tag => ['spring', 'summer', 'fall', 'winter'].includes(tag)),
+    // New seasonal properties
+    weekNumber: dbTheme.week_number,
+    seasonalScore,
+    label: showPlanningAhead ? 'Planning Ahead' : (seasonalScore >= 80 ? 'Current Season' : undefined),
+    isSeasonallyAppropriate: seasonalScore >= 60,
+    themeSeason
+  };
+};
 
 export interface FocusFilters {
   categories: string[];
@@ -110,14 +128,12 @@ export const useFocusThemes = () => {
     try {
       const currentWeek = getCurrentWeekNumber();
       
-      // Fetch themes around current week (current + next 4 weeks for variety)
-      const weekNumbers = [
-        currentWeek,
-        (currentWeek % 52) + 1,
-        ((currentWeek + 1) % 52) + 1,
-        ((currentWeek + 2) % 52) + 1,
-        ((currentWeek + 3) % 52) + 1
-      ];
+      // Fetch a wider range of themes for better seasonal variety (current + 8 weeks)
+      const weekNumbers = [];
+      for (let i = 0; i < 12; i++) {
+        const week = ((currentWeek + i - 1) % 52) + 1;
+        weekNumbers.push(week);
+      }
 
       console.log('🗓️ Fetching themes for weeks:', weekNumbers, 'Current week (ISO):', currentWeek);
 
@@ -136,8 +152,8 @@ export const useFocusThemes = () => {
 
       console.log('📊 Fetched master themes:', masterThemes?.length || 0);
 
-      // Transform database themes to FocusTheme format
-      let transformedThemes = (masterThemes || []).map(transformTheme);
+      // Transform themes with seasonal data
+      let transformedThemes = (masterThemes || []).map(theme => transformTheme(theme, currentWeek));
 
       // Get user theme status if we have tenant data
       let userThemeStatuses: any[] = [];
@@ -160,6 +176,11 @@ export const useFocusThemes = () => {
           if (userStatus && ['generated', 'skipped'].includes(userStatus.status)) {
             return filters.showCompleted;
           }
+        }
+
+        // Filter out themes with very poor seasonal scores (unless showing completed)
+        if (!filters.showCompleted && theme.seasonalScore < 20) {
+          return false;
         }
 
         // Apply category filter
@@ -186,7 +207,22 @@ export const useFocusThemes = () => {
         return true;
       });
 
-      console.log('✅ Final filtered themes:', filteredThemes.length);
+      // Sort themes by seasonal appropriateness (highest score first)
+      filteredThemes.sort((a, b) => {
+        // Primary sort: seasonal score (higher is better)
+        if (b.seasonalScore !== a.seasonalScore) {
+          return b.seasonalScore - a.seasonalScore;
+        }
+        
+        // Secondary sort: week proximity to current week
+        const currentWeekDiffA = Math.abs(a.weekNumber - currentWeek);
+        const currentWeekDiffB = Math.abs(b.weekNumber - currentWeek);
+        return currentWeekDiffA - currentWeekDiffB;
+      });
+
+      console.log('✅ Final filtered and sorted themes:', filteredThemes.length);
+      console.log('🎯 Theme seasonal scores:', filteredThemes.map(t => ({ title: t.title, score: t.seasonalScore, label: t.label })));
+      
       setThemes(filteredThemes);
     } catch (error) {
       console.error('Error loading themes:', error);

@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Calendar, Clock } from 'lucide-react';
 import { getFocusThemeIcon } from './iconMappings';
 import { FocusTheme } from '@/hooks/useFocusThemes';
 
@@ -36,12 +37,44 @@ export const FocusCard = ({ theme, onGenerate, onSkip, isGenerating }: FocusCard
     return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
+  const getPlanningAheadBadgeColor = () => {
+    return 'bg-amber-100 text-amber-800 border-amber-200';
+  };
+
+  const getCurrentSeasonBadgeColor = () => {
+    return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+  };
+
   return (
     <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-md p-6 h-full flex flex-col items-center justify-center border border-white/20">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-4 flex-wrap justify-center">
         <Badge className={`${getCategoryColor(theme.category)} border`}>
           {getCategoryLabel(theme.category)}
         </Badge>
+        
+        {/* Seasonal Label Badge */}
+        {theme.label === 'Planning Ahead' && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge className={`${getPlanningAheadBadgeColor()} border flex items-center gap-1`}>
+                  <Calendar className="w-3 h-3" />
+                  Planning Ahead
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="text-sm max-w-xs">This content is for upcoming weeks - perfect for planning ahead!</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
+        {theme.label === 'Current Season' && (
+          <Badge className={`${getCurrentSeasonBadgeColor()} border flex items-center gap-1`}>
+            <Clock className="w-3 h-3" />
+            Perfect Timing
+          </Badge>
+        )}
       </div>
 
       {/* Enhanced Icon with solid brand color background */}
