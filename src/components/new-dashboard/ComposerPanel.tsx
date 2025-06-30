@@ -1,23 +1,22 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle, Loader2, Instagram, Facebook, Mail, BookOpen, Video, FileText, GripVertical, Calendar } from 'lucide-react';
+import { Edit, Save, CheckCircle, Loader2, Instagram, Facebook, Mail, BookOpen, Video, FileText, GripVertical, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
-import { useUnsplash } from '@/hooks/useUnsplash';
-import { ImagePicker } from '@/components/composer/ImagePicker';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
 import { supabase } from '@/integrations/supabase/client';
-import { ImageAttachment } from '@/lib/contentTypes';
-import { extractKeywords } from '@/utils/imageKeywords';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { useComposerImages } from './hooks/useComposerImages';
+import { ApprovalButton } from './components/ApprovalButton';
+import { ContentDisplay } from './components/ContentDisplay';
+import { ImageSection } from './components/ImageSection';
 
 interface ComposerPanelProps {
   selectedDraft?: any;
@@ -48,15 +47,23 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [approving, setApproving] = useState(false);
-  const [images, setImages] = useState<ImageAttachment[]>([]);
-  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
-  const [postWithoutImage, setPostWithoutImage] = useState(false);
-  const [imagesFetching, setImagesFetching] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
   const [isDragMode, setIsDragMode] = useState(false);
 
   const { scheduledPosts } = useScheduledPosts();
-  const { getSmartImages, searchImages, refreshImages, loading: imagesLoading } = useUnsplash();
+  
+  const {
+    images,
+    selectedImageId,
+    postWithoutImage,
+    setPostWithoutImage,
+    imagesFetching,
+    imageError,
+    imagesLoading,
+    handleImageSelect,
+    handleImageRefresh,
+    handleImageSearch,
+    getSelectedImage
+  } = useComposerImages(selectedDraft);
 
   const relatedScheduledPosts = scheduledPosts.filter(post => 
     post.content_id === selectedDraft?.id
@@ -71,186 +78,11 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const hasValidImage = selectedImageId && images.find(img => img.id === selectedImageId);
   const canApprove = hasValidImage || (!needsImage && postWithoutImage);
 
-  const getApprovalButtonStatus = () => {
-    const issues = [];
-    
-    if (!selectedDraft) {
-      issues.push("No draft selected - choose a draft from the tray first");
-    }
-    
-    if (selectedDraft && !editContent.trim()) {
-      issues.push("Content is empty - add some text first");
-    }
-    
-    if (socialConnections.length === 0) {
-      issues.push("No social media accounts connected - connect Instagram or Facebook first");
-    }
-    
-    if (selectedDraft && isInstagram && !hasValidImage) {
-      issues.push("Instagram posts require an image - select one from the gallery");
-    }
-    
-    if (selectedDraft && selectedDraft.post_type?.toLowerCase() === 'facebook' && !hasValidImage && !postWithoutImage) {
-      issues.push("Facebook posts need an image OR check 'Post without an image'");
-    }
-    
-    const isDisabled = issues.length > 0 || saving || approving;
-    
-    return {
-      isDisabled,
-      issues,
-      tooltipContent: issues.length > 0 ? (
-        <div className="space-y-2">
-          <div className="font-medium flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            Requirements not met:
-          </div>
-          <ul className="space-y-1">
-            {issues.map((issue, index) => (
-              <li key={index} className="text-sm flex items-start gap-2">
-                <span className="text-orange-400 mt-0.5">•</span>
-                {issue}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null
-    };
-  };
-
-  const approvalStatus = getApprovalButtonStatus();
-
   useEffect(() => {
     if (selectedDraft?.ai_output) {
-      console.log('[COMPOSER] Selected draft changed:', selectedDraft.id, selectedDraft.post_type);
       setEditContent(selectedDraft.ai_output);
-      setImageError(null);
-      
-      if (selectedDraft.attachments?.image) {
-        console.log('[COMPOSER] Found existing image attachment');
-        const existingImage = selectedDraft.attachments.image;
-        setImages([existingImage]);
-        setSelectedImageId(existingImage.id);
-      } else {
-        console.log('[COMPOSER] No existing image, fetching new ones');
-        fetchImagesForDraft();
-      }
-    } else {
-      console.log('[COMPOSER] No draft or content, clearing images');
-      setImages([]);
-      setSelectedImageId(null);
-      setImageError(null);
     }
   }, [selectedDraft]);
-
-  const fetchImagesForDraft = async () => {
-    if (!selectedDraft?.ai_output) {
-      console.log('[COMPOSER] No content to extract keywords from');
-      return;
-    }
-    
-    setImagesFetching(true);
-    setImageError(null);
-    
-    try {
-      const keywords = extractKeywords(selectedDraft.ai_output, 'garden center plants');
-      console.log('[COMPOSER] Extracted keywords for images:', keywords);
-      
-      let query = keywords;
-      
-      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
-        query = `${keywords} garden center`;
-      }
-      
-      console.log('[COMPOSER] Final garden center query:', query);
-      
-      const fetchedImages = await getSmartImages(query);
-      console.log('[COMPOSER] Fetched images:', fetchedImages.length);
-      setImages(fetchedImages);
-      
-      if (fetchedImages.length > 0) {
-        setSelectedImageId(fetchedImages[0].id);
-        console.log('[COMPOSER] Auto-selected first image:', fetchedImages[0].id);
-      } else {
-        console.warn('[COMPOSER] No images returned, trying fallback');
-        const fallbackQuery = `${selectedDraft.post_type || 'gardening'} garden center plants`;
-        const fallbackImages = await getSmartImages(fallbackQuery);
-        
-        if (fallbackImages.length > 0) {
-          setImages(fallbackImages);
-          setSelectedImageId(fallbackImages[0].id);
-        } else {
-          setImageError('No relevant garden center images found');
-        }
-      }
-    } catch (error) {
-      console.error('[COMPOSER] Error fetching images:', error);
-      setImageError('Failed to load images');
-      setImages([]);
-    } finally {
-      setImagesFetching(false);
-    }
-  };
-
-  const handleImageSelect = (imageId: string) => {
-    console.log('[COMPOSER] Image selected:', imageId);
-    setSelectedImageId(imageId);
-    setPostWithoutImage(false);
-  };
-
-  const handleImageRefresh = async () => {
-    if (!selectedDraft?.ai_output) return;
-    
-    console.log('[COMPOSER] Refreshing images');
-    setImagesFetching(true);
-    setImageError(null);
-    
-    try {
-      const keywords = extractKeywords(selectedDraft.ai_output, 'garden center plants');
-      let query = keywords;
-      
-      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
-        query = `${keywords} garden center`;
-      }
-      
-      const newImages = await refreshImages(query);
-      console.log('[COMPOSER] Refreshed images:', newImages.length);
-      setImages(newImages);
-      setSelectedImageId(newImages.length > 0 ? newImages[0].id : null);
-    } catch (error) {
-      console.error('[COMPOSER] Error refreshing images:', error);
-      setImageError('Failed to refresh images');
-    } finally {
-      setImagesFetching(false);
-    }
-  };
-
-  const handleImageSearch = async (query: string) => {
-    console.log('[COMPOSER] Searching images for:', query);
-    setImagesFetching(true);
-    setImageError(null);
-    
-    try {
-      let enhancedQuery = query;
-      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
-        enhancedQuery = `${query} garden center`;
-      }
-      
-      const searchResults = await searchImages(enhancedQuery);
-      console.log('[COMPOSER] Search results:', searchResults.length);
-      setImages(searchResults);
-      setSelectedImageId(searchResults.length > 0 ? searchResults[0].id : null);
-    } catch (error) {
-      console.error('[COMPOSER] Error searching images:', error);
-      setImageError('Failed to search images');
-    } finally {
-      setImagesFetching(false);
-    }
-  };
-
-  const getSelectedImage = (): ImageAttachment | null => {
-    return images.find(img => img.id === selectedImageId) || null;
-  };
 
   const handleSave = async () => {
     if (!selectedDraft) return;
@@ -327,106 +159,9 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setIsEditing(false);
   };
 
-  const renderContent = () => {
-    if (!selectedDraft) {
-      return (
-        <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <div className="text-gray-500 mb-2">No draft selected</div>
-            <p className="text-sm text-gray-400">Select a draft from the tray to compose or manage</p>
-          </div>
-        </div>
-      );
-    }
-
-    const content = selectedDraft.ai_output || 'No content generated yet';
-    
-    if (selectedDraft.post_type === 'newsletter') {
-      return (
-        <div className="flex-1 overflow-y-auto min-h-[500px]">
-          <NewsletterPreview 
-            content={content}
-            className="min-h-[200px]"
-          />
-        </div>
-      );
-    }
-    
-    return (
-      <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto min-h-[500px]">
-        <p className="whitespace-pre-wrap text-gray-700 break-words leading-relaxed">
-          {content}
-        </p>
-      </div>
-    );
-  };
-
-  const renderImageSection = () => {
-    if (!selectedDraft || selectedDraft.post_type === 'newsletter') {
-      return null;
-    }
-
-    const isLoadingImages = imagesFetching || imagesLoading;
-
-    return (
-      <div className="mt-4 border-t pt-4 flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
-          <h4 className="text-sm font-medium text-[#3E5A6B]">Images</h4>
-          {isLoadingImages && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Loading images...
-            </div>
-          )}
-        </div>
-        
-        {imageError && (
-          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-            {imageError}
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => fetchImagesForDraft()}
-              className="ml-2 h-auto p-1 text-red-600 hover:text-red-700"
-            >
-              Retry
-            </Button>
-          </div>
-        )}
-        
-        <ImagePicker
-          images={images}
-          selected={selectedImageId}
-          onSelect={handleImageSelect}
-          onRefresh={handleImageRefresh}
-          onSearch={handleImageSearch}
-          loading={isLoadingImages}
-        />
-        
-        {!isInstagram && (
-          <div className="flex items-center space-x-2 mt-3">
-            <Checkbox
-              id="post-without-image"
-              checked={postWithoutImage}
-              onCheckedChange={(checked) => {
-                setPostWithoutImage(!!checked);
-                if (checked) setSelectedImageId(null);
-              }}
-            />
-            <label htmlFor="post-without-image" className="text-sm text-gray-600">
-              Post without an image
-            </label>
-          </div>
-        )}
-        
-        {isInstagram && !hasValidImage && !isLoadingImages && (
-          <div className="flex items-center gap-2 text-red-600 text-sm mt-2">
-            <AlertCircle className="w-4 h-4" />
-            Instagram posts need an image.
-          </div>
-        )}
-      </div>
-    );
+  const handleDragStart = () => {
+    console.log('🎯 Composer drag started, opening dock');
+    openDock();
   };
 
   const renderActionButtons = () => {
@@ -482,82 +217,77 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       );
     }
 
-  const handleDragStart = () => {
-    console.log('🎯 Composer drag started, opening dock');
-    openDock();
-  };
-
-  // Show drag-to-schedule interface for approved content
-  if (isApproved) {
-    return (
-      <Droppable droppableId="composer-panel" type="DRAFT">
-        {(provided, snapshot) => (
-          <div ref={provided.innerRef} {...provided.droppableProps}>
-            <Draggable draggableId={`composer-${selectedDraft.id}`} index={0}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  className={cn(
-                    "transition-all duration-200",
-                    snapshot.isDragging && "opacity-90 transform rotate-1 scale-105 bg-white rounded-lg shadow-2xl border-2 border-[#68BEB9] p-4"
-                  )}
-                >
-                  <div className="text-center mb-4">
-                    <div className="text-sm text-gray-600 mb-3">
-                      Content approved! Drag to schedule or use the Smart Time Ribbon above.
+    // Show drag-to-schedule interface for approved content
+    if (isApproved) {
+      return (
+        <Droppable droppableId="composer-panel" type="DRAFT">
+          {(provided, snapshot) => (
+            <div ref={provided.innerRef} {...provided.droppableProps}>
+              <Draggable draggableId={`composer-${selectedDraft.id}`} index={0}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    className={cn(
+                      "transition-all duration-200",
+                      snapshot.isDragging && "opacity-90 transform rotate-1 scale-105 bg-white rounded-lg shadow-2xl border-2 border-[#68BEB9] p-4"
+                    )}
+                  >
+                    <div className="text-center mb-4">
+                      <div className="text-sm text-gray-600 mb-3">
+                        Content approved! Drag to schedule or use the Smart Time Ribbon above.
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
-                      onClick={handleSave}
-                      disabled={saving || snapshot.isDragging}
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      {saving ? 'Saving...' : 'Save Changes'}
-                    </Button>
                     
-                    <div
-                      {...provided.dragHandleProps}
-                      data-draft-card="true"
-                      className={cn(
-                        "flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium",
-                        "bg-[#68BEB9] hover:bg-[#56a7a1] text-white transition-all duration-200",
-                        "cursor-grab active:cursor-grabbing select-none",
-                        snapshot.isDragging && "bg-[#56a7a1] shadow-lg cursor-grabbing transform scale-110"
-                      )}
-                      role="button"
-                      tabIndex={0}
-                      aria-label="Drag to schedule content"
-                      onDragStart={handleDragStart}
-                    >
-                      <GripVertical className="w-4 h-4" />
-                      <Calendar className="w-4 h-4" />
-                      {snapshot.isDragging ? 'Drop on Calendar' : 'Drag to Schedule'}
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
+                        onClick={handleSave}
+                        disabled={saving || snapshot.isDragging}
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                      
+                      <div
+                        {...provided.dragHandleProps}
+                        data-draft-card="true"
+                        className={cn(
+                          "flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium",
+                          "bg-[#68BEB9] hover:bg-[#56a7a1] text-white transition-all duration-200",
+                          "cursor-grab active:cursor-grabbing select-none",
+                          snapshot.isDragging && "bg-[#56a7a1] shadow-lg cursor-grabbing transform scale-110"
+                        )}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Drag to schedule content"
+                        onDragStart={handleDragStart}
+                      >
+                        <GripVertical className="w-4 h-4" />
+                        <Calendar className="w-4 h-4" />
+                        {snapshot.isDragging ? 'Drop on Calendar' : 'Drag to Schedule'}
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="text-xs text-gray-500 mt-2 text-center">
-                    Grab the button above and drag to any day in the Smart Time Ribbon
-                  </div>
-                  
-                  {snapshot.isDragging && (
-                    <div className="absolute -top-2 -right-2 bg-[#68BEB9] text-white text-xs px-2 py-1 rounded-full">
-                      Scheduling...
+                    
+                    <div className="text-xs text-gray-500 mt-2 text-center">
+                      Grab the button above and drag to any day in the Smart Time Ribbon
                     </div>
-                  )}
-                </div>
-              )}
-            </Draggable>
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    );
-  }
+                    
+                    {snapshot.isDragging && (
+                      <div className="absolute -top-2 -right-2 bg-[#68BEB9] text-white text-xs px-2 py-1 rounded-full">
+                        Scheduling...
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Draggable>
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      );
+    }
 
     // Show normal approve/save interface for draft content
     return (
@@ -576,40 +306,16 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             {saving ? 'Saving...' : 'Save Draft'}
           </Button>
           
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button 
-                className={cn(
-                  "flex-1 relative",
-                  approvalStatus.isDisabled 
-                    ? "bg-gray-300 hover:bg-gray-300 text-gray-500 cursor-not-allowed" 
-                    : "bg-[#68BEB9] hover:bg-[#56a7a1]"
-                )}
-                onClick={handleApprove}
-                disabled={approvalStatus.isDisabled}
-              >
-                {approvalStatus.isDisabled && approvalStatus.issues.length > 0 && (
-                  <AlertCircle className="w-4 h-4 mr-2 text-orange-500" />
-                )}
-                {!approvalStatus.isDisabled && (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
-                {approving ? 'Approving...' : 'Approve Content'}
-              </Button>
-            </TooltipTrigger>
-            {approvalStatus.tooltipContent && (
-              <TooltipContent side="top" className="max-w-sm">
-                {approvalStatus.tooltipContent}
-              </TooltipContent>
-            )}
-            {!approvalStatus.isDisabled && (
-              <TooltipContent side="top" className="max-w-xs">
-                <div className="text-sm">
-                  This will approve your content and make it ready for drag-and-drop scheduling
-                </div>
-              </TooltipContent>
-            )}
-          </Tooltip>
+          <ApprovalButton
+            selectedDraft={selectedDraft}
+            editContent={editContent}
+            socialConnections={socialConnections}
+            hasValidImage={hasValidImage}
+            postWithoutImage={postWithoutImage}
+            approving={approving}
+            saving={saving}
+            onApprove={handleApprove}
+          />
         </div>
       </div>
     );
@@ -705,11 +411,25 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
               </div>
             ) : (
               <div className="flex-1 flex flex-col overflow-y-auto min-h-[500px]">
-                {renderContent()}
+                <ContentDisplay selectedDraft={selectedDraft} />
               </div>
             )}
 
-            {renderImageSection()}
+            <ImageSection
+              selectedDraft={selectedDraft}
+              images={images}
+              selectedImageId={selectedImageId}
+              postWithoutImage={postWithoutImage}
+              setPostWithoutImage={setPostWithoutImage}
+              imagesFetching={imagesFetching}
+              imagesLoading={imagesLoading}
+              imageError={imageError}
+              hasValidImage={hasValidImage}
+              onImageSelect={handleImageSelect}
+              onImageRefresh={handleImageRefresh}
+              onImageSearch={handleImageSearch}
+              onFetchImages={() => {}} // This will be handled by the hook
+            />
 
             <div className="mt-4 p-4 border-t flex-shrink-0">
               {renderActionButtons()}
