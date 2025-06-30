@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -12,7 +13,7 @@ import { format } from 'date-fns';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { scheduleDraft } from '@/lib/dashboardAPI';
 
 interface TimeSelectionModal {
   isOpen: boolean;
@@ -31,21 +32,10 @@ const NewDashboard = () => {
     draftId: null,
     targetDate: null
   });
+  const [isScheduling, setIsScheduling] = useState(false);
 
   const handleTaskUpdate = () => {
     refetch();
-  };
-
-  const mapPlatformToEnum = (platform: string): "FB" | "IG_FEED" | "IG_REEL" => {
-    const platformMap: { [key: string]: "FB" | "IG_FEED" | "IG_REEL" } = {
-      'facebook': 'FB',
-      'instagram': 'IG_FEED',
-      'instagram_story': 'IG_FEED',
-      'instagram_reel': 'IG_REEL',
-      'linkedin': 'FB',
-      'twitter': 'FB'
-    };
-    return platformMap[platform] || 'FB';
   };
 
   const getOptimalTime = (date: Date, platform: string = 'facebook'): Date => {
@@ -60,62 +50,6 @@ const NewDashboard = () => {
     const scheduledDate = new Date(date);
     scheduledDate.setHours(randomHour, 0, 0, 0);
     return scheduledDate;
-  };
-
-  const scheduleDraft = async (draftId: string, publishAt: Date, platform: string = 'facebook') => {
-    if (!user) throw new Error('User not authenticated');
-
-    try {
-      const draft = dashboardData?.tasks.find(t => t.id === draftId);
-      if (!draft) throw new Error('Draft not found');
-
-      // Create generated content from the draft
-      const { data: generatedContent, error: contentError } = await supabase
-        .from('generated_content')
-        .insert({
-          user_id: user.id,
-          caption: draft.ai_output || '',
-          status: 'SCHEDULED'
-        })
-        .select()
-        .single();
-
-      if (contentError) throw contentError;
-
-      const platformEnum = mapPlatformToEnum(platform);
-
-      // Create scheduled post
-      const { error: scheduleError } = await supabase
-        .from('scheduled_posts')
-        .insert({
-          content_id: generatedContent.id,
-          user_id: user.id,
-          platform: platformEnum,
-          publish_at: publishAt.toISOString(),
-          status: 'QUEUED'
-        });
-
-      if (scheduleError) {
-        console.error('Schedule error:', scheduleError);
-        throw new Error(`Failed to schedule: ${scheduleError.message}`);
-      }
-
-      // Update the draft status to "scheduled" (not "approved")
-      await supabase
-        .from('content_tasks')
-        .update({ 
-          status: 'scheduled',
-          scheduled_date: format(publishAt, 'yyyy-MM-dd')
-        })
-        .eq('id', draftId);
-
-      await refetch();
-
-      return generatedContent.id;
-    } catch (error) {
-      console.error('Error scheduling draft:', error);
-      throw error;
-    }
   };
 
   const handleApproved = (draftId: string) => {
@@ -169,6 +103,8 @@ const NewDashboard = () => {
   const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
     if (!timeSelectionModal.draftId || !timeSelectionModal.targetDate) return;
 
+    setIsScheduling(true);
+    
     try {
       let scheduledDate = new Date(timeSelectionModal.targetDate);
       
@@ -181,23 +117,48 @@ const NewDashboard = () => {
         scheduledDate = new Date();
       }
 
-      await scheduleDraft(timeSelectionModal.draftId, scheduledDate, 'facebook');
-      
-      const toastId = toast.success(`Scheduled for ${format(scheduledDate, 'MMM d, yyyy')} at ${format(scheduledDate, 'h:mm a')}`, {
-        duration: 8000,
-        action: {
-          label: 'Undo',
-          onClick: async () => {
-            toast.success('Scheduling undone');
-          }
-        }
+      console.log('🎯 Scheduling draft with params:', {
+        taskId: timeSelectionModal.draftId,
+        publishAt: scheduledDate.toISOString(),
+        platform: 'FACEBOOK'
       });
-      
-      setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
+
+      const result = await scheduleDraft({
+        taskId: timeSelectionModal.draftId,
+        publishAt: scheduledDate.toISOString(),
+        platform: 'FACEBOOK'
+      });
+
+      if (result) {
+        console.log('✅ Successfully scheduled:', result);
+        
+        const timeString = format(scheduledDate, 'MMM d, yyyy h:mm a');
+        const modeText = result.mode === 'MANUAL' ? ' (manual - connect social accounts for auto-posting)' : '';
+        
+        toast.success(`Scheduled for ${timeString}${modeText}`, {
+          duration: 8000,
+          action: {
+            label: 'Undo',
+            onClick: async () => {
+              toast.success('Scheduling undone');
+            }
+          }
+        });
+
+        // Refresh the dashboard data to show updated state
+        await refetch();
+        
+        // Close the modal
+        setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
+      } else {
+        throw new Error('Scheduling failed - no result returned');
+      }
       
     } catch (error) {
-      console.error('Error scheduling draft:', error);
+      console.error('❌ Error scheduling draft:', error);
       toast.error(`Failed to schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -270,7 +231,8 @@ const NewDashboard = () => {
             <div className="space-y-3">
               <button
                 onClick={() => handleTimeSelection('best')}
-                className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9]"
+                disabled={isScheduling}
+                className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="font-medium">Best Time</div>
                 <div className="text-sm text-gray-500">AI-optimized posting time for maximum engagement</div>
@@ -278,7 +240,8 @@ const NewDashboard = () => {
               
               <button
                 onClick={() => handleTimeSelection('now')}
-                className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9]"
+                disabled={isScheduling}
+                className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="font-medium">Post Now</div>
                 <div className="text-sm text-gray-500">Schedule for immediate posting</div>
@@ -289,9 +252,10 @@ const NewDashboard = () => {
                 <div className="flex gap-2">
                   <input
                     type="time"
-                    className="border rounded px-2 py-1"
+                    disabled={isScheduling}
+                    className="border rounded px-2 py-1 disabled:opacity-50"
                     onChange={(e) => {
-                      if (e.target.value) {
+                      if (e.target.value && !isScheduling) {
                         handleTimeSelection('custom', e.target.value);
                       }
                     }}
@@ -304,11 +268,21 @@ const NewDashboard = () => {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null })}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                disabled={isScheduling}
+                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
             </div>
+            
+            {isScheduling && (
+              <div className="flex items-center justify-center mt-4">
+                <div className="flex items-center gap-2 text-[#68BEB9]">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#68BEB9]"></div>
+                  <span className="text-sm">Scheduling...</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

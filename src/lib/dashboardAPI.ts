@@ -43,16 +43,17 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
       return null;
     }
 
-    // First, get the content task to get the content
+    // First, get the content task to verify it exists and get the content
     const { data: task, error: taskError } = await supabase
       .from('content_tasks')
       .select('*')
       .eq('id', params.taskId)
+      .eq('user_id', user.id)
       .single();
 
     if (taskError || !task) {
       console.error('❌ Failed to fetch task:', taskError);
-      toast.error('Failed to fetch task details');
+      toast.error('Task not found or access denied');
       return null;
     }
 
@@ -75,11 +76,11 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
     // Map platform to the correct enum value
     const platformEnum = mapPlatformToEnum(params.platform);
 
-    // Create scheduled post entry with mode
+    // Create scheduled post entry referencing the content_tasks directly
     const { data: scheduledPost, error: scheduleError } = await supabase
       .from('scheduled_posts')
       .insert({
-        content_id: params.taskId,
+        content_id: params.taskId, // Reference content_tasks.id directly
         user_id: user.id,
         platform: platformEnum,
         publish_at: params.publishAt,
@@ -91,7 +92,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     if (scheduleError) {
       console.error('❌ Failed to create scheduled post:', scheduleError);
-      toast.error('Failed to schedule post');
+      toast.error(`Failed to schedule post: ${scheduleError.message}`);
       return null;
     }
 
@@ -105,30 +106,24 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
         scheduled_date: params.publishAt
       })
       .eq('id', params.taskId)
+      .eq('user_id', user.id)
       .select()
       .single();
 
     if (updateError) {
       console.error('❌ Failed to update task status:', updateError);
+      
+      // Try to rollback the scheduled post creation
+      await supabase
+        .from('scheduled_posts')
+        .delete()
+        .eq('id', scheduledPost.id);
+      
       toast.error('Failed to update task status');
       return null;
     }
 
     console.log('✅ Task updated to scheduled:', updatedTask);
-
-    // Show appropriate toast message
-    const publishDate = new Date(params.publishAt);
-    const timeString = publishDate.toLocaleString('en-US', {
-      weekday: 'short',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
-
-    if (mode === 'AUTO') {
-      toast.success(`Scheduled for ${timeString} 🚀`);
-    } else {
-      toast.warning(`Scheduled (manual) for ${timeString} • will not publish automatically. Connect social accounts or upgrade to Bloom.`);
-    }
 
     return {
       scheduledPost,
@@ -138,7 +133,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
   } catch (error) {
     console.error('❌ Schedule draft error:', error);
-    toast.error('Failed to schedule post');
+    toast.error(`Failed to schedule post: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return null;
   }
 };
