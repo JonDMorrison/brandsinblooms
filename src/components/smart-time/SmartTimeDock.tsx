@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
@@ -68,9 +67,10 @@ export const SmartTimeDock = ({
     }
   }, [isDockOpen, closeDock, isDragging]);
 
-  // Close dock when clicking outside, but only if not dragging
+  // Close dock when clicking outside, but ONLY if not dragging
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      // CRITICAL: Do not close dock if dragging is active
       if (isDragging) {
         console.log('🎯 Ignoring click outside - drag in progress');
         return;
@@ -80,7 +80,7 @@ export const SmartTimeDock = ({
       const dockElement = document.querySelector('.smart-dock-container');
       
       if (isDockOpen && dockElement && !dockElement.contains(target)) {
-        console.log('🎯 Clicking outside dock, closing');
+        console.log('🎯 Clicking outside dock, closing (not dragging)');
         closeDock();
       }
     };
@@ -108,7 +108,10 @@ export const SmartTimeDock = ({
 
   /** Explicit toggle click */
   const handleToggle = () => {
-    if (isDragging) return; // ignore clicks during drag
+    if (isDragging) {
+      console.log('🎯 Ignoring toggle click - drag in progress');
+      return; // ignore clicks during drag
+    }
     isDockOpen ? closeDock() : openDock();
   };
 
