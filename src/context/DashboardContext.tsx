@@ -58,7 +58,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
           onScheduleUpdate={refetch}
           onDragEnd={handleDragEnd}
         />
-      </DragDropContext>Provider>
+      </DragDropContext>
     </DashboardContext.Provider>
   );
 };
