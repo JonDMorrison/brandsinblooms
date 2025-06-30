@@ -99,6 +99,34 @@ const NewDashboard = () => {
         toast.error('Failed to process drag operation');
       }
     }
+
+    // Handle drag from composer-panel to SmartTimeDock day slots
+    if (
+      source.droppableId === 'composer-panel' &&
+      destination.droppableId.startsWith('day-')
+    ) {
+      console.log('🎯 Composer to day drop detected');
+      
+      try {
+        const dateStr = destination.droppableId.replace('day-', '');
+        const targetDate = new Date(dateStr);
+        
+        // Extract the actual task ID from the draggableId (format: composer-{taskId})
+        const taskId = draggableId.replace('composer-', '');
+        
+        console.log('🎯 Setting up time selection modal for composer drag:', { taskId, targetDate });
+        
+        setTimeSelectionModal({
+          isOpen: true,
+          draftId: taskId,
+          targetDate: targetDate
+        });
+        
+      } catch (error) {
+        console.error('🎯 Error processing composer drag:', error);
+        toast.error('Failed to process drag operation');
+      }
+    }
   };
 
   const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {

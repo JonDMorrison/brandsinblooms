@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle, Loader2, Instagram, Facebook, Mail, BookOpen, Video, FileText } from 'lucide-react';
+import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle, Loader2, Instagram, Facebook, Mail, BookOpen, Video, FileText, GripVertical, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useUnsplash } from '@/hooks/useUnsplash';
@@ -16,6 +16,7 @@ import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
 import { supabase } from '@/integrations/supabase/client';
 import { ImageAttachment } from '@/lib/contentTypes';
 import { extractKeywords } from '@/utils/imageKeywords';
+import { Draggable, Droppable } from 'react-beautiful-dnd';
 
 interface ComposerPanelProps {
   selectedDraft?: any;
@@ -50,6 +51,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const [postWithoutImage, setPostWithoutImage] = useState(false);
   const [imagesFetching, setImagesFetching] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [isDragMode, setIsDragMode] = useState(false);
 
   const { scheduledPosts } = useScheduledPosts();
   const { getSmartImages, searchImages, refreshImages, loading: imagesLoading } = useUnsplash();
@@ -425,12 +427,195 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     );
   };
 
+  const renderActionButtons = () => {
+    if (!selectedDraft) {
+      return (
+        <div className="text-center">
+          <div className="text-sm text-gray-600 mb-3">
+            This is where you'll edit and approve your content before scheduling.
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              className="flex-1 border-gray-300 text-gray-500"
+              disabled
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Save Draft
+            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  className="flex-1 bg-gray-300 text-gray-500"
+                  disabled
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Approve & Post
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs">
+                <div className="text-sm">
+                  Select a draft from the tray to get started
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Select a draft from the tray to get started
+          </p>
+        </div>
+      );
+    }
+
+    if (isScheduled) {
+      return (
+        <div className="text-center">
+          <div className="text-sm text-gray-600 mb-3">
+            This content is already scheduled for posting.
+          </div>
+          <div className="text-xs text-gray-500">
+            Scheduled for: {relatedScheduledPosts[0] ? format(new Date(relatedScheduledPosts[0].publish_at), 'MMM d, yyyy \'at\' h:mm a') : 'Unknown time'}
+          </div>
+        </div>
+      );
+    }
+
+    // Show drag-to-schedule interface for approved content
+    if (isApproved) {
+      return (
+        <Droppable droppableId="composer-panel" type="DRAFT">
+          {(provided, snapshot) => (
+            <div ref={provided.innerRef} {...provided.droppableProps}>
+              <Draggable draggableId={`composer-${selectedDraft.id}`} index={0}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    className={cn(
+                      "transition-all duration-200",
+                      snapshot.isDragging && "opacity-80 transform rotate-2"
+                    )}
+                  >
+                    <div className="text-center mb-4">
+                      <div className="text-sm text-gray-600 mb-3">
+                        Content approved! Drag to schedule or use the Smart Time Ribbon above.
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
+                        onClick={handleSave}
+                        disabled={saving || snapshot.isDragging}
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </Button>
+                      
+                      <div 
+                        {...provided.dragHandleProps}
+                        className={cn(
+                          "flex-1 relative group cursor-grab active:cursor-grabbing",
+                          snapshot.isDragging && "cursor-grabbing"
+                        )}
+                      >
+                        <Button 
+                          className={cn(
+                            "w-full bg-[#68BEB9] hover:bg-[#56a7a1] text-white font-medium transition-all duration-200",
+                            snapshot.isDragging && "bg-[#56a7a1] shadow-lg"
+                          )}
+                          disabled={snapshot.isDragging}
+                        >
+                          <GripVertical className="w-4 h-4 mr-2" />
+                          <Calendar className="w-4 h-4 mr-2" />
+                          {snapshot.isDragging ? 'Drop on Calendar' : 'Drag to Schedule'}
+                        </Button>
+                        
+                        {!snapshot.isDragging && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-[#68BEB9]/10 to-[#56a7a1]/10 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-gray-500 mt-2 text-center">
+                      Grab the button above and drag to any day in the Smart Time Ribbon
+                    </div>
+                  </div>
+                )}
+              </Draggable>
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      );
+    }
+
+    // Show normal approve/save interface for draft content
+    return (
+      <div>
+        <div className="text-sm text-gray-600 mb-3">
+          Review your content and approve when ready to schedule.
+        </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
+            onClick={handleSave}
+            disabled={saving || approving}
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? 'Saving...' : 'Save Draft'}
+          </Button>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                className={cn(
+                  "flex-1 relative",
+                  approvalStatus.isDisabled 
+                    ? "bg-gray-300 hover:bg-gray-300 text-gray-500 cursor-not-allowed" 
+                    : "bg-[#68BEB9] hover:bg-[#56a7a1]"
+                )}
+                onClick={handleApprove}
+                disabled={approvalStatus.isDisabled}
+              >
+                {approvalStatus.isDisabled && approvalStatus.issues.length > 0 && (
+                  <AlertCircle className="w-4 h-4 mr-2 text-orange-500" />
+                )}
+                {!approvalStatus.isDisabled && (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                {approving ? 'Approving...' : 'Approve Content'}
+              </Button>
+            </TooltipTrigger>
+            {approvalStatus.tooltipContent && (
+              <TooltipContent side="top" className="max-w-sm">
+                {approvalStatus.tooltipContent}
+              </TooltipContent>
+            )}
+            {!approvalStatus.isDisabled && (
+              <TooltipContent side="top" className="max-w-xs">
+                <div className="text-sm">
+                  This will approve your content and make it ready for drag-and-drop scheduling
+                </div>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </div>
+      </div>
+    );
+  };
+
   const PostTypeIcon = getPostTypeIcon(selectedDraft?.post_type);
   const postTypeLabel = getPostTypeLabel(selectedDraft?.post_type);
 
   return (
     <TooltipProvider>
-      <Card className="h-full flex flex-col overflow-hidden">
+      <Card className={cn(
+        "h-full flex flex-col overflow-hidden transition-all duration-300",
+        isDragMode && "transform scale-95 shadow-xl border-[#68BEB9]"
+      )}>
         <CardHeader className="flex-shrink-0">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold text-[#3E5A6B]">Composer</CardTitle>
@@ -519,105 +704,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             {renderImageSection()}
 
             <div className="mt-4 p-4 border-t flex-shrink-0">
-              {!selectedDraft ? (
-                <div className="text-center">
-                  <div className="text-sm text-gray-600 mb-3">
-                    This is where you'll edit and approve your content before scheduling.
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 border-gray-300 text-gray-500"
-                      disabled
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Draft
-                    </Button>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          className="flex-1 bg-gray-300 text-gray-500"
-                          disabled
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Approve & Post
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs">
-                        <div className="text-sm">
-                          Select a draft from the tray to get started
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Select a draft from the tray to get started
-                  </p>
-                </div>
-              ) : isScheduled ? (
-                <div className="text-center">
-                  <div className="text-sm text-gray-600 mb-3">
-                    This content is already scheduled for posting.
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Scheduled for: {relatedScheduledPosts[0] ? format(new Date(relatedScheduledPosts[0].publish_at), 'MMM d, yyyy \'at\' h:mm a') : 'Unknown time'}
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div className="text-sm text-gray-600 mb-3">
-                    {isApproved 
-                      ? "Ready to schedule! Drag this draft to the Smart-Time Ribbon above." 
-                      : "Review your content and approve when ready to schedule."}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
-                      onClick={handleSave}
-                      disabled={saving || approving}
-                    >
-                      <Save className="w-4 h-4 mr-2" />
-                      {saving ? 'Saving...' : 'Save Draft'}
-                    </Button>
-                    
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button 
-                          className={cn(
-                            "flex-1 relative",
-                            approvalStatus.isDisabled 
-                              ? "bg-gray-300 hover:bg-gray-300 text-gray-500 cursor-not-allowed" 
-                              : "bg-[#68BEB9] hover:bg-[#56a7a1]"
-                          )}
-                          onClick={handleApprove}
-                          disabled={approvalStatus.isDisabled}
-                        >
-                          {approvalStatus.isDisabled && approvalStatus.issues.length > 0 && (
-                            <AlertCircle className="w-4 h-4 mr-2 text-orange-500" />
-                          )}
-                          {!approvalStatus.isDisabled && (
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                          )}
-                          {approving ? 'Approving...' : 'Approve Content'}
-                        </Button>
-                      </TooltipTrigger>
-                      {approvalStatus.tooltipContent && (
-                        <TooltipContent side="top" className="max-w-sm">
-                          {approvalStatus.tooltipContent}
-                        </TooltipContent>
-                      )}
-                      {!approvalStatus.isDisabled && (
-                        <TooltipContent side="top" className="max-w-xs">
-                          <div className="text-sm">
-                            This will approve your content and make it ready for scheduling in the Smart-Time Ribbon
-                          </div>
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </div>
-                </div>
-              )}
+              {renderActionButtons()}
             </div>
           </div>
         </CardContent>
