@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { extractNewsletterThumbnail } from '@/utils/renderMarkdown';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 interface DraftTrayProps {
   tasks?: any[];
@@ -18,6 +20,7 @@ interface DraftTrayProps {
 
 export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprovedId }: DraftTrayProps) => {
   const { openDock } = useDashboard();
+  const { startDragging } = useDashboardContext();
   const [showDragHint, setShowDragHint] = useState<string | null>(null);
 
   useEffect(() => {
@@ -87,7 +90,8 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
   };
 
   const handleDragStart = () => {
-    console.log('🎯 Draft drag started, opening dock');
+    console.log('🎯 Draft drag started, opening dock and setting drag state');
+    startDragging();
     openDock();
   };
 

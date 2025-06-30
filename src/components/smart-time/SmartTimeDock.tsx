@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
@@ -6,6 +5,7 @@ import { ExpandedRibbon } from './ExpandedRibbon';
 import { ScheduledContentModal } from '@/components/new-dashboard/ScheduledContentModal';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { cn } from '@/lib/utils';
 import './smart-time.css';
 
@@ -21,10 +21,10 @@ export const SmartTimeDock = ({
   onScheduleUpdate
 }: SmartTimeDockProps) => {
   const { isDockOpen, openDock, closeDock, toggleDock } = useDashboard();
+  const { isDragging } = useDashboardContext();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -47,12 +47,13 @@ export const SmartTimeDock = ({
     return times.slice(0, 2);
   };
 
-  // Auto-expand on drag start
+  // Keep dock open whenever dragging is active
   useEffect(() => {
-    if (isDragging && !isDockOpen) {
+    if (isDragging) {
+      console.log('🎯 Dragging active, ensuring dock stays open');
       openDock();
     }
-  }, [isDragging, isDockOpen, openDock]);
+  }, [isDragging, openDock]);
 
   // Listen for drag events on the document
   useEffect(() => {
@@ -61,14 +62,13 @@ export const SmartTimeDock = ({
       const target = e.target as HTMLElement;
       if (target?.closest('[data-draft-card]') || target?.hasAttribute('data-draft-card')) {
         console.log('🎯 Draft card drag detected, expanding dock');
-        setIsDragging(true);
         openDock();
       }
     };
 
     const handleDragEnd = () => {
-      console.log('🎯 Drag ended, resetting state');
-      setIsDragging(false);
+      console.log('🎯 Drag ended');
+      // Don't close dock here - let the main drag handler manage it with proper delay
     };
 
     document.addEventListener('dragstart', handleDragStart);
@@ -80,9 +80,14 @@ export const SmartTimeDock = ({
     };
   }, [openDock]);
 
-  // Close dock when clicking outside
+  // Close dock when clicking outside, but only if not dragging
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
+      if (isDragging) {
+        console.log('🎯 Ignoring click outside - drag in progress');
+        return;
+      }
+      
       const target = e.target as HTMLElement;
       const dockElement = document.querySelector('.smart-dock-container');
       
@@ -95,7 +100,7 @@ export const SmartTimeDock = ({
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [isDockOpen, closeDock]);
+  }, [isDockOpen, closeDock, isDragging]);
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);

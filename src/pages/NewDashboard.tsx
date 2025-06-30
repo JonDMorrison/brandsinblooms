@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -15,6 +14,7 @@ import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useAuth } from '@/contexts/AuthContext';
 import { scheduleDraft } from '@/lib/dashboardAPI';
 import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 
 interface TimeSelectionModal {
@@ -26,6 +26,7 @@ interface TimeSelectionModal {
 const NewDashboardContent = () => {
   const { user } = useAuth();
   const { closeDock } = useDashboard();
+  const { stopDragging } = useDashboardContext();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const { schedulePost } = useScheduledPosts();
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
@@ -68,14 +69,17 @@ const NewDashboardContent = () => {
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 NewDashboard handleDragEnd called:', result);
     
+    // Always stop dragging state first
+    stopDragging();
+    
     const { destination, source, draggableId } = result;
 
     if (!destination) {
-      console.log('🎯 No destination in NewDashboard');
-      // Close dock after 200ms if drag ended outside dock
+      console.log('🎯 No destination in NewDashboard - will close dock after delay');
+      // Close dock after 300ms delay if drag ended outside dock
       setTimeout(() => {
         closeDock();
-      }, 200);
+      }, 300);
       return;
     }
 
@@ -86,7 +90,7 @@ const NewDashboardContent = () => {
       source.droppableId === 'draft-tray' &&
       destination.droppableId.startsWith('day-')
     ) {
-      console.log('🎯 Draft to day drop detected');
+      console.log('🎯 Draft to day drop detected - keeping dock open');
       
       try {
         const dateStr = destination.droppableId.replace('day-', '');
@@ -100,9 +104,16 @@ const NewDashboardContent = () => {
           targetDate: targetDate
         });
         
+        // Keep dock open since we're in scheduling flow
+        return;
+        
       } catch (error) {
         console.error('🎯 Error processing drag:', error);
         toast.error('Failed to process drag operation');
+        // Close dock after delay on error
+        setTimeout(() => {
+          closeDock();
+        }, 300);
       }
     }
 
@@ -111,7 +122,7 @@ const NewDashboardContent = () => {
       source.droppableId === 'composer-panel' &&
       destination.droppableId.startsWith('day-')
     ) {
-      console.log('🎯 Composer to day drop detected');
+      console.log('🎯 Composer to day drop detected - keeping dock open');
       
       try {
         const dateStr = destination.droppableId.replace('day-', '');
@@ -128,11 +139,23 @@ const NewDashboardContent = () => {
           targetDate: targetDate
         });
         
+        // Keep dock open since we're in scheduling flow
+        return;
+        
       } catch (error) {
         console.error('🎯 Error processing composer drag:', error);
         toast.error('Failed to process drag operation');
+        // Close dock after delay on error
+        setTimeout(() => {
+          closeDock();
+        }, 300);
       }
     }
+
+    // For any other drag operations, close dock after delay
+    setTimeout(() => {
+      closeDock();
+    }, 300);
   };
 
   const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
