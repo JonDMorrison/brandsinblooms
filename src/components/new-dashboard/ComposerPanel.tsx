@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useUnsplash } from '@/hooks/useUnsplash';
@@ -32,6 +31,8 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const [images, setImages] = useState<ImageAttachment[]>([]);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [postWithoutImage, setPostWithoutImage] = useState(false);
+  const [imagesFetching, setImagesFetching] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const { scheduledPosts } = useScheduledPosts();
   const { getSmartImages, searchImages, refreshImages, loading: imagesLoading } = useUnsplash();
@@ -49,7 +50,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const hasValidImage = selectedImageId && images.find(img => img.id === selectedImageId);
   const canApprove = hasValidImage || (!needsImage && postWithoutImage);
 
-  // New function to get approval button status and tooltip
   const getApprovalButtonStatus = () => {
     const issues = [];
     
@@ -101,62 +101,139 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
   useEffect(() => {
     if (selectedDraft?.ai_output) {
+      console.log('[COMPOSER] Selected draft changed:', selectedDraft.id, selectedDraft.post_type);
       setEditContent(selectedDraft.ai_output);
+      setImageError(null);
       
       // Load existing image attachment
       if (selectedDraft.attachments?.image) {
+        console.log('[COMPOSER] Found existing image attachment');
         const existingImage = selectedDraft.attachments.image;
         setImages([existingImage]);
         setSelectedImageId(existingImage.id);
       } else {
+        console.log('[COMPOSER] No existing image, fetching new ones');
         // Fetch new images based on content
         fetchImagesForDraft();
       }
+    } else {
+      console.log('[COMPOSER] No draft or content, clearing images');
+      setImages([]);
+      setSelectedImageId(null);
+      setImageError(null);
     }
   }, [selectedDraft]);
 
   const fetchImagesForDraft = async () => {
-    if (!selectedDraft?.ai_output) return;
+    if (!selectedDraft?.ai_output) {
+      console.log('[COMPOSER] No content to extract keywords from');
+      return;
+    }
     
-    const query = extractKeywordsFromContent(selectedDraft.ai_output);
-    const fetchedImages = await getSmartImages(query);
-    setImages(fetchedImages);
+    setImagesFetching(true);
+    setImageError(null);
     
-    // Auto-select first image
-    if (fetchedImages.length > 0) {
-      setSelectedImageId(fetchedImages[0].id);
+    try {
+      const query = extractKeywordsFromContent(selectedDraft.ai_output);
+      console.log('[COMPOSER] Extracted query for images:', query);
+      
+      if (!query || query.trim().length === 0) {
+        console.warn('[COMPOSER] Empty query, using fallback');
+        const fallbackQuery = selectedDraft.post_type || 'lifestyle';
+        const fetchedImages = await getSmartImages(fallbackQuery);
+        console.log('[COMPOSER] Fetched fallback images:', fetchedImages.length);
+        setImages(fetchedImages);
+        
+        if (fetchedImages.length > 0) {
+          setSelectedImageId(fetchedImages[0].id);
+        }
+        return;
+      }
+      
+      const fetchedImages = await getSmartImages(query);
+      console.log('[COMPOSER] Fetched images:', fetchedImages.length);
+      setImages(fetchedImages);
+      
+      // Auto-select first image
+      if (fetchedImages.length > 0) {
+        setSelectedImageId(fetchedImages[0].id);
+        console.log('[COMPOSER] Auto-selected first image:', fetchedImages[0].id);
+      } else {
+        console.warn('[COMPOSER] No images returned from getSmartImages');
+        setImageError('No images found for this content');
+      }
+    } catch (error) {
+      console.error('[COMPOSER] Error fetching images:', error);
+      setImageError('Failed to load images');
+      setImages([]);
+    } finally {
+      setImagesFetching(false);
     }
   };
 
   const extractKeywordsFromContent = (content: string): string => {
+    if (!content || content.trim().length === 0) {
+      console.log('[COMPOSER] No content provided for keyword extraction');
+      return '';
+    }
+    
     // Simple keyword extraction - could be enhanced
     const words = content
       .replace(/<[^>]*>/g, ' ')
       .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
       .split(/\s+/)
       .filter(word => word.length > 3)
       .slice(0, 3);
     
-    return words.join(' ') || selectedDraft?.post_type || 'lifestyle';
+    const result = words.join(' ') || selectedDraft?.post_type || 'lifestyle';
+    console.log('[COMPOSER] Extracted keywords:', result);
+    return result;
   };
 
   const handleImageSelect = (imageId: string) => {
+    console.log('[COMPOSER] Image selected:', imageId);
     setSelectedImageId(imageId);
     setPostWithoutImage(false);
   };
 
   const handleImageRefresh = async () => {
     if (!selectedDraft?.ai_output) return;
-    const query = extractKeywordsFromContent(selectedDraft.ai_output);
-    const newImages = await refreshImages(query);
-    setImages(newImages);
-    setSelectedImageId(newImages.length > 0 ? newImages[0].id : null);
+    
+    console.log('[COMPOSER] Refreshing images');
+    setImagesFetching(true);
+    setImageError(null);
+    
+    try {
+      const query = extractKeywordsFromContent(selectedDraft.ai_output);
+      const newImages = await refreshImages(query);
+      console.log('[COMPOSER] Refreshed images:', newImages.length);
+      setImages(newImages);
+      setSelectedImageId(newImages.length > 0 ? newImages[0].id : null);
+    } catch (error) {
+      console.error('[COMPOSER] Error refreshing images:', error);
+      setImageError('Failed to refresh images');
+    } finally {
+      setImagesFetching(false);
+    }
   };
 
   const handleImageSearch = async (query: string) => {
-    const searchResults = await searchImages(query);
-    setImages(searchResults);
-    setSelectedImageId(searchResults.length > 0 ? searchResults[0].id : null);
+    console.log('[COMPOSER] Searching images for:', query);
+    setImagesFetching(true);
+    setImageError(null);
+    
+    try {
+      const searchResults = await searchImages(query);
+      console.log('[COMPOSER] Search results:', searchResults.length);
+      setImages(searchResults);
+      setSelectedImageId(searchResults.length > 0 ? searchResults[0].id : null);
+    } catch (error) {
+      console.error('[COMPOSER] Error searching images:', error);
+      setImageError('Failed to search images');
+    } finally {
+      setImagesFetching(false);
+    }
   };
 
   const getSelectedImage = (): ImageAttachment | null => {
@@ -267,20 +344,46 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   };
 
   const renderImageSection = () => {
+    // Always render for non-newsletter content
     if (!selectedDraft || selectedDraft.post_type === 'newsletter') {
       return null;
     }
 
+    const isLoadingImages = imagesFetching || imagesLoading;
+
     return (
       <div className="mt-4 border-t pt-4 flex-shrink-0">
-        <h4 className="text-sm font-medium text-[#3E5A6B] mb-3">Images</h4>
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-medium text-[#3E5A6B]">Images</h4>
+          {isLoadingImages && (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Loading images...
+            </div>
+          )}
+        </div>
+        
+        {imageError && (
+          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
+            {imageError}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => fetchImagesForDraft()}
+              className="ml-2 h-auto p-1 text-red-600 hover:text-red-700"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
+        
         <ImagePicker
           images={images}
           selected={selectedImageId}
           onSelect={handleImageSelect}
           onRefresh={handleImageRefresh}
           onSearch={handleImageSearch}
-          loading={imagesLoading}
+          loading={isLoadingImages}
         />
         
         {!isInstagram && (
@@ -299,7 +402,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
           </div>
         )}
         
-        {isInstagram && !hasValidImage && (
+        {isInstagram && !hasValidImage && !isLoadingImages && (
           <div className="flex items-center gap-2 text-red-600 text-sm mt-2">
             <AlertCircle className="w-4 h-4" />
             Instagram posts need an image.
