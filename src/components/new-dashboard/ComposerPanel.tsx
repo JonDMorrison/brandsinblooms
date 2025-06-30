@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,7 +74,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
   const isInstagram = selectedDraft?.post_type?.toLowerCase().includes('instagram');
   const needsImage = isInstagram || (!postWithoutImage && selectedDraft?.post_type?.toLowerCase() === 'facebook');
-  const hasValidImage = selectedImageId && images.find(img => img.id === selectedImageId);
+  const hasValidImage = Boolean(selectedImageId && images.find(img => img.id === selectedImageId));
   const canApprove = hasValidImage || (!needsImage && postWithoutImage);
 
   useEffect(() => {
