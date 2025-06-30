@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ImageAttachment } from '@/lib/contentTypes';
 import { extractKeywords } from '@/utils/imageKeywords';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
+import { useDashboard } from '@/contexts/DashboardContext';
 
 interface ComposerPanelProps {
   selectedDraft?: any;
@@ -42,6 +43,7 @@ const getPostTypeLabel = (postType: string) => {
 };
 
 export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpdate, onApproved }: ComposerPanelProps) => {
+  const { openDock } = useDashboard();
   const [editContent, setEditContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -480,69 +482,82 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       );
     }
 
-    // Show drag-to-schedule interface for approved content
-    if (isApproved) {
-      return (
-        <Droppable droppableId="composer-panel" type="DRAFT">
-          {(provided, snapshot) => (
-            <div ref={provided.innerRef} {...provided.droppableProps}>
-              <Draggable draggableId={`composer-${selectedDraft.id}`} index={0}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    className={cn(
-                      "transition-all duration-200",
-                      snapshot.isDragging && "opacity-80 transform rotate-2"
-                    )}
-                  >
-                    <div className="text-center mb-4">
-                      <div className="text-sm text-gray-600 mb-3">
-                        Content approved! Drag to schedule or use the Smart Time Ribbon above.
-                      </div>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
-                        onClick={handleSave}
-                        disabled={saving || snapshot.isDragging}
-                      >
-                        <Save className="w-4 h-4 mr-2" />
-                        {saving ? 'Saving...' : 'Save Changes'}
-                      </Button>
-                      
-                      <div
-                        {...provided.dragHandleProps}
-                        className={cn(
-                          "flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium",
-                          "bg-[#68BEB9] hover:bg-[#56a7a1] text-white transition-all duration-200",
-                          "cursor-grab active:cursor-grabbing select-none",
-                          snapshot.isDragging && "bg-[#56a7a1] shadow-lg cursor-grabbing"
-                        )}
-                        role="button"
-                        tabIndex={0}
-                        aria-label="Drag to schedule content"
-                      >
-                        <GripVertical className="w-4 h-4" />
-                        <Calendar className="w-4 h-4" />
-                        {snapshot.isDragging ? 'Drop on Calendar' : 'Drag to Schedule'}
-                      </div>
-                    </div>
-                    
-                    <div className="text-xs text-gray-500 mt-2 text-center">
-                      Grab the button above and drag to any day in the Smart Time Ribbon
+  const handleDragStart = () => {
+    console.log('🎯 Composer drag started, opening dock');
+    openDock();
+  };
+
+  // Show drag-to-schedule interface for approved content
+  if (isApproved) {
+    return (
+      <Droppable droppableId="composer-panel" type="DRAFT">
+        {(provided, snapshot) => (
+          <div ref={provided.innerRef} {...provided.droppableProps}>
+            <Draggable draggableId={`composer-${selectedDraft.id}`} index={0}>
+              {(provided, snapshot) => (
+                <div
+                  ref={provided.innerRef}
+                  {...provided.draggableProps}
+                  className={cn(
+                    "transition-all duration-200",
+                    snapshot.isDragging && "opacity-90 transform rotate-1 scale-105 bg-white rounded-lg shadow-2xl border-2 border-[#68BEB9] p-4"
+                  )}
+                >
+                  <div className="text-center mb-4">
+                    <div className="text-sm text-gray-600 mb-3">
+                      Content approved! Drag to schedule or use the Smart Time Ribbon above.
                     </div>
                   </div>
-                )}
-              </Draggable>
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      );
-    }
+                  
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
+                      onClick={handleSave}
+                      disabled={saving || snapshot.isDragging}
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      {saving ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                    
+                    <div
+                      {...provided.dragHandleProps}
+                      data-draft-card="true"
+                      className={cn(
+                        "flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium",
+                        "bg-[#68BEB9] hover:bg-[#56a7a1] text-white transition-all duration-200",
+                        "cursor-grab active:cursor-grabbing select-none",
+                        snapshot.isDragging && "bg-[#56a7a1] shadow-lg cursor-grabbing transform scale-110"
+                      )}
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Drag to schedule content"
+                      onDragStart={handleDragStart}
+                    >
+                      <GripVertical className="w-4 h-4" />
+                      <Calendar className="w-4 h-4" />
+                      {snapshot.isDragging ? 'Drop on Calendar' : 'Drag to Schedule'}
+                    </div>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 mt-2 text-center">
+                    Grab the button above and drag to any day in the Smart Time Ribbon
+                  </div>
+                  
+                  {snapshot.isDragging && (
+                    <div className="absolute -top-2 -right-2 bg-[#68BEB9] text-white text-xs px-2 py-1 rounded-full">
+                      Scheduling...
+                    </div>
+                  )}
+                </div>
+              )}
+            </Draggable>
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    );
+  }
 
     // Show normal approve/save interface for draft content
     return (
