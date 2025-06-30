@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -100,10 +99,12 @@ const NewDashboardContent = () => {
     
     const { destination, source, draggableId } = result;
 
-    // If no destination, schedule dock close with longer delay to prevent premature closing
+    // If no destination, only close dock if it was a meaningful drag attempt
     if (!destination) {
-      console.log('🎯 No destination in NewDashboard - scheduling dock close with delay');
-      scheduleCloseDock(800); // Longer delay to allow for re-drag attempts
+      console.log('🎯 No destination in NewDashboard');
+      // Only schedule dock close if the drag was actually attempting to go somewhere
+      // (not just a failed reorder within the same container)
+      scheduleCloseDock(1000); // Longer delay for potential retry
       return;
     }
 
@@ -111,6 +112,12 @@ const NewDashboardContent = () => {
     cancelScheduledDockClose();
 
     console.log('🎯 Drag from', source.droppableId, 'to', destination.droppableId);
+
+    // If it's just a reorder within the same container, don't close the dock
+    if (source.droppableId === destination.droppableId) {
+      console.log('🎯 Same container reorder - keeping dock open');
+      return;
+    }
 
     // Handle drag from draft-tray to SmartTimeDock day slots
     if (
@@ -173,7 +180,8 @@ const NewDashboardContent = () => {
       }
     }
 
-    // For any other drag operations, schedule dock close with delay
+    // For any other cross-container drag operations, schedule dock close
+    console.log('🎯 Other cross-container drag - scheduling dock close');
     scheduleCloseDock(300);
   };
 
