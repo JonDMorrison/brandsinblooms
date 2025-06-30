@@ -75,7 +75,13 @@ const NewDashboardContent = () => {
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 NewDashboard handleDragEnd called:', result);
     
-    if (!result.source || !result.draggableId) return;
+    if (!result.source || !result.draggableId) {
+      console.log('🎯 No source or draggableId, closing dock after delay');
+      setTimeout(() => {
+        if (!isDragging) closeDock();
+      }, 400);
+      return;
+    }
 
     const { destination, source, draggableId } = result;
 
@@ -101,7 +107,7 @@ const NewDashboardContent = () => {
       source.droppableId === 'draft-tray' &&
       destination.droppableId.startsWith('day-')
     ) {
-      console.log('🎯 Draft to day drop detected - keeping dock open');
+      console.log('🎯 Draft to day drop detected - showing time selection modal');
       
       try {
         const dateStr = destination.droppableId.replace('day-', '');
@@ -132,7 +138,7 @@ const NewDashboardContent = () => {
       source.droppableId === 'composer-panel' &&
       destination.droppableId.startsWith('day-')
     ) {
-      console.log('🎯 Composer to day drop detected - keeping dock open');
+      console.log('🎯 Composer to day drop detected - showing time selection modal');
       
       try {
         const dateStr = destination.droppableId.replace('day-', '');
@@ -161,7 +167,7 @@ const NewDashboardContent = () => {
       }
     }
 
-    // Close dock 400 ms after drag finishes so user sees where the card landed
+    // Close dock 400 ms after drag finishes if dropped outside dock
     if (shouldCloseDock(result)) {
       console.log('🎯 Scheduling dock close after drag outside dock');
       setTimeout(() => {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -97,7 +96,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
   };
 
   const handleDragEnd = (result: any) => {
-    console.log('🎯 Draft drag ended');
+    console.log('🎯 Draft drag ended, forwarding to parent');
     stopDragging();
     if (onDragEnd) {
       onDragEnd(result);

@@ -1,6 +1,5 @@
 
 import React, { createContext, useContext, useCallback, useState } from 'react';
-import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
 
@@ -71,11 +70,6 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     setIsDockOpen(prev => !prev);
   }, []);
 
-  const handleDragEnd = useCallback((result: DropResult) => {
-    console.log('🎯 Dashboard drag ended:', result);
-    // The SmartTimeDock component handles the actual scheduling logic
-  }, []);
-
   // Filter tasks to show only approved and generated content in drafts
   const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
   const filteredData = data ? {
@@ -103,9 +97,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   return (
     <DashboardContext.Provider value={contextValue}>
       <DashboardUIContext.Provider value={uiContextValue}>
-        <DragDropContext onDragEnd={handleDragEnd}>
-          {children}
-        </DragDropContext>
+        {children}
       </DashboardUIContext.Provider>
     </DashboardContext.Provider>
   );
