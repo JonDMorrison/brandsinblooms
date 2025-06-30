@@ -197,13 +197,18 @@ const NewDashboard = () => {
               <p className="text-gray-600">Your content creation command center</p>
             </div>
 
+            {/* Updated to 3-column layout with closer to 30-30-40 distribution */}
             <div className="grid grid-cols-12 gap-6 mb-6">
-              <div className="col-span-4 space-y-6">
-                <div className="h-[480px]">
+              {/* Today's Focus - Column 1 (3/12 = 25%, closest to 30%) */}
+              <div className="col-span-3">
+                <div className="h-[720px]">
                   <FocusCarousel onTaskUpdate={handleTaskUpdate} />
                 </div>
+              </div>
 
-                <div className="flex-1">
+              {/* Draft Tray - Column 2 (4/12 = 33.33%, closest to 30%) */}
+              <div className="col-span-4">
+                <div className="h-[720px]">
                   <DraftTray 
                     tasks={dashboardData?.tasks || []}
                     selectedDraft={selectedDraft}
@@ -213,7 +218,8 @@ const NewDashboard = () => {
                 </div>
               </div>
 
-              <div className="col-span-8">
+              {/* Composer Panel - Column 3 (5/12 = 41.67%, closest to 40%) */}
+              <div className="col-span-5">
                 <div className="h-[720px]">
                   <ComposerPanel 
                     selectedDraft={selectedDraft}
