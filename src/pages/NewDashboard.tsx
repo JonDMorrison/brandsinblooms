@@ -15,6 +15,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useAuth } from '@/contexts/AuthContext';
 import { scheduleDraft } from '@/lib/dashboardAPI';
+import { useDashboard } from '@/contexts/DashboardContext';
 
 interface TimeSelectionModal {
   isOpen: boolean;
@@ -24,6 +25,7 @@ interface TimeSelectionModal {
 
 const NewDashboard = () => {
   const { user } = useAuth();
+  const { closeDock } = useDashboard();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const { schedulePost } = useScheduledPosts();
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
@@ -70,6 +72,10 @@ const NewDashboard = () => {
 
     if (!destination) {
       console.log('🎯 No destination in NewDashboard');
+      // Close dock after 200ms if drag ended outside dock
+      setTimeout(() => {
+        closeDock();
+      }, 200);
       return;
     }
 
@@ -171,7 +177,10 @@ const NewDashboard = () => {
         console.log('✅ Successfully scheduled:', result);
         
         const timeString = format(scheduledDate, 'MMM d, yyyy h:mm a');
-        const modeText = result.mode === 'MANUAL' ? ' (manual - connect social accounts for auto-posting)' : '';
+        
+        // Check user's posting eligibility
+        const hasConnections = dashboardData?.socialConnections && dashboardData.socialConnections.length > 0;
+        const modeText = result.mode === 'MANUAL' || !hasConnections ? ' (manual - connect social accounts for auto-posting)' : '';
         
         toast.success(`Scheduled for ${timeString}${modeText}`, {
           duration: 8000,
@@ -183,11 +192,14 @@ const NewDashboard = () => {
           }
         });
 
-        // Refresh the dashboard data to show updated state
+        // Refresh the dashboard data to show updated state and remove from draft tray
         await refetch();
         
         // Close the modal
         setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
+        
+        // Close the dock
+        closeDock();
       } else {
         throw new Error('Scheduling failed - no result returned');
       }

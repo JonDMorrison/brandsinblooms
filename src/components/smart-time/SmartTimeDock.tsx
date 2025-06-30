@@ -5,6 +5,8 @@ import { CollapsedBar } from './CollapsedBar';
 import { ExpandedRibbon } from './ExpandedRibbon';
 import { ScheduledContentModal } from '@/components/new-dashboard/ScheduledContentModal';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { cn } from '@/lib/utils';
 import './smart-time.css';
 
 interface SmartTimeDockProps {
@@ -18,7 +20,7 @@ export const SmartTimeDock = ({
   socialConnections = [],
   onScheduleUpdate
 }: SmartTimeDockProps) => {
-  const [open, setOpen] = useState(false);
+  const { isDockOpen, openDock, closeDock, toggleDock } = useDashboard();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -47,10 +49,10 @@ export const SmartTimeDock = ({
 
   // Auto-expand on drag start
   useEffect(() => {
-    if (isDragging && !open) {
-      setOpen(true);
+    if (isDragging && !isDockOpen) {
+      openDock();
     }
-  }, [isDragging, open]);
+  }, [isDragging, isDockOpen, openDock]);
 
   // Listen for drag events on the document
   useEffect(() => {
@@ -60,6 +62,7 @@ export const SmartTimeDock = ({
       if (target?.closest('[data-draft-card]') || target?.hasAttribute('data-draft-card')) {
         console.log('🎯 Draft card drag detected, expanding dock');
         setIsDragging(true);
+        openDock();
       }
     };
 
@@ -75,7 +78,24 @@ export const SmartTimeDock = ({
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('dragend', handleDragEnd);
     };
-  }, []);
+  }, [openDock]);
+
+  // Close dock when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const dockElement = document.querySelector('.smart-dock-container');
+      
+      if (isDockOpen && dockElement && !dockElement.contains(target)) {
+        closeDock();
+      }
+    };
+
+    if (isDockOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isDockOpen, closeDock]);
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
@@ -92,31 +112,57 @@ export const SmartTimeDock = ({
     if (onScheduleUpdate) onScheduleUpdate();
   };
 
+  const handleCollapsedBarClick = () => {
+    if (!isDockOpen) {
+      toggleDock();
+    }
+  };
+
   return (
     <>
-      <div className="smartDockTransition">
+      <div 
+        className={cn(
+          "smart-dock-container fixed bottom-0 left-0 right-0 z-30 bg-white shadow-xl transition-all duration-300 ease-in-out",
+          isDockOpen ? "h-56" : "h-14"
+        )}
+        aria-expanded={isDockOpen}
+      >
         {/* Ghost outline during drag when collapsed */}
-        {isDragging && !open && (
+        {isDragging && !isDockOpen && (
           <div className="smartDockGhost" />
         )}
         
-        {!open && (
-          <CollapsedBar
-            weekLabel={weekLabel}
-            bestTimes={getBestTimes()}
-            onExpand={() => setOpen(true)}
-            onPrevWeek={() => setCurrentWeek(addWeeks(currentWeek, -1))}
-            onNextWeek={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-          />
+        {!isDockOpen && (
+          <div
+            className="cursor-pointer h-full"
+            onClick={handleCollapsedBarClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                handleCollapsedBarClick();
+              }
+            }}
+            aria-label="Expand smart time dock"
+          >
+            <CollapsedBar
+              weekLabel={weekLabel}
+              bestTimes={getBestTimes()}
+              onExpand={() => {}} // Handled by parent click
+              onPrevWeek={() => setCurrentWeek(addWeeks(currentWeek, -1))}
+              onNextWeek={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+            />
+          </div>
         )}
         
-        {open && (
+        {isDockOpen && (
           <ExpandedRibbon
             week={currentWeek}
             scheduledByDate={scheduledByDate}
             socialConnections={socialConnections}
             onPage={setCurrentWeek}
-            onClose={() => setOpen(false)}
+            onClose={closeDock}
             onTaskClick={handleTaskClick}
           />
         )}

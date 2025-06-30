@@ -39,6 +39,10 @@ interface DashboardContextType {
   loading: boolean;
   composerMode: 'draft' | 'scheduled';
   setComposerMode: (mode: 'draft' | 'scheduled') => void;
+  isDockOpen: boolean;
+  openDock: () => void;
+  closeDock: () => void;
+  toggleDock: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -64,6 +68,25 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const [currentCampaign, setCurrentCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [composerMode, setComposerMode] = useState<'draft' | 'scheduled'>('draft');
+  
+  // Smart-Time Dock state
+  const [isDockOpen, setDockOpen] = useState(false);
+
+  const openDock = () => setDockOpen(true);
+  const closeDock = () => setDockOpen(false);
+  const toggleDock = () => setDockOpen(prev => !prev);
+
+  // Close dock on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isDockOpen) {
+        closeDock();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isDockOpen]);
 
   // Update composer mode when active draft changes
   useEffect(() => {
@@ -226,6 +249,10 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     loading,
     composerMode,
     setComposerMode,
+    isDockOpen,
+    openDock,
+    closeDock,
+    toggleDock,
   };
 
   return (

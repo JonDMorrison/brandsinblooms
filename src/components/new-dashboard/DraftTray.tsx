@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +7,7 @@ import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
 import { extractNewsletterThumbnail } from '@/utils/renderMarkdown';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
+import { useDashboard } from '@/contexts/DashboardContext';
 
 interface DraftTrayProps {
   tasks?: any[];
@@ -17,6 +17,7 @@ interface DraftTrayProps {
 }
 
 export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprovedId }: DraftTrayProps) => {
+  const { openDock } = useDashboard();
   const [showDragHint, setShowDragHint] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,6 +84,11 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
       default:
         return { label: status, variant: 'outline' as const, className: '' };
     }
+  };
+
+  const handleDragStart = () => {
+    console.log('🎯 Draft drag started, opening dock');
+    openDock();
   };
 
   // Filter out scheduled tasks and show only approved/generated content
@@ -158,6 +164,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                             draft.status === 'approved' && "border-l-4 border-l-[#68BEB9]"
                           )}
                           onClick={() => onSelectDraft?.(draft)}
+                          onDragStart={handleDragStart}
                         >
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
