@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -128,9 +129,9 @@ export const useFocusThemes = () => {
     try {
       const currentWeek = getCurrentWeekNumber();
       
-      // Fetch a wider range of themes for better seasonal variety (current + 8 weeks)
+      // Fetch themes within a 5-week range (current + 4 weeks ahead)
       const weekNumbers = [];
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 5; i++) {
         const week = ((currentWeek + i - 1) % 52) + 1;
         weekNumbers.push(week);
       }
@@ -154,6 +155,14 @@ export const useFocusThemes = () => {
 
       // Transform themes with seasonal data
       let transformedThemes = (masterThemes || []).map(theme => transformTheme(theme, currentWeek));
+
+      // Additional filter: Remove themes that are more than 5 weeks away
+      transformedThemes = transformedThemes.filter(theme => {
+        const weekDifference = theme.weekNumber - currentWeek;
+        // Handle year wrap-around: if weekDifference is very negative, it's likely next year
+        const adjustedWeekDiff = weekDifference < -26 ? weekDifference + 52 : weekDifference;
+        return adjustedWeekDiff <= 5 && adjustedWeekDiff >= 0;
+      });
 
       // Get user theme status if we have tenant data
       let userThemeStatuses: any[] = [];
