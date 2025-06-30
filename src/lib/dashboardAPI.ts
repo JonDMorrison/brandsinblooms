@@ -44,16 +44,24 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
     }
 
     // First, get the content task to verify it exists and get the content
+    // Use a more flexible query that doesn't filter by user_id to avoid tenant issues
     const { data: task, error: taskError } = await supabase
       .from('content_tasks')
       .select('*')
       .eq('id', params.taskId)
-      .eq('user_id', user.id)
       .single();
 
     if (taskError || !task) {
       console.error('❌ Failed to fetch task:', taskError);
       toast.error('Task not found or access denied');
+      return null;
+    }
+
+    // Verify the user has access to this task (either through user_id or tenant_id)
+    const hasAccess = task.user_id === user.id || task.created_by_user_id === user.id;
+    if (!hasAccess) {
+      console.error('❌ User does not have access to this task');
+      toast.error('Access denied to this task');
       return null;
     }
 
@@ -125,6 +133,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
     console.log('📅 Scheduled post created:', scheduledPost);
 
     // Update content task status to posted (instead of scheduled)
+    // Use the same flexible approach for the update
     const { data: updatedTask, error: updateError } = await supabase
       .from('content_tasks')
       .update({ 
@@ -132,7 +141,6 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
         scheduled_date: params.publishAt
       })
       .eq('id', params.taskId)
-      .eq('user_id', user.id)
       .select()
       .single();
 
