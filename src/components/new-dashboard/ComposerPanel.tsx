@@ -513,18 +513,22 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                         {saving ? 'Saving...' : 'Save Changes'}
                       </Button>
                       
-                      <Button 
+                      <div
                         {...provided.dragHandleProps}
                         className={cn(
-                          "flex-1 bg-[#68BEB9] hover:bg-[#56a7a1] text-white font-medium transition-all duration-200 cursor-grab active:cursor-grabbing",
+                          "flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium",
+                          "bg-[#68BEB9] hover:bg-[#56a7a1] text-white transition-all duration-200",
+                          "cursor-grab active:cursor-grabbing select-none",
                           snapshot.isDragging && "bg-[#56a7a1] shadow-lg cursor-grabbing"
                         )}
-                        disabled={snapshot.isDragging}
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Drag to schedule content"
                       >
-                        <GripVertical className="w-4 h-4 mr-2" />
-                        <Calendar className="w-4 h-4 mr-2" />
+                        <GripVertical className="w-4 h-4" />
+                        <Calendar className="w-4 h-4" />
                         {snapshot.isDragging ? 'Drop on Calendar' : 'Drag to Schedule'}
-                      </Button>
+                      </div>
                     </div>
                     
                     <div className="text-xs text-gray-500 mt-2 text-center">
