@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -6,6 +7,7 @@ import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { ImageGallery } from '@/components/new-dashboard/ImageGallery';
 import { SmartTimeDock } from '@/components/smart-time';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { UserMenu } from '@/components/UserMenu';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -181,9 +183,14 @@ const NewDashboard = () => {
   }
 
   return (
-    <FullWidthLayout>
+    <>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="min-h-screen bg-[#F9FAFB] p-6 pb-60">
+          {/* Fixed UserMenu - positioned above everything */}
+          <div className="fixed top-6 right-6 z-[9999]">
+            <UserMenu />
+          </div>
+          
           <div className="max-w-full mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
@@ -304,7 +311,7 @@ const NewDashboard = () => {
           </div>
         </div>
       )}
-    </FullWidthLayout>
+    </>
   );
 };
 
