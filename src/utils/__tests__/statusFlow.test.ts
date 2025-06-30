@@ -2,7 +2,7 @@
 import { TASK_STATUS } from '@/constants/taskStatus';
 
 // Helper function to simulate status transitions
-const toApproved = (task: { status: string }) => ({
+const toApproved = (task: { status: string; [key: string]: any }) => ({
   ...task,
   status: TASK_STATUS.APPROVED
 });
