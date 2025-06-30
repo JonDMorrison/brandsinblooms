@@ -129,17 +129,29 @@ const NewDashboard = () => {
   };
 
   const handleDragEnd = async (result: DropResult) => {
+    console.log('🎯 NewDashboard handleDragEnd called:', result);
+    
     const { destination, source, draggableId } = result;
 
-    if (!destination) return;
+    if (!destination) {
+      console.log('🎯 No destination in NewDashboard');
+      return;
+    }
 
+    console.log('🎯 Drag from', source.droppableId, 'to', destination.droppableId);
+
+    // Handle drag from draft-tray to SmartTimeDock day slots
     if (
       source.droppableId === 'draft-tray' &&
       destination.droppableId.startsWith('day-')
     ) {
+      console.log('🎯 Draft to day drop detected');
+      
       try {
         const dateStr = destination.droppableId.replace('day-', '');
         const targetDate = new Date(dateStr);
+        
+        console.log('🎯 Setting up time selection modal for:', { draggableId, targetDate });
         
         setTimeSelectionModal({
           isOpen: true,
@@ -148,7 +160,7 @@ const NewDashboard = () => {
         });
         
       } catch (error) {
-        console.error('Error processing drag:', error);
+        console.error('🎯 Error processing drag:', error);
         toast.error('Failed to process drag operation');
       }
     }

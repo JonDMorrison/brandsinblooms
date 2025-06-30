@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
@@ -9,20 +9,22 @@ import { ScheduledContentPill } from '@/components/new-dashboard/ScheduledConten
 
 interface ExpandedRibbonProps {
   week: Date;
-  scheduledByDate?: Record<string, any[]>;
-  socialConnections?: any[];
-  onPage: (week: Date) => void;
+  scheduledByDate: Record<string, any[]>;
+  socialConnections: any[];
+  onPage: (date: Date) => void;
   onClose: () => void;
-  onTaskClick?: (task: any) => void;
+  onTaskClick: (task: any) => void;
+  onDragEnd?: (result: any) => void;
 }
 
 export const ExpandedRibbon = ({ 
-  week,
-  scheduledByDate = {},
-  socialConnections = [],
-  onPage,
-  onClose,
-  onTaskClick
+  week, 
+  scheduledByDate, 
+  socialConnections,
+  onPage, 
+  onClose, 
+  onTaskClick,
+  onDragEnd 
 }: ExpandedRibbonProps) => {
   const weekStart = startOfWeek(week, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -41,11 +43,10 @@ export const ExpandedRibbon = ({
   const hasConnections = socialConnections.length > 0;
 
   return (
-    <div className="smartDockExpanded smartDockTransition">
-      <div className="max-w-full mx-auto p-6">
-        {/* Header */}
+    <div className="smartDockExpanded">
+      <div className="p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Dock</h2>
+          <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={prevWeek}>
               <ChevronLeft className="w-4 h-4" />
@@ -56,14 +57,8 @@ export const ExpandedRibbon = ({
             <Button variant="ghost" size="sm" onClick={nextWeek}>
               <ChevronRight className="w-4 h-4" />
             </Button>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={onClose}
-              aria-label="Collapse scheduler"
-              className="ml-2"
-            >
-              <ChevronDown className="w-4 h-4" />
+            <Button variant="ghost" size="sm" onClick={onClose} className="ml-2">
+              <X className="w-4 h-4" />
             </Button>
           </div>
         </div>
@@ -76,7 +71,6 @@ export const ExpandedRibbon = ({
           </div>
         )}
 
-        {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-4">
           {weekDays.map((day) => {
             const dayKey = format(day, 'yyyy-MM-dd');
@@ -114,14 +108,14 @@ export const ExpandedRibbon = ({
                       </div>
                     </div>
 
-                    {/* Scheduled Content Pills */}
+                    {/* Scheduled Content Tasks */}
                     <div className="space-y-2">
                       {scheduledTasksForDay.map((scheduledTaskData) => (
                         <ScheduledContentPill
                           key={`task-${scheduledTaskData.id}`}
                           task={scheduledTaskData}
                           scheduledMeta={scheduledTaskData.scheduledMeta}
-                          onClick={() => onTaskClick?.(scheduledTaskData)}
+                          onClick={() => onTaskClick(scheduledTaskData)}
                         />
                       ))}
                     </div>
@@ -157,7 +151,7 @@ export const ExpandedRibbon = ({
 
         <div className="mt-4 p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
           <p className="text-sm text-[#3E5A6B]">
-            <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days. Click on scheduled content to edit.
+            <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days.
           </p>
         </div>
       </div>

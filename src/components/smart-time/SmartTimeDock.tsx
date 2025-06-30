@@ -29,7 +29,6 @@ export const SmartTimeDock = ({
   const [isDragging, setIsDragging] = useState(false);
   
   const queryClient = useQueryClient();
-  const idleTimeoutRef = useRef<NodeJS.Timeout>();
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekLabel = `${format(weekStart, 'MMM d')} – ${format(addDays(weekStart, 6), 'MMM d')}`;
@@ -57,40 +56,19 @@ export const SmartTimeDock = ({
     }
   }, [isDragging, open]);
 
-  // Auto-collapse after 5s idle when open
-  useEffect(() => {
-    if (!open) return;
-    
-    // Clear existing timeout
-    if (idleTimeoutRef.current) {
-      clearTimeout(idleTimeoutRef.current);
-    }
-    
-    // Set new timeout for 5 seconds
-    idleTimeoutRef.current = setTimeout(() => {
-      if (!isDragging) {
-        setOpen(false);
-      }
-    }, 5000);
-    
-    return () => {
-      if (idleTimeoutRef.current) {
-        clearTimeout(idleTimeoutRef.current);
-      }
-    };
-  }, [open, isDragging]);
-
   // Listen for drag events on the document
   useEffect(() => {
     const handleDragStart = (e: DragEvent) => {
       // Check if the dragged element is from draft tray (has data-draft-card attribute)
       const target = e.target as HTMLElement;
       if (target?.closest('[data-draft-card]') || target?.hasAttribute('data-draft-card')) {
+        console.log('🎯 Draft card drag detected, expanding dock');
         setIsDragging(true);
       }
     };
 
     const handleDragEnd = () => {
+      console.log('🎯 Drag ended, resetting state');
       setIsDragging(false);
     };
 
@@ -120,16 +98,26 @@ export const SmartTimeDock = ({
 
   // Handle drag and drop with mode-aware logic
   const handleDragEnd = async (result: any) => {
-    if (!result.destination) return;
+    console.log('🎯 SmartTimeDock handleDragEnd called:', result);
+    
+    if (!result.destination) {
+      console.log('🎯 No destination, cancelling drop');
+      return;
+    }
     
     const { draggableId, destination } = result;
     
     const dateMatch = destination.droppableId.match(/day-(.+)/);
-    if (!dateMatch) return;
+    if (!dateMatch) {
+      console.log('🎯 Invalid droppable ID format:', destination.droppableId);
+      return;
+    }
     
     const targetDate = dateMatch[1];
     const publishAt = new Date(`${targetDate}T14:00:00`).toISOString();
     const platform = 'FACEBOOK';
+    
+    console.log('🎯 Attempting to schedule:', { draggableId, targetDate, publishAt, platform });
     
     try {
       const scheduledResult = await scheduleDraft({
@@ -139,6 +127,8 @@ export const SmartTimeDock = ({
       });
       
       if (scheduledResult) {
+        console.log('✅ Successfully scheduled:', scheduledResult);
+        
         // Optimistically update the cache
         queryClient.setQueryData(['dashboard-data'], (oldData: any) => {
           if (!oldData) return oldData;
@@ -181,6 +171,8 @@ export const SmartTimeDock = ({
         }, 1000);
         
         if (onScheduleUpdate) onScheduleUpdate();
+        
+        toast.success(`Scheduled for ${format(new Date(publishAt), 'MMM d, yyyy')} at ${format(new Date(publishAt), 'h:mm a')}`);
       }
     } catch (error) {
       console.error('❌ Failed to schedule:', error);
@@ -216,6 +208,7 @@ export const SmartTimeDock = ({
             onPage={setCurrentWeek}
             onClose={() => setOpen(false)}
             onTaskClick={handleTaskClick}
+            onDragEnd={handleDragEnd}
           />
         )}
       </div>
