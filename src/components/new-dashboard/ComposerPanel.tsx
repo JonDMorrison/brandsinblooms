@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useUnsplash } from '@/hooks/useUnsplash';
@@ -33,6 +34,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const [postWithoutImage, setPostWithoutImage] = useState(false);
   const [imagesFetching, setImagesFetching] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [imagesFetched, setImagesFetched] = useState(false);
 
   const { scheduledPosts } = useScheduledPosts();
   const { getSmartImages, searchImages, refreshImages, loading: imagesLoading } = useUnsplash();
@@ -99,11 +101,13 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
   const approvalStatus = getApprovalButtonStatus();
 
+  // Reset image state when draft changes
   useEffect(() => {
     if (selectedDraft?.ai_output) {
       console.log('[COMPOSER] Selected draft changed:', selectedDraft.id, selectedDraft.post_type);
       setEditContent(selectedDraft.ai_output);
       setImageError(null);
+      setImagesFetched(false);
       
       // Load existing image attachment
       if (selectedDraft.attachments?.image) {
@@ -111,71 +115,29 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         const existingImage = selectedDraft.attachments.image;
         setImages([existingImage]);
         setSelectedImageId(existingImage.id);
+        setImagesFetched(true);
       } else {
-        console.log('[COMPOSER] No existing image, fetching new ones');
-        // Fetch new images based on content
-        fetchImagesForDraft();
+        console.log('[COMPOSER] No existing image, will fetch new ones');
+        setImages([]);
+        setSelectedImageId(null);
+        // Don't auto-fetch here, let user trigger it manually
       }
     } else {
       console.log('[COMPOSER] No draft or content, clearing images');
       setImages([]);
       setSelectedImageId(null);
       setImageError(null);
+      setImagesFetched(false);
     }
   }, [selectedDraft]);
-
-  const fetchImagesForDraft = async () => {
-    if (!selectedDraft?.ai_output) {
-      console.log('[COMPOSER] No content to extract keywords from');
-      return;
-    }
-    
-    setImagesFetching(true);
-    setImageError(null);
-    
-    try {
-      const query = extractKeywordsFromContent(selectedDraft.ai_output);
-      console.log('[COMPOSER] Extracted query for images:', query);
-      
-      if (!query || query.trim().length === 0) {
-        console.warn('[COMPOSER] Empty query, using fallback');
-        const fallbackQuery = selectedDraft.post_type || 'lifestyle';
-        const fetchedImages = await getSmartImages(fallbackQuery);
-        console.log('[COMPOSER] Fetched fallback images:', fetchedImages.length);
-        setImages(fetchedImages);
-        
-        if (fetchedImages.length > 0) {
-          setSelectedImageId(fetchedImages[0].id);
-        }
-        return;
-      }
-      
-      const fetchedImages = await getSmartImages(query);
-      console.log('[COMPOSER] Fetched images:', fetchedImages.length);
-      setImages(fetchedImages);
-      
-      // Auto-select first image
-      if (fetchedImages.length > 0) {
-        setSelectedImageId(fetchedImages[0].id);
-        console.log('[COMPOSER] Auto-selected first image:', fetchedImages[0].id);
-      } else {
-        console.warn('[COMPOSER] No images returned from getSmartImages');
-        setImageError('No images found for this content');
-      }
-    } catch (error) {
-      console.error('[COMPOSER] Error fetching images:', error);
-      setImageError('Failed to load images');
-      setImages([]);
-    } finally {
-      setImagesFetching(false);
-    }
-  };
 
   const extractKeywordsFromContent = (content: string): string => {
     if (!content || content.trim().length === 0) {
       console.log('[COMPOSER] No content provided for keyword extraction');
       return '';
     }
+    
+    console.log('[COMPOSER] Extracting keywords from content:', content.substring(0, 100));
     
     // Simple keyword extraction - could be enhanced
     const words = content
@@ -191,6 +153,64 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     return result;
   };
 
+  const fetchImagesForDraft = async () => {
+    if (!selectedDraft?.ai_output) {
+      console.log('[COMPOSER] No content to extract keywords from');
+      toast.error('No content available to find images for');
+      return;
+    }
+    
+    setImagesFetching(true);
+    setImageError(null);
+    
+    try {
+      const query = extractKeywordsFromContent(selectedDraft.ai_output);
+      console.log('[COMPOSER] Extracted query for images:', query);
+      
+      if (!query || query.trim().length === 0) {
+        console.warn('[COMPOSER] Empty query, using fallback');
+        const fallbackQuery = selectedDraft.post_type || 'lifestyle';
+        console.log('[COMPOSER] Using fallback query:', fallbackQuery);
+        const fetchedImages = await getSmartImages(fallbackQuery);
+        console.log('[COMPOSER] Fetched fallback images:', fetchedImages.length, fetchedImages);
+        
+        if (fetchedImages.length > 0) {
+          setImages(fetchedImages);
+          setSelectedImageId(fetchedImages[0].id);
+          setImagesFetched(true);
+          toast.success(`Found ${fetchedImages.length} images`);
+        } else {
+          setImageError('No images found');
+          toast.error('No images found for this content');
+        }
+        return;
+      }
+      
+      console.log('[COMPOSER] Calling getSmartImages with query:', query);
+      const fetchedImages = await getSmartImages(query);
+      console.log('[COMPOSER] getSmartImages returned:', fetchedImages.length, 'images');
+      
+      if (fetchedImages.length > 0) {
+        setImages(fetchedImages);
+        setSelectedImageId(fetchedImages[0].id);
+        setImagesFetched(true);
+        console.log('[COMPOSER] Auto-selected first image:', fetchedImages[0].id);
+        toast.success(`Found ${fetchedImages.length} relevant images`);
+      } else {
+        console.warn('[COMPOSER] No images returned from getSmartImages');
+        setImageError('No images found for this content');
+        toast.error('No images found for this content');
+      }
+    } catch (error) {
+      console.error('[COMPOSER] Error fetching images:', error);
+      setImageError(`Failed to load images: ${error.message}`);
+      toast.error('Failed to load images');
+      setImages([]);
+    } finally {
+      setImagesFetching(false);
+    }
+  };
+
   const handleImageSelect = (imageId: string) => {
     console.log('[COMPOSER] Image selected:', imageId);
     setSelectedImageId(imageId);
@@ -198,27 +218,21 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   };
 
   const handleImageRefresh = async () => {
-    if (!selectedDraft?.ai_output) return;
-    
-    console.log('[COMPOSER] Refreshing images');
-    setImagesFetching(true);
-    setImageError(null);
-    
-    try {
-      const query = extractKeywordsFromContent(selectedDraft.ai_output);
-      const newImages = await refreshImages(query);
-      console.log('[COMPOSER] Refreshed images:', newImages.length);
-      setImages(newImages);
-      setSelectedImageId(newImages.length > 0 ? newImages[0].id : null);
-    } catch (error) {
-      console.error('[COMPOSER] Error refreshing images:', error);
-      setImageError('Failed to refresh images');
-    } finally {
-      setImagesFetching(false);
+    if (!selectedDraft?.ai_output) {
+      toast.error('No content available to refresh images for');
+      return;
     }
+    
+    console.log('[COMPOSER] User requested image refresh');
+    await fetchImagesForDraft();
   };
 
   const handleImageSearch = async (query: string) => {
+    if (!query.trim()) {
+      toast.error('Please enter a search term');
+      return;
+    }
+    
     console.log('[COMPOSER] Searching images for:', query);
     setImagesFetching(true);
     setImageError(null);
@@ -226,11 +240,20 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     try {
       const searchResults = await searchImages(query);
       console.log('[COMPOSER] Search results:', searchResults.length);
-      setImages(searchResults);
-      setSelectedImageId(searchResults.length > 0 ? searchResults[0].id : null);
+      
+      if (searchResults.length > 0) {
+        setImages(searchResults);
+        setSelectedImageId(searchResults[0].id);
+        setImagesFetched(true);
+        toast.success(`Found ${searchResults.length} images for "${query}"`);
+      } else {
+        setImageError(`No images found for "${query}"`);
+        toast.error(`No images found for "${query}"`);
+      }
     } catch (error) {
       console.error('[COMPOSER] Error searching images:', error);
-      setImageError('Failed to search images');
+      setImageError(`Search failed: ${error.message}`);
+      toast.error('Image search failed');
     } finally {
       setImagesFetching(false);
     }
@@ -344,47 +367,78 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   };
 
   const renderImageSection = () => {
-    // Always render for non-newsletter content
+    // Show images for all content types except newsletters
     if (!selectedDraft || selectedDraft.post_type === 'newsletter') {
       return null;
     }
 
     const isLoadingImages = imagesFetching || imagesLoading;
+    const showImages = images.length > 0;
+    const showError = imageError && !isLoadingImages;
 
     return (
       <div className="mt-4 border-t pt-4 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-medium text-[#3E5A6B]">Images</h4>
-          {isLoadingImages && (
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Loading images...
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {isLoadingImages && (
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading...
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={imagesFetched ? handleImageRefresh : fetchImagesForDraft}
+              disabled={isLoadingImages || !selectedDraft?.ai_output}
+              className="text-xs"
+            >
+              <RefreshCw className="w-3 h-3 mr-1" />
+              {imagesFetched ? 'Refresh' : 'Load Images'}
+            </Button>
+          </div>
         </div>
         
-        {imageError && (
+        {showError && (
           <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
             {imageError}
             <Button 
               variant="ghost" 
               size="sm" 
-              onClick={() => fetchImagesForDraft()}
+              onClick={fetchImagesForDraft}
               className="ml-2 h-auto p-1 text-red-600 hover:text-red-700"
+              disabled={isLoadingImages}
             >
               Retry
             </Button>
           </div>
         )}
+
+        {!showImages && !isLoadingImages && !showError && (
+          <div className="mb-3 p-4 bg-gray-50 border border-gray-200 rounded text-center">
+            <div className="text-sm text-gray-600 mb-2">No images loaded yet</div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchImagesForDraft}
+              disabled={!selectedDraft?.ai_output}
+            >
+              Load Images for This Content
+            </Button>
+          </div>
+        )}
         
-        <ImagePicker
-          images={images}
-          selected={selectedImageId}
-          onSelect={handleImageSelect}
-          onRefresh={handleImageRefresh}
-          onSearch={handleImageSearch}
-          loading={isLoadingImages}
-        />
+        {showImages && (
+          <ImagePicker
+            images={images}
+            selected={selectedImageId}
+            onSelect={handleImageSelect}
+            onRefresh={handleImageRefresh}
+            onSearch={handleImageSearch}
+            loading={isLoadingImages}
+          />
+        )}
         
         {!isInstagram && (
           <div className="flex items-center space-x-2 mt-3">
@@ -402,7 +456,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
           </div>
         )}
         
-        {isInstagram && !hasValidImage && !isLoadingImages && (
+        {isInstagram && !hasValidImage && !isLoadingImages && showImages && (
           <div className="flex items-center gap-2 text-red-600 text-sm mt-2">
             <AlertCircle className="w-4 h-4" />
             Instagram posts need an image.
@@ -488,7 +542,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden">
                 {renderContent()}
-                {!isEditing && renderImageSection()}
+                {renderImageSection()}
               </div>
             )}
 
