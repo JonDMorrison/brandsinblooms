@@ -86,7 +86,7 @@ export const FocusCard = ({ theme, onGenerate, onSkip, isGenerating }: FocusCard
                     Generating...
                   </>
                 ) : (
-                  <>Generate Content • 1 token</>
+                  <>Generate Content</>
                 )}
               </Button>
             </TooltipTrigger>
