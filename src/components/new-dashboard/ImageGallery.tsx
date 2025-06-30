@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -6,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import styles from './ImageGallery.module.css';
 import { cn } from '@/lib/utils';
+import { extractKeywords } from '@/utils/imageKeywords';
 
 interface ImageGalleryProps {
   selectedDraft: any;
@@ -19,57 +21,16 @@ interface UnsplashImage {
   photographer: string;
 }
 
-// Enhanced keyword extraction focused on actual content
-const extractMeaningfulKeywords = (content: string): string[] => {
-  if (!content || content.trim().length === 0) {
-    return [];
-  }
-
-  console.log('[IMAGE_GALLERY] Analyzing content:', content.substring(0, 200));
-
-  // Clean and normalize content
-  const cleanContent = content
-    .replace(/<[^>]*>/g, ' ')           // Remove HTML
-    .replace(/&[^;]+;/g, ' ')          // Remove HTML entities
-    .replace(/[^\w\s]/g, ' ')          // Remove punctuation but keep words
-    .replace(/\s+/g, ' ')              // Normalize whitespace
-    .trim()
-    .toLowerCase();
-
-  // Extract meaningful nouns and descriptive words
-  const meaningfulWords = cleanContent
-    .split(/\s+/)
-    .filter(word => {
-      // Filter out common words and keep meaningful terms
-      const stopWords = [
-        'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
-        'from', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below',
-        'between', 'among', 'throughout', 'alongside', 'within', 'without', 'toward',
-        'your', 'our', 'their', 'this', 'that', 'these', 'those', 'here', 'there',
-        'when', 'where', 'why', 'how', 'what', 'who', 'which', 'will', 'would', 'could',
-        'should', 'have', 'has', 'had', 'been', 'being', 'are', 'is', 'was', 'were',
-        'can', 'may', 'might', 'must', 'shall', 'need', 'want', 'like', 'make', 'get',
-        'take', 'come', 'go', 'see', 'know', 'think', 'say', 'tell', 'ask', 'give',
-        'find', 'feel', 'seem', 'look', 'turn', 'keep', 'put', 'set', 'become', 'made'
-      ];
-      
-      return word.length > 2 && !stopWords.includes(word) && !/^\d+$/.test(word);
-    })
-    .slice(0, 8); // Get top 8 meaningful words
-
-  console.log('[IMAGE_GALLERY] Extracted meaningful keywords:', meaningfulWords);
-  return meaningfulWords;
-};
-
 // Build content-focused search query
 const buildContentQuery = (draft: any): string => {
   const content = draft?.ai_output || draft?.prompt || '';
-  const keywords = extractMeaningfulKeywords(content);
+  const keywords = extractKeywords(content, 'gardening lifestyle');
   
   console.log('[IMAGE_GALLERY] Building query for content type:', draft?.post_type);
+  console.log('[IMAGE_GALLERY] Extracted keywords:', keywords);
 
-  if (keywords.length === 0) {
-    // Fallback based on post type and context
+  // Add context based on post type if keywords are generic
+  if (keywords === 'gardening lifestyle') {
     const fallbacks = {
       instagram: 'lifestyle photography',
       facebook: 'community engagement',
@@ -83,27 +44,8 @@ const buildContentQuery = (draft: any): string => {
     return fallback;
   }
 
-  // Use top 2-3 most relevant keywords
-  let query = keywords.slice(0, 3).join(' ');
-  
-  // Add context based on the primary keyword theme
-  const primaryKeyword = keywords[0];
-  
-  // Only add contextual terms if they enhance the search
-  if (/plant|flower|garden|grow|bloom|seed|soil/.test(keywords.join(' '))) {
-    query += ' gardening';
-  } else if (/food|recipe|cook|eat|ingredient/.test(keywords.join(' '))) {
-    query += ' food photography';
-  } else if (/business|professional|work|office/.test(keywords.join(' '))) {
-    query += ' professional';
-  } else if (/home|house|interior|decor/.test(keywords.join(' '))) {
-    query += ' home lifestyle';
-  } else if (/outdoor|nature|landscape/.test(keywords.join(' '))) {
-    query += ' outdoor';
-  }
-
-  console.log('[IMAGE_GALLERY] Final content-focused query:', query);
-  return query;
+  console.log('[IMAGE_GALLERY] Final content-focused query:', keywords);
+  return keywords;
 };
 
 // Curated fallback queries for when content analysis fails
@@ -170,7 +112,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
           query,
           maxImages: 4,
           orientation: 'squarish',
-          orderBy: 'relevant', // Changed from 'popular' to 'relevant'
+          orderBy: 'relevant',
           contentFilter: 'high'
         }
       });
@@ -385,7 +327,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
               </div>
             </div>
           )}
-        </DialogContent>
+        </DialogContent>  
       </Dialog>
     </>
   );
