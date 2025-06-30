@@ -513,29 +513,18 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                         {saving ? 'Saving...' : 'Save Changes'}
                       </Button>
                       
-                      <div 
+                      <Button 
                         {...provided.dragHandleProps}
                         className={cn(
-                          "flex-1 relative group cursor-grab active:cursor-grabbing",
-                          snapshot.isDragging && "cursor-grabbing"
+                          "flex-1 bg-[#68BEB9] hover:bg-[#56a7a1] text-white font-medium transition-all duration-200 cursor-grab active:cursor-grabbing",
+                          snapshot.isDragging && "bg-[#56a7a1] shadow-lg cursor-grabbing"
                         )}
+                        disabled={snapshot.isDragging}
                       >
-                        <Button 
-                          className={cn(
-                            "w-full bg-[#68BEB9] hover:bg-[#56a7a1] text-white font-medium transition-all duration-200",
-                            snapshot.isDragging && "bg-[#56a7a1] shadow-lg"
-                          )}
-                          disabled={snapshot.isDragging}
-                        >
-                          <GripVertical className="w-4 h-4 mr-2" />
-                          <Calendar className="w-4 h-4 mr-2" />
-                          {snapshot.isDragging ? 'Drop on Calendar' : 'Drag to Schedule'}
-                        </Button>
-                        
-                        {!snapshot.isDragging && (
-                          <div className="absolute inset-0 bg-gradient-to-r from-[#68BEB9]/10 to-[#56a7a1]/10 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none" />
-                        )}
-                      </div>
+                        <GripVertical className="w-4 h-4 mr-2" />
+                        <Calendar className="w-4 h-4 mr-2" />
+                        {snapshot.isDragging ? 'Drop on Calendar' : 'Drag to Schedule'}
+                      </Button>
                     </div>
                     
                     <div className="text-xs text-gray-500 mt-2 text-center">
