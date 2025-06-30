@@ -41,26 +41,34 @@ export const ExpandedRibbon = ({
   const hasConnections = socialConnections.length > 0;
 
   return (
-    <div className="smartDockExpanded">
-      <div className="ribbon-content p-4 h-full overflow-y-auto">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={prevWeek}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium text-gray-600 min-w-[120px] text-center">
-              {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
-            </span>
-            <Button variant="ghost" size="sm" onClick={nextWeek}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onClose} className="ml-2">
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header - Fixed height */}
+      <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={prevWeek}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <span className="text-sm font-medium text-gray-600 min-w-[120px] text-center">
+            {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
+          </span>
+          <Button variant="ghost" size="sm" onClick={nextWeek}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onClose} 
+            className="ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+            aria-label="Close smart time dock"
+          >
+            <X className="w-4 h-4" />
+          </Button>
         </div>
+      </div>
 
+      {/* Content - Scrollable */}
+      <div className="flex-1 overflow-y-auto p-4">
         {!hasConnections && (
           <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
             <p className="text-sm text-orange-800 text-center">
@@ -82,7 +90,7 @@ export const ExpandedRibbon = ({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      "min-h-[100px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
+                      "min-h-[80px] p-2 rounded-lg border-2 border-dashed transition-all duration-200",
                       snapshot.isDraggingOver
                         ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md" 
                         : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
@@ -97,7 +105,7 @@ export const ExpandedRibbon = ({
                         {getDayName(day)}
                       </div>
                       <div className={cn(
-                        "text-lg font-semibold",
+                        "text-sm font-semibold",
                         isToday ? "text-[#68BEB9]" : "text-gray-900"
                       )}>
                         {getDayNumber(day)}
@@ -118,15 +126,15 @@ export const ExpandedRibbon = ({
 
                     {/* Drop zone indicator */}
                     {snapshot.isDraggingOver && (
-                      <div className="flex items-center justify-center h-6 text-xs text-[#68BEB9] font-medium mt-2">
+                      <div className="flex items-center justify-center h-4 text-xs text-[#68BEB9] font-medium mt-1">
                         {hasConnections ? "Drop to schedule" : "Drop to schedule (manual)"}
                       </div>
                     )}
 
                     {/* Empty state */}
                     {!snapshot.isDraggingOver && scheduledTasksForDay.length === 0 && (
-                      <div className="flex items-center justify-center h-6 mt-2">
-                        <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                      <div className="flex items-center justify-center h-4 mt-1">
+                        <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
                       </div>
                     )}
 

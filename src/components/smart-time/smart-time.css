@@ -1,6 +1,6 @@
 
 .smartDockGhost {
-  @apply absolute inset-x-0 -top-64 h-64 bg-white/40 border-2 border-dashed border-[#68BEB9]/50 rounded-t-xl pointer-events-none opacity-30;
+  @apply absolute inset-x-0 -top-80 h-80 bg-white/40 border-2 border-dashed border-[#68BEB9]/50 rounded-t-xl pointer-events-none opacity-30;
 }
 
 .smartDockCollapsed {
@@ -8,7 +8,8 @@
 }
 
 .smartDockExpanded {
-  @apply h-64 bg-white/95 backdrop-blur border-t border-gray-200 overflow-hidden;
+  @apply h-80 bg-white/95 backdrop-blur border-t border-gray-200 overflow-hidden;
+  max-height: 320px !important;
 }
 
 .smartDockTransition {
@@ -17,7 +18,7 @@
 
 /* Ensure the ribbon content fits within the dock height */
 .smartDockExpanded .ribbon-content {
-  @apply h-full overflow-y-auto pb-4;
+  @apply h-full overflow-y-auto;
 }
 
 /* Add bottom padding to main content when dock is visible */
@@ -25,4 +26,17 @@ body {
   padding-bottom: 56px; /* 14 * 4 = 56px for collapsed dock */
 }
 
-/* No additional padding needed for expanded dock since it's overlay */
+/* Ensure Smart Dock never exceeds viewport */
+.smart-dock-container {
+  max-height: 320px !important;
+}
+
+.smart-dock-container.expanded {
+  height: 320px !important;
+  max-height: 320px !important;
+}
+
+/* Prevent any child elements from overflowing */
+.smart-dock-container * {
+  box-sizing: border-box;
+}

@@ -81,6 +81,20 @@ export const SmartTimeDock = ({
     };
   }, [openDock]);
 
+  // Add keyboard escape functionality
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isDockOpen) {
+        closeDock();
+      }
+    };
+
+    if (isDockOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [isDockOpen, closeDock]);
+
   // Close dock when clicking outside, but only if not dragging
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -93,6 +107,7 @@ export const SmartTimeDock = ({
       const dockElement = document.querySelector('.smart-dock-container');
       
       if (isDockOpen && dockElement && !dockElement.contains(target)) {
+        console.log('🎯 Clicking outside dock, closing');
         closeDock();
       }
     };
@@ -128,14 +143,20 @@ export const SmartTimeDock = ({
     <>
       <div 
         className={cn(
-          "smart-dock-container fixed bottom-0 left-0 right-0 z-30 bg-white shadow-xl transition-all duration-300 ease-in-out border-t border-gray-200",
-          isDockOpen ? "h-64" : "h-14"
+          "smart-dock-container fixed bottom-0 left-0 right-0 z-50",
+          "bg-white shadow-xl border-t border-gray-200",
+          "transition-all duration-300 ease-in-out",
+          isDockOpen ? "h-80 max-h-80" : "h-14"
         )}
+        style={{
+          maxHeight: isDockOpen ? '320px' : '56px',
+          height: isDockOpen ? '320px' : '56px'
+        }}
         aria-expanded={isDockOpen}
       >
         {/* Ghost outline during drag when collapsed */}
         {isDragging && !isDockOpen && (
-          <div className="absolute inset-x-0 -top-64 h-64 bg-white/40 border-2 border-dashed border-[#68BEB9]/50 rounded-t-xl pointer-events-none opacity-30" />
+          <div className="absolute inset-x-0 -top-80 h-80 bg-white/40 border-2 border-dashed border-[#68BEB9]/50 rounded-t-xl pointer-events-none opacity-30" />
         )}
         
         {!isDockOpen && (
@@ -163,7 +184,7 @@ export const SmartTimeDock = ({
         )}
         
         {isDockOpen && (
-          <div className="h-full overflow-hidden">
+          <div className="h-full max-h-full overflow-hidden flex flex-col">
             <ExpandedRibbon
               week={currentWeek}
               scheduledByDate={scheduledByDate}
