@@ -124,11 +124,11 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     console.log('📅 Scheduled post created:', scheduledPost);
 
-    // Update content task status to scheduled
+    // Update content task status to posted (instead of scheduled)
     const { data: updatedTask, error: updateError } = await supabase
       .from('content_tasks')
       .update({ 
-        status: 'scheduled',
+        status: 'posted',
         scheduled_date: params.publishAt
       })
       .eq('id', params.taskId)
@@ -154,7 +154,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
       return null;
     }
 
-    console.log('✅ Task updated to scheduled:', updatedTask);
+    console.log('✅ Task updated to posted:', updatedTask);
 
     return {
       scheduledPost,
