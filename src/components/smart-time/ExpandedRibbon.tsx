@@ -42,8 +42,8 @@ export const ExpandedRibbon = ({
 
   return (
     <div className="smartDockExpanded">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="ribbon-content p-4 h-full overflow-y-auto">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={prevWeek}>
@@ -62,14 +62,14 @@ export const ExpandedRibbon = ({
         </div>
 
         {!hasConnections && (
-          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800 text-center">
+          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+            <p className="text-sm text-orange-800 text-center">
               <span className="font-medium">Limited functionality:</span> Connect social accounts for automatic publishing
             </p>
           </div>
         )}
 
-        <div className="grid grid-cols-7 gap-4">
+        <div className="grid grid-cols-7 gap-3 mb-4">
           {weekDays.map((day) => {
             const dayKey = format(day, 'yyyy-MM-dd');
             const scheduledTasksForDay = getScheduledTasksForDay(day);
@@ -82,14 +82,14 @@ export const ExpandedRibbon = ({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      "min-h-[120px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
+                      "min-h-[100px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
                       snapshot.isDraggingOver
                         ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md" 
                         : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
                       isToday && "ring-2 ring-[#68BEB9]/30"
                     )}
                   >
-                    <div className="text-center mb-3">
+                    <div className="text-center mb-2">
                       <div className={cn(
                         "text-xs font-medium mb-1",
                         isToday ? "text-[#68BEB9]" : "text-[#3E5A6B]"
@@ -105,7 +105,7 @@ export const ExpandedRibbon = ({
                     </div>
 
                     {/* Scheduled Content Tasks */}
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                       {scheduledTasksForDay.map((scheduledTaskData) => (
                         <ScheduledContentPill
                           key={`task-${scheduledTaskData.id}`}
@@ -118,14 +118,14 @@ export const ExpandedRibbon = ({
 
                     {/* Drop zone indicator */}
                     {snapshot.isDraggingOver && (
-                      <div className="flex items-center justify-center h-8 text-sm text-[#68BEB9] font-medium mt-2">
+                      <div className="flex items-center justify-center h-6 text-xs text-[#68BEB9] font-medium mt-2">
                         {hasConnections ? "Drop to schedule" : "Drop to schedule (manual)"}
                       </div>
                     )}
 
                     {/* Empty state */}
                     {!snapshot.isDraggingOver && scheduledTasksForDay.length === 0 && (
-                      <div className="flex items-center justify-center h-8 mt-2">
+                      <div className="flex items-center justify-center h-6 mt-2">
                         <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
                       </div>
                     )}
@@ -138,7 +138,7 @@ export const ExpandedRibbon = ({
           })}
         </div>
 
-        <div className="mt-4 p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
+        <div className="p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
           <p className="text-sm text-[#3E5A6B]">
             <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days.
             {!hasConnections && " Posts will be scheduled manually without social connections."}
