@@ -51,7 +51,7 @@ export const useDashboardData = () => {
 
       const { data: tasks } = await taskQuery;
 
-      // Fetch scheduled posts with their content task details - use direct tenant_id filter
+      // Fetch scheduled posts with their content task details and mode
       const scheduledPostsQuery = supabase
         .from('scheduled_posts')
         .select(`
@@ -95,7 +95,7 @@ export const useDashboardData = () => {
           const dateKey = new Date(task.scheduled_date).toISOString().split('T')[0];
           if (!acc[dateKey]) acc[dateKey] = [];
           
-          // Find matching scheduled post for additional metadata
+          // Find matching scheduled post for additional metadata including mode
           const scheduledPost = scheduledPosts?.find(sp => sp.content_id === task.id);
           
           acc[dateKey].push({
@@ -103,7 +103,8 @@ export const useDashboardData = () => {
             scheduledMeta: scheduledPost ? {
               platform: scheduledPost.platform,
               publish_at: scheduledPost.publish_at,
-              status: scheduledPost.status
+              status: scheduledPost.status,
+              mode: scheduledPost.mode || 'AUTO'
             } : null
           });
         }

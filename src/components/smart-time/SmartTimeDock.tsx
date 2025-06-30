@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
@@ -117,7 +118,7 @@ export const SmartTimeDock = ({
     if (onScheduleUpdate) onScheduleUpdate();
   };
 
-  // Handle drag and drop
+  // Handle drag and drop with mode-aware logic
   const handleDragEnd = async (result: any) => {
     if (!result.destination) return;
     
@@ -131,13 +132,13 @@ export const SmartTimeDock = ({
     const platform = 'FACEBOOK';
     
     try {
-      const result = await scheduleDraft({
+      const scheduledResult = await scheduleDraft({
         taskId: draggableId,
         publishAt,
         platform
       });
       
-      if (result) {
+      if (scheduledResult) {
         // Optimistically update the cache
         queryClient.setQueryData(['dashboard-data'], (oldData: any) => {
           if (!oldData) return oldData;
@@ -149,7 +150,7 @@ export const SmartTimeDock = ({
           );
           
           const updatedDrafts = oldData.drafts.filter((task: any) => task.id !== draggableId);
-          const updatedScheduledTasks = [...oldData.scheduledTasks, result.updatedTask];
+          const updatedScheduledTasks = [...oldData.scheduledTasks, scheduledResult.updatedTask];
           
           const updatedScheduledByDate = { ...oldData.scheduledByDate };
           const dateKey = format(new Date(publishAt), 'yyyy-MM-dd');
@@ -157,11 +158,12 @@ export const SmartTimeDock = ({
             updatedScheduledByDate[dateKey] = [];
           }
           updatedScheduledByDate[dateKey].push({
-            ...result.updatedTask,
+            ...scheduledResult.updatedTask,
             scheduledMeta: {
-              platform: result.scheduledPost.platform,
-              publish_at: result.scheduledPost.publish_at,
-              status: result.scheduledPost.status
+              platform: scheduledResult.scheduledPost.platform,
+              publish_at: scheduledResult.scheduledPost.publish_at,
+              status: scheduledResult.scheduledPost.status,
+              mode: scheduledResult.mode
             }
           });
           

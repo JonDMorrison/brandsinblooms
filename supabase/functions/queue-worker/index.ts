@@ -120,7 +120,7 @@ serve(async (req) => {
   try {
     console.log('Queue worker starting...')
     
-    // Get posts that are ready to publish
+    // Get posts that are ready to publish - ONLY AUTO mode posts
     const { data: scheduledPosts, error: fetchError } = await supabaseAdmin
       .from('scheduled_posts')
       .select(`
@@ -130,12 +130,14 @@ serve(async (req) => {
         platform,
         publish_at,
         retry_count,
+        mode,
         generated_content!inner (
           caption,
           media_url
         )
       `)
       .eq('status', 'QUEUED')
+      .eq('mode', 'AUTO')  // Only process AUTO mode posts
       .lte('publish_at', new Date().toISOString())
       .lt('retry_count', 3)
       .limit(20)
@@ -145,15 +147,15 @@ serve(async (req) => {
       return new Response('Error fetching posts', { status: 500 })
     }
 
-    console.log(`Found ${scheduledPosts?.length || 0} posts to process`)
+    console.log(`Found ${scheduledPosts?.length || 0} AUTO mode posts to process`)
 
     if (!scheduledPosts || scheduledPosts.length === 0) {
-      return new Response('No posts to process', { status: 200 })
+      return new Response('No AUTO mode posts to process', { status: 200 })
     }
 
     for (const post of scheduledPosts) {
       try {
-        console.log(`Processing post ${post.id} for platform ${post.platform}`)
+        console.log(`Processing AUTO mode post ${post.id} for platform ${post.platform}`)
         
         // Get social connection
         const { data: connection, error: connectionError } = await supabaseAdmin
@@ -217,10 +219,10 @@ serve(async (req) => {
           .update({ status: 'PUBLISHED' })
           .eq('id', post.content_id)
 
-        console.log(`Successfully published post ${post.id} with ID ${publishedId}`)
+        console.log(`Successfully published AUTO mode post ${post.id} with ID ${publishedId}`)
 
       } catch (error) {
-        console.error(`Error processing post ${post.id}:`, error)
+        console.error(`Error processing AUTO mode post ${post.id}:`, error)
         
         const retryCount = (post.retry_count || 0) + 1
         const isMaxRetries = retryCount >= 3
@@ -236,7 +238,7 @@ serve(async (req) => {
       }
     }
 
-    return new Response(`Processed ${scheduledPosts.length} posts`, { status: 200 })
+    return new Response(`Processed ${scheduledPosts.length} AUTO mode posts`, { status: 200 })
 
   } catch (error) {
     console.error('Queue worker error:', error)

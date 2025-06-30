@@ -2,6 +2,7 @@
 import React from 'react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface ScheduledContentPillProps {
   task: any;
@@ -9,6 +10,7 @@ interface ScheduledContentPillProps {
     platform: string;
     publish_at: string;
     status: string;
+    mode?: 'AUTO' | 'MANUAL';
   };
   onClick: () => void;
 }
@@ -39,7 +41,13 @@ export const ScheduledContentPill = ({ task, scheduledMeta, onClick }: Scheduled
     return 'Social Post';
   };
 
-  const getPlatformColors = (postType: string) => {
+  const getPlatformColors = (postType: string, mode?: 'AUTO' | 'MANUAL') => {
+    // Manual mode posts get gray styling
+    if (mode === 'MANUAL') {
+      return 'bg-gray-200 text-gray-600 border-gray-300';
+    }
+    
+    // Auto mode gets platform colors
     if (postType?.toLowerCase().includes('facebook')) {
       return 'bg-[#1877F2] text-white border-[#1877F2]';
     }
@@ -64,13 +72,14 @@ export const ScheduledContentPill = ({ task, scheduledMeta, onClick }: Scheduled
 
   const publishTime = scheduledMeta?.publish_at || task.scheduled_date;
   const platform = scheduledMeta?.platform || task.post_type;
+  const mode = scheduledMeta?.mode || 'AUTO';
 
-  return (
+  const pillContent = (
     <div
       onClick={onClick}
       className={cn(
         "text-xs p-2 rounded border cursor-pointer hover:shadow-sm transition-all",
-        getPlatformColors(task.post_type)
+        getPlatformColors(task.post_type, mode)
       )}
     >
       <div className="flex items-center gap-1 justify-center">
@@ -78,6 +87,9 @@ export const ScheduledContentPill = ({ task, scheduledMeta, onClick }: Scheduled
         <span className="font-medium">
           {getPlatformName(task.post_type)}
         </span>
+        {mode === 'MANUAL' && (
+          <span className="text-xs opacity-75">(Manual)</span>
+        )}
       </div>
       <div className="text-center text-xs opacity-90 mt-1">
         {publishTime ? format(new Date(publishTime), 'h:mm a') : 'Scheduled'}
@@ -92,4 +104,23 @@ export const ScheduledContentPill = ({ task, scheduledMeta, onClick }: Scheduled
       )}
     </div>
   );
+
+  // Show tooltip only for manual mode
+  if (mode === 'MANUAL') {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            {pillContent}
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Auto-posting disabled</p>
+            <p className="text-xs opacity-75">Connect social accounts or upgrade to Bloom</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return pillContent;
 };

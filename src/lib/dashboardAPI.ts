@@ -1,6 +1,8 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isBloomEligible } from './subscriptionHelpers';
+import { areConnectionsValid } from './socialHelpers';
 
 export interface ScheduleDraftParams {
   taskId: string;
@@ -11,6 +13,7 @@ export interface ScheduleDraftParams {
 export interface ScheduleDraftResult {
   scheduledPost: any;
   updatedTask: any;
+  mode: 'AUTO' | 'MANUAL';
 }
 
 // Map platform strings to the enum values expected by the database
@@ -55,10 +58,24 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     console.log('📋 Task fetched:', task);
 
+    // Determine if this should be AUTO or MANUAL mode
+    const [eligible, connectionsValid] = await Promise.all([
+      isBloomEligible(user.id),
+      areConnectionsValid(user.id)
+    ]);
+
+    const mode = eligible && connectionsValid ? 'AUTO' : 'MANUAL';
+    
+    console.log('🔍 Scheduling mode determined:', {
+      eligible,
+      connectionsValid,
+      mode
+    });
+
     // Map platform to the correct enum value
     const platformEnum = mapPlatformToEnum(params.platform);
 
-    // Create scheduled post entry - use content_id to match the expected column name
+    // Create scheduled post entry with mode
     const { data: scheduledPost, error: scheduleError } = await supabase
       .from('scheduled_posts')
       .insert({
@@ -66,7 +83,8 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
         user_id: user.id,
         platform: platformEnum,
         publish_at: params.publishAt,
-        status: 'QUEUED'
+        status: 'QUEUED',
+        mode: mode
       })
       .select()
       .single();
@@ -98,11 +116,24 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     console.log('✅ Task updated to scheduled:', updatedTask);
 
-    toast.success(`Post scheduled for ${new Date(params.publishAt).toLocaleString()}`);
+    // Show appropriate toast message
+    const publishDate = new Date(params.publishAt);
+    const timeString = publishDate.toLocaleString('en-US', {
+      weekday: 'short',
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+
+    if (mode === 'AUTO') {
+      toast.success(`Scheduled for ${timeString} 🚀`);
+    } else {
+      toast.warning(`Scheduled (manual) for ${timeString} • will not publish automatically. Connect social accounts or upgrade to Bloom.`);
+    }
 
     return {
       scheduledPost,
-      updatedTask
+      updatedTask,
+      mode
     };
 
   } catch (error) {

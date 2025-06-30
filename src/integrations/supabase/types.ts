@@ -886,6 +886,7 @@ export type Database = {
           error_message: string | null
           id: string
           insights_fetched: boolean | null
+          mode: Database["public"]["Enums"]["post_mode"]
           platform: Database["public"]["Enums"]["platform_type"]
           publish_at: string
           published_id: string | null
@@ -901,6 +902,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           insights_fetched?: boolean | null
+          mode?: Database["public"]["Enums"]["post_mode"]
           platform: Database["public"]["Enums"]["platform_type"]
           publish_at: string
           published_id?: string | null
@@ -916,6 +918,7 @@ export type Database = {
           error_message?: string | null
           id?: string
           insights_fetched?: boolean | null
+          mode?: Database["public"]["Enums"]["post_mode"]
           platform?: Database["public"]["Enums"]["platform_type"]
           publish_at?: string
           published_id?: string | null
@@ -1439,6 +1442,7 @@ export type Database = {
       billing_interval: "monthly" | "annual"
       content_status: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED"
       platform_type: "FB" | "IG_FEED" | "IG_REEL"
+      post_mode: "AUTO" | "MANUAL"
       post_status: "QUEUED" | "PUBLISHED" | "ERROR"
       subscription_plan: "free_trial" | "sprout" | "bloom" | "expired"
     }
@@ -1559,6 +1563,7 @@ export const Constants = {
       billing_interval: ["monthly", "annual"],
       content_status: ["DRAFT", "SCHEDULED", "PUBLISHED", "ARCHIVED"],
       platform_type: ["FB", "IG_FEED", "IG_REEL"],
+      post_mode: ["AUTO", "MANUAL"],
       post_status: ["QUEUED", "PUBLISHED", "ERROR"],
       subscription_plan: ["free_trial", "sprout", "bloom", "expired"],
     },
