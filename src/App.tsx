@@ -24,6 +24,8 @@ import DevSocialPageWrapper from './pages/DevSocialPage';
 import PublishPage from "./pages/PublishPage";
 import NewDashboard from "./pages/NewDashboard";
 import DashboardSocial from "./pages/DashboardSocial";
+import Auth from "./pages/Auth";
+import AuthCallbackPage from "./pages/AuthCallbackPage";
 
 const App = () => {
   return (
@@ -36,6 +38,8 @@ const App = () => {
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/new-dashboard" element={<NewDashboard />} />
               <Route path="/social" element={<DashboardSocial />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/account" element={<AccountSettings />} />
