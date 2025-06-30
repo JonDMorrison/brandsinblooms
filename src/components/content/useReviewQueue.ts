@@ -28,11 +28,13 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
     try {
       setError(null);
       
-      // Build status filter - include 'preview' for developer, use valid statuses only
-      const statusFilter = ['review', 'generated', 'pending'];
+      // Build status filter for content that needs review - NOT approved content
+      const statusFilter = ['review', 'generated', 'pending', 'draft'];
       if (isDeveloper) {
         statusFilter.push('preview');
       }
+      
+      console.log('🔍 REVIEW_QUEUE: Fetching tasks with statuses:', statusFilter);
       
       const { data, error: fetchError } = await supabase
         .from('content_tasks')
@@ -47,7 +49,7 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
           )
         `)
         .eq('tenant_id', tenant.id)
-        .in('status', statusFilter)
+        .in('status', statusFilter) // Only fetch non-approved content
         .order('created_at', { ascending: false });
 
       if (fetchError) {
@@ -68,8 +70,9 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
           } : undefined
         })) || []) as ContentTask[];
         
-        console.log('Review Queue: Found', userTasks.length, 'tasks including', 
-          userTasks.filter(t => t.status === 'preview').length, 'preview tasks (dev only)');
+        console.log('📊 REVIEW_QUEUE: Found', userTasks.length, 'tasks for review:', 
+          userTasks.map(t => ({ id: t.id, status: t.status, type: t.post_type }))
+        );
         
         setPendingTasks(userTasks);
       }
@@ -84,18 +87,28 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
   const handleApprove = async (taskId: string, event: React.MouseEvent) => {
     event.stopPropagation();
     
+    // Add explicit confirmation for approval
+    const confirmed = window.confirm(
+      'Are you sure you want to approve this content? It will be moved to the "Ready to Post" section.'
+    );
+    
+    if (!confirmed) return;
+    
     setApprovingTasks(prev => new Set(prev).add(taskId));
     
     try {
+      console.log('🎯 REVIEW_QUEUE: Approving task:', taskId);
+      
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'approved' })
+        .update({ status: 'approved' }) // Explicit approval
         .eq('id', taskId);
 
       if (error) throw error;
 
+      console.log('✅ REVIEW_QUEUE: Task approved successfully');
       toast.success('Content approved and ready to post!');
-      await fetchPendingTasks();
+      await fetchPendingTasks(); // Refresh the list
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
       console.error('Error approving task:', error);

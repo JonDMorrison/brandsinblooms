@@ -42,8 +42,10 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   );
 
   const isScheduled = relatedScheduledPosts.length > 0;
+  // Only consider content approved if status is explicitly 'approved' 
   const isApproved = selectedDraft?.status === 'approved';
-  const isDraft = selectedDraft?.status === 'draft' || selectedDraft?.status === 'generated';
+  // Content is draft if it's in any non-approved state
+  const isDraft = !isApproved && selectedDraft?.status !== 'posted';
 
   const isInstagram = selectedDraft?.post_type?.toLowerCase().includes('instagram');
   const needsImage = isInstagram || (!postWithoutImage && selectedDraft?.post_type?.toLowerCase() === 'facebook');
@@ -248,11 +250,12 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       const selectedImage = getSelectedImage();
       const attachments = selectedImage ? { image: selectedImage as any } : null;
 
+      // Save as draft, not approved
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: editContent,
-          status: 'draft',
+          status: 'draft', // Explicitly set to draft
           attachments
         })
         .eq('id', selectedDraft.id);
@@ -277,23 +280,31 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       return;
     }
 
+    // Add explicit confirmation for approval
+    const confirmed = window.confirm(
+      'Are you sure you want to approve this content? It will be ready for scheduling after approval.'
+    );
+    
+    if (!confirmed) return;
+
     setApproving(true);
     try {
       const selectedImage = getSelectedImage();
       const attachments = selectedImage ? { image: selectedImage as any } : null;
 
+      // Only now explicitly set to approved
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: editContent,
-          status: 'approved',
+          status: 'approved', // Explicit approval
           attachments
         })
         .eq('id', selectedDraft.id);
 
       if (error) throw error;
 
-      toast.success('Marked approved – drag to Smart-Time Ribbon to schedule');
+      toast.success('Content approved successfully! You can now schedule it in the Smart-Time Ribbon.');
       if (onApproved) onApproved(selectedDraft.id);
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
@@ -423,7 +434,8 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                 <Badge 
                   variant={isApproved ? 'default' : 'secondary'}
                   className={cn(
-                    isApproved && "bg-[#68BEB9] text-white hover:bg-[#56a7a1]"
+                    isApproved && "bg-[#68BEB9] text-white hover:bg-[#56a7a1]",
+                    isDraft && "bg-yellow-100 text-yellow-800"
                   )}
                 >
                   {isScheduled ? 'SCHEDULED' : isApproved ? 'APPROVED' : 'DRAFT'}
@@ -443,7 +455,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
               {!selectedDraft ? 'Select a draft to start editing' :
                isScheduled ? 'Managing scheduled content' : 
                isApproved ? 'Approved content ready for scheduling' : 
-               'Editing draft content'}
+               'Draft content - review and approve when ready'}
             </span>
           </div>
         </CardHeader>
@@ -541,7 +553,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                   <div className="text-sm text-gray-600 mb-3">
                     {isApproved 
                       ? "Ready to schedule! Drag this draft to the Smart-Time Ribbon above." 
-                      : "Save your changes or approve when ready to schedule."}
+                      : "Review your content and approve when ready to schedule."}
                   </div>
                   <div className="flex gap-2">
                     <Button 
@@ -551,7 +563,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                       disabled={saving || approving}
                     >
                       <Save className="w-4 h-4 mr-2" />
-                      {saving ? 'Saving...' : 'Save'}
+                      {saving ? 'Saving...' : 'Save Draft'}
                     </Button>
                     
                     <Tooltip>
@@ -572,7 +584,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                           {!approvalStatus.isDisabled && (
                             <CheckCircle className="w-4 h-4 mr-2" />
                           )}
-                          {approving ? 'Approving...' : 'Approve & Post'}
+                          {approving ? 'Approving...' : 'Approve Content'}
                         </Button>
                       </TooltipTrigger>
                       {approvalStatus.tooltipContent && (
