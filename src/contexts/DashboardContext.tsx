@@ -2,7 +2,6 @@
 import React, { createContext, useContext, useCallback, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { useDashboardData } from '@/hooks/useDashboardData';
-import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
 
 interface DashboardContextType {
@@ -74,7 +73,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
 
   const handleDragEnd = useCallback((result: DropResult) => {
     console.log('🎯 Dashboard drag ended:', result);
-    // The SmartTimeRibbon component handles the actual scheduling logic
+    // The SmartTimeDock component handles the actual scheduling logic
   }, []);
 
   // Filter tasks to show only approved and generated content in drafts
@@ -106,12 +105,6 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
       <DashboardUIContext.Provider value={uiContextValue}>
         <DragDropContext onDragEnd={handleDragEnd}>
           {children}
-          <SmartTimeRibbon
-            scheduledByDate={data?.scheduledByDate}
-            socialConnections={data?.socialConnections}
-            onScheduleUpdate={refetch}
-            onDragEnd={handleDragEnd}
-          />
         </DragDropContext>
       </DashboardUIContext.Provider>
     </DashboardContext.Provider>

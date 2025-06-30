@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -248,7 +249,7 @@ const NewDashboardContent = () => {
   return (
     <>
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="min-h-screen bg-[#F9FAFB] p-6 pb-60">
+        <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
           {/* Fixed UserMenu - positioned above everything */}
           <div className="fixed top-6 right-6 z-[9999]">
             <UserMenu />

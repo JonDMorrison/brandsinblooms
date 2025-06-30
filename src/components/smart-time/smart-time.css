@@ -29,6 +29,7 @@ body {
 /* Ensure Smart Dock never exceeds viewport */
 .smart-dock-container {
   max-height: 320px !important;
+  z-index: 50; /* Ensure dock is above other content but not too high */
 }
 
 .smart-dock-container.expanded {
@@ -39,4 +40,9 @@ body {
 /* Prevent any child elements from overflowing */
 .smart-dock-container * {
   box-sizing: border-box;
+}
+
+/* Ensure dashboard content doesn't get hidden behind dock */
+.dashboard-content {
+  padding-bottom: 80px; /* Extra padding for collapsed dock + margin */
 }
