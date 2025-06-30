@@ -42,7 +42,7 @@ export const WeeklyContentUpdater = () => {
         
         const currentWeek = getCurrentWeekNumber();
         
-        console.log('🔍 WeeklyContentUpdater: Starting check for week:', currentWeek);
+        console.log('🔍 WeeklyContentUpdater: Starting check for ISO week:', currentWeek);
 
         // First, cleanup any duplicate campaigns for this week
         const cleanupResult = await cleanupDuplicateCampaigns(user.id, currentWeek);
@@ -90,7 +90,7 @@ export const WeeklyContentUpdater = () => {
 
         // Create campaign if it doesn't exist, then generate content
         if (!existingCampaign) {
-          console.log('📝 Creating meaningful campaign for current week:', currentWeek);
+          console.log('📝 Creating meaningful campaign for current ISO week:', currentWeek);
           
           // Get company profile for personalization
           const { data: companyProfile } = await supabase

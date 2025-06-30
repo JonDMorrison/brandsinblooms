@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
+import { getCurrentWeekNumber } from '@/utils/dateUtils';
 
 export interface FocusTheme {
   id: string;
@@ -15,15 +16,6 @@ export interface FocusTheme {
   timeToComplete: string;
   seasonality?: string[];
 }
-
-// Helper function to get current week number (1-52)
-const getCurrentWeekNumber = (): number => {
-  const now = new Date();
-  const start = new Date(now.getFullYear(), 0, 1);
-  const diff = now.getTime() - start.getTime();
-  const oneWeek = 1000 * 60 * 60 * 24 * 7;
-  return Math.ceil(diff / oneWeek);
-};
 
 // Helper function to determine category based on content
 const categorizeTheme = (theme: any): 'plant_care' | 'decor' | 'sale' | 'holidays' => {
@@ -127,7 +119,7 @@ export const useFocusThemes = () => {
         ((currentWeek + 3) % 52) + 1
       ];
 
-      console.log('🗓️ Fetching themes for weeks:', weekNumbers, 'Current week:', currentWeek);
+      console.log('🗓️ Fetching themes for weeks:', weekNumbers, 'Current week (ISO):', currentWeek);
 
       const { data: masterThemes, error } = await supabase
         .from('master_campaign_templates')

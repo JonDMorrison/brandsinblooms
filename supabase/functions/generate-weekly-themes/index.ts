@@ -1,3 +1,4 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
@@ -12,27 +13,50 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
+// ISO week calculation - consistent with dateUtils.ts
+const getISOWeekNumber = (date: Date): number => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+};
+
+const getCurrentWeekNumber = (): number => {
+  const today = new Date();
+  return getISOWeekNumber(today);
+};
+
 const getSeasonalGardenTheme = (weekNumber: number) => {
-  // Determine season based on actual gardening seasons
+  // Updated seasonal mapping based on ISO week numbers
+  // Spring: Weeks 10-22 (March-May)
+  // Summer: Weeks 23-35 (June-August) 
+  // Fall: Weeks 36-48 (September-November)
+  // Winter: Weeks 49-52, 1-9 (December-February)
+  
   let season, weekInSeason;
   
-  if (weekNumber >= 9 && weekNumber <= 21) {
-    // Spring: Weeks 9-21 (March-May)
+  console.log(`🗓️ Processing week ${weekNumber} for seasonal theme`);
+  
+  if (weekNumber >= 10 && weekNumber <= 22) {
+    // Spring: Weeks 10-22 (March-May)
     season = "Spring";
-    weekInSeason = weekNumber - 8;
-  } else if (weekNumber >= 22 && weekNumber <= 34) {
-    // Summer: Weeks 22-34 (June-August)
+    weekInSeason = weekNumber - 9;
+  } else if (weekNumber >= 23 && weekNumber <= 35) {
+    // Summer: Weeks 23-35 (June-August)
     season = "Summer";
-    weekInSeason = weekNumber - 21;
-  } else if (weekNumber >= 35 && weekNumber <= 47) {
-    // Fall: Weeks 35-47 (September-November)
+    weekInSeason = weekNumber - 22;
+  } else if (weekNumber >= 36 && weekNumber <= 48) {
+    // Fall: Weeks 36-48 (September-November)
     season = "Fall";
-    weekInSeason = weekNumber - 34;
+    weekInSeason = weekNumber - 35;
   } else {
-    // Winter: Weeks 48-52, 1-8 (December-February)
+    // Winter: Weeks 49-52, 1-9 (December-February)
     season = "Winter";
-    weekInSeason = weekNumber >= 48 ? weekNumber - 47 : weekNumber + 6;
+    weekInSeason = weekNumber >= 49 ? weekNumber - 48 : weekNumber + 5;
   }
+  
+  console.log(`🌱 Week ${weekNumber} maps to ${season}, week ${weekInSeason} of season`);
   
   const seasons = {
     "Spring": {
@@ -74,14 +98,14 @@ const getSeasonalGardenTheme = (weekNumber: number) => {
           content_ideas: ["Water-wise gardening and conservation techniques", "Succession planting for continuous harvests", "Summer pruning and plant maintenance", "Heat stress management for plants"]
         },
         {
-          title: "Late Summer Harvest & Maintenance",
-          description: "Celebrate summer's bounty with harvest tips, preservation techniques, and strategies for maintaining gardens through late summer heat.",
-          content_ideas: ["Summer harvest timing and techniques", "Food preservation and storage methods", "Late summer plant care and protection", "Preparing for fall transitions"]
-        },
-        {
           title: "Peak Summer Garden Care",
           description: "Keep gardens thriving through peak heat with expert maintenance, efficient watering, and strategies for summer garden success.",
           content_ideas: ["Efficient watering schedules and techniques", "Summer mulching for moisture retention", "Managing garden pests in hot weather", "Summer flower arrangements and displays"]
+        },
+        {
+          title: "Late Summer Harvest & Maintenance",
+          description: "Celebrate summer's bounty with harvest tips, preservation techniques, and strategies for maintaining gardens through late summer heat.",
+          content_ideas: ["Summer harvest timing and techniques", "Food preservation and storage methods", "Late summer plant care and protection", "Preparing for fall transitions"]
         }
       ]
     },
@@ -99,14 +123,14 @@ const getSeasonalGardenTheme = (weekNumber: number) => {
           content_ideas: ["Fall bulb planting for spring color", "Tree and shrub fall planting guide", "Garden cleanup and winter prep tasks", "Mulching and plant protection techniques"]
         },
         {
+          title: "Back-to-School Garden Projects",
+          description: "Engage families with educational garden projects and prepare gardens for the transition from active growing to winter rest.",
+          content_ideas: ["School garden project ideas", "Teaching kids about fall harvests", "Preparing gardens for winter dormancy", "Fall container garden designs"]
+        },
+        {
           title: "Late Fall Winter Preparation",
           description: "Prepare gardens for winter with strategic planning, final harvests, and comprehensive winterization strategies.",
           content_ideas: ["Final harvest and garden cleanup", "Winter protection methods", "Tool maintenance and storage", "Planning next year's garden improvements"]
-        },
-        {
-          title: "Fall Seasonal Transitions",
-          description: "Celebrate fall's beauty while preparing gardens for winter with seasonal maintenance and strategic planning.",
-          content_ideas: ["Fall foliage plant selections", "Seasonal garden cleanup strategies", "Fall composting and soil improvement", "Winter interest plant installations"]
         }
       ]
     },
@@ -219,9 +243,9 @@ serve(async (req) => {
     // Use enhanced seasonal garden center themes as fallback
     console.log('🌿 Using enhanced seasonal garden center themes');
     
-    const currentWeek = weekNumber || Math.ceil(
-      ((new Date().getTime() - new Date(new Date().getFullYear(), 0, 1).getTime()) / 86400000 + 1) / 7
-    );
+    const currentWeek = weekNumber || getCurrentWeekNumber();
+    
+    console.log(`🗓️ Current week calculated as: ${currentWeek}`);
     
     const gardenTheme = getSeasonalGardenTheme(currentWeek);
 
