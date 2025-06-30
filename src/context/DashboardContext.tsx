@@ -50,7 +50,14 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const filteredData = data ? {
     ...data,
     drafts: data.tasks?.filter((task: any) => visibleStatuses.includes(task.status as TaskStatus)) || []
-  } : {};
+  } : {
+    currentCampaign: null,
+    drafts: [],
+    tasks: [],
+    scheduledByDate: {},
+    scheduledPosts: [],
+    socialConnections: []
+  };
 
   // Mock implementations for dashboard-social specific functions
   const updateDraftContent = useCallback(async (id: string, content: string) => {
