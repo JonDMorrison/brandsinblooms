@@ -6,7 +6,7 @@ import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { SmartTimeDock } from '@/components/smart-time';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { UserMenu } from '@/components/UserMenu';
-import { DragDropContext, DropResult } from 'react-beautiful-dnd';
+import { DropResult } from 'react-beautiful-dnd';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useDashboardData } from '@/hooks/useDashboardData';
@@ -26,7 +26,7 @@ interface TimeSelectionModal {
 const NewDashboardContent = () => {
   const { user } = useAuth();
   const { closeDock } = useDashboard();
-  const { stopDragging } = useDashboardContext();
+  const { isDragging } = useDashboardContext();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const { schedulePost } = useScheduledPosts();
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
@@ -37,7 +37,6 @@ const NewDashboardContent = () => {
     targetDate: null
   });
   const [isScheduling, setIsScheduling] = useState(false);
-  const [dragCloseTimeout, setDragCloseTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const handleTaskUpdate = () => {
     refetch();
@@ -67,49 +66,27 @@ const NewDashboardContent = () => {
     setSelectedDraft(scheduledTask);
   };
 
-  const scheduleCloseDock = (delay: number = 300) => {
-    // Clear any existing timeout
-    if (dragCloseTimeout) {
-      clearTimeout(dragCloseTimeout);
-    }
-    
-    // Set new timeout
-    const timeout = setTimeout(() => {
-      console.log('🎯 Scheduled dock close executing');
-      closeDock();
-      setDragCloseTimeout(null);
-    }, delay);
-    
-    setDragCloseTimeout(timeout);
-  };
-
-  const cancelScheduledDockClose = () => {
-    if (dragCloseTimeout) {
-      console.log('🎯 Cancelling scheduled dock close');
-      clearTimeout(dragCloseTimeout);
-      setDragCloseTimeout(null);
-    }
+  // Helper function to determine if dock should close after drag
+  const shouldCloseDock = (result: DropResult): boolean => {
+    if (!result.destination) return true; // dropped nowhere
+    return !result.destination.droppableId.startsWith('day-'); // dropped outside dock
   };
 
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 NewDashboard handleDragEnd called:', result);
     
-    // Always stop dragging state first
-    stopDragging();
-    
+    if (!result.source || !result.draggableId) return;
+
     const { destination, source, draggableId } = result;
 
-    // If no destination, only close dock if it was a meaningful drag attempt
+    // If no destination, close dock after delay
     if (!destination) {
       console.log('🎯 No destination in NewDashboard');
-      // Only schedule dock close if the drag was actually attempting to go somewhere
-      // (not just a failed reorder within the same container)
-      scheduleCloseDock(1000); // Longer delay for potential retry
+      setTimeout(() => {
+        if (!isDragging) closeDock();
+      }, 400);
       return;
     }
-
-    // Cancel any scheduled dock close since we have a valid drop
-    cancelScheduledDockClose();
 
     console.log('🎯 Drag from', source.droppableId, 'to', destination.droppableId);
 
@@ -144,7 +121,9 @@ const NewDashboardContent = () => {
       } catch (error) {
         console.error('🎯 Error processing drag:', error);
         toast.error('Failed to process drag operation');
-        scheduleCloseDock(300);
+        setTimeout(() => {
+          if (!isDragging) closeDock();
+        }, 400);
       }
     }
 
@@ -176,13 +155,19 @@ const NewDashboardContent = () => {
       } catch (error) {
         console.error('🎯 Error processing composer drag:', error);
         toast.error('Failed to process drag operation');
-        scheduleCloseDock(300);
+        setTimeout(() => {
+          if (!isDragging) closeDock();
+        }, 400);
       }
     }
 
-    // For any other cross-container drag operations, schedule dock close
-    console.log('🎯 Other cross-container drag - scheduling dock close');
-    scheduleCloseDock(300);
+    // Close dock 400 ms after drag finishes so user sees where the card landed
+    if (shouldCloseDock(result)) {
+      console.log('🎯 Scheduling dock close after drag outside dock');
+      setTimeout(() => {
+        if (!isDragging) closeDock();
+      }, 400);
+    }
   };
 
   const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
@@ -262,15 +247,6 @@ const NewDashboardContent = () => {
     }
   };
 
-  // Clean up timeout on unmount
-  React.useEffect(() => {
-    return () => {
-      if (dragCloseTimeout) {
-        clearTimeout(dragCloseTimeout);
-      }
-    };
-  }, [dragCloseTimeout]);
-
   if (isLoading) {
     return (
       <FullWidthLayout>
@@ -283,61 +259,60 @@ const NewDashboardContent = () => {
 
   return (
     <>
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
-          {/* Fixed UserMenu - positioned above everything */}
-          <div className="fixed top-6 right-6 z-[9999]">
-            <UserMenu />
+      <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
+        {/* Fixed UserMenu - positioned above everything */}
+        <div className="fixed top-6 right-6 z-[9999]">
+          <UserMenu />
+        </div>
+        
+        <div className="max-w-full mx-auto">
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
+            <p className="text-gray-600">Your content creation command center</p>
           </div>
-          
-          <div className="max-w-full mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
-              <p className="text-gray-600">Your content creation command center</p>
+
+          {/* Updated to 3-column layout with closer to 30-30-40 distribution */}
+          <div className="grid grid-cols-12 gap-6 mb-6">
+            {/* Today's Focus - Column 1 (3/12 = 25%, closest to 30%) */}
+            <div className="col-span-3">
+              <div className="h-[720px]">
+                <FocusCarousel onTaskUpdate={handleTaskUpdate} />
+              </div>
             </div>
 
-            {/* Updated to 3-column layout with closer to 30-30-40 distribution */}
-            <div className="grid grid-cols-12 gap-6 mb-6">
-              {/* Today's Focus - Column 1 (3/12 = 25%, closest to 30%) */}
-              <div className="col-span-3">
-                <div className="h-[720px]">
-                  <FocusCarousel onTaskUpdate={handleTaskUpdate} />
-                </div>
+            {/* Draft Tray - Column 2 (4/12 = 33.33%, closest to 30%) */}
+            <div className="col-span-4">
+              <div className="h-[720px]">
+                <DraftTray 
+                  tasks={dashboardData?.tasks || []}
+                  selectedDraft={selectedDraft}
+                  onSelectDraft={setSelectedDraft}
+                  justApprovedId={justApprovedId}
+                  onDragEnd={handleDragEnd}
+                />
               </div>
+            </div>
 
-              {/* Draft Tray - Column 2 (4/12 = 33.33%, closest to 30%) */}
-              <div className="col-span-4">
-                <div className="h-[720px]">
-                  <DraftTray 
-                    tasks={dashboardData?.tasks || []}
-                    selectedDraft={selectedDraft}
-                    onSelectDraft={setSelectedDraft}
-                    justApprovedId={justApprovedId}
-                  />
-                </div>
-              </div>
-
-              {/* Composer Panel - Column 3 (5/12 = 41.67%, closest to 40%) */}
-              <div className="col-span-5">
-                <div className="h-[720px]">
-                  <ComposerPanel 
-                    selectedDraft={selectedDraft}
-                    socialConnections={dashboardData?.socialConnections || []}
-                    onTaskUpdate={handleTaskUpdate}
-                    onApproved={handleApproved}
-                  />
-                </div>
+            {/* Composer Panel - Column 3 (5/12 = 41.67%, closest to 40%) */}
+            <div className="col-span-5">
+              <div className="h-[720px]">
+                <ComposerPanel 
+                  selectedDraft={selectedDraft}
+                  socialConnections={dashboardData?.socialConnections || []}
+                  onTaskUpdate={handleTaskUpdate}
+                  onApproved={handleApproved}
+                />
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <SmartTimeDock
-          scheduledByDate={dashboardData?.scheduledByDate}
-          socialConnections={dashboardData?.socialConnections || []}
-          onScheduleUpdate={handleTaskUpdate}
-        />
-      </DragDropContext>
+      <SmartTimeDock
+        scheduledByDate={dashboardData?.scheduledByDate}
+        socialConnections={dashboardData?.socialConnections || []}
+        onScheduleUpdate={handleTaskUpdate}
+      />
 
       {/* Time Selection Modal */}
       {timeSelectionModal.isOpen && (
