@@ -312,7 +312,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   const renderContent = () => {
     if (!selectedDraft) {
       return (
-        <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto flex items-center justify-center min-h-[300px]">
+        <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="text-gray-500 mb-2">No draft selected</div>
             <p className="text-sm text-gray-400">Select a draft from the tray to compose or manage</p>
@@ -325,7 +325,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     
     if (selectedDraft.post_type === 'newsletter') {
       return (
-        <div className="flex-1 overflow-y-auto min-h-[400px]">
+        <div className="flex-1 overflow-y-auto min-h-[500px]">
           <NewsletterPreview 
             content={content}
             className="min-h-[200px]"
@@ -335,7 +335,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     }
     
     return (
-      <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto min-h-[400px]">
+      <div className="flex-1 p-4 bg-gray-50 rounded-lg overflow-y-auto min-h-[500px]">
         <p className="whitespace-pre-wrap text-gray-700 break-words leading-relaxed">
           {content}
         </p>
@@ -449,7 +449,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-y-auto min-h-[600px]">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h3 className="font-medium text-[#3E5A6B]">Content</h3>
               {selectedDraft && !isScheduled && (
@@ -465,11 +465,11 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
             </div>
 
             {isEditing && selectedDraft ? (
-              <div className="flex-1 flex flex-col overflow-hidden space-y-4">
+              <div className="flex-1 flex flex-col overflow-hidden space-y-4 min-h-[500px]">
                 <Textarea
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  className="flex-1 min-h-[250px] resize-none"
+                  className="flex-1 min-h-[350px] resize-none"
                   placeholder="Write your content here..."
                 />
               
@@ -484,7 +484,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col overflow-y-auto min-h-[500px]">
                 {renderContent()}
               </div>
             )}
