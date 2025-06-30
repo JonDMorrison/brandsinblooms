@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -117,10 +116,10 @@ export const UserMenu = () => {
         <DropdownMenuTrigger asChild>
           <Button 
             variant="ghost" 
-            className="relative h-10 w-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20 transition-all duration-200"
+            className="relative h-10 w-10 rounded-full bg-[#68BEB9] hover:bg-[#5AA8A3] transition-all duration-200 shadow-lg border-2 border-white"
           >
             <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-garden-green text-white text-sm font-semibold">
+              <AvatarFallback className="bg-[#3E5A6B] text-white text-sm font-semibold">
                 {getUserInitials()}
               </AvatarFallback>
             </Avatar>
