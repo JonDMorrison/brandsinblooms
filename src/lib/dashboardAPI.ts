@@ -59,6 +59,25 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     console.log('📋 Task fetched:', task);
 
+    // Create a generated_content record first (this is what scheduled_posts expects)
+    const { data: generatedContent, error: contentError } = await supabase
+      .from('generated_content')
+      .insert({
+        user_id: user.id,
+        caption: task.ai_output || '',
+        status: 'SCHEDULED'
+      })
+      .select()
+      .single();
+
+    if (contentError) {
+      console.error('❌ Failed to create generated content:', contentError);
+      toast.error('Failed to prepare content for scheduling');
+      return null;
+    }
+
+    console.log('📝 Generated content created:', generatedContent);
+
     // Determine if this should be AUTO or MANUAL mode
     const [eligible, connectionsValid] = await Promise.all([
       isBloomEligible(user.id),
@@ -76,11 +95,11 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
     // Map platform to the correct enum value
     const platformEnum = mapPlatformToEnum(params.platform);
 
-    // Create scheduled post entry referencing the content_tasks directly
+    // Create scheduled post entry referencing the generated_content
     const { data: scheduledPost, error: scheduleError } = await supabase
       .from('scheduled_posts')
       .insert({
-        content_id: params.taskId, // Reference content_tasks.id directly
+        content_id: generatedContent.id, // Reference generated_content.id
         user_id: user.id,
         platform: platformEnum,
         publish_at: params.publishAt,
@@ -92,6 +111,13 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     if (scheduleError) {
       console.error('❌ Failed to create scheduled post:', scheduleError);
+      
+      // Clean up the generated content if scheduling failed
+      await supabase
+        .from('generated_content')
+        .delete()
+        .eq('id', generatedContent.id);
+      
       toast.error(`Failed to schedule post: ${scheduleError.message}`);
       return null;
     }
@@ -113,11 +139,16 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
     if (updateError) {
       console.error('❌ Failed to update task status:', updateError);
       
-      // Try to rollback the scheduled post creation
+      // Try to rollback the scheduled post and generated content creation
       await supabase
         .from('scheduled_posts')
         .delete()
         .eq('id', scheduledPost.id);
+      
+      await supabase
+        .from('generated_content')
+        .delete()
+        .eq('id', generatedContent.id);
       
       toast.error('Failed to update task status');
       return null;
