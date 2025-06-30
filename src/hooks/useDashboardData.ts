@@ -16,7 +16,7 @@ export const useDashboardData = () => {
       // Fetch current campaign
       const campaignQuery = supabase
         .from('campaigns')
-        .select('*')
+        .select('id, title, start_date, week_number, user_id, tenant_id, created_by_user_id')
         .order('created_at', { ascending: false })
         .limit(1);
 
@@ -29,12 +29,19 @@ export const useDashboardData = () => {
       const { data: campaigns } = await campaignQuery;
       const currentCampaign = campaigns?.[0] || null;
 
-      // Fetch tasks - include 'scheduled' status so they appear in Smart Time Ribbon
+      // Fetch tasks - more selective query for performance
       const taskQuery = supabase
         .from('content_tasks')
         .select(`
-          *,
-          campaigns (
+          id,
+          status,
+          ai_output,
+          post_type,
+          scheduled_date,
+          created_at,
+          attachments,
+          campaign_id,
+          campaigns!inner (
             title,
             user_id,
             tenant_id
@@ -55,7 +62,13 @@ export const useDashboardData = () => {
       const scheduledPostsQuery = supabase
         .from('scheduled_posts')
         .select(`
-          *,
+          id,
+          content_id,
+          platform,
+          publish_at,
+          status,
+          mode,
+          tenant_id,
           content_tasks!inner (
             id,
             ai_output,
@@ -80,7 +93,7 @@ export const useDashboardData = () => {
       // Fetch social connections
       const { data: connections } = await supabase
         .from('social_connections')
-        .select('*')
+        .select('id, platform, platform_account_name, is_active')
         .eq('user_id', user.id)
         .eq('is_active', true);
 

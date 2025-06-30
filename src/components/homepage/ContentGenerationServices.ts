@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TASK_STATUS, type TaskStatus } from "@/constants/taskStatus";
@@ -245,7 +246,7 @@ export const generateCampaignContent = async (
           .from('content_tasks')
           .update({ 
             ai_output: result.data.content,
-            status: TASK_STATUS.APPROVED
+            status: TASK_STATUS.APPROVED // Changed from REVIEW to APPROVED
           })
           .eq('id', newTask.id);
 

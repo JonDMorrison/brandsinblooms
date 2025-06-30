@@ -30,14 +30,6 @@ export const useDashboardContext = () => {
   return context;
 };
 
-export const useDashboard = () => {
-  const context = useContext(DashboardContext);
-  if (!context) {
-    throw new Error('useDashboard must be used within a DashboardProvider');
-  }
-  return context;
-};
-
 interface DashboardProviderProps {
   children: React.ReactNode;
 }
@@ -73,12 +65,9 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   // Initialize draft order when data loads - but only if order is empty or we have new tasks
   useEffect(() => {
     if (data?.tasks) {
-      const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
+      const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED];
       const availableDrafts = data.tasks
-        .filter((task: any) => 
-          visibleStatuses.includes(task.status as TaskStatus) &&
-          task.status !== TASK_STATUS.SCHEDULED
-        )
+        .filter((task: any) => visibleStatuses.includes(task.status as TaskStatus))
         .sort((a: any, b: any) => {
           if (a.status === TASK_STATUS.APPROVED && b.status !== TASK_STATUS.APPROVED) return -1;
           if (b.status === TASK_STATUS.APPROVED && a.status !== TASK_STATUS.APPROVED) return 1;
@@ -87,9 +76,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
       
       const currentIds = availableDrafts.map((task: any) => task.id);
       
-      // Only initialize order if:
-      // 1. We have no existing order (first load)
-      // 2. We have new tasks that aren't in our current order
+      // Only initialize order if we have no existing order
       if (draftOrder.length === 0) {
         console.log('🎯 Initializing draft order for first time:', currentIds);
         setDraftOrder(currentIds);
@@ -110,7 +97,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
         }
       }
     }
-  }, [data?.tasks]); // Removed draftOrder from dependencies to prevent circular updates
+  }, [data?.tasks]);
 
   // Get ordered drafts based on current order
   const getOrderedDrafts = useCallback(() => {
@@ -118,12 +105,9 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
       return [];
     }
     
-    const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
+    const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED];
     const availableTasks = data.tasks
-      .filter((task: any) => 
-        visibleStatuses.includes(task.status as TaskStatus) &&
-        task.status !== TASK_STATUS.SCHEDULED
-      );
+      .filter((task: any) => visibleStatuses.includes(task.status as TaskStatus));
     
     // If we don't have a draft order yet (initializing), return tasks in their natural order
     // This prevents the flash while the order is being set up
@@ -148,8 +132,8 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
       .filter(Boolean); // Remove any undefined entries
   }, [data?.tasks, draftOrder]);
 
-  // Filter tasks to show only approved and generated content in drafts
-  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
+  // Filter tasks to show approved, generated, and scheduled content
+  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED];
   const filteredData = data ? {
     ...data,
     drafts: data.tasks?.filter((task: any) => visibleStatuses.includes(task.status as TaskStatus)) || []

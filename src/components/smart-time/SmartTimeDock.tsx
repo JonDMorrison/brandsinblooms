@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
@@ -51,7 +52,6 @@ export const SmartTimeDock = ({
       console.log('🎯 Dragging active, ensuring dock stays open');
       openDock();
     }
-    // when drag ends the dock decides below whether to close
   }, [isDragging, openDock]);
 
   // Add keyboard escape functionality

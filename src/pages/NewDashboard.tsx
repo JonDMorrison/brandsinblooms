@@ -16,6 +16,10 @@ import { scheduleDraft } from '@/lib/dashboardAPI';
 import { useDashboardContext } from '@/contexts/DashboardContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { reorderArray } from '@/utils/dragUtils';
+import { TimePopoverModal } from '@/components/smart-time/TimePopoverModal';
+import { ConnectionAlert } from '@/components/common/ConnectionAlert';
+import { DashboardErrorBoundary } from '@/components/dashboard/DashboardErrorBoundary';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface TimeSelectionModal {
   isOpen: boolean;
@@ -36,8 +40,10 @@ const NewDashboardContent = () => {
     targetDate: null
   });
   const [isScheduling, setIsScheduling] = useState(false);
+  const queryClient = useQueryClient();
 
   const handleTaskUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     refetch();
   };
 
@@ -60,17 +66,6 @@ const NewDashboardContent = () => {
     setTimeout(() => setJustApprovedId(null), 100);
   };
 
-  // Handle clicking on scheduled content in the ribbon
-  const handleScheduledContentClick = (scheduledTask: any) => {
-    setSelectedDraft(scheduledTask);
-  };
-
-  // Helper function to determine if dock should close after drag
-  const shouldCloseDock = (result: DropResult): boolean => {
-    if (!result.destination) return true; // dropped nowhere
-    return !result.destination.droppableId.startsWith('day-'); // dropped outside dock
-  };
-
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 NewDashboard handleDragEnd called:', result);
     
@@ -83,6 +78,7 @@ const NewDashboardContent = () => {
     }
 
     const { destination, source, draggableId } = result;
+    const taskId = draggableId.replace('task-', ''); // Extract task ID from draggableId
 
     // If no destination, close dock after delay
     if (!destination) {
@@ -111,9 +107,16 @@ const NewDashboardContent = () => {
       return;
     }
 
-    // If it's just a reorder within the same container, don't close the dock
-    if (source.droppableId === destination.droppableId) {
-      console.log('🎯 Same container reorder - keeping dock open');
+    // Dock collapse rule
+    const landedInDock = destination.droppableId?.startsWith('day-');
+    if (!landedInDock && destination) {
+      // Reorder in tray; keep dock open
+      return;
+    }
+    if (!landedInDock && !destination) {
+      setTimeout(() => { 
+        if (!isDragging) closeDock(); 
+      }, 400);
       return;
     }
 
@@ -128,11 +131,11 @@ const NewDashboardContent = () => {
         const dateStr = destination.droppableId.replace('day-', '');
         const targetDate = new Date(dateStr);
         
-        console.log('🎯 Setting up time selection modal for:', { draggableId, targetDate });
+        console.log('🎯 Setting up time selection modal for:', { taskId, targetDate });
         
         setTimeSelectionModal({
           isOpen: true,
-          draftId: draggableId,
+          draftId: taskId,
           targetDate: targetDate
         });
         
@@ -159,9 +162,6 @@ const NewDashboardContent = () => {
         const dateStr = destination.droppableId.replace('day-', '');
         const targetDate = new Date(dateStr);
         
-        // Extract the actual task ID from the draggableId (format: composer-{taskId})
-        const taskId = draggableId.replace('composer-', '');
-        
         console.log('🎯 Setting up time selection modal for composer drag:', { taskId, targetDate });
         
         setTimeSelectionModal({
@@ -180,14 +180,6 @@ const NewDashboardContent = () => {
           if (!isDragging) closeDock();
         }, 400);
       }
-    }
-
-    // Close dock 400 ms after drag finishes if dropped outside dock
-    if (shouldCloseDock(result)) {
-      console.log('🎯 Scheduling dock close after drag outside dock');
-      setTimeout(() => {
-        if (!isDragging) closeDock();
-      }, 400);
     }
   };
 
@@ -249,7 +241,7 @@ const NewDashboardContent = () => {
         });
 
         // Refresh the dashboard data to show updated state and remove from draft tray
-        await refetch();
+        await handleTaskUpdate();
         
         // Close the modal
         setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
@@ -278,141 +270,80 @@ const NewDashboardContent = () => {
     );
   }
 
+  const hasConnections = dashboardData?.socialConnections && dashboardData.socialConnections.length > 0;
+
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
-        {/* Fixed UserMenu - positioned above everything */}
-        <div className="fixed top-6 right-6 z-[9999]">
-          <UserMenu />
-        </div>
-        
-        <div className="max-w-full mx-auto">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
-            <p className="text-gray-600">Your content creation command center</p>
+    <DashboardErrorBoundary>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
+          {/* Connection Alert */}
+          <ConnectionAlert show={!hasConnections} />
+          
+          {/* Fixed UserMenu - positioned above everything */}
+          <div className="fixed top-6 right-6 z-[9999]">
+            <UserMenu />
           </div>
-
-          {/* Updated to 3-column layout with closer to 30-30-40 distribution */}
-          <div className="grid grid-cols-12 gap-6 mb-6">
-            {/* Today's Focus - Column 1 (3/12 = 25%, closest to 30%) */}
-            <div className="col-span-3">
-              <div className="h-[720px]">
-                <FocusCarousel onTaskUpdate={handleTaskUpdate} />
-              </div>
+          
+          <div className="max-w-full mx-auto">
+            <div className="mb-8">
+              <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
+              <p className="text-gray-600">Your content creation command center</p>
             </div>
 
-            {/* Draft Tray - Column 2 (4/12 = 33.33%, closest to 30%) */}
-            <div className="col-span-4">
-              <div className="h-[720px]">
-                <DraftTray 
-                  tasks={getOrderedDrafts()}
-                  selectedDraft={selectedDraft}
-                  onSelectDraft={setSelectedDraft}
-                  justApprovedId={justApprovedId}
-                  onDragEnd={handleDragEnd}
-                />
+            {/* Updated grid with flexible layout */}
+            <div className="grid grid-cols-12 gap-6 mb-6 min-h-0">
+              {/* Today's Focus - Column 1 */}
+              <div className="col-span-3 min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0">
+                  <FocusCarousel onTaskUpdate={handleTaskUpdate} />
+                </div>
               </div>
-            </div>
 
-            {/* Composer Panel - Column 3 (5/12 = 41.67%, closest to 40%) */}
-            <div className="col-span-5">
-              <div className="h-[720px]">
-                <ComposerPanel 
-                  selectedDraft={selectedDraft}
-                  socialConnections={dashboardData?.socialConnections || []}
-                  onTaskUpdate={handleTaskUpdate}
-                  onApproved={handleApproved}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <SmartTimeDock
-        scheduledByDate={dashboardData?.scheduledByDate}
-        socialConnections={dashboardData?.socialConnections || []}
-        onScheduleUpdate={handleTaskUpdate}
-      />
-
-      {/* Time Selection Modal */}
-      {timeSelectionModal.isOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Choose Posting Time</h3>
-            <p className="text-gray-600 mb-6">
-              When would you like to post this content on {timeSelectionModal.targetDate ? format(timeSelectionModal.targetDate, 'MMMM d, yyyy') : ''}?
-            </p>
-            
-            <div className="space-y-3">
-              <button
-                onClick={() => {
-                  console.log('🎯 Best Time button clicked');
-                  handleTimeSelection('best');
-                }}
-                disabled={isScheduling}
-                className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="font-medium">Best Time</div>
-                <div className="text-sm text-gray-500">AI-optimized posting time for maximum engagement</div>
-              </button>
-              
-              <button
-                onClick={() => {
-                  console.log('🎯 Post Now button clicked');
-                  handleTimeSelection('now');
-                }}
-                disabled={isScheduling}
-                className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="font-medium">Post Now</div>
-                <div className="text-sm text-gray-500">Schedule for immediate posting</div>
-              </button>
-              
-              <div className="border rounded-lg p-3">
-                <div className="font-medium mb-2">Custom Time</div>
-                <div className="flex gap-2">
-                  <input
-                    type="time"
-                    disabled={isScheduling}
-                    className="border rounded px-2 py-1 disabled:opacity-50"
-                    onChange={(e) => {
-                      if (e.target.value && !isScheduling) {
-                        console.log('🎯 Custom time selected:', e.target.value);
-                        handleTimeSelection('custom', e.target.value);
-                      }
-                    }}
+              {/* Draft Tray - Column 2 */}
+              <div className="col-span-4 min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0">
+                  <DraftTray 
+                    tasks={getOrderedDrafts()}
+                    selectedDraft={selectedDraft}
+                    onSelectDraft={setSelectedDraft}
+                    justApprovedId={justApprovedId}
+                    onDragEnd={handleDragEnd}
                   />
-                  <span className="text-sm text-gray-500 self-center">Choose specific time</span>
+                </div>
+              </div>
+
+              {/* Composer Panel - Column 3 */}
+              <div className="col-span-5 min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0">
+                  <ComposerPanel 
+                    selectedDraft={selectedDraft}
+                    socialConnections={dashboardData?.socialConnections || []}
+                    onTaskUpdate={handleTaskUpdate}
+                    onApproved={handleApproved}
+                  />
                 </div>
               </div>
             </div>
-            
-            <div className="flex gap-2 mt-6">
-              <button
-                onClick={() => {
-                  console.log('🎯 Cancel button clicked');
-                  setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
-                }}
-                disabled={isScheduling}
-                className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Cancel
-              </button>
-            </div>
-            
-            {isScheduling && (
-              <div className="flex items-center justify-center mt-4">
-                <div className="flex items-center gap-2 text-[#68BEB9]">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#68BEB9]"></div>
-                  <span className="text-sm">Scheduling...</span>
-                </div>
-              </div>
-            )}
           </div>
         </div>
-      )}
-    </DragDropContext>
+
+        <SmartTimeDock
+          scheduledByDate={dashboardData?.scheduledByDate}
+          socialConnections={dashboardData?.socialConnections || []}
+          onScheduleUpdate={handleTaskUpdate}
+        />
+
+        {/* Time Selection Modal */}
+        {timeSelectionModal.isOpen && (
+          <TimePopoverModal
+            targetDate={timeSelectionModal.targetDate}
+            draftId={timeSelectionModal.draftId}
+            onTimeSelection={handleTimeSelection}
+            isScheduling={isScheduling}
+          />
+        )}
+      </DragDropContext>
+    </DashboardErrorBoundary>
   );
 };
 
