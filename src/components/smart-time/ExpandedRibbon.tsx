@@ -14,7 +14,6 @@ interface ExpandedRibbonProps {
   onPage: (date: Date) => void;
   onClose: () => void;
   onTaskClick: (task: any) => void;
-  onDragEnd?: (result: any) => void;
 }
 
 export const ExpandedRibbon = ({ 
@@ -23,8 +22,7 @@ export const ExpandedRibbon = ({
   socialConnections,
   onPage, 
   onClose, 
-  onTaskClick,
-  onDragEnd 
+  onTaskClick
 }: ExpandedRibbonProps) => {
   const weekStart = startOfWeek(week, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -64,9 +62,9 @@ export const ExpandedRibbon = ({
         </div>
 
         {!hasConnections && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-800 text-center">
-              <span className="font-medium">No social connections:</span> Connect your social accounts to schedule posts
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800 text-center">
+              <span className="font-medium">Limited functionality:</span> Connect social accounts for automatic publishing
             </p>
           </div>
         )}
@@ -85,11 +83,9 @@ export const ExpandedRibbon = ({
                     {...provided.droppableProps}
                     className={cn(
                       "min-h-[120px] p-3 rounded-lg border-2 border-dashed transition-all duration-200",
-                      snapshot.isDraggingOver && hasConnections
+                      snapshot.isDraggingOver
                         ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md" 
-                        : hasConnections
-                        ? "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50"
-                        : "border-red-200 bg-red-50/30",
+                        : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
                       isToday && "ring-2 ring-[#68BEB9]/30"
                     )}
                   >
@@ -121,16 +117,9 @@ export const ExpandedRibbon = ({
                     </div>
 
                     {/* Drop zone indicator */}
-                    {snapshot.isDraggingOver && hasConnections && (
+                    {snapshot.isDraggingOver && (
                       <div className="flex items-center justify-center h-8 text-sm text-[#68BEB9] font-medium mt-2">
-                        Drop to schedule
-                      </div>
-                    )}
-
-                    {/* No connections warning when dragging */}
-                    {snapshot.isDraggingOver && !hasConnections && (
-                      <div className="flex items-center justify-center h-8 text-sm text-red-600 font-medium mt-2">
-                        Connect social accounts first
+                        {hasConnections ? "Drop to schedule" : "Drop to schedule (manual)"}
                       </div>
                     )}
 
@@ -152,6 +141,7 @@ export const ExpandedRibbon = ({
         <div className="mt-4 p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
           <p className="text-sm text-[#3E5A6B]">
             <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days.
+            {!hasConnections && " Posts will be scheduled manually without social connections."}
           </p>
         </div>
       </div>

@@ -255,7 +255,6 @@ const NewDashboard = () => {
           scheduledByDate={dashboardData?.scheduledByDate}
           socialConnections={dashboardData?.socialConnections || []}
           onScheduleUpdate={handleTaskUpdate}
-          onDragEnd={handleDragEnd}
         />
       </DragDropContext>
 
