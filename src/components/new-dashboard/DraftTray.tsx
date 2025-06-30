@@ -7,7 +7,6 @@ import { Draggable, Droppable, DragDropContext } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
 import { extractNewsletterThumbnail } from '@/utils/renderMarkdown';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
-import { useDashboard } from '@/contexts/DashboardContext';
 import { useDashboardContext } from '@/contexts/DashboardContext';
 
 interface DraftTrayProps {
@@ -19,8 +18,7 @@ interface DraftTrayProps {
 }
 
 export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprovedId, onDragEnd }: DraftTrayProps) => {
-  const { openDock } = useDashboard();
-  const { startDragging, stopDragging } = useDashboardContext();
+  const { openDock, startDragging, stopDragging } = useDashboardContext();
   const [showDragHint, setShowDragHint] = useState<string | null>(null);
 
   useEffect(() => {

@@ -11,9 +11,6 @@ interface DashboardContextType {
   isDragging: boolean;
   startDragging: () => void;
   stopDragging: () => void;
-}
-
-interface DashboardUIContextType {
   isDockOpen: boolean;
   openDock: () => void;
   closeDock: () => void;
@@ -21,7 +18,6 @@ interface DashboardUIContextType {
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
-const DashboardUIContext = createContext<DashboardUIContextType | undefined>(undefined);
 
 export const useDashboardContext = () => {
   const context = useContext(DashboardContext);
@@ -32,7 +28,7 @@ export const useDashboardContext = () => {
 };
 
 export const useDashboard = () => {
-  const context = useContext(DashboardUIContext);
+  const context = useContext(DashboardContext);
   if (!context) {
     throw new Error('useDashboard must be used within a DashboardProvider');
   }
@@ -84,10 +80,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     refetch,
     isDragging,
     startDragging,
-    stopDragging
-  };
-
-  const uiContextValue = {
+    stopDragging,
     isDockOpen,
     openDock,
     closeDock,
@@ -96,9 +89,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
 
   return (
     <DashboardContext.Provider value={contextValue}>
-      <DashboardUIContext.Provider value={uiContextValue}>
-        {children}
-      </DashboardUIContext.Provider>
+      {children}
     </DashboardContext.Provider>
   );
 };

@@ -4,7 +4,6 @@ import { CollapsedBar } from './CollapsedBar';
 import { ExpandedRibbon } from './ExpandedRibbon';
 import { ScheduledContentModal } from '@/components/new-dashboard/ScheduledContentModal';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDashboard } from '@/contexts/DashboardContext';
 import { useDashboardContext } from '@/contexts/DashboardContext';
 import { cn } from '@/lib/utils';
 import './smart-time.css';
@@ -20,8 +19,7 @@ export const SmartTimeDock = ({
   socialConnections = [],
   onScheduleUpdate
 }: SmartTimeDockProps) => {
-  const { isDockOpen, openDock, closeDock, toggleDock } = useDashboard();
-  const { isDragging } = useDashboardContext();
+  const { isDockOpen, openDock, closeDock, toggleDock, isDragging } = useDashboardContext();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
