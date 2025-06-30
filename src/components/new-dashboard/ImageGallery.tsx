@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, RefreshCw, Image as ImageIcon, Check } from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import styles from './ImageGallery.module.css';
-import { cn } from '@/lib/utils';
 import { extractKeywords } from '@/utils/imageKeywords';
+import { ImageGalleryHeader } from './ImageGalleryHeader';
+import { ImageGalleryGrid } from './ImageGalleryGrid';
+import { ImageModal } from './ImageModal';
 
 interface ImageGalleryProps {
   selectedDraft: any;
@@ -202,30 +202,11 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
   return (
     <>
       <div className="bg-gradient-to-b from-[#68BEB9]/10 to-[#68BEB9]/5 rounded-lg p-4 h-full">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-medium text-[#3E5A6B]">Images</h3>
-            {lastQuery && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                "{lastQuery}"
-              </span>
-            )}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => fetchImages(true)}
-            disabled={loading}
-            className="h-6 w-6 p-0"
-            title="Get different images"
-          >
-            {loading ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : (
-              <RefreshCw className="w-3 h-3" />
-            )}
-          </Button>
-        </div>
+        <ImageGalleryHeader
+          lastQuery={lastQuery}
+          loading={loading}
+          onRefresh={() => fetchImages(true)}
+        />
 
         {!selectedDraft ? (
           <div className={styles.emptyState}>
@@ -233,102 +214,25 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
             <p className="text-xs text-gray-500">Select a draft to see relevant images</p>
           </div>
         ) : (
-          <div className={styles.galleryGrid}>
-            {loading ? (
-              Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className={styles.loadingPlaceholder}>
-                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
-                </div>
-              ))
-            ) : images.length > 0 ? (
-              images.map((image) => (
-                <button
-                  key={image.id}
-                  className={cn(
-                    styles.thumb,
-                    selectedImage?.id === image.id && styles.selected
-                  )}
-                  onClick={() => handleImageClick(image)}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`Select image by ${image.photographer}`}
-                >
-                  <img
-                    src={image.thumb_url}
-                    alt={image.alt}
-                    className="transition-transform group-hover:scale-105"
-                  />
-                  {selectedImage?.id === image.id && (
-                    <div className={styles.selectedOverlay}>
-                      <div className={styles.checkIcon}>
-                        <Check className="w-3 h-3 text-white" />
-                      </div>
-                    </div>
-                  )}
-                </button>
-              ))
-            ) : (
-              <div className={styles.emptyState}>
-                <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
-                <p className="text-xs text-gray-500 mb-1">No images found for "{lastQuery}"</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => fetchImages(true)}
-                  className="mt-2 text-xs"
-                >
-                  Try different search
-                </Button>
-              </div>
-            )}
-          </div>
+          <ImageGalleryGrid
+            loading={loading}
+            images={images}
+            selectedImage={selectedImage}
+            lastQuery={lastQuery}
+            onImageClick={handleImageClick}
+            onRetryFetch={() => fetchImages(true)}
+          />
         )}
       </div>
 
-      {/* Image Modal */}
-      <Dialog open={showImageModal} onOpenChange={setShowImageModal}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold">Image Preview</DialogTitle>
-          </DialogHeader>
-          {selectedImage && (
-            <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-              {/* Image Container */}
-              <div className="relative mb-4">
-                <img
-                  src={selectedImage.download_url}
-                  alt={selectedImage.alt}
-                  className="w-full max-h-[50vh] object-contain rounded-lg"
-                />
-                {/* Photo credit overlay */}
-                <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
-                  Photo by {selectedImage.photographer}
-                </div>
-              </div>
-              
-              {/* Use in Post Button */}
-              <div className="flex justify-center pt-2 border-t border-gray-100">
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => handleUseInPost(selectedImage)}
-                  disabled={addingToPost || !selectedDraft}
-                  className="bg-[#68BEB9] hover:bg-[#5AA8A3] shadow-md px-6"
-                >
-                  {addingToPost ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Adding...
-                    </>
-                  ) : (
-                    'Use in Post'
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>  
-      </Dialog>
+      <ImageModal
+        isOpen={showImageModal}
+        onClose={() => setShowImageModal(false)}
+        selectedImage={selectedImage}
+        onUseInPost={handleUseInPost}
+        addingToPost={addingToPost}
+        selectedDraft={selectedDraft}
+      />
     </>
   );
 };
