@@ -90,6 +90,6 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
           onDragEnd={handleDragEnd}
         />
       </DragDropContext>
-    </DragDropContext.Provider>
+    </DashboardContext.Provider>
   );
 };
