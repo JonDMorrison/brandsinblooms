@@ -8,6 +8,16 @@ export interface ContentGenerationResult {
   tasks?: any[];
 }
 
+// Add interface for Supabase function response
+interface SupabaseFunctionResponse {
+  data?: {
+    content?: string;
+  };
+  error?: {
+    message: string;
+  };
+}
+
 // Legacy function exports for backward compatibility
 export const generatePersonalizedContent = async (
   postType: string,
@@ -209,14 +219,14 @@ export const generateCampaignContent = async (
         });
 
         // Add timeout to prevent infinite waiting
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise<SupabaseFunctionResponse>((_, reject) => 
           setTimeout(() => reject(new Error(`${contentType} generation timeout`)), 30000)
         );
 
         const result = await Promise.race([
           contentPromise,
           timeoutPromise
-        ]) as { data?: any; error?: any };
+        ]) as SupabaseFunctionResponse;
 
         if (result.error) {
           console.error(`❌ Error generating ${contentType} content:`, result.error);
