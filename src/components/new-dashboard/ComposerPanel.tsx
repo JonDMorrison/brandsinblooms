@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
 import { supabase } from '@/integrations/supabase/client';
 import { ImageAttachment } from '@/lib/contentTypes';
+import { extractKeywords } from '@/utils/imageKeywords';
 
 interface ComposerPanelProps {
   selectedDraft?: any;
@@ -58,9 +59,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   );
 
   const isScheduled = relatedScheduledPosts.length > 0;
-  // Only consider content approved if status is explicitly 'approved' 
   const isApproved = selectedDraft?.status === 'approved';
-  // Content is draft if it's in any non-approved state
   const isDraft = !isApproved && selectedDraft?.status !== 'posted';
 
   const isInstagram = selectedDraft?.post_type?.toLowerCase().includes('instagram');
@@ -123,7 +122,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       setEditContent(selectedDraft.ai_output);
       setImageError(null);
       
-      // Load existing image attachment
       if (selectedDraft.attachments?.image) {
         console.log('[COMPOSER] Found existing image attachment');
         const existingImage = selectedDraft.attachments.image;
@@ -131,7 +129,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         setSelectedImageId(existingImage.id);
       } else {
         console.log('[COMPOSER] No existing image, fetching new ones');
-        // Fetch new images based on content
         fetchImagesForDraft();
       }
     } else {
@@ -152,33 +149,35 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setImageError(null);
     
     try {
-      const query = extractKeywordsFromContent(selectedDraft.ai_output);
-      console.log('[COMPOSER] Extracted query for images:', query);
+      const keywords = extractKeywords(selectedDraft.ai_output, 'garden center plants');
+      console.log('[COMPOSER] Extracted keywords for images:', keywords);
       
-      if (!query || query.trim().length === 0) {
-        console.warn('[COMPOSER] Empty query, using fallback');
-        const fallbackQuery = selectedDraft.post_type || 'lifestyle';
-        const fetchedImages = await getSmartImages(fallbackQuery);
-        console.log('[COMPOSER] Fetched fallback images:', fetchedImages.length);
-        setImages(fetchedImages);
-        
-        if (fetchedImages.length > 0) {
-          setSelectedImageId(fetchedImages[0].id);
-        }
-        return;
+      let query = keywords;
+      
+      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
+        query = `${keywords} garden center`;
       }
+      
+      console.log('[COMPOSER] Final garden center query:', query);
       
       const fetchedImages = await getSmartImages(query);
       console.log('[COMPOSER] Fetched images:', fetchedImages.length);
       setImages(fetchedImages);
       
-      // Auto-select first image
       if (fetchedImages.length > 0) {
         setSelectedImageId(fetchedImages[0].id);
         console.log('[COMPOSER] Auto-selected first image:', fetchedImages[0].id);
       } else {
-        console.warn('[COMPOSER] No images returned from getSmartImages');
-        setImageError('No images found for this content');
+        console.warn('[COMPOSER] No images returned, trying fallback');
+        const fallbackQuery = `${selectedDraft.post_type || 'gardening'} garden center plants`;
+        const fallbackImages = await getSmartImages(fallbackQuery);
+        
+        if (fallbackImages.length > 0) {
+          setImages(fallbackImages);
+          setSelectedImageId(fallbackImages[0].id);
+        } else {
+          setImageError('No relevant garden center images found');
+        }
       }
     } catch (error) {
       console.error('[COMPOSER] Error fetching images:', error);
@@ -187,26 +186,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     } finally {
       setImagesFetching(false);
     }
-  };
-
-  const extractKeywordsFromContent = (content: string): string => {
-    if (!content || content.trim().length === 0) {
-      console.log('[COMPOSER] No content provided for keyword extraction');
-      return '';
-    }
-    
-    // Simple keyword extraction - could be enhanced
-    const words = content
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/[^\w\s]/g, ' ')
-      .replace(/\s+/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 3)
-      .slice(0, 3);
-    
-    const result = words.join(' ') || selectedDraft?.post_type || 'lifestyle';
-    console.log('[COMPOSER] Extracted keywords:', result);
-    return result;
   };
 
   const handleImageSelect = (imageId: string) => {
@@ -223,7 +202,13 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setImageError(null);
     
     try {
-      const query = extractKeywordsFromContent(selectedDraft.ai_output);
+      const keywords = extractKeywords(selectedDraft.ai_output, 'garden center plants');
+      let query = keywords;
+      
+      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
+        query = `${keywords} garden center`;
+      }
+      
       const newImages = await refreshImages(query);
       console.log('[COMPOSER] Refreshed images:', newImages.length);
       setImages(newImages);
@@ -242,7 +227,12 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setImageError(null);
     
     try {
-      const searchResults = await searchImages(query);
+      let enhancedQuery = query;
+      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
+        enhancedQuery = `${query} garden center`;
+      }
+      
+      const searchResults = await searchImages(enhancedQuery);
       console.log('[COMPOSER] Search results:', searchResults.length);
       setImages(searchResults);
       setSelectedImageId(searchResults.length > 0 ? searchResults[0].id : null);
@@ -266,12 +256,11 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       const selectedImage = getSelectedImage();
       const attachments = selectedImage ? { image: selectedImage as any } : null;
 
-      // Save as draft, not approved
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: editContent,
-          status: 'draft', // Explicitly set to draft
+          status: 'draft',
           attachments
         })
         .eq('id', selectedDraft.id);
@@ -296,7 +285,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       return;
     }
 
-    // Add explicit confirmation for approval
     const confirmed = window.confirm(
       'Are you sure you want to approve this content? It will be ready for scheduling after approval.'
     );
@@ -308,12 +296,11 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       const selectedImage = getSelectedImage();
       const attachments = selectedImage ? { image: selectedImage as any } : null;
 
-      // Only now explicitly set to approved
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
           ai_output: editContent,
-          status: 'approved', // Explicit approval
+          status: 'approved',
           attachments
         })
         .eq('id', selectedDraft.id);
@@ -371,7 +358,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   };
 
   const renderImageSection = () => {
-    // Always render for non-newsletter content
     if (!selectedDraft || selectedDraft.post_type === 'newsletter') {
       return null;
     }

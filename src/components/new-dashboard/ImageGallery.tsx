@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,65 +20,67 @@ interface UnsplashImage {
   photographer: string;
 }
 
-// Build content-focused search query
+// Build content-focused search query with garden center context
 const buildContentQuery = (draft: any): string => {
   const content = draft?.ai_output || draft?.prompt || '';
-  const keywords = extractKeywords(content, 'gardening lifestyle');
+  const keywords = extractKeywords(content, 'garden center plants nursery');
   
   console.log('[IMAGE_GALLERY] Building query for content type:', draft?.post_type);
   console.log('[IMAGE_GALLERY] Extracted keywords:', keywords);
 
-  // Add context based on post type if keywords are generic
-  if (keywords === 'gardening lifestyle') {
-    const fallbacks = {
-      instagram: 'lifestyle photography',
-      facebook: 'community engagement',
-      newsletter: 'professional content',
-      email: 'business communication',
-      video: 'dynamic content'
+  // Always ensure garden center context is included
+  let finalQuery = keywords;
+  
+  // Add post type context if it helps
+  if (draft?.post_type && !keywords.toLowerCase().includes(draft.post_type.toLowerCase())) {
+    const postTypeContext = {
+      instagram: 'social media gardening',
+      facebook: 'community gardening',
+      newsletter: 'garden center business',
+      email: 'gardening tips',
+      video: 'garden demonstration'
     };
     
-    const fallback = fallbacks[draft?.post_type] || 'professional photography';
-    console.log('[IMAGE_GALLERY] Using fallback query:', fallback);
-    return fallback;
+    const context = postTypeContext[draft.post_type] || 'gardening lifestyle';
+    finalQuery = `${keywords} ${context}`;
   }
 
-  console.log('[IMAGE_GALLERY] Final content-focused query:', keywords);
-  return keywords;
+  console.log('[IMAGE_GALLERY] Final garden center focused query:', finalQuery);
+  return finalQuery;
 };
 
-// Curated fallback queries for when content analysis fails
-const getRandomFallback = (postType: string): string => {
+// Curated garden center specific fallback queries
+const getGardenCenterFallback = (postType: string): string => {
   const fallbacks = {
     instagram: [
-      'lifestyle photography',
-      'modern aesthetic',
-      'clean minimal design',
-      'natural lighting'
+      'beautiful garden center plants',
+      'colorful flowers nursery display',
+      'gardening tools equipment',
+      'plant care gardening tips'
     ],
     facebook: [
-      'community lifestyle',
-      'social gathering',
-      'friendly atmosphere',
-      'engaging content'
+      'garden center community plants',
+      'happy customers gardening',
+      'seasonal plants nursery',
+      'garden center staff helping'
     ],
     newsletter: [
-      'professional business',
-      'clean modern office',
-      'business communication',
-      'corporate lifestyle'
+      'professional garden center business',
+      'plant nursery greenhouse',
+      'gardening expertise advice',
+      'garden center landscape'
     ],
     email: [
-      'professional communication',
-      'business meeting',
-      'office environment',
-      'clean workspace'
+      'garden center plants care',
+      'nursery plant selection',
+      'gardening tips advice',
+      'seasonal plant care'
     ],
     video: [
-      'dynamic content',
-      'engaging visuals',
-      'motion graphics',
-      'video production'
+      'garden center demonstration',
+      'plant care tutorial',
+      'gardening how to',
+      'nursery plant care'
     ]
   };
 
@@ -102,10 +103,10 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
     try {
       const query = selectedDraft 
         ? buildContentQuery(selectedDraft)
-        : getRandomFallback('instagram');
+        : getGardenCenterFallback('instagram');
 
       setLastQuery(query);
-      console.log('[IMAGE_GALLERY] Fetching images with improved query:', query);
+      console.log('[IMAGE_GALLERY] Fetching images with garden center focused query:', query);
 
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
@@ -118,14 +119,14 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
       });
 
       if (error) {
-        console.error('[IMAGE_GALLERY] Error fetching images:', error);
+        console.log('[IMAGE_GALLERY] Unsplash API error, using garden center fallback:', error.message);
         
-        // Try a simpler, more generic query as fallback
-        console.log('[IMAGE_GALLERY] Trying simpler fallback query...');
-        const simpleQuery = getRandomFallback(selectedDraft?.post_type || 'instagram');
+        // Try a more specific garden center query as fallback
+        console.log('[IMAGE_GALLERY] Trying garden center specific fallback query...');
+        const gardenCenterQuery = getGardenCenterFallback(selectedDraft?.post_type || 'instagram');
         const fallbackData = await supabase.functions.invoke('fetch-unsplash-images', {
           body: { 
-            query: simpleQuery,
+            query: gardenCenterQuery,
             maxImages: 4,
             orientation: 'squarish',
             orderBy: 'relevant',
@@ -134,7 +135,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         });
         
         setImages(fallbackData?.data?.images || []);
-        setLastQuery(simpleQuery);
+        setLastQuery(gardenCenterQuery);
         return;
       }
 
@@ -164,7 +165,6 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
 
     setAddingToPost(true);
     try {
-      // Update the draft with the selected image
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
@@ -188,7 +188,6 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
       toast.success('Image added to post successfully!');
       setShowImageModal(false);
       
-      // Trigger a refresh of the parent component if needed
       window.dispatchEvent(new CustomEvent('draft-updated'));
       
     } catch (error) {
@@ -211,7 +210,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         {!selectedDraft ? (
           <div className={styles.emptyState}>
             <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
-            <p className="text-xs text-gray-500">Select a draft to see relevant images</p>
+            <p className="text-xs text-gray-500">Select a draft to see relevant garden center images</p>
           </div>
         ) : (
           <ImageGalleryGrid
