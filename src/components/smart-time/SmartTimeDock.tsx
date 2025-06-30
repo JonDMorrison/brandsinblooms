@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
@@ -127,14 +128,14 @@ export const SmartTimeDock = ({
     <>
       <div 
         className={cn(
-          "smart-dock-container fixed bottom-0 left-0 right-0 z-30 bg-white shadow-xl transition-all duration-300 ease-in-out",
-          isDockOpen ? "h-56" : "h-14"
+          "smart-dock-container fixed bottom-0 left-0 right-0 z-30 bg-white shadow-xl transition-all duration-300 ease-in-out border-t border-gray-200",
+          isDockOpen ? "h-64" : "h-14"
         )}
         aria-expanded={isDockOpen}
       >
         {/* Ghost outline during drag when collapsed */}
         {isDragging && !isDockOpen && (
-          <div className="smartDockGhost" />
+          <div className="absolute inset-x-0 -top-64 h-64 bg-white/40 border-2 border-dashed border-[#68BEB9]/50 rounded-t-xl pointer-events-none opacity-30" />
         )}
         
         {!isDockOpen && (
@@ -162,14 +163,16 @@ export const SmartTimeDock = ({
         )}
         
         {isDockOpen && (
-          <ExpandedRibbon
-            week={currentWeek}
-            scheduledByDate={scheduledByDate}
-            socialConnections={socialConnections}
-            onPage={setCurrentWeek}
-            onClose={closeDock}
-            onTaskClick={handleTaskClick}
-          />
+          <div className="h-full overflow-hidden">
+            <ExpandedRibbon
+              week={currentWeek}
+              scheduledByDate={scheduledByDate}
+              socialConnections={socialConnections}
+              onPage={setCurrentWeek}
+              onClose={closeDock}
+              onTaskClick={handleTaskClick}
+            />
+          </div>
         )}
       </div>
 
