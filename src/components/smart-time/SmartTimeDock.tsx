@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
 import { ExpandedRibbon } from './ExpandedRibbon';
@@ -26,6 +26,7 @@ export const SmartTimeDock = ({
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const dragTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -52,32 +53,67 @@ export const SmartTimeDock = ({
   useEffect(() => {
     if (isDragging) {
       console.log('🎯 Dragging active, ensuring dock stays open');
+      
+      // Clear any pending close timeout
+      if (dragTimeoutRef.current) {
+        clearTimeout(dragTimeoutRef.current);
+        dragTimeoutRef.current = null;
+      }
+      
       openDock();
     }
   }, [isDragging, openDock]);
 
-  // Listen for drag events on the document
+  // Listen for drag events on the document to better detect drag states
   useEffect(() => {
+    let dragStarted = false;
+    
     const handleDragStart = (e: DragEvent) => {
-      // Check if the dragged element is from draft tray (has data-draft-card attribute)
       const target = e.target as HTMLElement;
       if (target?.closest('[data-draft-card]') || target?.hasAttribute('data-draft-card')) {
         console.log('🎯 Draft card drag detected, expanding dock');
+        dragStarted = true;
+        
+        // Clear any pending timeouts
+        if (dragTimeoutRef.current) {
+          clearTimeout(dragTimeoutRef.current);
+          dragTimeoutRef.current = null;
+        }
+        
         openDock();
       }
     };
 
-    const handleDragEnd = () => {
-      console.log('🎯 Drag ended');
-      // Don't close dock here - let the main drag handler manage it with proper delay
+    const handleDragOver = (e: DragEvent) => {
+      // Prevent drag from ending prematurely by allowing drop
+      const target = e.target as HTMLElement;
+      if (target?.closest('.smart-dock-container')) {
+        e.preventDefault();
+      }
+    };
+
+    const handleDragEnd = (e: DragEvent) => {
+      if (dragStarted) {
+        console.log('🎯 Drag ended, checking if dock should stay open');
+        dragStarted = false;
+        
+        // Don't immediately close - let the main drag handler decide
+        // This prevents premature closing during drag operations
+      }
     };
 
     document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('dragover', handleDragOver);
     document.addEventListener('dragend', handleDragEnd);
 
     return () => {
       document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('dragover', handleDragOver);
       document.removeEventListener('dragend', handleDragEnd);
+      
+      if (dragTimeoutRef.current) {
+        clearTimeout(dragTimeoutRef.current);
+      }
     };
   }, [openDock]);
 

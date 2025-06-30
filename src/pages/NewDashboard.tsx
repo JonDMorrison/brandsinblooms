@@ -38,6 +38,7 @@ const NewDashboardContent = () => {
     targetDate: null
   });
   const [isScheduling, setIsScheduling] = useState(false);
+  const [dragCloseTimeout, setDragCloseTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const handleTaskUpdate = () => {
     refetch();
@@ -67,6 +68,30 @@ const NewDashboardContent = () => {
     setSelectedDraft(scheduledTask);
   };
 
+  const scheduleCloseDock = (delay: number = 300) => {
+    // Clear any existing timeout
+    if (dragCloseTimeout) {
+      clearTimeout(dragCloseTimeout);
+    }
+    
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      console.log('🎯 Scheduled dock close executing');
+      closeDock();
+      setDragCloseTimeout(null);
+    }, delay);
+    
+    setDragCloseTimeout(timeout);
+  };
+
+  const cancelScheduledDockClose = () => {
+    if (dragCloseTimeout) {
+      console.log('🎯 Cancelling scheduled dock close');
+      clearTimeout(dragCloseTimeout);
+      setDragCloseTimeout(null);
+    }
+  };
+
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 NewDashboard handleDragEnd called:', result);
     
@@ -75,14 +100,15 @@ const NewDashboardContent = () => {
     
     const { destination, source, draggableId } = result;
 
+    // If no destination, schedule dock close with longer delay to prevent premature closing
     if (!destination) {
-      console.log('🎯 No destination in NewDashboard - will close dock after delay');
-      // Close dock after 300ms delay if drag ended outside dock
-      setTimeout(() => {
-        closeDock();
-      }, 300);
+      console.log('🎯 No destination in NewDashboard - scheduling dock close with delay');
+      scheduleCloseDock(800); // Longer delay to allow for re-drag attempts
       return;
     }
+
+    // Cancel any scheduled dock close since we have a valid drop
+    cancelScheduledDockClose();
 
     console.log('🎯 Drag from', source.droppableId, 'to', destination.droppableId);
 
@@ -111,10 +137,7 @@ const NewDashboardContent = () => {
       } catch (error) {
         console.error('🎯 Error processing drag:', error);
         toast.error('Failed to process drag operation');
-        // Close dock after delay on error
-        setTimeout(() => {
-          closeDock();
-        }, 300);
+        scheduleCloseDock(300);
       }
     }
 
@@ -146,17 +169,12 @@ const NewDashboardContent = () => {
       } catch (error) {
         console.error('🎯 Error processing composer drag:', error);
         toast.error('Failed to process drag operation');
-        // Close dock after delay on error
-        setTimeout(() => {
-          closeDock();
-        }, 300);
+        scheduleCloseDock(300);
       }
     }
 
-    // For any other drag operations, close dock after delay
-    setTimeout(() => {
-      closeDock();
-    }, 300);
+    // For any other drag operations, schedule dock close with delay
+    scheduleCloseDock(300);
   };
 
   const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
@@ -235,6 +253,15 @@ const NewDashboardContent = () => {
       setIsScheduling(false);
     }
   };
+
+  // Clean up timeout on unmount
+  React.useEffect(() => {
+    return () => {
+      if (dragCloseTimeout) {
+        clearTimeout(dragCloseTimeout);
+      }
+    };
+  }, [dragCloseTimeout]);
 
   if (isLoading) {
     return (
