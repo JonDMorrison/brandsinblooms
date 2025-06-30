@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Edit, Save, CheckCircle, AlertCircle, AlertTriangle, Loader2, Instagram, Facebook, Mail, BookOpen, Video, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useUnsplash } from '@/hooks/useUnsplash';
@@ -22,6 +22,22 @@ interface ComposerPanelProps {
   onTaskUpdate?: () => void;
   onApproved?: (draftId: string) => void;
 }
+
+const getPostTypeIcon = (postType: string) => {
+  switch (postType?.toLowerCase()) {
+    case 'instagram': return Instagram;
+    case 'facebook': return Facebook;
+    case 'email': return Mail;
+    case 'newsletter': return BookOpen;
+    case 'video': return Video;
+    default: return FileText;
+  }
+};
+
+const getPostTypeLabel = (postType: string) => {
+  if (!postType) return 'Content';
+  return postType.charAt(0).toUpperCase() + postType.slice(1);
+};
 
 export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpdate, onApproved }: ComposerPanelProps) => {
   const [editContent, setEditContent] = useState('');
@@ -423,6 +439,9 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     );
   };
 
+  const PostTypeIcon = getPostTypeIcon(selectedDraft?.post_type);
+  const postTypeLabel = getPostTypeLabel(selectedDraft?.post_type);
+
   return (
     <TooltipProvider>
       <Card className="h-full flex flex-col overflow-hidden">
@@ -463,7 +482,17 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
         <CardContent className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 flex flex-col overflow-y-auto min-h-[600px]">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
-              <h3 className="font-medium text-[#3E5A6B]">Content</h3>
+              <div className="flex items-center gap-2">
+                {selectedDraft && (
+                  <>
+                    <PostTypeIcon className="w-4 h-4 text-[#3E5A6B]" />
+                    <h3 className="font-medium text-[#3E5A6B]">{postTypeLabel} Content</h3>
+                  </>
+                )}
+                {!selectedDraft && (
+                  <h3 className="font-medium text-[#3E5A6B]">Content</h3>
+                )}
+              </div>
               {selectedDraft && !isScheduled && (
                 <Button
                   variant="ghost"
