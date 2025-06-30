@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, RefreshCw, Image as ImageIcon } from 'lucide-react';
+import { Loader2, RefreshCw, Image as ImageIcon, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import styles from './ImageGallery.module.css';
+import { cn } from '@/lib/utils';
 
 interface ImageGalleryProps {
   selectedDraft: any;
@@ -284,41 +286,47 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         </div>
 
         {!selectedDraft ? (
-          <div className="flex flex-col items-center justify-center h-[160px] text-center">
+          <div className={styles.emptyState}>
             <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
             <p className="text-xs text-gray-500">Select a draft to see relevant images</p>
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-3 h-[160px]">
+          <div className={styles.galleryGrid}>
             {loading ? (
               Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="bg-gray-200 rounded-lg animate-pulse flex items-center justify-center h-full">
+                <div key={index} className={styles.loadingPlaceholder}>
                   <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                 </div>
               ))
             ) : images.length > 0 ? (
               images.map((image) => (
-                <div
+                <button
                   key={image.id}
-                  className="relative cursor-pointer group rounded-lg overflow-hidden bg-gray-100 h-full"
+                  className={cn(
+                    styles.thumb,
+                    selectedImage?.id === image.id && styles.selected
+                  )}
                   onClick={() => handleImageClick(image)}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Select image by ${image.photographer}`}
                 >
                   <img
                     src={image.thumb_url}
                     alt={image.alt}
-                    className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                    className="transition-transform group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 flex items-center justify-center">
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="w-6 h-6 bg-white/80 rounded-full flex items-center justify-center">
-                        <ImageIcon className="w-3 h-3 text-gray-700" />
+                  {selectedImage?.id === image.id && (
+                    <div className={styles.selectedOverlay}>
+                      <div className={styles.checkIcon}>
+                        <Check className="w-3 h-3 text-white" />
                       </div>
                     </div>
-                  </div>
-                </div>
+                  )}
+                </button>
               ))
             ) : (
-              <div className="col-span-4 flex flex-col items-center justify-center text-center h-full">
+              <div className={styles.emptyState}>
                 <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
                 <p className="text-xs text-gray-500 mb-1">No images found for "{lastQuery}"</p>
                 <Button
