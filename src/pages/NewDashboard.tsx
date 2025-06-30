@@ -6,14 +6,13 @@ import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { SmartTimeDock } from '@/components/smart-time';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { UserMenu } from '@/components/UserMenu';
-import { DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useAuth } from '@/contexts/AuthContext';
 import { scheduleDraft } from '@/lib/dashboardAPI';
-import { useDashboard } from '@/contexts/DashboardContext';
 import { useDashboardContext } from '@/contexts/DashboardContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 
@@ -25,8 +24,7 @@ interface TimeSelectionModal {
 
 const NewDashboardContent = () => {
   const { user } = useAuth();
-  const { closeDock } = useDashboard();
-  const { isDragging } = useDashboardContext();
+  const { closeDock, isDragging } = useDashboardContext();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const { schedulePost } = useScheduledPosts();
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
@@ -264,7 +262,7 @@ const NewDashboardContent = () => {
   }
 
   return (
-    <>
+    <DragDropContext onDragEnd={handleDragEnd}>
       <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
         {/* Fixed UserMenu - positioned above everything */}
         <div className="fixed top-6 right-6 z-[9999]">
@@ -397,7 +395,7 @@ const NewDashboardContent = () => {
           </div>
         </div>
       )}
-    </>
+    </DragDropContext>
   );
 };
 
