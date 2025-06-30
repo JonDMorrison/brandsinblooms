@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
 import { extractNewsletterThumbnail } from '@/utils/renderMarkdown';
+import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
 
 interface DraftTrayProps {
   tasks?: any[];
@@ -67,32 +68,33 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
   };
 
   const isDraggable = (draft: any) => {
-    return draft.status === 'approved';
+    return draft.status === TASK_STATUS.APPROVED;
   };
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
-      case 'approved':
+      case TASK_STATUS.APPROVED:
         return { label: 'Approved', variant: 'default' as const, className: 'bg-[#68BEB9] text-white' };
-      case 'scheduled':
+      case TASK_STATUS.SCHEDULED:
         return { label: 'Scheduled', variant: 'secondary' as const, className: 'bg-blue-500 text-white' };
+      case TASK_STATUS.GENERATED:
       case 'draft':
-      case 'generated':
         return { label: 'Draft', variant: 'secondary' as const, className: '' };
       default:
         return { label: status, variant: 'outline' as const, className: '' };
     }
   };
 
-  // Filter out scheduled tasks - they should not appear in the draft tray
+  // Filter out scheduled tasks and show only approved/generated content
+  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
   const availableDrafts = tasks
     .filter(task => 
-      (task.status === 'approved' || task.status === 'generated' || task.status === 'draft') &&
-      task.status !== 'scheduled' // Explicitly exclude scheduled tasks
+      visibleStatuses.includes(task.status as TaskStatus) &&
+      task.status !== TASK_STATUS.SCHEDULED // Explicitly exclude scheduled tasks
     )
     .sort((a, b) => {
-      if (a.status === 'approved' && b.status !== 'approved') return -1;
-      if (b.status === 'approved' && a.status !== 'approved') return 1;
+      if (a.status === TASK_STATUS.APPROVED && b.status !== TASK_STATUS.APPROVED) return -1;
+      if (b.status === TASK_STATUS.APPROVED && a.status !== TASK_STATUS.APPROVED) return 1;
       return 0;
     });
 

@@ -1,6 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TASK_STATUS, type TaskStatus } from "@/constants/taskStatus";
 
 export interface ContentGenerationResult {
   success: boolean;
@@ -189,7 +189,7 @@ export const generateCampaignContent = async (
           user_id: userId,
           tenant_id: tenantId,
           post_type: contentType,
-          status: 'planned',
+          status: TASK_STATUS.PLANNED,
           scheduled_date: new Date().toISOString().split('T')[0]
         };
 
@@ -240,12 +240,12 @@ export const generateCampaignContent = async (
           continue;
         }
 
-        // Update the task with the generated content
+        // Update the task with the generated content and set status to 'approved'
         const { error: updateError } = await supabase
           .from('content_tasks')
           .update({ 
             ai_output: result.data.content,
-            status: 'review'
+            status: TASK_STATUS.APPROVED
           })
           .eq('id', newTask.id);
 
@@ -256,7 +256,7 @@ export const generateCampaignContent = async (
         }
 
         console.log(`✅ Generated and saved ${contentType} content`);
-        generatedTasks.push({ ...newTask, ai_output: result.data.content, status: 'review' });
+        generatedTasks.push({ ...newTask, ai_output: result.data.content, status: TASK_STATUS.APPROVED });
 
       } catch (error) {
         console.error(`❌ Error in ${contentType} generation:`, error);
@@ -275,6 +275,9 @@ export const generateCampaignContent = async (
 
     // Return success if we generated at least some content
     if (generatedTasks.length > 0) {
+      // Add optimistic toast feedback
+      toast.success(`✅ Content generated — ${generatedTasks.length} drafts added to tray`);
+      
       return {
         success: true,
         message: `Generated ${generatedTasks.length}/${contentTypes.length} content pieces${errors.length > 0 ? `. Issues with: ${errors.length} items` : ''}`,

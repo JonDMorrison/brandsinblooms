@@ -7,6 +7,7 @@ import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { cleanupDuplicateCampaigns, generateMeaningfulTheme } from '@/utils/campaignCleanup';
 import { generateCampaignContent, ContentGenerationResult } from '@/components/homepage/ContentGenerationServices';
 import { toast } from 'sonner';
+import { TASK_STATUS } from '@/constants/taskStatus';
 
 export const WeeklyContentUpdater = () => {
   const { user } = useAuth();
@@ -179,13 +180,16 @@ export const WeeklyContentUpdater = () => {
           setTimeout(() => reject(new Error('Content generation timeout')), 45000) // 45 second timeout
         );
 
-        const result = await Promise.race([generationPromise, timeoutPromise]);
+        const result = await Promise.race([generationPromise, timeoutPromise]) as ContentGenerationResult;
 
         if (result.success && mountedRef.current) {
           console.log('✅ Auto-generated content successfully');
           toast.success(`Your weekly content is ready! Generated ${result.tasks?.length || 0} pieces.`, { 
             id: toastId 
           });
+          
+          // Trigger a refresh of dashboard data to show new content
+          window.dispatchEvent(new CustomEvent('refreshDashboard'));
         } else if (mountedRef.current) {
           console.error('❌ Auto-generation failed:', result.message);
           toast.error('Content generation had some issues, but partial content may be available.', {

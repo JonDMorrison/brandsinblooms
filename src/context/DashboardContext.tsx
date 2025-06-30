@@ -3,6 +3,7 @@ import React, { createContext, useContext, useCallback } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
+import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
 
 interface DashboardContextType {
   data: any;
@@ -33,8 +34,15 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     // The SmartTimeRibbon component handles the actual scheduling logic
   }, []);
 
+  // Filter tasks to show only approved and generated content in drafts
+  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
+  const filteredData = data ? {
+    ...data,
+    drafts: data.tasks?.filter((task: any) => visibleStatuses.includes(task.status as TaskStatus)) || []
+  } : {};
+
   const contextValue = {
-    data: data || {},
+    data: filteredData,
     loading,
     error,
     refetch
@@ -50,7 +58,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
           onScheduleUpdate={refetch}
           onDragEnd={handleDragEnd}
         />
-      </DragDropContext>
+      </DragDropContext>Provider>
     </DashboardContext.Provider>
   );
 };
