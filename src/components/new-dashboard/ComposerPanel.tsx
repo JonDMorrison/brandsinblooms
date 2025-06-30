@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -163,7 +164,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
   };
 
   const handleSave = async () => {
-    if (!selectedDraft || !editContent.trim()) return;
+    if (!selectedDraft) return;
 
     setSaving(true);
     try {
@@ -433,7 +434,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                       variant="outline" 
                       className="flex-1 border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
                       onClick={handleSave}
-                      disabled={saving || approving || socialConnections.length === 0}
+                      disabled={saving || approving}
                     >
                       <Save className="w-4 h-4 mr-2" />
                       {saving ? 'Saving...' : 'Save'}
