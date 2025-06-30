@@ -31,13 +31,23 @@ serve(async (req) => {
       throw new Error('Query parameter is required');
     }
 
-    console.log(`[UNSPLASH] Enhanced fetch: ${maxImages} ${orientation} images for query: ${query}`);
-    console.log(`[UNSPLASH] Parameters: orderBy=${orderBy}, contentFilter=${contentFilter}`);
+    console.log(`[UNSPLASH] ===== ENHANCED FETCH DEBUG =====`);
+    console.log(`[UNSPLASH] Received query: "${query}"`);
+    console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}`);
     console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey}`);
 
     if (!unsplashAccessKey) {
       console.log('[UNSPLASH] API key not configured, returning error for fallback handling');
       throw new Error('Unsplash API key not configured');
+    }
+
+    // Validate query doesn't contain problematic terms
+    const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i;
+    if (problematicTerms.test(query)) {
+      console.warn(`[UNSPLASH] Query contains problematic terms: "${query}"`);
+      // Force garden center context
+      const sanitizedQuery = `garden center plants nursery ${query.replace(problematicTerms, '').trim()}`;
+      console.log(`[UNSPLASH] Using sanitized query: "${sanitizedQuery}"`);
     }
 
     // Enhanced Unsplash API call with quality parameters
@@ -69,16 +79,47 @@ serve(async (req) => {
     const unsplashData = await unsplashResponse.json();
     const images = unsplashData.results || [];
 
-    console.log(`[UNSPLASH] Found ${images.length} high-quality images from Unsplash`);
+    console.log(`[UNSPLASH] Found ${images.length} images from Unsplash`);
+    
+    // Log image details for debugging
+    if (images.length > 0) {
+      console.log(`[UNSPLASH] First image details:`, {
+        id: images[0].id,
+        description: images[0].description,
+        alt_description: images[0].alt_description,
+        tags: images[0].tags?.map(t => t.title).slice(0, 5)
+      });
+    }
 
     // Limit to exactly maxImages
     const limitedImages = images.slice(0, maxImages);
 
+    // Validate image relevance
+    const validImages = limitedImages.filter(image => {
+      const alt = (image.alt_description || '').toLowerCase();
+      const desc = (image.description || '').toLowerCase();
+      const tags = image.tags?.map(t => t.title.toLowerCase()).join(' ') || '';
+      
+      const content = `${alt} ${desc} ${tags}`;
+      
+      // Check for problematic content
+      const hasProblematicContent = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i.test(content);
+      
+      if (hasProblematicContent) {
+        console.warn(`[UNSPLASH] Filtering out irrelevant image: ${image.id} - ${alt}`);
+        return false;
+      }
+      
+      return true;
+    });
+
+    console.log(`[UNSPLASH] After filtering: ${validImages.length}/${limitedImages.length} images are relevant`);
+
     // If contentTaskId is provided, store the images in the database
-    if (contentTaskId && limitedImages.length > 0) {
+    if (contentTaskId && validImages.length > 0) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      const imageSuggestions = limitedImages.map((image: any) => ({
+      const imageSuggestions = validImages.map((image: any) => ({
         content_task_id: contentTaskId,
         query: query,
         thumb_url: image.urls.thumb,
@@ -97,11 +138,11 @@ serve(async (req) => {
         throw new Error('Failed to store image suggestions');
       }
 
-      console.log(`[UNSPLASH] Stored ${imageSuggestions.length} enhanced image suggestions for task ${contentTaskId}`);
+      console.log(`[UNSPLASH] Stored ${imageSuggestions.length} validated image suggestions for task ${contentTaskId}`);
     }
 
-    // Return enhanced, high-quality images
-    const formattedImages = limitedImages.map((image: any) => ({
+    // Return enhanced, validated images
+    const formattedImages = validImages.map((image: any) => ({
       id: image.id,
       thumb_url: image.urls.thumb,
       download_url: image.urls.full,
@@ -110,10 +151,13 @@ serve(async (req) => {
       unsplash_id: image.id,
     }));
 
+    console.log(`[UNSPLASH] ===== END ENHANCED FETCH DEBUG =====`);
+
     return new Response(JSON.stringify({ 
       images: formattedImages,
       query: query,
-      parameters: { orientation, orderBy, contentFilter }
+      parameters: { orientation, orderBy, contentFilter },
+      filtered: limitedImages.length - validImages.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

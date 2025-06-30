@@ -23,12 +23,16 @@ interface UnsplashImage {
 // Build content-focused search query with garden center context
 const buildContentQuery = (draft: any): string => {
   const content = draft?.ai_output || draft?.prompt || '';
+  
+  console.log('[IMAGE_GALLERY] ===== DEBUGGING QUERY BUILDING =====');
+  console.log('[IMAGE_GALLERY] Draft content:', content?.substring(0, 200) + '...');
+  console.log('[IMAGE_GALLERY] Post type:', draft?.post_type);
+  
   const keywords = extractKeywords(content, 'garden center plants nursery');
   
-  console.log('[IMAGE_GALLERY] Building query for content type:', draft?.post_type);
-  console.log('[IMAGE_GALLERY] Extracted keywords:', keywords);
+  console.log('[IMAGE_GALLERY] Extracted keywords from content:', keywords);
 
-  // Always ensure garden center context is included
+  // Always ensure garden center context is included and validate
   let finalQuery = keywords;
   
   // Add post type context if it helps
@@ -45,7 +49,17 @@ const buildContentQuery = (draft: any): string => {
     finalQuery = `${keywords} ${context}`;
   }
 
-  console.log('[IMAGE_GALLERY] Final garden center focused query:', finalQuery);
+  // Final validation - ensure query is garden center related
+  const hasGardenTerms = /\b(garden|plant|nursery|flower|grow|seed|soil|compost|fertilizer|mulch|prune|water|harvest|bloom|vegetable|herb|tree|shrub)\b/i.test(finalQuery);
+  
+  if (!hasGardenTerms) {
+    console.warn('[IMAGE_GALLERY] Query lacks garden terms, forcing garden center context');
+    finalQuery = `garden center plants nursery ${finalQuery}`;
+  }
+
+  console.log('[IMAGE_GALLERY] Final validated garden center query:', finalQuery);
+  console.log('[IMAGE_GALLERY] ===== END DEBUGGING =====');
+  
   return finalQuery;
 };
 
@@ -106,7 +120,8 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         : getGardenCenterFallback('instagram');
 
       setLastQuery(query);
-      console.log('[IMAGE_GALLERY] Fetching images with garden center focused query:', query);
+      console.log('[IMAGE_GALLERY] ===== FETCHING IMAGES =====');
+      console.log('[IMAGE_GALLERY] Using final query:', query);
 
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
@@ -118,12 +133,16 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         }
       });
 
+      console.log('[IMAGE_GALLERY] Unsplash API response:', { data, error });
+
       if (error) {
         console.log('[IMAGE_GALLERY] Unsplash API error, using garden center fallback:', error.message);
         
         // Try a more specific garden center query as fallback
         console.log('[IMAGE_GALLERY] Trying garden center specific fallback query...');
         const gardenCenterQuery = getGardenCenterFallback(selectedDraft?.post_type || 'instagram');
+        console.log('[IMAGE_GALLERY] Fallback query:', gardenCenterQuery);
+        
         const fallbackData = await supabase.functions.invoke('fetch-unsplash-images', {
           body: { 
             query: gardenCenterQuery,
@@ -136,10 +155,16 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         
         setImages(fallbackData?.data?.images || []);
         setLastQuery(gardenCenterQuery);
+        console.log('[IMAGE_GALLERY] Fallback images:', fallbackData?.data?.images?.length || 0);
         return;
       }
 
-      setImages(data?.images || []);
+      const fetchedImages = data?.images || [];
+      console.log('[IMAGE_GALLERY] Successfully fetched images:', fetchedImages.length);
+      console.log('[IMAGE_GALLERY] First image alt text:', fetchedImages[0]?.alt);
+      console.log('[IMAGE_GALLERY] ===== END FETCHING =====');
+      
+      setImages(fetchedImages);
     } catch (error) {
       console.error('[IMAGE_GALLERY] Exception fetching images:', error);
       setImages([]);

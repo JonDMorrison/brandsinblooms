@@ -6,7 +6,10 @@
  * @returns Space-separated keywords enhanced with garden center context
  */
 export const extractKeywords = (raw: string, fallback = 'garden center plants'): string => {
+  console.log('[KEYWORDS] Raw input:', raw?.substring(0, 200) + '...');
+  
   if (!raw || typeof raw !== 'string' || raw.trim().length === 0) {
+    console.log('[KEYWORDS] Empty or invalid input, using fallback:', fallback);
     return fallback;
   }
 
@@ -25,7 +28,7 @@ export const extractKeywords = (raw: string, fallback = 'garden center plants'):
     .replace(/\s+/g, ' ')            // Normalize whitespace
     .trim();
 
-  console.log('[KEYWORDS] Cleaned content:', cleaned.substring(0, 100));
+  console.log('[KEYWORDS] Cleaned content:', cleaned.substring(0, 200));
 
   // Find garden center related terms
   const foundTerms = new Set<string>();
@@ -33,28 +36,41 @@ export const extractKeywords = (raw: string, fallback = 'garden center plants'):
   // Check for plant-related terms
   const plantMatches = cleaned.match(gardenCenterTerms.plants);
   if (plantMatches) {
+    console.log('[KEYWORDS] Found plants:', plantMatches.slice(0, 5));
     plantMatches.slice(0, 3).forEach(term => foundTerms.add(term));
   }
   
   // Check for tool-related terms
   const toolMatches = cleaned.match(gardenCenterTerms.tools);
   if (toolMatches) {
+    console.log('[KEYWORDS] Found tools:', toolMatches.slice(0, 3));
     toolMatches.slice(0, 2).forEach(term => foundTerms.add(term));
   }
   
   // Check for care-related terms
   const careMatches = cleaned.match(gardenCenterTerms.care);
   if (careMatches) {
+    console.log('[KEYWORDS] Found care terms:', careMatches.slice(0, 3));
     careMatches.slice(0, 2).forEach(term => foundTerms.add(term));
   }
 
-  console.log('[KEYWORDS] Found garden center terms:', Array.from(foundTerms));
+  console.log('[KEYWORDS] All found garden center terms:', Array.from(foundTerms));
 
-  // Always ensure garden center context is included
-  let result = '';
+  // Validate and build query
   if (foundTerms.size > 0) {
-    result = Array.from(foundTerms).join(' ') + ' garden center nursery';
-    console.log('[KEYWORDS] Using found terms with garden center context:', result);
+    const validTerms = Array.from(foundTerms);
+    
+    // Build strong garden center query
+    const result = `${validTerms.join(' ')} garden center nursery plants`;
+    console.log('[KEYWORDS] Built garden center query:', result);
+    
+    // Validate query doesn't contain irrelevant terms
+    const invalidTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i;
+    if (invalidTerms.test(result)) {
+      console.warn('[KEYWORDS] Query contains invalid terms, using safe fallback');
+      return `${validTerms[0]} garden center plants nursery`;
+    }
+    
     return result;
   }
 
@@ -65,13 +81,13 @@ export const extractKeywords = (raw: string, fallback = 'garden center plants'):
       // Only keep alphabetic tokens with 3+ characters, excluding common words
       return /^[a-z]+$/.test(token) && 
              token.length >= 3 && 
-             !['your', 'this', 'that', 'they', 'them', 'their', 'here', 'there', 'when', 'what', 'where', 'how', 'why', 'who', 'will', 'have', 'been', 'with', 'from', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'among', 'could', 'would', 'should', 'might', 'must', 'can', 'may', 'shall', 'does', 'did', 'has', 'had', 'was', 'were', 'are', 'the', 'and', 'but', 'for', 'you', 'all', 'now'].includes(token);
+             !['your', 'this', 'that', 'they', 'them', 'their', 'here', 'there', 'when', 'what', 'where', 'how', 'why', 'who', 'will', 'have', 'been', 'with', 'from', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below', 'between', 'among', 'could', 'would', 'should', 'might', 'must', 'can', 'may', 'shall', 'does', 'did', 'has', 'had', 'was', 'were', 'are', 'the', 'and', 'but', 'for', 'you', 'all', 'now', 'ice', 'cream', 'dessert', 'sweet', 'food', 'restaurant', 'cafe', 'percent', 'symbol', 'sign', 'math', 'number'].includes(token);
     })
     .slice(0, 2); // Take first 2 valid tokens
 
   // Return enhanced tokens with mandatory garden center context
   if (tokens.length > 0) {
-    result = tokens.join(' ') + ' garden center plants nursery';
+    const result = `${tokens.join(' ')} garden center plants nursery`;
     console.log('[KEYWORDS] Using fallback tokens with garden center context:', result);
     return result;
   }
