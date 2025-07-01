@@ -168,20 +168,31 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
     <>
       <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm" data-section="ready-to-post-section">
         <CardHeader>
-          <CardTitle className="text-lg text-brand-navy flex items-center gap-2 font-semibold">
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-mint-100 text-mint-700 text-sm font-bold">
-              5
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <CardTitle className="text-lg text-brand-navy flex items-center gap-2 font-semibold">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-mint-100 text-mint-700 text-sm font-bold">
+                  5
+                </div>
+                <CheckCircle2 className="w-5 h-5" />
+                Draft posts ready
+                <Badge className="ml-2 px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 text-[11px] font-medium">
+                  {readyTasks.length} items
+                </Badge>
+              </CardTitle>
+              <CardDescription className="mt-1 block text-sm text-gray-600 flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                Open Publish Portal to schedule and publish
+              </CardDescription>
             </div>
-            <CheckCircle2 className="w-5 h-5" />
-            Draft posts ready
-            <Badge className="ml-2 px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 text-[11px] font-medium">
-              {readyTasks.length} items
-            </Badge>
-          </CardTitle>
-          <CardDescription className="mt-1 block text-sm text-gray-600 flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            Open Publish Portal to schedule and publish
-          </CardDescription>
+            <Button 
+              onClick={() => window.location.href = '/publish'}
+              className="flex-shrink-0 inline-flex items-center gap-2 rounded-md bg-mint-600 px-4 py-2 text-white text-sm font-semibold shadow-md transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-mint-600"
+            >
+              <Sparkles className="w-4 h-4" />
+              Open Publish Portal
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Social Connection Status */}
@@ -191,19 +202,6 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
             onRefreshConnections={fetchSocialConnections}
           />
           
-          {/* Open Publish Portal Button */}
-          <div className="text-center py-6">
-            <Button 
-              onClick={() => window.location.href = '/publish'}
-              className="mt-4 inline-flex items-center gap-2 rounded-md bg-mint-600 px-5 py-2.5 text-white text-sm font-semibold shadow-md transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-mint-600"
-            >
-              <Sparkles className="w-4 h-4 mr-2" />
-              Open Publish Portal
-            </Button>
-            <p className="text-gray-600 text-sm mt-2">
-              Professional scheduling and publishing tools
-            </p>
-          </div>
           
           {/* Legacy content list - keep for transition */}
           <div className="space-y-3">
