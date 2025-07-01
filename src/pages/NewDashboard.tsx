@@ -1,7 +1,6 @@
-
 import React, { useState, useCallback } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
-import { useDashboardContext } from '@/contexts';
+import { DashboardProvider, useDashboardContext } from '@/contexts';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { TodaysFocusCard } from '@/components/new-dashboard/TodaysFocusCard';
@@ -147,7 +146,6 @@ function NewDashboardContent() {
             <div className="col-span-12 lg:col-span-3 min-h-0">
               <TodaysFocusCard 
                 campaign={data?.currentCampaign}
-                tasks={orderedDrafts}
                 onComplete={handleTodaysFocusComplete}
               />
             </div>
