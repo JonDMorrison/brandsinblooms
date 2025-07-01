@@ -1,18 +1,19 @@
 
 import { Badge } from "@/components/ui/badge";
 
-// Status mapping for content tasks
+// Status mapping for content tasks - updated to match StatusBadge variants
 export const getStatusBadgeVariant = (status: string) => {
   const statusMap = {
     'draft': 'draft',
     'generated': 'generated', 
-    'review': 'review',
+    'review': 'preview', // Map review to preview since StatusBadge doesn't have review
     'approved': 'approved',
     'scheduled': 'scheduled',
     'posted': 'posted'
   } as const;
   
-  return statusMap[status as keyof typeof statusMap] || 'default';
+  // Return a valid StatusBadge variant, defaulting to 'draft' instead of 'default'
+  return statusMap[status as keyof typeof statusMap] || 'draft';
 };
 
 // Platform mapping for post types
