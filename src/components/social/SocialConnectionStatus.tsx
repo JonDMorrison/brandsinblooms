@@ -23,35 +23,7 @@ export const SocialConnectionStatus: React.FC<SocialConnectionStatusProps> = ({
   };
 
   if (connections.length === 0) {
-    return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-yellow-600 mt-0.5" />
-          <div className="flex-1">
-            <h3 className="font-medium text-yellow-800">Connect Social Media</h3>
-            <p className="text-sm text-yellow-700 mt-1">
-              Connect your Facebook and Instagram accounts to start posting content directly.
-            </p>
-            <div className="flex gap-2 mt-3">
-              <Button
-                size="sm"
-                onClick={() => onConnectPlatform('facebook')}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Connect Facebook
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => onConnectPlatform('instagram')}
-                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
-              >
-                Connect Instagram
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
