@@ -270,7 +270,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
       case 'instagram': return 'from-pink-50 to-purple-50 border-pink-200';
       case 'facebook': return 'from-blue-50 to-indigo-50 border-blue-200';
       case 'blog': return 'from-green-50 to-emerald-50 border-green-200';
-      case 'video': return 'from-green-50 to-emerald-50 border-green-200';
+      case 'video': return 'from-gray-50 to-slate-50 border-gray-200';
       case 'newsletter': return 'from-purple-50 to-indigo-50 border-purple-200';
       default: return 'from-gray-50 to-slate-50 border-gray-200';
     }
