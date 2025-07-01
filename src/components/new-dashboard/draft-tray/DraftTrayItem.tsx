@@ -28,10 +28,29 @@ export const DraftTrayItem = ({
   const postTypeColor = getPostTypeColor(task.post_type);
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent event bubbling to avoid conflicts
+    // Prevent all event propagation
+    e.preventDefault();
     e.stopPropagation();
+    
     console.log('🎯 Draft card clicked:', task.id, task.post_type);
+    console.log('🎯 Current selected state:', isSelected);
+    
+    // Call the selection handler
     onSelectDraft(task);
+  };
+
+  const handleDragHandleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragHandleMouseDown = (e: React.MouseEvent) => {
+    if (statusInfo.draggable) {
+      e.stopPropagation();
+    } else {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   return (
@@ -79,8 +98,8 @@ export const DraftTrayItem = ({
                 ? "opacity-100 text-gray-600 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing border-gray-300 hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] hover:shadow-md" 
                 : "opacity-40 text-gray-400 cursor-not-allowed border-gray-200"
             )}
-            onClick={(e) => e.stopPropagation()}
-            onMouseDown={(e) => statusInfo.draggable && e.stopPropagation()}
+            onClick={handleDragHandleClick}
+            onMouseDown={handleDragHandleMouseDown}
             title={statusInfo.draggable ? "Drag to schedule" : "Approve content to enable dragging"}
           >
             <GripVertical className="w-4 h-4" />
