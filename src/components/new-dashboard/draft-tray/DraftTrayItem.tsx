@@ -78,25 +78,27 @@ export const DraftTrayItem = ({
           }}
           onClick={handleCardClick}
         >
-          {/* Drag Handle - Positioned properly inside the card */}
-          <div
-            {...(statusInfo.draggable ? provided.dragHandleProps : {})}
-            className={cn(
-              "absolute left-4 top-1/2 transform -translate-y-1/2",
-              "transition-all duration-200",
-              "z-10 touch-none bg-white rounded-md px-1 py-1 border shadow-sm",
-              "flex items-center justify-center",
-              statusInfo.draggable 
-                ? "opacity-100 text-gray-600 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing border-gray-300 hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] hover:shadow-md" 
-                : "opacity-40 text-gray-400 cursor-not-allowed border-gray-200"
-            )}
-            onClick={handleDragHandleClick}
-            title={statusInfo.draggable ? "Drag to schedule" : "Approve content to enable dragging"}
-          >
-            <GripVertical className="w-3 h-3" />
-          </div>
+          {/* Restructured layout using flexbox instead of absolute positioning */}
+          <div className="flex items-start gap-3">
+            {/* Drag Handle - Now inline as flex child */}
+            <div
+              {...(statusInfo.draggable ? provided.dragHandleProps : {})}
+              className={cn(
+                "flex items-center justify-center flex-shrink-0 mt-1",
+                "transition-all duration-200",
+                "touch-none bg-white rounded-md px-1 py-1 border shadow-sm",
+                "w-6 h-6",
+                statusInfo.draggable 
+                  ? "opacity-100 text-gray-600 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing border-gray-300 hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] hover:shadow-md" 
+                  : "opacity-40 text-gray-400 cursor-not-allowed border-gray-200"
+              )}
+              onClick={handleDragHandleClick}
+              title={statusInfo.draggable ? "Drag to schedule" : "Approve content to enable dragging"}
+            >
+              <GripVertical className="w-3 h-3" />
+            </div>
 
-          <div className="flex items-start gap-3 ml-12">
+            {/* Post Type Icon */}
             <div className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
               postTypeColor
@@ -104,6 +106,7 @@ export const DraftTrayItem = ({
               <PostTypeIcon className="w-5 h-5" />
             </div>
             
+            {/* Content Area */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 <Badge 
