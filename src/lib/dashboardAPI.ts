@@ -33,18 +33,14 @@ const mapPlatformToEnum = (platform: string): "FB" | "IG_FEED" | "IG_REEL" => {
 };
 
 export const scheduleDraft = async (params: ScheduleDraftParams): Promise<ScheduleDraftResult | null> => {
-  console.log('🚀 Scheduling draft with params:', params);
-  
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      console.error('❌ No authenticated user');
       toast.error('Authentication required');
       return null;
     }
 
     // First, get the content task to verify it exists and get the content
-    // Use a more flexible query that doesn't filter by user_id to avoid tenant issues
     const { data: task, error: taskError } = await supabase
       .from('content_tasks')
       .select('*')
@@ -52,22 +48,20 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
       .single();
 
     if (taskError || !task) {
-      console.error('❌ Failed to fetch task:', taskError);
+      console.error('Failed to fetch task:', taskError);
       toast.error('Task not found or access denied');
       return null;
     }
 
-    // Verify the user has access to this task (either through user_id or tenant_id)
+    // Verify the user has access to this task
     const hasAccess = task.user_id === user.id || task.created_by_user_id === user.id;
     if (!hasAccess) {
-      console.error('❌ User does not have access to this task');
+      console.error('User does not have access to this task');
       toast.error('Access denied to this task');
       return null;
     }
 
-    console.log('📋 Task fetched:', task);
-
-    // Create a generated_content record first (this is what scheduled_posts expects)
+    // Create a generated_content record first
     const { data: generatedContent, error: contentError } = await supabase
       .from('generated_content')
       .insert({
@@ -79,12 +73,10 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
       .single();
 
     if (contentError) {
-      console.error('❌ Failed to create generated content:', contentError);
+      console.error('Failed to create generated content:', contentError);
       toast.error('Failed to prepare content for scheduling');
       return null;
     }
-
-    console.log('📝 Generated content created:', generatedContent);
 
     // Determine if this should be AUTO or MANUAL mode
     const [eligible, connectionsValid] = await Promise.all([
@@ -94,12 +86,6 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     const mode = eligible && connectionsValid ? 'AUTO' : 'MANUAL';
     
-    console.log('🔍 Scheduling mode determined:', {
-      eligible,
-      connectionsValid,
-      mode
-    });
-
     // Map platform to the correct enum value
     const platformEnum = mapPlatformToEnum(params.platform);
 
@@ -107,7 +93,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
     const { data: scheduledPost, error: scheduleError } = await supabase
       .from('scheduled_posts')
       .insert({
-        content_id: generatedContent.id, // Reference generated_content.id
+        content_id: generatedContent.id,
         user_id: user.id,
         platform: platformEnum,
         publish_at: params.publishAt,
@@ -118,7 +104,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
       .single();
 
     if (scheduleError) {
-      console.error('❌ Failed to create scheduled post:', scheduleError);
+      console.error('Failed to create scheduled post:', scheduleError);
       
       // Clean up the generated content if scheduling failed
       await supabase
@@ -130,10 +116,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
       return null;
     }
 
-    console.log('📅 Scheduled post created:', scheduledPost);
-
-    // Update content task status to posted (instead of scheduled)
-    // Use the same flexible approach for the update
+    // Update content task status to posted
     const { data: updatedTask, error: updateError } = await supabase
       .from('content_tasks')
       .update({ 
@@ -145,7 +128,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
       .single();
 
     if (updateError) {
-      console.error('❌ Failed to update task status:', updateError);
+      console.error('Failed to update task status:', updateError);
       
       // Try to rollback the scheduled post and generated content creation
       await supabase
@@ -162,8 +145,6 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
       return null;
     }
 
-    console.log('✅ Task updated to posted:', updatedTask);
-
     return {
       scheduledPost,
       updatedTask,
@@ -171,7 +152,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
     };
 
   } catch (error) {
-    console.error('❌ Schedule draft error:', error);
+    console.error('Schedule draft error:', error);
     toast.error(`Failed to schedule post: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return null;
   }
