@@ -4,7 +4,7 @@ import { CollapsedBar } from './CollapsedBar';
 import { ExpandedRibbon } from './ExpandedRibbon';
 import { ScheduledContentModal } from '@/components/new-dashboard/ScheduledContentModal';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDashboardContext } from '@/contexts';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { cn } from '@/lib/utils';
 import './smart-time.css';
 
@@ -48,6 +48,7 @@ export const SmartTimeDock = ({
   // Keep dock open whenever dragging is active
   useEffect(() => {
     if (isDragging) {
+      console.log('🎯 Dragging active, ensuring dock stays open');
       openDock();
     }
   }, [isDragging, openDock]);
@@ -71,6 +72,7 @@ export const SmartTimeDock = ({
     const handleClickOutside = (e: MouseEvent) => {
       // CRITICAL: Do not close dock if dragging is active
       if (isDragging) {
+        console.log('🎯 Ignoring click outside - drag in progress');
         return;
       }
       
@@ -78,6 +80,7 @@ export const SmartTimeDock = ({
       const dockElement = document.querySelector('.smart-dock-container');
       
       if (isDockOpen && dockElement && !dockElement.contains(target)) {
+        console.log('🎯 Clicking outside dock, closing (not dragging)');
         closeDock();
       }
     };
@@ -106,6 +109,7 @@ export const SmartTimeDock = ({
   /** Explicit toggle click */
   const handleToggle = () => {
     if (isDragging) {
+      console.log('🎯 Ignoring toggle click - drag in progress');
       return; // ignore clicks during drag
     }
     isDockOpen ? closeDock() : openDock();
