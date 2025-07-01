@@ -4,7 +4,7 @@ import { CollapsedBar } from './CollapsedBar';
 import { ExpandedRibbon } from './ExpandedRibbon';
 import { ScheduledContentModal } from '@/components/new-dashboard/ScheduledContentModal';
 import { useQueryClient } from '@tanstack/react-query';
-import { useDashboardContext } from '@/context/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { cn } from '@/lib/utils';
 import './smart-time.css';
 

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
-import { useDashboardContext } from '@/context/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { useComposerImages } from './hooks/useComposerImages';
 import { ApprovalButton } from './components/ApprovalButton';
 import { ContentDisplay } from './components/ContentDisplay';

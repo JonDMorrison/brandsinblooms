@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useCallback, useState } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { useDashboardData } from '@/hooks/useDashboardData';
+import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
 
 interface DashboardContextType {
@@ -18,15 +19,6 @@ interface DashboardContextType {
   composerMode: 'draft' | 'scheduled';
   setComposerMode: (mode: 'draft' | 'scheduled') => void;
   scheduleDraft: (draftId: string, dateStr: string) => Promise<void>;
-  // New properties for drag/dock functionality
-  isDockOpen: boolean;
-  openDock: () => void;
-  closeDock: () => void;
-  toggleDock: () => void;
-  isDragging: boolean;
-  startDragging: () => void;
-  stopDragging: () => void;
-  getOrderedDrafts: () => any[];
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -47,12 +39,10 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const { data, isLoading: loading, error, refetch } = useDashboardData();
   const [activeDraft, setActiveDraft] = useState<any>(null);
   const [composerMode, setComposerMode] = useState<'draft' | 'scheduled'>('draft');
-  const [isDockOpen, setIsDockOpen] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
 
   const handleDragEnd = useCallback((result: DropResult) => {
     console.log('🎯 Dashboard drag ended:', result);
-    setIsDragging(false);
+    // The SmartTimeRibbon component handles the actual scheduling logic
   }, []);
 
   // Filter tasks to show only approved and generated content in drafts
@@ -80,34 +70,6 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     // TODO: Implement actual scheduling logic
   }, []);
 
-  const openDock = useCallback(() => {
-    setIsDockOpen(true);
-  }, []);
-
-  const closeDock = useCallback(() => {
-    if (!isDragging) {
-      setIsDockOpen(false);
-    }
-  }, [isDragging]);
-
-  const toggleDock = useCallback(() => {
-    if (isDragging) return; // Don't toggle during drag
-    setIsDockOpen(prev => !prev);
-  }, [isDragging]);
-
-  const startDragging = useCallback(() => {
-    setIsDragging(true);
-    setIsDockOpen(true); // Always open dock when dragging starts
-  }, []);
-
-  const stopDragging = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  const getOrderedDrafts = useCallback(() => {
-    return filteredData.drafts || [];
-  }, [filteredData.drafts]);
-
   const contextValue = {
     data: filteredData,
     loading,
@@ -121,22 +83,19 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     updateDraftContent,
     composerMode,
     setComposerMode,
-    scheduleDraft,
-    // Dock and drag functionality
-    isDockOpen,
-    openDock,
-    closeDock,
-    toggleDock,
-    isDragging,
-    startDragging,
-    stopDragging,
-    getOrderedDrafts
+    scheduleDraft
   };
 
   return (
     <DashboardContext.Provider value={contextValue}>
       <DragDropContext onDragEnd={handleDragEnd}>
         {children}
+        <SmartTimeRibbon
+          scheduledByDate={data?.scheduledByDate}
+          socialConnections={data?.socialConnections}
+          onScheduleUpdate={refetch}
+          onDragEnd={handleDragEnd}
+        />
       </DragDropContext>
     </DashboardContext.Provider>
   );

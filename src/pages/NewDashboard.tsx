@@ -1,7 +1,6 @@
-
 import React, { useState, useCallback } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
-import { useDashboardContext } from '@/context/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { TodaysFocusCard } from '@/components/new-dashboard/TodaysFocusCard';
@@ -17,25 +16,35 @@ export default function NewDashboard() {
     data, 
     loading, 
     error, 
-    refetch,
-    drafts,
-    activeDraft,
-    setActiveDraft
+    refetch, 
+    isDragging, 
+    stopDragging, 
+    closeDock, 
+    getOrderedDrafts 
   } = useDashboardContext();
   
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
   const [justApproved, setJustApproved] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  const handleDragEnd = useCallback(async (result: any) => {
+  const handleDragEnd = useCallback(async (result: DropResult) => {
     console.log('🎯 NewDashboard handleDragEnd:', result);
+    
+    // Always stop dragging first
+    stopDragging();
     
     if (!result.destination) {
       console.log('🎯 No destination - drag cancelled');
+      // Only close dock after a delay and if not dragging anymore
+      setTimeout(() => {
+        if (!isDragging) {
+          closeDock();
+        }
+      }, 400);
       return;
     }
 
-    const { draggableId, destination } = result;
+    const { draggableId, destination, source } = result;
     
     // Check if landed in dock (Smart Time Ribbon)
     const landedInDock = destination.droppableId?.startsWith('dock-day-');
@@ -71,8 +80,24 @@ export default function NewDashboard() {
         console.error('❌ Failed to schedule:', error);
         toast.error('Failed to schedule content');
       }
+      
+      // Keep dock open after successful scheduling
+      return;
     }
-  }, [queryClient, refetch]);
+    
+    // If reordering within drafts tray, keep dock open
+    if (source.droppableId === 'draft-tray' && destination.droppableId === 'draft-tray') {
+      console.log('🎯 Reordering within tray, keeping dock open');
+      return;
+    }
+    
+    // For any other destination, close dock after delay
+    setTimeout(() => {
+      if (!isDragging) {
+        closeDock();
+      }
+    }, 400);
+  }, [stopDragging, isDragging, closeDock, queryClient, refetch]);
 
   const handleTaskUpdate = useCallback(() => {
     refetch();
@@ -83,10 +108,6 @@ export default function NewDashboard() {
     setTimeout(() => setJustApproved(null), 5000);
     refetch();
   }, [refetch]);
-
-  const handleFocusComplete = useCallback(() => {
-    console.log('Focus card completed');
-  }, []);
 
   if (loading) {
     return (
@@ -113,51 +134,55 @@ export default function NewDashboard() {
     );
   }
 
+  const orderedDrafts = getOrderedDrafts();
   const hasNoConnections = !data?.socialConnections || data.socialConnections.length === 0;
 
   return (
     <DashboardErrorBoundary>
-      <div className="min-h-screen bg-[#F9FAFB] pb-80">
-        <ConnectionAlert show={hasNoConnections} />
-        
-        <div className="max-w-7xl mx-auto p-6">
-          <div className="grid grid-cols-12 gap-6 min-h-0">
-            {/* Left Column - Today's Focus */}
-            <div className="col-span-12 lg:col-span-3 min-h-0">
-              <TodaysFocusCard 
-                campaign={data?.currentCampaign}
-                onComplete={handleFocusComplete}
-              />
-            </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="min-h-screen bg-[#F9FAFB] pb-80">
+          <ConnectionAlert show={hasNoConnections} />
+          
+          <div className="max-w-7xl mx-auto p-6">
+            <div className="grid grid-cols-12 gap-6 min-h-0">
+              {/* Left Column - Today's Focus */}
+              <div className="col-span-12 lg:col-span-3 min-h-0">
+                <TodaysFocusCard 
+                  campaigns={data?.campaigns}
+                  currentCampaign={data?.currentCampaign}
+                  tasks={orderedDrafts}
+                />
+              </div>
 
-            {/* Middle Column - Draft Tray */}
-            <div className="col-span-12 lg:col-span-4 min-h-0">
-              <DraftTray 
-                tasks={drafts || []}
-                selectedDraft={selectedDraft}
-                onSelectDraft={setSelectedDraft}
-                justApprovedId={justApproved}
-              />
-            </div>
+              {/* Middle Column - Draft Tray */}
+              <div className="col-span-12 lg:col-span-4 min-h-0">
+                <DraftTray 
+                  tasks={orderedDrafts}
+                  selectedDraft={selectedDraft}
+                  onSelectDraft={setSelectedDraft}
+                  justApprovedId={justApproved}
+                />
+              </div>
 
-            {/* Right Column - Composer */}
-            <div className="col-span-12 lg:col-span-5 min-h-0">
-              <ComposerPanel 
-                selectedDraft={selectedDraft}
-                socialConnections={data?.socialConnections || []}
-                onTaskUpdate={handleTaskUpdate}
-                onApproved={handleApproved}
-              />
+              {/* Right Column - Composer */}
+              <div className="col-span-12 lg:col-span-5 min-h-0">
+                <ComposerPanel 
+                  selectedDraft={selectedDraft}
+                  socialConnections={data?.socialConnections || []}
+                  onTaskUpdate={handleTaskUpdate}
+                  onApproved={handleApproved}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <SmartTimeDock 
-          scheduledByDate={data?.scheduledByDate || {}}
-          socialConnections={data?.socialConnections || []}
-          onScheduleUpdate={refetch}
-        />
-      </div>
+          <SmartTimeDock 
+            scheduledByDate={data?.scheduledByDate || {}}
+            socialConnections={data?.socialConnections || []}
+            onScheduleUpdate={refetch}
+          />
+        </div>
+      </DragDropContext>
     </DashboardErrorBoundary>
   );
 }
