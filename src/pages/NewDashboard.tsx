@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -41,7 +40,18 @@ const NewDashboardContent = () => {
   });
   const [isScheduling, setIsScheduling] = useState(false);
   const [dragError, setDragError] = useState<string | null>(null);
+  const [isDragContextReady, setIsDragContextReady] = useState(false);
   const queryClient = useQueryClient();
+
+  // Initialize drag context
+  useEffect(() => {
+    // Small delay to ensure DOM is ready for react-beautiful-dnd
+    const timer = setTimeout(() => {
+      setIsDragContextReady(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleTaskUpdate = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -292,109 +302,115 @@ const NewDashboardContent = () => {
 
   return (
     <DashboardErrorBoundary>
-      <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-        {/* Enhanced global drag styles */}
-        <style>{`
-          .dragging {
-            user-select: none;
-          }
-          .dragging * {
-            pointer-events: none;
-          }
-          [data-rbd-draggable-id] {
-            transition: transform 0.2s ease;
-          }
-          [data-rbd-draggable-id][data-rbd-drag-handle-dragging-id] {
-            z-index: 9999 !important;
-            pointer-events: none;
-          }
-        `}</style>
-        
-        <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
-          {/* Fixed UserMenu */}
-          <div className="fixed top-6 right-6 z-[9999]">
-            <UserMenu />
-          </div>
+      {isDragContextReady ? (
+        <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          {/* Enhanced global drag styles */}
+          <style>{`
+            .dragging {
+              user-select: none;
+            }
+            .dragging * {
+              pointer-events: none;
+            }
+            [data-rbd-draggable-id] {
+              transition: transform 0.2s ease;
+            }
+            [data-rbd-draggable-id][data-rbd-drag-handle-dragging-id] {
+              z-index: 9999 !important;
+              pointer-events: none;
+            }
+          `}</style>
           
-          {/* Error Display with Recovery */}
-          {dragError && (
-            <div className="fixed top-20 right-6 z-[9998] bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
-              <p className="text-sm text-red-800 mb-2">{dragError}</p>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setDragError(null)}
-                  className="text-xs text-red-600 underline"
-                >
-                  Dismiss
-                </button>
-                <button 
-                  onClick={forceCleanupDragState}
-                  className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
-                >
-                  Force Fix
-                </button>
-              </div>
+          <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
+            {/* Fixed UserMenu */}
+            <div className="fixed top-6 right-6 z-[9999]">
+              <UserMenu />
             </div>
-          )}
-          
-          <div className="max-w-full mx-auto">
-            <div className="mb-8">
-              <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
-              <p className="text-gray-600">Your content creation command center</p>
-            </div>
-
-            {/* Grid with 3-3-4 column distribution */}
-            <div className="grid grid-cols-10 gap-6 mb-6 min-h-0">
-              {/* Today's Focus */}
-              <div className="col-span-3 min-h-0 flex flex-col">
-                <div className="flex-1 min-h-0">
-                  <FocusCarousel onTaskUpdate={handleTaskUpdate} />
+            
+            {/* Error Display with Recovery */}
+            {dragError && (
+              <div className="fixed top-20 right-6 z-[9998] bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
+                <p className="text-sm text-red-800 mb-2">{dragError}</p>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setDragError(null)}
+                    className="text-xs text-red-600 underline"
+                  >
+                    Dismiss
+                  </button>
+                  <button 
+                    onClick={forceCleanupDragState}
+                    className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                  >
+                    Force Fix
+                  </button>
                 </div>
               </div>
-
-              {/* Draft Tray */}
-              <div className="col-span-3 min-h-0 flex flex-col">
-                <div className="flex-1 min-h-0">
-                  <DraftTray 
-                    tasks={getOrderedDrafts()}
-                    selectedDraft={selectedDraft}
-                    onSelectDraft={setSelectedDraft}
-                    justApprovedId={justApprovedId}
-                  />
-                </div>
+            )}
+            
+            <div className="max-w-full mx-auto">
+              <div className="mb-8">
+                <h1 className="text-3xl font-semibold text-[#3E5A6B] mb-2">BloomSuite Dashboard</h1>
+                <p className="text-gray-600">Your content creation command center</p>
               </div>
 
-              {/* Composer Panel */}
-              <div className="col-span-4 min-h-0 flex flex-col">
-                <div className="flex-1 min-h-0">
-                  <ComposerPanel 
-                    selectedDraft={selectedDraft}
-                    socialConnections={dashboardData?.socialConnections || []}
-                    onTaskUpdate={handleTaskUpdate}
-                    onApproved={handleApproved}
-                  />
+              {/* Grid with 3-3-4 column distribution */}
+              <div className="grid grid-cols-10 gap-6 mb-6 min-h-0">
+                {/* Today's Focus */}
+                <div className="col-span-3 min-h-0 flex flex-col">
+                  <div className="flex-1 min-h-0">
+                    <FocusCarousel onTaskUpdate={handleTaskUpdate} />
+                  </div>
+                </div>
+
+                {/* Draft Tray */}
+                <div className="col-span-3 min-h-0 flex flex-col">
+                  <div className="flex-1 min-h-0">
+                    <DraftTray 
+                      tasks={getOrderedDrafts()}
+                      selectedDraft={selectedDraft}
+                      onSelectDraft={setSelectedDraft}
+                      justApprovedId={justApprovedId}
+                    />
+                  </div>
+                </div>
+
+                {/* Composer Panel */}
+                <div className="col-span-4 min-h-0 flex flex-col">
+                  <div className="flex-1 min-h-0">
+                    <ComposerPanel 
+                      selectedDraft={selectedDraft}
+                      socialConnections={dashboardData?.socialConnections || []}
+                      onTaskUpdate={handleTaskUpdate}
+                      onApproved={handleApproved}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <SmartTimeDock
-          scheduledByDate={dashboardData?.scheduledByDate}
-          socialConnections={dashboardData?.socialConnections || []}
-          onScheduleUpdate={handleTaskUpdate}
-        />
-
-        {/* Time Selection Modal */}
-        {timeSelectionModal.isOpen && (
-          <TimePopoverModal
-            targetDate={timeSelectionModal.targetDate}
-            draftId={timeSelectionModal.draftId}
-            onTimeSelection={handleTimeSelection}
-            isScheduling={isScheduling}
+          <SmartTimeDock
+            scheduledByDate={dashboardData?.scheduledByDate}
+            socialConnections={dashboardData?.socialConnections || []}
+            onScheduleUpdate={handleTaskUpdate}
           />
-        )}
-      </DragDropContext>
+
+          {/* Time Selection Modal */}
+          {timeSelectionModal.isOpen && (
+            <TimePopoverModal
+              targetDate={timeSelectionModal.targetDate}
+              draftId={timeSelectionModal.draftId}
+              onTimeSelection={handleTimeSelection}
+              isScheduling={isScheduling}
+            />
+          )}
+        </DragDropContext>
+      ) : (
+        <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+          <LoadingSpinner size="lg" text="Initializing Dashboard..." />
+        </div>
+      )}
     </DashboardErrorBoundary>
   );
 };
