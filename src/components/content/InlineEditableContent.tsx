@@ -102,9 +102,6 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
       {/* Header with prominent TaskActions on the right */}
       <div className="flex items-start justify-between gap-4 mb-6">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 capitalize">
-            {task.post_type} Content
-          </h3>
           <p className="text-sm text-gray-600">
             {isEditing ? 'Edit your content below' : 'Review and manage your content'}
           </p>
