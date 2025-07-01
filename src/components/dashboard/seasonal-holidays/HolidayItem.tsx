@@ -75,10 +75,6 @@ export const HolidayItem = ({
             <CardTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">
               {holiday.holiday_name || holiday.theme}
             </CardTitle>
-            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
-              <Calendar className="w-4 h-4" />
-              <span>{formatHolidayDate(holiday.holiday_date)}</span>
-            </div>
           </div>
           {hasContent && (
             <Badge variant="success" className="text-xs">
