@@ -114,21 +114,35 @@ export const DraftTray = ({
                             "bg-white/80 border-gray-200 hover:border-[#68BEB9]/50 hover:shadow-md",
                             isSelected && "border-[#68BEB9] shadow-md bg-[#68BEB9]/5",
                             isJustApproved && "animate-pulse border-green-400 bg-green-50",
-                            snapshot.isDragging && "shadow-lg rotate-2 scale-105 z-50",
-                            !statusInfo.draggable && "opacity-75"
+                            // Enhanced drag styling with proper z-index
+                            snapshot.isDragging && "shadow-2xl rotate-2 scale-105 z-[9999] bg-white border-[#68BEB9]",
+                            !statusInfo.draggable && "opacity-75",
+                            // Ensure proper stacking context
+                            "transform-gpu"
                           )}
+                          style={{
+                            ...provided.draggableProps.style,
+                            // Override any transform issues
+                            ...(snapshot.isDragging && {
+                              transform: `${provided.draggableProps.style?.transform} rotate(2deg) scale(1.05)`,
+                              zIndex: 9999,
+                              position: 'fixed' // Ensure it's positioned correctly
+                            })
+                          }}
                           onClick={() => onSelectDraft(task)}
                         >
-                          {/* Drag Handle - only show for draggable items */}
+                          {/* Enhanced Drag Handle */}
                           {statusInfo.draggable && (
                             <div
                               {...provided.dragHandleProps}
                               className={cn(
                                 "absolute left-2 top-1/2 transform -translate-y-1/2",
                                 "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
-                                "text-gray-400 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing"
+                                "text-gray-400 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing",
+                                "z-10 touch-none" // Prevent touch events from interfering
                               )}
                               onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
                             >
                               <GripVertical className="w-4 h-4" />
                             </div>
@@ -171,9 +185,9 @@ export const DraftTray = ({
                             </div>
                           </div>
 
-                          {/* Drag feedback overlay */}
+                          {/* Enhanced drag feedback overlay */}
                           {snapshot.isDragging && (
-                            <div className="absolute inset-0 bg-[#68BEB9]/10 rounded-lg border-2 border-[#68BEB9] border-dashed" />
+                            <div className="absolute inset-0 bg-[#68BEB9]/10 rounded-lg border-2 border-[#68BEB9] border-dashed pointer-events-none" />
                           )}
                         </div>
                       )}
