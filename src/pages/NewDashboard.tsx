@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -286,17 +287,17 @@ const NewDashboardContent = () => {
               <p className="text-gray-600">Your content creation command center</p>
             </div>
 
-            {/* Updated grid with better column distribution */}
-            <div className="grid grid-cols-12 gap-6 mb-6 min-h-0">
-              {/* Today's Focus - Column 1 - Reduced from col-span-3 to col-span-2 */}
-              <div className="col-span-2 min-h-0 flex flex-col">
+            {/* Grid with 3-3-4 column distribution */}
+            <div className="grid grid-cols-10 gap-6 mb-6 min-h-0">
+              {/* Today's Focus - Column 1 - 3 out of 10 columns */}
+              <div className="col-span-3 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0">
                   <FocusCarousel onTaskUpdate={handleTaskUpdate} />
                 </div>
               </div>
 
-              {/* Draft Tray - Column 2 - Increased from col-span-4 to col-span-5 */}
-              <div className="col-span-5 min-h-0 flex flex-col">
+              {/* Draft Tray - Column 2 - 3 out of 10 columns */}
+              <div className="col-span-3 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0">
                   <DraftTray 
                     tasks={getOrderedDrafts()}
@@ -308,8 +309,8 @@ const NewDashboardContent = () => {
                 </div>
               </div>
 
-              {/* Composer Panel - Column 3 - Same col-span-5 */}
-              <div className="col-span-5 min-h-0 flex flex-col">
+              {/* Composer Panel - Column 3 - 4 out of 10 columns */}
+              <div className="col-span-4 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0">
                   <ComposerPanel 
                     selectedDraft={selectedDraft}
