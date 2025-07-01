@@ -10,7 +10,7 @@ import { SmartTimeDock } from '@/components/smart-time/SmartTimeDock';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 
 const NewDashboardContent = () => {
-  const { data, refetch } = useDashboardContext();
+  const { data, refetch, activeDraft, setActiveDraft } = useDashboardContext();
 
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 Dashboard drag ended:', result);
@@ -40,6 +40,8 @@ const NewDashboardContent = () => {
             <div className="col-span-3">
               <DraftTray 
                 tasks={data?.drafts || []}
+                selectedDraft={activeDraft}
+                onSelectDraft={setActiveDraft}
                 onDragEnd={handleDragEnd}
               />
             </div>
@@ -47,7 +49,7 @@ const NewDashboardContent = () => {
             {/* Composer Panel - Columns 7-12 */}
             <div className="col-span-6">
               <ComposerPanel 
-                selectedDraft={data?.selectedDraft}
+                selectedDraft={activeDraft}
                 socialConnections={data?.socialConnections || []}
                 onTaskUpdate={refetch}
               />
