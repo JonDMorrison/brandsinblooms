@@ -18,6 +18,16 @@ interface DashboardContextType {
   draftOrder: string[];
   setDraftOrder: (order: string[]) => void;
   getOrderedDrafts: () => any[];
+  
+  // Dashboard-social specific properties
+  currentCampaign: any;
+  drafts: any[];
+  activeDraft: any;
+  setActiveDraft: (draft: any) => void;
+  updateDraftContent: (draftId: string, content: string) => Promise<void>;
+  composerMode: 'draft' | 'scheduled';
+  setComposerMode: (mode: 'draft' | 'scheduled') => void;
+  scheduleDraft: (draftId: string, dateStr: string) => Promise<void>;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -39,6 +49,10 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isDockOpen, setIsDockOpen] = useState(false);
   const [draftOrder, setDraftOrder] = useState<string[]>([]);
+  
+  // Dashboard-social specific state
+  const [activeDraft, setActiveDraft] = useState<any>(null);
+  const [composerMode, setComposerMode] = useState<'draft' | 'scheduled'>('draft');
 
   const startDragging = useCallback(() => {
     console.log('🎯 Dashboard: Starting drag');
@@ -60,6 +74,19 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
 
   const toggleDock = useCallback(() => {
     setIsDockOpen(prev => !prev);
+  }, []);
+
+  // Dashboard-social specific methods
+  const updateDraftContent = useCallback(async (draftId: string, content: string) => {
+    console.log('Updating draft content:', draftId, content);
+    // TODO: Implement actual update logic with API call
+    // This would typically update the task in the database
+  }, []);
+
+  const scheduleDraft = useCallback(async (draftId: string, dateStr: string) => {
+    console.log('Scheduling draft:', draftId, 'for date:', dateStr);
+    // TODO: Implement actual scheduling logic with API call
+    // This would typically move the task to scheduled status
   }, []);
 
   // Initialize draft order when data loads - but only if order is empty or we have new tasks
@@ -139,6 +166,10 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     drafts: data.tasks?.filter((task: any) => visibleStatuses.includes(task.status as TaskStatus)) || []
   } : {};
 
+  // Dashboard-social compatibility properties
+  const currentCampaign = data?.currentCampaign || null;
+  const drafts = filteredData.drafts || [];
+
   const contextValue = {
     data: filteredData,
     loading,
@@ -153,7 +184,17 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     toggleDock,
     draftOrder,
     setDraftOrder,
-    getOrderedDrafts
+    getOrderedDrafts,
+    
+    // Dashboard-social specific values
+    currentCampaign,
+    drafts,
+    activeDraft,
+    setActiveDraft,
+    updateDraftContent,
+    composerMode,
+    setComposerMode,
+    scheduleDraft
   };
 
   return (

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
@@ -6,10 +7,9 @@ import { DraftTray } from '@/components/dashboard-social/DraftTray';
 import { ComposerPanel } from '@/components/dashboard-social/ComposerPanel';
 import { SmartTimeRibbon } from '@/components/dashboard-social/SmartTimeRibbon';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
-import { useDashboardContext } from '@/contexts/DashboardContext';
 
 const DashboardSocialContent = () => {
-  const { scheduleDraft } = useDashboardContext();
+  const { data } = useDashboardContext();
 
   const handleDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -22,7 +22,7 @@ const DashboardSocialContent = () => {
       destination.droppableId.startsWith('calendar-day-')
     ) {
       const dateStr = destination.droppableId.replace('calendar-day-', '');
-      await scheduleDraft(draggableId, dateStr);
+      console.log('Scheduling draft:', draggableId, 'for date:', dateStr);
     }
   };
 
