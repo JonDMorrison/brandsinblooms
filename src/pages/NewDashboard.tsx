@@ -3,10 +3,10 @@ import React from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
 import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
-import { TodayFocusCard } from '@/components/dashboard-social/TodayFocusCard';
+import { TodaysFocusCard } from '@/components/new-dashboard/TodaysFocusCard';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
-import { ComposerPanel } from '@/components/dashboard-social/ComposerPanel';
-import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
+import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
+import { SmartTimeDock } from '@/components/smart-time/SmartTimeDock';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 
 const NewDashboardContent = () => {
@@ -14,7 +14,7 @@ const NewDashboardContent = () => {
 
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 Dashboard drag ended:', result);
-    // The SmartTimeRibbon component handles the actual scheduling logic
+    // The SmartTimeDock component handles the actual scheduling logic
   };
 
   return (
@@ -31,7 +31,10 @@ const NewDashboardContent = () => {
           <div className="grid grid-cols-12 gap-6 mb-6">
             {/* Today's Focus - Columns 1-3 */}
             <div className="col-span-3">
-              <TodayFocusCard />
+              <TodaysFocusCard 
+                campaign={data?.currentCampaign}
+                onComplete={() => {}}
+              />
             </div>
 
             {/* Draft Tray - Columns 4-6 */}
@@ -44,16 +47,19 @@ const NewDashboardContent = () => {
 
             {/* Composer Panel - Columns 7-12 */}
             <div className="col-span-6">
-              <ComposerPanel />
+              <ComposerPanel 
+                selectedDraft={data?.selectedDraft}
+                socialConnections={data?.socialConnections || []}
+                onTaskUpdate={refetch}
+              />
             </div>
           </div>
 
-          {/* Smart-Time Ribbon */}
-          <SmartTimeRibbon
+          {/* Smart-Time Dock */}
+          <SmartTimeDock
             scheduledByDate={data?.scheduledByDate || {}}
             socialConnections={data?.socialConnections || []}
             onScheduleUpdate={refetch}
-            onDragEnd={handleDragEnd}
           />
         </div>
       </div>
