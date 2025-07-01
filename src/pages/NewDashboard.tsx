@@ -10,10 +10,12 @@ import { SmartTimeDock } from '@/components/smart-time/SmartTimeDock';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 
 const NewDashboardContent = () => {
-  const { data, refetch, activeDraft, setActiveDraft } = useDashboardContext();
+  const { data, refetch, activeDraft, setActiveDraft, stopDragging } = useDashboardContext();
 
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 Dashboard drag ended:', result);
+    // Always stop dragging when drag operation completes
+    stopDragging();
     // The SmartTimeDock component handles the actual scheduling logic
   };
 

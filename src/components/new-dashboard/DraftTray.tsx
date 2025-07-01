@@ -93,13 +93,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
     openDock();
   };
 
-  const handleDragEnd = (result: any) => {
-    console.log('🎯 Draft drag ended, forwarding to parent');
-    stopDragging();
-    if (onDragEnd) {
-      onDragEnd(result);
-    }
-  };
 
   // Filter tasks based on active tab
   const draftTasks = tasks.filter(task => task.status !== TASK_STATUS.SCHEDULED);
@@ -211,7 +204,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                             )}
                             onClick={() => onSelectDraft?.(draft)}
                             onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
                           >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center gap-2">
