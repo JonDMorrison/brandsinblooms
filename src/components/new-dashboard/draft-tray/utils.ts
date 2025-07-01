@@ -1,4 +1,3 @@
-
 import { Clock, CheckCircle, Calendar, Eye, Send, Facebook, Instagram, Mail, FileText } from 'lucide-react';
 import { TASK_STATUS } from '@/constants/taskStatus';
 
@@ -23,6 +22,13 @@ export const getStatusInfo = (status: string) => {
         icon: Calendar, 
         color: 'bg-purple-100 text-purple-700 border-purple-300',
         label: 'Scheduled',
+        draggable: true
+      };
+    case TASK_STATUS.PREVIEW:
+      return { 
+        icon: Eye, 
+        color: 'bg-blue-100 text-blue-700 border-blue-300',
+        label: 'Preview',
         draggable: true
       };
     case TASK_STATUS.GENERATED:

@@ -1,12 +1,12 @@
 export type TaskStatus = 
   | 'planned' 
   | 'review' 
+  | 'preview'
   | 'approved' 
   | 'posted' 
   | 'rejected'
   | 'generated'
-  | 'pending'
-  | 'preview'; // Add preview status
+  | 'pending';
 
 export interface Campaign {
   id: string;
@@ -20,15 +20,15 @@ export interface Campaign {
   start_date?: string;
   end_date?: string;
   holiday_id?: string;
-  prompt?: string; // Add prompt property
-  source?: string; // Add source property
+  prompt?: string;
+  source?: string;
 }
 
 export interface ContentTask {
   id: string;
   campaign_id?: string;
   post_type?: string;
-  status: TaskStatus; // Use the updated TaskStatus type
+  status: TaskStatus;
   ai_output?: string;
   scheduled_date?: string;
   created_at: string;

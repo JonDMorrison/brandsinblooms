@@ -7,6 +7,7 @@ export const getStatusBadgeVariant = (status: string) => {
     'draft': 'draft',
     'generated': 'generated', 
     'review': 'preview', // Map review to preview since StatusBadge doesn't have review
+    'preview': 'preview', // Add explicit preview mapping
     'approved': 'approved',
     'scheduled': 'scheduled',
     'posted': 'posted'
@@ -30,12 +31,12 @@ export const getPlatformBadgeVariant = (postType: string) => {
   return platformMap[postType as keyof typeof platformMap] || 'default';
 };
 
-// Helper to get readable status labels
 export const getStatusLabel = (status: string) => {
   const labelMap = {
     'draft': 'Draft',
     'generated': 'Generated',
     'review': 'Review',
+    'preview': 'Preview', // Add preview label
     'approved': 'Approved', 
     'scheduled': 'Scheduled',
     'posted': 'Ready to Post'
@@ -44,7 +45,6 @@ export const getStatusLabel = (status: string) => {
   return labelMap[status as keyof typeof labelMap] || status;
 };
 
-// Helper to get readable platform labels
 export const getPlatformLabel = (postType: string) => {
   const labelMap = {
     'newsletter': 'Newsletter',
