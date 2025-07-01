@@ -294,7 +294,14 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
             <Button
               type="submit"
               disabled={!title.trim() || !selectedWeek || loading || generatingContent}
-              className="bg-garden-green hover:bg-garden-green-dark text-white"
+              className="bg-garden-green hover:bg-garden-green-dark text-white !important opacity-100 !important visibility-visible !important display-inline-flex !important"
+              style={{
+                backgroundColor: '#22C55E !important',
+                color: 'white !important',
+                opacity: 1,
+                visibility: 'visible',
+                display: 'inline-flex'
+              }}
             >
               {loading ? (
                 <>
