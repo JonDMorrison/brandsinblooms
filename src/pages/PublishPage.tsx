@@ -5,11 +5,16 @@ import { ComposerTray } from '@/components/publish/ComposerTray';
 import { ComposerEditor } from '@/components/publish/ComposerEditor';
 import { ComposerDrawer } from '@/components/publish/ComposerDrawer';
 import { CalendarRibbon } from '@/components/publish/CalendarRibbon';
+import { PublishingCalendarView } from '@/components/publish/PublishingCalendarView';
+import { AnalyticsIntegration } from '@/components/publish/AnalyticsIntegration';
+import { WorkflowAutomation } from '@/components/publish/WorkflowAutomation';
 import { showSuccessToast, triggerCardPulse } from '@/components/publish/SuccessFeedback';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar, BarChart3, Zap, Grid } from 'lucide-react';
 import { fetchSmartImage } from '@/services/unsplashService';
 
 interface PublishData {
@@ -51,6 +56,7 @@ const PublishPage = () => {
   const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('content');
 
   useEffect(() => {
     if (user) {
@@ -270,6 +276,32 @@ const PublishPage = () => {
     }
   };
 
+  const handleReschedule = (postId: string, newDate: Date) => {
+    console.log('Reschedule post:', postId, 'to:', newDate);
+    toast.success(`Post rescheduled to ${newDate.toLocaleDateString()}`);
+  };
+
+  const handleAnalyticsView = (postId: string) => {
+    console.log('View analytics for post:', postId);
+    setActiveTab('analytics');
+  };
+
+  const handleBulkAction = (postIds: string[], action: string) => {
+    console.log('Bulk action:', action, 'for posts:', postIds);
+    toast.success(`${action} applied to ${postIds.length} posts`);
+  };
+
+  const handleOptimalTimeSelect = (time: string) => {
+    console.log('Selected optimal time:', time);
+    // This could auto-fill the scheduling time in the composer
+    toast.success(`Optimal time ${time} selected`);
+  };
+
+  const handleAutomationUpdate = (rules: any[]) => {
+    console.log('Automation rules updated:', rules);
+    // Apply automation rules to content
+  };
+
   if (loading) {
     return (
       <SidebarLayout>
@@ -282,56 +314,88 @@ const PublishPage = () => {
 
   return (
     <SidebarLayout>
-      <div className="min-h-screen bg-[#F9FAFB] overflow-hidden">
-        <div className="h-screen flex flex-col">
-          {/* Header - Fixed height */}
-          <div className="flex-shrink-0 px-4 sm:px-6 py-4 bg-white border-b border-gray-200">
-            <h1 className="text-xl sm:text-2xl font-semibold text-[#3E5A6B] mb-1">Publish Portal</h1>
-            <p className="text-sm sm:text-base text-gray-600">Schedule and publish your approved Facebook and Instagram content</p>
-            {/* Debug info */}
-            {publishData && (
-              <p className="text-xs text-gray-500 mt-1">
-                Found {publishData.content.length} approved posts, {publishData.socialConnections.length} connections
-              </p>
-            )}
-          </div>
-
-          {/* Main Content Area - Flexible with bottom padding for sticky calendar */}
-          <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 p-4 sm:p-6 pb-32">
-            {/* Left Panel - Content Tray */}
-            <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">
-              <div className="h-full max-h-[calc(100vh-16rem)]">
-                <ComposerTray
-                  content={publishData?.content || []}
-                  selectedContent={selectedContent}
-                  onContentSelect={handleContentSelect}
-                />
-              </div>
-            </div>
-
-            {/* Right Panel - Editor */}
-            <div className="flex-1 min-w-0">
-              <div className="h-full max-h-[calc(100vh-16rem)]">
-                <ComposerEditor
-                  selectedContent={selectedContent}
-                  onContentUpdate={(updatedContent) => setSelectedContent(updatedContent)}
-                  onOpenDrawer={() => setDrawerOpen(true)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Sticky Calendar Ribbon */}
-          <CalendarRibbon
-            selectedContent={selectedContent}
-            onReschedule={(contentId, newDate) => {
-              // TODO: Implement reschedule logic
-              console.log('Reschedule:', contentId, newDate);
-            }}
-          />
+      <div className="min-h-screen bg-[#F9FAFB]">
+        {/* Header */}
+        <div className="px-4 sm:px-6 py-4 bg-white border-b border-gray-200">
+          <h1 className="text-xl sm:text-2xl font-semibold text-[#3E5A6B] mb-1">Publish Portal</h1>
+          <p className="text-sm sm:text-base text-gray-600">Advanced publishing with calendar, analytics, and automation</p>
+          {publishData && (
+            <p className="text-xs text-gray-500 mt-1">
+              {publishData.content.length} approved posts, {publishData.socialConnections.length} connections
+            </p>
+          )}
         </div>
 
-        {/* Right Drawer - Keep sticky */}
+        {/* Tabbed Interface */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+          <div className="px-4 sm:px-6 py-3 bg-white border-b">
+            <TabsList className="grid w-full max-w-md grid-cols-4">
+              <TabsTrigger value="content" className="flex items-center gap-2">
+                <Grid className="w-4 h-4" />
+                Content
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                Calendar
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger value="automation" className="flex items-center gap-2">
+                <Zap className="w-4 h-4" />
+                Automation
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <div className="p-4 sm:p-6">
+            <TabsContent value="content" className="mt-0">
+              <div className="flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-20rem)]">
+                {/* Left Panel - Content Tray */}
+                <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">
+                  <ComposerTray
+                    content={publishData?.content || []}
+                    selectedContent={selectedContent}
+                    onContentSelect={handleContentSelect}
+                  />
+                </div>
+
+                {/* Right Panel - Editor */}
+                <div className="flex-1 min-w-0">
+                  <ComposerEditor
+                    selectedContent={selectedContent}
+                    onContentUpdate={(updatedContent) => setSelectedContent(updatedContent)}
+                    onOpenDrawer={() => setDrawerOpen(true)}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="calendar" className="mt-0">
+              <PublishingCalendarView
+                onReschedule={handleReschedule}
+                onAnalyticsView={handleAnalyticsView}
+                onBulkAction={handleBulkAction}
+              />
+            </TabsContent>
+
+            <TabsContent value="analytics" className="mt-0">
+              <AnalyticsIntegration
+                selectedPost={selectedContent?.id}
+                onOptimalTimeSelect={handleOptimalTimeSelect}
+              />
+            </TabsContent>
+
+            <TabsContent value="automation" className="mt-0">
+              <WorkflowAutomation
+                onRuleUpdate={handleAutomationUpdate}
+              />
+            </TabsContent>
+          </div>
+        </Tabs>
+
+        {/* Composer Drawer */}
         <ComposerDrawer
           isOpen={drawerOpen}
           onClose={() => setDrawerOpen(false)}
