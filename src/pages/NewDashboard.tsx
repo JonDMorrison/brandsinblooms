@@ -3,33 +3,23 @@ import React from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { TodayFocusCard } from '@/components/dashboard-social/TodayFocusCard';
-import { DraftTray } from '@/components/dashboard-social/DraftTray';
+import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/dashboard-social/ComposerPanel';
-import { SmartTimeRibbon } from '@/components/dashboard-social/SmartTimeRibbon';
+import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { useDashboardContext } from '@/context/DashboardContext';
 
 const NewDashboardContent = () => {
-  const { scheduleDraft } = useDashboardContext();
+  const { data, refetch } = useDashboardContext();
 
   const handleDragEnd = async (result: DropResult) => {
-    const { destination, source, draggableId } = result;
-
-    if (!destination) return;
-
-    // Handle drag from draft tray to calendar
-    if (
-      source.droppableId === 'draft-tray' &&
-      destination.droppableId.startsWith('calendar-day-')
-    ) {
-      const dateStr = destination.droppableId.replace('calendar-day-', '');
-      await scheduleDraft(draggableId, dateStr);
-    }
+    console.log('🎯 Dashboard drag ended:', result);
+    // The SmartTimeRibbon component handles the actual scheduling logic
   };
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="min-h-screen bg-[#F9FAFB] p-6">
+      <div className="min-h-screen bg-[#F9FAFB] p-6 pb-96">
         <div className="max-w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -46,7 +36,10 @@ const NewDashboardContent = () => {
 
             {/* Draft Tray - Columns 4-6 */}
             <div className="col-span-3">
-              <DraftTray />
+              <DraftTray 
+                tasks={data?.drafts || []}
+                onDragEnd={handleDragEnd}
+              />
             </div>
 
             {/* Composer Panel - Columns 7-12 */}
@@ -55,8 +48,13 @@ const NewDashboardContent = () => {
             </div>
           </div>
 
-          {/* Smart-Time Ribbon - Full Width */}
-          <SmartTimeRibbon />
+          {/* Smart-Time Ribbon */}
+          <SmartTimeRibbon
+            scheduledByDate={data?.scheduledByDate || {}}
+            socialConnections={data?.socialConnections || []}
+            onScheduleUpdate={refetch}
+            onDragEnd={handleDragEnd}
+          />
         </div>
       </div>
     </DragDropContext>
