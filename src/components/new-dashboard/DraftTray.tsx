@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, FileText, Image, Video, Mail, CheckCircle, ArrowRight, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Calendar, FileText, Image, Video, Mail, CheckCircle, ArrowRight, Clock, Send, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
@@ -17,7 +18,7 @@ interface DraftTrayProps {
 }
 
 export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprovedId }: DraftTrayProps) => {
-  const { openDock, startDragging, stopDragging } = useDashboardContext();
+  const { openDock, startDragging, stopDragging, handleClickToPost, openTimePopover } = useDashboardContext();
   const [showDragHint, setShowDragHint] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'drafts' | 'scheduled'>('drafts');
 
@@ -243,6 +244,35 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                                 </span>
                               )}
                             </div>
+
+                            {/* Click to Post Buttons */}
+                            {draft.status === TASK_STATUS.APPROVED && (
+                              <div className="mt-3 space-y-2">
+                                <Button
+                                  size="sm"
+                                  className="w-full bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleClickToPost(draft);
+                                  }}
+                                >
+                                  <Send className="w-3 h-3 mr-2" />
+                                  Click to Post
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full text-xs text-gray-600 hover:text-[#68BEB9]"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openTimePopover(draft);
+                                  }}
+                                >
+                                  <Settings className="w-3 h-3 mr-1" />
+                                  Custom Time
+                                </Button>
+                              </div>
+                            )}
 
                             {showHint && (
                               <div className="absolute inset-0 bg-[#68BEB9]/90 rounded-lg flex items-center justify-center text-white font-medium text-sm animate-in fade-in-0 slide-in-from-top-2">

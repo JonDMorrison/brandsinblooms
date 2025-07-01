@@ -5,11 +5,11 @@ import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardCont
 import { TodaysFocusCard } from '@/components/new-dashboard/TodaysFocusCard';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
-import { SmartTimeDock } from '@/components/smart-time/SmartTimeDock';
+import { TimePopoverModal } from '@/components/smart-time/TimePopoverModal';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 
 const DashboardSocialContent = () => {
-  const { data, refetch, stopDragging } = useDashboardContext();
+  const { data, refetch, stopDragging, timePopoverTask, setTimePopoverTask } = useDashboardContext();
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source } = result;
@@ -62,11 +62,12 @@ const DashboardSocialContent = () => {
             </div>
           </div>
 
-          {/* Smart-Time Dock */}
-          <SmartTimeDock
-            scheduledByDate={data?.scheduledByDate || {}}
-            socialConnections={data?.socialConnections || []}
-            onScheduleUpdate={refetch}
+          {/* Time Popover Modal */}
+          <TimePopoverModal
+            task={timePopoverTask}
+            isOpen={!!timePopoverTask}
+            onClose={() => setTimePopoverTask(null)}
+            onScheduled={refetch}
           />
         </div>
       </div>

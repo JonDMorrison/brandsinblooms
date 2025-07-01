@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Edit, Save, CheckCircle, Loader2, Instagram, Facebook, Mail, BookOpen, Video, FileText, GripVertical, Calendar } from 'lucide-react';
+import { Edit, Save, CheckCircle, Loader2, Instagram, Facebook, Mail, BookOpen, Video, FileText, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { cn } from '@/lib/utils';
@@ -41,7 +41,7 @@ const getPostTypeLabel = (postType: string) => {
 };
 
 export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpdate, onApproved }: ComposerPanelProps) => {
-  const { openDock, startDragging } = useDashboardContext();
+  const { handleClickToPost, openTimePopover } = useDashboardContext();
   const [editContent, setEditContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -158,11 +158,6 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     setIsEditing(false);
   };
 
-  const handleDragStart = () => {
-    console.log('🎯 Composer drag started, opening dock and setting drag state');
-    startDragging();
-    openDock();
-  };
 
   const renderActionButtons = () => {
     if (!selectedDraft) {
@@ -217,72 +212,35 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
       );
     }
 
-    // Show drag-to-schedule interface for approved content
+    // Show click-to-post interface for approved content
     if (isApproved) {
       return (
-        <Droppable droppableId="composer-panel" type="DRAFT">
-          {(provided, snapshot) => (
-            <div ref={provided.innerRef} {...provided.droppableProps}>
-              <Draggable draggableId={`composer-${selectedDraft.id}`} index={0}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    className={cn(
-                      "transition-all duration-200",
-                      snapshot.isDragging && "opacity-95"
-                    )}
-                  >
-                    <div
-                      {...provided.dragHandleProps}
-                      data-draft-card="true"
-                      className={cn(
-                        "w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium",
-                        "bg-[#68BEB9] hover:bg-[#56a7a1] text-white transition-all duration-200",
-                        "cursor-grab active:cursor-grabbing select-none border",
-                        snapshot.isDragging && "bg-white text-gray-800 border-[#68BEB9] border-2 shadow-2xl transform scale-105 rounded-xl"
-                      )}
-                      role="button"
-                      tabIndex={0}
-                      aria-label="Drag to schedule content"
-                      onDragStart={handleDragStart}
-                    >
-                      {snapshot.isDragging ? (
-                        <div className="flex flex-col items-center gap-2 p-3">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-[#68BEB9]" />
-                            <span className="font-medium text-gray-800">Instagram Post</span>
-                            <Badge className="bg-[#68BEB9] text-white text-xs">Approved</Badge>
-                          </div>
-                          <div className="text-xs text-gray-600 line-clamp-2 max-w-xs">
-                            {selectedDraft.ai_output?.substring(0, 80)}...
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Calendar className="w-3 h-3" />
-                            <span>Jun 27</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <GripVertical className="w-4 h-4" />
-                          <Calendar className="w-4 h-4" />
-                          Drag to Schedule
-                        </>
-                      )}
-                    </div>
-                    
-                    {!snapshot.isDragging && (
-                      <div className="text-xs text-gray-500 mt-2 text-center">
-                        Grab the button above and drag to any day in the Smart Time Ribbon
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Draggable>
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
+        <div className="text-center space-y-4">
+          <div className="text-sm text-gray-600 mb-3">
+            Content approved! Ready to schedule for posting.
+          </div>
+          
+          <Button
+            className="w-full bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
+            onClick={() => handleClickToPost(selectedDraft)}
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Click to Post
+          </Button>
+          
+          <Button
+            variant="outline"
+            className="w-full border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9] hover:text-white"
+            onClick={() => openTimePopover(selectedDraft)}
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Custom Date & Time
+          </Button>
+          
+          <p className="text-xs text-gray-500">
+            Click to Post uses AI to pick the optimal time, or choose a custom schedule
+          </p>
+        </div>
       );
     }
 

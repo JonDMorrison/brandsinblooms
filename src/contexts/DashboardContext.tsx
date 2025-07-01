@@ -2,6 +2,10 @@
 import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
+import { useSmartTime } from '@/hooks/useSmartTime';
+import { scheduleDraft } from '@/lib/dashboardAPI';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 interface DashboardContextType {
   data: any;
@@ -28,6 +32,10 @@ interface DashboardContextType {
   composerMode: 'draft' | 'scheduled';
   setComposerMode: (mode: 'draft' | 'scheduled') => void;
   scheduleDraft: (draftId: string, dateStr: string) => Promise<void>;
+  handleClickToPost: (task: any) => Promise<void>;
+  openTimePopover: (task: any) => void;
+  timePopoverTask: any | null;
+  setTimePopoverTask: (task: any | null) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -46,6 +54,7 @@ interface DashboardProviderProps {
 
 export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const { data, isLoading: loading, error, refetch } = useDashboardData();
+  const { getBestSlot } = useSmartTime();
   const [isDragging, setIsDragging] = useState(false);
   const [isDockOpen, setIsDockOpen] = useState(false);
   const [draftOrder, setDraftOrder] = useState<string[]>([]);
@@ -53,6 +62,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   // Dashboard-social specific state
   const [activeDraft, setActiveDraft] = useState<any>(null);
   const [composerMode, setComposerMode] = useState<'draft' | 'scheduled'>('draft');
+  const [timePopoverTask, setTimePopoverTask] = useState<any | null>(null);
 
   const startDragging = useCallback(() => {
     console.log('🎯 Dashboard: Starting drag');
@@ -83,10 +93,39 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     // This would typically update the task in the database
   }, []);
 
-  const scheduleDraft = useCallback(async (draftId: string, dateStr: string) => {
+  const scheduleDraftCallback = useCallback(async (draftId: string, dateStr: string) => {
     console.log('Scheduling draft:', draftId, 'for date:', dateStr);
     // TODO: Implement actual scheduling logic with API call
     // This would typically move the task to scheduled status
+  }, []);
+
+  // Click to Post functionality
+  const handleClickToPost = useCallback(async (task: any) => {
+    if (!task) return;
+    
+    try {
+      // Get AI-suggested optimal slot
+      const { bestDateTime } = await getBestSlot(task.post_type || 'facebook');
+      
+      // Schedule the draft
+      const result = await scheduleDraft({
+        taskId: task.id,
+        publishAt: bestDateTime,
+        platform: task.post_type || 'facebook'
+      });
+      
+      if (result) {
+        toast.success(`Scheduled for ${format(new Date(bestDateTime), 'MMM d, yyyy \'at\' h:mm a')}`);
+        refetch();
+      }
+    } catch (error) {
+      console.error('Error in handleClickToPost:', error);
+      toast.error('Failed to schedule post');
+    }
+  }, [getBestSlot, refetch]);
+
+  const openTimePopover = useCallback((task: any) => {
+    setTimePopoverTask(task);
   }, []);
 
   // Initialize draft order when data loads - but only if order is empty or we have new tasks
@@ -198,7 +237,11 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     updateDraftContent,
     composerMode,
     setComposerMode,
-    scheduleDraft
+    scheduleDraft: scheduleDraftCallback,
+    handleClickToPost,
+    openTimePopover,
+    timePopoverTask,
+    setTimePopoverTask
   };
 
   return (

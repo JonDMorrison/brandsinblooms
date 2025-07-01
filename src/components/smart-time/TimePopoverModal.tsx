@@ -1,31 +1,84 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { useSmartTime } from '@/hooks/useSmartTime';
+import { scheduleDraft } from '@/lib/dashboardAPI';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 
 interface TimePopoverModalProps {
-  targetDate: Date | null;
-  draftId: string | null;
-  onTimeSelection: (timeOption: 'now' | 'best' | 'custom', customTime?: string) => Promise<void>;
-  isScheduling: boolean;
+  task: any | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onScheduled?: () => void;
 }
 
 export const TimePopoverModal = ({ 
-  targetDate, 
-  draftId, 
-  onTimeSelection, 
-  isScheduling 
+  task,
+  isOpen,
+  onClose,
+  onScheduled
 }: TimePopoverModalProps) => {
-  const [isOpen, setIsOpen] = useState(true);
+  const { getBestSlot } = useSmartTime();
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [customDate, setCustomDate] = useState('');
+  const [customTime, setCustomTime] = useState('');
+  const [bestTimes, setBestTimes] = useState<string[]>([]);
 
-  if (!isOpen || !targetDate || !draftId) return null;
+  useEffect(() => {
+    if (isOpen && task) {
+      // Get AI suggestions when modal opens
+      getBestSlot(task.post_type || 'facebook').then(({ bestDateTime, alternatives }) => {
+        const times = [bestDateTime, ...alternatives].map(dt => 
+          format(new Date(dt), 'h:mm a')
+        );
+        setBestTimes(times);
+        
+        // Set default custom date to tomorrow
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setCustomDate(format(tomorrow, 'yyyy-MM-dd'));
+        setCustomTime('12:00');
+      });
+    }
+  }, [isOpen, task, getBestSlot]);
 
-  const handleClose = () => {
-    setIsOpen(false);
-  };
+  if (!isOpen || !task) return null;
 
-  const handleTimeSelect = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
-    await onTimeSelection(timeOption, customTime);
-    setIsOpen(false);
+  const handleTimeSelect = async (timeOption: 'now' | 'best' | 'custom', customTimeStr?: string) => {
+    setIsScheduling(true);
+    
+    try {
+      let publishAt: string;
+      
+      if (timeOption === 'now') {
+        publishAt = new Date().toISOString();
+      } else if (timeOption === 'best') {
+        const { bestDateTime } = await getBestSlot(task.post_type || 'facebook');
+        publishAt = bestDateTime;
+      } else {
+        // Custom time
+        const customDateTime = new Date(`${customDate}T${customTimeStr || customTime}`);
+        publishAt = customDateTime.toISOString();
+      }
+      
+      const result = await scheduleDraft({
+        taskId: task.id,
+        publishAt,
+        platform: task.post_type || 'facebook'
+      });
+      
+      if (result) {
+        toast.success(`Scheduled for ${format(new Date(publishAt), 'MMM d, yyyy \'at\' h:mm a')}`);
+        if (onScheduled) onScheduled();
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error scheduling:', error);
+      toast.error('Failed to schedule post');
+    } finally {
+      setIsScheduling(false);
+    }
   };
 
   return (
@@ -33,7 +86,7 @@ export const TimePopoverModal = ({
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <h3 className="text-lg font-semibold mb-4">Choose Posting Time</h3>
         <p className="text-gray-600 mb-6">
-          When would you like to post this content on {format(targetDate, 'MMMM d, yyyy')}?
+          When would you like to schedule this {task.post_type || 'post'}?
         </p>
         
         <div className="space-y-3">
@@ -56,31 +109,51 @@ export const TimePopoverModal = ({
           </button>
           
           <div className="border rounded-lg p-3">
-            <div className="font-medium mb-2">Custom Time</div>
-            <div className="flex gap-2">
-              <input
-                type="time"
-                disabled={isScheduling}
-                className="border rounded px-2 py-1 disabled:opacity-50"
-                onChange={(e) => {
-                  if (e.target.value && !isScheduling) {
-                    handleTimeSelect('custom', e.target.value);
-                  }
-                }}
-              />
-              <span className="text-sm text-gray-500 self-center">Choose specific time</span>
+            <div className="font-medium mb-2">Custom Date & Time</div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-gray-600 block mb-1">Date</label>
+                <input
+                  type="date"
+                  value={customDate}
+                  onChange={(e) => setCustomDate(e.target.value)}
+                  disabled={isScheduling}
+                  className="w-full border rounded px-2 py-1 disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600 block mb-1">Time</label>
+                <input
+                  type="time"
+                  value={customTime}
+                  onChange={(e) => setCustomTime(e.target.value)}
+                  disabled={isScheduling}
+                  className="w-full border rounded px-2 py-1 disabled:opacity-50"
+                />
+              </div>
+              <Button
+                onClick={() => handleTimeSelect('custom')}
+                disabled={isScheduling || !customDate || !customTime}
+                className="w-full bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
+              >
+                Schedule for {customDate && customTime ? 
+                  format(new Date(`${customDate}T${customTime}`), 'MMM d, h:mm a') : 
+                  'Custom Time'
+                }
+              </Button>
             </div>
           </div>
         </div>
         
         <div className="flex gap-2 mt-6">
-          <button
-            onClick={handleClose}
+          <Button
+            variant="outline"
+            onClick={onClose}
             disabled={isScheduling}
-            className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1"
           >
             Cancel
-          </button>
+          </Button>
         </div>
         
         {isScheduling && (

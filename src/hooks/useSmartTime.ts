@@ -13,6 +13,7 @@ interface SmartTimeData {
 interface UseSmartTimeReturn {
   smartTimes: SmartTimeData[];
   getBestTimesForPlatform: (platform: string) => string[];
+  getBestSlot: (platform?: string) => Promise<{ bestDateTime: string; alternatives: string[] }>;
   isLoading: boolean;
   refreshSmartTimes: () => Promise<void>;
 }
@@ -136,6 +137,45 @@ export const useSmartTime = (): UseSmartTimeReturn => {
     return platformData?.bestTimes || ['12:00', '15:00', '18:00'];
   };
 
+  const getBestSlot = async (platform: string = 'facebook'): Promise<{ bestDateTime: string; alternatives: string[] }> => {
+    const bestTimes = getBestTimesForPlatform(platform);
+    const now = new Date();
+    
+    // Find the next best time (either today if it's before the time, or tomorrow)
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    let bestDateTime: string;
+    const bestTime = bestTimes[0]; // Use the first (best) time
+    
+    // Check if today's best time has passed
+    const [hours, minutes] = bestTime.split(':').map(Number);
+    const bestTimeToday = new Date(today);
+    bestTimeToday.setHours(hours, minutes, 0, 0);
+    
+    if (bestTimeToday > now) {
+      // Use today's best time
+      bestDateTime = bestTimeToday.toISOString();
+    } else {
+      // Use tomorrow's best time
+      const bestTimeTomorrow = new Date(tomorrow);
+      bestTimeTomorrow.setHours(hours, minutes, 0, 0);
+      bestDateTime = bestTimeTomorrow.toISOString();
+    }
+    
+    // Create alternative times for the same day
+    const baseDate = new Date(bestDateTime);
+    const alternatives = bestTimes.slice(1, 3).map(time => {
+      const [altHours, altMinutes] = time.split(':').map(Number);
+      const altDateTime = new Date(baseDate);
+      altDateTime.setHours(altHours, altMinutes, 0, 0);
+      return altDateTime.toISOString();
+    });
+    
+    return { bestDateTime, alternatives };
+  };
+
   const refreshSmartTimes = async () => {
     await fetchSmartTimes();
   };
@@ -147,6 +187,7 @@ export const useSmartTime = (): UseSmartTimeReturn => {
   return {
     smartTimes,
     getBestTimesForPlatform,
+    getBestSlot,
     isLoading,
     refreshSmartTimes
   };
