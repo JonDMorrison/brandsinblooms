@@ -74,23 +74,23 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className={`
-        border rounded-xl transition-all duration-200 mb-3
-        ${isOpen ? 'border-garden-green shadow-md bg-white' : 'border-gray-200 hover:border-garden-green/50 hover:shadow-sm'}
-        ${batchMode && isSelected ? 'ring-2 ring-blue-200 bg-blue-50' : ''}
+        border rounded-xl transition-all duration-150 mb-3 card-interactive
+        ${isOpen ? 'border-brand-teal shadow-md bg-white' : 'border-gray-200 hover:border-brand-teal/50 hover:shadow-sm'}
+        ${batchMode && isSelected ? 'ring-2 ring-brand-blue/20 bg-brand-blue/5' : ''}
       `}>
         <CollapsibleTrigger asChild>
           <div className={`
-            p-4 cursor-pointer transition-colors duration-200
+            p-4 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2
             ${isMobile ? 'p-3' : 'p-4'}
           `}>
             <div className="flex items-center gap-3">
               {batchMode && (
                 <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                  <Checkbox
-                    checked={isSelected}
-                    onCheckedChange={(checked) => onSelect?.(checked as boolean)}
-                    className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                  />
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => onSelect?.(checked as boolean)}
+                      className="data-[state=checked]:bg-brand-blue data-[state=checked]:border-brand-blue focus-visible:ring-brand-teal"
+                    />
                 </div>
               )}
               
@@ -103,7 +103,7 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h3 className={`font-semibold text-gray-900 truncate ${isMobile ? 'text-sm' : 'text-base'}`}>
+                  <h3 className={`font-semibold text-brand-navy tracking-tight truncate ${isMobile ? 'text-sm' : 'text-base'}`}>
                     {postLabel}
                   </h3>
                   <Badge className={getStatusColor(task.status)}>

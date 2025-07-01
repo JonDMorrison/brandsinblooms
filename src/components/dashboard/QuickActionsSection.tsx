@@ -70,20 +70,20 @@ export const QuickActionsSection = ({
 
   return (
     <div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-left">
-            <Sparkles className="w-5 h-5" />
+      <Card className="bg-white border-gray-200 card-interactive">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-left text-brand-navy font-semibold tracking-tight">
+            <Sparkles className="w-5 h-5 text-brand-teal" />
             Quick Actions
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-2">
           {actionItems.map((item) => {
             const IconComponent = item.icon;
             return (
               <div
                 key={item.id}
-                className="w-full border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="group w-full border border-gray-200 rounded-lg p-3 cursor-pointer transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-brand-teal/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
                 onClick={item.onClick}
                 role="button"
                 tabIndex={0}
@@ -95,20 +95,20 @@ export const QuickActionsSection = ({
                 }}
               >
                 <div className="flex items-start space-x-3 text-left">
-                  <div className="flex-shrink-0 p-2 bg-gray-50 rounded-lg">
-                    <IconComponent className="w-5 h-5 text-green-600" />
+                  <div className="flex-shrink-0 p-2 bg-gray-50 rounded-lg group-hover:bg-brand-teal/10 transition-colors duration-150">
+                    <IconComponent className="w-4 h-4 text-brand-teal" />
                   </div>
                   
-                  <div className="flex-1 min-w-0 space-y-1 text-left">
-                    <h3 className="text-gray-800 font-medium text-left">
+                  <div className="flex-1 min-w-0 space-y-0.5 text-left">
+                    <h3 className="text-brand-navy font-semibold text-sm tracking-tight">
                       {item.title}
                     </h3>
                     
-                    <p className="text-gray-600 text-sm text-left">
+                    <p className="text-gray-600 text-xs leading-relaxed">
                       {item.description}
                     </p>
                     
-                    <p className="text-gray-500 text-xs text-left">
+                    <p className="text-gray-500 text-xs leading-relaxed">
                       {item.benefit}
                     </p>
                   </div>

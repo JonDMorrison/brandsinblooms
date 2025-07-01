@@ -41,20 +41,62 @@ body {
 
 /* Enhanced card interactions */
 .card-interactive {
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
 }
 
 .card-interactive:hover {
-  @apply shadow-lg -translate-y-0.5;
+  @apply shadow-lg -translate-y-0.5 border-gray-300;
 }
 
 /* Enhanced button transitions */
 button {
-  transition: colors 0.15s ease, brightness 0.15s ease;
+  transition: colors 0.15s ease, brightness 0.15s ease, box-shadow 0.15s ease;
 }
 
 button:hover {
   filter: brightness(0.95);
+}
+
+/* Enhanced focus states */
+*:focus-visible {
+  @apply outline-none ring-2 ring-brand-teal ring-offset-2;
+}
+
+/* Input and interactive element focus enhancement */
+input:focus,
+textarea:focus,
+select:focus,
+[role="button"]:focus-visible,
+[role="menuitem"]:focus-visible {
+  @apply outline-none ring-2 ring-brand-teal ring-offset-2;
+}
+
+/* Link hover effects */
+a:hover {
+  @apply transition-colors duration-150;
+}
+
+/* Enhanced card grid spacing */
+.content-grid {
+  @apply gap-4;
+}
+
+/* Progress pill styling */
+.progress-pill {
+  @apply bg-mint-100 text-mint-600 px-3 py-1 rounded-full text-sm font-medium;
+}
+
+/* Success states */
+.success-bg {
+  @apply bg-mint-100;
+}
+
+.success-text {
+  @apply text-mint-600;
+}
+
+.success-border {
+  @apply border-mint-600;
 }
 
 input:-webkit-autofill,
