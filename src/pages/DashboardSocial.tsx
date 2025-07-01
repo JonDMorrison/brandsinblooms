@@ -2,33 +2,23 @@
 import React from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
-import { TodayFocusCard } from '@/components/dashboard-social/TodayFocusCard';
-import { DraftTray } from '@/components/dashboard-social/DraftTray';
-import { ComposerPanel } from '@/components/dashboard-social/ComposerPanel';
-import { SmartTimeRibbon } from '@/components/dashboard-social/SmartTimeRibbon';
+import { TodaysFocusCard } from '@/components/new-dashboard/TodaysFocusCard';
+import { DraftTray } from '@/components/new-dashboard/DraftTray';
+import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
+import { SmartTimeDock } from '@/components/smart-time/SmartTimeDock';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 
 const DashboardSocialContent = () => {
-  const { data } = useDashboardContext();
+  const { data, refetch } = useDashboardContext();
 
   const handleDragEnd = async (result: DropResult) => {
-    const { destination, source, draggableId } = result;
-
-    if (!destination) return;
-
-    // Handle drag from draft tray to calendar
-    if (
-      source.droppableId === 'draft-tray' &&
-      destination.droppableId.startsWith('calendar-day-')
-    ) {
-      const dateStr = destination.droppableId.replace('calendar-day-', '');
-      console.log('Scheduling draft:', draggableId, 'for date:', dateStr);
-    }
+    console.log('🎯 Dashboard drag ended:', result);
+    // The SmartTimeDock component handles the actual scheduling logic
   };
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="min-h-screen bg-[#F9FAFB] p-6">
+      <div className="min-h-screen bg-[#F9FAFB] p-6 pb-96">
         <div className="max-w-full mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -40,12 +30,18 @@ const DashboardSocialContent = () => {
           <div className="grid grid-cols-12 gap-6 mb-6">
             {/* Today's Focus - Columns 1-3 */}
             <div className="col-span-3">
-              <TodayFocusCard />
+              <TodaysFocusCard 
+                campaign={data?.currentCampaign}
+                onComplete={() => {}}
+              />
             </div>
 
             {/* Draft Tray - Columns 4-6 */}
             <div className="col-span-3">
-              <DraftTray />
+              <DraftTray 
+                tasks={data?.drafts || []}
+                onDragEnd={handleDragEnd}
+              />
             </div>
 
             {/* Composer Panel - Columns 7-12 */}
@@ -54,8 +50,12 @@ const DashboardSocialContent = () => {
             </div>
           </div>
 
-          {/* Smart-Time Ribbon - Full Width */}
-          <SmartTimeRibbon />
+          {/* Smart-Time Dock */}
+          <SmartTimeDock
+            scheduledByDate={data?.scheduledByDate || {}}
+            socialConnections={data?.socialConnections || []}
+            onScheduleUpdate={refetch}
+          />
         </div>
       </div>
     </DragDropContext>
