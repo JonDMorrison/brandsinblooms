@@ -43,22 +43,28 @@ const NewDashboardContent = () => {
   const [isDragContextReady, setIsDragContextReady] = useState(false);
   const queryClient = useQueryClient();
   
-  // Add refs to track drag state
+  // Enhanced drag state tracking with better error handling
   const dragStateRef = useRef<{
     isDragging: boolean;
     dragId: string | null;
     hasActiveAction: boolean;
+    startTime: number | null;
   }>({
     isDragging: false,
     dragId: null,
-    hasActiveAction: false
+    hasActiveAction: false,
+    startTime: null
   });
 
-  // Initialize drag context
+  // Initialize drag context with better error handling
   useEffect(() => {
-    // Small delay to ensure DOM is ready for react-beautiful-dnd
     const timer = setTimeout(() => {
-      setIsDragContextReady(true);
+      try {
+        setIsDragContextReady(true);
+      } catch (error) {
+        console.error('🎯 Error initializing drag context:', error);
+        setDragError('Failed to initialize drag system');
+      }
     }, 100);
     
     return () => clearTimeout(timer);
@@ -88,7 +94,7 @@ const NewDashboardContent = () => {
     setTimeout(() => setJustApprovedId(null), 100);
   };
 
-  // Enhanced cleanup function with better error handling
+  // Enhanced cleanup function with better validation
   const forceCleanupDragState = useCallback(() => {
     console.log('🎯 NewDashboard: Force cleaning up all drag state');
     
@@ -97,56 +103,79 @@ const NewDashboardContent = () => {
       dragStateRef.current = {
         isDragging: false,
         dragId: null,
-        hasActiveAction: false
+        hasActiveAction: false,
+        startTime: null
       };
       
-      // Stop dragging context
-      stopDragging();
+      // Stop dragging context with error handling
+      try {
+        stopDragging();
+      } catch (error) {
+        console.warn('🎯 Error stopping drag context:', error);
+      }
       
       // Clear modal state
       setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
       setIsScheduling(false);
       setDragError(null);
       
-      // Remove any drag-related DOM attributes and styles
-      const elementsWithDragData = document.querySelectorAll('[data-rbd-drag-handle-dragging-id], [data-rbd-draggable-id]');
-      elementsWithDragData.forEach(el => {
-        const element = el as HTMLElement;
+      // Enhanced DOM cleanup with better error handling
+      try {
+        const elementsWithDragData = document.querySelectorAll('[data-rbd-drag-handle-dragging-id], [data-rbd-draggable-id]');
+        elementsWithDragData.forEach(el => {
+          const element = el as HTMLElement;
+          
+          // Remove drag attributes safely
+          try {
+            element.removeAttribute('data-rbd-drag-handle-dragging-id');
+            element.removeAttribute('data-rbd-drag-handle-context-id');
+            element.removeAttribute('data-rbd-draggable-context-id');
+            
+            // Reset styles that might be stuck
+            if (element.style.transform && element.style.transform.includes('translate')) {
+              element.style.transform = '';
+            }
+            if (element.style.position === 'fixed') {
+              element.style.position = '';
+            }
+            if (element.style.zIndex && parseInt(element.style.zIndex) > 9000) {
+              element.style.zIndex = '';
+            }
+            if (element.style.pointerEvents === 'none') {
+              element.style.pointerEvents = '';
+            }
+          } catch (elementError) {
+            console.warn('🎯 Error cleaning element:', elementError);
+          }
+        });
         
-        // Remove drag attributes
-        element.removeAttribute('data-rbd-drag-handle-dragging-id');
-        element.removeAttribute('data-rbd-drag-handle-context-id');
-        
-        // Reset styles that might be stuck
-        if (element.style.transform && element.style.transform.includes('translate')) {
-          element.style.transform = '';
-        }
-        if (element.style.position === 'fixed') {
-          element.style.position = '';
-        }
-        if (element.style.zIndex && parseInt(element.style.zIndex) > 9000) {
-          element.style.zIndex = '';
-        }
-      });
+        // Clear body classes and styles
+        document.body.classList.remove('dragging');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      } catch (domError) {
+        console.warn('🎯 Error during DOM cleanup:', domError);
+      }
       
-      // Clear body classes and styles
-      document.body.classList.remove('dragging');
-      document.body.style.cursor = '';
-      
-      // Close dock after cleanup
+      // Close dock after cleanup with validation
       setTimeout(() => {
         if (!dragStateRef.current.isDragging) {
-          closeDock();
+          try {
+            closeDock();
+          } catch (error) {
+            console.warn('🎯 Error closing dock:', error);
+          }
         }
       }, 100);
       
     } catch (error) {
-      console.error('🎯 Error during drag cleanup:', error);
-      // Even if cleanup fails, try to reset our internal state
+      console.error('🎯 Critical error during drag cleanup:', error);
+      // Emergency reset
       dragStateRef.current = {
         isDragging: false,
         dragId: null,
-        hasActiveAction: false
+        hasActiveAction: false,
+        startTime: null
       };
     }
   }, [stopDragging, closeDock]);
@@ -155,19 +184,30 @@ const NewDashboardContent = () => {
     console.log('🎯 NewDashboard: Drag started', start);
     
     try {
+      // Validate drag start parameters
+      if (!start || !start.draggableId) {
+        throw new Error('Invalid drag start parameters');
+      }
+      
       setDragError(null);
       
-      // Update our drag state tracking
+      // Update our drag state tracking with timestamp
       dragStateRef.current = {
         isDragging: true,
         dragId: start.draggableId,
-        hasActiveAction: true
+        hasActiveAction: true,
+        startTime: Date.now()
       };
       
       startDragging();
       
-      // Add visual feedback
-      document.body.classList.add('dragging');
+      // Add visual feedback with error handling
+      try {
+        document.body.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+      } catch (styleError) {
+        console.warn('🎯 Error setting drag styles:', styleError);
+      }
       
     } catch (error) {
       console.error('🎯 Error in drag start:', error);
@@ -184,17 +224,22 @@ const NewDashboardContent = () => {
       dragStateRef.current.hasActiveAction = false;
       
       // Clean up drag state first
-      document.body.classList.remove('dragging');
+      try {
+        document.body.classList.remove('dragging');
+        document.body.style.userSelect = '';
+      } catch (styleError) {
+        console.warn('🎯 Error removing drag styles:', styleError);
+      }
       
-      // Validate result and our drag state
-      if (!result.source || !result.draggableId || !dragStateRef.current.isDragging) {
+      // Enhanced validation of drag result and state
+      if (!result || !result.source || !result.draggableId || !dragStateRef.current.isDragging) {
         console.log('🎯 Invalid drag result or state, force cleanup');
         forceCleanupDragState();
         return;
       }
 
       const { destination, source, draggableId } = result;
-      const taskId = draggableId.replace('task-', '');
+      const taskId = draggableId.replace('task-', '').replace('composer-', '');
 
       // If no destination, force cleanup
       if (!destination) {
@@ -212,8 +257,13 @@ const NewDashboardContent = () => {
         source.index !== destination.index
       ) {
         console.log('🎯 Reordering within draft tray');
-        const newOrder = reorderArray(draftOrder, source.index, destination.index);
-        setDraftOrder(newOrder);
+        try {
+          const newOrder = reorderArray(draftOrder, source.index, destination.index);
+          setDraftOrder(newOrder);
+        } catch (reorderError) {
+          console.error('🎯 Error reordering drafts:', reorderError);
+          setDragError('Failed to reorder drafts');
+        }
         
         // Clean up and close dock
         dragStateRef.current.isDragging = false;
@@ -324,12 +374,16 @@ const NewDashboardContent = () => {
     }
   };
 
-  // Enhanced escape handling
+  // Enhanced escape handling with validation
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         console.log('🎯 Escape pressed, force cleanup');
-        forceCleanupDragState();
+        try {
+          forceCleanupDragState();
+        } catch (error) {
+          console.error('🎯 Error handling escape:', error);
+        }
       }
     };
 
@@ -337,16 +391,19 @@ const NewDashboardContent = () => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [forceCleanupDragState]);
 
-  // Improved auto-cleanup with drag state validation
+  // Enhanced auto-cleanup with better timing validation
   useEffect(() => {
-    if (dragStateRef.current.isDragging) {
+    if (dragStateRef.current.isDragging && dragStateRef.current.startTime) {
       const timeout = setTimeout(() => {
-        console.log('🎯 Auto-cleanup: Drag state stuck too long');
-        // Only cleanup if we still think we're dragging
-        if (dragStateRef.current.isDragging) {
+        const elapsed = Date.now() - (dragStateRef.current.startTime || 0);
+        console.log('🎯 Auto-cleanup: Drag state stuck for', elapsed, 'ms');
+        
+        // Only cleanup if we're still in a dragging state and enough time has passed
+        if (dragStateRef.current.isDragging && elapsed > 5000) {
+          console.log('🎯 Auto-cleanup: Force cleaning stuck drag state');
           forceCleanupDragState();
         }
-      }, 8000); // Reduced timeout
+      }, 6000); // Increased timeout for better UX
 
       return () => clearTimeout(timeout);
     }
@@ -379,17 +436,23 @@ const NewDashboardContent = () => {
           {/* Enhanced global drag styles */}
           <style>{`
             .dragging {
-              user-select: none;
+              user-select: none !important;
+              cursor: grabbing !important;
             }
             .dragging * {
-              pointer-events: none;
+              pointer-events: none !important;
             }
             [data-rbd-draggable-id] {
               transition: transform 0.2s ease;
             }
             [data-rbd-draggable-id][data-rbd-drag-handle-dragging-id] {
               z-index: 9999 !important;
-              pointer-events: none;
+              pointer-events: none !important;
+            }
+            /* Fix for stuck drag states */
+            [data-rbd-draggable-id]:not([data-rbd-drag-handle-dragging-id]) {
+              transform: none !important;
+              position: static !important;
             }
           `}</style>
           
@@ -399,20 +462,20 @@ const NewDashboardContent = () => {
               <UserMenu />
             </div>
             
-            {/* Error Display with Recovery */}
+            {/* Enhanced Error Display with Recovery */}
             {dragError && (
               <div className="fixed top-20 right-6 z-[9998] bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
                 <p className="text-sm text-red-800 mb-2">{dragError}</p>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setDragError(null)}
-                    className="text-xs text-red-600 underline"
+                    className="text-xs text-red-600 underline hover:text-red-800"
                   >
                     Dismiss
                   </button>
                   <button 
                     onClick={forceCleanupDragState}
-                    className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700"
+                    className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 transition-colors"
                   >
                     Force Fix
                   </button>
