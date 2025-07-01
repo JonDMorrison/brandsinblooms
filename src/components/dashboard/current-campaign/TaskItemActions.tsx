@@ -180,7 +180,7 @@ export const TaskItemActions = ({
           />
         )}
 
-        {!isEditing && isApproved && (
+        {!isEditing && isApproved && (task.post_type === 'facebook' || task.post_type === 'instagram') && (
           <PostToSocialButton
             task={task}
             onSuccess={onTaskUpdate}
