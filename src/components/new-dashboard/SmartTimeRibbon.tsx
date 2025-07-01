@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -156,7 +157,7 @@ export const SmartTimeRibbon = ({
 
   if (loading) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-6">
+      <div className="bg-white/90 backdrop-blur-sm border-t border-gray-200 p-6 mt-8">
         <div className="max-w-full mx-auto">
           <div className="animate-pulse">
             <div className="h-4 bg-gray-200 rounded w-48 mb-4"></div>
@@ -173,7 +174,7 @@ export const SmartTimeRibbon = ({
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-sm border-t border-gray-200 p-6 z-40">
+      <div className="bg-white/90 backdrop-blur-sm border-t border-gray-200 p-6 mt-8">
         <div className="max-w-full mx-auto">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>

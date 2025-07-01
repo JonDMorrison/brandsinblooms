@@ -65,8 +65,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   // Initialize draft order when data loads - but only if order is empty or we have new tasks
   useEffect(() => {
     if (data?.tasks) {
-      // Include REVIEW status content in visible drafts so users can see and approve them
-      const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED, TASK_STATUS.REVIEW];
+      const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED];
       const availableDrafts = data.tasks
         .filter((task: any) => visibleStatuses.includes(task.status as TaskStatus))
         .sort((a: any, b: any) => {
@@ -106,8 +105,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
       return [];
     }
     
-    // Include REVIEW status content so users can see and approve them
-    const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED, TASK_STATUS.REVIEW];
+    const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED];
     const availableTasks = data.tasks
       .filter((task: any) => visibleStatuses.includes(task.status as TaskStatus));
     
@@ -134,8 +132,8 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
       .filter(Boolean); // Remove any undefined entries
   }, [data?.tasks, draftOrder]);
 
-  // Filter tasks to show approved, generated, scheduled AND review content
-  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED, TASK_STATUS.REVIEW];
+  // Filter tasks to show approved, generated, and scheduled content
+  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED];
   const filteredData = data ? {
     ...data,
     drafts: data.tasks?.filter((task: any) => visibleStatuses.includes(task.status as TaskStatus)) || []

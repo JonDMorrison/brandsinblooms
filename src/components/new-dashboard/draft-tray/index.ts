@@ -1,2 +1,0 @@
-
-export { DraftTray } from './DraftTray';

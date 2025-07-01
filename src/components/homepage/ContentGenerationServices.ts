@@ -241,12 +241,12 @@ export const generateCampaignContent = async (
           continue;
         }
 
-        // Update the task with the generated content and set status to 'review' for user approval
+        // Update the task with the generated content and set status to 'approved'
         const { error: updateError } = await supabase
           .from('content_tasks')
           .update({ 
             ai_output: result.data.content,
-            status: TASK_STATUS.REVIEW // Changed from APPROVED to REVIEW - requires user approval
+            status: TASK_STATUS.APPROVED // Changed from REVIEW to APPROVED
           })
           .eq('id', newTask.id);
 
@@ -256,8 +256,8 @@ export const generateCampaignContent = async (
           continue;
         }
 
-        console.log(`✅ Generated and saved ${contentType} content for review`);
-        generatedTasks.push({ ...newTask, ai_output: result.data.content, status: TASK_STATUS.REVIEW });
+        console.log(`✅ Generated and saved ${contentType} content`);
+        generatedTasks.push({ ...newTask, ai_output: result.data.content, status: TASK_STATUS.APPROVED });
 
       } catch (error) {
         console.error(`❌ Error in ${contentType} generation:`, error);
@@ -276,12 +276,12 @@ export const generateCampaignContent = async (
 
     // Return success if we generated at least some content
     if (generatedTasks.length > 0) {
-      // Updated toast feedback to reflect review status
-      toast.success(`✅ Content generated — ${generatedTasks.length} drafts ready for review`);
+      // Add optimistic toast feedback
+      toast.success(`✅ Content generated — ${generatedTasks.length} drafts added to tray`);
       
       return {
         success: true,
-        message: `Generated ${generatedTasks.length}/${contentTypes.length} content pieces for review${errors.length > 0 ? `. Issues with: ${errors.length} items` : ''}`,
+        message: `Generated ${generatedTasks.length}/${contentTypes.length} content pieces${errors.length > 0 ? `. Issues with: ${errors.length} items` : ''}`,
         tasks: generatedTasks
       };
     } else {

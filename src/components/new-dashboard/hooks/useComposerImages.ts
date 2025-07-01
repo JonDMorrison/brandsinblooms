@@ -10,7 +10,6 @@ export const useComposerImages = (selectedDraft: any) => {
   const [postWithoutImage, setPostWithoutImage] = useState(false);
   const [imagesFetching, setImagesFetching] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
-  const [currentQuery, setCurrentQuery] = useState<string>('');
 
   const { getSmartImages, searchImages, refreshImages, loading: imagesLoading } = useUnsplash();
 
@@ -33,55 +32,8 @@ export const useComposerImages = (selectedDraft: any) => {
       setImages([]);
       setSelectedImageId(null);
       setImageError(null);
-      setCurrentQuery('');
     }
   }, [selectedDraft]);
-
-  const buildSmartQuery = (content: string, postType?: string): string[] => {
-    // Get the main keywords from content
-    const mainQuery = extractKeywords(content, 'garden center plants');
-    
-    // Build fallback queries based on content analysis
-    const fallbackQueries = [];
-    
-    // If the main query contains specific plants, create targeted fallbacks
-    if (/tomato|tomatoes/i.test(mainQuery)) {
-      fallbackQueries.push('tomato plants vegetable garden summer');
-      fallbackQueries.push('tomato growing garden care');
-    } else if (/pepper|peppers/i.test(mainQuery)) {
-      fallbackQueries.push('pepper plants vegetable garden');
-      fallbackQueries.push('bell pepper garden growing');
-    } else if (/cucumber|zucchini/i.test(mainQuery)) {
-      fallbackQueries.push('cucumber zucchini vegetable garden');
-      fallbackQueries.push('summer vegetables garden');
-    }
-    
-    // Add seasonal fallbacks if context suggests it
-    if (/summer|heat|hot/i.test(content)) {
-      fallbackQueries.push('summer vegetable garden heat');
-      fallbackQueries.push('garden plants summer care');
-    }
-    
-    // Add general post-type specific fallbacks
-    if (postType) {
-      const postTypeFallbacks = {
-        instagram: 'beautiful vegetable garden social media',
-        facebook: 'home garden community vegetables',
-        newsletter: 'professional garden center vegetables',
-        email: 'garden tips vegetables growing'
-      };
-      
-      if (postTypeFallbacks[postType]) {
-        fallbackQueries.push(postTypeFallbacks[postType]);
-      }
-    }
-    
-    // Add final fallback
-    fallbackQueries.push('garden center vegetable plants');
-    fallbackQueries.push('garden center plants nursery');
-    
-    return [mainQuery, ...fallbackQueries];
-  };
 
   const fetchImagesForDraft = async () => {
     if (!selectedDraft?.ai_output) {
@@ -93,43 +45,36 @@ export const useComposerImages = (selectedDraft: any) => {
     setImageError(null);
     
     try {
-      const queries = buildSmartQuery(selectedDraft.ai_output, selectedDraft.post_type);
-      console.log('[COMPOSER] Built smart queries:', queries);
+      const keywords = extractKeywords(selectedDraft.ai_output, 'garden center plants');
+      console.log('[COMPOSER] Extracted keywords for images:', keywords);
       
-      let fetchedImages: ImageAttachment[] = [];
-      let usedQuery = '';
+      let query = keywords;
       
-      // Try each query until we get good results
-      for (const query of queries) {
-        console.log(`[COMPOSER] Trying query: "${query}"`);
-        setCurrentQuery(query);
-        
-        try {
-          const images = await getSmartImages(query);
-          console.log(`[COMPOSER] Query "${query}" returned ${images.length} images`);
-          
-          if (images.length > 0) {
-            fetchedImages = images;
-            usedQuery = query;
-            break;
-          }
-        } catch (error) {
-          console.warn(`[COMPOSER] Query "${query}" failed:`, error);
-          continue;
-        }
+      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
+        query = `${keywords} garden center`;
       }
+      
+      console.log('[COMPOSER] Final garden center query:', query);
+      
+      const fetchedImages = await getSmartImages(query);
+      console.log('[COMPOSER] Fetched images:', fetchedImages.length);
+      setImages(fetchedImages);
       
       if (fetchedImages.length > 0) {
-        console.log(`[COMPOSER] Successfully fetched ${fetchedImages.length} images using query: "${usedQuery}"`);
-        setImages(fetchedImages);
         setSelectedImageId(fetchedImages[0].id);
-        setCurrentQuery(usedQuery);
+        console.log('[COMPOSER] Auto-selected first image:', fetchedImages[0].id);
       } else {
-        console.warn('[COMPOSER] No images returned from any query');
-        setImageError('No relevant images found for this content');
-        setImages([]);
+        console.warn('[COMPOSER] No images returned, trying fallback');
+        const fallbackQuery = `${selectedDraft.post_type || 'gardening'} garden center plants`;
+        const fallbackImages = await getSmartImages(fallbackQuery);
+        
+        if (fallbackImages.length > 0) {
+          setImages(fallbackImages);
+          setSelectedImageId(fallbackImages[0].id);
+        } else {
+          setImageError('No relevant garden center images found');
+        }
       }
-      
     } catch (error) {
       console.error('[COMPOSER] Error fetching images:', error);
       setImageError('Failed to load images');
@@ -153,11 +98,12 @@ export const useComposerImages = (selectedDraft: any) => {
     setImageError(null);
     
     try {
-      const queries = buildSmartQuery(selectedDraft.ai_output, selectedDraft.post_type);
+      const keywords = extractKeywords(selectedDraft.ai_output, 'garden center plants');
+      let query = keywords;
       
-      // Try the first query for refresh
-      const query = queries[0];
-      setCurrentQuery(query);
+      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
+        query = `${keywords} garden center`;
+      }
       
       const newImages = await refreshImages(query);
       console.log('[COMPOSER] Refreshed images:', newImages.length);
@@ -177,16 +123,11 @@ export const useComposerImages = (selectedDraft: any) => {
     setImageError(null);
     
     try {
-      // Enhance user query with context if needed
       let enhancedQuery = query;
-      if (!query.toLowerCase().includes('garden') && 
-          !query.toLowerCase().includes('plant') && 
-          !query.toLowerCase().includes('vegetable') &&
-          !query.toLowerCase().includes('flower')) {
-        enhancedQuery = `${query} garden plants`;
+      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
+        enhancedQuery = `${query} garden center`;
       }
       
-      setCurrentQuery(enhancedQuery);
       const searchResults = await searchImages(enhancedQuery);
       console.log('[COMPOSER] Search results:', searchResults.length);
       setImages(searchResults);
@@ -211,7 +152,6 @@ export const useComposerImages = (selectedDraft: any) => {
     imagesFetching,
     imageError,
     imagesLoading,
-    currentQuery,
     handleImageSelect,
     handleImageRefresh,
     handleImageSearch,

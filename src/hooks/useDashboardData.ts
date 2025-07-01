@@ -58,7 +58,7 @@ export const useDashboardData = () => {
 
       const { data: tasks } = await taskQuery;
 
-      // Fetch scheduled posts with their content task details and mode
+      // Fetch scheduled posts with proper PostgREST join syntax
       const scheduledPostsQuery = supabase
         .from('scheduled_posts')
         .select(`
@@ -69,7 +69,7 @@ export const useDashboardData = () => {
           status,
           mode,
           tenant_id,
-          content_tasks!inner (
+          content_tasks (
             id,
             ai_output,
             post_type,
@@ -81,7 +81,7 @@ export const useDashboardData = () => {
         `)
         .in('status', ['QUEUED', 'PUBLISHED']);
 
-      // Apply proper filtering for scheduled posts using the new tenant_id column
+      // Apply proper filtering for scheduled posts
       if (tenant?.id) {
         scheduledPostsQuery.eq('tenant_id', tenant.id);
       } else {
@@ -124,14 +124,6 @@ export const useDashboardData = () => {
         return acc;
       }, {} as Record<string, any[]>);
 
-      console.log('📊 Dashboard data loaded:', {
-        tasksCount: allTasks.length,
-        draftsCount: drafts.length,
-        scheduledCount: scheduledTasks.length,
-        scheduledPosts: scheduledPosts?.length || 0,
-        connections: connections?.length || 0
-      });
-
       return {
         currentCampaign,
         tasks: allTasks,
@@ -143,7 +135,7 @@ export const useDashboardData = () => {
       };
     },
     enabled: !!user,
-    staleTime: 30000, // Data stays fresh for 30 seconds
+    staleTime: 30000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
   });

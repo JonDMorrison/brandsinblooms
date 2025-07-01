@@ -1,20 +1,18 @@
 
 import { Badge } from "@/components/ui/badge";
 
-// Status mapping for content tasks - updated to match StatusBadge variants
+// Status mapping for content tasks
 export const getStatusBadgeVariant = (status: string) => {
   const statusMap = {
     'draft': 'draft',
     'generated': 'generated', 
-    'review': 'preview', // Map review to preview since StatusBadge doesn't have review
-    'preview': 'preview', // Add explicit preview mapping
+    'review': 'review',
     'approved': 'approved',
     'scheduled': 'scheduled',
     'posted': 'posted'
   } as const;
   
-  // Return a valid StatusBadge variant, defaulting to 'draft' instead of 'default'
-  return statusMap[status as keyof typeof statusMap] || 'draft';
+  return statusMap[status as keyof typeof statusMap] || 'default';
 };
 
 // Platform mapping for post types
@@ -31,12 +29,12 @@ export const getPlatformBadgeVariant = (postType: string) => {
   return platformMap[postType as keyof typeof platformMap] || 'default';
 };
 
+// Helper to get readable status labels
 export const getStatusLabel = (status: string) => {
   const labelMap = {
     'draft': 'Draft',
     'generated': 'Generated',
     'review': 'Review',
-    'preview': 'Preview', // Add preview label
     'approved': 'Approved', 
     'scheduled': 'Scheduled',
     'posted': 'Ready to Post'
@@ -45,6 +43,7 @@ export const getStatusLabel = (status: string) => {
   return labelMap[status as keyof typeof labelMap] || status;
 };
 
+// Helper to get readable platform labels
 export const getPlatformLabel = (postType: string) => {
   const labelMap = {
     'newsletter': 'Newsletter',

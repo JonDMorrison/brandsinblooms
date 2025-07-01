@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,79 +20,86 @@ interface UnsplashImage {
   photographer: string;
 }
 
-// Build smart, contextual search query
-const buildContextualQuery = (draft: any): string[] => {
+// Build content-focused search query with garden center context
+const buildContentQuery = (draft: any): string => {
   const content = draft?.ai_output || draft?.prompt || '';
   
-  console.log('[IMAGE_GALLERY] ===== BUILDING CONTEXTUAL QUERY =====');
+  console.log('[IMAGE_GALLERY] ===== DEBUGGING QUERY BUILDING =====');
   console.log('[IMAGE_GALLERY] Draft content:', content?.substring(0, 200) + '...');
   console.log('[IMAGE_GALLERY] Post type:', draft?.post_type);
   
-  const mainKeywords = extractKeywords(content, 'garden center plants nursery');
-  console.log('[IMAGE_GALLERY] Main keywords extracted:', mainKeywords);
+  const keywords = extractKeywords(content, 'garden center plants nursery');
+  
+  console.log('[IMAGE_GALLERY] Extracted keywords from content:', keywords);
 
-  const queries = [mainKeywords];
+  // Always ensure garden center context is included and validate
+  let finalQuery = keywords;
   
-  // Build targeted fallback queries based on content analysis
-  const contentLower = content.toLowerCase();
-  
-  // Specific vegetable queries
-  if (/tomato/i.test(contentLower)) {
-    queries.push('tomato plants garden summer growing');
-    queries.push('healthy tomato plants vegetable garden');
-  }
-  
-  if (/pepper/i.test(contentLower)) {
-    queries.push('pepper plants vegetable garden growing');
-    queries.push('bell pepper garden plants');
-  }
-  
-  if (/cucumber|zucchini/i.test(contentLower)) {
-    queries.push('cucumber zucchini summer vegetables');
-    queries.push('summer squash vegetable garden');
-  }
-  
-  // Seasonal and problem-specific queries
-  if (/summer|heat|hot|wilting|stressed/i.test(contentLower)) {
-    queries.push('summer vegetable garden heat management');
-    queries.push('garden plants summer care watering');
-  }
-  
-  // Care and maintenance queries
-  if (/watering|water|irrigation|care/i.test(contentLower)) {
-    queries.push('watering vegetables garden care');
-    queries.push('garden irrigation vegetable plants');
-  }
-  
-  // General category fallbacks
-  if (/vegetable|vegetables/i.test(contentLower)) {
-    queries.push('vegetable garden growing plants');
-    queries.push('home vegetable garden summer');
-  }
-  
-  // Post type specific queries
-  if (draft?.post_type) {
-    const typeSpecificQueries = {
-      instagram: 'beautiful vegetable garden plants social',
-      facebook: 'home garden vegetables community',
-      newsletter: 'professional vegetable garden business',
-      email: 'garden vegetables growing tips'
+  // Add post type context if it helps
+  if (draft?.post_type && !keywords.toLowerCase().includes(draft.post_type.toLowerCase())) {
+    const postTypeContext = {
+      instagram: 'social media gardening',
+      facebook: 'community gardening',
+      newsletter: 'garden center business',
+      email: 'gardening tips',
+      video: 'garden demonstration'
     };
     
-    if (typeSpecificQueries[draft.post_type]) {
-      queries.push(typeSpecificQueries[draft.post_type]);
-    }
+    const context = postTypeContext[draft.post_type] || 'gardening lifestyle';
+    finalQuery = `${keywords} ${context}`;
   }
+
+  // Final validation - ensure query is garden center related
+  const hasGardenTerms = /\b(garden|plant|nursery|flower|grow|seed|soil|compost|fertilizer|mulch|prune|water|harvest|bloom|vegetable|herb|tree|shrub)\b/i.test(finalQuery);
   
-  // Final fallbacks
-  queries.push('garden center vegetable plants display');
-  queries.push('nursery plants vegetable garden');
-  queries.push('garden center plants flowers');
+  if (!hasGardenTerms) {
+    console.warn('[IMAGE_GALLERY] Query lacks garden terms, forcing garden center context');
+    finalQuery = `garden center plants nursery ${finalQuery}`;
+  }
+
+  console.log('[IMAGE_GALLERY] Final validated garden center query:', finalQuery);
+  console.log('[IMAGE_GALLERY] ===== END DEBUGGING =====');
   
-  console.log('[IMAGE_GALLERY] Built query hierarchy:', queries);
-  console.log('[IMAGE_GALLERY] ===== END CONTEXTUAL QUERY BUILDING =====');
-  
-  return queries;
+  return finalQuery;
+};
+
+// Curated garden center specific fallback queries
+const getGardenCenterFallback = (postType: string): string => {
+  const fallbacks = {
+    instagram: [
+      'beautiful garden center plants',
+      'colorful flowers nursery display',
+      'gardening tools equipment',
+      'plant care gardening tips'
+    ],
+    facebook: [
+      'garden center community plants',
+      'happy customers gardening',
+      'seasonal plants nursery',
+      'garden center staff helping'
+    ],
+    newsletter: [
+      'professional garden center business',
+      'plant nursery greenhouse',
+      'gardening expertise advice',
+      'garden center landscape'
+    ],
+    email: [
+      'garden center plants care',
+      'nursery plant selection',
+      'gardening tips advice',
+      'seasonal plant care'
+    ],
+    video: [
+      'garden center demonstration',
+      'plant care tutorial',
+      'gardening how to',
+      'nursery plant care'
+    ]
+  };
+
+  const typeSpecificFallbacks = fallbacks[postType] || fallbacks.instagram;
+  return typeSpecificFallbacks[Math.floor(Math.random() * typeSpecificFallbacks.length)];
 };
 
 export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
@@ -109,67 +115,59 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
 
     setLoading(true);
     try {
-      const queries = selectedDraft 
-        ? buildContextualQuery(selectedDraft)
-        : ['garden center plants nursery display'];
+      const query = selectedDraft 
+        ? buildContentQuery(selectedDraft)
+        : getGardenCenterFallback('instagram');
 
-      console.log('[IMAGE_GALLERY] ===== SMART FETCHING IMAGES =====');
-      
-      let fetchedImages: UnsplashImage[] = [];
-      let usedQuery = '';
-      
-      // Try each query until we get good results
-      for (const query of queries) {
-        console.log(`[IMAGE_GALLERY] Attempting query: "${query}"`);
-        setLastQuery(query);
+      setLastQuery(query);
+      console.log('[IMAGE_GALLERY] ===== FETCHING IMAGES =====');
+      console.log('[IMAGE_GALLERY] Using final query:', query);
 
-        try {
-          const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
-            body: { 
-              query,
-              maxImages: 4,
-              orientation: 'squarish',
-              orderBy: 'relevant',
-              contentFilter: 'high'
-            }
-          });
-
-          if (error) {
-            console.warn(`[IMAGE_GALLERY] Query "${query}" failed:`, error.message);
-            continue;
-          }
-
-          const images = data?.images || [];
-          console.log(`[IMAGE_GALLERY] Query "${query}" returned ${images.length} images`);
-
-          if (images.length > 0) {
-            fetchedImages = images;
-            usedQuery = query;
-            console.log(`[IMAGE_GALLERY] Success! Using query: "${usedQuery}"`);
-            console.log(`[IMAGE_GALLERY] First image: ${images[0]?.alt}`);
-            break;
-          }
-        } catch (error) {
-          console.warn(`[IMAGE_GALLERY] Query "${query}" exception:`, error);
-          continue;
+      const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
+        body: { 
+          query,
+          maxImages: 4,
+          orientation: 'squarish',
+          orderBy: 'relevant',
+          contentFilter: 'high'
         }
+      });
+
+      console.log('[IMAGE_GALLERY] Unsplash API response:', { data, error });
+
+      if (error) {
+        console.log('[IMAGE_GALLERY] Unsplash API error, using garden center fallback:', error.message);
+        
+        // Try a more specific garden center query as fallback
+        console.log('[IMAGE_GALLERY] Trying garden center specific fallback query...');
+        const gardenCenterQuery = getGardenCenterFallback(selectedDraft?.post_type || 'instagram');
+        console.log('[IMAGE_GALLERY] Fallback query:', gardenCenterQuery);
+        
+        const fallbackData = await supabase.functions.invoke('fetch-unsplash-images', {
+          body: { 
+            query: gardenCenterQuery,
+            maxImages: 4,
+            orientation: 'squarish',
+            orderBy: 'relevant',
+            contentFilter: 'high'
+          }
+        });
+        
+        setImages(fallbackData?.data?.images || []);
+        setLastQuery(gardenCenterQuery);
+        console.log('[IMAGE_GALLERY] Fallback images:', fallbackData?.data?.images?.length || 0);
+        return;
       }
 
-      if (fetchedImages.length > 0) {
-        setImages(fetchedImages);
-        setLastQuery(usedQuery);
-        console.log(`[IMAGE_GALLERY] Final result: ${fetchedImages.length} contextually relevant images`);
-      } else {
-        console.warn('[IMAGE_GALLERY] No images found from any query');
-        setImages([]);
-        setLastQuery('No results found');
-      }
+      const fetchedImages = data?.images || [];
+      console.log('[IMAGE_GALLERY] Successfully fetched images:', fetchedImages.length);
+      console.log('[IMAGE_GALLERY] First image alt text:', fetchedImages[0]?.alt);
+      console.log('[IMAGE_GALLERY] ===== END FETCHING =====');
       
-      console.log('[IMAGE_GALLERY] ===== END SMART FETCHING =====');
+      setImages(fetchedImages);
     } catch (error) {
-      console.error('[IMAGE_GALLERY] Exception during smart fetch:', error);
+      console.error('[IMAGE_GALLERY] Exception fetching images:', error);
       setImages([]);
-      setLastQuery('Error occurred');
     } finally {
       setLoading(false);
     }
@@ -195,14 +193,16 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
-          attachments: {
-            type: 'image',
-            url: image.download_url,
-            thumbnail: image.thumb_url,
-            alt: image.alt,
-            photographer: image.photographer,
-            source: 'unsplash'
-          }
+          attachments: [
+            {
+              type: 'image',
+              url: image.download_url,
+              thumbnail: image.thumb_url,
+              alt: image.alt,
+              photographer: image.photographer,
+              source: 'unsplash'
+            }
+          ]
         })
         .eq('id', selectedDraft.id);
 
@@ -210,7 +210,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         throw error;
       }
 
-      toast.success('Contextually relevant image added to post!');
+      toast.success('Image added to post successfully!');
       setShowImageModal(false);
       
       window.dispatchEvent(new CustomEvent('draft-updated'));
@@ -235,7 +235,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         {!selectedDraft ? (
           <div className={styles.emptyState}>
             <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
-            <p className="text-xs text-gray-500">Select a draft to see contextually relevant images</p>
+            <p className="text-xs text-gray-500">Select a draft to see relevant garden center images</p>
           </div>
         ) : (
           <ImageGalleryGrid

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -401,11 +400,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
                   <Button variant="outline" onClick={() => setIsEditing(false)}>
                     Cancel
                   </Button>
-                  <Button 
-                    onClick={handleSaveEdit} 
-                    disabled={saving}
-                    className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
-                  >
+                  <Button onClick={handleSaveEdit} disabled={saving}>
                     <Save className="w-4 h-4 mr-2" />
                     {saving ? 'Saving...' : 'Save Changes'}
                   </Button>

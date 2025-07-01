@@ -4,7 +4,6 @@ export const TASK_STATUS = {
   APPROVED: 'approved',
   GENERATED: 'generated',
   REVIEW: 'review',
-  PREVIEW: 'preview',
   SCHEDULED: 'scheduled',
   POSTED: 'posted',
 } as const;

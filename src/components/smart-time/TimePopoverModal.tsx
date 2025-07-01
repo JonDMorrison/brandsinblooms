@@ -1,7 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { X } from 'lucide-react';
 
 interface TimePopoverModalProps {
   targetDate: Date | null;
@@ -17,64 +16,22 @@ export const TimePopoverModal = ({
   isScheduling 
 }: TimePopoverModalProps) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [customTime, setCustomTime] = useState('');
-
-  // Close modal on escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isScheduling) {
-        handleClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => document.removeEventListener('keydown', handleEscape);
-    }
-  }, [isOpen, isScheduling]);
 
   if (!isOpen || !targetDate || !draftId) return null;
 
   const handleClose = () => {
-    console.log('🎯 TimePopoverModal: Closing modal');
     setIsOpen(false);
   };
 
   const handleTimeSelect = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
-    console.log('🎯 TimePopoverModal: Time selected:', { timeOption, customTime });
-    try {
-      await onTimeSelection(timeOption, customTime);
-      setIsOpen(false);
-    } catch (error) {
-      console.error('🎯 TimePopoverModal: Error during time selection:', error);
-      // Don't close modal on error to allow retry
-    }
-  };
-
-  const handleCustomTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCustomTime(e.target.value);
-  };
-
-  const handleCustomTimeSubmit = () => {
-    if (customTime && !isScheduling) {
-      handleTimeSelect('custom', customTime);
-    }
+    await onTimeSelection(timeOption, customTime);
+    setIsOpen(false);
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Choose Posting Time</h3>
-          <button
-            onClick={handleClose}
-            disabled={isScheduling}
-            className="p-1 hover:bg-gray-100 rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <h3 className="text-lg font-semibold mb-4">Choose Posting Time</h3>
         <p className="text-gray-600 mb-6">
           When would you like to post this content on {format(targetDate, 'MMMM d, yyyy')}?
         </p>
@@ -83,7 +40,7 @@ export const TimePopoverModal = ({
           <button
             onClick={() => handleTimeSelect('best')}
             disabled={isScheduling}
-            className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="font-medium">Best Time</div>
             <div className="text-sm text-gray-500">AI-optimized posting time for maximum engagement</div>
@@ -92,7 +49,7 @@ export const TimePopoverModal = ({
           <button
             onClick={() => handleTimeSelect('now')}
             disabled={isScheduling}
-            className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full p-3 text-left border rounded-lg hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <div className="font-medium">Post Now</div>
             <div className="text-sm text-gray-500">Schedule for immediate posting</div>
@@ -103,18 +60,15 @@ export const TimePopoverModal = ({
             <div className="flex gap-2">
               <input
                 type="time"
-                value={customTime}
-                onChange={handleCustomTimeChange}
                 disabled={isScheduling}
-                className="border rounded px-2 py-1 disabled:opacity-50 flex-1"
+                className="border rounded px-2 py-1 disabled:opacity-50"
+                onChange={(e) => {
+                  if (e.target.value && !isScheduling) {
+                    handleTimeSelect('custom', e.target.value);
+                  }
+                }}
               />
-              <button
-                onClick={handleCustomTimeSubmit}
-                disabled={isScheduling || !customTime}
-                className="px-3 py-1 bg-[#68BEB9] text-white rounded hover:bg-[#56a7a1] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Set
-              </button>
+              <span className="text-sm text-gray-500 self-center">Choose specific time</span>
             </div>
           </div>
         </div>
@@ -123,7 +77,7 @@ export const TimePopoverModal = ({
           <button
             onClick={handleClose}
             disabled={isScheduling}
-            className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>

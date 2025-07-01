@@ -1,6 +1,6 @@
 
 import React from "react";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { getPostTypeIcon } from "../ContentViewerUtils";
 import { getStatusBadgeVariant, getStatusLabel } from "@/utils/badgeUtils";
 
@@ -19,9 +19,9 @@ export const TaskHeader = ({ postType, status }: TaskHeaderProps) => {
         <span className="font-medium capitalize text-sm">{postType}</span>
       </div>
       
-      <StatusBadge variant={getStatusBadgeVariant(status)}>
+      <Badge variant={getStatusBadgeVariant(status)} className="text-xs">
         {getStatusLabel(status)}
-      </StatusBadge>
+      </Badge>
     </div>
   );
 };
