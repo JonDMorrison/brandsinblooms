@@ -28,10 +28,8 @@ export const DraftTrayItem = ({
   const postTypeColor = getPostTypeColor(task.post_type);
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Prevent all event propagation
-    e.preventDefault();
-    e.stopPropagation();
-    
+    // Only prevent default if we're actually handling the click
+    // Don't use stopPropagation as it can interfere with drag events
     console.log('🎯 Draft card clicked:', task.id, task.post_type);
     console.log('🎯 Current selected state:', isSelected);
     
@@ -40,14 +38,8 @@ export const DraftTrayItem = ({
   };
 
   const handleDragHandleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDragHandleMouseDown = (e: React.MouseEvent) => {
-    if (statusInfo.draggable) {
-      e.stopPropagation();
-    } else {
+    // Only prevent clicks on the drag handle itself, not drag events
+    if (!statusInfo.draggable) {
       e.preventDefault();
       e.stopPropagation();
     }
@@ -99,7 +91,6 @@ export const DraftTrayItem = ({
                 : "opacity-40 text-gray-400 cursor-not-allowed border-gray-200"
             )}
             onClick={handleDragHandleClick}
-            onMouseDown={handleDragHandleMouseDown}
             title={statusInfo.draggable ? "Drag to schedule" : "Approve content to enable dragging"}
           >
             <GripVertical className="w-4 h-4" />
