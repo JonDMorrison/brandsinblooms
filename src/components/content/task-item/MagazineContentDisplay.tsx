@@ -549,11 +549,6 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </Badge>
         </div>
 
-        {/* Featured Image */}
-        {renderFeaturedImage(
-          "bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg mb-6 border border-green-200 p-4 h-48",
-          "Teaching content featured image"
-        )}
 
         {/* Teaching Content - Natural conversation flow */}
         <div className="space-y-4">
