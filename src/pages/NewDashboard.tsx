@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 import { useDashboardContext } from '@/contexts/DashboardContext';
@@ -109,6 +110,10 @@ export default function NewDashboard() {
     refetch();
   }, [refetch]);
 
+  const handleFocusComplete = useCallback(() => {
+    console.log('Focus card completed');
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
@@ -148,9 +153,8 @@ export default function NewDashboard() {
               {/* Left Column - Today's Focus */}
               <div className="col-span-12 lg:col-span-3 min-h-0">
                 <TodaysFocusCard 
-                  campaigns={data?.campaigns}
-                  currentCampaign={data?.currentCampaign}
-                  tasks={orderedDrafts}
+                  campaign={data?.currentCampaign}
+                  onComplete={handleFocusComplete}
                 />
               </div>
 
