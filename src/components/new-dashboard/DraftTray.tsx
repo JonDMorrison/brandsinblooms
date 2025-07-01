@@ -3,7 +3,7 @@ import React from 'react';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Clock, CheckCircle, Calendar, GripVertical } from 'lucide-react';
+import { Clock, CheckCircle, Calendar, GripVertical, Facebook, Instagram, Mail, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -54,12 +54,30 @@ export const DraftTray = ({
   };
 
   const getPostTypeIcon = (type: string) => {
-    switch (type) {
-      case 'facebook': return '📘';
-      case 'instagram': return '📷';
-      case 'newsletter': return '📰';
-      case 'email': return '📧';
-      default: return '📝';
+    switch (type?.toLowerCase()) {
+      case 'facebook': 
+        return Facebook;
+      case 'instagram': 
+        return Instagram;
+      case 'newsletter':
+      case 'email': 
+        return Mail;
+      default: 
+        return FileText;
+    }
+  };
+
+  const getPostTypeColor = (type: string) => {
+    switch (type?.toLowerCase()) {
+      case 'facebook': 
+        return 'text-blue-600 bg-blue-50';
+      case 'instagram': 
+        return 'text-pink-600 bg-pink-50';
+      case 'newsletter':
+      case 'email': 
+        return 'text-green-600 bg-green-50';
+      default: 
+        return 'text-gray-600 bg-gray-50';
     }
   };
 
@@ -85,7 +103,9 @@ export const DraftTray = ({
             >
               {tasks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-8">
-                  <div className="text-4xl mb-4">📝</div>
+                  <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                    <FileText className="w-6 h-6 text-gray-400" />
+                  </div>
                   <p className="text-gray-500 text-sm">No drafts available</p>
                   <p className="text-gray-400 text-xs mt-1">
                     Generate content to see drafts here
@@ -95,6 +115,8 @@ export const DraftTray = ({
                 tasks.map((task, index) => {
                   const statusInfo = getStatusInfo(task.status);
                   const StatusIcon = statusInfo.icon;
+                  const PostTypeIcon = getPostTypeIcon(task.post_type);
+                  const postTypeColor = getPostTypeColor(task.post_type);
                   const isSelected = selectedDraft?.id === task.id;
                   const isJustApproved = justApprovedId === task.id;
 
@@ -152,8 +174,11 @@ export const DraftTray = ({
                             "flex items-start gap-3",
                             statusInfo.draggable && "ml-6"
                           )}>
-                            <div className="text-xl flex-shrink-0 mt-1">
-                              {getPostTypeIcon(task.post_type)}
+                            <div className={cn(
+                              "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+                              postTypeColor
+                            )}>
+                              <PostTypeIcon className="w-5 h-5" />
                             </div>
                             
                             <div className="flex-1 min-w-0">
