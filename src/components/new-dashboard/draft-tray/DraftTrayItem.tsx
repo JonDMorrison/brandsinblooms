@@ -60,18 +60,20 @@ export const DraftTrayItem = ({
           }}
           onClick={() => onSelectDraft(task)}
         >
-          {/* Enhanced Drag Handle */}
+          {/* Always Visible Drag Handle */}
           {statusInfo.draggable && (
             <div
               {...provided.dragHandleProps}
               className={cn(
                 "absolute left-2 top-1/2 transform -translate-y-1/2",
-                "opacity-0 group-hover:opacity-100 transition-opacity duration-200",
+                "opacity-60 hover:opacity-100 transition-all duration-200",
                 "text-gray-400 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing",
-                "z-10 touch-none" // Prevent touch events from interfering
+                "z-10 touch-none bg-white/80 rounded px-1 py-2 border border-gray-200/50",
+                "hover:bg-[#68BEB9]/10 hover:border-[#68BEB9]/30"
               )}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
+              title="Drag to schedule"
             >
               <GripVertical className="w-4 h-4" />
             </div>
