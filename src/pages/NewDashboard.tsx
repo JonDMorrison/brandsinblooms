@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
-import { DraftTray } from '@/components/new-dashboard/DraftTray';
+import { DraftTray } from '@/components/new-dashboard/draft-tray';
 import { ComposerPanel } from '@/components/new-dashboard/ComposerPanel';
 import { SmartTimeDock } from '@/components/smart-time';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
