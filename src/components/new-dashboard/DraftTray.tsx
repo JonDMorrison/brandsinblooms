@@ -1,30 +1,25 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Clock, CheckCircle, Calendar, GripVertical } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { useDashboardContext } from '@/contexts/DashboardContext';
 
 interface DraftTrayProps {
   tasks: any[];
   selectedDraft: any;
   onSelectDraft: (draft: any) => void;
   justApprovedId?: string | null;
-  onDragEnd?: (result: any) => void;
 }
 
 export const DraftTray = ({ 
   tasks, 
   selectedDraft, 
   onSelectDraft, 
-  justApprovedId,
-  onDragEnd 
+  justApprovedId
 }: DraftTrayProps) => {
-  const { startDragging, stopDragging, isDragging } = useDashboardContext();
-
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'approved':
@@ -67,29 +62,6 @@ export const DraftTray = ({
       default: return '📝';
     }
   };
-
-  const handleDragStart = (dragStart: any) => {
-    console.log('🎯 DraftTray: Drag start detected', dragStart);
-    startDragging();
-  };
-
-  const handleDragEnd = (result: any) => {
-    console.log('🎯 DraftTray: Drag end detected', result);
-    stopDragging();
-    if (onDragEnd) {
-      onDragEnd(result);
-    }
-  };
-
-  // Ensure drag state is cleaned up on unmount
-  useEffect(() => {
-    return () => {
-      if (isDragging) {
-        console.log('🎯 DraftTray: Cleaning up drag state on unmount');
-        stopDragging();
-      }
-    };
-  }, [isDragging, stopDragging]);
 
   return (
     <Card className="h-full bg-gradient-to-b from-[#68BEB9]/10 to-[#68BEB9]/5">

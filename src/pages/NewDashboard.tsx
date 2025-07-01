@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -39,6 +40,7 @@ const NewDashboardContent = () => {
     targetDate: null
   });
   const [isScheduling, setIsScheduling] = useState(false);
+  const [dragError, setDragError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const handleTaskUpdate = () => {
@@ -65,62 +67,65 @@ const NewDashboardContent = () => {
     setTimeout(() => setJustApprovedId(null), 100);
   };
 
+  // Clean up function to reset all drag-related state
+  const cleanupDragState = useCallback(() => {
+    console.log('🎯 NewDashboard: Cleaning up drag state');
+    stopDragging();
+    setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
+    setIsScheduling(false);
+    setDragError(null);
+    setTimeout(() => {
+      if (!isDragging) closeDock();
+    }, 300);
+  }, [stopDragging, closeDock, isDragging]);
+
   const handleDragStart = (start: any) => {
     console.log('🎯 NewDashboard: Drag started', start);
+    setDragError(null);
     startDragging();
   };
 
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 NewDashboard: Drag ended', result);
     
-    // Always stop dragging first
-    stopDragging();
-    
-    // Enhanced cleanup for stuck cards
-    const cleanupStuckState = () => {
-      console.log('🎯 NewDashboard: Cleaning up stuck state');
-      setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
-      setIsScheduling(false);
-      setTimeout(() => {
-        if (!isDragging) closeDock();
-      }, 300);
-    };
-
-    if (!result.source || !result.draggableId) {
-      console.log('🎯 No source or draggableId, cleaning up');
-      cleanupStuckState();
-      return;
-    }
-
-    const { destination, source, draggableId } = result;
-    const taskId = draggableId.replace('task-', '');
-
-    // If no destination, clean up
-    if (!destination) {
-      console.log('🎯 No destination in NewDashboard, cleaning up');
-      cleanupStuckState();
-      return;
-    }
-
-    console.log('🎯 Drag from', source.droppableId, 'to', destination.droppableId);
-
-    // Handle reordering within the draft-tray
-    if (
-      source.droppableId === 'draft-tray' &&
-      destination.droppableId === 'draft-tray' &&
-      source.index !== destination.index
-    ) {
-      console.log('🎯 Reordering within draft tray:', { from: source.index, to: destination.index });
-      const newOrder = reorderArray(draftOrder, source.index, destination.index);
-      setDraftOrder(newOrder);
-      return;
-    }
-
-    // Handle scheduling operations
-    if (destination.droppableId.startsWith('day-')) {
-      console.log('🎯 Scheduling operation detected');
+    try {
+      // Always stop dragging first
+      stopDragging();
       
-      try {
+      if (!result.source || !result.draggableId) {
+        console.log('🎯 No source or draggableId, cleaning up');
+        cleanupDragState();
+        return;
+      }
+
+      const { destination, source, draggableId } = result;
+      const taskId = draggableId.replace('task-', '');
+
+      // If no destination, clean up
+      if (!destination) {
+        console.log('🎯 No destination in NewDashboard, cleaning up');
+        cleanupDragState();
+        return;
+      }
+
+      console.log('🎯 Drag from', source.droppableId, 'to', destination.droppableId);
+
+      // Handle reordering within the draft-tray
+      if (
+        source.droppableId === 'draft-tray' &&
+        destination.droppableId === 'draft-tray' &&
+        source.index !== destination.index
+      ) {
+        console.log('🎯 Reordering within draft tray:', { from: source.index, to: destination.index });
+        const newOrder = reorderArray(draftOrder, source.index, destination.index);
+        setDraftOrder(newOrder);
+        return;
+      }
+
+      // Handle scheduling operations
+      if (destination.droppableId.startsWith('day-')) {
+        console.log('🎯 Scheduling operation detected');
+        
         const dateStr = destination.droppableId.replace('day-', '');
         const targetDate = new Date(dateStr);
         
@@ -138,16 +143,17 @@ const NewDashboardContent = () => {
         });
         
         return; // Keep dock open for scheduling flow
-        
-      } catch (error) {
-        console.error('🎯 Error processing scheduling drag:', error);
-        toast.error('Failed to process scheduling request');
-        cleanupStuckState();
       }
-    }
 
-    // For any other operations, clean up
-    cleanupStuckState();
+      // For any other operations, clean up
+      cleanupDragState();
+      
+    } catch (error) {
+      console.error('🎯 Error in drag end handler:', error);
+      setDragError(error instanceof Error ? error.message : 'Drag operation failed');
+      toast.error('Failed to process drag operation');
+      cleanupDragState();
+    }
   };
 
   const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
@@ -225,16 +231,25 @@ const NewDashboardContent = () => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && (isDragging || timeSelectionModal.isOpen)) {
         console.log('🎯 Escape pressed, cleaning up stuck state');
-        stopDragging();
-        setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
-        setIsScheduling(false);
-        closeDock();
+        cleanupDragState();
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isDragging, timeSelectionModal.isOpen, stopDragging, closeDock]);
+  }, [isDragging, timeSelectionModal.isOpen, cleanupDragState]);
+
+  // Auto-cleanup after timeout if drag state is stuck
+  useEffect(() => {
+    if (isDragging) {
+      const timeout = setTimeout(() => {
+        console.log('🎯 Auto-cleanup: Drag state stuck for too long');
+        cleanupDragState();
+      }, 30000); // 30 second timeout
+
+      return () => clearTimeout(timeout);
+    }
+  }, [isDragging, cleanupDragState]);
 
   if (isLoading) {
     return (
@@ -256,6 +271,19 @@ const NewDashboardContent = () => {
           <div className="fixed top-6 right-6 z-[9999]">
             <UserMenu />
           </div>
+          
+          {/* Error Display */}
+          {dragError && (
+            <div className="fixed top-20 right-6 z-[9998] bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
+              <p className="text-sm text-red-800">{dragError}</p>
+              <button 
+                onClick={() => setDragError(null)}
+                className="text-xs text-red-600 underline mt-1"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
           
           <div className="max-w-full mx-auto">
             <div className="mb-8">
@@ -280,7 +308,6 @@ const NewDashboardContent = () => {
                     selectedDraft={selectedDraft}
                     onSelectDraft={setSelectedDraft}
                     justApprovedId={justApprovedId}
-                    onDragEnd={handleDragEnd}
                   />
                 </div>
               </div>

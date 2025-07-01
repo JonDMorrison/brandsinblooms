@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
@@ -24,8 +25,11 @@ export const SmartTimeDock = ({
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dragOverDay, setDragOverDay] = useState<string | null>(null);
+  const [isStuck, setIsStuck] = useState(false);
   
   const queryClient = useQueryClient();
+  const dockRef = useRef<HTMLDivElement>(null);
+  const stuckTimeoutRef = useRef<NodeJS.Timeout>();
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekLabel = `${format(weekStart, 'MMM d')} – ${format(addDays(weekStart, 6), 'MMM d')}`;
@@ -46,56 +50,96 @@ export const SmartTimeDock = ({
     return times.slice(0, 2);
   };
 
-  // Keep dock open whenever dragging is active and ensure it opens
+  // Monitor for stuck states and provide recovery
   useEffect(() => {
     if (isDragging) {
-      console.log('🎯 SmartTimeDock: Dragging detected, ensuring dock is open');
+      console.log('🎯 SmartTimeDock: Monitoring drag state for stuck condition');
+      
+      // Set stuck detection timer
+      stuckTimeoutRef.current = setTimeout(() => {
+        console.log('🎯 SmartTimeDock: Drag state appears stuck, attempting recovery');
+        setIsStuck(true);
+        
+        // Auto-recovery after showing stuck state
+        setTimeout(() => {
+          console.log('🎯 SmartTimeDock: Auto-recovering from stuck state');
+          stopDragging();
+          setDragOverDay(null);
+          setIsStuck(false);
+          closeDock();
+        }, 5000);
+      }, 15000); // 15 seconds
+      
+      // Ensure dock is open for drag operations
       if (!isDockOpen) {
         console.log('🎯 SmartTimeDock: Opening dock for drag operation');
         openDock();
       }
     } else {
-      console.log('🎯 SmartTimeDock: Drag ended, clearing drag over state');
+      // Clear stuck detection when drag ends normally
+      if (stuckTimeoutRef.current) {
+        clearTimeout(stuckTimeoutRef.current);
+        stuckTimeoutRef.current = undefined;
+      }
+      setIsStuck(false);
       setDragOverDay(null);
     }
-  }, [isDragging, isDockOpen, openDock]);
+
+    return () => {
+      if (stuckTimeoutRef.current) {
+        clearTimeout(stuckTimeoutRef.current);
+      }
+    };
+  }, [isDragging, isDockOpen, openDock, stopDragging, closeDock]);
 
   // Add keyboard escape functionality
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isDockOpen && !isDragging) {
-        closeDock();
+      if (e.key === 'Escape') {
+        if (isDragging || isStuck) {
+          console.log('🎯 SmartTimeDock: Escape pressed, recovering from stuck state');
+          stopDragging();
+          setDragOverDay(null);
+          setIsStuck(false);
+        }
+        if (isDockOpen && !isDragging) {
+          closeDock();
+        }
       }
     };
 
-    if (isDockOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
-    }
-  }, [isDockOpen, closeDock, isDragging]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDockOpen, closeDock, isDragging, isStuck, stopDragging]);
 
   // Close dock when clicking outside, but only if not dragging
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (isDragging) {
-        console.log('🎯 SmartTimeDock: Ignoring click outside - drag in progress');
+      if (isDragging || isStuck) {
+        console.log('🎯 SmartTimeDock: Ignoring click outside - drag/stuck state active');
         return;
       }
       
       const target = e.target as HTMLElement;
-      const dockElement = document.querySelector('.smart-dock-container');
       
-      if (isDockOpen && dockElement && !dockElement.contains(target)) {
+      if (isDockOpen && dockRef.current && !dockRef.current.contains(target)) {
         console.log('🎯 SmartTimeDock: Clicking outside dock, closing');
         closeDock();
       }
     };
 
     if (isDockOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
+      // Delay to prevent immediate closing
+      const timeout = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timeout);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     }
-  }, [isDockOpen, closeDock, isDragging]);
+  }, [isDockOpen, closeDock, isDragging, isStuck]);
 
   const handleTaskClick = (task: any) => {
     setSelectedTask(task);
@@ -112,10 +156,9 @@ export const SmartTimeDock = ({
     if (onScheduleUpdate) onScheduleUpdate();
   };
 
-  /** Explicit toggle click */
   const handleToggle = () => {
-    if (isDragging) {
-      console.log('🎯 SmartTimeDock: Ignoring toggle during drag');
+    if (isDragging || isStuck) {
+      console.log('🎯 SmartTimeDock: Ignoring toggle during drag/stuck state');
       return;
     }
     console.log('🎯 SmartTimeDock: Toggle clicked', { isDockOpen });
@@ -123,7 +166,7 @@ export const SmartTimeDock = ({
   };
 
   const handleCollapsedBarClick = () => {
-    if (!isDockOpen && !isDragging) {
+    if (!isDockOpen && !isDragging && !isStuck) {
       console.log('🎯 SmartTimeDock: Collapsed bar clicked, opening dock');
       handleToggle();
     }
@@ -141,7 +184,6 @@ export const SmartTimeDock = ({
 
   const handleDayDragLeave = (e: React.DragEvent, dayKey: string) => {
     e.preventDefault();
-    // Only clear if we're actually leaving this day zone
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
@@ -154,14 +196,24 @@ export const SmartTimeDock = ({
     }
   };
 
+  const handleStuckRecovery = () => {
+    console.log('🎯 SmartTimeDock: Manual stuck recovery triggered');
+    stopDragging();
+    setDragOverDay(null);
+    setIsStuck(false);
+    closeDock();
+  };
+
   return (
     <>
       <div 
+        ref={dockRef}
         className={cn(
           "smart-dock-container fixed bottom-0 left-0 right-0 z-50",
           "bg-white shadow-xl border-t border-gray-200",
           "transition-all duration-300 ease-in-out",
-          isDockOpen ? "h-80 max-h-80" : "h-14"
+          isDockOpen ? "h-80 max-h-80" : "h-14",
+          isStuck && "border-red-300 bg-red-50"
         )}
         style={{
           maxHeight: isDockOpen ? '320px' : '56px',
@@ -169,6 +221,21 @@ export const SmartTimeDock = ({
         }}
         aria-expanded={isDockOpen}
       >
+        {/* Stuck State Recovery UI */}
+        {isStuck && (
+          <div className="absolute top-0 left-0 right-0 bg-red-100 border-b border-red-300 p-2 z-60">
+            <div className="flex items-center justify-between">
+              <span className="text-red-800 text-sm">Content card appears stuck. This sometimes happens during drag operations.</span>
+              <button
+                onClick={handleStuckRecovery}
+                className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+              >
+                Fix It
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Enhanced ghost outline during drag when collapsed */}
         {isDragging && !isDockOpen && (
           <div className="absolute inset-x-0 -top-80 h-80 bg-white/60 border-2 border-dashed border-[#68BEB9]/70 rounded-t-xl pointer-events-none opacity-50 animate-pulse">
@@ -197,7 +264,7 @@ export const SmartTimeDock = ({
             <CollapsedBar
               weekLabel={weekLabel}
               bestTimes={getBestTimes()}
-              onExpand={() => {}} // Handled by parent click
+              onExpand={() => {}}
               onPrevWeek={() => setCurrentWeek(addWeeks(currentWeek, -1))}
               onNextWeek={() => setCurrentWeek(addWeeks(currentWeek, 1))}
             />
@@ -226,7 +293,7 @@ export const SmartTimeDock = ({
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <div className="bg-white/90 backdrop-blur-sm rounded-lg px-6 py-3 shadow-lg border border-[#68BEB9]/30">
                 <div className="text-[#68BEB9] font-medium">
-                  Drop on a day to schedule
+                  {isStuck ? 'Card appears stuck - press Escape or click Fix It' : 'Drop on a day to schedule'}
                 </div>
               </div>
             </div>
