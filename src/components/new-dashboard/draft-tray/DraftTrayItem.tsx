@@ -62,17 +62,17 @@ export const DraftTrayItem = ({
             isSelected && "border-[#68BEB9] shadow-md bg-[#68BEB9]/5",
             isJustApproved && "animate-pulse border-green-400 bg-green-50",
             // Enhanced drag styling with proper z-index
-            snapshot.isDragging && "shadow-2xl rotate-2 scale-105 z-[9999] bg-white border-[#68BEB9]",
+            snapshot.isDragging && "shadow-2xl rotate-2 scale-105 z-50 bg-white border-[#68BEB9]",
             !statusInfo.draggable && "opacity-75",
-            // Ensure proper stacking context
-            "transform-gpu"
+            // Ensure proper stacking context and positioning
+            "transform-gpu relative"
           )}
           style={{
             ...provided.draggableProps.style,
             // Override any transform issues
             ...(snapshot.isDragging && {
               transform: `${provided.draggableProps.style?.transform} rotate(2deg) scale(1.05)`,
-              zIndex: 9999,
+              zIndex: 50,
               position: 'fixed' // Ensure it's positioned correctly
             })
           }}
@@ -84,7 +84,7 @@ export const DraftTrayItem = ({
             className={cn(
               "absolute left-1 top-1/2 transform -translate-y-1/2",
               "transition-all duration-200",
-              "z-20 touch-none bg-white rounded-md px-2 py-2 border-2 shadow-sm",
+              "z-10 touch-none bg-white rounded-md px-2 py-2 border-2 shadow-sm",
               "flex items-center justify-center",
               statusInfo.draggable 
                 ? "opacity-100 text-gray-600 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing border-gray-300 hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] hover:shadow-md" 
