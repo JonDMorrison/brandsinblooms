@@ -83,7 +83,7 @@ export const QuickActionsSection = ({
             return (
               <div
                 key={item.id}
-                className="group w-full border border-gray-200 rounded-lg p-3 cursor-pointer transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-brand-teal/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2"
+                className="group w-full border border-gray-200 rounded-lg p-3 cursor-pointer transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-brand-teal/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 micro-bounce"
                 onClick={item.onClick}
                 role="button"
                 tabIndex={0}

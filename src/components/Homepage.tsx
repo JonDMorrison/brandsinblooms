@@ -290,8 +290,8 @@ export const Homepage = () => {
 
   return (
     <HomepageErrorBoundary>
-      <div className="min-h-screen bg-garden-background p-6">
-        <div className="max-w-5xl mx-auto space-y-8">
+      <div className="min-h-screen bg-sand-50 p-6">
+        <div className="max-w-4xl mx-auto space-y-8">
           
           {/* Auto-generate weekly content for new users */}
           <WeeklyContentUpdater />
@@ -318,14 +318,18 @@ export const Homepage = () => {
             </div>
           </HomepageErrorBoundary>
 
-          {/* Section 3: Quick Actions */}
+          {/* Section 3: Quick Actions - Responsive grid */}
           <HomepageErrorBoundary>
-            <QuickActionsSection onCampaignCreated={handleCampaignCreated} />
+            <div className="w-full max-w-3xl mx-auto">
+              <QuickActionsSection onCampaignCreated={handleCampaignCreated} />
+            </div>
           </HomepageErrorBoundary>
 
-          {/* Section 4: Holiday Cards */}
+          {/* Section 4: Holiday Cards - Responsive layout */}
           <HomepageErrorBoundary>
-            <SeasonalHolidaysCard onContentGenerated={handleTaskUpdate} />
+            <div className="w-full">
+              <SeasonalHolidaysCard onContentGenerated={handleTaskUpdate} />
+            </div>
           </HomepageErrorBoundary>
 
           {/* Section 5: Ready to Post */}

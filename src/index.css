@@ -99,6 +99,78 @@ a:hover {
   @apply border-mint-600;
 }
 
+/* Responsive sidebar behavior */
+@media (max-width: 1024px) {
+  .sidebar-mini-rail {
+    @apply w-14;
+  }
+  
+  .sidebar-mini-rail .sidebar-label {
+    @apply hidden;
+  }
+  
+  .sidebar-mini-rail .sidebar-icon {
+    @apply w-6 h-6;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar-mobile-drawer {
+    @apply fixed inset-0 z-50 transform -translate-x-full transition-transform;
+  }
+  
+  .sidebar-mobile-drawer.open {
+    @apply translate-x-0;
+  }
+  
+  .sidebar-overlay {
+    @apply fixed inset-0 bg-black/50 z-40;
+  }
+}
+
+/* Enhanced micro-interactions */
+.micro-bounce {
+  transition: transform 0.15s ease;
+}
+
+.micro-bounce:active {
+  transform: scale(0.98);
+}
+
+.micro-slide {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.micro-slide:hover {
+  transform: translateX(2px);
+}
+
+/* Enhanced grid responsiveness */
+.content-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .content-grid {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .content-grid {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .content-grid {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+}
+
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
