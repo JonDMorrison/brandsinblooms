@@ -9,20 +9,26 @@ import { ScheduledContentPill } from '@/components/new-dashboard/ScheduledConten
 
 interface ExpandedRibbonProps {
   week: Date;
-  scheduledByDate: Record<string, any[]>;
-  socialConnections: any[];
+  scheduledByDate?: Record<string, any[]>;
+  socialConnections?: any[];
   onPage: (date: Date) => void;
   onClose: () => void;
   onTaskClick: (task: any) => void;
+  dragOverDay?: string | null;
+  onDayDragOver?: (e: React.DragEvent, dayKey: string) => void;
+  onDayDragLeave?: (e: React.DragEvent, dayKey: string) => void;
 }
 
 export const ExpandedRibbon = ({ 
   week, 
-  scheduledByDate, 
-  socialConnections,
+  scheduledByDate = {}, 
+  socialConnections = [],
   onPage, 
   onClose, 
-  onTaskClick
+  onTaskClick,
+  dragOverDay,
+  onDayDragOver,
+  onDayDragLeave
 }: ExpandedRibbonProps) => {
   const weekStart = startOfWeek(week, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -41,10 +47,10 @@ export const ExpandedRibbon = ({
   const hasConnections = socialConnections.length > 0;
 
   return (
-    <div className="h-full flex flex-col overflow-hidden">
-      {/* Header - Fixed height */}
-      <div className="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 bg-white">
-        <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Ribbon</h2>
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <h2 className="text-lg font-semibold text-[#3E5A6B]">Smart-Time Scheduling</h2>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={prevWeek}>
             <ChevronLeft className="w-4 h-4" />
@@ -55,33 +61,29 @@ export const ExpandedRibbon = ({
           <Button variant="ghost" size="sm" onClick={nextWeek}>
             <ChevronRight className="w-4 h-4" />
           </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onClose} 
-            className="ml-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-            aria-label="Close smart time dock"
-          >
+          <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {/* Content - Scrollable */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {!hasConnections && (
-          <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-            <p className="text-sm text-orange-800 text-center">
-              <span className="font-medium">Limited functionality:</span> Connect social accounts for automatic publishing
-            </p>
-          </div>
-        )}
+      {/* Connection Status */}
+      {!hasConnections && (
+        <div className="p-3 bg-amber-50 border-b border-amber-200">
+          <p className="text-sm text-amber-800 text-center">
+            <span className="font-medium">Connect social accounts</span> to enable automatic posting
+          </p>
+        </div>
+      )}
 
-        <div className="grid grid-cols-7 gap-3 mb-4">
+      {/* Calendar Grid */}
+      <div className="flex-1 p-4 overflow-hidden">
+        <div className="grid grid-cols-7 gap-3 h-full">
           {weekDays.map((day) => {
             const dayKey = format(day, 'yyyy-MM-dd');
             const scheduledTasksForDay = getScheduledTasksForDay(day);
             const isToday = isSameDay(day, new Date());
+            const isDragOver = dragOverDay === dayKey;
             
             return (
               <Droppable key={dayKey} droppableId={`day-${dayKey}`}>
@@ -90,14 +92,25 @@ export const ExpandedRibbon = ({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      "min-h-[80px] p-2 rounded-lg border-2 border-dashed transition-all duration-200",
-                      snapshot.isDraggingOver
-                        ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-md" 
-                        : "border-gray-200 bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5 hover:border-[#68BEB9]/50",
-                      isToday && "ring-2 ring-[#68BEB9]/30"
+                      "min-h-[180px] p-3 rounded-lg border-2 transition-all duration-200",
+                      // Base styles
+                      "bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5",
+                      // Border styles based on state
+                      snapshot.isDraggingOver || isDragOver
+                        ? hasConnections
+                          ? "border-[#68BEB9] bg-[#68BEB9]/10 shadow-lg border-solid"
+                          : "border-red-400 bg-red-50/80 border-solid"
+                        : "border-gray-200 border-dashed hover:border-[#68BEB9]/50",
+                      // Today highlight
+                      isToday && "ring-2 ring-[#68BEB9]/30",
+                      // Animation for drag over
+                      (snapshot.isDraggingOver || isDragOver) && "scale-105"
                     )}
+                    onDragOver={(e) => onDayDragOver?.(e, dayKey)}
+                    onDragLeave={(e) => onDayDragLeave?.(e, dayKey)}
                   >
-                    <div className="text-center mb-2">
+                    {/* Day Header */}
+                    <div className="text-center mb-3">
                       <div className={cn(
                         "text-xs font-medium mb-1",
                         isToday ? "text-[#68BEB9]" : "text-[#3E5A6B]"
@@ -105,15 +118,15 @@ export const ExpandedRibbon = ({
                         {getDayName(day)}
                       </div>
                       <div className={cn(
-                        "text-sm font-semibold",
+                        "text-lg font-semibold",
                         isToday ? "text-[#68BEB9]" : "text-gray-900"
                       )}>
                         {getDayNumber(day)}
                       </div>
                     </div>
 
-                    {/* Scheduled Content Tasks */}
-                    <div className="space-y-1">
+                    {/* Scheduled Content */}
+                    <div className="space-y-2 flex-1">
                       {scheduledTasksForDay.map((scheduledTaskData) => (
                         <ScheduledContentPill
                           key={`task-${scheduledTaskData.id}`}
@@ -125,16 +138,21 @@ export const ExpandedRibbon = ({
                     </div>
 
                     {/* Drop zone indicator */}
-                    {snapshot.isDraggingOver && (
-                      <div className="flex items-center justify-center h-4 text-xs text-[#68BEB9] font-medium mt-1">
-                        {hasConnections ? "Drop to schedule" : "Drop to schedule (manual)"}
+                    {(snapshot.isDraggingOver || isDragOver) && (
+                      <div className={cn(
+                        "flex items-center justify-center h-12 text-sm font-medium mt-2 rounded border-2 border-dashed",
+                        hasConnections 
+                          ? "text-[#68BEB9] border-[#68BEB9] bg-[#68BEB9]/5" 
+                          : "text-red-600 border-red-400 bg-red-50"
+                      )}>
+                        {hasConnections ? "Drop to schedule" : "Connect accounts first"}
                       </div>
                     )}
 
                     {/* Empty state */}
-                    {!snapshot.isDraggingOver && scheduledTasksForDay.length === 0 && (
-                      <div className="flex items-center justify-center h-4 mt-1">
-                        <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
+                    {!snapshot.isDraggingOver && !isDragOver && scheduledTasksForDay.length === 0 && (
+                      <div className="flex items-center justify-center h-12 mt-2">
+                        <div className="w-2 h-2 bg-gray-300 rounded-full opacity-50"></div>
                       </div>
                     )}
 
@@ -145,13 +163,13 @@ export const ExpandedRibbon = ({
             );
           })}
         </div>
+      </div>
 
-        <div className="p-3 bg-[#68BEB9]/5 rounded-lg border border-[#68BEB9]/20">
-          <p className="text-sm text-[#3E5A6B]">
-            <span className="font-medium">Tip:</span> Drag approved drafts from the tray to schedule them for specific days.
-            {!hasConnections && " Posts will be scheduled manually without social connections."}
-          </p>
-        </div>
+      {/* Footer Tip */}
+      <div className="p-4 bg-[#68BEB9]/5 border-t border-[#68BEB9]/20">
+        <p className="text-sm text-[#3E5A6B] text-center">
+          <span className="font-medium">Tip:</span> Drag approved drafts here to schedule them for specific days
+        </p>
       </div>
     </div>
   );

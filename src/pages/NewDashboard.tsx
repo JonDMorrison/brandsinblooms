@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -29,7 +28,7 @@ interface TimeSelectionModal {
 
 const NewDashboardContent = () => {
   const { user } = useAuth();
-  const { closeDock, isDragging, draftOrder, setDraftOrder, getOrderedDrafts } = useDashboardContext();
+  const { closeDock, isDragging, draftOrder, setDraftOrder, getOrderedDrafts, startDragging, stopDragging } = useDashboardContext();
   const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const { schedulePost } = useScheduledPosts();
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
@@ -66,8 +65,16 @@ const NewDashboardContent = () => {
     setTimeout(() => setJustApprovedId(null), 100);
   };
 
+  const handleDragStart = (start: any) => {
+    console.log('🎯 NewDashboard: Drag started', start);
+    startDragging();
+  };
+
   const handleDragEnd = async (result: DropResult) => {
-    console.log('🎯 NewDashboard handleDragEnd called:', result);
+    console.log('🎯 NewDashboard: Drag ended', result);
+    
+    // Always stop dragging first
+    stopDragging();
     
     if (!result.source || !result.draggableId) {
       console.log('🎯 No source or draggableId, closing dock after delay');
@@ -274,7 +281,7 @@ const NewDashboardContent = () => {
 
   return (
     <DashboardErrorBoundary>
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
         <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
           {/* Fixed UserMenu - positioned above everything */}
           <div className="fixed top-6 right-6 z-[9999]">

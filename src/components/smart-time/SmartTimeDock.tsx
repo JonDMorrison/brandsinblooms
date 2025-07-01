@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { format, addWeeks, startOfWeek, addDays } from 'date-fns';
 import { CollapsedBar } from './CollapsedBar';
@@ -20,10 +19,11 @@ export const SmartTimeDock = ({
   socialConnections = [],
   onScheduleUpdate
 }: SmartTimeDockProps) => {
-  const { isDockOpen, openDock, closeDock, toggleDock, isDragging } = useDashboardContext();
+  const { isDockOpen, openDock, closeDock, toggleDock, isDragging, startDragging, stopDragging } = useDashboardContext();
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [dragOverDay, setDragOverDay] = useState<string | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -46,13 +46,19 @@ export const SmartTimeDock = ({
     return times.slice(0, 2);
   };
 
-  // Keep dock open whenever dragging is active
+  // Keep dock open whenever dragging is active and ensure it opens
   useEffect(() => {
     if (isDragging) {
-      console.log('🎯 Dragging active, ensuring dock stays open');
-      openDock();
+      console.log('🎯 SmartTimeDock: Dragging detected, ensuring dock is open');
+      if (!isDockOpen) {
+        console.log('🎯 SmartTimeDock: Opening dock for drag operation');
+        openDock();
+      }
+    } else {
+      console.log('🎯 SmartTimeDock: Drag ended, clearing drag over state');
+      setDragOverDay(null);
     }
-  }, [isDragging, openDock]);
+  }, [isDragging, isDockOpen, openDock]);
 
   // Add keyboard escape functionality
   useEffect(() => {
@@ -72,7 +78,7 @@ export const SmartTimeDock = ({
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (isDragging) {
-        console.log('🎯 Ignoring click outside - drag in progress');
+        console.log('🎯 SmartTimeDock: Ignoring click outside - drag in progress');
         return;
       }
       
@@ -80,7 +86,7 @@ export const SmartTimeDock = ({
       const dockElement = document.querySelector('.smart-dock-container');
       
       if (isDockOpen && dockElement && !dockElement.contains(target)) {
-        console.log('🎯 Clicking outside dock, closing');
+        console.log('🎯 SmartTimeDock: Clicking outside dock, closing');
         closeDock();
       }
     };
@@ -108,13 +114,43 @@ export const SmartTimeDock = ({
 
   /** Explicit toggle click */
   const handleToggle = () => {
-    if (isDragging) return; // ignore clicks during drag
+    if (isDragging) {
+      console.log('🎯 SmartTimeDock: Ignoring toggle during drag');
+      return;
+    }
+    console.log('🎯 SmartTimeDock: Toggle clicked', { isDockOpen });
     isDockOpen ? closeDock() : openDock();
   };
 
   const handleCollapsedBarClick = () => {
     if (!isDockOpen && !isDragging) {
+      console.log('🎯 SmartTimeDock: Collapsed bar clicked, opening dock');
       handleToggle();
+    }
+  };
+
+  // Handle drag over for day drop zones
+  const handleDayDragOver = (e: React.DragEvent, dayKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverDay !== dayKey) {
+      console.log('🎯 SmartTimeDock: Drag over day', dayKey);
+      setDragOverDay(dayKey);
+    }
+  };
+
+  const handleDayDragLeave = (e: React.DragEvent, dayKey: string) => {
+    e.preventDefault();
+    // Only clear if we're actually leaving this day zone
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      if (dragOverDay === dayKey) {
+        console.log('🎯 SmartTimeDock: Drag leave day', dayKey);
+        setDragOverDay(null);
+      }
     }
   };
 
@@ -133,9 +169,15 @@ export const SmartTimeDock = ({
         }}
         aria-expanded={isDockOpen}
       >
-        {/* Ghost outline during drag when collapsed */}
+        {/* Enhanced ghost outline during drag when collapsed */}
         {isDragging && !isDockOpen && (
-          <div className="absolute inset-x-0 -top-80 h-80 bg-white/40 border-2 border-dashed border-[#68BEB9]/50 rounded-t-xl pointer-events-none opacity-30" />
+          <div className="absolute inset-x-0 -top-80 h-80 bg-white/60 border-2 border-dashed border-[#68BEB9]/70 rounded-t-xl pointer-events-none opacity-50 animate-pulse">
+            <div className="flex items-center justify-center h-full">
+              <div className="text-[#68BEB9] font-medium text-lg">
+                Drop here to schedule
+              </div>
+            </div>
+          </div>
         )}
         
         {!isDockOpen && (
@@ -171,7 +213,23 @@ export const SmartTimeDock = ({
               onPage={setCurrentWeek}
               onClose={closeDock}
               onTaskClick={handleTaskClick}
+              dragOverDay={dragOverDay}
+              onDayDragOver={handleDayDragOver}
+              onDayDragLeave={handleDayDragLeave}
             />
+          </div>
+        )}
+
+        {/* Global drag feedback overlay */}
+        {isDragging && (
+          <div className="fixed inset-0 bg-blue-50/20 pointer-events-none z-40">
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <div className="bg-white/90 backdrop-blur-sm rounded-lg px-6 py-3 shadow-lg border border-[#68BEB9]/30">
+                <div className="text-[#68BEB9] font-medium">
+                  Drop on a day to schedule
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
