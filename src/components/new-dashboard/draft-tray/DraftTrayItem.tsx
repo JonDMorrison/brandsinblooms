@@ -27,6 +27,13 @@ export const DraftTrayItem = ({
   const PostTypeIcon = getPostTypeIcon(task.post_type);
   const postTypeColor = getPostTypeColor(task.post_type);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Prevent event bubbling to avoid conflicts
+    e.stopPropagation();
+    console.log('🎯 Draft card clicked:', task.id, task.post_type);
+    onSelectDraft(task);
+  };
+
   return (
     <Draggable
       key={task.id}
@@ -58,7 +65,7 @@ export const DraftTrayItem = ({
               position: 'fixed' // Ensure it's positioned correctly
             })
           }}
-          onClick={() => onSelectDraft(task)}
+          onClick={handleCardClick}
         >
           {/* Drag Handle - Always show it but make it functional only when draggable */}
           <div
