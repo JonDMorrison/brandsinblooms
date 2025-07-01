@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
@@ -76,23 +76,29 @@ const NewDashboardContent = () => {
     // Always stop dragging first
     stopDragging();
     
-    if (!result.source || !result.draggableId) {
-      console.log('🎯 No source or draggableId, closing dock after delay');
+    // Enhanced cleanup for stuck cards
+    const cleanupStuckState = () => {
+      console.log('🎯 NewDashboard: Cleaning up stuck state');
+      setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
+      setIsScheduling(false);
       setTimeout(() => {
         if (!isDragging) closeDock();
-      }, 400);
+      }, 300);
+    };
+
+    if (!result.source || !result.draggableId) {
+      console.log('🎯 No source or draggableId, cleaning up');
+      cleanupStuckState();
       return;
     }
 
     const { destination, source, draggableId } = result;
-    const taskId = draggableId.replace('task-', ''); // Extract task ID from draggableId
+    const taskId = draggableId.replace('task-', '');
 
-    // If no destination, close dock after delay
+    // If no destination, clean up
     if (!destination) {
-      console.log('🎯 No destination in NewDashboard');
-      setTimeout(() => {
-        if (!isDragging) closeDock();
-      }, 400);
+      console.log('🎯 No destination in NewDashboard, cleaning up');
+      cleanupStuckState();
       return;
     }
 
@@ -105,38 +111,23 @@ const NewDashboardContent = () => {
       source.index !== destination.index
     ) {
       console.log('🎯 Reordering within draft tray:', { from: source.index, to: destination.index });
-      
-      // Reorder the draft array
       const newOrder = reorderArray(draftOrder, source.index, destination.index);
       setDraftOrder(newOrder);
-      
-      console.log('🎯 New draft order:', newOrder);
       return;
     }
 
-    // Dock collapse rule
-    const landedInDock = destination.droppableId?.startsWith('day-');
-    if (!landedInDock && destination) {
-      // Reorder in tray; keep dock open
-      return;
-    }
-    if (!landedInDock && !destination) {
-      setTimeout(() => { 
-        if (!isDragging) closeDock(); 
-      }, 400);
-      return;
-    }
-
-    // Handle drag from draft-tray to SmartTimeDock day slots
-    if (
-      source.droppableId === 'draft-tray' &&
-      destination.droppableId.startsWith('day-')
-    ) {
-      console.log('🎯 Draft to day drop detected - showing time selection modal');
+    // Handle scheduling operations
+    if (destination.droppableId.startsWith('day-')) {
+      console.log('🎯 Scheduling operation detected');
       
       try {
         const dateStr = destination.droppableId.replace('day-', '');
         const targetDate = new Date(dateStr);
+        
+        // Validate the date
+        if (isNaN(targetDate.getTime())) {
+          throw new Error('Invalid target date');
+        }
         
         console.log('🎯 Setting up time selection modal for:', { taskId, targetDate });
         
@@ -146,55 +137,24 @@ const NewDashboardContent = () => {
           targetDate: targetDate
         });
         
-        // Keep dock open since we're in scheduling flow
-        return;
+        return; // Keep dock open for scheduling flow
         
       } catch (error) {
-        console.error('🎯 Error processing drag:', error);
-        toast.error('Failed to process drag operation');
-        setTimeout(() => {
-          if (!isDragging) closeDock();
-        }, 400);
+        console.error('🎯 Error processing scheduling drag:', error);
+        toast.error('Failed to process scheduling request');
+        cleanupStuckState();
       }
     }
 
-    // Handle drag from composer-panel to SmartTimeDock day slots
-    if (
-      source.droppableId === 'composer-panel' &&
-      destination.droppableId.startsWith('day-')
-    ) {
-      console.log('🎯 Composer to day drop detected - showing time selection modal');
-      
-      try {
-        const dateStr = destination.droppableId.replace('day-', '');
-        const targetDate = new Date(dateStr);
-        
-        console.log('🎯 Setting up time selection modal for composer drag:', { taskId, targetDate });
-        
-        setTimeSelectionModal({
-          isOpen: true,
-          draftId: taskId,
-          targetDate: targetDate
-        });
-        
-        // Keep dock open since we're in scheduling flow
-        return;
-        
-      } catch (error) {
-        console.error('🎯 Error processing composer drag:', error);
-        toast.error('Failed to process drag operation');
-        setTimeout(() => {
-          if (!isDragging) closeDock();
-        }, 400);
-      }
-    }
+    // For any other operations, clean up
+    cleanupStuckState();
   };
 
   const handleTimeSelection = async (timeOption: 'now' | 'best' | 'custom', customTime?: string) => {
     console.log('🎯 handleTimeSelection called with:', { timeOption, customTime, timeSelectionModal });
     
     if (!timeSelectionModal.draftId || !timeSelectionModal.targetDate) {
-      console.error('🎯 Missing required data for scheduling:', { draftId: timeSelectionModal.draftId, targetDate: timeSelectionModal.targetDate });
+      console.error('🎯 Missing required data for scheduling');
       toast.error('Missing scheduling information');
       return;
     }
@@ -206,20 +166,16 @@ const NewDashboardContent = () => {
       
       if (timeOption === 'best') {
         scheduledDate = getOptimalTime(timeSelectionModal.targetDate);
-        console.log('🎯 Using optimal time:', scheduledDate);
       } else if (timeOption === 'custom' && customTime) {
         const [hours, minutes] = customTime.split(':').map(Number);
         scheduledDate.setHours(hours, minutes, 0, 0);
-        console.log('🎯 Using custom time:', scheduledDate);
       } else if (timeOption === 'now') {
         scheduledDate = new Date();
-        console.log('🎯 Using current time:', scheduledDate);
       }
 
       console.log('🎯 Scheduling draft with params:', {
         taskId: timeSelectionModal.draftId,
         publishAt: scheduledDate.toISOString(),
-        platform: 'FACEBOOK'
       });
 
       const result = await scheduleDraft({
@@ -232,8 +188,6 @@ const NewDashboardContent = () => {
         console.log('✅ Successfully scheduled:', result);
         
         const timeString = format(scheduledDate, 'MMM d, yyyy h:mm a');
-        
-        // Check user's posting eligibility
         const hasConnections = dashboardData?.socialConnections && dashboardData.socialConnections.length > 0;
         const modeText = result.mode === 'MANUAL' || !hasConnections ? ' (manual - connect social accounts for auto-posting)' : '';
         
@@ -247,13 +201,11 @@ const NewDashboardContent = () => {
           }
         });
 
-        // Refresh the dashboard data to show updated state and remove from draft tray
         await handleTaskUpdate();
         
-        // Close the modal
+        // Clean up and close
         setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
-        
-        // Close the dock
+        setIsScheduling(false);
         closeDock();
       } else {
         throw new Error('Scheduling failed - no result returned');
@@ -262,10 +214,27 @@ const NewDashboardContent = () => {
     } catch (error) {
       console.error('❌ Error scheduling draft:', error);
       toast.error(`Failed to schedule: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      // Don't close modal on error to allow retry
     } finally {
       setIsScheduling(false);
     }
   };
+
+  // Add escape mechanism for stuck states
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && (isDragging || timeSelectionModal.isOpen)) {
+        console.log('🎯 Escape pressed, cleaning up stuck state');
+        stopDragging();
+        setTimeSelectionModal({ isOpen: false, draftId: null, targetDate: null });
+        setIsScheduling(false);
+        closeDock();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isDragging, timeSelectionModal.isOpen, stopDragging, closeDock]);
 
   if (isLoading) {
     return (
@@ -337,7 +306,7 @@ const NewDashboardContent = () => {
           onScheduleUpdate={handleTaskUpdate}
         />
 
-        {/* Time Selection Modal */}
+        {/* Enhanced Time Selection Modal */}
         {timeSelectionModal.isOpen && (
           <TimePopoverModal
             targetDate={timeSelectionModal.targetDate}

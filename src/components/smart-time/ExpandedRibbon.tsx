@@ -92,7 +92,7 @@ export const ExpandedRibbon = ({
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      "min-h-[180px] p-3 rounded-lg border-2 transition-all duration-200",
+                      "min-h-[180px] p-3 rounded-lg border-2 transition-all duration-200 relative",
                       // Base styles
                       "bg-gradient-to-br from-[#F9FAFB] to-[#68BEB9]/5",
                       // Border styles based on state
@@ -125,22 +125,26 @@ export const ExpandedRibbon = ({
                       </div>
                     </div>
 
-                    {/* Scheduled Content */}
-                    <div className="space-y-2 flex-1">
+                    {/* Scheduled Content Container */}
+                    <div className="space-y-2 flex-1 min-h-0 overflow-y-auto">
                       {scheduledTasksForDay.map((scheduledTaskData) => (
-                        <ScheduledContentPill
+                        <div
                           key={`task-${scheduledTaskData.id}`}
-                          task={scheduledTaskData}
-                          scheduledMeta={scheduledTaskData.scheduledMeta}
-                          onClick={() => onTaskClick(scheduledTaskData)}
-                        />
+                          className="relative z-10"
+                        >
+                          <ScheduledContentPill
+                            task={scheduledTaskData}
+                            scheduledMeta={scheduledTaskData.scheduledMeta}
+                            onClick={() => onTaskClick(scheduledTaskData)}
+                          />
+                        </div>
                       ))}
                     </div>
 
                     {/* Drop zone indicator */}
                     {(snapshot.isDraggingOver || isDragOver) && (
                       <div className={cn(
-                        "flex items-center justify-center h-12 text-sm font-medium mt-2 rounded border-2 border-dashed",
+                        "absolute bottom-2 left-2 right-2 flex items-center justify-center h-8 text-xs font-medium rounded border-2 border-dashed z-20",
                         hasConnections 
                           ? "text-[#68BEB9] border-[#68BEB9] bg-[#68BEB9]/5" 
                           : "text-red-600 border-red-400 bg-red-50"
@@ -151,7 +155,7 @@ export const ExpandedRibbon = ({
 
                     {/* Empty state */}
                     {!snapshot.isDraggingOver && !isDragOver && scheduledTasksForDay.length === 0 && (
-                      <div className="flex items-center justify-center h-12 mt-2">
+                      <div className="flex items-center justify-center h-8 mt-2">
                         <div className="w-2 h-2 bg-gray-300 rounded-full opacity-50"></div>
                       </div>
                     )}
