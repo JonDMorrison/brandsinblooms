@@ -3,7 +3,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
 import { Homepage } from '@/components/Homepage';
-import { FullWidthLayout } from '@/components/FullWidthLayout';
+import { SidebarLayout } from '@/components/SidebarLayout';
 import { OnboardingGuard } from '@/components/OnboardingGuard';
 import { HomepageErrorBoundary } from '@/components/homepage/HomepageErrorBoundary';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
@@ -28,11 +28,11 @@ export const SmartRootRoute = () => {
   return user ? (
     <ContentGenerationProvider>
       <HomepageErrorBoundary>
-        <FullWidthLayout>
+        <SidebarLayout>
           <OnboardingGuard>
             <Homepage />
           </OnboardingGuard>
-        </FullWidthLayout>
+        </SidebarLayout>
       </HomepageErrorBoundary>
     </ContentGenerationProvider>
   ) : (
