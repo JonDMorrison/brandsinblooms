@@ -229,14 +229,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                                 >
                                   {draft.post_type || 'Post'}
                                 </Badge>
-                                {draft.status === 'approved' && (
-                                  <div className="flex items-center gap-1">
-                                    <CheckCircle className="w-3 h-3 text-[#68BEB9]" />
-                                    <Badge className={statusInfo.className}>
-                                      {statusInfo.label}
-                                    </Badge>
-                                  </div>
-                                )}
                               </div>
                               {draft.status !== 'approved' && (
                                 <Badge variant={statusInfo.variant} className={statusInfo.className}>
