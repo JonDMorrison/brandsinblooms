@@ -1,3 +1,4 @@
+
 import { Clock, CheckCircle, Calendar, Eye, Send, Facebook, Instagram, Mail, FileText } from 'lucide-react';
 import { TASK_STATUS } from '@/constants/taskStatus';
 
@@ -42,8 +43,8 @@ export const getStatusInfo = (status: string) => {
       return { 
         icon: Eye, 
         color: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-        label: 'Review',
-        draggable: false
+        label: 'Review Required',
+        draggable: false // Not draggable until approved by user
       };
     case TASK_STATUS.PLANNED:
       return { 

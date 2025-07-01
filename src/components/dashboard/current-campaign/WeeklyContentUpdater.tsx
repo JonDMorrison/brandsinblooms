@@ -184,7 +184,8 @@ export const WeeklyContentUpdater = () => {
 
         if (result.success && mountedRef.current) {
           console.log('✅ Auto-generated content successfully');
-          toast.success(`Your weekly content is ready! Generated ${result.tasks?.length || 0} pieces.`, { 
+          // Updated message to reflect review requirement
+          toast.success(`Your weekly content is ready for review! Generated ${result.tasks?.length || 0} pieces.`, { 
             id: toastId 
           });
           
