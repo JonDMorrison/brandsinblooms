@@ -60,16 +60,17 @@ export const DraftTrayItem = ({
           }}
           onClick={() => onSelectDraft(task)}
         >
-          {/* Always Visible Drag Handle */}
+          {/* Highly Visible Drag Handle */}
           {statusInfo.draggable && (
             <div
               {...provided.dragHandleProps}
               className={cn(
-                "absolute left-2 top-1/2 transform -translate-y-1/2",
-                "opacity-60 hover:opacity-100 transition-all duration-200",
-                "text-gray-400 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing",
-                "z-10 touch-none bg-white/80 rounded px-1 py-2 border border-gray-200/50",
-                "hover:bg-[#68BEB9]/10 hover:border-[#68BEB9]/30"
+                "absolute left-1 top-1/2 transform -translate-y-1/2",
+                "opacity-100 transition-all duration-200",
+                "text-gray-600 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing",
+                "z-20 touch-none bg-white rounded-md px-2 py-2 border-2 border-gray-300",
+                "hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] shadow-sm hover:shadow-md",
+                "flex items-center justify-center"
               )}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
@@ -81,7 +82,7 @@ export const DraftTrayItem = ({
 
           <div className={cn(
             "flex items-start gap-3",
-            statusInfo.draggable && "ml-6"
+            statusInfo.draggable && "ml-8"
           )}>
             <div className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
