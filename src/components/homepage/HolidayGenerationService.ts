@@ -12,7 +12,7 @@ export async function generateHolidayContent(
   tenant?: any,
   onTaskUpdate?: () => void
 ) {
-  console.log(`🎉 Generating holiday content for: ${holiday.holiday_name}`);
+  console.log(`Generating holiday content for: ${holiday.holiday_name}`);
   
   const results = [];
   
@@ -29,7 +29,7 @@ export async function generateHolidayContent(
   
   for (const type of contentTypes) {
     try {
-      console.log(`📝 Starting ${type} content generation for holiday: ${holiday.holiday_name}`);
+      console.log(`Starting ${type} content generation for holiday: ${holiday.holiday_name}`);
       
       let output = '';
       let attempts = 0;
@@ -50,10 +50,10 @@ export async function generateHolidayContent(
         // Use enhanced holiday-specific prompts for all other content types
         do {
           attempts++;
-          console.log(`🎯 ${type.toUpperCase()} DEBUG: Attempt ${attempts} for ${holiday.holiday_name}`);
+          console.log(`${type.toUpperCase()} DEBUG: Attempt ${attempts} for ${holiday.holiday_name}`);
           
           if (type === 'video') {
-            console.log(`🎬 VIDEO DEBUG: About to generate video script for holiday: ${holiday.holiday_name}`);
+            console.log(`VIDEO DEBUG: About to generate video script for holiday: ${holiday.holiday_name}`);
           }
           
           // Generate content using holiday-specific prompts via edge function
@@ -71,30 +71,30 @@ export async function generateHolidayContent(
           });
 
           if (error) {
-            console.error(`🔧 HOLIDAY_CONTENT ERROR: Supabase function error:`, error);
+            console.error(`HOLIDAY_CONTENT ERROR: Supabase function error:`, error);
             throw new Error(`Holiday content generation failed: ${error.message}`);
           }
 
           if (!data?.content) {
-            console.error(`🔧 HOLIDAY_CONTENT ERROR: No content returned`);
+            console.error(`HOLIDAY_CONTENT ERROR: No content returned`);
             throw new Error('No holiday content generated');
           }
 
           output = data.content;
-          console.log(`🔧 HOLIDAY_CONTENT DEBUG: Generated successfully, length: ${output.length}`);
+          console.log(`HOLIDAY_CONTENT DEBUG: Generated successfully, length: ${output.length}`);
 
           // Validate holiday content quality (especially for Instagram)
           if (type === 'instagram' && output) {
             const validation = validateHolidayContent(output, holiday);
-            console.log(`📸 INSTAGRAM VALIDATION: Quality: ${validation.quality}, Issues: ${validation.issues.length}`);
+            console.log(`INSTAGRAM VALIDATION: Quality: ${validation.quality}, Issues: ${validation.issues.length}`);
             
             if (validation.quality === 'weak' && attempts < maxAttempts) {
-              console.log(`📸 INSTAGRAM DEBUG: Regenerating due to weak quality - attempt ${attempts + 1}`);
+              console.log(`INSTAGRAM DEBUG: Regenerating due to weak quality - attempt ${attempts + 1}`);
               continue; // Try again
             }
             
             if (validation.issues.length > 0) {
-              console.warn(`📸 INSTAGRAM DEBUG: Content issues:`, validation.issues);
+              console.warn(`INSTAGRAM DEBUG: Content issues:`, validation.issues);
             }
           }
           
@@ -104,16 +104,16 @@ export async function generateHolidayContent(
 
       // Enhanced validation that content was generated
       if (!output || output.trim() === '' || output.trim().length < 10) {
-        console.warn(`⚠️ ${type.toUpperCase()} DEBUG: Generated content is empty or too short`);
-        console.warn(`⚠️ ${type.toUpperCase()} DEBUG: Raw output:`, output);
+        console.warn(`WARNING ${type.toUpperCase()} DEBUG: Generated content is empty or too short`);
+        console.warn(`WARNING ${type.toUpperCase()} DEBUG: Raw output:`, output);
         results.push({ type, success: false, error: 'Empty or insufficient content returned' });
         continue;
       }
 
-      console.log(`✅ ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}, attempts: ${attempts}`);
+      console.log(`SUCCESS ${type.toUpperCase()} DEBUG: Content generated successfully, length: ${output.length}, attempts: ${attempts}`);
 
       // Get image for this task using the helper function
-      console.log(`🖼️ ${type.toUpperCase()} DEBUG: Fetching smart image`);
+      console.log(`${type.toUpperCase()} DEBUG: Fetching smart image`);
       const imageData = await attachImagesToTask(null, holiday.holiday_name);
 
       // Create task data structure with proper field validation
@@ -131,7 +131,7 @@ export async function generateHolidayContent(
       if (tenant?.id) {
         taskData.tenant_id = tenant.id;
         taskData.created_by_user_id = user.id;
-        console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with tenant_id: ${tenant.id}`);
+        console.log(`${type.toUpperCase()} DEBUG: Creating task with tenant_id: ${tenant.id}`);
       } else {
         // Fallback: try to get tenant from user if not provided
         const { data: userTenant } = await supabase
@@ -143,10 +143,10 @@ export async function generateHolidayContent(
         if (userTenant) {
           taskData.tenant_id = userTenant.id;
           taskData.created_by_user_id = user.id;
-          console.log(`📊 ${type.toUpperCase()} DEBUG: Using fallback tenant_id: ${userTenant.id}`);
+          console.log(`${type.toUpperCase()} DEBUG: Using fallback tenant_id: ${userTenant.id}`);
         } else {
           taskData.user_id = user.id;
-          console.log(`📊 ${type.toUpperCase()} DEBUG: Creating task with user_id: ${user.id}`);
+          console.log(`${type.toUpperCase()} DEBUG: Creating task with user_id: ${user.id}`);
         }
       }
 
@@ -159,14 +159,14 @@ export async function generateHolidayContent(
       
       Object.keys(taskData).forEach(key => {
         if (!allowedFields.includes(key)) {
-          console.warn(`🚧 Unexpected field in taskData: ${key}`);
+          console.warn(`WARN: Unexpected field in taskData: ${key}`);
           delete taskData[key as keyof typeof taskData];
         }
       });
 
       // Validate required fields before database insertion
       if (!taskData.holiday_id || !taskData.post_type || !taskData.ai_output || (!taskData.tenant_id && !taskData.user_id)) {
-        console.error(`❌ ${type.toUpperCase()} DEBUG: Missing required fields:`, {
+        console.error(`ERROR ${type.toUpperCase()} DEBUG: Missing required fields:`, {
           holiday_id: !!taskData.holiday_id,
           post_type: !!taskData.post_type,
           ai_output: !!taskData.ai_output,
@@ -177,7 +177,7 @@ export async function generateHolidayContent(
         continue;
       }
 
-      console.log(`📊 ${type.toUpperCase()} DEBUG: Task data before insert:`, {
+      console.log(`${type.toUpperCase()} DEBUG: Task data before insert:`, {
         ...taskData,
         ai_output_length: taskData.ai_output?.length,
         has_attachments: !!taskData.attachments
@@ -191,8 +191,8 @@ export async function generateHolidayContent(
         .single();
 
       if (error) {
-        console.error(`❌ ${type.toUpperCase()} DEBUG: DB insert failed\n`, JSON.stringify(error, null, 2), '\nTask payload:', taskData);
-        console.error(`❌ ${type.toUpperCase()} DEBUG: Error details:`, {
+        console.error(`ERROR ${type.toUpperCase()} DEBUG: DB insert failed\n`, JSON.stringify(error, null, 2), '\nTask payload:', taskData);
+        console.error(`ERROR ${type.toUpperCase()} DEBUG: Error details:`, {
           message: error.message,
           details: error.details,
           hint: error.hint,
@@ -200,8 +200,8 @@ export async function generateHolidayContent(
         });
         results.push({ type, success: false, error: `Database error: ${error.message}` });
       } else {
-        console.log(`✅ ${type.toUpperCase()} DEBUG: Created task successfully:`, task.id);
-        console.log(`✅ ${type.toUpperCase()} DEBUG: Task details:`, {
+        console.log(`SUCCESS ${type.toUpperCase()} DEBUG: Created task successfully:`, task.id);
+        console.log(`SUCCESS ${type.toUpperCase()} DEBUG: Task details:`, {
           id: task.id,
           post_type: task.post_type,
           status: task.status,
@@ -214,8 +214,8 @@ export async function generateHolidayContent(
       }
 
     } catch (error) {
-      console.error(`❌ ${type.toUpperCase()} DEBUG: Exception during generation:`, error);
-      console.error(`❌ ${type.toUpperCase()} DEBUG: Error details:`, {
+      console.error(`ERROR ${type.toUpperCase()} DEBUG: Exception during generation:`, error);
+      console.error(`ERROR ${type.toUpperCase()} DEBUG: Error details:`, {
         message: error.message,
         stack: error.stack,
         name: error.name
@@ -226,16 +226,16 @@ export async function generateHolidayContent(
 
   // Call onTaskUpdate if provided to refresh the UI
   if (onTaskUpdate) {
-    console.log('🔄 DEBUG: Calling onTaskUpdate to refresh UI');
+    console.log('DEBUG: Calling onTaskUpdate to refresh UI');
     onTaskUpdate();
   }
 
-  console.log(`🎉 Holiday content generation complete for ${holiday.holiday_name}:`, results);
+  console.log(`Holiday content generation complete for ${holiday.holiday_name}:`, results);
   
   // Enhanced result logging
   const successCount = results.filter(r => r.success).length;
   const failureCount = results.filter(r => !r.success).length;
-  console.log(`📊 SUMMARY: ${successCount} successful, ${failureCount} failed generations`);
+  console.log(`SUMMARY: ${successCount} successful, ${failureCount} failed generations`);
   
   return results;
 }

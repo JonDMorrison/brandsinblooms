@@ -28,25 +28,25 @@ export const HolidayItem = ({
   const hasContent = contentState && contentState.contentCount > 0;
 
   const handleGenerateClick = async () => {
-    console.log(`🎉 HOLIDAY_ITEM: Generate button clicked for: ${holiday.holiday_name}`);
+    console.log(`HOLIDAY_ITEM: Generate button clicked for: ${holiday.holiday_name}`);
     
     if (isGenerating) {
-      console.log(`🎉 HOLIDAY_ITEM: Already generating, ignoring click`);
+      console.log(`HOLIDAY_ITEM: Already generating, ignoring click`);
       return;
     }
 
     try {
-      console.log(`🎉 HOLIDAY_ITEM: Calling onGenerateContent for holiday: ${holiday.holiday_name}`);
+      console.log(`HOLIDAY_ITEM: Calling onGenerateContent for holiday: ${holiday.holiday_name}`);
       await onGenerateContent(holiday.id);
       
-      console.log(`🎉 HOLIDAY_ITEM: Content generation completed successfully for: ${holiday.holiday_name}`);
+      console.log(`HOLIDAY_ITEM: Content generation completed successfully for: ${holiday.holiday_name}`);
     } catch (error) {
-      console.error('🎉 HOLIDAY_ITEM: Error in handleGenerateClick:', error);
+      console.error('HOLIDAY_ITEM: Error in handleGenerateClick:', error);
     }
   };
 
   const handleViewClick = () => {
-    console.log(`🎉 HOLIDAY_ITEM: Opening content viewer for: ${holiday.holiday_name}`);
+    console.log(`HOLIDAY_ITEM: Opening content viewer for: ${holiday.holiday_name}`);
     onViewContent(holiday.id, holiday.holiday_name);
   };
 

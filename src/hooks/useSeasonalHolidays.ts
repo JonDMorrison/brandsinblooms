@@ -161,27 +161,27 @@ export const useSeasonalHolidays = () => {
 
   // Generate content for a holiday
   const generateHolidayContentForHoliday = useCallback(async (holidayId: string) => {
-    console.log(`🎯 HOOK: Starting generation for holiday ID: ${holidayId}`);
+    console.log(`HOOK: Starting generation for holiday ID: ${holidayId}`);
     
     if (!user || !tenant) {
       const errorMsg = 'User authentication required';
-      console.error(`🎯 HOOK ERROR: ${errorMsg}`, { user: !!user, tenant: !!tenant });
+      console.error(`HOOK ERROR: ${errorMsg}`, { user: !!user, tenant: !!tenant });
       throw new Error(errorMsg);
     }
 
     const holiday = allHolidays.find(h => h.id === holidayId);
     if (!holiday) {
       const errorMsg = 'Holiday not found';
-      console.error(`🎯 HOOK ERROR: ${errorMsg}`, { holidayId, availableHolidays: allHolidays.length });
+      console.error(`HOOK ERROR: ${errorMsg}`, { holidayId, availableHolidays: allHolidays.length });
       throw new Error(errorMsg);
     }
 
-    console.log(`🎯 HOOK: Found holiday: ${holiday.holiday_name}, calling service...`);
+    console.log(`HOOK: Found holiday: ${holiday.holiday_name}, calling service...`);
     
     try {
       const results = await generateHolidayContent(user, holiday, tenant, fetchHolidayContentState);
       
-      console.log(`🎯 HOOK: Service returned results:`, results);
+      console.log(`HOOK: Service returned results:`, results);
       
       // Check results and provide detailed feedback
       const successCount = results.filter(r => r.success).length;
@@ -198,23 +198,23 @@ export const useSeasonalHolidays = () => {
         });
         
         if (failedResults.length > 0) {
-          console.error('🎯 HOOK: Failed content types:', failedResults);
+          console.error('HOOK: Failed content types:', failedResults);
         }
       } else {
         // Complete failure - throw error with details
         const errorDetails = failedResults.map(r => `${r.type}: ${r.error}`).join('; ');
         const errorMsg = `Content generation failed for all types. Details: ${errorDetails}`;
-        console.error('🎯 HOOK ERROR: Complete failure:', errorMsg);
+        console.error('HOOK ERROR: Complete failure:', errorMsg);
         throw new Error(errorMsg);
       }
 
       // Refresh content state
-      console.log(`🎯 HOOK: Refreshing content state...`);
+      console.log(`HOOK: Refreshing content state...`);
       await fetchHolidayContentState();
       
       return results;
     } catch (error) {
-      console.error('🎯 HOOK: Error in generateHolidayContentForHoliday:', error);
+      console.error('HOOK: Error in generateHolidayContentForHoliday:', error);
       
       // Provide more specific error messages
       let errorMessage = 'An unexpected error occurred';
@@ -230,7 +230,7 @@ export const useSeasonalHolidays = () => {
         }
       }
       
-      console.error('🎯 HOOK: Final error message:', errorMessage);
+      console.error('HOOK: Final error message:', errorMessage);
       throw new Error(errorMessage);
     }
   }, [user, tenant, allHolidays, fetchHolidayContentState]);

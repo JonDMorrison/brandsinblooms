@@ -83,41 +83,41 @@ export const SeasonalHolidaysCard = ({
   }, [user]);
 
   const handleGenerateContent = async (holidayId: string) => {
-    console.log(`📋 CARD: Generate content requested for holiday ID: ${holidayId}`);
-    console.log(`📋 CARD: Current generating holidays:`, Array.from(generatingHolidays));
+    console.log(`CARD: Generate content requested for holiday ID: ${holidayId}`);
+    console.log(`CARD: Current generating holidays:`, Array.from(generatingHolidays));
     
     // Check if already generating
     if (generatingHolidays.has(holidayId)) {
-      console.log(`📋 CARD: Already generating content for holiday: ${holidayId}`);
+      console.log(`CARD: Already generating content for holiday: ${holidayId}`);
       return;
     }
 
     // Check if user has company profile before generating
     if (hasCompanyProfile === false) {
-      console.log(`📋 CARD: No company profile, showing setup`);
+      console.log(`CARD: No company profile, showing setup`);
       setShowProfileSetup(true);
       return;
     }
 
     const holiday = allHolidays.find(h => h.id === holidayId);
     if (!holiday) {
-      console.error(`📋 CARD: Holiday not found for ID: ${holidayId}`);
+      console.error(`CARD: Holiday not found for ID: ${holidayId}`);
       return;
     }
 
-    console.log(`📋 CARD: Starting generation for: ${holiday.holiday_name}`);
+    console.log(`CARD: Starting generation for: ${holiday.holiday_name}`);
     setGeneratingHolidays(prev => new Set(prev).add(holidayId));
 
     try {
       await generateHolidayContent(holidayId);
       
-      console.log(`📋 CARD: Generation completed successfully for: ${holiday.holiday_name}`);
+      console.log(`CARD: Generation completed successfully for: ${holiday.holiday_name}`);
       
       if (onContentGenerated) {
         onContentGenerated();
       }
     } catch (error) {
-      console.error('📋 CARD: Failed to generate holiday content:', error);
+      console.error('CARD: Failed to generate holiday content:', error);
       
       // Make sure error is shown to user - the hook should have already shown toast
       // but we'll add a fallback just in case
@@ -127,7 +127,7 @@ export const SeasonalHolidaysCard = ({
         });
       }
     } finally {
-      console.log(`📋 CARD: Clearing generating state for: ${holidayId}`);
+      console.log(`CARD: Clearing generating state for: ${holidayId}`);
       setGeneratingHolidays(prev => {
         const newSet = new Set(prev);
         newSet.delete(holidayId);
@@ -228,10 +228,8 @@ export const SeasonalHolidaysCard = ({
           <BodyMedium className="text-gray-600 max-w-sm mb-4 text-left">
             No seasonal holidays or observances in the next 90 days. Check back soon for new marketing opportunities!
           </BodyMedium>
-          <div className="flex justify-start space-x-2 text-2xl">
-            <span className="animate-bounce">🌸</span>
-            <span className="animate-bounce" style={{ animationDelay: '0.1s' }}>🌿</span>
-            <span className="animate-bounce" style={{ animationDelay: '0.2s' }}>🌱</span>
+          <div className="flex justify-start">
+            <Sparkles className="w-6 h-6 text-green-500 animate-pulse" />
           </div>
         </div>
       </div>
