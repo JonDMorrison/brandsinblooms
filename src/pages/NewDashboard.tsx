@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FullWidthLayout } from '@/components/FullWidthLayout';
+import { SidebarLayout } from '@/components/SidebarLayout';
 import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
 import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -40,17 +40,17 @@ const NewDashboardContent = () => {
             <p className="text-gray-600">Your daily content creation rhythm</p>
           </div>
 
-          {/* Main Grid - Now with more space */}
+          {/* Main Grid - Adjusted for sidebar */}
           <div className="grid grid-cols-12 gap-6 mb-6">
-            {/* Today's Focus - Columns 1-3 */}
-            <div className="col-span-3">
+            {/* Today's Focus - Columns 1-4 */}
+            <div className="col-span-4">
               <FocusCarousel 
                 onTaskUpdate={refetch}
               />
             </div>
 
-            {/* Draft Tray - Columns 4-6 */}
-            <div className="col-span-3">
+            {/* Draft Tray - Columns 5-8 */}
+            <div className="col-span-4">
               <DraftTray 
                 tasks={data?.drafts || []}
                 selectedDraft={activeDraft}
@@ -58,8 +58,8 @@ const NewDashboardContent = () => {
               />
             </div>
 
-            {/* Composer Panel - Columns 7-12 */}
-            <div className="col-span-6">
+            {/* Composer Panel - Columns 9-12 */}
+            <div className="col-span-4">
               <ComposerPanel 
                 selectedDraft={activeDraft}
                 socialConnections={data?.socialConnections || []}
@@ -84,11 +84,11 @@ const NewDashboardContent = () => {
 const NewDashboard = () => {
   return (
     <ProtectedPageWrapper>
-      <FullWidthLayout>
+      <SidebarLayout>
         <DashboardProvider>
           <NewDashboardContent />
         </DashboardProvider>
-      </FullWidthLayout>
+      </SidebarLayout>
     </ProtectedPageWrapper>
   );
 };
