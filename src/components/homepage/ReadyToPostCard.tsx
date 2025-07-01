@@ -138,10 +138,10 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
   if (loading) {
     return (
-      <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+          <CardTitle className="text-lg text-brand-navy flex items-center gap-2 font-semibold">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-mint-100 text-mint-700 text-sm font-bold">
               5
             </div>
             <Leaf className="w-5 h-5" />
@@ -150,8 +150,8 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">
-            <div className="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-            <p className="text-blue-600 text-sm">Loading ready content...</p>
+            <div className="animate-spin w-6 h-6 border-2 border-mint-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+            <p className="text-gray-600 text-sm">Loading ready content...</p>
           </div>
         </CardContent>
       </Card>
@@ -166,19 +166,19 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
   return (
     <>
-      <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50" data-section="ready-to-post-section">
+      <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm" data-section="ready-to-post-section">
         <CardHeader>
-          <CardTitle className="text-lg text-blue-800 flex items-center gap-2">
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-sm font-medium">
+          <CardTitle className="text-lg text-brand-navy flex items-center gap-2 font-semibold">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-mint-100 text-mint-700 text-sm font-bold">
               5
             </div>
             <CheckCircle2 className="w-5 h-5" />
             Draft posts ready
-            <Badge className="bg-blue-100 text-blue-800 border-blue-300">
+            <Badge className="ml-2 px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 text-[11px] font-medium">
               {readyTasks.length} items
             </Badge>
           </CardTitle>
-          <CardDescription className="text-blue-700 flex items-center gap-2">
+          <CardDescription className="mt-1 block text-sm text-gray-600 flex items-center gap-2">
             <Clock className="w-4 h-4" />
             Open Publish Portal to schedule and publish
           </CardDescription>
@@ -195,12 +195,12 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           <div className="text-center py-6">
             <Button 
               onClick={() => window.location.href = '/publish'}
-              className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white px-6 py-3"
+              className="mt-4 inline-flex items-center gap-2 rounded-md bg-mint-600 px-5 py-2.5 text-white text-sm font-semibold shadow-md transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-mint-600"
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Open Publish Portal
             </Button>
-            <p className="text-blue-600 text-sm mt-2">
+            <p className="text-gray-600 text-sm mt-2">
               Professional scheduling and publishing tools
             </p>
           </div>
@@ -220,12 +220,12 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           </div>
           
           {readyTasks.length > 3 && (
-            <div className="text-center pt-4 mt-4 border-t border-blue-200">
-              <p className="text-blue-600 text-sm">
+            <div className="text-center pt-4 mt-4 border-t border-gray-200">
+              <p className="text-gray-600 text-sm">
                 Showing 3 of {readyTasks.length} ready pieces • 
                 <button 
                   onClick={() => window.location.href = '/publish'}
-                  className="text-[#68BEB9] hover:underline ml-1"
+                  className="text-brand-navy hover:underline ml-1 font-medium"
                 >
                   View all in Publish Portal
                 </button>
