@@ -78,13 +78,13 @@ export const DraftTrayItem = ({
           }}
           onClick={handleCardClick}
         >
-          {/* Drag Handle - Positioned inside the card's padding area */}
+          {/* Drag Handle - Positioned properly inside the card */}
           <div
             {...(statusInfo.draggable ? provided.dragHandleProps : {})}
             className={cn(
-              "absolute left-3 top-1/2 transform -translate-y-1/2",
+              "absolute left-4 top-1/2 transform -translate-y-1/2",
               "transition-all duration-200",
-              "z-10 touch-none bg-white rounded-md px-2 py-2 border-2 shadow-sm",
+              "z-10 touch-none bg-white rounded-md px-1 py-1 border shadow-sm",
               "flex items-center justify-center",
               statusInfo.draggable 
                 ? "opacity-100 text-gray-600 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing border-gray-300 hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] hover:shadow-md" 
@@ -93,10 +93,10 @@ export const DraftTrayItem = ({
             onClick={handleDragHandleClick}
             title={statusInfo.draggable ? "Drag to schedule" : "Approve content to enable dragging"}
           >
-            <GripVertical className="w-4 h-4" />
+            <GripVertical className="w-3 h-3" />
           </div>
 
-          <div className="flex items-start gap-3 ml-10">
+          <div className="flex items-start gap-3 ml-12">
             <div className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
               postTypeColor
