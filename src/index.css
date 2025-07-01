@@ -99,6 +99,26 @@ a:hover {
   @apply border-mint-600;
 }
 
+/* Enhanced button styling */
+.btn-primary {
+  background-color: var(--brand-teal);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  filter: brightness(0.95);
+}
+
+/* Unified success green styling */
+.success-bg {
+  background: var(--mint-100);
+}
+
+.success-chip {
+  background: var(--mint-600);
+  color: #fff;
+}
+
 /* Responsive sidebar behavior */
 @media (max-width: 1024px) {
   .sidebar-mini-rail {
