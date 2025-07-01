@@ -138,20 +138,20 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
   if (loading) {
     return (
-      <Card className="rounded-xl border border-border bg-card shadow-sm">
+      <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg text-foreground flex items-center gap-2 font-semibold">
-            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sage-100 text-sage-600 text-sm font-bold">
+          <CardTitle className="text-lg text-brand-navy flex items-center gap-2 font-semibold">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-mint-100 text-mint-700 text-sm font-bold">
               5
             </div>
-            <Leaf className="w-5 h-5 text-sage-600" />
+            <Leaf className="w-5 h-5" />
             Ready to Post
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-4">
-            <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
-            <p className="text-muted-foreground text-sm">Loading ready content...</p>
+            <div className="animate-spin w-6 h-6 border-2 border-mint-600 border-t-transparent rounded-full mx-auto mb-2"></div>
+            <p className="text-gray-600 text-sm">Loading ready content...</p>
           </div>
         </CardContent>
       </Card>
@@ -166,28 +166,28 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
   return (
     <>
-      <Card className="rounded-xl border border-border bg-card shadow-sm" data-section="ready-to-post-section">
+      <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm" data-section="ready-to-post-section">
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <CardTitle className="text-lg text-foreground flex items-center gap-2 font-semibold">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-sage-100 text-sage-600 text-sm font-bold">
+              <CardTitle className="text-lg text-brand-navy flex items-center gap-2 font-semibold">
+                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-mint-100 text-mint-700 text-sm font-bold">
                   5
                 </div>
-                <CheckCircle2 className="w-5 h-5 text-sage-600" />
+                <CheckCircle2 className="w-5 h-5" />
                 Draft posts ready
-                <Badge className="ml-2 px-2 py-0.5 rounded-full bg-sage-100 text-sage-600 text-[11px] font-medium">
+                <Badge className="ml-2 px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 text-[11px] font-medium">
                   {readyTasks.length} items
                 </Badge>
               </CardTitle>
-              <CardDescription className="mt-1 block text-sm text-muted-foreground flex items-center gap-2">
-                <Clock className="w-4 h-4 text-sage-600" />
+              <CardDescription className="mt-1 block text-sm text-gray-600 flex items-center gap-2">
+                <Clock className="w-4 h-4" />
                 Open Publish Portal to schedule and publish
               </CardDescription>
             </div>
             <Button 
               onClick={() => window.location.href = '/publish'}
-              className="flex-shrink-0 inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-primary-foreground text-sm font-semibold shadow-md transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-ring"
+              className="flex-shrink-0 inline-flex items-center gap-2 rounded-md bg-mint-600 px-4 py-2 text-white text-sm font-semibold shadow-md transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-mint-600"
             >
               <Sparkles className="w-4 h-4" />
               Open Publish Portal
@@ -218,12 +218,12 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           </div>
           
           {readyTasks.length > 3 && (
-            <div className="text-center pt-4 mt-4 border-t border-border">
-              <p className="text-muted-foreground text-sm">
+            <div className="text-center pt-4 mt-4 border-t border-gray-200">
+              <p className="text-gray-600 text-sm">
                 Showing 3 of {readyTasks.length} ready pieces • 
                 <button 
                   onClick={() => window.location.href = '/publish'}
-                  className="text-foreground hover:underline ml-1 font-medium"
+                  className="text-brand-navy hover:underline ml-1 font-medium"
                 >
                   View all in Publish Portal
                 </button>
