@@ -72,7 +72,7 @@ export const HolidayItem = ({
             className="w-10 h-10 flex-shrink-0"
           />
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-1">
+            <CardTitle className="text-lg font-semibold text-brand-navy mb-1">
               {holiday.holiday_name || holiday.theme}
             </CardTitle>
           </div>
@@ -86,7 +86,7 @@ export const HolidayItem = ({
 
       <CardContent className="pt-0">
         {holiday.description && (
-          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
+          <p className="text-sm text-gray-600 mb-4 leading-relaxed">
             {holiday.description}
           </p>
         )}
