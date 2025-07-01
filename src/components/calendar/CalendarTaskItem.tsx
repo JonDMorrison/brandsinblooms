@@ -48,7 +48,7 @@ export const CalendarTaskItem = ({
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'posted':
+      case 'published':
       case 'completed':
       case 'approved':
         return { text: 'Approved', className: 'bg-green-100 text-green-700 border-green-300' };

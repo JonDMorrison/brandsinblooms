@@ -73,7 +73,7 @@ export const ContentPackReviewModal = ({
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'posted' })
+        .update({ status: 'approved' })
         .eq('id', taskId);
 
       if (error) throw error;
@@ -97,7 +97,7 @@ export const ContentPackReviewModal = ({
     try {
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'posted' })
+        .update({ status: 'approved' })
         .in('id', unapprovedTasks.map(t => t.id));
 
       if (error) throw error;

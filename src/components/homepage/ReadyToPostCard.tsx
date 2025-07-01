@@ -64,7 +64,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
     try {
       // Build status filter for ready-to-post content - focus on approved content
-      const statusFilter = ['approved', 'posted'];
+      const statusFilter = ['approved'];
       
       const { data, error } = await supabase
         .from('content_tasks')

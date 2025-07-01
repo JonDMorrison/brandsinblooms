@@ -2,11 +2,12 @@ export type TaskStatus =
   | 'planned' 
   | 'review' 
   | 'approved' 
-  | 'posted' 
+  | 'scheduled'
+  | 'published'
   | 'rejected'
   | 'generated'
   | 'pending'
-  | 'preview'; // Add preview status
+  | 'preview';
 
 export interface Campaign {
   id: string;

@@ -20,7 +20,7 @@ export const ApprovalButton = ({ taskId, currentStatus, onApproved }: ApprovalBu
     }
   };
 
-  if (currentStatus === 'approved' || currentStatus === 'posted') {
+  if (currentStatus === 'approved' || currentStatus === 'scheduled' || currentStatus === 'published') {
     return (
       <Button disabled className="bg-green-100 text-green-800">
         <CheckCircle className="w-4 h-4 mr-2" />

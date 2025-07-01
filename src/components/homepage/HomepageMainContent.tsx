@@ -32,7 +32,7 @@ export const HomepageMainContent = ({ currentCampaign, onTaskUpdate }: HomepageM
 
     try {
       // Build status filter - include 'preview' for developer
-      const statusFilter = ['planned', 'review', 'approved', 'posted', 'generated'];
+      const statusFilter = ['planned', 'review', 'approved', 'scheduled', 'published', 'generated'];
       if (isDeveloper) {
         statusFilter.push('preview');
       }

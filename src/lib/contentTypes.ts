@@ -44,9 +44,9 @@ export type TaskStatus =
   | 'planned' 
   | 'review' 
   | 'approved' 
-  | 'posted' 
+  | 'scheduled'
+  | 'published'
   | 'rejected'
   | 'generated'
   | 'pending'
-  | 'scheduled'
   | 'preview';

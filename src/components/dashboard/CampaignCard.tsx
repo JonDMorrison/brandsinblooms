@@ -49,14 +49,14 @@ export const CampaignCard = ({
   const completedTasks = campaignTasks.filter(task => 
     task.ai_output && 
     task.ai_output.trim() !== '' && 
-    ['ready', 'approved', 'posted', 'review'].includes(task.status)
+    ['ready', 'approved', 'published', 'review'].includes(task.status)
   );
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
       case 'approved':
-      case 'posted':
+      case 'published':
         return 'bg-green-100 text-green-800';
       case 'ready':
       case 'review':

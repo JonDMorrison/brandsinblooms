@@ -47,7 +47,7 @@ export const ContentPreviewSection = ({ campaign, onTaskUpdate }: ContentPreview
   }, [campaign?.id]);
 
   const readyTasks = tasks.filter(task => task.status === 'review' && task.ai_output);
-  const completedTasks = tasks.filter(task => task.status === 'posted');
+  const completedTasks = tasks.filter(task => task.status === 'published');
 
   if (loading) {
     return (

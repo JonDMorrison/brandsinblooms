@@ -28,7 +28,7 @@ export const TaskActions = ({
   const [deletingTask, setDeletingTask] = useState(false);
 
   const canApprove = ['scheduled', 'pending', 'draft', 'ready', 'review'].includes(task.status) && task.ai_output;
-  const isApproved = ['approved', 'posted'].includes(task.status);
+  const isApproved = ['approved', 'scheduled', 'published'].includes(task.status);
 
   const handleApprove = async () => {
     try {

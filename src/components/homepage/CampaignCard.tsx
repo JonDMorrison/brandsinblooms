@@ -42,11 +42,11 @@ export const CampaignCard = ({
     setApprovingTasks(prev => new Set(prev).add(taskId));
     
     try {
-      console.log('Approving task with status change to: posted');
+      console.log('Approving task with status change to: approved');
       
       const { error } = await supabase
         .from('content_tasks')
-        .update({ status: 'posted' })
+        .update({ status: 'approved' })
         .eq('id', taskId);
 
       if (error) {
@@ -222,7 +222,7 @@ export const CampaignCard = ({
               const task = tasksByType[type];
               const hasTask = !!task;
               const hasContent = task?.ai_output && task.ai_output.trim() !== '';
-              const isApproved = task?.status === 'posted';
+              const isApproved = task?.status === 'approved';
               const isPreviewTask = task?.status === 'preview';
               
               return (

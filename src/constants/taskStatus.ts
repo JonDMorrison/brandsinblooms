@@ -1,11 +1,12 @@
 
 export const TASK_STATUS = {
   PLANNED: 'planned',
-  APPROVED: 'approved',
-  GENERATED: 'generated',
   REVIEW: 'review',
+  APPROVED: 'approved',
   SCHEDULED: 'scheduled',
-  POSTED: 'posted',
+  PUBLISHED: 'published',
+  GENERATED: 'generated',
+  PREVIEW: 'preview',
 } as const;
 
 export type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS];

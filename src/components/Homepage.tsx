@@ -89,7 +89,7 @@ export const Homepage = () => {
       console.log('Homepage: Fetching tasks for user:', user.id, 'tenant:', tenant?.id || 'none');
       
       // Build status filter with valid statuses only
-      const statusFilter = ['planned', 'review', 'approved', 'posted', 'generated'];
+      const statusFilter = ['planned', 'review', 'approved', 'scheduled', 'published', 'generated'];
       if (isDeveloper) {
         statusFilter.push('preview');
       }

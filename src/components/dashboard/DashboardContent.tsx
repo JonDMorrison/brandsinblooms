@@ -141,7 +141,7 @@ export const DashboardContent = ({
       setActiveCampaign(selectedCampaign);
 
       // Fetch tasks
-      const statusFilter = ['generating', 'review', 'ready', 'approved', 'posted'];
+      const statusFilter = ['generating', 'review', 'ready', 'approved', 'scheduled', 'published'];
       if (isDevelopment) {
         statusFilter.push('preview');
       }

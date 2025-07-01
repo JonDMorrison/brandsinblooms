@@ -66,7 +66,7 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
     }
   };
 
-  const isApproved = task.status === 'posted';
+  const isApproved = task.status === 'approved';
   const PostIcon = getPostTypeIcon(task.post_type);
 
   return (

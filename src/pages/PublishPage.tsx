@@ -80,7 +80,7 @@ const PublishPage = () => {
             tenant_id
           )
         `)
-        .eq('status', 'posted')
+        .eq('status', 'approved')
         .in('post_type', ['facebook', 'instagram'])
         .order('created_at', { ascending: false });
 
