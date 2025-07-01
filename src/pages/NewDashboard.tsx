@@ -14,11 +14,21 @@ const NewDashboardContent = () => {
 
   const handleDragEnd = async (result: DropResult) => {
     console.log('🎯 Dashboard drag ended:', result);
-    // Always stop dragging when drag operation completes, with a small delay
-    // to allow drop zones to process the drop first
-    setTimeout(() => {
+    
+    // Only stop dragging if the drop was NOT on the SmartTimeDock
+    // SmartTimeDock droppables have IDs that start with "day-"
+    const isSmartTimeDockDrop = result.destination?.droppableId?.startsWith('day-');
+    
+    if (!isSmartTimeDockDrop) {
+      // Stop dragging immediately for internal drops (like draft-tray reordering)
       stopDragging();
-    }, 100);
+    } else {
+      // For SmartTimeDock drops, add a delay to allow drop processing
+      setTimeout(() => {
+        stopDragging();
+      }, 300);
+    }
+    
     // The SmartTimeDock component handles the actual scheduling logic
   };
 
