@@ -2,6 +2,7 @@
 import React from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
 import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
+import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
 import { TodayFocusCard } from '@/components/dashboard-social/TodayFocusCard';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/dashboard-social/ComposerPanel';
@@ -62,11 +63,13 @@ const NewDashboardContent = () => {
 
 const NewDashboard = () => {
   return (
-    <FullWidthLayout>
-      <DashboardProvider>
-        <NewDashboardContent />
-      </DashboardProvider>
-    </FullWidthLayout>
+    <ProtectedPageWrapper>
+      <FullWidthLayout>
+        <DashboardProvider>
+          <NewDashboardContent />
+        </DashboardProvider>
+      </FullWidthLayout>
+    </ProtectedPageWrapper>
   );
 };
 
