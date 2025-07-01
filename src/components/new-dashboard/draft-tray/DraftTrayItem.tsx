@@ -78,11 +78,11 @@ export const DraftTrayItem = ({
           }}
           onClick={handleCardClick}
         >
-          {/* Drag Handle - Always show it but make it functional only when draggable */}
+          {/* Drag Handle - Positioned inside the card's padding area */}
           <div
             {...(statusInfo.draggable ? provided.dragHandleProps : {})}
             className={cn(
-              "absolute left-1 top-1/2 transform -translate-y-1/2",
+              "absolute left-3 top-1/2 transform -translate-y-1/2",
               "transition-all duration-200",
               "z-10 touch-none bg-white rounded-md px-2 py-2 border-2 shadow-sm",
               "flex items-center justify-center",
@@ -96,7 +96,7 @@ export const DraftTrayItem = ({
             <GripVertical className="w-4 h-4" />
           </div>
 
-          <div className="flex items-start gap-3 ml-8">
+          <div className="flex items-start gap-3 ml-10">
             <div className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
               postTypeColor
