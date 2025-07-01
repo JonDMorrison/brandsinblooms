@@ -45,8 +45,8 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     // The SmartTimeRibbon component handles the actual scheduling logic
   }, []);
 
-  // Filter tasks to show only approved and generated content in drafts
-  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED];
+  // Filter tasks to show approved, generated AND review content in drafts - users need to see review content to approve it
+  const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.REVIEW];
   const filteredData = data ? {
     ...data,
     drafts: data.tasks?.filter((task: any) => visibleStatuses.includes(task.status as TaskStatus)) || []
@@ -96,7 +96,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
           onScheduleUpdate={refetch}
           onDragEnd={handleDragEnd}
         />
-      </DragDropContext>
+      </DragDropContext>Provider>
     </DashboardContext.Provider>
   );
 };

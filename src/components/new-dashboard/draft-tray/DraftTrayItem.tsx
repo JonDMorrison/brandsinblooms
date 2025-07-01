@@ -60,30 +60,26 @@ export const DraftTrayItem = ({
           }}
           onClick={() => onSelectDraft(task)}
         >
-          {/* Highly Visible Drag Handle */}
-          {statusInfo.draggable && (
-            <div
-              {...provided.dragHandleProps}
-              className={cn(
-                "absolute left-1 top-1/2 transform -translate-y-1/2",
-                "opacity-100 transition-all duration-200",
-                "text-gray-600 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing",
-                "z-20 touch-none bg-white rounded-md px-2 py-2 border-2 border-gray-300",
-                "hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] shadow-sm hover:shadow-md",
-                "flex items-center justify-center"
-              )}
-              onClick={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              title="Drag to schedule"
-            >
-              <GripVertical className="w-4 h-4" />
-            </div>
-          )}
+          {/* Drag Handle - Always show it but make it functional only when draggable */}
+          <div
+            {...(statusInfo.draggable ? provided.dragHandleProps : {})}
+            className={cn(
+              "absolute left-1 top-1/2 transform -translate-y-1/2",
+              "transition-all duration-200",
+              "z-20 touch-none bg-white rounded-md px-2 py-2 border-2 shadow-sm",
+              "flex items-center justify-center",
+              statusInfo.draggable 
+                ? "opacity-100 text-gray-600 hover:text-[#68BEB9] cursor-grab active:cursor-grabbing border-gray-300 hover:bg-[#68BEB9]/10 hover:border-[#68BEB9] hover:shadow-md" 
+                : "opacity-40 text-gray-400 cursor-not-allowed border-gray-200"
+            )}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => statusInfo.draggable && e.stopPropagation()}
+            title={statusInfo.draggable ? "Drag to schedule" : "Approve content to enable dragging"}
+          >
+            <GripVertical className="w-4 h-4" />
+          </div>
 
-          <div className={cn(
-            "flex items-start gap-3",
-            statusInfo.draggable && "ml-8"
-          )}>
+          <div className="flex items-start gap-3 ml-8">
             <div className={cn(
               "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
               postTypeColor
