@@ -9,11 +9,24 @@ import { SmartTimeDock } from '@/components/smart-time/SmartTimeDock';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 
 const DashboardSocialContent = () => {
-  const { data, refetch } = useDashboardContext();
+  const { data, refetch, stopDragging } = useDashboardContext();
 
-  const handleDragEnd = async (result: DropResult) => {
+  const handleDragEnd = (result: DropResult) => {
+    const { destination, source } = result;
     console.log('🎯 Dashboard drag ended:', result);
-    // The SmartTimeDock component handles the actual scheduling logic
+
+    // Nothing actually moved – ignore
+    if (!destination) return;
+
+    const droppedInDock = destination.droppableId.startsWith('day-');
+
+    // Only close the dock after a *successful* dock-drop,
+    // and give the UI time to render the new pill first.
+    if (droppedInDock) {
+      setTimeout(stopDragging, 400);   // tweak as required
+    } else {
+      stopDragging();                  // re-order in draft tray
+    }
   };
 
   return (
@@ -40,7 +53,6 @@ const DashboardSocialContent = () => {
             <div className="col-span-3">
               <DraftTray 
                 tasks={data?.drafts || []}
-                onDragEnd={handleDragEnd}
               />
             </div>
 

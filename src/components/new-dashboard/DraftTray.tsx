@@ -14,10 +14,9 @@ interface DraftTrayProps {
   selectedDraft?: any;
   onSelectDraft?: (draft: any) => void;
   justApprovedId?: string | null;
-  onDragEnd?: (result: any) => void;
 }
 
-export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprovedId, onDragEnd }: DraftTrayProps) => {
+export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprovedId }: DraftTrayProps) => {
   const { openDock, startDragging, stopDragging } = useDashboardContext();
   const [showDragHint, setShowDragHint] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'drafts' | 'scheduled'>('drafts');

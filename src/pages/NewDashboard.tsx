@@ -12,24 +12,22 @@ import { DragDropContext, DropResult } from 'react-beautiful-dnd';
 const NewDashboardContent = () => {
   const { data, refetch, activeDraft, setActiveDraft, stopDragging } = useDashboardContext();
 
-  const handleDragEnd = async (result: DropResult) => {
+  const handleDragEnd = (result: DropResult) => {
+    const { destination, source } = result;
     console.log('🎯 Dashboard drag ended:', result);
-    
-    // Only stop dragging if the drop was NOT on the SmartTimeDock
-    // SmartTimeDock droppables have IDs that start with "day-"
-    const isSmartTimeDockDrop = result.destination?.droppableId?.startsWith('day-');
-    
-    if (!isSmartTimeDockDrop) {
-      // Stop dragging immediately for internal drops (like draft-tray reordering)
-      stopDragging();
+
+    // Nothing actually moved – ignore
+    if (!destination) return;
+
+    const droppedInDock = destination.droppableId.startsWith('day-');
+
+    // Only close the dock after a *successful* dock-drop,
+    // and give the UI time to render the new pill first.
+    if (droppedInDock) {
+      setTimeout(stopDragging, 400);   // tweak as required
     } else {
-      // For SmartTimeDock drops, add a delay to allow drop processing
-      setTimeout(() => {
-        stopDragging();
-      }, 300);
+      stopDragging();                  // re-order in draft tray
     }
-    
-    // The SmartTimeDock component handles the actual scheduling logic
   };
 
   return (
@@ -57,7 +55,6 @@ const NewDashboardContent = () => {
                 tasks={data?.drafts || []}
                 selectedDraft={activeDraft}
                 onSelectDraft={setActiveDraft}
-                onDragEnd={handleDragEnd}
               />
             </div>
 
