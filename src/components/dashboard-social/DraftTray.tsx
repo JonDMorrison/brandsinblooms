@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
-import { useDashboardContext } from '@/context/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { Badge } from '@/components/ui/badge';
 import { 
   FileText, 

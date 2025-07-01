@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useDashboardContext } from '@/context/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 export const TodayFocusCard = () => {
   const { currentCampaign, drafts, loading } = useDashboardContext();

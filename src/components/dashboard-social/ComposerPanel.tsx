@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { useDashboardContext } from '@/context/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { PulsePanel } from '@/components/dashboard-social/PulsePanel';
 import { 
   Bold, 

@@ -1,10 +1,11 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addWeeks, startOfWeek, addDays, isSameDay } from 'date-fns';
 import { Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
-import { useDashboardContext } from '@/context/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { useSmartTime } from '@/hooks/useSmartTime';
 import { usePublishFlow } from '@/hooks/usePublishFlow';

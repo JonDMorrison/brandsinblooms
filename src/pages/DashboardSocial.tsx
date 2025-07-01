@@ -1,12 +1,12 @@
 import React from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
-import { DashboardProvider } from '@/context/DashboardContext';
+import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
 import { TodayFocusCard } from '@/components/dashboard-social/TodayFocusCard';
 import { DraftTray } from '@/components/dashboard-social/DraftTray';
 import { ComposerPanel } from '@/components/dashboard-social/ComposerPanel';
 import { SmartTimeRibbon } from '@/components/dashboard-social/SmartTimeRibbon';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
-import { useDashboardContext } from '@/context/DashboardContext';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 const DashboardSocialContent = () => {
   const { scheduleDraft } = useDashboardContext();
