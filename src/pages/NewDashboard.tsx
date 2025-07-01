@@ -1,13 +1,12 @@
 
 import React from 'react';
 import { FullWidthLayout } from '@/components/FullWidthLayout';
-import { DashboardProvider } from '@/contexts/DashboardContext';
+import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
 import { TodayFocusCard } from '@/components/dashboard-social/TodayFocusCard';
 import { DraftTray } from '@/components/new-dashboard/DraftTray';
 import { ComposerPanel } from '@/components/dashboard-social/ComposerPanel';
 import { SmartTimeRibbon } from '@/components/new-dashboard/SmartTimeRibbon';
 import { DragDropContext, DropResult } from 'react-beautiful-dnd';
-import { useDashboardContext } from '@/contexts/DashboardContext';
 
 const NewDashboardContent = () => {
   const { data, refetch } = useDashboardContext();

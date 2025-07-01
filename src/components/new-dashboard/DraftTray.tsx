@@ -7,7 +7,7 @@ import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { cn } from '@/lib/utils';
 import { extractNewsletterThumbnail } from '@/utils/renderMarkdown';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
-import { useDashboardContext } from '@/contexts';
+import { useDashboardContext } from '@/contexts/DashboardContext';
 
 interface DraftTrayProps {
   tasks?: any[];
