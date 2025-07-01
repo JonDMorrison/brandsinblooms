@@ -17,7 +17,6 @@ import { useDashboardContext } from '@/contexts/DashboardContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { reorderArray } from '@/utils/dragUtils';
 import { TimePopoverModal } from '@/components/smart-time/TimePopoverModal';
-import { ConnectionAlert } from '@/components/common/ConnectionAlert';
 import { DashboardErrorBoundary } from '@/components/dashboard/DashboardErrorBoundary';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -276,9 +275,6 @@ const NewDashboardContent = () => {
     <DashboardErrorBoundary>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="min-h-screen bg-[#F9FAFB] p-6 dashboard-content">
-          {/* Connection Alert */}
-          <ConnectionAlert show={!hasConnections} />
-          
           {/* Fixed UserMenu - positioned above everything */}
           <div className="fixed top-6 right-6 z-[9999]">
             <UserMenu />
@@ -290,17 +286,17 @@ const NewDashboardContent = () => {
               <p className="text-gray-600">Your content creation command center</p>
             </div>
 
-            {/* Updated grid with flexible layout */}
+            {/* Updated grid with better column distribution */}
             <div className="grid grid-cols-12 gap-6 mb-6 min-h-0">
-              {/* Today's Focus - Column 1 */}
-              <div className="col-span-3 min-h-0 flex flex-col">
+              {/* Today's Focus - Column 1 - Reduced from col-span-3 to col-span-2 */}
+              <div className="col-span-2 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0">
                   <FocusCarousel onTaskUpdate={handleTaskUpdate} />
                 </div>
               </div>
 
-              {/* Draft Tray - Column 2 */}
-              <div className="col-span-4 min-h-0 flex flex-col">
+              {/* Draft Tray - Column 2 - Increased from col-span-4 to col-span-5 */}
+              <div className="col-span-5 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0">
                   <DraftTray 
                     tasks={getOrderedDrafts()}
@@ -312,7 +308,7 @@ const NewDashboardContent = () => {
                 </div>
               </div>
 
-              {/* Composer Panel - Column 3 */}
+              {/* Composer Panel - Column 3 - Same col-span-5 */}
               <div className="col-span-5 min-h-0 flex flex-col">
                 <div className="flex-1 min-h-0">
                   <ComposerPanel 
