@@ -6,19 +6,19 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-garden-green focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.98]",
   {
     variants: {
       variant: {
-        default: "bg-garden-green text-white hover:bg-garden-green-dark",
+        default: "bg-brand-teal text-white hover:brightness-95 shadow-sm",
         destructive:
-          "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground hover:brightness-95 shadow-sm",
         outline:
-          "border border-garden-green bg-background text-garden-green hover:bg-garden-green hover:text-white",
+          "border border-brand-teal bg-background text-brand-teal hover:bg-brand-teal hover:text-white",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-garden-green underline-offset-4 hover:underline",
+          "bg-gray-100 text-brand-navy hover:bg-gray-200",
+        ghost: "text-brand-navy hover:bg-gray-100",
+        link: "text-brand-teal underline-offset-4 hover:underline",
       },
       size: {
         default: "h-10 px-4 py-2",
@@ -56,7 +56,7 @@ Button.displayName = "Button"
 
 export { Button, buttonVariants }
 
-/* Add custom animations for approve button */
+/* Enhanced button animations */
 const styles = `
 @keyframes pulse-once {
   0%, 100% { transform: scale(1); }
@@ -74,27 +74,6 @@ const styles = `
 
 .animate-scale-in {
   animation: scale-in 0.3s ease-out;
-}
-
-/* CRITICAL: Force garden green for all outline buttons globally */
-button[data-variant="outline"],
-.outline {
-  border-color: rgb(76 175 80) !important;
-  color: rgb(76 175 80) !important;
-  background-color: transparent !important;
-}
-
-button[data-variant="outline"]:hover,
-.outline:hover {
-  background-color: rgb(76 175 80) !important;
-  color: white !important;
-  border-color: rgb(76 175 80) !important;
-}
-
-button[data-variant="outline"]:focus,
-.outline:focus {
-  border-color: rgb(76 175 80) !important;
-  box-shadow: 0 0 0 2px rgb(76 175 80 / 0.2) !important;
 }
 `;
 

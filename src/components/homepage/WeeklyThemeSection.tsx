@@ -68,21 +68,21 @@ export const WeeklyThemeSection = ({
 
   return (
     <>
-      <Card className="border-green-200 bg-gradient-to-br from-green-50 to-emerald-50">
+      <Card className="bg-white border-l-2 border-l-mint-600 border-gray-200 card-interactive">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-green-100/50 transition-colors rounded-t-lg">
+            <CardHeader className="cursor-pointer hover:bg-gray-50 transition-colors duration-150 rounded-t-lg">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div>
-                    <CardTitle className="text-lg text-green-800 flex items-center gap-2">
+                    <CardTitle className="text-lg text-brand-navy font-semibold tracking-tight flex items-center gap-2">
                       <Calendar className="w-5 h-5" />
                       Weekly Content Theme
-                      <Badge className="bg-green-100 text-green-800 border-green-300">
+                      <Badge className="bg-mint-100 text-mint-600 border-mint-600">
                         Week {currentWeek}
                       </Badge>
                     </CardTitle>
-                    <p className="text-green-700 text-sm mt-1">
+                    <p className="text-gray-700 text-sm mt-1 leading-relaxed">
                       {currentCampaign 
                         ? `This week: ${currentCampaign.theme || currentCampaign.title}` 
                         : 'No theme set for this week'}
@@ -91,14 +91,24 @@ export const WeeklyThemeSection = ({
                 </div>
                 <div className="flex items-center gap-2">
                   {campaignTasks.length > 0 && (
-                    <Badge variant="outline" className="text-green-700 border-green-300">
-                      {campaignTasks.length}/5 ready
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <div className="bg-mint-100 px-3 py-1 rounded-full">
+                        <span className="text-mint-600 text-sm font-medium">
+                          {campaignTasks.length}/5 ready
+                        </span>
+                      </div>
+                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                        <div 
+                          className="bg-mint-600 h-1.5 rounded-full transition-all duration-300" 
+                          style={{ width: `${(campaignTasks.length / 5) * 100}%` }}
+                        />
+                      </div>
+                    </div>
                   )}
                   {isOpen ? (
-                    <ChevronUp className="w-5 h-5 text-green-600" />
+                    <ChevronUp className="w-5 h-5 text-brand-navy" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-green-600" />
+                    <ChevronDown className="w-5 h-5 text-brand-navy" />
                   )}
                 </div>
               </div>
@@ -109,31 +119,31 @@ export const WeeklyThemeSection = ({
             <CardContent className="pt-0">
               {currentCampaign ? (
                 <div className="space-y-4">
-                  <div className="bg-white/70 rounded-lg p-4 border border-green-200">
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                     <div className="flex items-start gap-3 mb-3">
-                      <Sparkles className="w-5 h-5 text-green-600 mt-0.5" />
+                      <Sparkles className="w-5 h-5 text-brand-teal mt-0.5" />
                       <div className="text-left">
-                        <h4 className="font-medium text-green-900 mb-1">
+                        <h4 className="font-semibold text-brand-navy mb-1 tracking-tight">
                           {currentCampaign.theme || currentCampaign.title}
                         </h4>
                         {currentCampaign.description && (
-                          <p className="text-sm text-green-700 mb-2">
+                          <p className="text-sm text-gray-700 mb-2 leading-relaxed">
                             {currentCampaign.description}
                           </p>
                         )}
-                        <p className="text-xs text-green-600">
+                        <p className="text-xs text-gray-600">
                           We'll create 5 pieces of marketing content around this theme
                         </p>
                       </div>
                     </div>
 
                     {isGenerating ? (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-blue-800 mb-2">
-                          <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                      <div className="bg-brand-blue/10 border border-brand-blue/20 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-brand-blue mb-2">
+                          <div className="animate-spin h-4 w-4 border-2 border-brand-blue border-t-transparent rounded-full"></div>
                           <span className="text-sm font-medium">Generating your marketing content...</span>
                         </div>
-                        <p className="text-blue-600 text-xs">
+                        <p className="text-brand-blue/80 text-xs leading-relaxed">
                           This usually takes 30-60 seconds. Creating 5 pieces for your review.
                         </p>
                       </div>
@@ -142,21 +152,20 @@ export const WeeklyThemeSection = ({
                         <Button 
                           onClick={handleGenerateContent}
                           disabled={isGenerating}
-                          className="bg-green-600 hover:bg-green-700 text-white"
                         >
                           <Play className="w-4 h-4 mr-2" />
                           Generate Content
                         </Button>
                       </div>
                     ) : (
-                      <div className="bg-green-100 rounded-lg p-3">
+                      <div className="bg-mint-100 rounded-lg p-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="flex items-center gap-2 text-green-800 mb-1">
+                            <div className="flex items-center gap-2 text-mint-600 mb-1">
                               <Sparkles className="w-4 h-4" />
-                              <span className="text-sm font-medium">Content Ready!</span>
+                              <span className="text-sm font-semibold">Content Ready!</span>
                             </div>
-                            <p className="text-green-700 text-xs">
+                            <p className="text-mint-600/80 text-xs leading-relaxed">
                               {campaignTasks.length} pieces of content are ready for review
                             </p>
                           </div>
@@ -165,7 +174,6 @@ export const WeeklyThemeSection = ({
                               onClick={handleViewContent}
                               size="sm"
                               variant="outline"
-                              className="border-green-300 text-green-700 hover:bg-green-50"
                               disabled={!currentCampaign || campaignTasks.length === 0}
                             >
                               <Eye className="w-4 h-4 mr-2" />
@@ -174,7 +182,6 @@ export const WeeklyThemeSection = ({
                             <Button 
                               onClick={() => window.location.href = '/publish'}
                               size="sm"
-                              className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
                             >
                               <Sparkles className="w-4 h-4 mr-2" />
                               Publish
@@ -186,16 +193,15 @@ export const WeeklyThemeSection = ({
                   </div>
                 </div>
               ) : (
-                <div className="py-8 bg-white/50 rounded-lg border border-green-200">
+                <div className="py-8 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex flex-col items-start">
-                    <Calendar className="w-12 h-12 mb-3 text-green-400" />
-                    <p className="text-green-700 font-medium mb-2">No Weekly Theme Set</p>
-                    <p className="text-green-600 text-sm mb-4">
+                    <Calendar className="w-12 h-12 mb-3 text-brand-teal" />
+                    <p className="text-brand-navy font-semibold mb-2 tracking-tight">No Weekly Theme Set</p>
+                    <p className="text-gray-600 text-sm mb-4 leading-relaxed">
                       Create a campaign to set this week's content theme
                     </p>
                     <Button 
                       variant="outline" 
-                      className="border-green-300 text-green-700 hover:bg-green-50"
                       onClick={onCampaignCreated}
                     >
                       Create Campaign

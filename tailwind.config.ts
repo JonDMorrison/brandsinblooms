@@ -40,7 +40,57 @@ export default {
 					...colors.primary,
 					DEFAULT: '#15803d', // Garden green for blog polish
 				},
-				// Enhanced brand tokens
+				// Enhanced brand tokens with new BloomSuite palette
+				'brand-navy': {
+					DEFAULT: '#30506E',
+					50: '#F0F4F7',
+					100: '#E1E9EF',
+					200: '#C3D3DF',
+					300: '#A5BDCF',
+					400: '#87A7BF',
+					500: '#30506E', // Primary brand navy
+					600: '#284656',
+					700: '#203C4E',
+					800: '#183246',
+					900: '#10283E',
+				},
+				'brand-teal': {
+					DEFAULT: '#68BEB9',
+					50: '#F0FFFE',
+					100: '#E1FFFE',
+					200: '#C3FFFC',
+					300: '#A5FFFA',
+					400: '#87DFD8',
+					500: '#68BEB9', // Primary brand teal
+					600: '#5AA8A3',
+					700: '#4C928D',
+					800: '#3E7C77',
+					900: '#306661',
+				},
+				'mint': {
+					50: '#F0FDF4',
+					100: '#E7FAF7', // mint-100 for success backgrounds
+					200: '#BCF5E6',
+					300: '#86EFDB',
+					400: '#4AE0C4',
+					500: '#22D3B0',
+					600: '#1FA87B', // mint-600 for success text/badges
+					700: '#167A5B',
+					800: '#0F5F45',
+					900: '#0A4D36',
+				},
+				'sand': {
+					50: '#FBF9F4', // sand-50 for main page background
+					100: '#F7F3E8',
+					200: '#F0E6D1',
+					300: '#E8D9BA',
+					400: '#E0CCA3',
+					500: '#D8BF8C',
+					600: '#C09970',
+					700: '#A87354',
+					800: '#904D38',
+					900: '#78271C',
+				},
 				'brand-green': {
 					DEFAULT: 'rgb(var(--brand-green))',
 					50: '#E8F5E8',
