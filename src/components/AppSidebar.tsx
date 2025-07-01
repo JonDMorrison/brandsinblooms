@@ -60,6 +60,11 @@ const AppSidebar: React.FC = () => {
       icon: LayoutDashboard,
     },
     {
+      title: "Publish Portal",
+      url: "/publish",
+      icon: Share2,
+    },
+    {
       title: "Calendar",
       url: "/calendar",
       icon: Calendar,

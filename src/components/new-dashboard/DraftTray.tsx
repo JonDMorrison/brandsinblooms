@@ -115,7 +115,12 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0">
-        <CardTitle className="text-lg font-semibold text-[#3E5A6B]">Your Drafts</CardTitle>
+        <CardTitle className="text-lg font-semibold text-[#3E5A6B] flex items-center justify-between">
+          Your Drafts
+          <Badge variant="outline" className="text-xs">
+            {draftCount} ready
+          </Badge>
+        </CardTitle>
         
         {/* Tabs */}
         <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
@@ -145,7 +150,7 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
 
         <p className="text-sm text-gray-600">
           {activeTab === 'drafts'
-            ? `${draftCount} draft${draftCount !== 1 ? 's' : ''} ready to edit`
+            ? `${draftCount} draft${draftCount !== 1 ? 's' : ''} ready for publishing`
             : `${scheduledCount} post${scheduledCount !== 1 ? 's' : ''} scheduled`
           }
         </p>

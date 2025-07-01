@@ -15,6 +15,11 @@ import { QuickstartChecklist } from "@/components/onboarding/QuickstartChecklist
 import { MicroWalkthroughTour } from "@/components/onboarding/MicroWalkthroughTour";
 import { usePostConnectionFlow } from "@/hooks/usePostConnectionFlow";
 import { ContentGenerationProvider } from "@/contexts/ContentGenerationContext";
+import { ReadyToPublishSection } from "./ReadyToPublishSection";
+import { QuickPublishModal } from "./QuickPublishModal";
+import { TASK_STATUS } from "@/constants/taskStatus";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -29,11 +34,17 @@ export const DashboardContent = ({
 }: DashboardContentProps) => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
+  const navigate = useNavigate();
   const [activeCampaign, setActiveCampaign] = useState<Campaign | undefined>();
   const [tasks, setTasks] = useState([]);
   const [userCreatedCampaigns, setUserCreatedCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showQuickstartChecklist, setShowQuickstartChecklist] = useState(false);
+  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  
+  // Get approved tasks for the Ready to Publish section
+  const approvedTasks = tasks?.filter(task => task.status === TASK_STATUS.APPROVED) || [];
 
   // Post-connection flow
   const { flowState, navigateToTargetSection, completeOnboarding } = usePostConnectionFlow();
@@ -226,6 +237,40 @@ export const DashboardContent = ({
     console.log('DashboardContent: Task update triggered, refetching campaign data');
     fetchCampaignData();
   };
+  
+  const handlePublishNow = (task: any) => {
+    setSelectedTask(task);
+    setShowPublishModal(true);
+  };
+  
+  const handleSchedulePost = (task: any) => {
+    setSelectedTask(task);
+    setShowPublishModal(true);
+  };
+  
+  const handleViewAllPublishable = () => {
+    navigate('/publish');
+  };
+  
+  const handlePublish = async (task: any, platform: string, scheduledTime?: Date) => {
+    // This is a placeholder - in real implementation, this would:
+    // 1. Call the publish API
+    // 2. Update task status to 'scheduled' or 'published'
+    // 3. Show success toast
+    
+    console.log('Publishing task:', task.id, 'to platform:', platform, 'at:', scheduledTime);
+    
+    const status = scheduledTime ? TASK_STATUS.SCHEDULED : TASK_STATUS.PUBLISHED;
+    
+    toast.success(
+      scheduledTime 
+        ? `Post scheduled for ${scheduledTime.toLocaleString()}`
+        : 'Post published successfully!'
+    );
+    
+    // Refresh data to reflect changes
+    handleTaskUpdate();
+  };
 
   const handleGetStarted = () => {
     // Add a small delay to ensure DOM is fully rendered
@@ -345,6 +390,16 @@ export const DashboardContent = ({
             </div>
           )}
 
+          {/* Ready to Publish Section - Only show if there are approved tasks */}
+          {approvedTasks.length > 0 && (
+            <ReadyToPublishSection
+              approvedTasks={approvedTasks}
+              onPublishNow={handlePublishNow}
+              onSchedulePost={handleSchedulePost}
+              onViewAll={handleViewAllPublishable}
+            />
+          )}
+
           {/* Weekly Content Updater */}
           <WeeklyContentUpdater />
           
@@ -379,6 +434,18 @@ export const DashboardContent = ({
           isVisible={flowState.shouldShowOnboarding}
           onComplete={completeOnboarding}
           onSkip={completeOnboarding}
+        />
+        
+        {/* Quick Publish Modal */}
+        <QuickPublishModal
+          isOpen={showPublishModal}
+          onClose={() => {
+            setShowPublishModal(false);
+            setSelectedTask(null);
+          }}
+          task={selectedTask}
+          socialConnections={[]} // TODO: Pass real social connections
+          onPublish={handlePublish}
         />
       </div>
     </ContentGenerationProvider>
