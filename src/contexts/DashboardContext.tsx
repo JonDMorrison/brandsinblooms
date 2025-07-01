@@ -161,10 +161,14 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
 
   // Filter tasks to show approved, generated, and scheduled content
   const visibleStatuses: TaskStatus[] = [TASK_STATUS.APPROVED, TASK_STATUS.GENERATED, TASK_STATUS.SCHEDULED];
+  
+  // Create filtered data with proper structure
   const filteredData = data ? {
     ...data,
     drafts: data.tasks?.filter((task: any) => visibleStatuses.includes(task.status as TaskStatus)) || []
-  } : {};
+  } : {
+    drafts: []
+  };
 
   // Dashboard-social compatibility properties
   const currentCampaign = data?.currentCampaign || null;
