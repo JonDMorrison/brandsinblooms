@@ -100,11 +100,6 @@ export const DraftTrayItem = ({
                   <StatusIcon className="w-3 h-3 mr-1" />
                   {statusInfo.label}
                 </Badge>
-                {statusInfo.draggable && (
-                  <Badge variant="outline" className="text-xs px-2 py-1 bg-blue-50 text-blue-600 border-blue-200">
-                    Draggable
-                  </Badge>
-                )}
               </div>
               
               <p className="text-sm text-gray-700 line-clamp-3 leading-relaxed">
