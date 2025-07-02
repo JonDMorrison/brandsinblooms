@@ -20,6 +20,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false);
   const [completionStep, setCompletionStep] = useState<'saving' | 'generating' | 'finalizing' | 'complete'>('saving');
   
   const { 
@@ -57,6 +58,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
     }
 
     try {
+      setIsCompletingOnboarding(true);
       setCompletionStep('saving');
       
       // Enhanced completion with progress indicators
@@ -80,6 +82,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
       
     } catch (error) {
       console.error('Onboarding completion error:', error);
+      setIsCompletingOnboarding(false);
       setCompletionStep('saving'); // Reset on error
     }
   };
@@ -99,7 +102,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
       
       {/* Success/Loading Overlay */}
       <OnboardingSuccessIndicator 
-        isCompleting={completionStep !== 'complete'}
+        isCompleting={isCompletingOnboarding}
         step={completionStep}
         onContinue={handleContinueFromSuccess}
       />
@@ -121,7 +124,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
           </div>
 
           {/* Main content - Hide when analyzing or completing */}
-          {!isAnalyzing && completionStep === 'saving' && (
+          {!isAnalyzing && !isCompletingOnboarding && (
             <>
               {currentStep === 1 ? (
                 <UrlInputStep
@@ -139,7 +142,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
                   updateExtractedData={updateExtractedData}
                   onBack={handleBack}
                   onComplete={handleComplete}
-                  isCompleting={completionStep !== 'saving'}
+                  isCompleting={isCompletingOnboarding}
                   isAnalyzing={isAnalyzing}
                 />
               )}
