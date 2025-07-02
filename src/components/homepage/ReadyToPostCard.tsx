@@ -158,6 +158,62 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
     if (onTaskUpdate) onTaskUpdate();
   };
 
+  const handlePublishNow = async (task: any) => {
+    try {
+      console.log('🚀 Quick publishing task:', task.id);
+      
+      // Determine platforms based on post type
+      const platforms = [];
+      if (task.post_type === 'facebook') {
+        platforms.push('facebook');
+      } else if (task.post_type === 'instagram') {
+        platforms.push('instagram');
+      }
+      
+      if (platforms.length === 0) {
+        toast.error('Unsupported post type for quick publish');
+        return;
+      }
+
+      // Call the publish-task endpoint
+      const { data, error } = await supabase.functions.invoke('publish-task', {
+        body: {
+          taskId: task.id,
+          platforms
+        }
+      });
+
+      if (error) {
+        console.error('Quick publish error:', error);
+        toast.error(`Publishing failed: ${error.message}`);
+        return;
+      }
+
+      if (data?.success) {
+        const successCount = data.results?.filter((r: any) => r.success).length || 0;
+        const totalCount = data.results?.length || 0;
+        
+        if (successCount === totalCount) {
+          toast.success(`✅ Successfully published to ${task.post_type}!`);
+        } else if (successCount > 0) {
+          toast.success(`Published to ${successCount}/${totalCount} platforms`);
+        } else {
+          toast.error('Publishing failed');
+        }
+      } else {
+        toast.error(data?.message || 'Publishing failed');
+      }
+      
+      // Refresh the ready tasks
+      fetchReadyTasks();
+      if (onTaskUpdate) onTaskUpdate();
+      
+    } catch (error) {
+      console.error('Error in quick publish:', error);
+      toast.error('Failed to publish - please try again');
+    }
+  };
+
   if (loading) {
     return (
       <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm">

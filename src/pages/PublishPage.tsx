@@ -236,39 +236,56 @@ const PublishPage = () => {
     publishAt: string;
   }) => {
     try {
-      // TODO: Implement scheduling API call
+      console.log('📅 Scheduling post:', scheduleData);
       
-      // Show success feedback
-      const formattedTime = new Date(scheduleData.publishAt).toLocaleDateString('en-US', {
-        weekday: 'short',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
+      // Call our new publish-task endpoint with publishAt
+      const { data, error } = await supabase.functions.invoke('publish-task', {
+        body: {
+          taskId: scheduleData.contentId,
+          platforms: scheduleData.platforms,
+          publishAt: scheduleData.publishAt
+        }
       });
-      
-      showSuccessToast('scheduled', formattedTime);
-      triggerCardPulse(scheduleData.contentId);
-      
-      // Update local state
-      if (publishData && selectedContent) {
-        const updatedContent = publishData.content.map(c => 
-          c.id === scheduleData.contentId 
-            ? { ...c, status: 'SCHEDULED' as const }
-            : c
-        );
+
+      if (error) {
+        console.error('Schedule error:', error);
+        toast.error(`Scheduling failed: ${error.message}`);
+        return;
+      }
+
+      if (data?.success) {
+        const successCount = data.results?.filter((r: any) => r.success).length || 0;
+        const totalCount = data.results?.length || 0;
         
-        setPublishData({
-          ...publishData,
-          content: updatedContent
+        const formattedTime = new Date(scheduleData.publishAt).toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
         });
         
-        if (selectedContent.id === scheduleData.contentId) {
-          setSelectedContent({ ...selectedContent, status: 'SCHEDULED' });
+        if (successCount === totalCount) {
+          toast.success(`Successfully scheduled for ${formattedTime}!`);
+        } else if (successCount > 0) {
+          toast.success(`Scheduled ${successCount}/${totalCount} platforms for ${formattedTime}`);
+        } else {
+          toast.error('Scheduling failed on all platforms');
         }
+        
+        showSuccessToast('scheduled', formattedTime);
+        triggerCardPulse(scheduleData.contentId);
+      } else {
+        toast.error(data?.message || 'Scheduling failed');
       }
+      
+      // Refresh data regardless of success/failure
+      await initializePublishData();
+      
     } catch (error) {
       console.error('Error scheduling post:', error);
-      toast.error('Failed to schedule post');
+      toast.error('Failed to schedule post - please try again');
     }
   };
 
@@ -279,32 +296,46 @@ const PublishPage = () => {
     platforms: string[];
   }) => {
     try {
-      // TODO: Implement immediate publish API call
+      console.log('🚀 Publishing now:', publishDataPayload);
       
-      // Show success feedback
-      showSuccessToast('published');
-      triggerCardPulse(publishDataPayload.contentId);
-      
-      // Update local state
-      if (publishData && selectedContent) {
-        const updatedContent = publishData.content.map(c => 
-          c.id === publishDataPayload.contentId 
-            ? { ...c, status: 'PUBLISHED' as const }
-            : c
-        );
-        
-        setPublishData({
-          ...publishData,
-          content: updatedContent
-        });
-        
-        if (selectedContent.id === publishDataPayload.contentId) {
-          setSelectedContent({ ...selectedContent, status: 'PUBLISHED' });
+      // Call our new publish-task endpoint
+      const { data, error } = await supabase.functions.invoke('publish-task', {
+        body: {
+          taskId: publishDataPayload.contentId,
+          platforms: publishDataPayload.platforms
         }
+      });
+
+      if (error) {
+        console.error('Publish error:', error);
+        toast.error(`Publishing failed: ${error.message}`);
+        return;
       }
+
+      if (data?.success) {
+        const successCount = data.results?.filter((r: any) => r.success).length || 0;
+        const totalCount = data.results?.length || 0;
+        
+        if (successCount === totalCount) {
+          toast.success(`Successfully published to all ${totalCount} platform(s)!`);
+        } else if (successCount > 0) {
+          toast.success(`Published to ${successCount}/${totalCount} platforms`);
+        } else {
+          toast.error('Publishing failed on all platforms');
+        }
+        
+        showSuccessToast('published');
+        triggerCardPulse(publishDataPayload.contentId);
+      } else {
+        toast.error(data?.message || 'Publishing failed');
+      }
+      
+      // Refresh data regardless of success/failure
+      await initializePublishData();
+      
     } catch (error) {
       console.error('Error publishing post:', error);
-      toast.error('Failed to publish post');
+      toast.error('Failed to publish post - please try again');
     }
   };
 

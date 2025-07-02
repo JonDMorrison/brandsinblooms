@@ -64,15 +64,17 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
     try {
       const fullContent = hashtags ? `${content}\n\n${hashtags}` : content;
       
-      // Call the appropriate edge function
-      const functionName = platform === 'facebook' ? 'post-to-facebook' : 'post-to-instagram';
+      // Update the task with the edited content first
+      await supabase
+        .from('content_tasks')
+        .update({ ai_output: fullContent })
+        .eq('id', task.id);
       
-      const { data, error } = await supabase.functions.invoke(functionName, {
+      // Use our new unified publish-task endpoint
+      const { data, error } = await supabase.functions.invoke('publish-task', {
         body: {
-          content_task_id: task.id,
-          content: fullContent,
-          // For Instagram, we might need media_url if there are images
-          ...(platform === 'instagram' && task.image_url && { media_url: task.image_url })
+          taskId: task.id,
+          platforms: [platform]
         }
       });
 
@@ -81,11 +83,16 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
       }
 
       if (data?.success) {
-        toast.success(`Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`);
-        onSuccess();
-        onClose();
+        const result = data.results?.[0];
+        if (result?.success) {
+          toast.success(`Successfully posted to ${platformName}!`);
+          onSuccess();
+          onClose();
+        } else {
+          throw new Error(result?.error || `Failed to post to ${platform}`);
+        }
       } else {
-        throw new Error(data?.error || `Failed to post to ${platform}`);
+        throw new Error(data?.message || `Failed to post to ${platform}`);
       }
     } catch (error: any) {
       console.error(`Error posting to ${platform}:`, error);
