@@ -23,7 +23,7 @@ import ReviewQueuePage from './pages/ContentTasksPage';
 import DevSocialPageWrapper from './pages/DevSocialPage';
 import PublishPage from "./pages/PublishPage";
 import NewDashboard from "./pages/NewDashboard";
-import DashboardSocial from "./pages/DashboardSocial";
+
 import SuccessPage from "./pages/SuccessPage";
 import IntegrationsPage from "./pages/IntegrationsPage";
 import ZapierPage from "./pages/ZapierPage";
@@ -43,7 +43,7 @@ const App = () => {
               <Route path="/" element={<SmartRootRoute />} />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/new-dashboard" element={<NewDashboard />} />
-              <Route path="/social" element={<DashboardSocial />} />
+              <Route path="/social" element={<Navigate to="/social-accounts" replace />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/onboarding" element={<Onboarding />} />
