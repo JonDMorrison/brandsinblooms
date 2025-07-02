@@ -69,6 +69,25 @@ export const CalendarGrid = ({
       map.get(dateKey)!.push(campaign);
     });
     
+    // Deduplicate campaigns within each date group
+    map.forEach((campaignsForDate, dateKey) => {
+      const uniqueCampaigns = campaignsForDate.reduce((acc: any[], campaign: any) => {
+        // Check if we already have a campaign with the same week_number and title
+        const isDuplicate = acc.some(existing => 
+          existing.week_number === campaign.week_number && 
+          existing.title === campaign.title
+        );
+        
+        if (!isDuplicate) {
+          acc.push(campaign);
+        }
+        
+        return acc;
+      }, []);
+      
+      map.set(dateKey, uniqueCampaigns);
+    });
+    
     return map;
   }, [campaigns]);
 
