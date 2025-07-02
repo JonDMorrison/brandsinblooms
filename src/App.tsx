@@ -24,6 +24,7 @@ import DevSocialPageWrapper from './pages/DevSocialPage';
 import PublishPage from "./pages/PublishPage";
 import NewDashboard from "./pages/NewDashboard";
 import DashboardSocial from "./pages/DashboardSocial";
+import SuccessPage from "./pages/SuccessPage";
 import Auth from "./pages/Auth";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
 
@@ -53,6 +54,7 @@ const App = () => {
               <Route path="/review-queue" element={<ReviewQueuePage />} />
               <Route path="/dev-social" element={<DevSocialPageWrapper />} />
               <Route path="/publish" element={<PublishPage />} />
+              <Route path="/success" element={<SuccessPage />} />
             </Routes>
           </ContentGenerationProvider>
         </SubscriptionProvider>

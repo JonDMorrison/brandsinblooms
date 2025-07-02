@@ -22,6 +22,7 @@ import {
   ClipboardList,
   TrendingUp,
   Building2,
+  Trophy,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -90,6 +91,11 @@ const AppSidebar: React.FC = () => {
       title: "Content Tasks",
       url: "/content-tasks",
       icon: ClipboardList,
+    },
+    {
+      title: "Success Metrics",
+      url: "/success",
+      icon: Trophy,
     },
     {
       title: "Company Profile",
