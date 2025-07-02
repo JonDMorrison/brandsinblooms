@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 export const AuthCallbackPage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Connecting to Meta platform...');
+  const [waitingForAuth, setWaitingForAuth] = useState(false);
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -82,8 +83,16 @@ export const AuthCallbackPage = () => {
       sessionStorage.removeItem('oauth_state');
       localStorage.removeItem('oauth_state_backup');
 
+      // Wait for auth to load if it's still loading
+      if (authLoading) {
+        console.log('⏳ Waiting for auth to load...');
+        setWaitingForAuth(true);
+        setMessage('Verifying authentication...');
+        return;
+      }
+
       if (!user) {
-        console.error('❌ No authenticated user');
+        console.error('❌ No authenticated user after auth loaded');
         setStatus('error');
         setMessage('You must be logged in to connect social media accounts');
         toast.error('Please log in first');
@@ -194,7 +203,21 @@ export const AuthCallbackPage = () => {
       console.log('ℹ️ No OAuth parameters found, redirecting to social page');
       navigate('/social');
     }
-  }, [searchParams, navigate, user]);
+  }, [searchParams, navigate, user, authLoading]);
+
+  // Handle the case where we're waiting for auth to load
+  useEffect(() => {
+    if (waitingForAuth && !authLoading) {
+      console.log('🔄 Auth loading completed, retrying callback...');
+      setWaitingForAuth(false);
+      // Re-trigger the callback handling now that auth is loaded
+      const code = searchParams.get('code');
+      const error = searchParams.get('error');
+      if (code || error) {
+        window.location.reload(); // Simple reload to restart the process
+      }
+    }
+  }, [waitingForAuth, authLoading, searchParams]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
