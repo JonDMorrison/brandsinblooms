@@ -41,6 +41,7 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/onboarding" element={<Onboarding />} />
+              <Route path="/onboarding/manual" element={<Onboarding />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/account" element={<AccountSettings />} />
               <Route path="/company-profile" element={<CompanyProfile />} />

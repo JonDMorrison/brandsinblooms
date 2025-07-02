@@ -1,5 +1,7 @@
 
-import { WebsiteOnboardingFlow } from "@/components/WebsiteOnboardingFlow";
+import { SimplifiedOnboardingFlow } from "@/components/onboarding/SimplifiedOnboardingFlow";
+import { OnboardingFlow } from "@/components/OnboardingFlow";
+import { EnhancedErrorBoundary } from "@/components/onboarding/EnhancedErrorBoundary";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
@@ -36,6 +38,14 @@ const OnboardingPage = () => {
     }
   };
 
+  const handleReset = () => {
+    // Clear any stuck onboarding data
+    if (user) {
+      localStorage.removeItem(`garden-center-onboarding-${user.id}`);
+      localStorage.removeItem(`onboarding-progress-${user.id}`);
+    }
+  };
+
   // Show loading while auth is being determined
   if (loading) {
     console.log('⏳ OnboardingPage: Showing loading state');
@@ -56,11 +66,20 @@ const OnboardingPage = () => {
   }
 
   console.log('🎯 OnboardingPage: Rendering onboarding flow for user:', user.id);
+
+  // Check if we should show manual entry flow or simplified flow
+  const isManualFlow = window.location.pathname === '/onboarding/manual';
   
   return (
-    <div className="min-h-screen bg-garden-background">
-      <WebsiteOnboardingFlow onComplete={handleOnboardingComplete} />
-    </div>
+    <EnhancedErrorBoundary onReset={handleReset}>
+      <div className="min-h-screen bg-garden-background">
+        {isManualFlow ? (
+          <OnboardingFlow onComplete={handleOnboardingComplete} />
+        ) : (
+          <SimplifiedOnboardingFlow onComplete={handleOnboardingComplete} />
+        )}
+      </div>
+    </EnhancedErrorBoundary>
   );
 };
 
