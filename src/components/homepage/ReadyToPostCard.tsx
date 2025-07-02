@@ -55,22 +55,23 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   };
 
   const fetchReadyTasks = async () => {
-    if (!user || !tenant) {
+    if (!user) {
       setLoading(false);
       return;
     }
 
-    console.log('🔍 READY_TO_POST: Fetching ready tasks for tenant:', tenant.id);
+    console.log('🔍 READY_TO_POST: Fetching ready tasks for user:', user.id, 'tenant:', tenant?.id);
 
     try {
       // Build status filter for ready-to-post content - focus on approved content
       const statusFilter = ['approved'];
       
-      const { data, error } = await supabase
+      // Build query that works for both tenant and non-tenant users
+      let query = supabase
         .from('content_tasks')
         .select(`
           *,
-          campaigns!inner (
+          campaigns (
             id,
             title,
             week_number,
@@ -79,9 +80,17 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
             user_id
           )
         `)
-        .eq('tenant_id', tenant.id)
         .in('status', statusFilter)
         .order('created_at', { ascending: false });
+
+      // Apply appropriate filter based on tenant setup
+      if (tenant?.id) {
+        query = query.eq('tenant_id', tenant.id);
+      } else {
+        query = query.eq('user_id', user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('❌ READY_TO_POST: Error fetching ready tasks:', error);
@@ -92,13 +101,20 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           statusBreakdown: data?.reduce((acc, task) => {
             acc[task.status] = (acc[task.status] || 0) + 1;
             return acc;
-          }, {} as Record<string, number>)
+          }, {} as Record<string, number>),
+          sampleTasks: data?.slice(0, 3).map(t => ({ 
+            id: t.id, 
+            status: t.status, 
+            type: t.post_type,
+            hasAiOutput: !!t.ai_output,
+            campaignTitle: t.campaigns?.title
+          }))
         });
 
         // Security filter to double-check ownership
         const securityCheckedTasks = data?.filter(task => {
           if (tenant?.id) {
-            return task.campaigns?.tenant_id === tenant.id;
+            return task.campaigns?.tenant_id === tenant.id || task.tenant_id === tenant.id;
           } else {
             return task.campaigns?.user_id === user.id || task.user_id === user.id;
           }
@@ -106,7 +122,12 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
         
         console.log('✅ READY_TO_POST: Security filtered results:', {
           finalCount: securityCheckedTasks.length,
-          statuses: securityCheckedTasks.map(t => ({ id: t.id, status: t.status, type: t.post_type }))
+          statuses: securityCheckedTasks.map(t => ({ 
+            id: t.id, 
+            status: t.status, 
+            type: t.post_type,
+            aiOutput: t.ai_output?.substring(0, 50) + '...' 
+          }))
         });
         
         setReadyTasks(securityCheckedTasks as ContentTask[]);
@@ -158,10 +179,41 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
     );
   }
 
-  // Don't render if no ready tasks
+  // Show empty state if no ready tasks
   if (readyTasks.length === 0) {
-    console.log('🔍 READY_TO_POST: No ready tasks found, component will not render');
-    return null;
+    console.log('🔍 READY_TO_POST: No approved tasks found, showing empty state');
+    return (
+      <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg text-brand-navy flex items-center gap-2 font-semibold">
+            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-sm font-bold">
+              5
+            </div>
+            <CheckCircle2 className="w-5 h-5 text-gray-400" />
+            Ready to Post
+          </CardTitle>
+          <CardDescription className="mt-1 text-gray-600">
+            No approved content ready for publishing yet
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-600 font-medium mb-2">No content ready to post</p>
+            <p className="text-gray-500 text-sm mb-4">
+              Generate and approve content to see it here. Content needs to be approved before it can be published.
+            </p>
+            <Button 
+              onClick={() => window.location.href = '/'}
+              variant="outline"
+              className="text-sm"
+            >
+              Generate Content
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
