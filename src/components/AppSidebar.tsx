@@ -23,6 +23,8 @@ import {
   TrendingUp,
   Building2,
   Trophy,
+  Zap,
+  Puzzle,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -96,6 +98,16 @@ const AppSidebar: React.FC = () => {
       title: "Success Metrics",
       url: "/success",
       icon: Trophy,
+    },
+    {
+      title: "Integrations",
+      url: "/integrations",
+      icon: Puzzle,
+    },
+    {
+      title: "Automation",
+      url: "/automation",
+      icon: Zap,
     },
     {
       title: "Company Profile",

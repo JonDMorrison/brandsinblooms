@@ -62,7 +62,8 @@ export const IntegrationHub = () => {
       icon: <Zap className="w-6 h-6 text-orange-600" />,
       isConnected: false,
       provider: 'zapier',
-      setupUrl: '/integrations/zapier'
+      setupUrl: '/integrations/zapier',
+      isActive: true
     },
     {
       id: 'mailchimp',
@@ -71,7 +72,8 @@ export const IntegrationHub = () => {
       category: 'email',
       icon: <Mail className="w-6 h-6 text-yellow-600" />,
       isConnected: false,
-      provider: 'mailchimp'
+      provider: 'mailchimp',
+      isActive: true
     },
     {
       id: 'hubspot',
@@ -80,7 +82,8 @@ export const IntegrationHub = () => {
       category: 'crm',
       icon: <Users className="w-6 h-6 text-orange-500" />,
       isConnected: false,
-      provider: 'hubspot'
+      provider: 'hubspot',
+      isActive: true
     },
     {
       id: 'google_analytics',
@@ -89,7 +92,8 @@ export const IntegrationHub = () => {
       category: 'analytics',
       icon: <BarChart3 className="w-6 h-6 text-blue-600" />,
       isConnected: false,
-      provider: 'google'
+      provider: 'google',
+      isActive: true
     },
     {
       id: 'webhook_custom',
@@ -98,7 +102,8 @@ export const IntegrationHub = () => {
       category: 'automation',
       icon: <Webhook className="w-6 h-6 text-purple-600" />,
       isConnected: false,
-      provider: 'custom'
+      provider: 'custom',
+      isActive: true
     },
     {
       id: 'slack',
@@ -107,7 +112,8 @@ export const IntegrationHub = () => {
       category: 'automation',
       icon: <Smartphone className="w-6 h-6 text-purple-500" />,
       isConnected: false,
-      provider: 'slack'
+      provider: 'slack',
+      isActive: true
     }
   ];
 
@@ -115,14 +121,8 @@ export const IntegrationHub = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('user_integrations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setUserIntegrations(data || []);
+      // TODO: Replace with actual database call once migration is applied
+      setUserIntegrations([]);
     } catch (error) {
       console.error('Error fetching integrations:', error);
       toast.error('Failed to load integrations');
@@ -142,21 +142,8 @@ export const IntegrationHub = () => {
   };
 
   const handleDisconnectIntegration = async (integrationId: string) => {
-    try {
-      const { error } = await supabase
-        .from('user_integrations')
-        .update({ is_active: false })
-        .eq('id', integrationId)
-        .eq('user_id', user?.id);
-
-      if (error) throw error;
-      
-      toast.success('Integration disconnected');
-      fetchUserIntegrations();
-    } catch (error) {
-      console.error('Error disconnecting integration:', error);
-      toast.error('Failed to disconnect integration');
-    }
+    // TODO: Replace with actual database call once migration is applied
+    toast.info('Integrations will be available once database setup is complete');
   };
 
   const getConnectionStatus = (providerId: string) => {

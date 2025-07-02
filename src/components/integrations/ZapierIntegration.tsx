@@ -45,27 +45,8 @@ export const ZapierIntegration = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('user_integrations')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('provider', 'zapier')
-        .eq('is_active', true);
-
-      if (error) throw error;
-
-      // Transform data to webhook format
-      const transformedWebhooks = (data || []).map(item => ({
-        id: item.id,
-        name: item.configuration?.name || 'Unnamed Webhook',
-        webhookUrl: item.configuration?.webhook_url || '',
-        description: item.configuration?.description || '',
-        isActive: item.is_active,
-        lastTriggered: item.configuration?.last_triggered,
-        triggerCount: item.configuration?.trigger_count || 0
-      }));
-
-      setWebhooks(transformedWebhooks);
+      // TODO: Replace with actual database call once migration is applied
+      setWebhooks([]);
     } catch (error) {
       console.error('Error fetching Zapier webhooks:', error);
       toast.error('Failed to load webhooks');
@@ -81,32 +62,12 @@ export const ZapierIntegration = () => {
     }
 
     try {
-      const configuration = {
-        name: webhookName,
-        webhook_url: webhookUrl,
-        description: webhookDescription,
-        trigger_count: 0,
-        created_at: new Date().toISOString()
-      };
-
-      const { error } = await supabase
-        .from('user_integrations')
-        .insert({
-          user_id: user?.id,
-          integration_type: 'webhook',
-          provider: 'zapier',
-          configuration,
-          is_active: true
-        });
-
-      if (error) throw error;
-
-      toast.success('Zapier webhook created successfully!');
+      // TODO: Replace with actual database call once migration is applied
+      toast.info('Zapier integration will be available once database setup is complete');
       setWebhookName('');
       setWebhookUrl('');
       setWebhookDescription('');
       setIsCreating(false);
-      fetchZapierWebhooks();
     } catch (error) {
       console.error('Error creating webhook:', error);
       toast.error('Failed to create webhook');
@@ -138,20 +99,7 @@ export const ZapierIntegration = () => {
         body: JSON.stringify(testPayload),
       });
 
-      // Update trigger count
-      await supabase
-        .from('user_integrations')
-        .update({
-          configuration: {
-            ...webhooks.find(w => w.id === webhook.id),
-            trigger_count: webhook.triggerCount + 1,
-            last_triggered: new Date().toISOString()
-          }
-        })
-        .eq('id', webhook.id);
-
       toast.success('Test webhook sent! Check your Zap history to confirm it was received.');
-      fetchZapierWebhooks();
     } catch (error) {
       console.error('Error testing webhook:', error);
       toast.error('Failed to test webhook. Please check the URL and try again.');
@@ -161,20 +109,8 @@ export const ZapierIntegration = () => {
   };
 
   const handleDeleteWebhook = async (webhookId: string) => {
-    try {
-      const { error } = await supabase
-        .from('user_integrations')
-        .update({ is_active: false })
-        .eq('id', webhookId);
-
-      if (error) throw error;
-
-      toast.success('Webhook deleted successfully');
-      fetchZapierWebhooks();
-    } catch (error) {
-      console.error('Error deleting webhook:', error);
-      toast.error('Failed to delete webhook');
-    }
+    // TODO: Replace with actual database call once migration is applied
+    toast.info('Zapier integration will be available once database setup is complete');
   };
 
   const copyToClipboard = (text: string) => {

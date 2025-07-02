@@ -25,6 +25,9 @@ import PublishPage from "./pages/PublishPage";
 import NewDashboard from "./pages/NewDashboard";
 import DashboardSocial from "./pages/DashboardSocial";
 import SuccessPage from "./pages/SuccessPage";
+import IntegrationsPage from "./pages/IntegrationsPage";
+import ZapierPage from "./pages/ZapierPage";
+import AutomationPage from "./pages/AutomationPage";
 import Auth from "./pages/Auth";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
 
@@ -55,6 +58,9 @@ const App = () => {
               <Route path="/dev-social" element={<DevSocialPageWrapper />} />
               <Route path="/publish" element={<PublishPage />} />
               <Route path="/success" element={<SuccessPage />} />
+              <Route path="/integrations" element={<IntegrationsPage />} />
+              <Route path="/integrations/zapier" element={<ZapierPage />} />
+              <Route path="/automation" element={<AutomationPage />} />
             </Routes>
           </ContentGenerationProvider>
         </SubscriptionProvider>
