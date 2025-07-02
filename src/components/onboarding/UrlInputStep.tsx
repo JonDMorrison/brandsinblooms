@@ -65,12 +65,12 @@ export const UrlInputStep = ({
   };
 
   return (
-    <Card className="border-garden-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
+    <Card className="border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
       <CardHeader className="text-center pb-6">
-        <div className="w-16 h-16 bg-garden-sage rounded-full flex items-center justify-center mx-auto mb-4">
-          <Edit className="h-8 w-8 text-garden-green" />
+        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+          <Edit className="h-8 w-8 text-brand-green" />
         </div>
-        <CardTitle className="text-2xl font-semibold text-garden-green-dark">
+        <CardTitle className="text-2xl font-semibold text-foreground">
           Paste Your Website
         </CardTitle>
         <p className="text-gray-600 mt-2">
@@ -133,7 +133,7 @@ export const UrlInputStep = ({
                 }
               }}
               placeholder="https://your-garden-center.com"
-              className="pl-10 h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+              className="pl-10 h-12 border-brand-green/30 focus:border-brand-green focus:ring-brand-green/20 transition-all duration-200 rounded-lg"
               disabled={isAnalyzing}
             />
           </div>
@@ -145,7 +145,7 @@ export const UrlInputStep = ({
         <Button 
           onClick={handleAnalyze}
           disabled={isAnalyzing}
-          className="w-full h-12 bg-garden-green hover:bg-garden-green-dark text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+          className="w-full h-12 bg-brand-green hover:bg-brand-green-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
         >
           {isAnalyzing ? (
             <>
@@ -159,7 +159,7 @@ export const UrlInputStep = ({
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-garden-green/20" />
+            <span className="w-full border-t border-brand-green/20" />
           </div>
           <div className="relative flex justify-center text-sm">
             <span className="bg-white px-4 text-gray-500">— or —</span>
@@ -169,7 +169,7 @@ export const UrlInputStep = ({
         <Button 
           onClick={onManualEntry}
           variant="outline"
-          className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg"
+          className="w-full h-12 border-brand-green/30 hover:bg-muted hover:border-brand-green transition-all duration-200 rounded-lg"
           disabled={isAnalyzing}
         >
           Enter Details Manually

@@ -37,12 +37,12 @@ export const DataReviewStep = ({
   }
 
   return (
-    <Card className="border-garden-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
+    <Card className="border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
       <CardHeader className="text-center pb-6">
-        <div className="w-16 h-16 bg-garden-sage rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="h-8 w-8 text-garden-green" />
+        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="h-8 w-8 text-brand-green" />
         </div>
-        <CardTitle className="text-2xl font-semibold text-garden-green-dark">
+        <CardTitle className="text-2xl font-semibold text-foreground">
           Review Your Content
         </CardTitle>
         <p className="text-gray-600 mt-2">
@@ -60,7 +60,7 @@ export const DataReviewStep = ({
               value={extractedData.businessName}
               onChange={(e) => updateExtractedData('businessName', e.target.value)}
               placeholder="Your Garden Center Name"
-              className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+              className="h-12 border-brand-green/30 focus:border-brand-green focus:ring-brand-green/20 transition-all duration-200 rounded-lg"
             />
           </div>
 
@@ -73,7 +73,7 @@ export const DataReviewStep = ({
               value={extractedData.aboutBusiness}
               onChange={(e) => updateExtractedData('aboutBusiness', e.target.value)}
               placeholder="Tell us about your garden center..."
-              className="min-h-[100px] border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+              className="min-h-[100px] border-brand-green/30 focus:border-brand-green focus:ring-brand-green/20 transition-all duration-200 rounded-lg"
             />
           </div>
 
@@ -86,7 +86,7 @@ export const DataReviewStep = ({
               value={extractedData.brandVoice}
               onChange={(e) => updateExtractedData('brandVoice', e.target.value)}
               placeholder="How do you communicate with customers?"
-              className="min-h-[80px] border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+              className="min-h-[80px] border-brand-green/30 focus:border-brand-green focus:ring-brand-green/20 transition-all duration-200 rounded-lg"
             />
           </div>
 
@@ -99,7 +99,7 @@ export const DataReviewStep = ({
               value={extractedData.annualEvents}
               onChange={(e) => updateExtractedData('annualEvents', e.target.value)}
               placeholder="Spring sales, holiday events, workshops..."
-              className="min-h-[80px] border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg"
+              className="min-h-[80px] border-brand-green/30 focus:border-brand-green focus:ring-brand-green/20 transition-all duration-200 rounded-lg"
             />
           </div>
         </div>
@@ -108,7 +108,7 @@ export const DataReviewStep = ({
           <Button 
             onClick={onBack}
             variant="outline"
-            className="flex-1 h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg"
+            className="flex-1 h-12 border-brand-green/30 hover:bg-muted hover:border-brand-green transition-all duration-200 rounded-lg"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
@@ -116,7 +116,7 @@ export const DataReviewStep = ({
           <Button 
             onClick={onComplete}
             disabled={isCompleting}
-            className="flex-1 h-12 bg-garden-green hover:bg-garden-green-dark text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+            className="flex-1 h-12 bg-brand-green hover:bg-brand-green-600 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
           >
             {isCompleting ? (
               <>
