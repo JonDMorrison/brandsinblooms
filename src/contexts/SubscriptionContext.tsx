@@ -238,16 +238,37 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
       // In tenant model, subscription is still tied to the user who created the tenant
       // So we always query by user_id, not tenant_id
-      const { data, error } = await supabase
+      
+      // First check if there are multiple subscriptions for this user
+      const { data: allSubscriptions, error: countError } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', user.id)
-        .maybeSingle();
+        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching subscription:', error);
+      if (countError) {
+        console.error('Error fetching subscription:', countError);
         toast.error('Failed to load subscription information');
         return;
+      }
+
+      let data = null;
+      
+      if (allSubscriptions && allSubscriptions.length > 1) {
+        console.warn(`Found ${allSubscriptions.length} subscriptions for user ${user.id}, using most recent`);
+        data = allSubscriptions[0]; // Use the most recent one
+        
+        // Clean up duplicates by keeping only the most recent one
+        const duplicateIds = allSubscriptions.slice(1).map(sub => sub.id);
+        if (duplicateIds.length > 0) {
+          console.log('Cleaning up duplicate subscriptions:', duplicateIds);
+          await supabase
+            .from('subscriptions')
+            .delete()
+            .in('id', duplicateIds);
+        }
+      } else if (allSubscriptions && allSubscriptions.length === 1) {
+        data = allSubscriptions[0];
       }
 
       if (data) {
