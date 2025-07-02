@@ -32,22 +32,33 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     };
   }
 
+  console.log('🔍 Processing newsletter content:', {
+    length: content.length,
+    hasBlocks: content.includes('blocks:'),
+    hasTitleStructure: content.includes('- title:'),
+    preview: content.substring(0, 200)
+  });
+
   // Check if content is YAML structured
   const isYAMLStructured = content.includes('blocks:') && content.includes('- title:');
   
   if (isYAMLStructured) {
+    console.log('📋 Detected YAML structured newsletter');
     // Parse YAML structure
     const yamlResult = parseSimpleYAML(content);
     if (yamlResult) {
+      console.log('✅ Successfully parsed YAML newsletter');
       return {
         isStructured: true,
         ...yamlResult,
         meta: {
-          reading_time: yamlResult.meta?.reading_time || calculateReadingTime(content),
+          reading_time: yamlResult.meta?.reading_time || calculateReadingTime(yamlResult.newsletter_md || content),
           theme: yamlResult.meta?.theme || campaignTitle || 'Newsletter',
           week_focus: yamlResult.meta?.week_focus || 'Content Update'
         }
       };
+    } else {
+      console.log('❌ Failed to parse YAML, falling back to plain text');
     }
   }
 
@@ -143,6 +154,8 @@ export const convertNewsletterMarkdownToHtml = (content: string): string => {
 
 const parseSimpleYAML = (content: string) => {
   try {
+    console.log('📥 Parsing YAML content, length:', content.length);
+    
     const lines = content.split('\n');
     const result: any = {
       blocks: [],
@@ -153,9 +166,21 @@ const parseSimpleYAML = (content: string) => {
     let currentSection = '';
     let inNewsletterMd = false;
     let currentBlock: any = {};
+    let skipNextLines = 0;
     
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      if (skipNextLines > 0) {
+        skipNextLines--;
+        continue;
+      }
+      
+      const line = lines[i];
       const trimmed = line.trim();
+      
+      // Skip YAML fence markers
+      if (trimmed === '```yaml' || trimmed === '```') {
+        continue;
+      }
       
       if (trimmed === 'newsletter_md: |') {
         inNewsletterMd = true;
@@ -170,12 +195,15 @@ const parseSimpleYAML = (content: string) => {
       }
       
       if (trimmed === 'meta:') {
+        inNewsletterMd = false;
         currentSection = 'meta';
         continue;
       }
       
       if (inNewsletterMd) {
-        result.newsletter_md += line + '\n';
+        // For newsletter_md content, preserve the line structure but remove extra indentation
+        const contentLine = line.replace(/^  /, ''); // Remove 2-space YAML indentation
+        result.newsletter_md += contentLine + '\n';
         continue;
       }
       
@@ -203,6 +231,14 @@ const parseSimpleYAML = (content: string) => {
         } else if (trimmed.startsWith('alt_text:')) {
           currentBlock.alt_text = trimmed.replace('alt_text:', '').replace(/"/g, '').trim();
         }
+      } else if (currentSection === 'meta') {
+        if (trimmed.startsWith('reading_time:')) {
+          result.meta.reading_time = trimmed.replace('reading_time:', '').replace(/"/g, '').trim();
+        } else if (trimmed.startsWith('theme:')) {
+          result.meta.theme = trimmed.replace('theme:', '').replace(/"/g, '').trim();
+        } else if (trimmed.startsWith('week_focus:')) {
+          result.meta.week_focus = trimmed.replace('week_focus:', '').replace(/"/g, '').trim();
+        }
       }
     }
     
@@ -211,9 +247,17 @@ const parseSimpleYAML = (content: string) => {
     }
     
     result.newsletter_md = result.newsletter_md.trim();
+    
+    console.log('✅ YAML parsing result:', {
+      hasNewsletterMd: !!result.newsletter_md,
+      newsletterMdLength: result.newsletter_md.length,
+      blockCount: result.blocks.length,
+      metaKeys: Object.keys(result.meta)
+    });
+    
     return result.blocks.length > 0 || result.newsletter_md ? result : null;
   } catch (error) {
-    console.error('Error parsing YAML:', error);
+    console.error('❌ Error parsing YAML:', error);
     return null;
   }
 };
