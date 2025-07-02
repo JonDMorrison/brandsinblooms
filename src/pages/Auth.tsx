@@ -189,59 +189,62 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-garden-background via-garden-sage to-garden-sage flex items-center justify-center p-6">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute top-10 left-10 text-6xl">🌿</div>
-        <div className="absolute top-32 right-20 text-4xl">🌸</div>
-        <div className="absolute bottom-32 left-20 text-5xl">🌱</div>
-        <div className="absolute bottom-20 right-32 text-3xl">🍃</div>
-        <div className="absolute top-1/2 left-1/3 text-2xl">🌺</div>
-        <div className="absolute top-1/4 right-1/3 text-3xl">🌻</div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-teal-50 flex items-center justify-center p-4 md:p-6">
+      {/* Modern Background Pattern */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-10 left-10 w-20 h-20 bg-primary/10 rounded-full blur-xl"></div>
+        <div className="absolute top-32 right-20 w-32 h-32 bg-blue-500/10 rounded-full blur-xl"></div>
+        <div className="absolute bottom-32 left-20 w-24 h-24 bg-teal-500/10 rounded-full blur-xl"></div>
+        <div className="absolute bottom-20 right-32 w-16 h-16 bg-primary/10 rounded-full blur-xl"></div>
+        <div className="absolute top-1/2 left-1/3 w-12 h-12 bg-blue-400/10 rounded-full blur-xl"></div>
+        <div className="absolute top-1/4 right-1/3 w-28 h-28 bg-teal-400/10 rounded-full blur-xl"></div>
       </div>
 
       <div className="relative z-10 w-full max-w-md">
         {/* Header Area */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Sprout className="h-8 w-8 text-garden-green mr-3" />
-            <h1 className="text-3xl font-bold text-black">
+            <div className="p-3 bg-primary/10 rounded-full mr-3">
+              <Sprout className="h-8 w-8 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold text-text-primary">
               BloomSuite
             </h1>
           </div>
-          <p className="text-gray-600 text-lg">
+          <p className="text-text-secondary text-lg font-medium">
             Save Hours with BloomSuite
           </p>
         </div>
 
-        <Card className="shadow-lg border-0 bg-white/95 backdrop-blur-sm rounded-2xl p-8">
+        <Card className="shadow-xl border border-white/20 bg-white/95 backdrop-blur-lg rounded-3xl p-8 transition-all duration-300 hover:shadow-2xl">
           <CardHeader className="text-center pb-6">
-            <CardTitle className="text-2xl font-semibold text-black mb-4">
-              Sign In or Create an Account
+            <CardTitle className="text-2xl font-semibold text-text-primary mb-2">
+              Welcome Back
             </CardTitle>
+            <p className="text-text-secondary">Sign in to your account or create a new one</p>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-garden-sage h-12 p-1 rounded-lg border border-garden-green/20">
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-surface-secondary h-12 p-1 rounded-xl border border-primary/20">
                 <TabsTrigger 
                   value="signin" 
-                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
+                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-text-primary data-[state=active]:shadow-md data-[state=inactive]:text-text-secondary data-[state=inactive]:bg-transparent transition-all duration-200 rounded-lg"
                 >
                   Sign In
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
-                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-black data-[state=active]:shadow-sm data-[state=inactive]:text-gray-600 data-[state=inactive]:bg-transparent transition-all duration-200 rounded-md"
+                  className="h-10 font-medium text-base data-[state=active]:bg-white data-[state=active]:text-text-primary data-[state=active]:shadow-md data-[state=inactive]:text-text-secondary data-[state=inactive]:bg-transparent transition-all duration-200 rounded-lg"
                 >
                   Sign Up
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4">
+                <form onSubmit={handleSignIn} className="space-y-5">
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email" className="text-gray-700 font-medium">Email</Label>
+                    <Label htmlFor="signin-email" className="text-text-primary font-medium">Email</Label>
                     <Input
                       id="signin-email"
                       type="email"
@@ -249,12 +252,12 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg text-black"
+                      className="h-12 border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 rounded-xl text-text-primary bg-white"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password" className="text-gray-700 font-medium">Password</Label>
+                    <Label htmlFor="signin-password" className="text-text-primary font-medium">Password</Label>
                     <div className="relative">
                       <Input
                         id="signin-password"
@@ -263,20 +266,20 @@ const Auth = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="Your password"
-                        className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg text-black"
+                        className="h-12 border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 pr-12 transition-all duration-200 rounded-xl text-text-primary bg-white"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-1 top-1 h-10 w-10 text-gray-500 hover:text-garden-green"
+                        className="absolute right-1 top-1 h-10 w-10 text-text-secondary hover:text-primary hover:bg-primary/10"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
                     <div className="text-right">
-                      <a href="#" className="text-sm text-garden-green hover:text-garden-green-dark transition-colors duration-200">
+                      <a href="#" className="text-sm text-primary hover:text-primary/80 transition-colors duration-200 font-medium">
                         Forgot Password?
                       </a>
                     </div>
@@ -284,7 +287,7 @@ const Auth = () => {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-garden-green hover:bg-garden-green-dark text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+                    className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-xl shadow-md hover:scale-[1.02] active:scale-[0.98]"
                     disabled={loading}
                   >
                     {loading ? (
@@ -303,10 +306,10 @@ const Auth = () => {
                   
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-garden-green/20" />
+                      <span className="w-full border-t border-primary/20" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="bg-white px-4 text-gray-500">— or —</span>
+                      <span className="bg-white px-4 text-text-secondary font-medium">— or —</span>
                     </div>
                   </div>
 
@@ -314,7 +317,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg text-black"
+                    className="w-full h-12 border-2 border-primary/20 hover:bg-primary/5 hover:border-primary transition-all duration-200 rounded-xl text-text-primary font-medium shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -329,10 +332,10 @@ const Auth = () => {
               </TabsContent>
 
               <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
+                <form onSubmit={handleSignUp} className="space-y-5">
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name" className="text-gray-700 font-medium">Full Name</Label>
+                    <Label htmlFor="signup-name" className="text-text-primary font-medium">Full Name</Label>
                     <Input
                       id="signup-name"
                       type="text"
@@ -340,12 +343,12 @@ const Auth = () => {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       placeholder="Your full name"
-                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg text-black"
+                      className="h-12 border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 rounded-xl text-text-primary bg-white"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-gray-700 font-medium">Email</Label>
+                    <Label htmlFor="signup-email" className="text-text-primary font-medium">Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -353,12 +356,12 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 transition-all duration-200 rounded-lg text-black"
+                      className="h-12 border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200 rounded-xl text-text-primary bg-white"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="text-gray-700 font-medium">Password</Label>
+                    <Label htmlFor="signup-password" className="text-text-primary font-medium">Password</Label>
                     <div className="relative">
                       <Input
                         id="signup-password"
@@ -368,13 +371,13 @@ const Auth = () => {
                         required
                         placeholder="Choose a password (min 8 chars)"
                         minLength={8}
-                        className="h-12 border-garden-green/30 focus:border-garden-green focus:ring-garden-green/20 pr-12 transition-all duration-200 rounded-lg text-black"
+                        className="h-12 border-2 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 pr-12 transition-all duration-200 rounded-xl text-text-primary bg-white"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-1 top-1 h-10 w-10 text-gray-500 hover:text-garden-green"
+                        className="absolute right-1 top-1 h-10 w-10 text-text-secondary hover:text-primary hover:bg-primary/10"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -384,7 +387,7 @@ const Auth = () => {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-garden-green hover:bg-garden-green-dark text-white font-medium transition-all duration-200 hover:shadow-lg rounded-lg"
+                    className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-medium transition-all duration-200 hover:shadow-lg rounded-xl shadow-md hover:scale-[1.02] active:scale-[0.98]"
                     disabled={loading}
                   >
                     {loading ? (
@@ -394,7 +397,7 @@ const Auth = () => {
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="w-4 w-4 mr-2" />
+                        <CheckCircle className="w-4 h-4 mr-2" />
                         Create Account
                       </>
                     )}
@@ -403,10 +406,10 @@ const Auth = () => {
                   
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-garden-green/20" />
+                      <span className="w-full border-t border-primary/20" />
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="bg-white px-4 text-gray-500">— or —</span>
+                      <span className="bg-white px-4 text-text-secondary font-medium">— or —</span>
                     </div>
                   </div>
 
@@ -414,7 +417,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-garden-green/30 hover:bg-garden-sage hover:border-garden-green transition-all duration-200 rounded-lg text-black"
+                    className="w-full h-12 border-2 border-primary/20 hover:bg-primary/5 hover:border-primary transition-all duration-200 rounded-xl text-text-primary font-medium shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -430,16 +433,16 @@ const Auth = () => {
             </Tabs>
 
             {error && (
-              <Alert className="mt-6 border-red-200 bg-red-50">
-                <AlertDescription className="text-red-700">
+              <Alert className="mt-6 border-red-200 bg-red-50 rounded-xl">
+                <AlertDescription className="text-red-700 font-medium">
                   {error}
                 </AlertDescription>
               </Alert>
             )}
 
             {message && (
-              <Alert className="mt-6 border-garden-green bg-garden-sage">
-                <AlertDescription className="text-black">
+              <Alert className="mt-6 border-primary/20 bg-primary/10 rounded-xl">
+                <AlertDescription className="text-text-primary font-medium">
                   {message}
                 </AlertDescription>
               </Alert>
