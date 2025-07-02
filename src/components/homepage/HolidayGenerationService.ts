@@ -127,11 +127,14 @@ export async function generateHolidayContent(
         attachments: imageData?.image ? JSON.stringify({ image: imageData.image }) : null
       };
 
+      // CRITICAL: Always set user_id for holiday tasks to satisfy RLS policies
+      taskData.user_id = user.id;
+
       // CRITICAL: Always set tenant_id for holiday tasks to ensure they appear in Ready to Post
       if (tenant?.id) {
         taskData.tenant_id = tenant.id;
         taskData.created_by_user_id = user.id;
-        console.log(`${type.toUpperCase()} DEBUG: Creating task with tenant_id: ${tenant.id}`);
+        console.log(`${type.toUpperCase()} DEBUG: Creating task with tenant_id: ${tenant.id} and user_id: ${user.id}`);
       } else {
         // Fallback: try to get tenant from user if not provided
         const { data: userTenant } = await supabase
@@ -143,10 +146,9 @@ export async function generateHolidayContent(
         if (userTenant) {
           taskData.tenant_id = userTenant.id;
           taskData.created_by_user_id = user.id;
-          console.log(`${type.toUpperCase()} DEBUG: Using fallback tenant_id: ${userTenant.id}`);
+          console.log(`${type.toUpperCase()} DEBUG: Using fallback tenant_id: ${userTenant.id} and user_id: ${user.id}`);
         } else {
-          taskData.user_id = user.id;
-          console.log(`${type.toUpperCase()} DEBUG: Creating task with user_id: ${user.id}`);
+          console.log(`${type.toUpperCase()} DEBUG: Creating task with user_id: ${user.id} (no tenant found)`);
         }
       }
 
