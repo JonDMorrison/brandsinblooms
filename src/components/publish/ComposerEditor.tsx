@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Bold, Italic, Link, Crop, Image, Settings, MousePointer, X, Upload, AlertCircle } from 'lucide-react';
+import { Bold, Italic, Link, Crop, Image, Settings, MousePointer, X, Upload, AlertCircle, Scissors, Filter, RotateCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { ImageEditor } from './ImageEditor';
 
 // Media image component with proper error handling
 const MediaImage = ({ src, alt }: { src: string; alt: string }) => {
@@ -59,6 +60,9 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showImageEditor, setShowImageEditor] = useState(false);
+  const [editingImage, setEditingImage] = useState<string | null>(null);
+  const [imageCache, setImageCache] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     if (selectedContent) {
@@ -209,6 +213,34 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
     }
   };
 
+  // Image caching for performance
+  const getCachedImage = (url: string): string | null => {
+    return imageCache.get(url) || null;
+  };
+
+  const setCachedImage = (url: string, cachedUrl: string) => {
+    setImageCache(prev => new Map(prev.set(url, cachedUrl)));
+  };
+
+  // Handle image editing
+  const handleEditImage = () => {
+    if (mediaUrl) {
+      setEditingImage(mediaUrl);
+      setShowImageEditor(true);
+    }
+  };
+
+  const handleImageEditSave = (editedImageUrl: string) => {
+    setMediaUrl(editedImageUrl);
+    setShowImageEditor(false);
+    setEditingImage(null);
+    
+    if (selectedContent) {
+      const updatedContent = { ...selectedContent, mediaUrl: editedImageUrl };
+      onContentUpdate(updatedContent);
+    }
+  };
+
   const handleRemoveMedia = () => {
     setMediaUrl('');
     setIsMediaExpanded(false);
@@ -352,17 +384,36 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
                     src={mediaUrl} 
                     alt="Content media"
                   />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveMedia();
-                    }}
-                    className="absolute top-2 right-2 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
+                  
+                  {/* Image editing toolbar */}
+                  <div className="absolute bottom-2 left-2 right-2 bg-black/70 rounded-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditImage();
+                        }}
+                        className="h-8 px-3 text-white hover:bg-white/20"
+                      >
+                        <Crop className="w-4 h-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveMedia();
+                        }}
+                        className="h-8 px-3 text-white hover:bg-white/20"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center p-6">
@@ -432,6 +483,16 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
           </div>
         </div>
       </div>
+
+      {/* Image Editor Modal */}
+      {showImageEditor && editingImage && (
+        <ImageEditor
+          isOpen={showImageEditor}
+          onClose={() => setShowImageEditor(false)}
+          imageUrl={editingImage}
+          onSave={handleImageEditSave}
+        />
+      )}
     </Card>
   );
 };
