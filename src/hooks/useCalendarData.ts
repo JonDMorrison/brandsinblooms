@@ -47,6 +47,8 @@ export const useCalendarData = () => {
       setError(null);
       setLoading(true);
       
+      console.log('useCalendarData: Fetching fresh data after cleanup');
+      
       // Build campaigns query based on tenant vs user model
       let campaignsQuery = supabase
         .from('campaigns')
