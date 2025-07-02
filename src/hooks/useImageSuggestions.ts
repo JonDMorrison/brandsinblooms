@@ -44,9 +44,10 @@ const extractKeywordsFromContent = (content: string, campaignTitle?: string): st
 
   console.log('[IMAGE_HOOK] Cleaned content:', cleanContent.substring(0, 200));
 
-  // Look for specific themes first
+  // Look for specific themes first - prioritize specific plant/flower terms
   const themes = {
-    iceCream: /\b(ice cream|gelato|frozen|dessert|sweet|cone|scoop|sundae|milkshake|dairy|treat)\b/gi,
+    specificFlowers: /\b(zinnia|marigold|petunia|impatiens|sunflower|dahlia|cosmos|salvia|begonia|geranium|pansy|violet)\b/gi,
+    summerPlants: /\b(summer|bloom|flowering|heat.?tolerant|drought.?resistant|full.?sun|vibrant|colorful)\b/gi,
     plants: /\b(plant|flower|garden|bloom|seed|soil|grow|botanical|herb|vegetable|tree|shrub)\b/gi,
     outdoor: /\b(outdoor|patio|deck|yard|landscape|backyard|sunshine|fresh air)\b/gi,
     tools: /\b(tool|shovel|rake|hose|fertilizer|mulch|compost|pruning|watering)\b/gi,
@@ -104,16 +105,21 @@ const buildSmartQuery = (keywords: string[], postType: string, campaignTitle?: s
   const primaryKeyword = keywords[0].toLowerCase();
   
   if (/ice.?cream|frozen|dessert|sweet/.test(primaryKeyword)) {
-    query += ' food photography delicious';
+    query += ' photography fresh';
   } else if (/plant|flower|garden|bloom/.test(primaryKeyword)) {
-    query += ' gardening nature';
+    // Don't add redundant "garden" terms if keywords already contain garden-related words
+    if (!query.toLowerCase().includes('garden')) {
+      query += ' garden';
+    }
   } else if (/outdoor|patio|landscape/.test(primaryKeyword)) {
-    query += ' outdoor lifestyle';
+    query += ' outdoor space';
   } else if (/tool|equipment/.test(primaryKeyword)) {
-    query += ' gardening tools';
+    query += ' tools equipment';
   } else {
-    // Generic garden center context
-    query += ' garden center';
+    // Generic garden center context only if not already garden-related
+    if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant')) {
+      query += ' garden center';
+    }
   }
 
   console.log('[IMAGE_HOOK] Final smart query:', query);
