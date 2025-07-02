@@ -1,7 +1,6 @@
 import { CalendarView } from "@/components/CalendarView";
 import { BackfillCampaigns } from "@/components/calendar/BackfillCampaigns";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { SidebarLayout } from "@/components/SidebarLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,152 +8,37 @@ import { CalendarPlus, PlusCircle, Calendar } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { toast } from "sonner";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { useAuth } from "@/contexts/AuthContext";
-import { useTenant } from "@/hooks/useTenant";
+import { useCalendarData } from "@/hooks/useCalendarData";
 
 const CalendarPage = () => {
   const { user } = useAuth();
-  const { tenant } = useTenant();
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showBackfill, setShowBackfill] = useState(false);
+  const { campaigns, tasks, loading, error, stats, refetch } = useCalendarData();
   
-  // Add state for quick action modals
+  // Local state for UI
+  const [showBackfill, setShowBackfill] = useState(false);
   const [showAddEventDialog, setShowAddEventDialog] = useState(false);
   const [showNewCampaignModal, setShowNewCampaignModal] = useState(false);
 
-  const fetchData = async () => {
-    if (!user) {
-      console.log('CalendarPage: No authenticated user, skipping data fetch');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setError(null);
-      
-      console.log('CalendarPage: Fetching data for user:', user.id, 'tenant:', tenant?.id || 'none');
-      
-      // Build campaigns query based on tenant vs user model
-      let campaignsQuery = supabase
-        .from('campaigns')
-        .select('*')
-        .order('start_date', { ascending: true });
-
-      if (tenant?.id) {
-        // Tenant-based access control
-        campaignsQuery = campaignsQuery.eq('tenant_id', tenant.id);
-        console.log('CalendarPage: Using tenant-based campaigns query for tenant:', tenant.id);
-      } else {
-        // User-based access control
-        campaignsQuery = campaignsQuery.eq('user_id', user.id);
-        console.log('CalendarPage: Using user-based campaigns query for user:', user.id);
-      }
-
-      const { data: campaignsData, error: campaignsError } = await campaignsQuery;
-
-      if (campaignsError) {
-        console.error('CalendarPage: Error fetching campaigns:', campaignsError);
-        throw campaignsError;
-      }
-
-      // Build tasks query with inner join to ensure we only get tasks for user's/tenant's campaigns
-      let tasksQuery = supabase
-        .from('content_tasks')
-        .select(`
-          *,
-          campaigns!inner (
-            title,
-            week_number,
-            start_date,
-            user_id,
-            tenant_id
-          )
-        `)
-        .order('scheduled_date', { ascending: true });
-
-      if (tenant?.id) {
-        // Tenant-based access control
-        tasksQuery = tasksQuery.eq('campaigns.tenant_id', tenant.id);
-        console.log('CalendarPage: Using tenant-based tasks query for tenant:', tenant.id);
-      } else {
-        // User-based access control
-        tasksQuery = tasksQuery.eq('campaigns.user_id', user.id);
-        console.log('CalendarPage: Using user-based tasks query for user:', user.id);
-      }
-
-      const { data: tasksData, error: tasksError } = await tasksQuery;
-
-      if (tasksError) {
-        console.error('CalendarPage: Error fetching tasks:', tasksError);
-        throw tasksError;
-      }
-
-      console.log('CalendarPage: Successfully fetched', campaignsData?.length || 0, 'campaigns and', tasksData?.length || 0, 'tasks');
-
-      // Additional security verification - ensure all data belongs to current user/tenant
-      const userCampaigns = campaignsData?.filter(campaign => 
-        tenant?.id ? campaign.tenant_id === tenant.id : campaign.user_id === user.id
-      ) || [];
-      
-      const userTasks = tasksData?.filter(task => 
-        task.campaigns && (
-          tenant?.id ? task.campaigns.tenant_id === tenant.id : task.campaigns.user_id === user.id
-        )
-      ) || [];
-
-      if (userCampaigns.length !== campaignsData?.length) {
-        console.warn('CalendarPage: Security alert - some campaigns did not belong to current user/tenant');
-      }
-      if (userTasks.length !== tasksData?.length) {
-        console.warn('CalendarPage: Security alert - some tasks did not belong to current user/tenant');
-      }
-
-      setCampaigns(userCampaigns);
-      setTasks(userTasks);
-      
-      // Check if user needs backfill (less than 50 campaigns suggests incomplete set)
-      const campaignCount = userCampaigns.length;
-      if (campaignCount > 0 && campaignCount < 50) {
-        setShowBackfill(true);
-      } else {
-        setShowBackfill(false);
-      }
-    } catch (error) {
-      console.error('CalendarPage: Error fetching data:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load calendar data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (user) {
-      fetchData();
-    } else {
-      setLoading(false);
-    }
-  }, [user, tenant]);
+  // Check if user needs backfill (less than 50 campaigns suggests incomplete set)
+  const shouldShowBackfill = campaigns.length > 0 && campaigns.length < 50;
 
   // Quick action handlers
   const handleEventCreated = () => {
     setShowAddEventDialog(false);
-    fetchData();
+    refetch();
     toast.success('🎉 Event added successfully! Your marketing content will be tailored for this event.');
   };
 
   const handleCampaignCreated = () => {
     setShowNewCampaignModal(false);
-    fetchData();
+    refetch();
     toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
   };
 
   const handleBackfillComplete = () => {
     setShowBackfill(false);
-    fetchData();
+    refetch();
   };
 
   if (!user) {
@@ -201,7 +85,7 @@ const CalendarPage = () => {
                 <p className="text-sm text-gray-600 mt-1">{error}</p>
               </div>
               <Button 
-                onClick={fetchData}
+                onClick={refetch}
                 className="w-full bg-red-600 hover:bg-red-700"
               >
                 Try Again
@@ -213,9 +97,7 @@ const CalendarPage = () => {
     );
   }
 
-  const currentWeek = getCurrentWeekNumber();
-  const upcomingCampaigns = campaigns.filter(c => c.week_number >= currentWeek).length;
-  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+  // Use stats from hook instead of calculating here
 
   return (
     <SidebarLayout>
@@ -268,7 +150,7 @@ const CalendarPage = () => {
         {/* Calendar Content */}
         <div className="space-y-6">
           {/* Backfill Component */}
-          {showBackfill && (
+          {shouldShowBackfill && !showBackfill && (
             <BackfillCampaigns 
               currentCampaignCount={campaigns.length}
               onBackfillComplete={handleBackfillComplete}
@@ -278,7 +160,7 @@ const CalendarPage = () => {
           <CalendarView 
             campaigns={campaigns} 
             tasks={tasks}
-            onDataUpdate={fetchData}
+            onDataUpdate={refetch}
           />
         </div>
 

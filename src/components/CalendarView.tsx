@@ -1,16 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
-import { Button } from '@/components/ui/button';
-import { Plus, CheckCircle, XCircle, ChevronLeft, ChevronRight, Calendar, CalendarDays } from 'lucide-react';
+import { CalendarHeader } from './calendar/CalendarHeader';
 import { useToast } from "@/components/ui/use-toast"
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
-import { format, addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
+import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ContentViewerDialog } from './content/ContentViewerDialog';
 import { CampaignDetailsModal } from './calendar/CampaignDetailsModal';
-import { UserMenu } from './UserMenu';
 
 export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   campaigns: any[];
@@ -23,7 +20,6 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const { toast } = useToast();
-  const { user } = useAuth();
   const [selectedTaskForModal, setSelectedTaskForModal] = useState<any>(null);
   const [selectedCampaignForModal, setSelectedCampaignForModal] = useState<any>(null);
   const [contentModalOpen, setContentModalOpen] = useState(false);
@@ -162,114 +158,22 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
     return selectedTasks.includes(task.id);
   };
 
-  const getDisplayTitle = () => {
-    if (viewMode === 'month') {
-      return format(currentDate, 'MMMM yyyy');
-    } else {
-      return format(currentDate, "'Week of' MMM d, yyyy");
-    }
-  };
 
   return (
-    <div className="h-full flex flex-col relative">
-      {/* Fixed UserMenu for Calendar */}
-      <div className="fixed top-4 right-4 z-[9999]">
-        <UserMenu />
-      </div>
-
-      <div className="border-b px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold">Calendar</h2>
-          
-          {/* Navigation Controls */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPrevious}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            
-            <div className="text-sm font-medium min-w-[180px] text-center">
-              {getDisplayTitle()}
-            </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToNext}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToToday}
-            >
-              Today
-            </Button>
-          </div>
-
-          {/* View Toggle */}
-          <div className="flex items-center gap-1 border rounded-md p-1">
-            <Button
-              variant={viewMode === 'month' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('month')}
-              className="h-7 px-2"
-            >
-              <Calendar className="w-3 h-3 mr-1" />
-              Month
-            </Button>
-            <Button
-              variant={viewMode === 'week' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('week')}
-              className="h-7 px-2"
-            >
-              <CalendarDays className="w-3 h-3 mr-1" />
-              Week
-            </Button>
-          </div>
-        </div>
-        
-        <div className="flex gap-2 pr-16"> {/* Add padding to avoid overlap with UserMenu */}
-          {selectedTasks.length > 0 && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBulkComplete}
-                disabled={bulkCompleteLoading}
-                className="text-green-600 hover:bg-green-50"
-              >
-                {bulkCompleteLoading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500"></div>
-                ) : (
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                )}
-                Complete ({selectedTasks.length})
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleBulkDelete}
-                disabled={bulkDeleteLoading}
-                className="text-red-600 hover:bg-red-50"
-              >
-                {bulkDeleteLoading ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
-                ) : (
-                  <XCircle className="w-4 h-4 mr-2" />
-                )}
-                Delete ({selectedTasks.length})
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+    <div className="h-full flex flex-col">
+      <CalendarHeader
+        viewMode={viewMode}
+        currentDate={currentDate}
+        selectedTasksCount={selectedTasks.length}
+        bulkCompleteLoading={bulkCompleteLoading}
+        bulkDeleteLoading={bulkDeleteLoading}
+        onPrevious={goToPrevious}
+        onNext={goToNext}
+        onToday={goToToday}
+        onViewModeChange={setViewMode}
+        onBulkComplete={handleBulkComplete}
+        onBulkDelete={handleBulkDelete}
+      />
       
       <div className="flex-1 overflow-hidden">
         <CalendarGrid
