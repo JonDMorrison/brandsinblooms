@@ -25,8 +25,9 @@ serve(async (req) => {
     console.log(`[UNSPLASH] API Key configured: ${!!ACCESS_KEY}`);
 
     if (!ACCESS_KEY) {
-      console.log('[UNSPLASH] API key not configured, returning error for fallback handling');
-      throw new Error('Unsplash API key not configured');
+      console.log('[UNSPLASH] ❌ API key not configured - falling back to garden center images');
+      console.log('[UNSPLASH] This is expected behavior when API key is not set');
+      throw new Error('Unsplash API key not configured - using garden center fallbacks');
     }
 
     // Enhanced URL building with better parameters

@@ -171,17 +171,17 @@ export const ImageCarousel = ({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold">
-            {usingPlaceholders ? 'Sample Images Preview' : 'Images for This Post'}
+            {usingPlaceholders ? 'Garden Center Sample Images' : 'Images for This Post'}
           </h3>
           <p className="text-sm text-gray-600">
-            {usingPlaceholders ? 'Add your Unsplash API key for real images' : `From Unsplash • Search: "${query}"`}
+            {usingPlaceholders ? 'High-quality garden center themed images' : `From Unsplash • Search: "${query}"`}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {usingPlaceholders && (
-            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
               <Info className="w-3 h-3 mr-1" />
-              Demo
+              Garden Center
             </Badge>
           )}
           {onShuffle && (
@@ -213,9 +213,9 @@ export const ImageCarousel = ({
       </div>
 
       {usingPlaceholders && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-          <p className="text-sm text-blue-800">
-            💡 These are 4 sample images (1 featured + 3 alternatives) to show how the feature works. Add your Unsplash API key to get real, high-quality images for your content.
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+          <p className="text-sm text-green-800">
+            🌱 These are high-quality garden center themed images perfect for your content. Connect your Unsplash API key to access even more images from their vast library.
           </p>
         </div>
       )}

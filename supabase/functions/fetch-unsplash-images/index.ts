@@ -34,11 +34,14 @@ serve(async (req) => {
     console.log(`[UNSPLASH] ===== ENHANCED FETCH DEBUG =====`);
     console.log(`[UNSPLASH] Received query: "${query}"`);
     console.log(`[UNSPLASH] Parameters: maxImages=${maxImages}, orientation=${orientation}, orderBy=${orderBy}, contentFilter=${contentFilter}`);
-    console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey}`);
+    console.log(`[UNSPLASH] API Key configured: ${!!unsplashAccessKey} (${unsplashAccessKey ? 'Available' : 'Missing - will use garden center fallbacks'})`);
+    console.log(`[UNSPLASH] Supabase URL: ${!!supabaseUrl}`);
+    console.log(`[UNSPLASH] Service Key: ${!!supabaseServiceKey}`);
 
     if (!unsplashAccessKey) {
-      console.log('[UNSPLASH] API key not configured, returning error for fallback handling');
-      throw new Error('Unsplash API key not configured');
+      console.log('[UNSPLASH] ❌ API key not configured - falling back to garden center images');
+      console.log('[UNSPLASH] This is expected behavior when API key is not set');
+      throw new Error('Unsplash API key not configured - using garden center fallbacks');
     }
 
     // Validate query doesn't contain problematic terms
