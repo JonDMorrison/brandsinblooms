@@ -48,11 +48,13 @@ export const useCalendarData = () => {
       setLoading(true);
       
       console.log('useCalendarData: Fetching fresh data after cleanup');
+      console.log('useCalendarData: User ID:', user.id, 'Tenant ID:', tenant?.id);
       
       // Build campaigns query based on tenant vs user model
       let campaignsQuery = supabase
         .from('campaigns')
         .select('*')
+        .is('deleted_at', null)
         .order('start_date', { ascending: true });
 
       if (tenant?.id) {
@@ -105,6 +107,14 @@ export const useCalendarData = () => {
         )
       ) || [];
 
+      console.log('useCalendarData: Fetched campaigns:', userCampaigns.map(c => ({
+        id: c.id, 
+        title: c.title, 
+        theme: c.theme, 
+        week_number: c.week_number, 
+        start_date: c.start_date
+      })));
+      
       setCampaigns(userCampaigns);
       setTasks(userTasks);
       
