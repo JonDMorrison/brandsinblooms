@@ -27,11 +27,9 @@ const OnboardingPage = () => {
       localStorage.setItem(`garden-center-onboarding-${user.id}`, JSON.stringify(data));
       console.log('📱 OnboardingPage: Data stored in localStorage');
       
-      // Add a small delay to ensure all database operations complete
-      setTimeout(() => {
-        console.log('🎯 OnboardingPage: Navigating to dashboard after completion');
-        navigate('/', { replace: true });
-      }, 200);
+      // Immediately navigate without delay to prevent race conditions
+      console.log('🎯 OnboardingPage: Navigating to dashboard after completion');
+      navigate('/', { replace: true });
     } else {
       console.error('❌ OnboardingPage: No user found during onboarding completion');
       navigate('/auth', { replace: true });

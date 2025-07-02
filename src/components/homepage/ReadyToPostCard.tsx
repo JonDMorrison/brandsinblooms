@@ -81,6 +81,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           )
         `)
         .in('status', statusFilter)
+        .is('deleted_at', null)
         .order('created_at', { ascending: false });
 
       // Apply appropriate filter based on tenant setup
