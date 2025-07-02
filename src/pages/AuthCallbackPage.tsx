@@ -122,12 +122,22 @@ export const AuthCallbackPage = () => {
             data, 
             error: exchangeError,
             hasData: !!data,
-            dataType: typeof data
+            dataType: typeof data,
+            exchangeErrorDetails: exchangeError ? {
+              message: exchangeError.message,
+              context: exchangeError.context,
+              details: exchangeError.details
+            } : null
           });
 
           if (exchangeError) {
-            console.error('❌ Edge function error:', exchangeError);
-            throw new Error(`Edge function failed: ${JSON.stringify(exchangeError)}`);
+            console.error('❌ Edge function error details:', {
+              message: exchangeError.message,
+              context: exchangeError.context,
+              details: exchangeError.details,
+              fullError: exchangeError
+            });
+            throw new Error(`Edge function failed: ${exchangeError.message || JSON.stringify(exchangeError)}`);
           }
 
           if (!data) {
@@ -182,8 +192,27 @@ export const AuthCallbackPage = () => {
         setStatus('error');
         let errorMessage = 'Connection failed';
         
+        console.error('❌ Final OAuth callback error details:', {
+          message: error?.message,
+          details: error?.details,
+          code: error?.code,
+          stack: error?.stack,
+          fullError: error
+        });
+        
         if (error?.message?.includes('Edge function failed')) {
-          errorMessage = 'Unable to connect to Meta platform. Please check your internet connection and try again.';
+          // Try to extract more specific error info
+          const match = error.message.match(/Edge function failed: (.+)/);
+          if (match) {
+            try {
+              const parsed = JSON.parse(match[1]);
+              errorMessage = `Connection failed: ${parsed.message || parsed.error || 'Unknown error'}`;
+            } catch {
+              errorMessage = `Connection failed: ${match[1]}`;
+            }
+          } else {
+            errorMessage = 'Unable to connect to Meta platform. Please check your internet connection and try again.';
+          }
         } else if (error?.message?.includes('No response data')) {
           errorMessage = 'Connection service is temporarily unavailable. Please try again in a few minutes.';
         } else {
