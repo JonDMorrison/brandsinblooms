@@ -7,16 +7,24 @@ export async function isBloomEligible(userId: string): Promise<boolean> {
       .from('subscriptions')
       .select('plan, end_date')
       .eq('user_id', userId)
-      .single();
+      .order('created_at', { ascending: false });
 
-    if (error || !data) return false;
+    if (error) {
+      console.error('Error checking Bloom eligibility:', error);
+      return false;
+    }
+    
+    if (!data || data.length === 0) return false;
+    
+    // Use the most recent subscription if multiple exist
+    const subscription = data[0];
     
     // Bloom plan is always eligible
-    if (data.plan === 'bloom') return true;
+    if (subscription.plan === 'bloom') return true;
     
     // Free trial is eligible if still active
-    if (data.plan === 'free_trial') {
-      return data.end_date && new Date(data.end_date) > new Date();
+    if (subscription.plan === 'free_trial') {
+      return subscription.end_date && new Date(subscription.end_date) > new Date();
     }
     
     return false;
