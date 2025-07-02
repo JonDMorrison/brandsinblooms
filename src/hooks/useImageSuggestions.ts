@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getRelevantFallbacks, formatFallbackImages } from '@/services/gardenCenterFallbacks';
 
 interface ImageSuggestion {
   id: string;
@@ -13,154 +14,16 @@ interface ImageSuggestion {
   query: string;
 }
 
-// Generate exactly 4 placeholder images - 1 featured + 3 alternatives
-const getPlatformPlaceholderImages = (query: string, postType: string): ImageSuggestion[] => {
-  const basePhotographer = 'Lorem Picsum';
+// Generate exactly 4 curated garden center placeholder images
+const getGardenCenterPlaceholderImages = (query: string, postType: string): ImageSuggestion[] => {
+  console.log('[PLACEHOLDER] Getting garden center fallbacks for:', query, 'type:', postType);
   
-  // Generate consistent seed based on query for reproducible images
-  const seed = query.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // Get curated garden center fallback images
+  const fallbackImages = getRelevantFallbacks(query, 4);
+  const formattedImages = formatFallbackImages(fallbackImages, query);
   
-  const platformImages = {
-    instagram: [
-      {
-        id: `instagram-featured-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 1}/400/400`,
-        download_url: `https://picsum.photos/seed/${seed + 1}/1080/1080`,
-        alt: `${query} - featured image`,
-      },
-      {
-        id: `instagram-alt1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 2}/400/400`,
-        download_url: `https://picsum.photos/seed/${seed + 2}/1080/1080`,
-        alt: `${query} - alternative 1`,
-      },
-      {
-        id: `instagram-alt2-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 3}/400/400`,
-        download_url: `https://picsum.photos/seed/${seed + 3}/1080/1080`,
-        alt: `${query} - alternative 2`,
-      },
-      {
-        id: `instagram-alt3-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 4}/400/400`,
-        download_url: `https://picsum.photos/seed/${seed + 4}/1080/1080`,
-        alt: `${query} - alternative 3`,
-      }
-    ],
-    facebook: [
-      {
-        id: `facebook-featured-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 5}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 5}/1200/630`,
-        alt: `${query} - featured image`,
-      },
-      {
-        id: `facebook-alt1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 6}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 6}/1200/630`,
-        alt: `${query} - alternative 1`,
-      },
-      {
-        id: `facebook-alt2-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 7}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 7}/1200/630`,
-        alt: `${query} - alternative 2`,
-      },
-      {
-        id: `facebook-alt3-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 8}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 8}/1200/630`,
-        alt: `${query} - alternative 3`,
-      }
-    ],
-    newsletter: [
-      {
-        id: `newsletter-featured-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 9}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 9}/1000/600`,
-        alt: `${query} - featured image`,
-      },
-      {
-        id: `newsletter-alt1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 10}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 10}/1000/600`,
-        alt: `${query} - alternative 1`,
-      },
-      {
-        id: `newsletter-alt2-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 11}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 11}/1000/600`,
-        alt: `${query} - alternative 2`,
-      },
-      {
-        id: `newsletter-alt3-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 12}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 12}/1000/600`,
-        alt: `${query} - alternative 3`,
-      }
-    ],
-    email: [
-      {
-        id: `email-featured-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 13}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 13}/800/500`,
-        alt: `${query} - featured image`,
-      },
-      {
-        id: `email-alt1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 14}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 14}/800/500`,
-        alt: `${query} - alternative 1`,
-      },
-      {
-        id: `email-alt2-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 15}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 15}/800/500`,
-        alt: `${query} - alternative 2`,
-      },
-      {
-        id: `email-alt3-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 16}/400/250`,
-        download_url: `https://picsum.photos/seed/${seed + 16}/800/500`,
-        alt: `${query} - alternative 3`,
-      }
-    ],
-    video: [
-      {
-        id: `video-featured-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 17}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 17}/1280/720`,
-        alt: `${query} - featured image`,
-      },
-      {
-        id: `video-alt1-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 18}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 18}/1280/720`,
-        alt: `${query} - alternative 1`,
-      },
-      {
-        id: `video-alt2-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 19}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 19}/1280/720`,
-        alt: `${query} - alternative 2`,
-      },
-      {
-        id: `video-alt3-${seed}`,
-        thumb_url: `https://picsum.photos/seed/${seed + 20}/400/300`,
-        download_url: `https://picsum.photos/seed/${seed + 20}/1280/720`,
-        alt: `${query} - alternative 3`,
-      }
-    ]
-  };
-
-  const images = platformImages[postType] || platformImages.instagram;
-  
-  return images.map(img => ({
-    ...img,
-    photographer: basePhotographer,
-    unsplash_id: img.id,
-    query: query
-  }));
+  console.log('[PLACEHOLDER] Using curated garden center images instead of Lorem Picsum');
+  return formattedImages;
 };
 
 // Smart content analysis to extract meaningful keywords
@@ -326,13 +189,13 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
       });
 
       if (error) {
-        console.log('[IMAGE_HOOK] Unsplash API error, using placeholders:', error.message);
-        const placeholders = getPlatformPlaceholderImages(finalQuery, contentType || 'instagram');
+        console.log('[IMAGE_HOOK] Unsplash API error, using garden center fallbacks:', error.message);
+        const placeholders = getGardenCenterPlaceholderImages(finalQuery, contentType || 'instagram');
         setImages(placeholders);
         setQuery(finalQuery);
         setUsingPlaceholders(true);
         setHasStoredImages(false);
-        toast.info(`Using sample images - Unsplash API unavailable`);
+        toast.info(`Using garden center sample images - Unsplash API unavailable`);
         return;
       }
 
@@ -345,23 +208,23 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
         setHasStoredImages(true);
         toast.success(`Found ${limitedImages.length} relevant images for "${finalQuery}"`);
       } else {
-        console.log('[IMAGE_HOOK] No images returned, using placeholders');
-        const placeholders = getPlatformPlaceholderImages(finalQuery, contentType || 'instagram');
+        console.log('[IMAGE_HOOK] No images returned, using garden center fallbacks');
+        const placeholders = getGardenCenterPlaceholderImages(finalQuery, contentType || 'instagram');
         setImages(placeholders);
         setQuery(finalQuery);
         setUsingPlaceholders(true);
         setHasStoredImages(false);
-        toast.info(`No images found, using sample images`);
+        toast.info(`No images found, using garden center sample images`);
       }
     } catch (error) {
       console.error('[IMAGE_HOOK] Error fetching images:', error);
       
-      const placeholders = getPlatformPlaceholderImages(searchQuery, postType || 'instagram');
+      const placeholders = getGardenCenterPlaceholderImages(searchQuery, postType || 'instagram');
       setImages(placeholders);
       setQuery(searchQuery);
       setUsingPlaceholders(true);
       setHasStoredImages(false);
-      toast.info(`Using sample images - connection error`);
+      toast.info(`Using garden center sample images - connection error`);
     } finally {
       setLoading(false);
     }
