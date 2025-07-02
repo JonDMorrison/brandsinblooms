@@ -1,13 +1,13 @@
-import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
+import { SidebarLayout } from "@/components/SidebarLayout";
 import { IntegrationHub } from "@/components/integrations/IntegrationHub";
 
 const IntegrationsPage = () => {
   return (
-    <ProtectedPageWrapper>
-      <div className="min-h-screen bg-gray-50">
+    <SidebarLayout>
+      <div className="py-6">
         <IntegrationHub />
       </div>
-    </ProtectedPageWrapper>
+    </SidebarLayout>
   );
 };
 
