@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ImageEditor } from './ImageEditor';
+import { ImageAssetManager } from '@/lib/imageAssetManager';
 
 // Media image component with proper error handling
 const MediaImage = ({ src, alt }: { src: string; alt: string }) => {
@@ -143,10 +144,11 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
 
       // Update database with the uploaded image URL
       if (selectedContent) {
-        await supabase
-          .from('content_tasks')
-          .update({ image_idea: urlData.publicUrl })
-          .eq('id', selectedContent.id);
+        await ImageAssetManager.createUploadAsset(
+          selectedContent.id,
+          file,
+          urlData.publicUrl
+        );
       }
 
       toast.success('File uploaded successfully!');

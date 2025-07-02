@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar, BarChart3, Zap, Grid } from 'lucide-react';
 import { fetchSmartImage } from '@/services/unsplashService';
+import { ImageAssetManager } from '@/lib/imageAssetManager';
 
 interface PublishData {
   content: GeneratedContent[];
@@ -78,11 +79,14 @@ const PublishPage = () => {
           if (image) {
             updatedContent[index] = { ...item, mediaUrl: image.url };
             
-            // Update database with the fetched image URL
-            await supabase
-              .from('content_tasks')
-              .update({ image_idea: image.url })
-              .eq('id', item.id);
+            // Create image asset record for tracking
+            await ImageAssetManager.createUnsplashAsset(item.id, {
+              url: image.url,
+              thumb: image.thumb,
+              alt: image.alt,
+              photographer: image.photographer,
+              unsplash_id: image.unsplash_id
+            });
           }
         } catch (error) {
           console.error(`Error fetching image for content ${item.id}:`, error);

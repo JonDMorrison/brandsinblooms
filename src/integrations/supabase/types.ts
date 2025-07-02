@@ -299,6 +299,9 @@ export type Database = {
           holiday_id: string | null
           id: string
           image_idea: string | null
+          image_metadata: Json | null
+          image_source: string | null
+          image_url: string | null
           last_posting_error: string | null
           notes: string | null
           platform_post_id: string | null
@@ -323,6 +326,9 @@ export type Database = {
           holiday_id?: string | null
           id?: string
           image_idea?: string | null
+          image_metadata?: Json | null
+          image_source?: string | null
+          image_url?: string | null
           last_posting_error?: string | null
           notes?: string | null
           platform_post_id?: string | null
@@ -347,6 +353,9 @@ export type Database = {
           holiday_id?: string | null
           id?: string
           image_idea?: string | null
+          image_metadata?: Json | null
+          image_source?: string | null
+          image_url?: string | null
           last_posting_error?: string | null
           notes?: string | null
           platform_post_id?: string | null
@@ -671,6 +680,104 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      image_assets: {
+        Row: {
+          alt_text: string | null
+          compressed_size: number | null
+          compression_ratio: number | null
+          content_task_id: string | null
+          created_at: string
+          description: string | null
+          dimensions: Json | null
+          file_name: string | null
+          file_size: number | null
+          id: string
+          last_used_at: string | null
+          mime_type: string | null
+          optimization_applied: boolean | null
+          original_size: number | null
+          original_url: string
+          photographer_name: string | null
+          photographer_url: string | null
+          processed_url: string | null
+          processing_error: string | null
+          processing_status: string | null
+          source_type: string
+          tags: string[] | null
+          thumbnail_url: string | null
+          unsplash_id: string | null
+          updated_at: string
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          alt_text?: string | null
+          compressed_size?: number | null
+          compression_ratio?: number | null
+          content_task_id?: string | null
+          created_at?: string
+          description?: string | null
+          dimensions?: Json | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          last_used_at?: string | null
+          mime_type?: string | null
+          optimization_applied?: boolean | null
+          original_size?: number | null
+          original_url: string
+          photographer_name?: string | null
+          photographer_url?: string | null
+          processed_url?: string | null
+          processing_error?: string | null
+          processing_status?: string | null
+          source_type: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          unsplash_id?: string | null
+          updated_at?: string
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          alt_text?: string | null
+          compressed_size?: number | null
+          compression_ratio?: number | null
+          content_task_id?: string | null
+          created_at?: string
+          description?: string | null
+          dimensions?: Json | null
+          file_name?: string | null
+          file_size?: number | null
+          id?: string
+          last_used_at?: string | null
+          mime_type?: string | null
+          optimization_applied?: boolean | null
+          original_size?: number | null
+          original_url?: string
+          photographer_name?: string | null
+          photographer_url?: string | null
+          processed_url?: string | null
+          processing_error?: string | null
+          processing_status?: string | null
+          source_type?: string
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          unsplash_id?: string | null
+          updated_at?: string
+          usage_count?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "image_assets_content_task_id_fkey"
+            columns: ["content_task_id"]
+            isOneToOne: false
+            referencedRelation: "content_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       image_suggestions: {
         Row: {
@@ -1403,6 +1510,23 @@ export type Database = {
           is_trial: boolean
         }[]
       }
+      get_user_image_analytics: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          source_type: string
+          total_images: number
+          total_usage: number
+          avg_usage_per_image: number
+          optimized_images: number
+          avg_compression_ratio: number
+          total_original_size: number
+          total_compressed_size: number
+        }[]
+      }
+      increment_image_usage: {
+        Args: { asset_id: string }
+        Returns: undefined
+      }
       increment_template_usage: {
         Args: { template_id: string }
         Returns: undefined
@@ -1436,6 +1560,14 @@ export type Database = {
           p_campaign_id?: string
         }
         Returns: boolean
+      }
+      track_image_optimization: {
+        Args: {
+          asset_id: string
+          original_size_bytes: number
+          compressed_size_bytes: number
+        }
+        Returns: undefined
       }
     }
     Enums: {
