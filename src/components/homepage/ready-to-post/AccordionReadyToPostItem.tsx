@@ -74,8 +74,8 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <div className={`
-        border rounded-xl transition-all duration-150 mb-3 card-interactive
-        ${isOpen ? 'border-brand-teal shadow-md bg-white' : 'border-gray-200 hover:border-brand-teal/50 hover:shadow-sm'}
+        border rounded-xl transition-all duration-150 mb-3 card-interactive bg-white
+        ${isOpen ? 'border-brand-teal shadow-md' : 'border-gray-200 hover:border-brand-teal/50 hover:shadow-sm'}
         ${batchMode && isSelected ? 'ring-2 ring-brand-blue/20 bg-brand-blue/5' : ''}
       `}>
         <CollapsibleTrigger asChild>
