@@ -1,11 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Bold, Italic, Link, Crop, Image, Settings, MousePointer, X } from 'lucide-react';
+import { Bold, Italic, Link, Crop, Image, Settings, MousePointer, X, Upload, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 // Media image component with proper error handling
 const MediaImage = ({ src, alt }: { src: string; alt: string }) => {
@@ -53,6 +55,10 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
   const [caption, setCaption] = useState('');
   const [mediaUrl, setMediaUrl] = useState<string | undefined>('');
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (selectedContent) {
@@ -70,6 +76,139 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
     }
   };
 
+  // File validation
+  const validateFile = (file: File): string | null => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    
+    if (!allowedTypes.includes(file.type)) {
+      return 'Please upload a valid image file (JPEG, PNG, WebP, or GIF)';
+    }
+    
+    if (file.size > maxSize) {
+      return 'File size must be less than 10MB';
+    }
+    
+    return null;
+  };
+
+  // Upload file to Supabase storage
+  const uploadFile = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${selectedContent?.id}-${Date.now()}.${fileExt}`;
+      const filePath = `content-uploads/${fileName}`;
+
+      // Upload to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('content-assets')
+        .upload(filePath, file);
+
+      // Simulate upload progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 100);
+
+      if (error) {
+        clearInterval(progressInterval);
+        console.error('Upload error:', error);
+        toast.error('Failed to upload file: ' + error.message);
+        return null;
+      }
+
+      setUploadProgress(100);
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('content-assets')
+        .getPublicUrl(data.path);
+
+      if (!urlData.publicUrl) {
+        toast.error('Failed to get file URL');
+        return null;
+      }
+
+      // Update database with the uploaded image URL
+      if (selectedContent) {
+        await supabase
+          .from('content_tasks')
+          .update({ image_idea: urlData.publicUrl })
+          .eq('id', selectedContent.id);
+      }
+
+      toast.success('File uploaded successfully!');
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Upload exception:', error);
+      toast.error('Upload failed');
+      return null;
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = async (file: File) => {
+    const validationError = validateFile(file);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    const uploadedUrl = await uploadFile(file);
+    if (uploadedUrl) {
+      setMediaUrl(uploadedUrl);
+      setIsMediaExpanded(true);
+      
+      if (selectedContent) {
+        const updatedContent = { ...selectedContent, mediaUrl: uploadedUrl };
+        onContentUpdate(updatedContent);
+      }
+    }
+  };
+
+  // Drag and drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleAddMedia = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
   const handleRemoveMedia = () => {
     setMediaUrl('');
     setIsMediaExpanded(false);
@@ -77,11 +216,6 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
       const updatedContent = { ...selectedContent, mediaUrl: '' };
       onContentUpdate(updatedContent);
     }
-  };
-
-  const handleAddMedia = () => {
-    setIsMediaExpanded(true);
-    // Placeholder for file upload logic
   };
 
   const characterCount = caption.length;
@@ -190,11 +324,29 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
             
             <div 
               className={cn(
-                "w-full max-w-sm bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center relative overflow-hidden transition-all duration-300 ease-in-out",
-                isMediaExpanded ? "aspect-square" : "h-60"
+                "w-full max-w-sm bg-gray-50 rounded-lg border-2 border-dashed flex items-center justify-center relative overflow-hidden transition-all duration-300 ease-in-out cursor-pointer",
+                isMediaExpanded ? "aspect-square" : "h-60",
+                isDragOver ? "border-[#68BEB9] bg-[#68BEB9]/10" : "border-gray-200",
+                isUploading && "pointer-events-none"
               )}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={!isUploading ? handleAddMedia : undefined}
             >
-              {mediaUrl && isMediaExpanded ? (
+              {isUploading ? (
+                <div className="text-center p-6">
+                  <Upload className="w-12 h-12 text-[#68BEB9] mx-auto mb-3 animate-bounce" />
+                  <p className="text-[#68BEB9] font-medium mb-2">Uploading...</p>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                    <div 
+                      className="bg-[#68BEB9] h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-sm text-gray-600">{uploadProgress}%</p>
+                </div>
+              ) : mediaUrl && isMediaExpanded ? (
                 <div className="relative w-full h-full group">
                   <MediaImage 
                     src={mediaUrl} 
@@ -203,22 +355,50 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleRemoveMedia}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveMedia();
+                    }}
                     className="absolute top-2 right-2 h-6 w-6 p-0 bg-black/50 hover:bg-black/70 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
               ) : (
-                <div className="text-center p-6" onClick={handleAddMedia}>
-                  <Image className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <p className="text-gray-600 font-medium mb-1">Drop media here</p>
-                  <p className="text-gray-500 text-sm">or click to browse</p>
-                  <Button variant="outline" className="mt-3" size="sm">
+                <div className="text-center p-6">
+                  <div className={cn(
+                    "transition-colors duration-200",
+                    isDragOver ? "text-[#68BEB9]" : "text-gray-400"
+                  )}>
+                    <Image className="w-12 h-12 mx-auto mb-3" />
+                  </div>
+                  <p className={cn(
+                    "font-medium mb-1 transition-colors duration-200",
+                    isDragOver ? "text-[#68BEB9]" : "text-gray-600"
+                  )}>
+                    {isDragOver ? "Drop image here" : "Drop media here"}
+                  </p>
+                  <p className="text-gray-500 text-sm mb-3">
+                    or click to browse files
+                  </p>
+                  <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                    <Upload className="w-4 h-4 mr-2" />
                     Choose File
                   </Button>
+                  <p className="text-xs text-gray-400 mt-2">
+                    JPEG, PNG, WebP, GIF up to 10MB
+                  </p>
                 </div>
               )}
+              
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileInputChange}
+              />
             </div>
           </div>
 
