@@ -17,7 +17,9 @@ import {
   ExternalLink,
   Check,
   X,
-  AlertCircle
+  AlertCircle,
+  Facebook,
+  Instagram
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -25,7 +27,7 @@ interface Integration {
   id: string;
   name: string;
   description: string;
-  category: 'automation' | 'email' | 'crm' | 'analytics' | 'social';
+  category: 'social' | 'automation' | 'email' | 'crm' | 'analytics';
   icon: React.ReactNode;
   isConnected: boolean;
   provider: string;
@@ -54,6 +56,28 @@ export const IntegrationHub = () => {
 
   // Available integrations marketplace
   const availableIntegrations: Integration[] = [
+    {
+      id: 'facebook',
+      name: 'Facebook',
+      description: 'Publish posts and manage your Facebook Pages',
+      category: 'social',
+      icon: <Facebook className="w-6 h-6 text-blue-600" />,
+      isConnected: false,
+      provider: 'facebook',
+      setupUrl: '/social-accounts',
+      isActive: true
+    },
+    {
+      id: 'instagram',
+      name: 'Instagram',
+      description: 'Share photos and stories to your Instagram Business account',
+      category: 'social',
+      icon: <Instagram className="w-6 h-6 text-pink-600" />,
+      isConnected: false,
+      provider: 'instagram',
+      setupUrl: '/social-accounts',
+      isActive: true
+    },
     {
       id: 'zapier',
       name: 'Zapier',
@@ -206,13 +230,14 @@ export const IntegrationHub = () => {
 
         <TabsContent value="marketplace" className="space-y-6">
           {/* Categories */}
-          {['automation', 'email', 'crm', 'analytics'].map(category => {
+          {['social', 'automation', 'email', 'crm', 'analytics'].map(category => {
             const categoryIntegrations = getIntegrationsByCategory(category);
             if (categoryIntegrations.length === 0) return null;
 
             return (
               <div key={category} className="space-y-4">
                 <h3 className="text-lg font-semibold capitalize flex items-center gap-2">
+                  {category === 'social' && <Smartphone className="w-5 h-5" />}
                   {category === 'automation' && <Zap className="w-5 h-5" />}
                   {category === 'email' && <Mail className="w-5 h-5" />}
                   {category === 'crm' && <Users className="w-5 h-5" />}
