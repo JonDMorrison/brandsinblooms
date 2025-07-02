@@ -320,7 +320,7 @@ export const Homepage = () => {
 
           {/* Section 3: Quick Actions - Responsive grid */}
           <HomepageErrorBoundary>
-            <div className="w-full max-w-3xl mx-auto">
+            <div className="w-full">
               <QuickActionsSection onCampaignCreated={handleCampaignCreated} />
             </div>
           </HomepageErrorBoundary>
