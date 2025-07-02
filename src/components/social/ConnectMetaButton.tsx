@@ -109,7 +109,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     <Button 
       onClick={handleConnect} 
       disabled={loading || !user}
-      className="w-full bg-garden-green hover:bg-garden-green-dark text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 flex items-center justify-center gap-2"
+      className="w-full"
       size="lg"
     >
       <Facebook className="h-4 w-4" />
