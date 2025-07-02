@@ -25,12 +25,27 @@ export const useSubscription = () => {
       try {
         const { data, error } = await supabase
           .from('subscriptions')
-          .select('plan, max_posts_per_month, max_connections, end_date')
+          .select('plan, max_posts_per_month, max_connections, end_date, created_at')
           .eq('user_id', user.id)
-          .single();
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
-        setSubscription(data);
+
+        if (data && data.length > 0) {
+          // If multiple subscriptions exist, log and use the most recent one
+          if (data.length > 1) {
+            console.warn(`Found ${data.length} subscriptions for user ${user.id}, using most recent`);
+          }
+          setSubscription(data[0]);
+        } else {
+          // No subscription found, create default
+          setSubscription({
+            plan: 'free',
+            max_posts_per_month: 200,
+            max_connections: 4,
+            end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+          });
+        }
       } catch (error) {
         console.error('Error fetching subscription:', error);
         // Default subscription for free users
@@ -38,7 +53,7 @@ export const useSubscription = () => {
           plan: 'free',
           max_posts_per_month: 200,
           max_connections: 4,
-          end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 days from now
+          end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         });
       } finally {
         setLoading(false);
