@@ -1,48 +1,41 @@
 import React from "react";
 import {
-  Home,
-  Calendar,
-  Settings,
-  BarChart,
-  Lightbulb,
-  Share2,
   LayoutDashboard,
-  Mail,
-  CheckSquare,
-  KanbanSquare,
-  HelpCircle,
-  Plus,
-  BookOpenCheck,
-  MessageSquare,
-  Users,
-  FileText,
-  LucideIcon,
-  Activity,
-  CreditCard,
+  Share2,
+  Calendar,
   ClipboardList,
-  TrendingUp,
-  Building2,
   Trophy,
-  Zap,
   Puzzle,
+  Zap,
+  Building2,
+  Users,
+  CreditCard,
+  TrendingUp,
+  LucideIcon,
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useProFeatures } from "@/hooks/useProFeatures";
 
 interface SidebarItem {
@@ -55,6 +48,11 @@ interface SidebarItem {
 const AppSidebar: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const { isPro } = useProFeatures();
+  const location = useLocation();
+  const { state } = useSidebar();
+  
+  const currentPath = location.pathname;
+  const isCollapsed = state === "collapsed";
 
   const sidebarItems: SidebarItem[] = [
     {
@@ -126,67 +124,71 @@ const AppSidebar: React.FC = () => {
     },
   ];
 
+  const isActive = (path: string) => currentPath === path;
+
   return (
-    <div className="w-64 flex-shrink-0 border-r bg-secondary">
-      <div className="flex h-16 items-center px-4">
+    <Sidebar collapsible="icon" className="border-r">
+      <SidebarHeader className="flex flex-row items-center justify-between p-4">
         <NavLink to="/" className="font-semibold flex items-center gap-2">
           <img 
             src="/lovable-uploads/0f4633b7-e7b8-4e10-9689-79903579db38.png" 
             alt="BloomSuite Logo" 
-            className="h-6 w-6" 
+            className="h-6 w-6 flex-shrink-0" 
           />
-          BloomSuite
+          {!isCollapsed && <span>BloomSuite</span>}
         </NavLink>
-      </div>
+        <SidebarTrigger className="ml-auto" />
+      </SidebarHeader>
       
-      <nav className="h-[calc(100vh-4rem)] overflow-y-auto py-6 text-sm">
-        {sidebarItems.map((item) =>
-          item.items ? (
-            <Accordion type="single" collapsible key={item.title}>
-              <AccordionItem value={item.title}>
-                <AccordionTrigger className="group flex items-center justify-between px-4 py-2 hover:bg-accent hover:text-accent-foreground">
-                  <div className="flex items-center gap-2">
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <nav className="flex flex-col pl-4">
-                    {item.items.map((subItem) => (
-                      <NavLink
-                        to={subItem.url}
-                        key={subItem.title}
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 px-4 py-2 hover:bg-accent hover:text-accent-foreground ${
-                            isActive ? "font-medium" : ""
-                          }`
-                        }
-                      >
-                        <subItem.icon className="h-4 w-4" />
-                        <span>{subItem.title}</span>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {sidebarItems.map((item) =>
+                item.items ? (
+                  <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton className="group">
+                          <item.icon className="h-4 w-4" />
+                          {!isCollapsed && <span>{item.title}</span>}
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      {!isCollapsed && (
+                        <CollapsibleContent>
+                          <SidebarMenuSub>
+                            {item.items.map((subItem) => (
+                              <SidebarMenuSubItem key={subItem.title}>
+                                <SidebarMenuSubButton asChild isActive={isActive(subItem.url)}>
+                                  <NavLink to={subItem.url}>
+                                    <subItem.icon className="h-4 w-4" />
+                                    <span>{subItem.title}</span>
+                                  </NavLink>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            ))}
+                          </SidebarMenuSub>
+                        </CollapsibleContent>
+                      )}
+                    </SidebarMenuItem>
+                  </Collapsible>
+                ) : (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                      <NavLink to={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        {!isCollapsed && <span>{item.title}</span>}
                       </NavLink>
-                    ))}
-                  </nav>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          ) : (
-            <NavLink
-              to={item.url}
-              key={item.title}
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-4 py-2 hover:bg-accent hover:text-accent-foreground ${
-                  isActive ? "font-medium" : ""
-                }`
-              }
-            >
-              <item.icon className="h-4 w-4" />
-              <span>{item.title}</span>
-            </NavLink>
-          )
-        )}
-      </nav>
-    </div>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+    </Sidebar>
   );
 };
 
