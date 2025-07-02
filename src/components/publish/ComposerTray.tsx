@@ -4,6 +4,24 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
+// Small thumbnail image component with proper error handling
+const ThumbnailImage = ({ src, alt, fallback }: { src: string; alt: string; fallback: string }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  if (imageError) {
+    return <span>{fallback}</span>;
+  }
+  
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-cover rounded-lg"
+      onError={() => setImageError(true)}
+    />
+  );
+};
+
 interface GeneratedContent {
   id: string;
   status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
@@ -18,9 +36,10 @@ interface ComposerTrayProps {
   content: GeneratedContent[];
   selectedContent: GeneratedContent | null;
   onContentSelect: (content: GeneratedContent) => void;
+  imageLoadingStates?: Record<string, boolean>;
 }
 
-export const ComposerTray = ({ content, selectedContent, onContentSelect }: ComposerTrayProps) => {
+export const ComposerTray = ({ content, selectedContent, onContentSelect, imageLoadingStates = {} }: ComposerTrayProps) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'DRAFT':
@@ -118,20 +137,14 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect }: Comp
                 }}
               >
                 {/* Thumbnail - Fixed size */}
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-lg flex-shrink-0 overflow-hidden">
-                  {item.mediaUrl ? (
-                    <img
-                      src={item.mediaUrl}
-                      alt="Content preview"
-                      className="w-full h-full object-cover rounded-lg"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                        const parent = target.parentElement;
-                        if (parent) {
-                          parent.innerHTML = getPlatformIcon(item.platform);
-                        }
-                      }}
+                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center text-lg flex-shrink-0 overflow-hidden relative">
+                  {imageLoadingStates[item.id] ? (
+                    <div className="animate-spin w-4 h-4 border-2 border-[#68BEB9] border-t-transparent rounded-full"></div>
+                  ) : item.mediaUrl ? (
+                    <ThumbnailImage 
+                      src={item.mediaUrl} 
+                      alt="Content preview" 
+                      fallback={getPlatformIcon(item.platform)}
                     />
                   ) : (
                     getPlatformIcon(item.platform)

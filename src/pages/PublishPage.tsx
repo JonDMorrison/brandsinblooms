@@ -55,8 +55,52 @@ const PublishPage = () => {
   const [publishData, setPublishData] = useState<PublishData | null>(null);
   const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
+  const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('content');
+
+  // Function to fetch images for multiple content items
+  const fetchImagesForContent = async (content: GeneratedContent[]): Promise<GeneratedContent[]> => {
+    const updatedContent = [...content];
+    
+    // Set loading states for all content
+    const initialLoadingStates: Record<string, boolean> = {};
+    content.forEach(item => {
+      initialLoadingStates[item.id] = true;
+    });
+    setImageLoadingStates(initialLoadingStates);
+
+    // Fetch images for each content item in parallel
+    const imagePromises = content.map(async (item, index) => {
+      if (item.caption) {
+        try {
+          const image = await fetchSmartImage(item.caption, 'garden center social media');
+          if (image) {
+            updatedContent[index] = { ...item, mediaUrl: image.url };
+            
+            // Update database with the fetched image URL
+            await supabase
+              .from('content_tasks')
+              .update({ image_idea: image.url })
+              .eq('id', item.id);
+          }
+        } catch (error) {
+          console.error(`Error fetching image for content ${item.id}:`, error);
+        }
+      }
+      
+      // Update individual loading state
+      setImageLoadingStates(prev => ({ ...prev, [item.id]: false }));
+      return updatedContent[index];
+    });
+
+    await Promise.allSettled(imagePromises);
+    
+    // Clear all loading states
+    setImageLoadingStates({});
+    
+    return updatedContent;
+  };
 
   useEffect(() => {
     if (user) {
@@ -123,18 +167,23 @@ const PublishPage = () => {
 
       console.log('All available tasks (debug):', { allTasks, allTasksError });
 
-      // Transform content_tasks to GeneratedContent format
+      // Transform content_tasks to GeneratedContent format and fetch images
       const generatedContent: GeneratedContent[] = (contentTasks || []).map(task => ({
         id: task.id,
         status: 'DRAFT',
         caption: task.ai_output || '',
-        mediaUrl: task.image_idea,
+        mediaUrl: undefined, // Will be populated by fetchImagesForContent
         platform: task.post_type,
         campaignId: task.campaign_id,
         createdAt: task.created_at
       }));
 
-      console.log('Generated content:', generatedContent);
+      console.log('Generated content (before image fetch):', generatedContent);
+
+      // Fetch images for all content automatically
+      const contentWithImages = await fetchImagesForContent(generatedContent);
+      
+      console.log('Generated content (after image fetch):', contentWithImages);
 
       // Fetch social connections
       const { data: connections, error: connectionsError } = await supabase
@@ -153,7 +202,7 @@ const PublishPage = () => {
       }));
 
       setPublishData({
-        content: generatedContent,
+        content: contentWithImages,
         scheduledPosts: [], // TODO: Implement scheduled posts table
         socialConnections
       });
@@ -171,29 +220,8 @@ const PublishPage = () => {
     }
   };
 
-  const handleContentSelect = async (content: GeneratedContent) => {
+  const handleContentSelect = (content: GeneratedContent) => {
     setSelectedContent(content);
-    
-    // If content doesn't have media, try to fetch from Unsplash
-    if (!content.mediaUrl && content.caption) {
-      try {
-        const image = await fetchSmartImage(content.caption, 'garden center social media');
-        if (image) {
-          const updatedContent = { ...content, mediaUrl: image.url };
-          setSelectedContent(updatedContent);
-          
-          // Update the local state
-          if (publishData) {
-            const updatedContentList = publishData.content.map(c => 
-              c.id === content.id ? updatedContent : c
-            );
-            setPublishData({ ...publishData, content: updatedContentList });
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching Unsplash image:', error);
-      }
-    }
   };
 
   const handleSchedulePost = async (scheduleData: {
@@ -358,6 +386,7 @@ const PublishPage = () => {
                     content={publishData?.content || []}
                     selectedContent={selectedContent}
                     onContentSelect={handleContentSelect}
+                    imageLoadingStates={imageLoadingStates}
                   />
                 </div>
 

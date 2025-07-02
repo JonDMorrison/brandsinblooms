@@ -7,6 +7,32 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Bold, Italic, Link, Crop, Image, Settings, MousePointer, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Media image component with proper error handling
+const MediaImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  if (imageError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-center p-6">
+        <div>
+          <div className="w-12 h-12 text-gray-400 mx-auto mb-3">📷</div>
+          <p className="text-gray-600 font-medium mb-1">Media not available</p>
+          <p className="text-gray-500 text-sm">Click to upload new media</p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <img 
+      src={src} 
+      alt={alt} 
+      className="w-full h-full object-cover rounded-lg animate-scale-in"
+      onError={() => setImageError(true)}
+    />
+  );
+};
+
 interface GeneratedContent {
   id: string;
   status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
@@ -170,24 +196,9 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
             >
               {mediaUrl && isMediaExpanded ? (
                 <div className="relative w-full h-full group">
-                  <img 
+                  <MediaImage 
                     src={mediaUrl} 
-                    alt="Content media" 
-                    className="w-full h-full object-cover rounded-lg animate-scale-in"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      const parent = target.parentElement;
-                      if (parent) {
-                        parent.innerHTML = `
-                          <div class="text-center p-6">
-                            <div class="w-12 h-12 text-gray-400 mx-auto mb-3">📷</div>
-                            <p class="text-gray-600 font-medium mb-1">Media not available</p>
-                            <p class="text-gray-500 text-sm">Click to upload new media</p>
-                          </div>
-                        `;
-                      }
-                    }}
+                    alt="Content media"
                   />
                   <Button
                     variant="ghost"
