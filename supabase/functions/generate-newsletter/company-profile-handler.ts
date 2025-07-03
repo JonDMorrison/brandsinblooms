@@ -1,5 +1,5 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.10';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import type { CompanyProfile } from './prompt-builder.ts';
 
 export const fetchCompanyProfile = async (
