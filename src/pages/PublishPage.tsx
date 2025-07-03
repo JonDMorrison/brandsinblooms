@@ -174,7 +174,7 @@ const PublishPage = () => {
       // Transform content_tasks to GeneratedContent format and fetch images
       const generatedContent: GeneratedContent[] = (contentTasks || []).map(task => ({
         id: task.id,
-        status: 'DRAFT',
+        status: 'DRAFT', // These are approved content tasks, but using DRAFT for UI compatibility
         caption: task.ai_output || '',
         mediaUrl: undefined, // Will be populated by fetchImagesForContent
         platform: task.post_type,
