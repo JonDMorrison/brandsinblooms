@@ -865,6 +865,30 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_code_usage: {
+        Row: {
+          code_hash: string
+          created_at: string
+          id: string
+          used_at: string
+          user_id: string
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string
+          id?: string
+          used_at?: string
+          user_id: string
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string
+          id?: string
+          used_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       onboarding_responses: {
         Row: {
           about_business: string | null
@@ -1468,6 +1492,10 @@ export type Database = {
       check_trial_expiration_emails: {
         Args: Record<PropertyKey, never>
         Returns: number
+      }
+      cleanup_old_oauth_codes: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       copy_master_templates_to_campaigns: {
         Args: { target_user_id?: string }
