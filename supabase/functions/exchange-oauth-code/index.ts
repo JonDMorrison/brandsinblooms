@@ -69,23 +69,46 @@ serve(async (req) => {
       id: user.id.substring(0, 8) + '...'
     })
 
-    // Check environment variables
+    // Check environment variables with detailed logging
     const clientId = Deno.env.get('FB_CLIENT_ID')
     const clientSecret = Deno.env.get('FB_CLIENT_SECRET')
 
+    // Enhanced logging to debug the specific issue
+    const allEnvKeys = Object.keys(Deno.env.toObject()).filter(key => key.includes('FB'))
+    console.log('🔑 Facebook-related environment variables:', allEnvKeys)
+    
     console.log('🔑 Environment check:', {
       clientId: clientId ? `present (${clientId.substring(0, 8)}...)` : 'MISSING',
       clientSecret: clientSecret ? 'present' : 'MISSING',
       supabaseUrl: Deno.env.get('SUPABASE_URL') ? 'present' : 'missing',
-      serviceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? 'present' : 'missing'
+      serviceRoleKey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ? 'present' : 'missing',
+      allEnvVarCount: Object.keys(Deno.env.toObject()).length
     })
 
     if (!clientId || !clientSecret) {
+      const errorMessage = `Facebook/Instagram app credentials not configured. Missing: ${!clientId ? 'FB_CLIENT_ID ' : ''}${!clientSecret ? 'FB_CLIENT_SECRET' : ''}. Please add these to your Supabase Edge Function secrets.`
       console.error('❌ Missing Facebook credentials:', { 
         clientId: clientId ? 'present' : 'MISSING', 
-        clientSecret: clientSecret ? 'present' : 'MISSING' 
+        clientSecret: clientSecret ? 'present' : 'MISSING',
+        availableEnvKeys: allEnvKeys,
+        errorMessage
       })
-      throw new Error('Facebook/Instagram app credentials not configured. Please add FB_CLIENT_ID and FB_CLIENT_SECRET to your Supabase Edge Function secrets.')
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: errorMessage,
+          debug: {
+            availableEnvKeys: allEnvKeys,
+            clientIdPresent: !!clientId,
+            clientSecretPresent: !!clientSecret
+          }
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
 
     console.log('🔗 Starting OAuth token exchange for user:', user.id.substring(0, 8) + '...')
