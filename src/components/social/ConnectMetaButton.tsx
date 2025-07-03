@@ -54,8 +54,8 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
       const redirectUri = `${window.location.origin}/auth/callback`;
       
-      // Use the actual Facebook App ID
-      const clientId = '2527232767625484';
+      // Use your configured Facebook App ID from secrets
+      const clientId = '2527232767625484'; // This should match your FB_CLIENT_ID secret
       
       console.log('🚀 Initiating OAuth with enhanced parameters:', {
         clientId,
