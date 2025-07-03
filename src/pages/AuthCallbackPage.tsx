@@ -100,87 +100,46 @@ export const AuthCallbackPage = () => {
         return;
       }
 
-      let retryCount = 0;
-      const maxRetries = 3;
-
-      const attemptExchange = async (): Promise<any> => {
-        try {
-          console.log(`🔗 Attempting OAuth code exchange (attempt ${retryCount + 1}/${maxRetries})...`);
-          
-          // Keep the message simple and consistent - no retry count shown to user
-          setMessage('Connecting to Meta platform...');
-          
-          console.log('🔗 About to call exchange-oauth-code with:', {
-            code: code ? `present (${code.substring(0, 10)}...)` : 'missing',
-            state: state ? `present (${state.substring(0, 8)}...)` : 'missing',
-            redirect_uri: `${window.location.origin}/auth/callback`,
-            hasUser: !!user
-          });
-
-          const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
-            body: {
-              code,
-              state,
-              redirect_uri: `${window.location.origin}/auth/callback`
-            }
-          });
-
-          console.log('📡 Edge function response received:', {
-            data,
-            error: exchangeError,
-            hasData: !!data,
-            dataKeys: data ? Object.keys(data) : [],
-            errorDetails: exchangeError
-          });
-
-          console.log('📬 Exchange response:', { 
-            data, 
-            error: exchangeError,
-            hasData: !!data,
-            dataType: typeof data,
-            exchangeErrorDetails: exchangeError ? {
-              message: exchangeError.message,
-              context: exchangeError.context,
-              details: exchangeError.details
-            } : null
-          });
-
-          if (exchangeError) {
-            console.error('❌ Edge function error details:', {
-              message: exchangeError.message,
-              context: exchangeError.context,
-              details: exchangeError.details,
-              fullError: exchangeError
-            });
-            throw new Error(`Edge function failed: ${exchangeError.message || JSON.stringify(exchangeError)}`);
-          }
-
-          if (!data) {
-            throw new Error('No response data received from edge function');
-          }
-
-          return data;
-        } catch (error: any) {
-          console.error(`❌ Exchange attempt ${retryCount + 1} failed:`, {
-            error: error.message,
-            details: error.details || 'No additional details',
-            code: error.code || 'No error code'
-          });
-          
-          retryCount++;
-          
-          if (retryCount < maxRetries) {
-            console.log(`⏳ Retrying in 2 seconds... (${retryCount}/${maxRetries})`);
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            return attemptExchange();
-          } else {
-            throw error;
-          }
-        }
-      };
-
       try {
-        const data = await attemptExchange();
+        console.log('🔗 Attempting OAuth code exchange...');
+        setMessage('Connecting to Meta platform...');
+        
+        console.log('🔗 About to call exchange-oauth-code with:', {
+          code: code ? `present (${code.substring(0, 10)}...)` : 'missing',
+          state: state ? `present (${state.substring(0, 8)}...)` : 'missing',
+          redirect_uri: `${window.location.origin}/auth/callback`,
+          hasUser: !!user
+        });
+
+        const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
+          body: {
+            code,
+            state,
+            redirect_uri: `${window.location.origin}/auth/callback`
+          }
+        });
+
+        console.log('📡 Edge function response received:', {
+          data,
+          error: exchangeError,
+          hasData: !!data,
+          dataKeys: data ? Object.keys(data) : [],
+          errorDetails: exchangeError
+        });
+
+        if (exchangeError) {
+          console.error('❌ Edge function error details:', {
+            message: exchangeError.message,
+            context: exchangeError.context,
+            details: exchangeError.details,
+            fullError: exchangeError
+          });
+          throw new Error(`Edge function failed: ${exchangeError.message || JSON.stringify(exchangeError)}`);
+        }
+
+        if (!data) {
+          throw new Error('No response data received from edge function');
+        }
 
         if (data?.success) {
           setStatus('success');
