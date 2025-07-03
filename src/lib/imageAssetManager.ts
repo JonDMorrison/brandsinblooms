@@ -46,6 +46,7 @@ export class ImageAssetManager {
    * Create a new image asset record
    */
   static async createImageAsset(data: {
+    user_id: string;
     content_task_id?: string;
     original_url: string;
     processed_url?: string;
@@ -65,6 +66,7 @@ export class ImageAssetManager {
       const { data: asset, error } = await supabase
         .from('image_assets')
         .insert([{
+          user_id: data.user_id,
           content_task_id: data.content_task_id || null,
           original_url: data.original_url,
           processed_url: data.processed_url || null,
@@ -248,6 +250,7 @@ export class ImageAssetManager {
    * Create image asset from Unsplash
    */
   static async createUnsplashAsset(
+    user_id: string,
     content_task_id: string,
     unsplashImage: {
       url: string;
@@ -258,6 +261,7 @@ export class ImageAssetManager {
     }
   ): Promise<any | null> {
     const asset = await this.createImageAsset({
+      user_id,
       content_task_id,
       original_url: unsplashImage.url,
       processed_url: unsplashImage.thumb,
@@ -290,6 +294,7 @@ export class ImageAssetManager {
    * Create image asset from upload
    */
   static async createUploadAsset(
+    user_id: string,
     content_task_id: string,
     file: File,
     uploadedUrl: string
@@ -298,6 +303,7 @@ export class ImageAssetManager {
     const dimensions = await this.getImageDimensions(file);
 
     const asset = await this.createImageAsset({
+      user_id,
       content_task_id,
       original_url: uploadedUrl,
       source_type: 'upload',

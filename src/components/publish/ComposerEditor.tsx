@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ImageEditor } from './ImageEditor';
 import { ImageAssetManager } from '@/lib/imageAssetManager';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Media image component with proper error handling
 const MediaImage = ({ src, alt }: { src: string; alt: string }) => {
@@ -54,6 +55,7 @@ interface ComposerEditorProps {
 }
 
 export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer }: ComposerEditorProps) => {
+  const { user } = useAuth();
   const [caption, setCaption] = useState('');
   const [mediaUrl, setMediaUrl] = useState<string | undefined>('');
   const [isMediaExpanded, setIsMediaExpanded] = useState(false);
@@ -145,6 +147,7 @@ export const ComposerEditor = ({ selectedContent, onContentUpdate, onOpenDrawer 
       // Update database with the uploaded image URL
       if (selectedContent) {
         await ImageAssetManager.createUploadAsset(
+          user?.id || '',
           selectedContent.id,
           file,
           urlData.publicUrl

@@ -80,7 +80,7 @@ const PublishPage = () => {
             updatedContent[index] = { ...item, mediaUrl: image.url };
             
             // Create image asset record for tracking
-            await ImageAssetManager.createUnsplashAsset(item.id, {
+            await ImageAssetManager.createUnsplashAsset(user?.id || '', item.id, {
               url: image.url,
               thumb: image.thumb,
               alt: image.alt,
