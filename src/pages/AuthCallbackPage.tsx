@@ -31,6 +31,12 @@ export const AuthCallbackPage = () => {
         userAgent: navigator.userAgent
       });
 
+      // Clear URL parameters immediately to prevent reuse
+      if (code || error) {
+        const newUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+        window.history.replaceState({}, document.title, newUrl);
+      }
+
       if (error) {
         console.error('❌ OAuth error:', error, errorDescription);
         setStatus('error');
@@ -48,6 +54,23 @@ export const AuthCallbackPage = () => {
         setTimeout(() => navigate('/social'), 3000);
         return;
       }
+
+      // Check if we've already processed this code
+      const processedCodes = sessionStorage.getItem('processed_oauth_codes');
+      const processedCodesArray = processedCodes ? JSON.parse(processedCodes) : [];
+      
+      if (processedCodesArray.includes(code)) {
+        console.warn('⚠️ OAuth code already processed, redirecting...');
+        setStatus('error');
+        setMessage('This authorization has already been processed');
+        toast.error('Authorization already processed - please try connecting again');
+        setTimeout(() => navigate('/social'), 2000);
+        return;
+      }
+
+      // Mark this code as processed
+      processedCodesArray.push(code);
+      sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10))); // Keep only last 10
 
       // Enhanced state verification with multiple fallbacks
       const storedState = sessionStorage.getItem('oauth_state');
