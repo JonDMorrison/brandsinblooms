@@ -213,7 +213,8 @@ const PublishPage = () => {
 
       console.log('Final publish data:', {
         contentCount: generatedContent.length,
-        connectionsCount: socialConnections.length
+        connectionsCount: socialConnections.length,
+        socialConnections: socialConnections
       });
 
     } catch (error) {

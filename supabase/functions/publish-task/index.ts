@@ -270,17 +270,22 @@ serve(async (req) => {
       
       for (const platform of body.platforms) {
         try {
-          // Get social connection
+          // Get social connection - normalize platform name
+          const normalizedPlatform = platform.toLowerCase().replace('_feed', '').replace('_reel', '')
+          console.log(`🔍 Looking for ${normalizedPlatform} connection for user ${user.id}`)
+          
           const { data: connection, error: connectionError } = await supabaseAdmin
             .from('social_connections')
             .select('*')
             .eq('user_id', user.id)
-            .eq('platform', platform.toLowerCase())
+            .eq('platform', normalizedPlatform)
             .eq('is_active', true)
             .single()
 
+          console.log(`🔍 Connection query result:`, { connection, connectionError })
+
           if (connectionError || !connection) {
-            throw new Error(`No active connection for ${platform}`)
+            throw new Error(`No active connection for ${platform} (normalized: ${normalizedPlatform})`)
           }
 
           // Refresh token if needed
@@ -288,14 +293,14 @@ serve(async (req) => {
 
           let publishedId: string
 
-          if (platform.toLowerCase() === 'facebook') {
+          if (normalizedPlatform === 'facebook') {
             publishedId = await publishToFacebook(
               connection.page_id || connection.platform_account_id,
               connection.access_token,
               task.ai_output || '',
               task.image_url
             )
-          } else if (platform.toLowerCase() === 'instagram') {
+          } else if (normalizedPlatform === 'instagram') {
             publishedId = await publishToInstagram(
               connection.platform_account_id,
               connection.access_token,
@@ -312,7 +317,7 @@ serve(async (req) => {
             .update({
               status: 'published',
               platform_post_id: publishedId,
-              platform_post_url: platform.toLowerCase() === 'facebook' 
+              platform_post_url: normalizedPlatform === 'facebook' 
                 ? `https://facebook.com/${publishedId}`
                 : `https://instagram.com/p/${publishedId}`,
               last_posting_error: null,

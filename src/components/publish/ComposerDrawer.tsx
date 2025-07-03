@@ -62,6 +62,9 @@ export const ComposerDrawer = ({
   const [customDate, setCustomDate] = useState<Date>();
   const [customTime, setCustomTime] = useState('12:00');
 
+  // Debug social connections
+  console.log('🔍 Social connections in ComposerDrawer:', socialConnections);
+  
   const platforms = [
     {
       key: 'facebook',
@@ -70,18 +73,14 @@ export const ComposerDrawer = ({
       available: socialConnections.some(c => c.platform === 'facebook' && c.isActive)
     },
     {
-      key: 'instagram_feed',
-      label: 'Instagram Feed',
-      icon: Instagram,
-      available: socialConnections.some(c => c.platform === 'instagram' && c.isActive)
-    },
-    {
-      key: 'instagram_reel',
-      label: 'Instagram Reel',
+      key: 'instagram',
+      label: 'Instagram',
       icon: Instagram,
       available: socialConnections.some(c => c.platform === 'instagram' && c.isActive)
     }
   ];
+  
+  console.log('🔍 Platform availability:', platforms.map(p => ({ key: p.key, available: p.available })));
 
   const togglePlatform = (platformKey: string) => {
     setSelectedPlatforms(prev => 
