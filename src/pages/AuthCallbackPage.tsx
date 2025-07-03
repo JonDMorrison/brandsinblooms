@@ -110,12 +110,27 @@ export const AuthCallbackPage = () => {
           // Keep the message simple and consistent - no retry count shown to user
           setMessage('Connecting to Meta platform...');
           
+          console.log('🔗 About to call exchange-oauth-code with:', {
+            code: code ? `present (${code.substring(0, 10)}...)` : 'missing',
+            state: state ? `present (${state.substring(0, 8)}...)` : 'missing',
+            redirect_uri: `${window.location.origin}/auth/callback`,
+            hasUser: !!user
+          });
+
           const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
             body: {
               code,
               state,
               redirect_uri: `${window.location.origin}/auth/callback`
             }
+          });
+
+          console.log('📡 Edge function response received:', {
+            data,
+            error: exchangeError,
+            hasData: !!data,
+            dataKeys: data ? Object.keys(data) : [],
+            errorDetails: exchangeError
           });
 
           console.log('📬 Exchange response:', { 
