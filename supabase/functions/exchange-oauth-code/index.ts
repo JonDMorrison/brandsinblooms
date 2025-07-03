@@ -113,6 +113,32 @@ serve(async (req) => {
 
     console.log('🔗 Starting OAuth token exchange for user:', user.id.substring(0, 8) + '...')
 
+    // Check if this authorization code has already been used
+    const { data: existingCodeCheck, error: codeCheckError } = await supabase
+      .from('oauth_code_usage')
+      .select('id')
+      .eq('code_hash', btoa(code))
+      .single()
+
+    if (existingCodeCheck) {
+      console.warn('⚠️ Authorization code already used:', { codeHash: btoa(code).substring(0, 10) + '...' })
+      throw new Error('This authorization code has already been used. Please try connecting again.')
+    }
+
+    // Mark this code as used immediately to prevent race conditions
+    const { error: markUsedError } = await supabase
+      .from('oauth_code_usage')
+      .insert({
+        user_id: user.id,
+        code_hash: btoa(code),
+        used_at: new Date().toISOString()
+      })
+
+    if (markUsedError) {
+      console.error('❌ Failed to mark code as used:', markUsedError)
+      // Continue anyway - this is just a safety check
+    }
+
     // Exchange authorization code for access token
     const tokenParams = new URLSearchParams({
       client_id: clientId,

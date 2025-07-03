@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Facebook, Instagram } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
@@ -54,8 +55,17 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
       const redirectUri = `${window.location.origin}/auth/callback`;
       
-      // Use your configured Facebook App ID from secrets
-      const clientId = '2527232767625484'; // This should match your FB_CLIENT_ID secret
+      // Get the Facebook Client ID from our backend to ensure consistency
+      const { data: configData, error: configError } = await supabase.functions.invoke('get-oauth-config');
+      
+      if (configError || !configData?.clientId) {
+        console.error('❌ Failed to get OAuth config:', configError);
+        toast.error('OAuth configuration error. Please contact support.');
+        setLoading(false);
+        return;
+      }
+      
+      const clientId = configData.clientId;
       
       console.log('🚀 Initiating OAuth with enhanced parameters:', {
         clientId,
