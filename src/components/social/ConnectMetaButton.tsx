@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Facebook, Instagram } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { fetchOAuthConfig } from '@/lib/api/oauth';
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
@@ -12,6 +12,7 @@ interface ConnectMetaButtonProps {
 
 export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const [oauthUnavailable, setOauthUnavailable] = useState(false);
   const { user } = useAuth();
 
   const handleConnect = async () => {
@@ -56,16 +57,17 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       const redirectUri = `${window.location.origin}/auth/callback`;
       
       // Get the Facebook Client ID from our backend to ensure consistency
-      const { data: configData, error: configError } = await supabase.functions.invoke('get-oauth-config');
-      
-      if (configError || !configData?.clientId) {
+      let clientId: string;
+      try {
+        const configData = await fetchOAuthConfig();
+        clientId = configData.clientId;
+      } catch (configError) {
         console.error('❌ Failed to get OAuth config:', configError);
-        toast.error('OAuth configuration error. Please contact support.');
+        toast.error('Social posting temporarily unavailable. Please try again later.');
+        setOauthUnavailable(true);
         setLoading(false);
         return;
       }
-      
-      const clientId = configData.clientId;
       
       console.log('🚀 Initiating OAuth with enhanced parameters:', {
         clientId,
@@ -105,6 +107,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       });
       
       toast.error('Failed to initiate connection. Please try again.');
+      setOauthUnavailable(true);
       setLoading(false);
       
       // Clean up stored state on error
@@ -115,11 +118,21 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     }
   };
 
+  if (oauthUnavailable) {
+    return (
+      <div className="w-full p-4 rounded-lg bg-background/50 border border-border/50">
+        <p className="text-sm text-muted-foreground text-center">
+          Social posting temporarily unavailable. Please try again later.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <Button 
       onClick={handleConnect} 
-      disabled={loading || !user}
-      className="w-full"
+      disabled={loading || !user || oauthUnavailable}
+      className="w-full bg-primary hover:bg-primary/90"
       size="lg"
     >
       <Facebook className="h-4 w-4" />
