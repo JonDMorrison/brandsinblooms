@@ -26,7 +26,7 @@ interface PublishData {
 
 interface GeneratedContent {
   id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED';
   caption: string;
   mediaUrl?: string;
   platform?: string;
@@ -174,7 +174,7 @@ const PublishPage = () => {
       // Transform content_tasks to GeneratedContent format and fetch images
       const generatedContent: GeneratedContent[] = (contentTasks || []).map(task => ({
         id: task.id,
-        status: 'DRAFT', // These are approved content tasks, but using DRAFT for UI compatibility
+        status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED',
         caption: task.ai_output || '',
         mediaUrl: undefined, // Will be populated by fetchImagesForContent
         platform: task.post_type,

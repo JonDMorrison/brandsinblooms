@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 
 interface GeneratedContent {
   id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED';
   caption: string;
   mediaUrl?: string;
   platform?: string;

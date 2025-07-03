@@ -24,7 +24,7 @@ const ThumbnailImage = ({ src, alt, fallback }: { src: string; alt: string; fall
 
 interface GeneratedContent {
   id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED';
   caption: string;
   mediaUrl?: string;
   platform?: string;
@@ -48,6 +48,8 @@ export const ComposerTray = ({ content, selectedContent, onContentSelect, imageL
         return 'bg-blue-100 text-blue-800';
       case 'PUBLISHED':
         return 'bg-green-100 text-green-800';
+      case 'APPROVED':
+        return 'bg-emerald-100 text-emerald-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }

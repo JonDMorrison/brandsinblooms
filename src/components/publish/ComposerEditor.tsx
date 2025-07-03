@@ -40,7 +40,7 @@ const MediaImage = ({ src, alt }: { src: string; alt: string }) => {
 
 interface GeneratedContent {
   id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED';
   caption: string;
   mediaUrl?: string;
   platform?: string;
