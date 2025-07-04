@@ -62,6 +62,19 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
     onPostingStart();
 
     try {
+      // Check user authentication first
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('🔐 Auth check before posting:', { 
+        hasUser: !!user, 
+        userId: user?.id, 
+        authError,
+        sessionExists: !!supabase.auth.getSession()
+      });
+      
+      if (!user) {
+        throw new Error('You must be logged in to post content. Please refresh the page and try again.');
+      }
+
       const fullContent = hashtags ? `${content}\n\n${hashtags}` : content;
       
       console.log('🔍 Posting debug info:', {
@@ -69,7 +82,8 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         taskStatus: task.status,
         platform,
         hasContent: !!fullContent,
-        contentLength: fullContent.length
+        contentLength: fullContent.length,
+        userId: user.id
       });
       
       // Update the task with the edited content and ensure it's approved
