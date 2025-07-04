@@ -6,7 +6,7 @@ verify_jwt = true
 [functions.publish-task.headers]
 access-control-allow-origin = "*"
 access-control-allow-methods = "GET, POST, OPTIONS"
-access-control-allow-headers = "authorization, x-application-name, content-type"
+access-control-allow-headers = "authorization, x-client-info, apikey, content-type, x-application-name"
 
 [functions.exchange-oauth-code]
 verify_jwt = true
@@ -14,7 +14,7 @@ verify_jwt = true
 [functions.exchange-oauth-code.headers]
 access-control-allow-origin = "*"
 access-control-allow-methods = "GET, POST, OPTIONS"
-access-control-allow-headers = "authorization, x-application-name, content-type"
+access-control-allow-headers = "authorization, x-client-info, apikey, content-type, x-application-name"
 
 [functions.get-oauth-config]
 verify_jwt = false
@@ -22,4 +22,4 @@ verify_jwt = false
 [functions.get-oauth-config.headers]
 access-control-allow-origin = "*"
 access-control-allow-methods = "GET, POST, OPTIONS"
-access-control-allow-headers = "authorization, x-application-name, content-type"
+access-control-allow-headers = "authorization, x-client-info, apikey, content-type, x-application-name"
