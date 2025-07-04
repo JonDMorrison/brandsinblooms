@@ -64,11 +64,24 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
     try {
       const fullContent = hashtags ? `${content}\n\n${hashtags}` : content;
       
-      // Update the task with the edited content first
+      console.log('🔍 Posting debug info:', {
+        taskId: task.id,
+        taskStatus: task.status,
+        platform,
+        hasContent: !!fullContent,
+        contentLength: fullContent.length
+      });
+      
+      // Update the task with the edited content and ensure it's approved
       await supabase
         .from('content_tasks')
-        .update({ ai_output: fullContent })
+        .update({ 
+          ai_output: fullContent,
+          status: 'approved' // Ensure task is approved for posting
+        })
         .eq('id', task.id);
+      
+      console.log('📤 Calling publish-task edge function...');
       
       // Use our new unified publish-task endpoint
       const { data, error } = await supabase.functions.invoke('publish-task', {
@@ -78,8 +91,11 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         }
       });
 
+      console.log('📥 Edge function response:', { data, error });
+
       if (error) {
-        throw new Error(error.message || `Failed to post to ${platform}`);
+        console.error('❌ Edge function error:', error);
+        throw new Error(error.message || `Failed to send to edge function: ${JSON.stringify(error)}`);
       }
 
       if (data?.success) {
