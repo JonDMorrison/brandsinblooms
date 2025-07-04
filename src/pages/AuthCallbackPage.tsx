@@ -92,7 +92,9 @@ export const AuthCallbackPage = () => {
         currentUrl: window.location.href,
         userAgent: navigator.userAgent,
         authLoading,
-        hasUser: !!user
+        hasUser: !!user,
+        codeValue: code ? `${code.substring(0, 20)}...` : 'none',
+        stateValue: state ? `${state.substring(0, 20)}...` : 'none'
       });
 
       // Clear URL parameters immediately to prevent reuse
