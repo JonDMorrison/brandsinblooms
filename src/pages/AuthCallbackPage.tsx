@@ -84,10 +84,6 @@ export const AuthCallbackPage = () => {
         return;
       }
 
-      // Mark code as processed
-      processedCodesArray.push(code);
-      sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
-
       // Verify state parameter
       const storedState = sessionStorage.getItem('oauth_state');
       const backupState = localStorage.getItem('oauth_state_backup');
@@ -168,6 +164,12 @@ export const AuthCallbackPage = () => {
           message: successMessage,
           timestamp: Date.now()
         }));
+        
+        // Mark code as processed ONLY after successful exchange
+        const processedCodes = sessionStorage.getItem('processed_oauth_codes');
+        const processedCodesArray = processedCodes ? JSON.parse(processedCodes) : [];
+        processedCodesArray.push(code);
+        sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
         
         console.log('OAuth success, redirecting to social accounts');
         setTimeout(() => navigate(`/social-accounts${window.location.search}`), 2000);
