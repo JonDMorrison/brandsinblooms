@@ -7,6 +7,7 @@ import { Facebook, Instagram, MapPin, CheckCircle, AlertCircle, RefreshCw } from
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { fetchOAuthConfig } from "@/lib/api/oauth";
 
 interface SocialConnection {
   id: string;
@@ -48,29 +49,45 @@ export const SocialConnectionManager = () => {
   const connectFacebook = async () => {
     setConnecting('facebook');
     
-    const clientId = 'YOUR_FACEBOOK_APP_ID'; // This would be from environment
-    const redirectUri = `${window.location.origin}/auth/facebook/callback`;
-    const scope = 'pages_read_engagement,pages_show_list,instagram_basic,instagram_manage_insights';
-    
-    const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=facebook`;
-    
-    // For demo purposes, show a message about setup
-    toast.success('Facebook connection successful!');
-    setConnecting(null);
+    try {
+      // Fetch the Facebook Client ID dynamically
+      const configData = await fetchOAuthConfig();
+      const clientId = configData.clientId;
+      
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      const scope = 'pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
+      
+      const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${crypto.randomUUID()}`;
+      
+      // Redirect to Facebook OAuth
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('Failed to connect Facebook:', error);
+      toast.error('Failed to connect Facebook. Please try again.');
+      setConnecting(null);
+    }
   };
 
   const connectInstagram = async () => {
     setConnecting('instagram');
     
-    // Instagram uses Facebook OAuth with additional permissions
-    const clientId = 'YOUR_FACEBOOK_APP_ID';
-    const redirectUri = `${window.location.origin}/auth/facebook/callback`;
-    const scope = 'pages_read_engagement,pages_show_list,instagram_basic,instagram_manage_insights';
-    
-    const authUrl = `https://www.facebook.com/v18.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=instagram`;
-    
-    // For demo purposes
-    setConnecting(null);
+    try {
+      // Instagram uses Facebook OAuth with additional permissions
+      const configData = await fetchOAuthConfig();
+      const clientId = configData.clientId;
+      
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      const scope = 'pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
+      
+      const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${crypto.randomUUID()}`;
+      
+      // Redirect to Facebook OAuth (Instagram uses Facebook's OAuth)
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('Failed to connect Instagram:', error);
+      toast.error('Failed to connect Instagram. Please try again.');
+      setConnecting(null);
+    }
   };
 
   const connectGoogleBusiness = async () => {
