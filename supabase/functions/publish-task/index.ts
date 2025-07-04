@@ -3,8 +3,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Allow-Methods': '*',
 }
 
 interface PublishTaskRequest {
@@ -134,13 +134,8 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    // Also create user client for auth
-    const supabaseClient = createClient(
+    // Simplified authentication approach
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
@@ -150,25 +145,34 @@ serve(async (req) => {
       }
     )
 
-    const { data: { user } } = await supabaseClient.auth.getUser()
-    console.log('🔐 Authentication check:', { 
+    // Check authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    console.log('🔐 Simplified Auth Check:', { 
       hasUser: !!user, 
       userId: user?.id,
+      authError: authError?.message,
       hasAuthHeader: !!req.headers.get('Authorization'),
-      authHeaderPrefix: req.headers.get('Authorization')?.substring(0, 20) + '...'
+      authHeaderPrefix: req.headers.get('Authorization')?.substring(0, 15) + '...'
     })
     
-    if (!user) {
-      console.error('❌ No authenticated user found')
-      console.error('❌ Auth header details:', {
-        authHeader: req.headers.get('Authorization')?.substring(0, 50) + '...',
+    if (!user || authError) {
+      console.error('❌ Authentication failed:', {
+        authError: authError?.message,
+        authHeader: req.headers.get('Authorization')?.substring(0, 30) + '...',
         allHeaders: Object.fromEntries(req.headers.entries())
       })
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // Use service role client for database operations
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
     const body: PublishTaskRequest = await req.json()
     console.log('📝 Publish task request:', { taskId: body.taskId, platforms: body.platforms, isScheduled: !!body.publishAt })

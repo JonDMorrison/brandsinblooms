@@ -62,18 +62,27 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
     onPostingStart();
 
     try {
-      // Check user authentication first
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log('🔐 Auth check before posting:', { 
-        hasUser: !!user, 
-        userId: user?.id, 
-        authError,
-        sessionExists: !!supabase.auth.getSession()
-      });
-      
-      if (!user) {
-        throw new Error('You must be logged in to post content. Please refresh the page and try again.');
+      // Get session first and validate thoroughly
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        toast.error('Authentication session expired. Please refresh the page and try again.');
+        return;
       }
+
+      const token = sessionData.session.access_token;
+      if (!token) {
+        toast.error('No authentication token found. Please refresh the page and try again.');
+        return;
+      }
+
+      // Log first 15 characters of JWT for debugging
+      console.log('🔑 JWT Token (first 15 chars):', token.substring(0, 15));
+      console.log('🔐 Auth validation:', { 
+        hasSession: !!sessionData.session,
+        hasToken: !!token,
+        tokenLength: token.length,
+        userId: sessionData.session.user?.id
+      });
 
       const fullContent = hashtags ? `${content}\n\n${hashtags}` : content;
       
@@ -83,7 +92,7 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         platform,
         hasContent: !!fullContent,
         contentLength: fullContent.length,
-        userId: user.id
+        userId: sessionData.session.user.id
       });
       
       // Update the task with the edited content and ensure it's approved
@@ -97,57 +106,30 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
       
       console.log('📤 Calling publish-task edge function...');
       
-      // Use our new unified publish-task endpoint
-      let functionResponse;
-      try {
-        console.log('🚀 About to invoke edge function with:', {
-          functionName: 'publish-task',
+      // Call edge function with proper headers
+      const functionResponse = await supabase.functions.invoke('publish-task', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: {
           taskId: task.id,
           platforms: [platform]
-        });
-        
-        // Get the user's JWT token manually
-        const { data } = await supabase.auth.getSession();
-        const token = data.session?.access_token;
-        
-        console.log('🔑 Token extraction result:', {
-          hasSession: !!data.session,
-          hasToken: !!token,
-          tokenLength: token?.length,
-          tokenPrefix: token?.substring(0, 20) + '...'
-        });
-        
-        if (!token) {
-          throw new Error('No authentication token found. Please refresh the page and try again.');
         }
+      });
         
-        functionResponse = await supabase.functions.invoke('publish-task', {
-          headers: {
-            Authorization: `Bearer ${token}`
-          },
-          body: {
-            taskId: task.id,
-            platforms: [platform]
-          }
-        });
-        
-        console.log('📥 Raw edge function response:', functionResponse);
-        console.log('📥 Response data:', functionResponse.data);
-        console.log('📥 Response error:', functionResponse.error);
-      } catch (invokeError) {
-        console.error('❌ Edge function invoke failed:', invokeError);
-        throw new Error(`Failed to send request to edge function: ${invokeError.message}`);
-      }
+      console.log('📥 Raw edge function response:', functionResponse);
+      console.log('📥 Response data:', functionResponse.data);
+      console.log('📥 Response error:', functionResponse.error);
 
-      const { data, error } = functionResponse;
+      const { data: responseData, error } = functionResponse;
 
       if (error) {
         console.error('❌ Edge function returned error:', error);
         throw new Error(error.message || `Edge function error: ${JSON.stringify(error)}`);
       }
 
-      if (data?.success) {
-        const result = data.results?.[0];
+      if (responseData?.success) {
+        const result = responseData.results?.[0];
         if (result?.success) {
           toast.success(`Successfully posted to ${platformName}!`);
           onSuccess();
@@ -156,7 +138,7 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
           throw new Error(result?.error || `Failed to post to ${platform}`);
         }
       } else {
-        throw new Error(data?.message || `Failed to post to ${platform}`);
+        throw new Error(responseData?.message || `Failed to post to ${platform}`);
       }
     } catch (error: any) {
       console.error(`Error posting to ${platform}:`, error);

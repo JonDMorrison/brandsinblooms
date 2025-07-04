@@ -1,1 +1,4 @@
 project_id = "udldmkqwnxhdeztyqcau"
+
+[functions.publish-task]
+verify_jwt = false
