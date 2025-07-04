@@ -16,7 +16,10 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   const { user } = useAuth();
 
   const handleConnect = async () => {
+    console.log('🚀 Connect Meta button clicked!', { user: !!user });
+    
     if (!user) {
+      console.error('❌ No authenticated user found');
       toast.error('Please log in to connect your social media accounts');
       return;
     }
