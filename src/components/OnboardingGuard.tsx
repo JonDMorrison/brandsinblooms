@@ -32,7 +32,7 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     const timeout = setTimeout(() => {
       console.warn('⚠️ OnboardingGuard: Loading timeout reached - forcing fallback');
       setTimeoutReached(true);
-    }, 8000);
+    }, 5000); // Reduced timeout to 5 seconds
 
     return () => clearTimeout(timeout);
   }, []);
@@ -90,9 +90,17 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     return <Navigate to="/onboarding" replace />;
   }
 
-  // If we have an error or timeout, assume completed to avoid blocking users
-  if (onboardingError || timeoutReached) {
-    console.log('⚠️ OnboardingGuard: Error or timeout detected, allowing access:', { onboardingError, timeoutReached });
+  // If we have an error, timeout, or onboarding is completed, allow access
+  if (onboardingError || timeoutReached || isCompleted) {
+    if (onboardingError) {
+      console.log('⚠️ OnboardingGuard: Error detected, allowing access:', onboardingError);
+    }
+    if (timeoutReached) {
+      console.log('⚠️ OnboardingGuard: Timeout reached, allowing access to prevent infinite loading');
+    }
+    if (isCompleted) {
+      console.log('✅ OnboardingGuard: Onboarding completed, allowing access');
+    }
   }
 
   // If onboarding is completed or we've hit edge cases, show the protected content

@@ -50,28 +50,47 @@ export const useOnboardingCompletion = () => {
       
       // STEP 2: Create company profile and generate content (complex operation)
       console.log('🔧 Step 2: Creating company profile and generating content...');
+      
+      // Add timeout for company profile creation
+      const profileCreationPromise = createCompanyProfileFromOnboarding(finalData, userId);
+      const profileTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile creation timeout - this is taking longer than expected')), 30000); // 30 second timeout
+      });
+      
       try {
-        await createCompanyProfileFromOnboarding(finalData, userId);
+        await Promise.race([profileCreationPromise, profileTimeoutPromise]);
         console.log('✅ Company profile creation completed successfully');
       } catch (profileError) {
         console.error('❌ Failed to create company profile:', profileError);
         
         // Show specific error message based on the error
         let errorMessage = "Failed to complete setup. ";
-        if (profileError.message.includes('tenant')) {
+        if (profileError.message.includes('Profile creation timeout')) {
+          errorMessage = "Setup is taking longer than expected. Your account is ready but content generation is still in progress. You can continue and check back later.";
+          
+          // Don't throw error for timeout - allow user to proceed
+          toast.info(errorMessage, { duration: 10000 });
+        } else if (profileError.message.includes('tenant')) {
           errorMessage += "There was an issue setting up your workspace. Please try again.";
+          toast.error(errorMessage);
+          throw profileError;
         } else if (profileError.message.includes('Profile generation')) {
           errorMessage += "AI profile generation failed. Please try again or contact support.";
+          toast.error(errorMessage);
+          throw profileError;
         } else if (profileError.message.includes('Campaign creation')) {
           errorMessage += "Content planning failed. Please try again.";
+          toast.error(errorMessage);
+          throw profileError;
         } else if (profileError.message.includes('Failed to create tenant')) {
           errorMessage += "Workspace creation failed. Please check your internet connection and try again.";
+          toast.error(errorMessage);
+          throw profileError;
         } else {
           errorMessage += "Please try again or contact support if the problem persists.";
+          toast.error(errorMessage);
+          throw profileError;
         }
-        
-        toast.error(errorMessage);
-        throw profileError;
       }
       
       // Store the onboarding data in localStorage as backup

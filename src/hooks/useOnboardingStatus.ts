@@ -23,7 +23,7 @@ export const useOnboardingStatus = () => {
       
       // Add timeout to database query with reduced time
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database query timeout')), 5000);
+        setTimeout(() => reject(new Error('Database query timeout')), 3000); // Reduced from 5000 to 3000
       });
 
       const queryPromise = supabase
@@ -79,7 +79,7 @@ export const useOnboardingStatus = () => {
     // Immediate check with shorter delay
     const timer = setTimeout(() => {
       checkOnboardingStatus();
-    }, 100);
+    }, 50); // Reduced from 100ms to 50ms
 
     return () => clearTimeout(timer);
   }, [user]);
