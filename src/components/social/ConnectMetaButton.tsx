@@ -28,6 +28,15 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     setLoading(true);
     
     try {
+      // Clear any previous OAuth state to start fresh
+      sessionStorage.removeItem('oauth_state');
+      localStorage.removeItem('oauth_state_backup');
+      sessionStorage.removeItem('oauth_just_completed');
+      sessionStorage.removeItem('processed_oauth_codes'); // Clear processed codes
+      
+      console.log('🧹 Cleared previous OAuth state');
+      toast.info('Clearing previous connection state...', { duration: 1000 });
+      
       // Generate a cryptographically secure random state parameter
       const state = crypto.randomUUID();
       const timestamp = Date.now().toString();
