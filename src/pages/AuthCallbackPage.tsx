@@ -31,6 +31,8 @@ export const AuthCallbackPage = () => {
     user: user?.email || 'none',
     authLoading,
     currentUrl: window.location.href,
+    fullSearchString: window.location.search,
+    pathname: window.location.pathname,
     timestamp: new Date().toISOString()
   });
 
