@@ -32,6 +32,7 @@ import Auth from "./pages/Auth";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
 
 import { Toaster } from './components/ui/sonner';
+import { SocialMediaIntegrationTest } from './components/test/SocialMediaIntegrationTest';
 
 const App = () => {
   return (
@@ -65,6 +66,11 @@ const App = () => {
               <Route path="/integrations" element={<IntegrationsPage />} />
               <Route path="/integrations/zapier" element={<ZapierPage />} />
               <Route path="/automation" element={<AutomationPage />} />
+              <Route path="/test/social-integration" element={
+                <div className="container mx-auto p-8">
+                  <SocialMediaIntegrationTest />
+                </div>
+              } />
             </Routes>
           </ContentGenerationProvider>
         </SubscriptionProvider>
