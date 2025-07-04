@@ -35,12 +35,14 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
   const handleConnect = async () => {
     console.log('🚀 Connect Meta button clicked!', { user: !!user });
+    alert('🚀 Connect Meta button clicked! Check console for details.');
     
     // Store debug info that persists across redirects
     const debugInfo = {
       step: 'button_clicked',
       timestamp: new Date().toISOString(),
-      user: user?.email || 'none'
+      user: user?.email || 'none',
+      currentUrl: window.location.href
     };
     localStorage.setItem('oauth_debug', JSON.stringify(debugInfo));
     
