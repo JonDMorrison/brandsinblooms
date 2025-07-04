@@ -154,11 +154,16 @@ serve(async (req) => {
     console.log('🔐 Authentication check:', { 
       hasUser: !!user, 
       userId: user?.id,
-      hasAuthHeader: !!req.headers.get('Authorization')
+      hasAuthHeader: !!req.headers.get('Authorization'),
+      authHeaderPrefix: req.headers.get('Authorization')?.substring(0, 20) + '...'
     })
     
     if (!user) {
       console.error('❌ No authenticated user found')
+      console.error('❌ Auth header details:', {
+        authHeader: req.headers.get('Authorization')?.substring(0, 50) + '...',
+        allHeaders: Object.fromEntries(req.headers.entries())
+      })
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
