@@ -24,6 +24,11 @@ export const AuthCallbackPage = () => {
   const [message, setMessage] = useState('Connecting to Meta platform...');
 
   useEffect(() => {
+    // Only handle OAuth callback logic if we're actually on the callback route
+    if (window.location.pathname !== '/auth/callback') {
+      return;
+    }
+
     const handleCallback = async () => {
       // Get parameters from URL
       const code = searchParams.get('code');
