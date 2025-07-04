@@ -147,6 +147,15 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
       console.log('🔗 Final OAuth URL:', authUrl.toString());
       
+      // Update debug info before redirect
+      const debugInfo3 = { 
+        step: 'redirecting_to_facebook', 
+        timestamp: new Date().toISOString(), 
+        authUrl: authUrl.toString(),
+        state: combinedState
+      };
+      localStorage.setItem('oauth_debug', JSON.stringify(debugInfo3));
+      
       // Show loading message
       toast.info('Redirecting to Meta for authentication...', {
         duration: 8000

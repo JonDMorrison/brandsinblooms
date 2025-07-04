@@ -21,6 +21,18 @@ export const AuthCallbackPage = () => {
       const error = searchParams.get('error');
       const errorDescription = searchParams.get('error_description');
 
+      // Store debug info immediately when callback is reached
+      const callbackDebug = {
+        step: 'callback_reached',
+        timestamp: new Date().toISOString(),
+        hasCode: !!code,
+        hasState: !!state,
+        hasError: !!error,
+        error: error,
+        errorDescription: errorDescription
+      };
+      localStorage.setItem('oauth_debug', JSON.stringify(callbackDebug));
+
       console.log('🔄 Auth callback received:', { 
         hasCode: !!code, 
         hasState: !!state, 
