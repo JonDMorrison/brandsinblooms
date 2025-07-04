@@ -150,7 +150,14 @@ serve(async (req) => {
     )
 
     const { data: { user } } = await supabaseClient.auth.getUser()
+    console.log('🔐 Authentication check:', { 
+      hasUser: !!user, 
+      userId: user?.id,
+      hasAuthHeader: !!req.headers.get('Authorization')
+    })
+    
     if (!user) {
+      console.error('❌ No authenticated user found')
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

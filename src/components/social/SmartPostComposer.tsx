@@ -100,6 +100,8 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         });
         
         console.log('📥 Raw edge function response:', functionResponse);
+        console.log('📥 Response data:', functionResponse.data);
+        console.log('📥 Response error:', functionResponse.error);
       } catch (invokeError) {
         console.error('❌ Edge function invoke failed:', invokeError);
         throw new Error(`Failed to send request to edge function: ${invokeError.message}`);
