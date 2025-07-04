@@ -7,6 +7,7 @@ import { CheckCircle, AlertCircle, Info, Play, Loader2, RefreshCw } from 'lucide
 import { fetchOAuthConfig } from '@/lib/api/oauth';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 export const OAuthDebugger: React.FC = () => {
   const { user } = useAuth();
@@ -142,6 +143,7 @@ export const OAuthDebugger: React.FC = () => {
     
     console.log('🧹 All OAuth storage cleared');
     setTestResults(null);
+    toast.success('OAuth storage cleared - you can now try connecting again');
   };
 
   const generateFacebookUrl = async () => {
