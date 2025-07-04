@@ -1,12 +1,10 @@
-export const options = { verifyJwt: false };   // TEMP disable JWT verification
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2.38.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*',
-  'Access-Control-Allow-Methods': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
 interface PublishTaskRequest {
@@ -136,12 +134,33 @@ serve(async (req) => {
   }
 
   try {
-    // TEMP: Skip all authentication for debugging
-    console.log('🔓 TEMP: Bypassing all authentication checks')
-    console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()))
+    // Create Supabase client with proper authentication
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    )
+
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    // Fake a user ID for testing - using a hardcoded value
-    const user = { id: '76ffba44-a088-47c1-9025-5e1ccede6ea0' }
+    console.log('🔒 Authentication check:', { 
+      hasUser: !!user, 
+      userId: user?.id,
+      authError: authError?.message 
+    })
+    
+    if (authError || !user) {
+      console.error('❌ Authentication failed:', authError?.message)
+      return new Response(
+        JSON.stringify({ error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // Use service role client for database operations
     const supabaseAdmin = createClient(
