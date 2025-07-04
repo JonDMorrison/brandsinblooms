@@ -35,6 +35,19 @@ export const AuthCallbackPage = () => {
     pathname: window.location.pathname,
     timestamp: new Date().toISOString()
   });
+  
+  // 🚨 CRITICAL DEBUG: Log the exact URL Facebook redirected to
+  alert(`🚨 FACEBOOK REDIRECT URL: ${window.location.href}`);
+  alert(`🚨 URL PARAMETERS: ${window.location.search || 'NONE FOUND!'}`);
+  console.error('🚨 CRITICAL: Facebook redirect details:', {
+    fullUrl: window.location.href,
+    search: window.location.search,
+    hash: window.location.hash,
+    pathname: window.location.pathname,
+    hasCode: window.location.search.includes('code='),
+    hasState: window.location.search.includes('state='),
+    hasError: window.location.search.includes('error=')
+  });
 
   // Also log to localStorage for persistence across reloads
   const mountDebug = {
