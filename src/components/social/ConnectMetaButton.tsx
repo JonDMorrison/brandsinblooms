@@ -109,7 +109,9 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
         'instagram_manage_insights'
       ].join(',');
       
+      // Force redirect to current domain (Lovable preview vs production)
       const redirectUri = `${window.location.origin}/auth/callback`;
+      console.log('🎯 FORCING redirect to current domain:', redirectUri);
       
       // Get the Facebook Client ID from our backend to ensure consistency
       let clientId: string;
