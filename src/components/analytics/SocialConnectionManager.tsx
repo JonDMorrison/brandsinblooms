@@ -64,46 +64,50 @@ export const SocialConnectionManager = () => {
     }
   };
 
-  const connectFacebook = async () => {
-    setConnecting('facebook');
+  const connectMeta = async (platformId: string) => {
+    setConnecting(platformId);
     
     try {
-      // Fetch the Facebook Client ID dynamically
+      // Clear any previous OAuth state
+      sessionStorage.removeItem('oauth_state');
+      localStorage.removeItem('oauth_state_backup');
+      sessionStorage.removeItem('processed_oauth_codes');
+      
+      // Generate secure state parameter
+      const state = crypto.randomUUID();
+      const timestamp = Date.now().toString();
+      const combinedState = `${state}-${timestamp}`;
+      
+      // Store state with redundancy
+      sessionStorage.setItem('oauth_state', combinedState);
+      localStorage.setItem('oauth_state_backup', combinedState);
+      
+      // Fetch OAuth config dynamically
       const configData = await fetchOAuthConfig();
       const clientId = configData.clientId;
       
       const redirectUri = `${window.location.origin}/auth/callback`;
       const scope = 'pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
       
-      const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${crypto.randomUUID()}`;
+      // Build Facebook OAuth URL (Instagram also uses Facebook OAuth)
+      const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
+      authUrl.searchParams.set('client_id', clientId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('scope', scope);
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('state', combinedState);
+      
+      console.log(`🔗 Redirecting to ${platformId} OAuth:`, {
+        redirectUri,
+        state: combinedState.substring(0, 12) + '...',
+        timestamp: new Date().toISOString()
+      });
       
       // Redirect to Facebook OAuth
-      window.location.href = authUrl;
+      window.location.href = authUrl.toString();
     } catch (error) {
-      console.error('Failed to connect Facebook:', error);
-      toast.error('Failed to connect Facebook. Please try again.');
-      setConnecting(null);
-    }
-  };
-
-  const connectInstagram = async () => {
-    setConnecting('instagram');
-    
-    try {
-      // Instagram uses Facebook OAuth with additional permissions
-      const configData = await fetchOAuthConfig();
-      const clientId = configData.clientId;
-      
-      const redirectUri = `${window.location.origin}/auth/callback`;
-      const scope = 'pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
-      
-      const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&state=${crypto.randomUUID()}`;
-      
-      // Redirect to Facebook OAuth (Instagram uses Facebook's OAuth)
-      window.location.href = authUrl;
-    } catch (error) {
-      console.error('Failed to connect Instagram:', error);
-      toast.error('Failed to connect Instagram. Please try again.');
+      console.error(`Failed to connect ${platformId}:`, error);
+      toast.error(`Failed to connect ${platformId}. Please try again.`);
       setConnecting(null);
     }
   };
@@ -266,8 +270,8 @@ export const SocialConnectionManager = () => {
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          if (platform.id === 'facebook') connectFacebook();
-                          else if (platform.id === 'instagram') connectInstagram();
+                      if (platform.id === 'facebook') connectMeta(platform.id);
+                      else if (platform.id === 'instagram') connectMeta(platform.id);
                           else if (platform.id === 'google_my_business') connectGoogleBusiness();
                         }}
                         disabled={connecting === platform.id}
@@ -287,8 +291,8 @@ export const SocialConnectionManager = () => {
                   <Button
                     size="sm"
                     onClick={() => {
-                      if (platform.id === 'facebook') connectFacebook();
-                      else if (platform.id === 'instagram') connectInstagram();
+                      if (platform.id === 'facebook') connectMeta(platform.id);
+                      else if (platform.id === 'instagram') connectMeta(platform.id);
                       else if (platform.id === 'google_my_business') connectGoogleBusiness();
                     }}
                     disabled={connecting === platform.id}
