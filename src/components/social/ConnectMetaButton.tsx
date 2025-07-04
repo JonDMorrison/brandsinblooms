@@ -138,34 +138,57 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
         timestamp: new Date().toISOString()
       });
       
-      const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
-      authUrl.searchParams.set('client_id', clientId);
-      authUrl.searchParams.set('redirect_uri', redirectUri);
-      authUrl.searchParams.set('scope', scopes);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('state', combinedState);
-      
-      console.log('🔗 Final OAuth URL:', authUrl.toString());
-      
-      // Update debug info before redirect
-      const debugInfo3 = { 
-        step: 'redirecting_to_facebook', 
-        timestamp: new Date().toISOString(), 
-        authUrl: authUrl.toString(),
-        state: combinedState
-      };
-      localStorage.setItem('oauth_debug', JSON.stringify(debugInfo3));
-      
-      // Show loading message
-      toast.info('Redirecting to Meta for authentication...', {
-        duration: 8000
-      });
-      
-      // Small delay to ensure state is stored
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Redirect to Facebook OAuth
-      window.location.href = authUrl.toString();
+      try {
+        const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
+        authUrl.searchParams.set('client_id', clientId);
+        authUrl.searchParams.set('redirect_uri', redirectUri);
+        authUrl.searchParams.set('scope', scopes);
+        authUrl.searchParams.set('response_type', 'code');
+        authUrl.searchParams.set('state', combinedState);
+        
+        console.log('🔗 Final OAuth URL:', authUrl.toString());
+        
+        // Update debug info before redirect
+        const debugInfo3 = { 
+          step: 'redirecting_to_facebook', 
+          timestamp: new Date().toISOString(), 
+          authUrl: authUrl.toString(),
+          state: combinedState
+        };
+        localStorage.setItem('oauth_debug', JSON.stringify(debugInfo3));
+        
+        // Show loading message
+        toast.info('Redirecting to Meta for authentication...', {
+          duration: 8000
+        });
+        
+        // Small delay to ensure state is stored
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Redirect to Facebook OAuth
+        window.location.href = authUrl.toString();
+        
+      } catch (redirectError) {
+        console.error('❌ Error during redirect preparation:', redirectError);
+        
+        // Store detailed error info
+        const errorDebug = { 
+          step: 'redirect_failed', 
+          timestamp: new Date().toISOString(), 
+          error: redirectError instanceof Error ? redirectError.message : 'Unknown redirect error',
+          errorDetails: redirectError,
+          clientId: clientId ? 'present' : 'missing',
+          redirectUri,
+          scopes,
+          state: combinedState
+        };
+        localStorage.setItem('oauth_debug', JSON.stringify(errorDebug));
+        
+        toast.error('Failed to initiate connection. Please try again.');
+        setOauthUnavailable(true);
+        setLoading(false);
+        return;
+      }
       
     } catch (error) {
       console.error('❌ OAuth initiation error:', {
