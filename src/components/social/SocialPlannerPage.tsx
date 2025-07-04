@@ -28,6 +28,24 @@ export const SocialPlannerPage = () => {
     }
   }, [user]);
 
+  // Check for OAuth success message
+  useEffect(() => {
+    const successData = sessionStorage.getItem('social_connection_success');
+    if (successData) {
+      try {
+        const { message, timestamp } = JSON.parse(successData);
+        // Only show if less than 30 seconds old
+        if (Date.now() - timestamp < 30000) {
+          toast.success(message, { duration: 8000 });
+        }
+        sessionStorage.removeItem('social_connection_success');
+      } catch (error) {
+        console.error('Error parsing success data:', error);
+        sessionStorage.removeItem('social_connection_success');
+      }
+    }
+  }, []);
+
   const checkFeatureFlag = async () => {
     if (!user) return;
     

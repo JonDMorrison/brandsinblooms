@@ -42,7 +42,7 @@ export const AuthCallbackPage = () => {
         setStatus('error');
         setMessage(`Authorization failed: ${errorDescription || error}`);
         toast.error(`Connection failed: ${errorDescription || error}`);
-        setTimeout(() => navigate('/social'), 3000);
+        setTimeout(() => navigate('/social-accounts'), 3000);
         return;
       }
 
@@ -51,7 +51,7 @@ export const AuthCallbackPage = () => {
         setStatus('error');
         setMessage('Missing authorization code or state parameter');
         toast.error('Invalid authorization response');
-        setTimeout(() => navigate('/social'), 3000);
+        setTimeout(() => navigate('/social-accounts'), 3000);
         return;
       }
 
@@ -64,7 +64,7 @@ export const AuthCallbackPage = () => {
         setStatus('error');
         setMessage('This authorization has already been processed');
         toast.error('Authorization already processed - please try connecting again');
-        setTimeout(() => navigate('/social'), 2000);
+        setTimeout(() => navigate('/social-accounts'), 2000);
         return;
       }
 
@@ -95,7 +95,7 @@ export const AuthCallbackPage = () => {
           setStatus('error');
           setMessage('Security verification failed - please try connecting again');
           toast.error('Connection failed - please try again');
-          setTimeout(() => navigate('/social'), 3000);
+          setTimeout(() => navigate('/social-accounts'), 3000);
           return;
         }
         
@@ -168,13 +168,15 @@ export const AuthCallbackPage = () => {
           setStatus('success');
           const successMessage = data.message || 'Successfully connected to Meta platform!';
           setMessage(successMessage);
-          toast.success(successMessage);
           
-          console.log('🎯 Setting post-connection flow flag');
-          sessionStorage.setItem('oauth_just_completed', 'true');
+          // Set a persistent success flag for the social accounts page
+          sessionStorage.setItem('social_connection_success', JSON.stringify({
+            message: successMessage,
+            timestamp: Date.now()
+          }));
           
-          console.log('🏠 Redirecting to homepage for post-connection flow');
-          setTimeout(() => navigate('/'), 2000);
+          console.log('🎯 OAuth success, redirecting to social accounts page');
+          setTimeout(() => navigate('/social-accounts'), 2000);
         } else {
           throw new Error(data?.error || 'Failed to connect - no success response');
         }
@@ -218,7 +220,7 @@ export const AuthCallbackPage = () => {
         
         setMessage(errorMessage);
         toast.error(errorMessage);
-        setTimeout(() => navigate('/social'), 5000);
+        setTimeout(() => navigate('/social-accounts'), 5000);
       }
     };
 
@@ -227,7 +229,7 @@ export const AuthCallbackPage = () => {
       handleCallback();
     } else {
       console.log('ℹ️ No OAuth parameters found, redirecting to social page');
-      navigate('/social');
+      navigate('/social-accounts');
     }
   }, [searchParams, navigate, user, authLoading]);
 
