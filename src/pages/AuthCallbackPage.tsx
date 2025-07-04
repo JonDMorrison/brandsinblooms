@@ -40,7 +40,9 @@ export const AuthCallbackPage = () => {
         error, 
         errorDescription,
         currentUrl: window.location.href,
-        userAgent: navigator.userAgent
+        userAgent: navigator.userAgent,
+        authLoading,
+        hasUser: !!user
       });
 
       // Clear URL parameters immediately to prevent reuse
