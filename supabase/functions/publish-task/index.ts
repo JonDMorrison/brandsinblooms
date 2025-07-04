@@ -1,3 +1,5 @@
+export const options = { verifyJwt: false };   // TEMP disable JWT verification
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'npm:@supabase/supabase-js@2.38.0'
 
