@@ -136,7 +136,7 @@ serve(async (req) => {
   }
 
   try {
-    // Simplified authentication approach
+    // Create Supabase client with standard auth
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -147,27 +147,19 @@ serve(async (req) => {
       }
     )
 
-    // Check authentication
+    // Simplified authentication check
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
-    console.log('🔐 Simplified Auth Check:', { 
+    console.log('🔒 getUser returned:', { 
       hasUser: !!user, 
       userId: user?.id,
       authError: authError?.message,
-      hasAuthHeader: !!req.headers.get('Authorization'),
-      authHeaderPrefix: req.headers.get('Authorization')?.substring(0, 15) + '...'
+      authHeader: req.headers.get('Authorization')?.slice(0, 25)
     })
     
-    if (!user || authError) {
-      console.error('❌ Authentication failed:', {
-        authError: authError?.message,
-        authHeader: req.headers.get('Authorization')?.substring(0, 30) + '...',
-        allHeaders: Object.fromEntries(req.headers.entries())
-      })
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
+    if (!user) {
+      console.log('🔒 getUser returned null – auth header:', req.headers.get('authorization')?.slice(0, 25));
+      return new Response('Unauthorized', { status: 401, headers: corsHeaders });
     }
 
     // Use service role client for database operations
