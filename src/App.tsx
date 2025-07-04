@@ -46,6 +46,7 @@ const App = () => {
               <Route path="/social" element={<Navigate to="/social-accounts" replace />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route path="/auth/test" element={<div style={{padding: '20px', fontSize: '24px', color: 'green'}}>🧪 Auth Test Route Working! URL: {window.location.href}</div>} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/onboarding/manual" element={<Onboarding />} />
               <Route path="/pricing" element={<PricingPage />} />

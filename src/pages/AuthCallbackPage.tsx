@@ -23,6 +23,16 @@ export const AuthCallbackPage = () => {
     timestamp: new Date().toISOString()
   });
 
+  // Also log to localStorage for persistence across reloads
+  const mountDebug = {
+    step: 'component_mounted',
+    timestamp: new Date().toISOString(),
+    url: window.location.href,
+    searchParams: Object.fromEntries(searchParams.entries()),
+    userEmail: user?.email || 'none'
+  };
+  localStorage.setItem('oauth_mount_debug', JSON.stringify(mountDebug));
+
   useEffect(() => {
     console.log('🔄 AuthCallbackPage useEffect triggered:', {
       hasParams: !!searchParams.get('code') || !!searchParams.get('error'),
@@ -291,7 +301,10 @@ export const AuthCallbackPage = () => {
       });
     } else {
       console.log('ℹ️ No OAuth parameters found, redirecting to social page');
-      navigate('/social-accounts');
+      // Don't redirect immediately - wait a bit to see debug info
+      setTimeout(() => {
+        navigate('/social-accounts');
+      }, 2000);
     }
   }, [searchParams, navigate, user, authLoading]);
 
