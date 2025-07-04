@@ -110,6 +110,13 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         const { data } = await supabase.auth.getSession();
         const token = data.session?.access_token;
         
+        console.log('🔑 Token extraction result:', {
+          hasSession: !!data.session,
+          hasToken: !!token,
+          tokenLength: token?.length,
+          tokenPrefix: token?.substring(0, 20) + '...'
+        });
+        
         if (!token) {
           throw new Error('No authentication token found. Please refresh the page and try again.');
         }
