@@ -183,9 +183,11 @@ export const AuthCallbackPage = () => {
           payload: exchangePayload
         });
 
+        console.log('🔗 Calling exchange-oauth-code edge function...');
         const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
           body: exchangePayload
         });
+        console.log('📡 Edge function response:', { data, error: exchangeError });
 
         console.log('📡 Edge function response received:', {
           data,
