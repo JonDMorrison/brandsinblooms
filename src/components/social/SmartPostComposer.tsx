@@ -106,7 +106,18 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
           platforms: [platform]
         });
         
+        // Get the user's JWT token manually
+        const { data } = await supabase.auth.getSession();
+        const token = data.session?.access_token;
+        
+        if (!token) {
+          throw new Error('No authentication token found. Please refresh the page and try again.');
+        }
+        
         functionResponse = await supabase.functions.invoke('publish-task', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
           body: {
             taskId: task.id,
             platforms: [platform]
