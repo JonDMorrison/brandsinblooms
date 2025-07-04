@@ -15,6 +15,24 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   const [oauthUnavailable, setOauthUnavailable] = useState(false);
   const { user } = useAuth();
 
+  // Check for success on component Mount
+  React.useEffect(() => {
+    const successData = sessionStorage.getItem('social_connection_success');
+    if (successData) {
+      try {
+        const { message, timestamp } = JSON.parse(successData);
+        // Only show success if it's recent (within 30 seconds)
+        if (Date.now() - timestamp < 30000) {
+          toast.success(message);
+          onSuccess();
+        }
+        sessionStorage.removeItem('social_connection_success');
+      } catch (error) {
+        console.error('Error processing success data:', error);
+      }
+    }
+  }, [onSuccess]);
+
   const handleConnect = async () => {
     console.log('🚀 Connect Meta button clicked!', { user: !!user });
     

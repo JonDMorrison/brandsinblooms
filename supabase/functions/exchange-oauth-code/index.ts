@@ -16,29 +16,62 @@ serve(async (req) => {
   console.log('🚀 OAuth exchange function started:', {
     method: req.method,
     url: req.url,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    headers: Object.fromEntries(req.headers.entries())
   });
 
   try {
-    const { code, state, redirect_uri } = await req.json()
+    const requestBody = await req.json()
+    const { code, state, redirect_uri } = requestBody
     
     console.log('🔄 OAuth exchange request received:', { 
       code: code ? `present (${code.substring(0, 10)}...)` : 'missing', 
       state: state ? `present (${state.substring(0, 8)}...)` : 'missing', 
       redirect_uri,
+      requestBody: requestBody,
       contentLength: req.headers.get('content-length'),
       contentType: req.headers.get('content-type')
     })
 
     // Validate required parameters
     if (!code) {
-      throw new Error('Authorization code is required');
+      console.error('❌ Missing authorization code');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Authorization code is required' 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
     if (!state) {
-      throw new Error('State parameter is required');
+      console.error('❌ Missing state parameter');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'State parameter is required' 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
     if (!redirect_uri) {
-      throw new Error('Redirect URI is required');
+      console.error('❌ Missing redirect URI');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Redirect URI is required' 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      )
     }
     
     // Get user from auth header

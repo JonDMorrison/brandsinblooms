@@ -141,19 +141,22 @@ export const AuthCallbackPage = () => {
         console.log('🔗 Attempting OAuth code exchange...');
         setMessage('Connecting to Meta platform...');
         
+        const exchangePayload = {
+          code,
+          state,
+          redirect_uri: `${window.location.origin}/auth/callback`
+        };
+        
         console.log('🔗 About to call exchange-oauth-code with:', {
           code: code ? `present (${code.substring(0, 10)}...)` : 'missing',
           state: state ? `present (${state.substring(0, 8)}...)` : 'missing',
           redirect_uri: `${window.location.origin}/auth/callback`,
-          hasUser: !!user
+          hasUser: !!user,
+          payload: exchangePayload
         });
 
         const { data, error: exchangeError } = await supabase.functions.invoke('exchange-oauth-code', {
-          body: {
-            code,
-            state,
-            redirect_uri: `${window.location.origin}/auth/callback`
-          }
+          body: exchangePayload
         });
 
         console.log('📡 Edge function response received:', {

@@ -30,6 +30,24 @@ export const SocialConnectionManager = () => {
     }
   }, [user]);
 
+  // Check for successful connection and refresh
+  useEffect(() => {
+    const successData = sessionStorage.getItem('social_connection_success');
+    if (successData) {
+      try {
+        const { message, timestamp } = JSON.parse(successData);
+        // Only refresh if it's recent (within 30 seconds)
+        if (Date.now() - timestamp < 30000) {
+          toast.success(message);
+          fetchConnections(); // Refresh connections
+        }
+        sessionStorage.removeItem('social_connection_success');
+      } catch (error) {
+        console.error('Error processing success data:', error);
+      }
+    }
+  }, []);
+
   const fetchConnections = async () => {
     try {
       const { data, error } = await supabase
