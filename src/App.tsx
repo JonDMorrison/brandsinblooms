@@ -33,6 +33,7 @@ import AuthCallbackPage from "./pages/AuthCallbackPage";
 
 import { Toaster } from './components/ui/sonner';
 import { SocialMediaIntegrationTest } from './components/test/SocialMediaIntegrationTest';
+import { OAuthDebugger } from './components/test/OAuthDebugger';
 
 const App = () => {
   return (
@@ -69,6 +70,11 @@ const App = () => {
               <Route path="/test/social-integration" element={
                 <div className="container mx-auto p-8">
                   <SocialMediaIntegrationTest />
+                </div>
+              } />
+              <Route path="/test/oauth-debug" element={
+                <div className="container mx-auto p-8">
+                  <OAuthDebugger />
                 </div>
               } />
             </Routes>
