@@ -17,6 +17,15 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
   const handleConnect = async () => {
     console.log('🚀 Connect Meta button clicked!', { user: !!user });
+    
+    // Store debug info that persists across redirects
+    const debugInfo = {
+      step: 'button_clicked',
+      timestamp: new Date().toISOString(),
+      user: user?.email || 'none'
+    };
+    localStorage.setItem('oauth_debug', JSON.stringify(debugInfo));
+    
     toast.info('Starting Meta connection...', { duration: 2000 });
     
     if (!user) {
@@ -42,6 +51,10 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       sessionStorage.removeItem('processed_oauth_codes');
       sessionStorage.removeItem('oauth_state_uuid');
       sessionStorage.removeItem('oauth_state_timestamp');
+      
+      // Update debug info
+      const debugInfo = { step: 'cleared_state', timestamp: new Date().toISOString(), beforeClear };
+      localStorage.setItem('oauth_debug', JSON.stringify(debugInfo));
       
       console.log('🧹 Cleared OAuth state:', { before: beforeClear, cleared: true });
       toast.info('Clearing previous connection state...', { duration: 5000 });

@@ -30,6 +30,18 @@ export const SocialPlannerPage = () => {
 
   // Check for OAuth success message
   useEffect(() => {
+    // Check for OAuth debug info
+    const debugInfo = localStorage.getItem('oauth_debug');
+    if (debugInfo) {
+      try {
+        const debug = JSON.parse(debugInfo);
+        console.log('🐛 OAuth Debug Info:', debug);
+        toast.info(`OAuth Debug: ${debug.step} at ${debug.timestamp}`, { duration: 5000 });
+      } catch (error) {
+        console.error('Error parsing debug info:', error);
+      }
+    }
+
     const successData = sessionStorage.getItem('social_connection_success');
     if (successData) {
       try {
