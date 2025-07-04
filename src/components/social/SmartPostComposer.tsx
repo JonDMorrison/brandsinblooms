@@ -84,18 +84,32 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
       console.log('📤 Calling publish-task edge function...');
       
       // Use our new unified publish-task endpoint
-      const { data, error } = await supabase.functions.invoke('publish-task', {
-        body: {
+      let functionResponse;
+      try {
+        console.log('🚀 About to invoke edge function with:', {
+          functionName: 'publish-task',
           taskId: task.id,
           platforms: [platform]
-        }
-      });
+        });
+        
+        functionResponse = await supabase.functions.invoke('publish-task', {
+          body: {
+            taskId: task.id,
+            platforms: [platform]
+          }
+        });
+        
+        console.log('📥 Raw edge function response:', functionResponse);
+      } catch (invokeError) {
+        console.error('❌ Edge function invoke failed:', invokeError);
+        throw new Error(`Failed to send request to edge function: ${invokeError.message}`);
+      }
 
-      console.log('📥 Edge function response:', { data, error });
+      const { data, error } = functionResponse;
 
       if (error) {
-        console.error('❌ Edge function error:', error);
-        throw new Error(error.message || `Failed to send to edge function: ${JSON.stringify(error)}`);
+        console.error('❌ Edge function returned error:', error);
+        throw new Error(error.message || `Edge function error: ${JSON.stringify(error)}`);
       }
 
       if (data?.success) {
