@@ -7,6 +7,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export const AuthCallbackPage = () => {
+  // ──────────────────────────────────────────────
+  // HOT-FIX: Facebook sometimes returns /auth/callback#/?code=…&state=…
+  // Values after "#" are invisible to window.location.search.
+  // Move them back into the querystring **before** we parse params.
+  if (window.location.hash.startsWith('#/?')) {
+    const fixed = window.location.hash.replace(/^#\/?/, '?');
+    window.history.replaceState(null, '', window.location.pathname + fixed);
+  }
+  // ──────────────────────────────────────────────
+
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -155,7 +165,7 @@ export const AuthCallbackPage = () => {
         }));
         
         console.log('OAuth success, redirecting to social accounts');
-        setTimeout(() => navigate('/social-accounts'), 2000);
+        setTimeout(() => navigate(`/social-accounts${window.location.search}`), 2000);
         
       } catch (error: any) {
         console.error('OAuth exchange error:', error);
