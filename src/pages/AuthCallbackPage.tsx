@@ -14,9 +14,20 @@ export const AuthCallbackPage = () => {
   const [message, setMessage] = useState('Connecting to Meta platform...');
   const [waitingForAuth, setWaitingForAuth] = useState(false);
 
+  // Get URL parameters directly from window.location as fallback
+  const urlParams = new URLSearchParams(window.location.search);
+  const directCode = urlParams.get('code');
+  const directState = urlParams.get('state');
+  const directError = urlParams.get('error');
+
   // Immediate debug logging when component mounts
   console.log('🚀 AuthCallbackPage mounted:', {
     searchParams: Object.fromEntries(searchParams.entries()),
+    directParams: {
+      code: directCode ? `present (${directCode.substring(0, 10)}...)` : 'missing',
+      state: directState ? `present (${directState.substring(0, 8)}...)` : 'missing',
+      error: directError || 'none'
+    },
     user: user?.email || 'none',
     authLoading,
     currentUrl: window.location.href,
@@ -43,10 +54,20 @@ export const AuthCallbackPage = () => {
     const handleCallback = async () => {
       console.log('🎯 handleCallback function started');
       
-      const code = searchParams.get('code');
-      const state = searchParams.get('state');
-      const error = searchParams.get('error');
+      // Try searchParams first, then fallback to direct URL reading
+      const code = searchParams.get('code') || directCode;
+      const state = searchParams.get('state') || directState;
+      const error = searchParams.get('error') || directError;
       const errorDescription = searchParams.get('error_description');
+
+      console.log('🔍 Parameter sources:', {
+        searchParamsCode: !!searchParams.get('code'),
+        directCode: !!directCode,
+        finalCode: !!code,
+        searchParamsState: !!searchParams.get('state'),
+        directState: !!directState,
+        finalState: !!state
+      });
 
       // Store debug info immediately when callback is reached
       const callbackDebug = {
@@ -282,12 +303,15 @@ export const AuthCallbackPage = () => {
     };
 
     // Only run the callback handling if we have the necessary URL parameters
-    const hasOAuthParams = searchParams.get('code') || searchParams.get('error');
+    const hasOAuthParams = searchParams.get('code') || searchParams.get('error') || directCode || directError;
     console.log('🔍 Checking OAuth parameters:', {
-      hasCode: !!searchParams.get('code'),
-      hasError: !!searchParams.get('error'),
+      searchParamsCode: !!searchParams.get('code'),
+      searchParamsError: !!searchParams.get('error'),
+      directCode: !!directCode,
+      directError: !!directError,
       hasOAuthParams,
-      allParams: Object.fromEntries(searchParams.entries())
+      searchParams: Object.fromEntries(searchParams.entries()),
+      directParams: { code: !!directCode, state: !!directState, error: !!directError }
     });
 
     if (hasOAuthParams) {
