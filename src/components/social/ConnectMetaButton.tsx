@@ -168,7 +168,10 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
         
         console.log('🔗 Final OAuth URL:', authUrl.toString());
         console.log('🔗 About to redirect to Facebook...');
+        console.log('🔍 CRITICAL: Redirect URI being sent to Facebook:', redirectUri);
+        console.log('🔍 CRITICAL: Current domain:', window.location.origin);
         alert(`🔗 About to redirect to Facebook OAuth. URL: ${authUrl.toString().substring(0, 100)}...`);
+        alert(`🔍 REDIRECT URI: ${redirectUri} - Make sure this EXACTLY matches your Facebook app settings!`);
         
         // Update debug info before redirect
         const debugInfo3 = { 
