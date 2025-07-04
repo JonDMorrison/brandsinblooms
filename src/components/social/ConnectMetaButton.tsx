@@ -17,6 +17,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
   const handleConnect = async () => {
     console.log('🚀 Connect Meta button clicked!', { user: !!user });
+    toast.info('Starting Meta connection...', { duration: 2000 });
     
     if (!user) {
       console.error('❌ No authenticated user found');
@@ -62,8 +63,12 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       // Get the Facebook Client ID from our backend to ensure consistency
       let clientId: string;
       try {
+        console.log('📡 Fetching OAuth config...');
+        toast.info('Getting OAuth configuration...', { duration: 1500 });
         const configData = await fetchOAuthConfig();
         clientId = configData.clientId;
+        console.log('✅ OAuth config received successfully');
+        toast.info('OAuth config received, redirecting to Meta...', { duration: 1500 });
       } catch (configError) {
         console.error('❌ Failed to get OAuth config:', configError);
         toast.error('Social posting temporarily unavailable. Please try again later.');
