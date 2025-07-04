@@ -96,12 +96,32 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       try {
         console.log('📡 Fetching OAuth config...');
         toast.info('Getting OAuth configuration...', { duration: 5000 });
+        
+        // Update debug info
+        const debugInfo = { step: 'fetching_config', timestamp: new Date().toISOString() };
+        localStorage.setItem('oauth_debug', JSON.stringify(debugInfo));
+        
         const configData = await fetchOAuthConfig();
         clientId = configData.clientId;
         console.log('✅ OAuth config received successfully');
         toast.info('OAuth config received, redirecting to Meta...', { duration: 5000 });
+        
+        // Update debug info
+        const debugInfo2 = { step: 'config_received', timestamp: new Date().toISOString(), clientId: clientId ? 'present' : 'missing' };
+        localStorage.setItem('oauth_debug', JSON.stringify(debugInfo2));
+        
       } catch (configError) {
         console.error('❌ Failed to get OAuth config:', configError);
+        
+        // Store detailed error info
+        const errorDebug = { 
+          step: 'config_failed', 
+          timestamp: new Date().toISOString(), 
+          error: configError instanceof Error ? configError.message : 'Unknown error',
+          errorDetails: configError
+        };
+        localStorage.setItem('oauth_debug', JSON.stringify(errorDebug));
+        
         toast.error('Social posting temporarily unavailable. Please try again later.');
         setOauthUnavailable(true);
         setLoading(false);
