@@ -29,7 +29,7 @@ export const useDashboardData = () => {
       const { data: campaigns } = await campaignQuery;
       const currentCampaign = campaigns?.[0] || null;
 
-      // Fetch tasks - more selective query for performance
+      // Fetch tasks - ensure proper user filtering
       const taskQuery = supabase
         .from('content_tasks')
         .select(`
@@ -41,7 +41,7 @@ export const useDashboardData = () => {
           created_at,
           attachments,
           campaign_id,
-          campaigns!inner (
+          campaigns (
             title,
             user_id,
             tenant_id
@@ -50,6 +50,7 @@ export const useDashboardData = () => {
         .in('status', ['draft', 'generated', 'approved', 'review', 'scheduled'])
         .order('created_at', { ascending: false });
 
+      // Always filter by user ownership - never show other users' content
       if (tenant?.id) {
         taskQuery.eq('tenant_id', tenant.id);
       } else {
