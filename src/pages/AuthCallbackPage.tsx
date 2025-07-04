@@ -21,10 +21,12 @@ export const AuthCallbackPage = () => {
       const error = searchParams.get('error');
       const errorDescription = searchParams.get('error_description');
 
-      console.log('OAuth callback received:', { 
+      console.log('🔍 OAuth callback received:', { 
         hasCode: !!code, 
         hasState: !!state, 
         error,
+        fullUrl: window.location.href,
+        allParams: Object.fromEntries(searchParams.entries()),
         timestamp: new Date().toISOString()
       });
 
@@ -178,17 +180,26 @@ export const AuthCallbackPage = () => {
     // Only handle callback if we have OAuth parameters
     const hasOAuthParams = searchParams.get('code') || searchParams.get('error');
     
+    console.log('🔍 AuthCallback useEffect:', {
+      hasOAuthParams,
+      currentUrl: window.location.href,
+      allSearchParams: Object.fromEntries(searchParams.entries()),
+      hasCode: !!searchParams.get('code'),
+      hasError: !!searchParams.get('error'),
+      timestamp: new Date().toISOString()
+    });
+    
     if (hasOAuthParams) {
-      console.log('OAuth parameters detected, handling callback');
+      console.log('✅ OAuth parameters detected, handling callback');
       handleCallback().catch(error => {
-        console.error('Uncaught callback error:', error);
+        console.error('❌ Uncaught callback error:', error);
         setStatus('error');
         setMessage('An unexpected error occurred');
         toast.error('Connection failed unexpectedly');
         setTimeout(() => navigate('/social-accounts'), 3000);
       });
     } else {
-      console.log('No OAuth parameters found, redirecting to social accounts');
+      console.log('❌ No OAuth parameters found, redirecting to social accounts');
       setTimeout(() => navigate('/social-accounts'), 2000);
     }
   }, [searchParams, navigate, user, authLoading]);

@@ -82,6 +82,8 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       console.log('🔗 Redirecting to Meta OAuth:', {
         redirectUri,
         state: combinedState.substring(0, 12) + '...',
+        clientId: clientId.substring(0, 8) + '...',
+        fullOAuthUrl: authUrl.toString(),
         timestamp: new Date().toISOString()
       });
       
