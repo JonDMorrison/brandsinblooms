@@ -35,7 +35,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       sessionStorage.removeItem('processed_oauth_codes'); // Clear processed codes
       
       console.log('🧹 Cleared previous OAuth state');
-      toast.info('Clearing previous connection state...', { duration: 1000 });
+      toast.info('Clearing previous connection state...', { duration: 5000 });
       
       // Generate a cryptographically secure random state parameter
       const state = crypto.randomUUID();
@@ -73,11 +73,11 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       let clientId: string;
       try {
         console.log('📡 Fetching OAuth config...');
-        toast.info('Getting OAuth configuration...', { duration: 1500 });
+        toast.info('Getting OAuth configuration...', { duration: 5000 });
         const configData = await fetchOAuthConfig();
         clientId = configData.clientId;
         console.log('✅ OAuth config received successfully');
-        toast.info('OAuth config received, redirecting to Meta...', { duration: 1500 });
+        toast.info('OAuth config received, redirecting to Meta...', { duration: 5000 });
       } catch (configError) {
         console.error('❌ Failed to get OAuth config:', configError);
         toast.error('Social posting temporarily unavailable. Please try again later.');
@@ -107,7 +107,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
       // Show loading message
       toast.info('Redirecting to Meta for authentication...', {
-        duration: 3000
+        duration: 8000
       });
       
       // Small delay to ensure state is stored
