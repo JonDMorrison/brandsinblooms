@@ -14,8 +14,25 @@ export const AuthCallbackPage = () => {
   const [message, setMessage] = useState('Connecting to Meta platform...');
   const [waitingForAuth, setWaitingForAuth] = useState(false);
 
+  // Immediate debug logging when component mounts
+  console.log('🚀 AuthCallbackPage mounted:', {
+    searchParams: Object.fromEntries(searchParams.entries()),
+    user: user?.email || 'none',
+    authLoading,
+    currentUrl: window.location.href,
+    timestamp: new Date().toISOString()
+  });
+
   useEffect(() => {
+    console.log('🔄 AuthCallbackPage useEffect triggered:', {
+      hasParams: !!searchParams.get('code') || !!searchParams.get('error'),
+      user: user?.email || 'none',
+      authLoading
+    });
+
     const handleCallback = async () => {
+      console.log('🎯 handleCallback function started');
+      
       const code = searchParams.get('code');
       const state = searchParams.get('state');
       const error = searchParams.get('error');
@@ -29,7 +46,9 @@ export const AuthCallbackPage = () => {
         hasState: !!state,
         hasError: !!error,
         error: error,
-        errorDescription: errorDescription
+        errorDescription: errorDescription,
+        user: user?.email || 'none',
+        authLoading
       };
       localStorage.setItem('oauth_debug', JSON.stringify(callbackDebug));
 
@@ -122,20 +141,29 @@ export const AuthCallbackPage = () => {
 
       // Wait for auth to load if it's still loading
       if (authLoading) {
-        console.log('⏳ Waiting for auth to load...');
+        console.log('⏳ Waiting for auth to load...', { authLoading, user: !!user });
         setWaitingForAuth(true);
         setMessage('Verifying authentication...');
         return;
       }
 
       if (!user) {
-        console.error('❌ No authenticated user after auth loaded');
+        console.error('❌ No authenticated user after auth loaded', { 
+          authLoading, 
+          user: !!user,
+          userObject: user 
+        });
         setStatus('error');
         setMessage('You must be logged in to connect social media accounts');
         toast.error('Please log in first');
         setTimeout(() => navigate('/auth'), 3000);
         return;
       }
+
+      console.log('✅ User authenticated, proceeding with OAuth exchange:', {
+        userId: user.id,
+        email: user.email
+      });
 
       try {
         console.log('🔗 Attempting OAuth code exchange...');
@@ -242,8 +270,23 @@ export const AuthCallbackPage = () => {
     };
 
     // Only run the callback handling if we have the necessary URL parameters
-    if (searchParams.get('code') || searchParams.get('error')) {
-      handleCallback();
+    const hasOAuthParams = searchParams.get('code') || searchParams.get('error');
+    console.log('🔍 Checking OAuth parameters:', {
+      hasCode: !!searchParams.get('code'),
+      hasError: !!searchParams.get('error'),
+      hasOAuthParams,
+      allParams: Object.fromEntries(searchParams.entries())
+    });
+
+    if (hasOAuthParams) {
+      console.log('📋 OAuth parameters found, starting handleCallback');
+      handleCallback().catch(error => {
+        console.error('💥 Uncaught error in handleCallback:', error);
+        setStatus('error');
+        setMessage('An unexpected error occurred');
+        toast.error('Connection failed unexpectedly');
+        setTimeout(() => navigate('/social-accounts'), 3000);
+      });
     } else {
       console.log('ℹ️ No OAuth parameters found, redirecting to social page');
       navigate('/social-accounts');
