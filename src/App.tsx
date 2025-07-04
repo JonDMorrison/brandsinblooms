@@ -30,7 +30,7 @@ import ZapierPage from "./pages/ZapierPage";
 import AutomationPage from "./pages/AutomationPage";
 import Auth from "./pages/Auth";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
-import { ImageImprovementNotification } from './components/ImageImprovementNotification';
+
 import { Toaster } from './components/ui/sonner';
 
 const App = () => {
@@ -68,7 +68,7 @@ const App = () => {
             </Routes>
           </ContentGenerationProvider>
         </SubscriptionProvider>
-        <ImageImprovementNotification />
+        
         <Toaster />
       </Router>
     </AuthProvider>
