@@ -226,10 +226,10 @@ export const WeeklyThemeCarousel = ({
 
   return (
     <>
-      <Card className="premium-gradient border-0 shadow-[0_1px_2px_rgba(0,0,0,.05)] hover:shadow-lg hover:shadow-black/10 transition-all duration-300 accordion-slide">
+      <Card className="premium-gradient border-0 shadow-custom hover:shadow-lg hover:shadow-black/10 transition-all duration-300 accordion-slide">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-white/30 transition-all duration-200 rounded-t-lg px-6 py-8">
+            <CardHeader className="cursor-pointer hover:bg-white/30 transition-all duration-200 rounded-t-lg px-6 py-5 md:py-7">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="flex-1">
                   <h2 className="text-3xl font-semibold tracking-wide text-slate-900 dark:text-slate-100 flex items-center gap-3 mb-2">
@@ -285,7 +285,7 @@ export const WeeklyThemeCarousel = ({
           </CollapsibleTrigger>
           
           <CollapsibleContent className="accordion-slide">
-            <CardContent className="pt-0 px-6 pb-8">
+            <CardContent className="pt-0 px-6 pb-6">
               {themesLoading ? (
                 <div className="flex items-center justify-center py-16">
                   <div className="text-center">
@@ -328,20 +328,20 @@ export const WeeklyThemeCarousel = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 p-0 bg-white/95 hover:bg-white shadow-lg border-0 rounded-full backdrop-blur-sm lg:left-2"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 p-0 border-2 border-teal-300 text-teal-600 hover:bg-mint-100 hover:border-teal-400 rounded-full backdrop-blur-sm lg:left-2 focus-visible:ring-4 focus-visible:ring-teal-200"
                       onClick={handlePrevious}
                       aria-label="Previous theme"
                     >
-                      <ChevronLeft className="w-5 h-5 text-slate-700" />
+                      <ChevronLeft className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 p-0 bg-white/95 hover:bg-white shadow-lg border-0 rounded-full backdrop-blur-sm lg:right-2"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 p-0 border-2 border-teal-300 text-teal-600 hover:bg-mint-100 hover:border-teal-400 rounded-full backdrop-blur-sm lg:right-2 focus-visible:ring-4 focus-visible:ring-teal-200"
                       onClick={handleNext}
                       aria-label="Next theme"
                     >
-                      <ChevronRight className="w-5 h-5 text-slate-700" />
+                      <ChevronRight className="w-4 h-4" />
                     </Button>
 
                     {/* Current Theme Card */}
@@ -349,33 +349,33 @@ export const WeeklyThemeCarousel = ({
                       {currentTheme && (
                         <div className="flex flex-col items-center text-center">
                           {/* Premium Glass Icon Medallion */}
-                          <div className="relative w-20 h-20 mx-auto mb-6">
-                            <div className="glass-coin w-20 h-20 flex items-center justify-center group cursor-pointer">
-                              <Sprout className="w-10 h-10 text-white drop-shadow-lg group-hover:scale-110 transition-transform duration-200" />
+                          <div className="relative w-16 h-16 mx-auto mb-6">
+                            <div className="glass-coin w-16 h-16 flex items-center justify-center group cursor-pointer">
+                              <Sprout className="w-8 h-8 text-white drop-shadow-lg group-hover:scale-110 transition-transform duration-200" />
                               <div className="absolute inset-0 bg-white/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                             </div>
                             
                             {/* Progress Ring for Generation State */}
                             {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) && (
-                              <svg className="absolute inset-0 w-20 h-20 progress-ring" aria-hidden="true">
+                              <svg className="absolute inset-0 w-16 h-16 progress-ring" aria-hidden="true">
                                 <circle
-                                  cx="40"
-                                  cy="40"
-                                  r="36"
+                                  cx="32"
+                                  cy="32"
+                                  r="28"
                                   stroke="currentColor"
                                   strokeWidth="3"
                                   fill="none"
                                   className="text-teal-200 dark:text-teal-800"
                                 />
                                 <circle
-                                  cx="40"
-                                  cy="40"
-                                  r="36"
+                                  cx="32"
+                                  cy="32"
+                                  r="28"
                                   stroke="currentColor"
                                   strokeWidth="3"
                                   fill="none"
-                                  strokeDasharray="226"
-                                  strokeDashoffset="226"
+                                  strokeDasharray="176"
+                                  strokeDashoffset="176"
                                   className="text-teal-500 dark:text-teal-400"
                                   style={{ 
                                     animation: 'progress-fill 2s ease-in-out infinite',
@@ -429,9 +429,9 @@ export const WeeklyThemeCarousel = ({
                               <>
                                 <Button 
                                   onClick={() => handleGenerateContent(currentTheme)}
-                                  className="cta-button group bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto"
+                                  className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-teal-200"
                                 >
-                                  <Play className="w-5 h-5 mr-3" />
+                                  <Play className="w-4 h-4 mr-2" />
                                   Create This Week's Posts
                                   <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
                                 </Button>
@@ -454,15 +454,15 @@ export const WeeklyThemeCarousel = ({
                     </div>
 
                     {/* Premium Pagination Dots */}
-                    <div className="flex items-center justify-center gap-6 mt-8">
+                    <div className="flex items-center justify-center gap-6 mt-6">
                       <div className="flex items-center gap-2">
                         {allThemes.map((theme, index) => (
                           <button
                             key={index}
-                            className={`transition-all duration-300 rounded-full ${
+                            className={`transition-all duration-300 rounded-full hover:scale-110 focus-visible:ring-2 focus-visible:ring-teal-200 ${
                               index === currentIndex 
-                                ? 'w-8 h-3 bg-indigo-500 dark:bg-indigo-400' 
-                                : 'w-3 h-3 bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500'
+                                ? 'w-8 h-3 bg-indigo-600 dark:bg-indigo-400 scale-110' 
+                                : 'w-3 h-3 bg-mint-400/30 dark:bg-mint-600/30 hover:bg-mint-500/50 dark:hover:bg-mint-500/50'
                             }`}
                             onClick={() => setCurrentIndex(index)}
                             aria-label={`${theme.label} week - ${theme.title}`}
