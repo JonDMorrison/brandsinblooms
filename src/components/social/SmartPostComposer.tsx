@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles } from 'lucide-react';
+import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ContentOptimizer } from './ContentOptimizer';
+import { UnsplashPicker } from '@/components/images/UnsplashPicker';
 
 interface SmartPostComposerProps {
   isOpen: boolean;
@@ -35,6 +36,8 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
   const [hashtags, setHashtags] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [activeTab, setActiveTab] = useState('compose');
+  const [selectedImage, setSelectedImage] = useState<any>(null);
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
   const limits = PLATFORM_LIMITS[platform];
   const contentLength = content.length;
@@ -54,6 +57,11 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
       } else {
         setContent(cleanContent);
       }
+    }
+
+    // Load existing image attachment
+    if (task?.attachments?.image) {
+      setSelectedImage(task.attachments.image);
     }
   }, [task]);
 
@@ -95,12 +103,15 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         userId: sessionData.session.user.id
       });
       
-      // Update the task with the edited content and ensure it's approved
+      // Update the task with the edited content, image attachment, and ensure it's approved
+      const attachments = selectedImage ? { image: selectedImage } : null;
+      
       await supabase
         .from('content_tasks')
         .update({ 
           ai_output: fullContent,
-          status: 'approved' // Ensure task is approved for posting
+          status: 'approved', // Ensure task is approved for posting
+          attachments
         })
         .eq('id', task.id);
       
@@ -162,6 +173,15 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
     setActiveTab('compose');
   };
 
+  const handleImageSelect = (imageData: any) => {
+    setSelectedImage(imageData);
+    setShowImagePicker(false);
+  };
+
+  const removeSelectedImage = () => {
+    setSelectedImage(null);
+  };
+
   const PlatformIcon = platform === 'facebook' ? Facebook : Instagram;
   const platformName = platform === 'facebook' ? 'Facebook' : 'Instagram';
 
@@ -207,6 +227,52 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
                   </Badge>
                 )}
               </div>
+            </div>
+
+            {/* Image Attachment */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Image className="w-4 h-4" />
+                Image
+              </label>
+              
+              {selectedImage ? (
+                <div className="relative border rounded-lg p-3 bg-gray-50">
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={selectedImage.thumb}
+                      alt={selectedImage.alt}
+                      className="w-20 h-20 object-cover rounded-lg"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{selectedImage.alt}</p>
+                      <p className="text-xs text-gray-500">by {selectedImage.author_name}</p>
+                      <Badge variant="outline" className="mt-1 text-xs">
+                        Unsplash
+                      </Badge>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={removeSelectedImage}
+                      className="p-1 h-6 w-6"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowImagePicker(true)}
+                  className="w-full h-20 border-dashed"
+                >
+                  <div className="text-center">
+                    <Image className="w-6 h-6 mx-auto mb-1 text-gray-400" />
+                    <span className="text-sm text-gray-600">Add Image from Unsplash</span>
+                  </div>
+                </Button>
+              )}
             </div>
 
             {/* Hashtags */}
@@ -269,6 +335,14 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
             />
           </TabsContent>
         </Tabs>
+
+        {/* Unsplash Image Picker */}
+        <UnsplashPicker
+          isOpen={showImagePicker}
+          onClose={() => setShowImagePicker(false)}
+          onSelect={handleImageSelect}
+          initialQuery={content.split(' ').slice(0, 3).join(' ')} // Use first few words as search hint
+        />
       </DialogContent>
     </Dialog>
   );

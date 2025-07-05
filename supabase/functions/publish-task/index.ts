@@ -24,37 +24,80 @@ async function publishToFacebook(
   pageId: string, 
   accessToken: string, 
   caption: string, 
-  mediaUrl?: string
+  mediaUrl?: string,
+  attribution?: string
 ): Promise<string> {
-  const url = `https://graph.facebook.com/v19.0/${pageId}/feed`
-  const formData = new FormData()
-  formData.append('message', caption)
-  formData.append('access_token', accessToken)
+  const finalCaption = attribution ? `${caption}\n\n${attribution}` : caption;
   
   if (mediaUrl) {
-    formData.append('link', mediaUrl)
-  }
+    // First upload the image
+    const uploadUrl = `https://graph.facebook.com/v19.0/${pageId}/photos`;
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: mediaUrl,
+        published: false, // Don't publish yet, just upload
+        access_token: accessToken
+      })
+    });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    body: formData
-  })
+    const uploadResult = await uploadResponse.json();
+    
+    if (!uploadResponse.ok) {
+      throw new Error(uploadResult.error?.message || `Facebook image upload error: ${uploadResponse.status}`);
+    }
 
-  const result = await response.json()
-  
-  if (!response.ok) {
-    throw new Error(result.error?.message || `Facebook API error: ${response.status}`)
+    // Now create the post with the uploaded image
+    const postUrl = `https://graph.facebook.com/v19.0/${pageId}/feed`;
+    const postResponse = await fetch(postUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: finalCaption,
+        attached_media: [{ media_fbid: uploadResult.id }],
+        access_token: accessToken
+      })
+    });
+
+    const postResult = await postResponse.json();
+    
+    if (!postResponse.ok) {
+      throw new Error(postResult.error?.message || `Facebook post error: ${postResponse.status}`);
+    }
+    
+    return postResult.id;
+  } else {
+    // Text-only post
+    const url = `https://graph.facebook.com/v19.0/${pageId}/feed`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: finalCaption,
+        access_token: accessToken
+      })
+    });
+
+    const result = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(result.error?.message || `Facebook API error: ${response.status}`);
+    }
+    
+    return result.id;
   }
-  
-  return result.id
 }
 
 async function publishToInstagram(
   accountId: string, 
   accessToken: string, 
   caption: string, 
-  mediaUrl?: string
+  mediaUrl?: string,
+  attribution?: string
 ): Promise<string> {
+  const finalCaption = attribution ? `${caption}\n\n${attribution}` : caption;
+  
   if (!mediaUrl) {
     throw new Error('Instagram posts require media')
   }
@@ -66,7 +109,7 @@ async function publishToInstagram(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       image_url: mediaUrl,
-      caption: caption,
+      caption: finalCaption,
       access_token: accessToken
     })
   })
@@ -307,20 +350,38 @@ serve(async (req) => {
           await refreshTokenIfNeeded(connection, supabaseAdmin)
 
           let publishedId: string
+          let imageUrl: string | undefined
+          let attribution: string | undefined
+
+          // Check for image attachment
+          if (task.attachments?.image) {
+            const imageAttachment = task.attachments.image
+            imageUrl = imageAttachment.url
+            
+            // Create attribution text
+            if (imageAttachment.source === 'unsplash' && imageAttachment.author_name) {
+              attribution = `📸 Photo by ${imageAttachment.author_name} on Unsplash`
+            }
+          }
 
           if (normalizedPlatform === 'facebook') {
             publishedId = await publishToFacebook(
               connection.page_id || connection.platform_account_id,
               connection.access_token,
               task.ai_output || '',
-              task.image_url
+              imageUrl,
+              attribution
             )
           } else if (normalizedPlatform === 'instagram') {
+            if (!imageUrl) {
+              throw new Error('Instagram posts require an image')
+            }
             publishedId = await publishToInstagram(
               connection.platform_account_id,
               connection.access_token,
               task.ai_output || '',
-              task.image_url
+              imageUrl,
+              attribution
             )
           } else {
             throw new Error(`Unsupported platform: ${platform}`)
