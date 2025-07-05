@@ -34,6 +34,7 @@ export const WeeklyThemeCarousel = ({
   const { tenant } = useTenant();
   const [isOpen, setIsOpen] = useState(true);
   const [showContentViewer, setShowContentViewer] = useState(false);
+  const [reviewingCampaignId, setReviewingCampaignId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(2); // Start with current week (middle)
   const [generatingTheme, setGeneratingTheme] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -195,26 +196,46 @@ export const WeeklyThemeCarousel = ({
   };
 
   const handleViewContent = () => {
-    console.log('Review button clicked - Current campaign:', currentCampaign);
+    console.log('Review button clicked - Current theme:', currentTheme);
+    console.log('Current campaign:', currentCampaign);
     console.log('All tasks:', tasks);
     
-    // Find the campaign with tasks for the current week
-    const availableTasks = tasks.filter(task => task.ai_output && task.ai_output.trim().length > 0);
+    // Find tasks that match the current theme being viewed
+    let themeTasks = [];
     
-    if (availableTasks.length === 0) {
-      console.error('No tasks with content available');
-      toast.error('No content available to review');
+    if (currentTheme?.isCurrentWeek && currentCampaign) {
+      // If viewing current week theme and we have a current campaign, use those tasks
+      themeTasks = tasks.filter(task => 
+        task.campaign_id === currentCampaign.id && 
+        task.ai_output && 
+        task.ai_output.trim().length > 0
+      );
+    } else if (currentTheme) {
+      // For other themes, find tasks with content (simplified for now)
+      // We'll need to enhance this logic once we have campaign data available
+      themeTasks = tasks.filter(task => {
+        const hasContent = task.ai_output && task.ai_output.trim().length > 0;
+        return hasContent;
+      });
+      
+      // If we have multiple campaigns worth of tasks, prefer the most recent ones
+      // This is a fallback until we have better campaign matching
+      if (themeTasks.length > 5) {
+        themeTasks = themeTasks.slice(-5); // Take the 5 most recent tasks
+      }
+    }
+    
+    if (themeTasks.length === 0) {
+      console.error('No tasks with content available for current theme:', currentTheme?.title);
+      toast.error('No content available to review for this theme');
       return;
     }
     
-    // Use the first available task's campaign or current campaign
-    const campaignToUse = currentCampaign || {
-      id: availableTasks[0].campaign_id,
-      title: 'Generated Content',
-      theme: 'Generated Content'
-    };
+    // Use the campaign from the theme-specific tasks or current campaign
+    const campaignId = themeTasks[0].campaign_id;
     
-    console.log('Opening content viewer with:', { campaignToUse, availableTasks: availableTasks.length });
+    console.log('Opening content viewer for theme:', currentTheme?.title, 'with campaignId:', campaignId);
+    setReviewingCampaignId(campaignId);
     setShowContentViewer(true);
   };
 
@@ -508,10 +529,13 @@ export const WeeklyThemeCarousel = ({
 
       {showContentViewer && (
         <ContentViewer
-          campaignId={currentCampaign?.id || (tasks.length > 0 ? tasks[0].campaign_id : '')}
-          campaignTitle={currentCampaign?.theme || currentCampaign?.title || 'Generated Content'}
+          campaignId={reviewingCampaignId || currentCampaign?.id || ''}
+          campaignTitle={currentTheme?.title || currentCampaign?.theme || currentCampaign?.title || 'Generated Content'}
           isOpen={showContentViewer}
-          onClose={() => setShowContentViewer(false)}
+          onClose={() => {
+            setShowContentViewer(false);
+            setReviewingCampaignId(null);
+          }}
           onTaskUpdate={handleContentUpdate}
         />
       )}
