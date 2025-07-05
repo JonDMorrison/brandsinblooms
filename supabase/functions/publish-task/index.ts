@@ -480,6 +480,7 @@ serve(async (req) => {
             .insert({
               content_id: task.id,
               user_id: user.id,
+              social_connection_id: connection.id,
               platform: platform.toUpperCase(),
               published_at: new Date().toISOString(),
               platform_post_id: publishedId,
@@ -514,6 +515,7 @@ serve(async (req) => {
             .insert({
               content_id: task.id,
               user_id: user.id,
+              social_connection_id: connection.id,
               platform: platform.toUpperCase(),
               published_at: new Date().toISOString(),
               content: task.ai_output || '',

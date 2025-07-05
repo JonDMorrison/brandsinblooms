@@ -1121,11 +1121,18 @@ export type Database = {
         Row: {
           api_response: Json | null
           content: string
+          content_id: string | null
           created_at: string
           deleted_at: string | null
+          error_message: string | null
           id: string
+          image_url: string | null
           media_url: string | null
+          platform: string | null
+          platform_post_id: string | null
+          platform_post_url: string | null
           publish_at: string | null
+          published_at: string | null
           social_connection_id: string
           status: string
           updated_at: string
@@ -1134,11 +1141,18 @@ export type Database = {
         Insert: {
           api_response?: Json | null
           content: string
+          content_id?: string | null
           created_at?: string
           deleted_at?: string | null
+          error_message?: string | null
           id?: string
+          image_url?: string | null
           media_url?: string | null
+          platform?: string | null
+          platform_post_id?: string | null
+          platform_post_url?: string | null
           publish_at?: string | null
+          published_at?: string | null
           social_connection_id: string
           status?: string
           updated_at?: string
@@ -1147,17 +1161,31 @@ export type Database = {
         Update: {
           api_response?: Json | null
           content?: string
+          content_id?: string | null
           created_at?: string
           deleted_at?: string | null
+          error_message?: string | null
           id?: string
+          image_url?: string | null
           media_url?: string | null
+          platform?: string | null
+          platform_post_id?: string | null
+          platform_post_url?: string | null
           publish_at?: string | null
+          published_at?: string | null
           social_connection_id?: string
           status?: string
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_social_posts_content_id"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "content_tasks"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "social_posts_social_connection_id_fkey"
             columns: ["social_connection_id"]
