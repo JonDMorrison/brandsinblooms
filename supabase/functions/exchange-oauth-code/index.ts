@@ -296,7 +296,8 @@ serve(async (req) => {
               platform: 'instagram',
               platform_account_id: igAccount.id,
               platform_account_name: igData.username || igAccount.id,
-              page_id: igAccount.id,
+              username: igData.username,
+              page_id: page.id, // Link to parent Facebook page
               access_token: page.access_token,
               expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days
               is_active: true
