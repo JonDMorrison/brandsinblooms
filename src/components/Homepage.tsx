@@ -10,7 +10,7 @@ import { Campaign } from "@/types/content";
 
 // Import the 5 main sections
 import { QuickstartChecklist } from "@/components/onboarding/QuickstartChecklist";
-import { WeeklyThemeSection } from "./homepage/WeeklyThemeSection";
+import { WeeklyThemeCarousel } from "./homepage/WeeklyThemeCarousel";
 import { QuickActionsSection } from "@/components/dashboard/QuickActionsSection";
 import { SeasonalHolidaysCard } from "@/components/dashboard/seasonal-holidays/SeasonalHolidaysCard";
 import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
@@ -310,7 +310,7 @@ export const Homepage = () => {
           {/* Section 2: Weekly Theme Accordion */}
           <HomepageErrorBoundary>
             <div data-section="weekly-content">
-              <WeeklyThemeSection 
+              <WeeklyThemeCarousel 
                 currentCampaign={currentCampaign}
                 tasks={tasks}
                 onTaskUpdate={handleTaskUpdate}
