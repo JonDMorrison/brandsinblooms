@@ -72,7 +72,7 @@ const AppSidebar: React.FC = () => {
     },
     {
       title: "Social Media",
-      url: "/social",
+      url: "/social-accounts",
       icon: Share2,
       items: [
         {
@@ -150,9 +150,11 @@ const AppSidebar: React.FC = () => {
                   <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className="group">
-                          <item.icon className="h-4 w-4" />
-                          {!isCollapsed && <span>{item.title}</span>}
+                        <SidebarMenuButton className="group" asChild>
+                          <NavLink to={item.url}>
+                            <item.icon className="h-4 w-4" />
+                            {!isCollapsed && <span>{item.title}</span>}
+                          </NavLink>
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       {!isCollapsed && (
