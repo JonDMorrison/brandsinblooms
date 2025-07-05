@@ -234,7 +234,7 @@ export const WeeklyThemeCarousel = ({
                 <div className="flex-1">
                   <div className="flex items-center justify-between">
                     <h2 className="text-3xl font-semibold tracking-wide text-slate-900 dark:text-slate-100 flex items-center gap-3 mb-2">
-                      Weekly Content Themes · Week {currentWeek}
+                      Your Weekly Content Themes
                     </h2>
                     <div className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-gray-800/50 transition-colors">
                       {isOpen ? (
