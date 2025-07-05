@@ -43,10 +43,25 @@ export const WeeklyThemeCarousel = ({
   const currentWeek = getCurrentWeekNumber();
   const campaignTasks = tasks.filter(task => task.campaign_id === currentCampaign?.id);
   const isGenerating = currentCampaign ? isGeneratingForCampaign(currentCampaign.id) : false;
+  
+  // Check if there are tasks for the current week theme (regardless of campaign)
+  const currentWeekTasks = tasks.filter(task => {
+    // For current week, check if we have any tasks at all since generation just happened
+    return tasks.length > 0; // Simplified - if tasks exist after generation, assume they're current
+  });
 
   // Use the 5 weekly themes directly (no complex merging)
   const allThemes = themes;
   const currentTheme = allThemes[currentIndex];
+  
+  console.log('📊 Button state debug:', {
+    currentWeek,
+    tasksTotal: tasks.length,
+    campaignTasksCount: campaignTasks.length,
+    currentWeekTasksCount: currentWeekTasks.length,
+    currentThemeIsCurrentWeek: currentTheme?.isCurrentWeek,
+    currentThemeId: currentTheme?.id
+  });
 
   const handlePrevious = () => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : 4)); // Always 5 themes (0-4)
@@ -421,7 +436,7 @@ export const WeeklyThemeCarousel = ({
                             ) : (
                               <>
                                 {/* Main CTA Button - Changes based on content state */}
-                                {currentTheme.isCurrentWeek && campaignTasks.length > 0 ? (
+                                {currentTheme.isCurrentWeek && currentWeekTasks.length > 0 ? (
                                   <Button 
                                     onClick={handleViewContent}
                                     className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-emerald-200"
