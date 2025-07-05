@@ -230,11 +230,20 @@ export const WeeklyThemeCarousel = ({
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-white/30 transition-all duration-200 rounded-t-lg px-6 py-5 md:py-7">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div className="flex-1">
-                  <h2 className="text-3xl font-semibold tracking-wide text-slate-900 dark:text-slate-100 flex items-center gap-3 mb-2">
-                    Weekly Content Themes · Week {currentWeek}
-                  </h2>
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-3xl font-semibold tracking-wide text-slate-900 dark:text-slate-100 flex items-center gap-3 mb-2">
+                      Weekly Content Themes · Week {currentWeek}
+                    </h2>
+                    <div className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-gray-800/50 transition-colors">
+                      {isOpen ? (
+                        <ChevronUp className="w-6 h-6 text-slate-600 dark:text-slate-400" />
+                      ) : (
+                        <ChevronDown className="w-6 h-6 text-slate-600 dark:text-slate-400" />
+                      )}
+                    </div>
+                  </div>
                   <div className="max-w-md">
                     <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed hidden md:block">
                       Pick a seasonal theme or keep your current campaign.
@@ -253,30 +262,6 @@ export const WeeklyThemeCarousel = ({
                       <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mt-2 md:hidden">
                         Pick a seasonal theme or keep your current campaign.
                       </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  {campaignTasks.length > 0 && (
-                    <div className="flex items-center gap-3">
-                      <div className="bg-emerald-100 dark:bg-emerald-900/30 px-4 py-2 rounded-xl">
-                        <span className="text-emerald-800 dark:text-emerald-200 text-sm font-semibold">
-                          {campaignTasks.length}/5 ready
-                        </span>
-                      </div>
-                      <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-emerald-600 dark:bg-emerald-400 h-2 rounded-full transition-all duration-500 ease-out" 
-                          style={{ width: `${(campaignTasks.length / 5) * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <div className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-gray-800/50 transition-colors">
-                    {isOpen ? (
-                      <ChevronUp className="w-6 h-6 text-slate-600 dark:text-slate-400" />
-                    ) : (
-                      <ChevronDown className="w-6 h-6 text-slate-600 dark:text-slate-400" />
                     )}
                   </div>
                 </div>
