@@ -196,18 +196,25 @@ export const WeeklyThemeCarousel = ({
 
   const handleViewContent = () => {
     console.log('Review button clicked - Current campaign:', currentCampaign);
-    console.log('Campaign tasks:', campaignTasks);
+    console.log('All tasks:', tasks);
     
-    if (!currentCampaign) {
-      console.error('No current campaign available');
+    // Find the campaign with tasks for the current week
+    const availableTasks = tasks.filter(task => task.ai_output && task.ai_output.trim().length > 0);
+    
+    if (availableTasks.length === 0) {
+      console.error('No tasks with content available');
+      toast.error('No content available to review');
       return;
     }
     
-    if (campaignTasks.length === 0) {
-      console.error('No tasks available for this campaign');
-      return;
-    }
+    // Use the first available task's campaign or current campaign
+    const campaignToUse = currentCampaign || {
+      id: availableTasks[0].campaign_id,
+      title: 'Generated Content',
+      theme: 'Generated Content'
+    };
     
+    console.log('Opening content viewer with:', { campaignToUse, availableTasks: availableTasks.length });
     setShowContentViewer(true);
   };
 
@@ -499,10 +506,10 @@ export const WeeklyThemeCarousel = ({
         </Collapsible>
       </Card>
 
-      {currentCampaign && showContentViewer && (
+      {showContentViewer && (
         <ContentViewer
-          campaignId={currentCampaign.id}
-          campaignTitle={currentCampaign.theme || currentCampaign.title}
+          campaignId={currentCampaign?.id || (tasks.length > 0 ? tasks[0].campaign_id : '')}
+          campaignTitle={currentCampaign?.theme || currentCampaign?.title || 'Generated Content'}
           isOpen={showContentViewer}
           onClose={() => setShowContentViewer(false)}
           onTaskUpdate={handleContentUpdate}
