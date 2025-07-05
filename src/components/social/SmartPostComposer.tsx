@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ContentOptimizer } from './ContentOptimizer';
 import { UnsplashPicker } from '@/components/images/UnsplashPicker';
+import { extractImageKeyword } from '@/lib/api/unsplash';
 
 interface SmartPostComposerProps {
   isOpen: boolean;
@@ -38,6 +40,8 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
   const [activeTab, setActiveTab] = useState('compose');
   const [selectedImage, setSelectedImage] = useState<any>(null);
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [autoImage, setAutoImage] = useState(true);
+  const [imageKeyword, setImageKeyword] = useState('');
 
   const limits = PLATFORM_LIMITS[platform];
   const contentLength = content.length;
@@ -62,6 +66,12 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
     // Load existing image attachment
     if (task?.attachments?.image) {
       setSelectedImage(task.attachments.image);
+    }
+
+    // Set initial image keyword based on content
+    if (task?.ai_output) {
+      const keyword = extractImageKeyword(task.ai_output);
+      setImageKeyword(keyword);
     }
   }, [task]);
 
@@ -124,7 +134,9 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         },
         body: {
           taskId: task.id,
-          platforms: [platform]
+          platforms: [platform],
+          keyword: imageKeyword || extractImageKeyword(fullContent),
+          autoImage: autoImage && !selectedImage // Only auto-fetch if enabled and no manual image selected
         }
       });
         
@@ -229,11 +241,41 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
               </div>
             </div>
 
-            {/* Image Attachment */}
+            {/* Auto-Image Option */}
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="auto-image"
+                  checked={autoImage}
+                  onCheckedChange={(checked) => setAutoImage(checked === true)}
+                />
+                <label htmlFor="auto-image" className="text-sm font-medium">
+                  Attach Unsplash image automatically
+                </label>
+              </div>
+              
+              {autoImage && !selectedImage && (
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600">Search keyword for image:</label>
+                  <input
+                    type="text"
+                    value={imageKeyword}
+                    onChange={(e) => setImageKeyword(e.target.value)}
+                    placeholder="e.g., garden flowers, plant care"
+                    className="w-full px-3 py-2 border rounded-lg text-sm"
+                  />
+                  <p className="text-xs text-gray-500">
+                    A royalty-free image from Unsplash will be automatically attached based on this keyword.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Manual Image Attachment */}
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Image className="w-4 h-4" />
-                Image
+                Manual Image Selection
               </label>
               
               {selectedImage ? (
@@ -266,10 +308,13 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
                   variant="outline"
                   onClick={() => setShowImagePicker(true)}
                   className="w-full h-20 border-dashed"
+                  disabled={autoImage}
                 >
                   <div className="text-center">
                     <Image className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                    <span className="text-sm text-gray-600">Add Image from Unsplash</span>
+                    <span className="text-sm text-gray-600">
+                      {autoImage ? 'Disable auto-image to select manually' : 'Add Image from Unsplash'}
+                    </span>
                   </div>
                 </Button>
               )}
@@ -306,7 +351,12 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
                   {platform === 'facebook' ? (
                     <p>Facebook tips: Posts with images get 2.3x more engagement. Keep it conversational and ask questions to encourage comments.</p>
                   ) : (
-                    <p>Instagram tips: Use all 30 hashtags for maximum reach. Posts with locations get 79% more engagement.</p>
+                    <p>Instagram tips: Images are required for Instagram posts. Use all 30 hashtags for maximum reach.</p>
+                  )}
+                  {autoImage && (
+                    <p className="mt-1">
+                      ✨ Auto-image is enabled - a relevant image will be automatically attached from Unsplash.
+                    </p>
                   )}
                 </div>
               </div>
@@ -319,7 +369,7 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
               </Button>
               <Button 
                 onClick={handlePost} 
-                disabled={isPosting || contentLength === 0 || hashtagCount > limits.hashtags}
+                disabled={isPosting || contentLength === 0 || hashtagCount > limits.hashtags || (platform === 'instagram' && !selectedImage && !autoImage)}
                 className={platform === 'facebook' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'}
               >
                 {isPosting ? 'Posting...' : `Post to ${platformName}`}

@@ -11,6 +11,9 @@ interface PublishTaskRequest {
   taskId: string;
   platforms: string[];
   publishAt?: string; // If provided, schedule; otherwise publish now
+  keyword?: string; // Keyword for Unsplash image search
+  imageUrl?: string; // Direct image URL to use
+  autoImage?: boolean; // Whether to automatically fetch Unsplash image
 }
 
 interface PublishResult {
@@ -86,6 +89,40 @@ async function publishToFacebook(
     }
     
     return result.id;
+  }
+}
+
+async function getUnsplashImage(query: string): Promise<{ url: string; author_name: string } | null> {
+  try {
+    const response = await fetch(
+      `https://api.unsplash.com/search/photos?per_page=1&orientation=squarish&query=${encodeURIComponent(query)}`,
+      { 
+        headers: { 
+          Authorization: `Client-ID ${Deno.env.get('UNSPLASH_ACCESS_KEY')}` 
+        } 
+      }
+    );
+    
+    if (!response.ok) {
+      console.error('[UNSPLASH] API error:', response.status, response.statusText);
+      return null;
+    }
+    
+    const json = await response.json();
+    const image = json.results?.[0];
+    
+    if (!image?.urls?.regular) {
+      console.warn('[UNSPLASH] No image found for query:', query);
+      return null;
+    }
+    
+    return {
+      url: image.urls.regular,
+      author_name: image.user?.name || 'Unknown'
+    };
+  } catch (error) {
+    console.error('[UNSPLASH] Exception:', error);
+    return null;
   }
 }
 
@@ -353,8 +390,12 @@ serve(async (req) => {
           let imageUrl: string | undefined
           let attribution: string | undefined
 
-          // Check for image attachment
-          if (task.attachments?.image) {
+          // Determine image source - priority: direct URL > existing attachment > auto-fetch from Unsplash
+          if (body.imageUrl) {
+            // Direct image URL provided
+            imageUrl = body.imageUrl
+          } else if (task.attachments?.image) {
+            // Use existing image attachment
             const imageAttachment = task.attachments.image
             imageUrl = imageAttachment.url
             
@@ -362,6 +403,41 @@ serve(async (req) => {
             if (imageAttachment.source === 'unsplash' && imageAttachment.author_name) {
               attribution = `📸 Photo by ${imageAttachment.author_name} on Unsplash`
             }
+          } else if (body.autoImage !== false) {
+            // Auto-fetch from Unsplash if no image provided and auto-fetch not disabled
+            const searchKeyword = body.keyword || task.ai_output?.split(' ').slice(0, 3).join(' ') || task.campaigns?.title || 'garden plants';
+            console.log(`[UNSPLASH] Auto-fetching image for keyword: "${searchKeyword}"`);
+            
+            const unsplashResult = await getUnsplashImage(searchKeyword);
+            if (unsplashResult) {
+              imageUrl = unsplashResult.url;
+              attribution = `📸 Photo by ${unsplashResult.author_name} on Unsplash`;
+              console.log(`[UNSPLASH] ✅ Found image: ${imageUrl}`);
+              
+              // Update task with the auto-fetched image for future reference
+              await supabaseAdmin
+                .from('content_tasks')
+                .update({
+                  attachments: {
+                    image: {
+                      url: imageUrl,
+                      thumb: imageUrl, // Use same URL for thumb
+                      alt: searchKeyword,
+                      author_name: unsplashResult.author_name,
+                      source: 'unsplash',
+                      unsplash_id: 'auto-fetched'
+                    }
+                  }
+                })
+                .eq('id', body.taskId);
+            } else {
+              console.warn(`[UNSPLASH] ❌ No image found for keyword: "${searchKeyword}"`);
+            }
+          }
+
+          // Validate image requirement for Instagram
+          if (normalizedPlatform === 'instagram' && !imageUrl) {
+            throw new Error('Instagram posts require an image. Either provide an imageUrl, enable autoImage, or attach an image to the task.')
           }
 
           if (normalizedPlatform === 'facebook') {
@@ -373,9 +449,6 @@ serve(async (req) => {
               attribution
             )
           } else if (normalizedPlatform === 'instagram') {
-            if (!imageUrl) {
-              throw new Error('Instagram posts require an image')
-            }
             publishedId = await publishToInstagram(
               connection.platform_account_id,
               connection.access_token,
@@ -401,16 +474,21 @@ serve(async (req) => {
             })
             .eq('id', body.taskId)
 
-          // Create a record in scheduled_posts for tracking
+          // Create a record in social_posts for tracking with platform post IDs
           await supabaseAdmin
-            .from('scheduled_posts')
+            .from('social_posts')
             .insert({
               content_id: task.id,
               user_id: user.id,
               platform: platform.toUpperCase(),
-              publish_at: new Date().toISOString(),
-              status: 'PUBLISHED',
-              published_id: publishedId
+              published_at: new Date().toISOString(),
+              platform_post_id: publishedId,
+              platform_post_url: normalizedPlatform === 'facebook' 
+                ? `https://facebook.com/${publishedId}`
+                : `https://instagram.com/p/${publishedId}`,
+              content: task.ai_output || '',
+              image_url: imageUrl,
+              status: 'PUBLISHED'
             })
 
           results.push({ platform, success: true, publishedId })
@@ -430,14 +508,15 @@ serve(async (req) => {
             })
             .eq('id', body.taskId)
 
-          // Create error record in scheduled_posts for tracking
+          // Create error record in social_posts for tracking
           await supabaseAdmin
-            .from('scheduled_posts')
+            .from('social_posts')
             .insert({
               content_id: task.id,
               user_id: user.id,
               platform: platform.toUpperCase(),
-              publish_at: new Date().toISOString(),
+              published_at: new Date().toISOString(),
+              content: task.ai_output || '',
               status: 'ERROR',
               error_message: error.message
             })
