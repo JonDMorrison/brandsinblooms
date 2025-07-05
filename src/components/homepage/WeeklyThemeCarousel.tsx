@@ -9,7 +9,7 @@ import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useContentGeneration } from "@/contexts/ContentGenerationContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
-import { useFocusThemes, FocusTheme } from "@/hooks/useFocusThemes";
+import { useWeeklyThemes, WeeklyTheme } from "@/hooks/useWeeklyThemes";
 import { getFocusThemeIcon } from "@/components/focus/iconMappings";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 import { useAuth } from "@/contexts/AuthContext";
@@ -34,48 +34,28 @@ export const WeeklyThemeCarousel = ({
   const { tenant } = useTenant();
   const [isOpen, setIsOpen] = useState(true);
   const [showContentViewer, setShowContentViewer] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(2); // Start with current week (middle)
   const [generatingTheme, setGeneratingTheme] = useState<string | null>(null);
   const { generateContent, isGeneratingForCampaign } = useContentGeneration();
-  const { themes, loading: themesLoading } = useFocusThemes();
+  const { themes, loading: themesLoading } = useWeeklyThemes();
 
   const currentWeek = getCurrentWeekNumber();
   const campaignTasks = tasks.filter(task => task.campaign_id === currentCampaign?.id);
   const isGenerating = currentCampaign ? isGeneratingForCampaign(currentCampaign.id) : false;
 
-  // If we have a current campaign, create a theme object for it
-  const currentCampaignTheme: FocusTheme | null = currentCampaign ? {
-    id: `campaign-${currentCampaign.id}`,
-    title: currentCampaign.theme || currentCampaign.title,
-    description: currentCampaign.description || 'Your current weekly content theme',
-    teaser: 'Generate content for your current campaign',
-    category: 'plant_care' as const,
-    tags: ['current'],
-    difficulty: 'intermediate' as const,
-    timeToComplete: '1 hour',
-    weekNumber: currentCampaign.week_number,
-    seasonalScore: 100,
-    label: 'Current Season' as const,
-    isSeasonallyAppropriate: true,
-    themeSeason: 'neutral' as const
-  } : null;
-
-  // Combine current campaign theme with available themes
-  const allThemes = currentCampaignTheme 
-    ? [currentCampaignTheme, ...themes.filter(theme => theme.id !== `campaign-${currentCampaign?.id}`)]
-    : themes;
-
+  // Use the 5 weekly themes directly (no complex merging)
+  const allThemes = themes;
   const currentTheme = allThemes[currentIndex];
 
   const handlePrevious = () => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : allThemes.length - 1));
+    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : 4)); // Always 5 themes (0-4)
   };
 
   const handleNext = () => {
-    setCurrentIndex((prev) => (prev < allThemes.length - 1 ? prev + 1 : 0));
+    setCurrentIndex((prev) => (prev < 4 ? prev + 1 : 0)); // Always 5 themes (0-4)
   };
 
-  const createCampaignFromTheme = async (theme: FocusTheme) => {
+  const createCampaignFromTheme = async (theme: WeeklyTheme) => {
     console.log('🏗️ Creating campaign from theme:', theme);
     
     const campaignData = {
@@ -104,7 +84,7 @@ export const WeeklyThemeCarousel = ({
     return campaign;
   };
 
-  const handleGenerateContent = async (theme?: FocusTheme) => {
+  const handleGenerateContent = async (theme?: WeeklyTheme) => {
     if (!user) {
       toast.error('Please log in to generate content');
       return;
@@ -119,8 +99,8 @@ export const WeeklyThemeCarousel = ({
     try {
       let campaignId: string;
       
-      // If this is the current campaign theme, use existing campaign
-      if (targetTheme.id.startsWith('campaign-') && currentCampaign) {
+      // Check if this theme's week matches the current campaign
+      if (currentCampaign && targetTheme.weekNumber === currentCampaign.week_number) {
         campaignId = currentCampaign.id;
         
         // Use existing generate content function
@@ -179,8 +159,8 @@ export const WeeklyThemeCarousel = ({
         onTaskUpdate();
         onCampaignCreated();
         
-        // Move to next theme if available and this wasn't current campaign
-        if (!targetTheme.id.startsWith('campaign-') && currentIndex < allThemes.length - 1) {
+        // Move to next theme if available and this wasn't current week theme
+        if (!targetTheme.isCurrentWeek && currentIndex < 4) {
           setCurrentIndex(currentIndex + 1);
         }
       } else {
@@ -292,49 +272,29 @@ export const WeeklyThemeCarousel = ({
                     <p className="text-gray-600">Loading themes...</p>
                   </div>
                 </div>
-              ) : allThemes.length === 0 ? (
-                <div className="py-8 bg-gray-50 rounded-lg border border-gray-200">
-                  <div className="flex flex-col items-center text-center">
-                    <Calendar className="w-12 h-12 mb-3 text-brand-teal" />
-                    <p className="text-brand-navy font-semibold mb-2 tracking-tight">No Themes Available</p>
-                    <p className="text-gray-600 text-sm mb-4 leading-relaxed">
-                      Create a campaign to get started with content themes
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      onClick={onCampaignCreated}
-                    >
-                      Create Campaign
-                    </Button>
-                  </div>
-                </div>
               ) : (
                 <div className="space-y-4">
                   {/* Theme Carousel */}
                   <div className="relative">
-                    {/* Navigation Buttons */}
-                    {allThemes.length > 1 && (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm border border-gray-200"
-                          onClick={handlePrevious}
-                          aria-label="Previous theme"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm border border-gray-200"
-                          onClick={handleNext}
-                          aria-label="Next theme"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
-                      </>
-                    )}
+                    {/* Navigation Buttons - Always show since we always have 5 themes */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm border border-gray-200"
+                      onClick={handlePrevious}
+                      aria-label="Previous theme"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm border border-gray-200"
+                      onClick={handleNext}
+                      aria-label="Next theme"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
 
                     {/* Theme Card */}
                     <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 mx-8">
@@ -365,26 +325,24 @@ export const WeeklyThemeCarousel = ({
                               {getCategoryLabel(currentTheme.category)}
                             </Badge>
                             
-                            {currentTheme.label === 'Planning Ahead' && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 border flex items-center gap-1 text-xs">
-                                      <Calendar className="w-3 h-3" />
-                                      Planning Ahead
-                                    </Badge>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-sm max-w-xs">Perfect for planning your content calendar!</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
+                            {currentTheme.label === 'Past' && (
+                              <Badge className="bg-gray-100 text-gray-700 border-gray-200 border flex items-center gap-1 text-xs">
+                                <Calendar className="w-3 h-3" />
+                                Past Week
+                              </Badge>
                             )}
                             
-                            {currentTheme.label === 'Current Season' && (
+                            {currentTheme.label === 'Current' && (
                               <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border flex items-center gap-1 text-xs">
                                 <Clock className="w-3 h-3" />
-                                Perfect Timing
+                                This Week
+                              </Badge>
+                            )}
+                            
+                            {currentTheme.label === 'Future' && (
+                              <Badge className="bg-blue-100 text-blue-700 border-blue-200 border flex items-center gap-1 text-xs">
+                                <Calendar className="w-3 h-3" />
+                                Coming Up
                               </Badge>
                             )}
                           </div>
@@ -401,7 +359,7 @@ export const WeeklyThemeCarousel = ({
 
                           {/* Action Buttons */}
                           <div className="flex gap-3">
-                            {(generatingTheme === currentTheme.id || (currentTheme.id.startsWith('campaign-') && isGenerating)) ? (
+                            {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) ? (
                               <div className="bg-brand-blue/10 border border-brand-blue/20 rounded-lg px-4 py-2">
                                 <div className="flex items-center gap-2 text-brand-blue">
                                   <div className="animate-spin h-4 w-4 border-2 border-brand-blue border-t-transparent rounded-full"></div>
@@ -427,7 +385,7 @@ export const WeeklyThemeCarousel = ({
                                   </Tooltip>
                                 </TooltipProvider>
 
-                                {currentTheme.id.startsWith('campaign-') && campaignTasks.length > 0 && (
+                                {currentTheme.isCurrentWeek && campaignTasks.length > 0 && (
                                   <Button 
                                     onClick={handleViewContent}
                                     variant="outline"
@@ -443,29 +401,27 @@ export const WeeklyThemeCarousel = ({
                       )}
                     </div>
 
-                    {/* Pagination */}
-                    {allThemes.length > 1 && (
-                      <div className="flex items-center justify-center gap-4 mt-4">
-                        {/* Dots */}
-                        <div className="flex items-center gap-1">
-                          {allThemes.map((_, index) => (
-                            <button
-                              key={index}
-                              className={`w-2 h-2 rounded-full transition-colors duration-200 ${
-                                index === currentIndex ? 'bg-brand-teal' : 'bg-gray-300'
-                              }`}
-                              onClick={() => setCurrentIndex(index)}
-                              aria-label={`Theme ${index + 1} of ${allThemes.length}`}
-                            />
-                          ))}
-                        </div>
-                        
-                        {/* Counter */}
-                        <span className="text-xs text-gray-500">
-                          {currentIndex + 1} / {allThemes.length} themes
-                        </span>
+                    {/* Pagination - Always show since we always have 5 themes */}
+                    <div className="flex items-center justify-center gap-4 mt-4">
+                      {/* Dots */}
+                      <div className="flex items-center gap-1">
+                        {allThemes.map((theme, index) => (
+                          <button
+                            key={index}
+                            className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                              index === currentIndex ? 'bg-brand-teal' : 'bg-gray-300'
+                            }`}
+                            onClick={() => setCurrentIndex(index)}
+                            aria-label={`${theme.label} week - ${theme.title}`}
+                          />
+                        ))}
                       </div>
-                    )}
+                      
+                      {/* Counter */}
+                      <span className="text-xs text-gray-500">
+                        {currentIndex + 1} / 5 themes
+                      </span>
+                    </div>
                   </div>
 
                   {/* Current Campaign Status */}
