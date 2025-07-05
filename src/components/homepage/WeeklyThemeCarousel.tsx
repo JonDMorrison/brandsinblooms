@@ -453,27 +453,6 @@ export const WeeklyThemeCarousel = ({
                       )}
                     </div>
 
-                    {/* Premium Pagination Dots */}
-                    <div className="flex items-center justify-center gap-6 mt-6">
-                      <div className="flex items-center gap-2">
-                        {allThemes.map((theme, index) => (
-                          <button
-                            key={index}
-                            className={`transition-all duration-300 rounded-full hover:scale-110 focus-visible:ring-2 focus-visible:ring-teal-200 ${
-                              index === currentIndex 
-                                ? 'w-8 h-3 bg-indigo-600 dark:bg-indigo-400 scale-110' 
-                                : 'w-3 h-3 bg-mint-400/30 dark:bg-mint-600/30 hover:bg-mint-500/50 dark:hover:bg-mint-500/50'
-                            }`}
-                            onClick={() => setCurrentIndex(index)}
-                            aria-label={`${theme.label} week - ${theme.title}`}
-                          />
-                        ))}
-                      </div>
-                      
-                      <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                        {currentIndex + 1} of 5
-                      </span>
-                    </div>
                   </div>
 
                   {/* Premium Campaign Status Banner */}
