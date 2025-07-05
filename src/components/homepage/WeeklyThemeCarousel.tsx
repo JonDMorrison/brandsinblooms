@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Play, Calendar, Sparkles, ChevronDown, ChevronUp, Eye, ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { Play, Calendar, Sparkles, ChevronDown, ChevronUp, Eye, ChevronLeft, ChevronRight, Clock, Sprout } from "lucide-react";
 import { useState } from "react";
 import { Campaign } from "@/types/content";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
@@ -36,6 +36,7 @@ export const WeeklyThemeCarousel = ({
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(2); // Start with current week (middle)
   const [generatingTheme, setGeneratingTheme] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
   const { generateContent, isGeneratingForCampaign } = useContentGeneration();
   const { themes, loading: themesLoading } = useWeeklyThemes();
 
@@ -208,189 +209,240 @@ export const WeeklyThemeCarousel = ({
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      plant_care: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-      decor: 'bg-purple-100 text-purple-700 border-purple-200',
-      sale: 'bg-orange-100 text-orange-700 border-orange-200',
-      holidays: 'bg-blue-100 text-blue-700 border-blue-200'
+      plant_care: 'tag-plant-care',
+      decor: 'tag-decor', 
+      sale: 'tag-sale',
+      holidays: 'tag-holidays'
     };
-    return colors[category as keyof typeof colors] || 'bg-gray-100 text-gray-700 border-gray-200';
+    return colors[category as keyof typeof colors] || 'bg-gray-200 text-gray-900';
+  };
+
+  const getTimingColor = (label: string | undefined) => {
+    if (label === 'Past') return 'tag-timing opacity-60';
+    if (label === 'Current') return 'tag-category';
+    if (label === 'Future') return 'tag-timing';
+    return 'bg-gray-200 text-gray-900';
   };
 
   return (
     <>
-      <Card className="bg-white border-l-4 border-l-brand-teal border-gray-200 card-interactive shadow-sm">
+      <Card className="premium-gradient border-0 shadow-[0_1px_2px_rgba(0,0,0,.05)] hover:shadow-lg hover:shadow-black/10 transition-all duration-300 accordion-slide">
         <Collapsible open={isOpen} onOpenChange={setIsOpen}>
           <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer hover:bg-gray-50/50 transition-colors duration-150 rounded-t-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <CardTitle className="text-lg text-brand-navy font-semibold tracking-tight flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-brand-teal" />
-                      Weekly Content Themes
-                      <Badge className="bg-brand-teal/10 text-brand-teal border-brand-teal/20">
-                        Week {currentWeek}
-                      </Badge>
-                    </CardTitle>
-                    <p className="text-gray-600 text-sm mt-1 leading-relaxed">
-                      Choose from seasonal themes or stick with your current campaign
+            <CardHeader className="cursor-pointer hover:bg-white/30 transition-all duration-200 rounded-t-lg px-6 py-8">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex-1">
+                  <h2 className="text-3xl font-semibold tracking-wide text-slate-900 dark:text-slate-100 flex items-center gap-3 mb-2">
+                    Weekly Content Themes · Week {currentWeek}
+                  </h2>
+                  <div className="max-w-md">
+                    <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed hidden md:block">
+                      Pick a seasonal theme or keep your current campaign.
                     </p>
+                    <button 
+                      className="md:hidden text-slate-600 dark:text-slate-400 text-sm flex items-center gap-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowDetails(!showDetails);
+                      }}
+                    >
+                      {showDetails ? 'Hide details' : 'Show details'}
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showDetails && (
+                      <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed mt-2 md:hidden">
+                        Pick a seasonal theme or keep your current campaign.
+                      </p>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                   {campaignTasks.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <div className="bg-emerald-100 px-3 py-1 rounded-full">
-                        <span className="text-emerald-700 text-sm font-medium">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-emerald-100 dark:bg-emerald-900/30 px-4 py-2 rounded-xl">
+                        <span className="text-emerald-800 dark:text-emerald-200 text-sm font-semibold">
                           {campaignTasks.length}/5 ready
                         </span>
                       </div>
-                      <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                      <div className="w-20 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                         <div 
-                          className="bg-emerald-600 h-1.5 rounded-full transition-all duration-300" 
+                          className="bg-emerald-600 dark:bg-emerald-400 h-2 rounded-full transition-all duration-500 ease-out" 
                           style={{ width: `${(campaignTasks.length / 5) * 100}%` }}
                         />
                       </div>
                     </div>
                   )}
-                  {isOpen ? (
-                    <ChevronUp className="w-5 h-5 text-brand-navy" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-brand-navy" />
-                  )}
+                  <div className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-gray-800/50 transition-colors">
+                    {isOpen ? (
+                      <ChevronUp className="w-6 h-6 text-slate-600 dark:text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-6 h-6 text-slate-600 dark:text-slate-400" />
+                    )}
+                  </div>
                 </div>
               </div>
             </CardHeader>
           </CollapsibleTrigger>
           
-          <CollapsibleContent>
-            <CardContent className="pt-0">
+          <CollapsibleContent className="accordion-slide">
+            <CardContent className="pt-0 px-6 pb-8">
               {themesLoading ? (
-                <div className="flex items-center justify-center py-12">
+                <div className="flex items-center justify-center py-16">
                   <div className="text-center">
-                    <div className="animate-spin w-8 h-8 border-2 border-brand-teal border-t-transparent rounded-full mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading themes...</p>
+                    <div className="relative w-12 h-12 mx-auto mb-6">
+                      <div className="glass-coin w-12 h-12 flex items-center justify-center">
+                        <Sprout className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+                      </div>
+                      <svg className="absolute inset-0 w-12 h-12 progress-ring">
+                        <circle
+                          cx="24"
+                          cy="24"
+                          r="18"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          fill="none"
+                          className="text-teal-200 dark:text-teal-800"
+                        />
+                        <circle
+                          cx="24"
+                          cy="24"
+                          r="18"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          fill="none"
+                          strokeDasharray="113"
+                          strokeDashoffset="113"
+                          className="text-teal-500 dark:text-teal-400 animate-spin"
+                          style={{ animationDuration: '2s' }}
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400 font-medium">Loading your seasonal themes...</p>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-8">
                   {/* Theme Carousel */}
-                  <div className="relative">
-                    {/* Navigation Buttons - Always show since we always have 5 themes */}
+                  <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Navigation Buttons */}
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute left-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm border border-gray-200"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 p-0 bg-white/95 hover:bg-white shadow-lg border-0 rounded-full backdrop-blur-sm lg:left-2"
                       onClick={handlePrevious}
                       aria-label="Previous theme"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-5 h-5 text-slate-700" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 z-10 h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm border border-gray-200"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-10 w-10 p-0 bg-white/95 hover:bg-white shadow-lg border-0 rounded-full backdrop-blur-sm lg:right-2"
                       onClick={handleNext}
                       aria-label="Next theme"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-5 h-5 text-slate-700" />
                     </Button>
 
-                    {/* Theme Card */}
-                    <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-6 border border-gray-200 mx-8">
+                    {/* Current Theme Card */}
+                    <div className="premium-gradient rounded-2xl p-8 border border-white/20 shadow-lg backdrop-blur-sm mx-4 lg:mx-8 lg:col-span-2">
                       {currentTheme && (
                         <div className="flex flex-col items-center text-center">
-                          {/* Enhanced Theme Icon */}
-                          <div className="relative w-16 h-16 mx-auto mb-4">
-                            <div 
-                              className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110 shadow-lg"
-                              style={{ backgroundColor: '#68BEB9' }}
-                            >
-                              {(() => {
-                                const { icon: DynamicIcon } = getFocusThemeIcon(currentTheme);
-                                return <DynamicIcon className="w-8 h-8 text-white drop-shadow-sm" />;
-                              })()}
+                          {/* Premium Glass Icon Medallion */}
+                          <div className="relative w-20 h-20 mx-auto mb-6">
+                            <div className="glass-coin w-20 h-20 flex items-center justify-center group cursor-pointer">
+                              <Sprout className="w-10 h-10 text-white drop-shadow-lg group-hover:scale-110 transition-transform duration-200" />
+                              <div className="absolute inset-0 bg-white/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                             </div>
                             
-                            {/* Subtle glow effect */}
-                            <div 
-                              className="absolute inset-0 rounded-full opacity-20 blur-md -z-10"
-                              style={{ backgroundColor: '#68BEB9' }}
-                            />
+                            {/* Progress Ring for Generation State */}
+                            {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) && (
+                              <svg className="absolute inset-0 w-20 h-20 progress-ring" aria-hidden="true">
+                                <circle
+                                  cx="40"
+                                  cy="40"
+                                  r="36"
+                                  stroke="currentColor"
+                                  strokeWidth="3"
+                                  fill="none"
+                                  className="text-teal-200 dark:text-teal-800"
+                                />
+                                <circle
+                                  cx="40"
+                                  cy="40"
+                                  r="36"
+                                  stroke="currentColor"
+                                  strokeWidth="3"
+                                  fill="none"
+                                  strokeDasharray="226"
+                                  strokeDashoffset="226"
+                                  className="text-teal-500 dark:text-teal-400"
+                                  style={{ 
+                                    animation: 'progress-fill 2s ease-in-out infinite',
+                                  }}
+                                />
+                              </svg>
+                            )}
+                            <span className="sr-only">
+                              {generatingTheme === currentTheme.id ? 'Generating content...' : 'Theme icon'}
+                            </span>
                           </div>
 
-                          {/* Theme Badges */}
-                          <div className="flex items-center gap-2 mb-3 flex-wrap justify-center">
-                            <Badge className={`${getCategoryColor(currentTheme.category)} border text-xs`}>
+                          {/* Premium Tag Pills */}
+                          <div className="flex items-center gap-3 mb-6 flex-wrap justify-center">
+                            <span className={`px-3 py-1 rounded-lg text-sm font-semibold opacity-90 ${getCategoryColor(currentTheme.category)}`}>
                               {getCategoryLabel(currentTheme.category)}
-                            </Badge>
+                            </span>
                             
-                            {currentTheme.label === 'Past' && (
-                              <Badge className="bg-gray-100 text-gray-700 border-gray-200 border flex items-center gap-1 text-xs">
-                                <Calendar className="w-3 h-3" />
-                                Past Week
-                              </Badge>
-                            )}
-                            
-                            {currentTheme.label === 'Current' && (
-                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 border flex items-center gap-1 text-xs">
-                                <Clock className="w-3 h-3" />
-                                This Week
-                              </Badge>
-                            )}
-                            
-                            {currentTheme.label === 'Future' && (
-                              <Badge className="bg-blue-100 text-blue-700 border-blue-200 border flex items-center gap-1 text-xs">
-                                <Calendar className="w-3 h-3" />
-                                Coming Up
-                              </Badge>
-                            )}
+                            <span className={`px-3 py-1 rounded-lg text-sm font-semibold opacity-90 ${getTimingColor(currentTheme.label)} flex items-center gap-1`}>
+                              {currentTheme.label === 'Past' && <Calendar className="w-3 h-3" />}
+                              {currentTheme.label === 'Current' && <Clock className="w-3 h-3" />}
+                              {currentTheme.label === 'Future' && <Calendar className="w-3 h-3" />}
+                              {currentTheme.label === 'Past' && 'Past Week'}
+                              {currentTheme.label === 'Current' && 'This Week'}
+                              {currentTheme.label === 'Future' && 'Coming Up'}
+                            </span>
                           </div>
 
                           {/* Theme Title */}
-                          <h3 className="text-lg font-semibold text-brand-navy mb-2">
+                          <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3 max-w-lg">
                             {currentTheme.title}
                           </h3>
                           
                           {/* Theme Description */}
-                          <p className="text-sm text-gray-600 mb-4 leading-relaxed max-w-md">
+                          <p className="text-base text-slate-600 dark:text-slate-400 mb-8 leading-relaxed max-w-lg">
                             {currentTheme.description}
                           </p>
 
-                          {/* Action Buttons */}
-                          <div className="flex gap-3">
+                          {/* Premium CTA Button */}
+                          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                             {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) ? (
-                              <div className="bg-brand-blue/10 border border-brand-blue/20 rounded-lg px-4 py-2">
-                                <div className="flex items-center gap-2 text-brand-blue">
-                                  <div className="animate-spin h-4 w-4 border-2 border-brand-blue border-t-transparent rounded-full"></div>
-                                  <span className="text-sm font-medium">Generating content...</span>
+                              <div className="premium-gradient border border-indigo-200 dark:border-indigo-800 rounded-2xl px-6 py-4 w-full">
+                                <div className="flex items-center justify-center gap-3 text-indigo-700 dark:text-indigo-300">
+                                  <div className="relative w-5 h-5">
+                                    <div className="absolute inset-0 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin"></div>
+                                  </div>
+                                  <span className="font-semibold">Crafting your content...</span>
                                 </div>
                               </div>
                             ) : (
                               <>
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button 
-                                        onClick={() => handleGenerateContent(currentTheme)}
-                                        className="bg-brand-teal hover:bg-brand-teal/90 text-white"
-                                      >
-                                        <Play className="w-4 h-4 mr-2" />
-                                        Generate Content
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="text-sm max-w-xs">{currentTheme.teaser}</p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <Button 
+                                  onClick={() => handleGenerateContent(currentTheme)}
+                                  className="cta-button group bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400 text-white font-semibold px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto"
+                                >
+                                  <Play className="w-5 h-5 mr-3" />
+                                  Create This Week's Posts
+                                  <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
+                                </Button>
 
                                 {currentTheme.isCurrentWeek && campaignTasks.length > 0 && (
                                   <Button 
                                     onClick={handleViewContent}
                                     variant="outline"
+                                    className="border-2 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 px-6 py-4 rounded-2xl font-semibold w-full sm:w-auto"
                                   >
-                                    <Eye className="w-4 h-4 mr-2" />
+                                    <Eye className="w-5 h-5 mr-2" />
                                     Review Content
                                   </Button>
                                 )}
@@ -401,15 +453,16 @@ export const WeeklyThemeCarousel = ({
                       )}
                     </div>
 
-                    {/* Pagination - Always show since we always have 5 themes */}
-                    <div className="flex items-center justify-center gap-4 mt-4">
-                      {/* Dots */}
-                      <div className="flex items-center gap-1">
+                    {/* Premium Pagination Dots */}
+                    <div className="flex items-center justify-center gap-6 mt-8">
+                      <div className="flex items-center gap-2">
                         {allThemes.map((theme, index) => (
                           <button
                             key={index}
-                            className={`w-2 h-2 rounded-full transition-colors duration-200 ${
-                              index === currentIndex ? 'bg-brand-teal' : 'bg-gray-300'
+                            className={`transition-all duration-300 rounded-full ${
+                              index === currentIndex 
+                                ? 'w-8 h-3 bg-indigo-500 dark:bg-indigo-400' 
+                                : 'w-3 h-3 bg-slate-300 dark:bg-slate-600 hover:bg-slate-400 dark:hover:bg-slate-500'
                             }`}
                             onClick={() => setCurrentIndex(index)}
                             aria-label={`${theme.label} week - ${theme.title}`}
@@ -417,33 +470,36 @@ export const WeeklyThemeCarousel = ({
                         ))}
                       </div>
                       
-                      {/* Counter */}
-                      <span className="text-xs text-gray-500">
-                        {currentIndex + 1} / 5 themes
+                      <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                        {currentIndex + 1} of 5
                       </span>
                     </div>
                   </div>
 
-                  {/* Current Campaign Status */}
+                  {/* Premium Campaign Status Banner */}
                   {currentCampaign && campaignTasks.length > 0 && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="flex items-center gap-2 text-emerald-700 mb-1">
-                            <Sparkles className="w-4 h-4" />
-                            <span className="text-sm font-semibold">Content Ready!</span>
+                    <div className="premium-gradient border border-emerald-200/50 dark:border-emerald-800/50 rounded-2xl p-6 shadow-lg backdrop-blur-sm">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className="glass-coin w-12 h-12 flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                           </div>
-                          <p className="text-emerald-600 text-xs leading-relaxed">
-                            {campaignTasks.length} pieces of content ready for your current campaign
-                          </p>
+                          <div>
+                            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 mb-2">
+                              <span className="text-lg font-bold">Content Ready to Shine!</span>
+                            </div>
+                            <p className="text-emerald-700 dark:text-emerald-300 text-sm leading-relaxed">
+                              {campaignTasks.length} premium pieces crafted for your current campaign
+                            </p>
+                          </div>
                         </div>
                         <Button 
                           onClick={() => window.location.href = '/publish'}
-                          size="sm"
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                          className="cta-button group bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto"
                         >
-                          <Sparkles className="w-4 h-4 mr-2" />
-                          Publish
+                          <Sparkles className="w-5 h-5 mr-2" />
+                          Publish Now
+                          <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
                         </Button>
                       </div>
                     </div>
