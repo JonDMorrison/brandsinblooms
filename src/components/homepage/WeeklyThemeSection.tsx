@@ -33,6 +33,8 @@ export const WeeklyThemeSection = ({
   const handleGenerateContent = async () => {
     if (!currentCampaign) return;
     
+    console.log('🎯 Starting content generation for campaign:', currentCampaign.id);
+    
     const success = await generateContent(
       currentCampaign.id,
       currentCampaign.theme || currentCampaign.title,
@@ -40,8 +42,19 @@ export const WeeklyThemeSection = ({
       currentCampaign.week_number
     );
     
+    console.log('🎯 Content generation result:', success);
+    
     if (success) {
-      setTimeout(onTaskUpdate, 1000);
+      // Refresh tasks multiple times to ensure we catch the updates
+      onTaskUpdate();
+      setTimeout(() => {
+        console.log('🔄 First task refresh after generation');
+        onTaskUpdate();
+      }, 1500);
+      setTimeout(() => {
+        console.log('🔄 Second task refresh after generation');
+        onTaskUpdate();
+      }, 3000);
     }
   };
 

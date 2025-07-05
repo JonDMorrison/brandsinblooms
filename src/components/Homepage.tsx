@@ -143,6 +143,7 @@ export const Homepage = () => {
   };
 
   const handleTaskUpdate = () => {
+    console.log('🔄 Refreshing tasks data...');
     fetchTasks();
   };
 
