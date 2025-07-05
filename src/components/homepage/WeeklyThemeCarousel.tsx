@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Play, Calendar, Sparkles, ChevronDown, ChevronUp, Eye, ChevronLeft, ChevronRight, Clock, Sprout } from "lucide-react";
 import { useState } from "react";
 import { Campaign } from "@/types/content";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { getCurrentWeekNumber, getDateForWeek } from "@/utils/dateUtils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useContentGeneration } from "@/contexts/ContentGenerationContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
@@ -59,14 +59,17 @@ export const WeeklyThemeCarousel = ({
   const createCampaignFromTheme = async (theme: WeeklyTheme) => {
     console.log('🏗️ Creating campaign from theme:', theme);
     
+    const weekNumber = theme.weekNumber || currentWeek;
+    const weekStartDate = getDateForWeek(weekNumber);
+    
     const campaignData = {
       title: theme.title,
       theme: theme.title,
       description: theme.description,
       user_id: user?.id,
       tenant_id: tenant?.id,
-      week_number: theme.weekNumber || currentWeek,
-      start_date: new Date().toISOString().split('T')[0],
+      week_number: weekNumber,
+      start_date: weekStartDate.toISOString().split('T')[0],
       source: 'focus_theme'
     };
 
