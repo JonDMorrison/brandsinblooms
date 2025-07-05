@@ -1,5 +1,21 @@
 project_id = "udldmkqwnxhdeztyqcau"
 
+[functions.post-to-facebook]
+verify_jwt = true
+
+[functions.post-to-facebook.headers]
+access-control-allow-origin = "*"
+access-control-allow-methods = "GET, POST, OPTIONS"
+access-control-allow-headers = "authorization, x-client-info, apikey, content-type, x-application-name"
+
+[functions.post-to-instagram]
+verify_jwt = true
+
+[functions.post-to-instagram.headers]
+access-control-allow-origin = "*"
+access-control-allow-methods = "GET, POST, OPTIONS"
+access-control-allow-headers = "authorization, x-client-info, apikey, content-type, x-application-name"
+
 [functions.publish-task]
 verify_jwt = true
 

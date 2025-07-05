@@ -114,33 +114,61 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
     setPosting(prev => ({ ...prev, [platform]: true }));
     
     try {
-      const processedContent = processContentForPlatform(task.ai_output, platform);
-      
-      // Call the appropriate edge function
-      const functionName = platform === 'facebook' ? 'post-to-facebook' : 'post-to-instagram';
-      
-      const { data, error } = await supabase.functions.invoke(functionName, {
-        body: {
-          content_task_id: task.id,
-          content: processedContent.fullContent,
-          // For Instagram, we might need media_url if there are images
-          ...(platform === 'instagram' && task.image_url && { media_url: task.image_url })
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message || `Failed to post to ${platform}`);
+      // Get session for authentication
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !sessionData.session) {
+        toast.error('Authentication session expired. Please refresh the page and try again.');
+        return;
       }
 
-      if (data?.success) {
-        setPosted(prev => ({ ...prev, [platform]: true }));
-        toast.success(`Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`);
+      const token = sessionData.session.access_token;
+      if (!token) {
+        toast.error('No authentication token found. Please refresh the page and try again.');
+        return;
+      }
+
+      const processedContent = processContentForPlatform(task.ai_output, platform);
+      
+      // Update the task with the processed content and ensure it's approved
+      await supabase
+        .from('content_tasks')
+        .update({ 
+          ai_output: processedContent.fullContent,
+          status: 'approved' // Ensure task is approved for posting
+        })
+        .eq('id', task.id);
+      
+      // Call the unified publish-task edge function
+      const functionResponse = await supabase.functions.invoke('publish-task', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: {
+          taskId: task.id,
+          platforms: [platform]
+        }
+      });
         
-        if (onSuccess) {
-          onSuccess();
+      const { data: responseData, error } = functionResponse;
+
+      if (error) {
+        throw new Error(error.message || `Edge function error: ${JSON.stringify(error)}`);
+      }
+
+      if (responseData?.success) {
+        const result = responseData.results?.[0];
+        if (result?.success) {
+          setPosted(prev => ({ ...prev, [platform]: true }));
+          toast.success(`Successfully posted to ${platform === 'facebook' ? 'Facebook' : 'Instagram'}!`);
+          
+          if (onSuccess) {
+            onSuccess();
+          }
+        } else {
+          throw new Error(result?.error || `Failed to post to ${platform}`);
         }
       } else {
-        throw new Error(data?.error || `Failed to post to ${platform}`);
+        throw new Error(responseData?.message || `Failed to post to ${platform}`);
       }
     } catch (error: any) {
       console.error(`Error posting to ${platform}:`, error);
