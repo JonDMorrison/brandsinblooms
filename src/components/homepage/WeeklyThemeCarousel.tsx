@@ -415,7 +415,7 @@ export const WeeklyThemeCarousel = ({
                           </p>
 
                           {/* Premium CTA Button */}
-                          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
+                          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center items-center">
                             {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) ? (
                               <div className="premium-gradient border border-indigo-200 dark:border-indigo-800 rounded-2xl px-6 py-4 w-full">
                                 <div className="flex items-center justify-center gap-3 text-indigo-700 dark:text-indigo-300">
