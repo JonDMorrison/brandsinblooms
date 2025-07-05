@@ -417,23 +417,24 @@ export const WeeklyThemeCarousel = ({
                               </div>
                             ) : (
                               <>
-                                <Button 
-                                  onClick={() => handleGenerateContent(currentTheme)}
-                                  className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-teal-200"
-                                >
-                                  <Play className="w-4 h-4 mr-2" />
-                                  Create This Week's Posts
-                                  <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
-                                </Button>
-
-                                {currentTheme.isCurrentWeek && campaignTasks.length > 0 && (
+                                {/* Main CTA Button - Changes based on content state */}
+                                {currentTheme.isCurrentWeek && campaignTasks.length > 0 ? (
                                   <Button 
                                     onClick={handleViewContent}
-                                    variant="outline"
-                                    className="border-2 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 px-6 py-4 rounded-2xl font-semibold w-full sm:w-auto"
+                                    className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-emerald-200"
                                   >
-                                    <Eye className="w-5 h-5 mr-2" />
+                                    <Eye className="w-4 h-4 mr-2" />
                                     Review Content
+                                    <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    onClick={() => handleGenerateContent(currentTheme)}
+                                    className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-teal-200"
+                                  >
+                                    <Play className="w-4 h-4 mr-2" />
+                                    Create This Week's Posts
+                                    <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
                                   </Button>
                                 )}
                               </>
