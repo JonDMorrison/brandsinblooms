@@ -349,33 +349,38 @@ export const WeeklyThemeCarousel = ({
                       {currentTheme && (
                         <div className="flex flex-col items-center text-center">
                           {/* Premium Glass Icon Medallion */}
-                          <div className="relative w-16 h-16 mx-auto mb-6">
-                            <div className="glass-coin w-16 h-16 flex items-center justify-center group cursor-pointer">
-                              <Sprout className="w-8 h-8 text-white drop-shadow-lg group-hover:scale-110 transition-transform duration-200" />
-                              <div className="absolute inset-0 bg-white/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                          <div className="relative w-20 h-20 mx-auto mb-6">
+                            <div className="glass-coin-enhanced w-20 h-20 flex items-center justify-center group cursor-pointer animate-float">
+                              {(() => {
+                                const iconMap = getFocusThemeIcon(currentTheme.category);
+                                const IconComponent = (iconMap && typeof iconMap === 'object' && 'icon' in iconMap) ? iconMap.icon : Sprout;
+                                return <IconComponent className="w-10 h-10 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
+                              })()}
+                              <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-60" />
                             </div>
                             
                             {/* Progress Ring for Generation State */}
                             {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) && (
-                              <svg className="absolute inset-0 w-16 h-16 progress-ring" aria-hidden="true">
+                              <svg className="absolute inset-0 w-20 h-20 progress-ring" aria-hidden="true">
                                 <circle
-                                  cx="32"
-                                  cy="32"
-                                  r="28"
+                                  cx="40"
+                                  cy="40"
+                                  r="35"
                                   stroke="currentColor"
                                   strokeWidth="3"
                                   fill="none"
                                   className="text-teal-200 dark:text-teal-800"
                                 />
                                 <circle
-                                  cx="32"
-                                  cy="32"
-                                  r="28"
+                                  cx="40"
+                                  cy="40"
+                                  r="35"
                                   stroke="currentColor"
                                   strokeWidth="3"
                                   fill="none"
-                                  strokeDasharray="176"
-                                  strokeDashoffset="176"
+                                  strokeDasharray="220"
+                                  strokeDashoffset="220"
                                   className="text-teal-500 dark:text-teal-400"
                                   style={{ 
                                     animation: 'progress-fill 2s ease-in-out infinite',
