@@ -45,21 +45,38 @@ export const WeeklyThemeCarousel = ({
   const campaignTasks = tasks.filter(task => task.campaign_id === currentCampaign?.id);
   const isGenerating = currentCampaign ? isGeneratingForCampaign(currentCampaign.id) : false;
   
-  // Check if there are tasks for the current week theme (regardless of campaign)
-  const currentWeekTasks = tasks.filter(task => {
-    // For current week, check if we have any tasks at all since generation just happened
-    return tasks.length > 0; // Simplified - if tasks exist after generation, assume they're current
-  });
-
   // Use the 5 weekly themes directly (no complex merging)
   const allThemes = themes;
   const currentTheme = allThemes[currentIndex];
+  
+  // Check if there are tasks with content for the current theme being viewed
+  const getThemeContentTasks = (theme?: WeeklyTheme) => {
+    if (!theme) return [];
+    
+    // If it's the current week theme and we have a current campaign, check those tasks
+    if (theme.isCurrentWeek && currentCampaign) {
+      return tasks.filter(task => 
+        task.campaign_id === currentCampaign.id && 
+        task.ai_output && 
+        task.ai_output.trim().length > 0
+      );
+    }
+    
+    // For other themes, find tasks with content that match the theme's week
+    return tasks.filter(task => {
+      const hasContent = task.ai_output && task.ai_output.trim().length > 0;
+      // This is simplified - ideally we'd match by campaign theme/title
+      return hasContent;
+    });
+  };
+  
+  const currentThemeContentTasks = getThemeContentTasks(currentTheme);
   
   console.log('📊 Button state debug:', {
     currentWeek,
     tasksTotal: tasks.length,
     campaignTasksCount: campaignTasks.length,
-    currentWeekTasksCount: currentWeekTasks.length,
+    currentThemeContentTasksCount: currentThemeContentTasks.length,
     currentThemeIsCurrentWeek: currentTheme?.isCurrentWeek,
     currentThemeId: currentTheme?.id
   });
@@ -464,7 +481,7 @@ export const WeeklyThemeCarousel = ({
                             ) : (
                               <>
                                 {/* Main CTA Button - Changes based on content state */}
-                                {currentTheme.isCurrentWeek && currentWeekTasks.length > 0 ? (
+                                {currentTheme.isCurrentWeek && currentThemeContentTasks.length > 0 ? (
                                   <Button 
                                     onClick={handleViewContent}
                                     className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-emerald-200"
