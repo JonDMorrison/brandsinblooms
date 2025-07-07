@@ -96,7 +96,7 @@ export const DashboardContent = ({
         return;
       }
 
-      console.log('✅ DashboardContent: Found campaigns:', allCampaigns?.length || 0);
+      console.log('✅ DashboardContent: Found campaigns:', allCampaigns?.length || 0, 'Current user:', user.id, 'Current tenant:', tenant?.id);
       
       if (!allCampaigns || allCampaigns.length === 0) {
         console.log('❌ DashboardContent: No campaigns found - WeeklyContentUpdater should create one');
@@ -130,6 +130,8 @@ export const DashboardContent = ({
       })));
       
       setUserCreatedCampaigns(customCampaigns);
+
+      console.log('🔧 After setUserCreatedCampaigns, length should be:', customCampaigns.length);
 
       // Select active campaign with improved logic
       let selectedCampaign: Campaign | undefined;
