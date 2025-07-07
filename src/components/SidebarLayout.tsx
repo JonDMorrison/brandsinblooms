@@ -20,31 +20,28 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex flex-col">
-        {/* Trial Banner */}
-        <TrialBanner />
-        
+      <div className="min-h-screen w-full flex">
         {/* Fixed UserMenu - always visible in top-right */}
         <div className="fixed top-6 right-6 z-50">
           <UserMenu />
         </div>
         
-        <div className="flex flex-1 w-full min-h-0 overflow-hidden">
-          <AppSidebar />
-          <main className="flex-1 w-full h-full overflow-x-hidden">
-            <div className="w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              {children}
-            </div>
-          </main>
-        </div>
-        
-        {/* Floating FAB for Help + Notifications */}
-        <FloatingFAB 
-          notificationCount={0} 
-          onHelpClick={() => console.log('Help clicked')}
-          onNotificationClick={() => console.log('Notifications clicked')}
-        />
+        <AppSidebar />
+        <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col">
+          {/* Trial Banner - constrained to main content width */}
+          <TrialBanner />
+          <div className="flex-1 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {children}
+          </div>
+        </main>
       </div>
+        
+      {/* Floating FAB for Help + Notifications */}
+      <FloatingFAB 
+        notificationCount={0} 
+        onHelpClick={() => console.log('Help clicked')}
+        onNotificationClick={() => console.log('Notifications clicked')}
+      />
     </SidebarProvider>
   );
 };
