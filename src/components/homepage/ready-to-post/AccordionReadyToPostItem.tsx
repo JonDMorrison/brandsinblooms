@@ -1,15 +1,18 @@
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Calendar, Clock, Eye } from "lucide-react";
+import { ChevronDown, ChevronRight, Calendar, Clock, Eye, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { getStatusColor } from "../homepageUtils";
 import { formatDistanceToNow } from "date-fns";
 import { EnhancedPostNowButton } from "./EnhancedPostNowButton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AccordionReadyToPostItemProps {
   task: any;
@@ -44,6 +47,7 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
   onSelect
 }) => {
   const [isOpen, setIsOpen] = useState(isFirst);
+  const [isDeleting, setIsDeleting] = useState(false);
   const isMobile = useIsMobile();
 
   const PostIcon = getPostTypeIcon(task.post_type);
@@ -70,6 +74,30 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
 
   const facebookConnection = socialConnections.find(conn => conn.platform === 'facebook');
   const instagramConnection = socialConnections.find(conn => conn.platform === 'instagram');
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .delete()
+        .eq('id', task.id);
+
+      if (error) {
+        console.error('Error deleting task:', error);
+        toast.error('Failed to delete content');
+      } else {
+        toast.success('Content deleted successfully');
+        if (onTaskUpdate) onTaskUpdate();
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete content');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -136,6 +164,35 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                     {preview.substring(0, 30)}...
                   </div>
                 )}
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Content</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this {task.post_type} content? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 
                 {isOpen ? (
                   <ChevronDown className="w-4 h-4 text-gray-400" />
