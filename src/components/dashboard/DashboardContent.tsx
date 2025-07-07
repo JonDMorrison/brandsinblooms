@@ -120,6 +120,15 @@ export const DashboardContent = ({
         }
       });
       
+      console.log('🎯 Custom campaigns found:', customCampaigns.length, customCampaigns.map(c => ({
+        id: c.id,
+        title: c.title,
+        source: c.source,
+        user_id: c.user_id,
+        tenant_id: c.tenant_id,
+        created_at: c.created_at
+      })));
+      
       setUserCreatedCampaigns(customCampaigns);
 
       // Select active campaign with improved logic

@@ -41,6 +41,7 @@ export const CustomContentSection = ({
 
   // Update campaigns when prop changes
   React.useEffect(() => {
+    console.log('🔧 CustomContentSection: Received userCreatedCampaigns:', userCreatedCampaigns.length, userCreatedCampaigns);
     setCampaigns(userCreatedCampaigns);
   }, [userCreatedCampaigns]);
 

@@ -121,6 +121,13 @@ export const UnifiedDashboardGrid = ({
           userCreatedCampaigns={userCreatedCampaigns}
           onContentGenerated={onTaskUpdate}
         />
+        
+        {/* Debug info */}
+        {import.meta.env.DEV && (
+          <div className="text-xs text-gray-500 p-2 bg-gray-100 rounded">
+            Debug: userCreatedCampaigns count: {userCreatedCampaigns.length}
+          </div>
+        )}
       </div>
 
       {/* Dialogs */}
