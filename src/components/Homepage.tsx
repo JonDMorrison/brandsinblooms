@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { toast } from "sonner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { HomepageErrorBoundary } from "./homepage/HomepageErrorBoundary";
 import { Loader2 } from "lucide-react";
@@ -16,164 +14,21 @@ import { SeasonalHolidaysCard } from "@/components/dashboard/seasonal-holidays/S
 import { CustomContentSection } from "@/components/dashboard/custom-content/CustomContentSection";
 import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
 import { WeeklyContentUpdater } from "@/components/dashboard/current-campaign/WeeklyContentUpdater";
+import { ContentProvider, useContent } from "@/contexts/ContentContext";
 
-export const Homepage = () => {
+const HomepageContent = () => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [userCreatedCampaigns, setUserCreatedCampaigns] = useState<Campaign[]>([]);
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { campaigns, tasks, userCreatedCampaigns, loading, error, refreshData } = useContent();
   const [showQuickstart, setShowQuickstart] = useState(false);
 
-  // Check if user is developer
-  const isDeveloper = user?.email === 'jon@getclear.ca';
-
-  const fetchCampaigns = async () => {
-    if (!user) {
-      console.log('Homepage: No authenticated user, skipping campaign fetch');
-      setLoading(false);
-      return;
-    }
-
-    if (tenantLoading) {
-      console.log('Homepage: Tenant still loading, waiting...');
-      return;
-    }
-
-    try {
-      setError(null);
-      console.log('Homepage: Fetching campaigns for user:', user.id, 'tenant:', tenant?.id || 'none');
-      
-      // Build the query based on tenant availability
-      let campaignQuery = supabase.from('campaigns').select('*');
-      
-      if (tenant?.id) {
-        campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
-      } else {
-        campaignQuery = campaignQuery.eq('user_id', user.id);
-      }
-
-      const { data, error } = await campaignQuery.order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Homepage: Error fetching campaigns:', error);
-        setError('Failed to load campaigns');
-        toast.error('Failed to load campaigns');
-        setCampaigns([]);
-      } else {
-        console.log('Homepage: Successfully fetched', data?.length || 0, 'campaigns');
-        setCampaigns(data || []);
-        
-        // Filter custom campaigns (source: 'quick_action')
-        const customCampaigns = (data || []).filter(c => {
-          if (c.source !== 'quick_action') return false;
-          
-          if (tenant?.id) {
-            return c.tenant_id === tenant.id;
-          } else {
-            return c.user_id === user.id;
-          }
-        });
-        
-        console.log('🎯 Homepage: Custom campaigns found:', customCampaigns.length, customCampaigns.map(c => ({
-          id: c.id,
-          title: c.title,
-          source: c.source,
-          user_id: c.user_id,
-          tenant_id: c.tenant_id,
-          created_at: c.created_at
-        })));
-        
-        setUserCreatedCampaigns(customCampaigns);
-      }
-    } catch (error) {
-      console.error('Homepage: Error fetching campaigns:', error);
-      setError('An unexpected error occurred while loading campaigns');
-      toast.error('An unexpected error occurred');
-      setCampaigns([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTasks = async () => {
-    if (!user) {
-      console.log('Homepage: No authenticated user, skipping task fetch');
-      return;
-    }
-
-    if (tenantLoading) {
-      console.log('Homepage: Tenant still loading, skipping task fetch');
-      return;
-    }
-
-    try {
-      console.log('Homepage: Fetching tasks for user:', user.id, 'tenant:', tenant?.id || 'none');
-      
-      // Build status filter with valid statuses only
-      const statusFilter = ['planned', 'review', 'approved', 'scheduled', 'published', 'generated'];
-      if (isDeveloper) {
-        statusFilter.push('preview');
-      }
-
-      // Build the query based on tenant availability
-      let taskQuery = supabase
-        .from('content_tasks')
-        .select(`
-          *,
-          campaigns!inner (
-            title,
-            tenant_id,
-            user_id
-          ),
-          holidays (
-            holiday_name,
-            holiday_date
-          )
-        `)
-        .in('status', statusFilter)
-        .order('created_at', { ascending: false });
-
-      if (tenant?.id) {
-        taskQuery = taskQuery.eq('tenant_id', tenant.id);
-      } else {
-        taskQuery = taskQuery.eq('user_id', user.id);
-      }
-
-      const { data, error } = await taskQuery;
-
-      if (error) {
-        console.error('Homepage: Error fetching tasks:', error);
-        setTasks([]);
-      } else {
-        // Security filter to double-check ownership
-        const securityCheckedTasks = data?.filter(task => {
-          if (tenant?.id) {
-            return task.campaigns?.tenant_id === tenant.id;
-          } else {
-            return task.campaigns?.user_id === user.id || task.user_id === user.id;
-          }
-        }) || [];
-        
-        console.log('Homepage: Successfully fetched', securityCheckedTasks.length, 'tasks');
-        setTasks(securityCheckedTasks);
-      }
-    } catch (error) {
-      console.error('Homepage: Error fetching tasks:', error);
-      setTasks([]);
-    }
-  };
-
   const handleTaskUpdate = () => {
-    console.log('🔄 Refreshing tasks data...');
-    fetchTasks();
+    console.log('🔄 Refreshing content data...');
+    refreshData();
   };
 
   const handleCampaignCreated = () => {
-    fetchCampaigns();
-    fetchTasks();
+    refreshData();
   };
 
   const handleNavigateToSection = (section: string) => {
@@ -196,23 +51,6 @@ export const Homepage = () => {
     }
   };
 
-  // Initial data loading
-  useEffect(() => {
-    if (!user) {
-      console.log('Homepage: No user, setting loading to false');
-      setLoading(false);
-      return;
-    }
-
-    if (tenantLoading) {
-      console.log('Homepage: Tenant loading, waiting...');
-      return;
-    }
-
-    console.log('Homepage: Starting data fetch for user:', user.id, 'tenant:', tenant?.id || 'none');
-    fetchCampaigns();
-    fetchTasks();
-  }, [user, tenant, tenantLoading]);
 
   // Check if should show quickstart checklist
   useEffect(() => {
@@ -272,13 +110,9 @@ export const Homepage = () => {
             <div className="text-center">
               <p className="text-red-600 font-medium text-lg">{error}</p>
               <button 
-                onClick={() => {
-                  setError(null);
-                  setLoading(true);
-                  fetchCampaigns();
-                  fetchTasks();
-                }}
+                onClick={refreshData}
                 className="mt-4 px-4 py-2 bg-garden-green text-white rounded hover:bg-garden-green/90"
+                aria-label="Retry loading content"
               >
                 Try Again
               </button>
@@ -380,5 +214,13 @@ export const Homepage = () => {
         </div>
       </div>
     </HomepageErrorBoundary>
+  );
+};
+
+export const Homepage = () => {
+  return (
+    <ContentProvider>
+      <HomepageContent />
+    </ContentProvider>
   );
 };

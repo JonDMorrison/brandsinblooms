@@ -34,6 +34,7 @@ export const ApprovalButton = ({ taskId, currentStatus, onApproved }: ApprovalBu
       onClick={handleApprove}
       disabled={loading}
       className="bg-[#68BEB9] hover:bg-[#56a7a1] text-white"
+      aria-label={loading ? 'Approving content for publishing' : 'Approve content for publishing'}
     >
       {loading ? (
         <Loader2 className="w-4 h-4 mr-2 animate-spin" />

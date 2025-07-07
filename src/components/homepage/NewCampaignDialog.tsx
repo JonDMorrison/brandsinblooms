@@ -292,7 +292,11 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
               placeholder="Campaign theme (e.g., Spring Planting)"
               className="border-garden-green-light focus:border-garden-green"
               disabled={loading || generatingContent}
+              aria-describedby="theme-help"
             />
+            <p id="theme-help" className="text-sm text-gray-500 mt-1">
+              Optional theme to guide content generation
+            </p>
           </div>
           
           <div className="flex justify-end gap-2 pt-4">

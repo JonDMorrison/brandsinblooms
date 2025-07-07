@@ -29,8 +29,7 @@ export const BlogPostLayout = ({
 
   const estimatedReadingTime = readingTime || Math.ceil(content.replace(/<[^>]*>/g, '').split(' ').length / 200);
 
-  console.log('BlogPostLayout rendering with content length:', content.length);
-  console.log('BlogPostLayout content preview:', content.substring(0, 100));
+  // Remove debug logging to prevent console clutter
 
   return (
     <div className={cn("bg-white text-slate-800 min-h-0", className)}>
