@@ -164,8 +164,17 @@ export const CustomContentItem = ({
           </div>
 
           {hasContent && (
-            <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-              ✓ Content ready for {contentState.contentCount} post{contentState.contentCount !== 1 ? 's' : ''}
+            <div className="flex flex-wrap gap-2">
+              {contentState.needsReview > 0 && (
+                <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                  📝 {contentState.needsReview} post{contentState.needsReview !== 1 ? 's' : ''} need{contentState.needsReview === 1 ? 's' : ''} review
+                </div>
+              )}
+              {contentState.approvedCount > 0 && (
+                <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
+                  ✓ {contentState.approvedCount} post{contentState.approvedCount !== 1 ? 's' : ''} approved
+                </div>
+              )}
             </div>
           )}
         </div>

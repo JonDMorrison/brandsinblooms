@@ -89,9 +89,17 @@ export const CustomContentSection = ({
             ['review', 'ready', 'approved', 'posted'].includes(task.status)
           );
           
+          const tasksNeedingReview = campaignTasks.filter(task => 
+            task.ai_output && 
+            task.ai_output.trim() !== '' && 
+            task.status === 'review'
+          );
+          
           contentState[campaignId] = {
             contentCount: tasksWithContent.length,
-            totalTasks: campaignTasks.length
+            totalTasks: campaignTasks.length,
+            needsReview: tasksNeedingReview.length,
+            approvedCount: campaignTasks.filter(task => task.status === 'approved').length
           };
         });
         

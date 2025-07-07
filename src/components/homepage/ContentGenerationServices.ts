@@ -242,12 +242,12 @@ export const generateCampaignContent = async (
           continue;
         }
 
-        // Update the task with the generated content and set status to 'approved'
+        // Update the task with the generated content and set status to 'review'
         const { error: updateError } = await supabase
           .from('content_tasks')
           .update({ 
             ai_output: result.data.content,
-            status: TASK_STATUS.APPROVED // Changed from REVIEW to APPROVED
+            status: TASK_STATUS.REVIEW // Set to REVIEW so it stays in custom campaigns for approval
           })
           .eq('id', newTask.id);
 
@@ -258,7 +258,7 @@ export const generateCampaignContent = async (
         }
 
         console.log(`✅ Generated and saved ${contentType} content`);
-        generatedTasks.push({ ...newTask, ai_output: result.data.content, status: TASK_STATUS.APPROVED });
+        generatedTasks.push({ ...newTask, ai_output: result.data.content, status: TASK_STATUS.REVIEW });
 
       } catch (error) {
         console.error(`❌ Error in ${contentType} generation:`, error);
@@ -278,7 +278,7 @@ export const generateCampaignContent = async (
     // Return success if we generated at least some content
     if (generatedTasks.length > 0) {
       // Add optimistic toast feedback
-      toast.success(`✅ Content generated — ${generatedTasks.length} drafts added to tray`);
+      toast.success(`✅ Content generated — ${generatedTasks.length} drafts ready for review`);
       
       return {
         success: true,
