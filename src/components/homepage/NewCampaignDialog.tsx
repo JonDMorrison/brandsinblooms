@@ -125,12 +125,26 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
 
       console.log('NewCampaignDialog: Campaign created successfully:', data);
       
+      // Wait a moment to ensure the campaign is fully committed to the database
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       // Now automatically generate content for the campaign
       setGeneratingContent(true);
       toast.loading('Generating content for your campaign...', { id: 'content-generation' });
 
       try {
-        console.log('NewCampaignDialog: Starting content generation');
+        console.log('NewCampaignDialog: Starting content generation for campaign ID:', data.id);
+        
+        // Double-check that the campaign exists before generating content
+        const { data: campaignCheck } = await supabase
+          .from('campaigns')
+          .select('id')
+          .eq('id', data.id)
+          .single();
+        
+        if (!campaignCheck) {
+          throw new Error('Campaign not found in database after creation');
+        }
         
         const result = await generateCampaignContent(
           data.id,
