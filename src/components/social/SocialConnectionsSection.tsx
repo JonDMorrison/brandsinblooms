@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SocialConnectionCard } from './SocialConnectionCard';
 import { ConnectMetaButton } from './ConnectMetaButton';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
-import { AlertCircle, Wifi } from 'lucide-react';
+import { AlertCircle, Wifi, Facebook, Instagram } from 'lucide-react';
 
 interface SocialConnectionsSectionProps {
   connections: any[];
@@ -17,6 +17,8 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
 }) => {
   const facebookConnection = connections.find(conn => conn.platform === 'facebook');
   const instagramConnection = connections.find(conn => conn.platform === 'instagram');
+  const isConnected = facebookConnection || instagramConnection;
+  const bothConnected = facebookConnection && instagramConnection;
 
   if (connections.length === 0) {
     return (
@@ -40,19 +42,27 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
               </div>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto opacity-50">
-              <SocialConnectionCard
-                platform="facebook"
-                isConnected={false}
-                onConnect={() => {}}
-                disabled={true}
-              />
-              <SocialConnectionCard
-                platform="instagram"
-                isConnected={false}
-                onConnect={() => {}}
-                disabled={true}
-              />
+            {/* Single Meta Connection Card */}
+            <div className="max-w-2xl mx-auto opacity-50">
+              <Card className="border-2 border-dashed border-gray-300">
+                <CardContent className="p-8 text-center">
+                  <div className="flex justify-center items-center space-x-3 mb-4">
+                    <div className="p-3 bg-blue-600 rounded-xl">
+                      <Facebook className="w-8 h-8 text-white" />
+                    </div>
+                    <div className="p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl">
+                      <Instagram className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">Connect Meta Accounts</h3>
+                  <p className="text-gray-600 mb-6">
+                    One login connects both your Facebook pages and Instagram business accounts
+                  </p>
+                  <div className="w-full bg-gray-200 h-12 rounded-lg flex items-center justify-center">
+                    <span className="text-gray-500">Requires Bloom Plan</span>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         }
@@ -71,20 +81,25 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
             </div>
           </div>
 
-          {/* Connection Cards with Connect Button */}
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <SocialConnectionCard
-              platform="facebook"
-              isConnected={false}
-              onConnect={() => {}}
-              connectButton={<ConnectMetaButton onSuccess={onConnectionSuccess} />}
-            />
-            <SocialConnectionCard
-              platform="instagram"
-              isConnected={false}
-              onConnect={() => {}}
-              connectButton={<ConnectMetaButton onSuccess={onConnectionSuccess} />}
-            />
+          {/* Single Meta Connection Card */}
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
+              <CardContent className="p-8 text-center">
+                <div className="flex justify-center items-center space-x-3 mb-4">
+                  <div className="p-3 bg-blue-600 rounded-xl">
+                    <Facebook className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl">
+                    <Instagram className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Connect Meta Accounts</h3>
+                <p className="text-gray-600 mb-6">
+                  One simple login connects both your Facebook pages and Instagram business accounts
+                </p>
+                <ConnectMetaButton onSuccess={onConnectionSuccess} />
+              </CardContent>
+            </Card>
           </div>
 
           {/* Help Text */}
@@ -94,14 +109,14 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                 <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div className="space-y-2">
                   <p className="text-sm text-amber-800 font-medium">
-                    How to connect your accounts:
+                    How the connection works:
                   </p>
                   <ol className="text-sm text-amber-700 space-y-1 ml-4 list-decimal">
                     <li>Click "Connect Meta" above</li>
                     <li>Log in with your Facebook account</li>
                     <li>Select the Facebook Pages and Instagram accounts you want to connect</li>
                     <li>Grant the necessary permissions</li>
-                    <li>Start creating and scheduling your content!</li>
+                    <li>Both platforms will be connected automatically!</li>
                   </ol>
                 </div>
               </div>
@@ -120,29 +135,88 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
       <div className="space-y-8">
         {/* Header */}
         <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold text-gray-900">Your Connected Accounts</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Your Meta Accounts</h2>
           <p className="text-gray-600">
-            Manage your social media connections
+            Manage your Facebook and Instagram connections
           </p>
         </div>
 
-        {/* Connection Cards */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          <SocialConnectionCard
-            platform="facebook"
-            isConnected={!!facebookConnection}
-            accountName={facebookConnection?.platform_account_name}
-            onConnect={() => {}}
-            connectButton={!facebookConnection ? <ConnectMetaButton onSuccess={onConnectionSuccess} /> : undefined}
-          />
-          <SocialConnectionCard
-            platform="instagram"
-            isConnected={!!instagramConnection}
-            accountName={instagramConnection?.platform_account_name}
-            onConnect={() => {}}
-            connectButton={!instagramConnection ? <ConnectMetaButton onSuccess={onConnectionSuccess} /> : undefined}
-          />
+        {/* Connection Status */}
+        <div className="max-w-2xl mx-auto">
+          <Card className={`border-2 ${bothConnected ? 'border-green-200 bg-green-50' : isConnected ? 'border-yellow-200 bg-yellow-50' : 'border-gray-200'}`}>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 bg-blue-600 rounded-lg">
+                      <Facebook className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg">
+                      <Instagram className="w-6 h-6 text-white" />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="font-semibold text-lg">Meta Platforms</h3>
+                    <div className="flex items-center gap-4 mt-1">
+                      <div className="flex items-center gap-1">
+                        <Facebook className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm">Facebook</span>
+                        {facebookConnection ? (
+                          <span className="text-xs text-green-600 font-medium">✓ Connected</span>
+                        ) : (
+                          <span className="text-xs text-gray-500">Not connected</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Instagram className="w-4 h-4 text-purple-600" />
+                        <span className="text-sm">Instagram</span>
+                        {instagramConnection ? (
+                          <span className="text-xs text-green-600 font-medium">✓ Connected</span>
+                        ) : (
+                          <span className="text-xs text-gray-500">Not connected</span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {(facebookConnection || instagramConnection) && (
+                      <div className="mt-2 text-xs text-gray-600">
+                        {facebookConnection && (
+                          <div>Facebook: {facebookConnection.platform_account_name}</div>
+                        )}
+                        {instagramConnection && (
+                          <div>Instagram: {instagramConnection.platform_account_name}</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {!bothConnected && (
+                    <ConnectMetaButton onSuccess={onConnectionSuccess} />
+                  )}
+                  {bothConnected && (
+                    <div className="text-green-600 font-medium text-sm">
+                      Both platforms connected!
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        {!bothConnected && (
+          <Card className="max-w-2xl mx-auto border-blue-200 bg-blue-50">
+            <CardContent className="p-4">
+              <p className="text-sm text-blue-800">
+                💡 <strong>Tip:</strong> The "Connect Meta" button will link both your Facebook pages and Instagram business accounts in one go. 
+                You don't need to connect them separately!
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </SubscriptionGate>
   );
