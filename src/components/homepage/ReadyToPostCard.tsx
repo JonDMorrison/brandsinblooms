@@ -282,7 +282,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
             
             {/* Content list */}
             <div className="space-y-3">
-              {readyTasks.slice(0, 3).map((task, index) => (
+              {readyTasks.slice(0, 10).map((task, index) => (
                 <AccordionReadyToPostItem
                   key={task.id}
                   task={task}
@@ -294,10 +294,10 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
               ))}
             </div>
             
-            {readyTasks.length > 3 && (
+            {readyTasks.length > 10 && (
               <div className="text-center pt-4 mt-4 border-t border-gray-200">
                 <p className="text-gray-600 text-sm">
-                  Showing 3 of {readyTasks.length} ready pieces • 
+                  Showing 10 of {readyTasks.length} ready pieces • 
                   <button 
                     onClick={() => window.location.href = '/publish'}
                     className="text-brand-navy hover:underline ml-1 font-medium"
