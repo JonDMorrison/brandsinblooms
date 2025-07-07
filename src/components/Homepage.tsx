@@ -13,6 +13,7 @@ import { QuickstartChecklist } from "@/components/onboarding/QuickstartChecklist
 import { WeeklyThemeCarousel } from "./homepage/WeeklyThemeCarousel";
 import { QuickActionsSection } from "@/components/dashboard/QuickActionsSection";
 import { SeasonalHolidaysCard } from "@/components/dashboard/seasonal-holidays/SeasonalHolidaysCard";
+import { CustomContentSection } from "@/components/dashboard/custom-content/CustomContentSection";
 import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
 import { WeeklyContentUpdater } from "@/components/dashboard/current-campaign/WeeklyContentUpdater";
 
@@ -20,6 +21,7 @@ export const Homepage = () => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [userCreatedCampaigns, setUserCreatedCampaigns] = useState<Campaign[]>([]);
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +65,28 @@ export const Homepage = () => {
       } else {
         console.log('Homepage: Successfully fetched', data?.length || 0, 'campaigns');
         setCampaigns(data || []);
+        
+        // Filter custom campaigns (source: 'quick_action')
+        const customCampaigns = (data || []).filter(c => {
+          if (c.source !== 'quick_action') return false;
+          
+          if (tenant?.id) {
+            return c.tenant_id === tenant.id;
+          } else {
+            return c.user_id === user.id;
+          }
+        });
+        
+        console.log('🎯 Homepage: Custom campaigns found:', customCampaigns.length, customCampaigns.map(c => ({
+          id: c.id,
+          title: c.title,
+          source: c.source,
+          user_id: c.user_id,
+          tenant_id: c.tenant_id,
+          created_at: c.created_at
+        })));
+        
+        setUserCreatedCampaigns(customCampaigns);
       }
     } catch (error) {
       console.error('Homepage: Error fetching campaigns:', error);
@@ -326,14 +350,24 @@ export const Homepage = () => {
             </div>
           </HomepageErrorBoundary>
 
-          {/* Section 4: Holiday Cards - Responsive layout */}
+          {/* Section 4: Custom Content Section */}
+          <HomepageErrorBoundary>
+            <div className="w-full">
+              <CustomContentSection
+                userCreatedCampaigns={userCreatedCampaigns}
+                onContentGenerated={handleTaskUpdate}
+              />
+            </div>
+          </HomepageErrorBoundary>
+
+          {/* Section 5: Holiday Cards - Responsive layout */}
           <HomepageErrorBoundary>
             <div className="w-full">
               <SeasonalHolidaysCard onContentGenerated={handleTaskUpdate} />
             </div>
           </HomepageErrorBoundary>
 
-          {/* Section 5: Ready to Post */}
+          {/* Section 6: Ready to Post */}
           <HomepageErrorBoundary>
             <div data-section="ready-to-post">
               <ReadyToPostCard 
