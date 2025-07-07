@@ -8,6 +8,7 @@ import { ImageGalleryHeader } from './ImageGalleryHeader';
 import { ImageGalleryGrid } from './ImageGalleryGrid';
 import { ImageModal } from './ImageModal';
 import { extractDynamicQuery, getEnhancedTopicForPostType } from '@/utils/dynamicImageSearch';
+import { CanvaEditor } from '@/components/canva/CanvaEditor';
 
 interface ImageGalleryProps {
   selectedDraft: any;
@@ -82,6 +83,15 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
   const [showImageModal, setShowImageModal] = useState(false);
   const [lastQuery, setLastQuery] = useState<string>('');
   const [addingToPost, setAddingToPost] = useState(false);
+  const [canvaEditor, setCanvaEditor] = useState<{
+    isOpen: boolean;
+    imageUrl: string;
+    imageId: string;
+  }>({
+    isOpen: false,
+    imageUrl: '',
+    imageId: ''
+  });
 
   const fetchImages = async (forceRefresh = false) => {
     if (!selectedDraft && !forceRefresh) return;
@@ -155,6 +165,32 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
     setShowImageModal(true);
   };
 
+  const handleCanvaEdit = (image: UnsplashImage) => {
+    setCanvaEditor({
+      isOpen: true,
+      imageUrl: image.download_url,
+      imageId: image.id
+    });
+  };
+
+  const handleCanvaComplete = (newImageUrl: string) => {
+    // Update the image in our local state
+    const updatedImages = images.map(img => 
+      img.id === canvaEditor.imageId 
+        ? { ...img, download_url: newImageUrl, thumb_url: newImageUrl }
+        : img
+    );
+    setImages(updatedImages);
+    
+    // Close the editor
+    setCanvaEditor({ isOpen: false, imageUrl: '', imageId: '' });
+
+    // If we have a selected draft, trigger content update
+    if (selectedDraft) {
+      window.dispatchEvent(new CustomEvent('draft-updated'));
+    }
+  };
+
   const handleUseInPost = async (image: UnsplashImage) => {
     if (!selectedDraft) {
       toast.error('No draft selected');
@@ -218,6 +254,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
             lastQuery={lastQuery}
             onImageClick={handleImageClick}
             onRetryFetch={() => fetchImages(true)}
+            onCanvaEdit={handleCanvaEdit}
           />
         )}
       </div>
@@ -230,6 +267,18 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         addingToPost={addingToPost}
         selectedDraft={selectedDraft}
       />
+
+      {/* Canva Editor Modal */}
+      {canvaEditor.isOpen && selectedDraft && (
+        <CanvaEditor
+          isOpen={canvaEditor.isOpen}
+          onClose={() => setCanvaEditor({ isOpen: false, imageUrl: '', imageId: '' })}
+          imageUrl={canvaEditor.imageUrl}
+          contentTaskId={selectedDraft.id}
+          titleText={lastQuery}
+          onDesignComplete={handleCanvaComplete}
+        />
+      )}
     </>
   );
 };

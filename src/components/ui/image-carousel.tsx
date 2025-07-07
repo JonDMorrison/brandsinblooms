@@ -7,6 +7,8 @@ import { Download, Copy, Heart, Shuffle, Info, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { CanvaButton } from '@/components/canva/CanvaButton';
+import { CanvaEditor } from '@/components/canva/CanvaEditor';
 
 interface ImageSuggestion {
   id: string;
@@ -38,6 +40,15 @@ export const ImageCarousel = ({
   const [hoveredImage, setHoveredImage] = useState<string | null>(null);
   const [favoriteImages, setFavoriteImages] = useState<Set<string>>(new Set());
   const [imageOrder, setImageOrder] = useState<ImageSuggestion[]>(images);
+  const [canvaEditor, setCanvaEditor] = useState<{
+    isOpen: boolean;
+    imageUrl: string;
+    imageId: string;
+  }>({
+    isOpen: false,
+    imageUrl: '',
+    imageId: ''
+  });
 
   // Update image order when images prop changes
   React.useEffect(() => {
@@ -131,19 +142,40 @@ export const ImageCarousel = ({
     );
   }
 
+  const handleCanvaEdit = (image: ImageSuggestion) => {
+    setCanvaEditor({
+      isOpen: true,
+      imageUrl: image.download_url,
+      imageId: image.id
+    });
+  };
+
+  const handleCanvaComplete = (newImageUrl: string) => {
+    // Update the image in our local state
+    const updatedImages = imageOrder.map(img => 
+      img.id === canvaEditor.imageId 
+        ? { ...img, download_url: newImageUrl, thumb_url: newImageUrl }
+        : img
+    );
+    setImageOrder(updatedImages);
+    
+    // Close the editor
+    setCanvaEditor({ isOpen: false, imageUrl: '', imageId: '' });
+  };
+
   const ImageCard = ({ image, isFeatured = false }: { image: ImageSuggestion, isFeatured?: boolean }) => (
     <div
-      className={`relative group cursor-pointer ${!isFeatured ? 'hover:opacity-80 transition-opacity' : ''}`}
+      className={`relative group ${!isFeatured ? 'hover:opacity-80 transition-opacity' : ''}`}
       onMouseEnter={() => setHoveredImage(image.id)}
       onMouseLeave={() => setHoveredImage(null)}
-      onClick={() => handleImageClick(image, isFeatured)}
     >
       <div className={`${isFeatured ? 'aspect-video' : 'aspect-video'} rounded-lg overflow-hidden bg-gray-100 relative`}>
         <img
           src={image.thumb_url}
           alt={image.alt}
-          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform group-hover:scale-105 cursor-pointer"
           loading="lazy"
+          onClick={() => handleImageClick(image, isFeatured)}
         />
         
         {/* Featured badge */}
@@ -154,9 +186,23 @@ export const ImageCarousel = ({
           </Badge>
         )}
         
+        {/* Canva Button - Always visible on hover/focus */}
+        {!usingPlaceholders && (
+          <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <CanvaButton
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCanvaEdit(image);
+              }}
+              size="sm"
+              className="bg-white/90 text-gray-800 hover:bg-white shadow-md"
+            />
+          </div>
+        )}
+        
         {/* Click hint for alternatives */}
         {!isFeatured && hoveredImage === image.id && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity">
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity pointer-events-none">
             <div className="text-white text-sm font-medium bg-black/60 px-3 py-1 rounded-full">
               Click to feature
             </div>
@@ -218,6 +264,18 @@ export const ImageCarousel = ({
             🌱 These are high-quality garden center themed images perfect for your content. Connect your Unsplash API key to access even more images from their vast library.
           </p>
         </div>
+      )}
+
+      {/* Canva Editor Modal */}
+      {canvaEditor.isOpen && contentTaskId && (
+        <CanvaEditor
+          isOpen={canvaEditor.isOpen}
+          onClose={() => setCanvaEditor({ isOpen: false, imageUrl: '', imageId: '' })}
+          imageUrl={canvaEditor.imageUrl}
+          contentTaskId={contentTaskId}
+          titleText={query}
+          onDesignComplete={handleCanvaComplete}
+        />
       )}
     </div>
   );

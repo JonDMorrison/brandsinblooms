@@ -168,6 +168,50 @@ export type Database = {
           },
         ]
       }
+      canva_designs: {
+        Row: {
+          canva_design_id: string
+          content_task_id: string | null
+          created_at: string
+          design_metadata: Json | null
+          final_image_url: string | null
+          id: string
+          original_image_url: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          canva_design_id: string
+          content_task_id?: string | null
+          created_at?: string
+          design_metadata?: Json | null
+          final_image_url?: string | null
+          id?: string
+          original_image_url: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          canva_design_id?: string
+          content_task_id?: string | null
+          created_at?: string
+          design_metadata?: Json | null
+          final_image_url?: string | null
+          id?: string
+          original_image_url?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canva_designs_content_task_id_fkey"
+            columns: ["content_task_id"]
+            isOneToOne: false
+            referencedRelation: "content_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_profiles: {
         Row: {
           brand_voice: string | null

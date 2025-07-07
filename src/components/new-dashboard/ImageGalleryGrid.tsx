@@ -20,6 +20,7 @@ interface ImageGalleryGridProps {
   lastQuery: string;
   onImageClick: (image: UnsplashImage) => void;
   onRetryFetch: () => void;
+  onCanvaEdit?: (image: UnsplashImage) => void;
 }
 
 export const ImageGalleryGrid = ({ 
@@ -28,7 +29,8 @@ export const ImageGalleryGrid = ({
   selectedImage, 
   lastQuery,
   onImageClick,
-  onRetryFetch
+  onRetryFetch,
+  onCanvaEdit
 }: ImageGalleryGridProps) => {
   if (loading) {
     return (
@@ -67,6 +69,7 @@ export const ImageGalleryGrid = ({
           image={image}
           isSelected={selectedImage?.id === image.id}
           onClick={onImageClick}
+          onCanvaEdit={onCanvaEdit}
         />
       ))}
     </div>
