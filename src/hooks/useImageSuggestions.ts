@@ -46,7 +46,7 @@ const extractKeywordsFromContent = (content: string, campaignTitle?: string): st
 
   // Look for specific themes first - prioritize specific plant/flower terms
   const themes = {
-    specificFlowers: /\b(zinnia|marigold|petunia|impatiens|sunflower|dahlia|cosmos|salvia|begonia|geranium|pansy|violet)\b/gi,
+    specificFlowers: /\b(hydrangea|hydrangeas|zinnia|marigold|petunia|impatiens|sunflower|dahlia|cosmos|salvia|begonia|geranium|pansy|violet|rose|roses|tulip|tulips|daffodil|daffodils|lily|lilies|chrysanthemum|azalea|rhododendron)\b/gi,
     summerPlants: /\b(summer|bloom|flowering|heat.?tolerant|drought.?resistant|full.?sun|vibrant|colorful)\b/gi,
     plants: /\b(plant|flower|garden|bloom|seed|soil|grow|botanical|herb|vegetable|tree|shrub)\b/gi,
     outdoor: /\b(outdoor|patio|deck|yard|landscape|backyard|sunshine|fresh air)\b/gi,
