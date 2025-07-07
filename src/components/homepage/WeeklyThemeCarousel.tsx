@@ -55,11 +55,27 @@ export const WeeklyThemeCarousel = ({
     
     // If it's the current week theme and we have a current campaign, check those tasks
     if (theme.isCurrentWeek && currentCampaign) {
-      return tasks.filter(task => 
+      const campaignTasks = tasks.filter(task => 
         task.campaign_id === currentCampaign.id && 
         task.ai_output && 
         task.ai_output.trim().length > 0
       );
+      
+      console.log('🔍 getThemeContentTasks for current week:', {
+        themeId: theme.id,
+        currentCampaignId: currentCampaign.id,
+        totalTasks: tasks.length,
+        campaignTasksFound: campaignTasks.length,
+        campaignTasksWithContent: campaignTasks.map(t => ({
+          id: t.id,
+          type: t.post_type,
+          hasContent: !!t.ai_output,
+          contentLength: t.ai_output?.length || 0,
+          status: t.status
+        }))
+      });
+      
+      return campaignTasks;
     }
     
     // For other themes, find tasks with content that match the theme's week
