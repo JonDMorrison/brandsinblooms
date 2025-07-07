@@ -509,34 +509,6 @@ export const WeeklyThemeCarousel = ({
 
                   </div>
 
-                  {/* Premium Campaign Status Banner */}
-                  {currentCampaign && campaignTasks.length > 0 && (
-                    <div className="premium-gradient border border-emerald-200/50 dark:border-emerald-800/50 rounded-2xl p-6 shadow-lg backdrop-blur-sm">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex items-start gap-4">
-                          <div className="glass-coin w-12 h-12 flex items-center justify-center flex-shrink-0">
-                            <Sparkles className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 mb-2">
-                              <span className="text-lg font-bold">Content Ready to Shine!</span>
-                            </div>
-                            <p className="text-emerald-700 dark:text-emerald-300 text-sm leading-relaxed">
-                              {campaignTasks.length} premium pieces crafted for your current campaign
-                            </p>
-                          </div>
-                        </div>
-                        <Button 
-                          onClick={() => window.location.href = '/publish'}
-                          className="cta-button group bg-emerald-600 hover:bg-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto"
-                        >
-                          <Sparkles className="w-5 h-5 mr-2" />
-                          Publish Now
-                          <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </CardContent>
