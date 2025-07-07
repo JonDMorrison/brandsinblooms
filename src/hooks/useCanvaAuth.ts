@@ -90,14 +90,20 @@ export const useCanvaAuth = () => {
   };
 
   const initiateOAuth = async () => {
-    // For now, simulate OAuth flow with a mock token
-    // In production, this would redirect to Canva's OAuth endpoint
+    // DEVELOPMENT MODE: Mock OAuth flow
+    // To implement real Canva integration, you need:
+    // 1. Canva Developer Account & API credentials
+    // 2. Set up OAuth redirect URL in Canva Developer Console
+    // 3. Replace this mock flow with real Canva OAuth
+    
     console.log('[CANVA_AUTH] Initiating OAuth flow...');
+    console.log('[CANVA_AUTH] Note: Using development mock - real Canva API not configured');
     
     // Simulate OAuth success with mock token
     setTimeout(() => {
       const mockToken = `mock_canva_token_${Date.now()}`;
       storeToken(mockToken, 3600);
+      console.log('[CANVA_AUTH] Mock authentication successful');
     }, 1000);
   };
 

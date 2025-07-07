@@ -127,8 +127,9 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
         </head>
         <body>
           <div class="editor-placeholder">
-            <h3>Canva Design Editor</h3>
+            <h3>Canva Design Editor (Development Preview)</h3>
             <p>Editing: ${titleText}</p>
+            <p style="color: #666; font-size: 12px; margin: 10px 0;">⚠️ This is a development preview. Real Canva integration requires API setup.</p>
             <img src="${imageUrl}" alt="Design template" class="preview-img" />
             <div>
               <button class="btn" onclick="saveDesign()">Save Design</button>
@@ -299,7 +300,10 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
       <div className="bg-white rounded-lg w-full h-full max-w-6xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h3 className="text-lg font-semibold">Design in Canva</h3>
+          <div>
+            <h3 className="text-lg font-semibold">Design in Canva</h3>
+            <p className="text-sm text-gray-500">Development Preview - Mock Integration</p>
+          </div>
           <Button variant="ghost" size="sm" onClick={onClose} disabled={isLoading}>
             <X className="w-4 h-4" />
           </Button>
