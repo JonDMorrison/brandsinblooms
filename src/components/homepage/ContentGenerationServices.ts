@@ -219,9 +219,10 @@ export const generateCampaignContent = async (
           }
         });
 
-        // Add timeout to prevent infinite waiting
+        // Add timeout to prevent infinite waiting - newsletter needs more time
+        const timeoutDuration = contentType === 'newsletter' ? 60000 : 30000; // 60s for newsletter, 30s for others
         const timeoutPromise = new Promise<SupabaseFunctionResponse>((_, reject) => 
-          setTimeout(() => reject(new Error(`${contentType} generation timeout`)), 30000)
+          setTimeout(() => reject(new Error(`${contentType} generation timeout`)), timeoutDuration)
         );
 
         const result = await Promise.race([

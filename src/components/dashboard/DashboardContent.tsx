@@ -233,6 +233,20 @@ export const DashboardContent = ({
     }
   }, [user, tenant, tenantLoading, currentWeekNumber]);
 
+  // Listen for campaign creation events to refresh data
+  useEffect(() => {
+    const handleCampaignCreated = () => {
+      console.log('🔄 DashboardContent: Campaign created event received, refreshing data');
+      fetchCampaignData();
+    };
+
+    window.addEventListener('campaignCreated', handleCampaignCreated);
+    
+    return () => {
+      window.removeEventListener('campaignCreated', handleCampaignCreated);
+    };
+  }, []);
+
   const handleTaskUpdate = () => {
     console.log('DashboardContent: Task update triggered, refetching campaign data');
     fetchCampaignData();
