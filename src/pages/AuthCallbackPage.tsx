@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, CheckCircle, AlertCircle, Facebook, Instagram, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ export const AuthCallbackPage = () => {
   const { user, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
   const [message, setMessage] = useState('Connecting to Meta platform...');
+  const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
 
   useEffect(() => {
     // Only handle OAuth callback logic if we're actually on the callback route
@@ -159,9 +161,15 @@ export const AuthCallbackPage = () => {
         const successMessage = data.message || 'Successfully connected to Meta platform!';
         setMessage(successMessage);
         
-        // Set success flag for social accounts page
+        // Extract connected platforms from response
+        if (data.connections && Array.isArray(data.connections)) {
+          setConnectedPlatforms(data.connections);
+        }
+        
+        // Set success flag for social accounts page with platform details
         sessionStorage.setItem('social_connection_success', JSON.stringify({
           message: successMessage,
+          platforms: data.connections || [],
           timestamp: Date.now()
         }));
         
@@ -172,7 +180,7 @@ export const AuthCallbackPage = () => {
         sessionStorage.setItem('processed_oauth_codes', JSON.stringify(processedCodesArray.slice(-10)));
         
         console.log('OAuth success, redirecting to social accounts');
-        setTimeout(() => navigate(`/social-accounts${window.location.search}`), 2000);
+        setTimeout(() => navigate(`/social-accounts${window.location.search}`), 3000);
         
       } catch (error: any) {
         console.error('OAuth exchange error:', error);
@@ -233,33 +241,130 @@ export const AuthCallbackPage = () => {
   }, [authLoading, searchParams]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardContent className="flex flex-col items-center justify-center py-12">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20 p-4">
+      <Card className="w-full max-w-lg border-0 shadow-xl">
+        <CardContent className="p-6 md:p-8">
           {status === 'processing' && (
-            <>
-              <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Connecting...</h2>
-              <p className="text-gray-600 text-center">{message}</p>
-            </>
+            <div className="text-center space-y-6">
+              {/* Meta Branding */}
+              <div className="flex justify-center items-center space-x-3">
+                <div className="p-3 bg-blue-600 rounded-xl">
+                  <Facebook className="w-8 h-8 text-white" />
+                </div>
+                <div className="p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl">
+                  <Instagram className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              
+              {/* Loading Animation */}
+              <div className="relative">
+                <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-8 h-8 bg-background rounded-full" />
+                </div>
+              </div>
+              
+              {/* Progress Text */}
+              <div className="space-y-2">
+                <h2 className="text-2xl font-bold">Connecting to Meta</h2>
+                <p className="text-muted-foreground text-lg">{message}</p>
+              </div>
+              
+              {/* Progress Steps */}
+              <div className="flex justify-center space-x-2">
+                <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-primary/50 animate-pulse delay-75" />
+                <div className="w-2 h-2 rounded-full bg-primary/25 animate-pulse delay-150" />
+              </div>
+            </div>
           )}
           
           {status === 'success' && (
-            <>
-              <CheckCircle className="h-12 w-12 text-green-600 mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Success!</h2>
-              <p className="text-gray-600 text-center">{message}</p>
-              <p className="text-sm text-gray-500 mt-2">Taking you to your accounts...</p>
-            </>
+            <div className="text-center space-y-6">
+              {/* Success Animation */}
+              <div className="relative">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle className="h-12 w-12 text-green-600" />
+                </div>
+                {/* Celebration Effect */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-24 h-24 border-4 border-green-200 rounded-full animate-ping opacity-75" />
+                </div>
+              </div>
+              
+              {/* Success Message */}
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold text-green-700">Successfully Connected!</h2>
+                <p className="text-muted-foreground">{message}</p>
+                
+                {/* Connected Platforms */}
+                {connectedPlatforms.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Connected platforms:</p>
+                    <div className="flex justify-center gap-2">
+                      {connectedPlatforms.map((platform) => (
+                        <div key={platform} className="flex items-center gap-1 px-3 py-1 bg-green-50 rounded-full">
+                          {platform === 'facebook' && <Facebook className="w-4 h-4 text-blue-600" />}
+                          {platform === 'instagram' && <Instagram className="w-4 h-4 text-purple-600" />}
+                          <span className="text-sm font-medium capitalize">{platform}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Taking you to your accounts...</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/social-accounts')}
+                  className="w-full"
+                >
+                  Continue to Accounts
+                </Button>
+              </div>
+            </div>
           )}
           
           {status === 'error' && (
-            <>
-              <AlertCircle className="h-12 w-12 text-red-600 mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Connection Failed</h2>
-              <p className="text-gray-600 text-center">{message}</p>
-              <p className="text-sm text-gray-500 mt-2">Taking you back to try again...</p>
-            </>
+            <div className="text-center space-y-6">
+              {/* Error Icon */}
+              <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                <AlertCircle className="h-12 w-12 text-red-600" />
+              </div>
+              
+              {/* Error Message */}
+              <div className="space-y-3">
+                <h2 className="text-2xl font-bold text-red-700">Connection Failed</h2>
+                <p className="text-muted-foreground">{message}</p>
+              </div>
+              
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                <Button 
+                  onClick={() => navigate('/social-accounts')}
+                  className="w-full"
+                >
+                  Try Again
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/social-accounts')}
+                  className="w-full"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Accounts
+                </Button>
+              </div>
+              
+              <p className="text-xs text-muted-foreground">
+                Redirecting automatically in a few seconds...
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>

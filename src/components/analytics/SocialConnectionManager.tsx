@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { fetchOAuthConfig } from "@/lib/api/oauth";
+import { showConnectionSuccessToast } from "../social/ConnectionSuccessToast";
 
 interface SocialConnection {
   id: string;
@@ -35,10 +36,10 @@ export const SocialConnectionManager = () => {
     const successData = sessionStorage.getItem('social_connection_success');
     if (successData) {
       try {
-        const { message, timestamp } = JSON.parse(successData);
+        const data = JSON.parse(successData);
         // Only refresh if it's recent (within 30 seconds)
-        if (Date.now() - timestamp < 30000) {
-          toast.success(message);
+        if (Date.now() - data.timestamp < 30000) {
+          showConnectionSuccessToast(data);
           fetchConnections(); // Refresh connections
         }
         sessionStorage.removeItem('social_connection_success');

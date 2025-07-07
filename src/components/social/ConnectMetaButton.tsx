@@ -4,6 +4,8 @@ import { Facebook, Instagram } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchOAuthConfig } from '@/lib/api/oauth';
+import { OAuthLoadingOverlay } from './OAuthLoadingOverlay';
+import { showConnectionSuccessToast } from './ConnectionSuccessToast';
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
@@ -11,6 +13,7 @@ interface ConnectMetaButtonProps {
 
 export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting'>('preparing');
   const [unavailable, setUnavailable] = useState(false);
   const { user } = useAuth();
 
@@ -19,9 +22,10 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     const successData = sessionStorage.getItem('social_connection_success');
     if (successData) {
       try {
-        const { message, timestamp } = JSON.parse(successData);
-        if (Date.now() - timestamp < 30000) {
-          toast.success(message);
+        const data = JSON.parse(successData);
+        if (Date.now() - data.timestamp < 30000) {
+          // Show enhanced success toast
+          showConnectionSuccessToast(data);
           onSuccess();
         }
         sessionStorage.removeItem('social_connection_success');
@@ -38,6 +42,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     }
 
     setLoading(true);
+    setLoadingStep('preparing');
     
     try {
       // Clear any previous OAuth state
@@ -87,6 +92,12 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
         timestamp: new Date().toISOString()
       });
       
+      // Show redirecting step
+      setLoadingStep('redirecting');
+      
+      // Small delay to show the redirecting message
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
       // Redirect to Facebook OAuth
       window.location.href = authUrl.toString();
       
@@ -109,15 +120,18 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   }
 
   return (
-    <Button 
-      onClick={handleConnect} 
-      disabled={loading || !user}
-      className="w-full bg-primary hover:bg-primary/90"
-      size="lg"
-    >
-      <Facebook className="h-4 w-4" />
-      <Instagram className="h-4 w-4" />
-      {loading ? 'Connecting...' : 'Connect Meta'}
-    </Button>
+    <>
+      <OAuthLoadingOverlay isVisible={loading} step={loadingStep} />
+      <Button 
+        onClick={handleConnect} 
+        disabled={loading || !user}
+        className="w-full bg-primary hover:bg-primary/90"
+        size="lg"
+      >
+        <Facebook className="h-4 w-4" />
+        <Instagram className="h-4 w-4" />
+        {loading ? 'Connecting...' : 'Connect Meta'}
+      </Button>
+    </>
   );
 };
