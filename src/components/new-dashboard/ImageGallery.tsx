@@ -7,6 +7,7 @@ import { extractKeywords } from '@/utils/imageKeywords';
 import { ImageGalleryHeader } from './ImageGalleryHeader';
 import { ImageGalleryGrid } from './ImageGalleryGrid';
 import { ImageModal } from './ImageModal';
+import { extractDynamicQuery, getEnhancedTopicForPostType } from '@/utils/dynamicImageSearch';
 
 interface ImageGalleryProps {
   selectedDraft: any;
@@ -20,47 +21,19 @@ interface UnsplashImage {
   photographer: string;
 }
 
-// Build content-focused search query with garden center context
+// Build dynamic content-focused search query using new utility
 const buildContentQuery = (draft: any): string => {
-  const content = draft?.ai_output || draft?.prompt || '';
-  
-  console.log('[IMAGE_GALLERY] ===== DEBUGGING QUERY BUILDING =====');
-  console.log('[IMAGE_GALLERY] Draft content:', content?.substring(0, 200) + '...');
+  console.log('[IMAGE_GALLERY] ===== BUILDING DYNAMIC QUERY =====');
+  console.log('[IMAGE_GALLERY] Draft content:', draft?.ai_output?.substring(0, 200) + '...');
   console.log('[IMAGE_GALLERY] Post type:', draft?.post_type);
   
-  const keywords = extractKeywords(content, 'garden center plants nursery');
+  // Use the new dynamic query extraction
+  const dynamicQuery = getEnhancedTopicForPostType(draft, draft?.campaigns);
   
-  console.log('[IMAGE_GALLERY] Extracted keywords from content:', keywords);
-
-  // Always ensure garden center context is included and validate
-  let finalQuery = keywords;
+  console.log('[IMAGE_GALLERY] Dynamic query result:', dynamicQuery);
+  console.log('[IMAGE_GALLERY] ===== END BUILDING =====');
   
-  // Add post type context if it helps
-  if (draft?.post_type && !keywords.toLowerCase().includes(draft.post_type.toLowerCase())) {
-    const postTypeContext = {
-      instagram: 'social media gardening',
-      facebook: 'community gardening',
-      newsletter: 'garden center business',
-      email: 'gardening tips',
-      video: 'garden demonstration'
-    };
-    
-    const context = postTypeContext[draft.post_type] || 'gardening lifestyle';
-    finalQuery = `${keywords} ${context}`;
-  }
-
-  // Final validation - ensure query is garden center related
-  const hasGardenTerms = /\b(garden|plant|nursery|flower|grow|seed|soil|compost|fertilizer|mulch|prune|water|harvest|bloom|vegetable|herb|tree|shrub)\b/i.test(finalQuery);
-  
-  if (!hasGardenTerms) {
-    console.warn('[IMAGE_GALLERY] Query lacks garden terms, forcing garden center context');
-    finalQuery = `garden center plants nursery ${finalQuery}`;
-  }
-
-  console.log('[IMAGE_GALLERY] Final validated garden center query:', finalQuery);
-  console.log('[IMAGE_GALLERY] ===== END DEBUGGING =====');
-  
-  return finalQuery;
+  return dynamicQuery;
 };
 
 // Curated garden center specific fallback queries
@@ -125,7 +98,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
 
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
-          query,
+          query: query,
           maxImages: 4,
           orientation: 'squarish',
           orderBy: 'relevant',
@@ -140,7 +113,7 @@ export const ImageGallery = ({ selectedDraft }: ImageGalleryProps) => {
         
         // Try a more specific garden center query as fallback
         console.log('[IMAGE_GALLERY] Trying garden center specific fallback query...');
-        const gardenCenterQuery = getGardenCenterFallback(selectedDraft?.post_type || 'instagram');
+        const gardenCenterQuery = `${query} garden center`;
         console.log('[IMAGE_GALLERY] Fallback query:', gardenCenterQuery);
         
         const fallbackData = await supabase.functions.invoke('fetch-unsplash-images', {

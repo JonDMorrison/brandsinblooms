@@ -8,6 +8,7 @@ import { Search, ExternalLink, Download, Check, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { extractDynamicQuery } from '@/utils/dynamicImageSearch';
 
 interface UnsplashImage {
   id: string;
@@ -45,15 +46,27 @@ interface UnsplashPickerProps {
     unsplash_id: string;
   }) => void;
   initialQuery?: string;
+  task?: any; // Content task for dynamic search
+  campaign?: any; // Campaign data for context
 }
 
 export const UnsplashPicker: React.FC<UnsplashPickerProps> = ({
   isOpen,
   onClose,
   onSelect,
-  initialQuery = ''
+  initialQuery = '',
+  task,
+  campaign
 }) => {
-  const [query, setQuery] = useState(initialQuery);
+  // Extract dynamic query when component opens
+  const getDynamicQuery = () => {
+    if (task || campaign) {
+      return extractDynamicQuery(task, campaign) || initialQuery || 'garden center';
+    }
+    return initialQuery || 'garden center';
+  };
+  
+  const [query, setQuery] = useState('');
   const [images, setImages] = useState<UnsplashImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -215,13 +228,16 @@ export const UnsplashPicker: React.FC<UnsplashPickerProps> = ({
     }
   }, [isOpen]);
 
-  // Initial search with query
+  // Initialize with dynamic query when opened
   useEffect(() => {
-    if (isOpen && initialQuery) {
-      setQuery(initialQuery);
-      searchImages(initialQuery, 1, false);
+    if (isOpen) {
+      const dynamicQuery = getDynamicQuery();
+      setQuery(dynamicQuery);
+      if (dynamicQuery && dynamicQuery.trim()) {
+        searchImages(dynamicQuery, 1, false);
+      }
     }
-  }, [isOpen, initialQuery, searchImages]);
+  }, [isOpen, searchImages]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

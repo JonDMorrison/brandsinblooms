@@ -69,10 +69,6 @@ export function extractImageKeyword(content: string): string {
     .filter(word => word.length > 3 && !commonWords.includes(word))
     .slice(0, 3); // Take first 3 meaningful words
   
-  // Fallback to generic garden center terms if no meaningful words found
-  if (words.length === 0) {
-    return 'garden plants flowers';
-  }
-  
+  // Return extracted keywords or empty string (let caller handle fallback)
   return words.join(' ');
 }

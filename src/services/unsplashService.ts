@@ -9,10 +9,11 @@ export interface UnsplashImage {
   unsplash_id?: string;
 }
 
-export async function fetchSmartImage(keyword: string, context = ''): Promise<UnsplashImage | null> {
+export async function fetchSmartImage(keyword: string, context = '', useRawKeyword = false): Promise<UnsplashImage | null> {
   try {
-    // Build smart query with garden center context
-    const query = `${keyword} ${context} garden center nursery plants`.trim();
+    // Use keyword as-is if useRawKeyword is true, otherwise enhance with garden context
+    const query = useRawKeyword ? keyword.trim() : 
+      `${keyword} ${context}`.trim() || 'garden center nursery plants';
     
     console.log(`[UNSPLASH] Fetching smart image for: "${query}"`);
     

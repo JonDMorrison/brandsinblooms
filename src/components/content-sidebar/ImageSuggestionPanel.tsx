@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { ImageCarousel } from '@/components/ui/image-carousel';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { Search, Image, RefreshCw } from 'lucide-react';
+import { extractDynamicQuery } from '@/utils/dynamicImageSearch';
 
 interface ImageSuggestionPanelProps {
   task: any;
@@ -16,18 +17,10 @@ export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPan
   const { images, loading, query, hasStoredImages, fetchNewImages, shuffleImages, usingPlaceholders } = useImageSuggestions(task?.id);
   const [searchInput, setSearchInput] = useState('');
 
-  // Extract keywords from campaign theme or post type
+  // Extract dynamic query from task content using the new utility
   const getInitialQuery = () => {
-    if (campaignTheme) {
-      // Remove common words and extract meaningful keywords
-      const cleanTheme = campaignTheme
-        .toLowerCase()
-        .replace(/week \d+/g, '')
-        .replace(/\b(the|and|or|of|in|on|at|to|for|with|by)\b/g, '')
-        .trim();
-      return cleanTheme || task?.post_type || 'garden';
-    }
-    return task?.post_type || 'garden';
+    const campaign = campaignTheme ? { theme: campaignTheme } : task?.campaigns;
+    return extractDynamicQuery(task, campaign);
   };
 
   const handleSearch = () => {
