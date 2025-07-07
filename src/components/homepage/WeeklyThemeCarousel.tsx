@@ -409,7 +409,7 @@ export const WeeklyThemeCarousel = ({
                     </Button>
 
                     {/* Current Theme Card */}
-                    <div className="premium-gradient rounded-2xl p-8 shadow-lg backdrop-blur-sm mx-4 lg:mx-8 lg:col-span-2">
+                    <div className="mx-4 lg:mx-8 lg:col-span-2">
                       {currentTheme && (
                         <div className="flex flex-col items-center text-center">
                           {/* Premium Glass Icon Medallion */}
