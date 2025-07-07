@@ -458,20 +458,6 @@ export const WeeklyThemeCarousel = ({
                           </div>
 
                           {/* Premium Tag Pills */}
-                          <div className="flex items-center gap-3 mb-6 flex-wrap justify-center">
-                            <span className={`px-3 py-1 rounded-lg text-sm font-semibold opacity-90 ${getCategoryColor(currentTheme.category)}`}>
-                              {getCategoryLabel(currentTheme.category)}
-                            </span>
-                            
-                            <span className={`px-3 py-1 rounded-lg text-sm font-semibold opacity-90 ${getTimingColor(currentTheme.label)} flex items-center gap-1`}>
-                              {currentTheme.label === 'Past' && <Calendar className="w-3 h-3" />}
-                              {currentTheme.label === 'Current' && <Clock className="w-3 h-3" />}
-                              {currentTheme.label === 'Future' && <Calendar className="w-3 h-3" />}
-                              {currentTheme.label === 'Past' && 'Past Week'}
-                              {currentTheme.label === 'Current' && 'This Week'}
-                              {currentTheme.label === 'Future' && 'Coming Up'}
-                            </span>
-                          </div>
 
                           {/* Theme Title */}
                           <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3 max-w-lg">
