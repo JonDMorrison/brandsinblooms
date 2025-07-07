@@ -100,25 +100,32 @@ const buildSmartQuery = (keywords: string[], postType: string, campaignTitle?: s
 
   // Build primary query from top keywords
   let query = keywords.slice(0, 2).join(' ');
-
-  // Add context based on primary keyword themes
   const primaryKeyword = keywords[0].toLowerCase();
+
+  // Check if primary keyword is a specific flower - if so, keep it pure without diluting terms
+  const specificFlowerRegex = /\b(hydrangea|hydrangeas|zinnia|marigold|petunia|impatiens|sunflower|dahlia|cosmos|salvia|begonia|geranium|pansy|violet|rose|roses|tulip|tulips|daffodil|daffodils|lily|lilies|chrysanthemum|azalea|rhododendron)\b/gi;
   
-  if (/ice.?cream|frozen|dessert|sweet/.test(primaryKeyword)) {
-    query += ' photography fresh';
-  } else if (/plant|flower|garden|bloom/.test(primaryKeyword)) {
-    // Don't add redundant "garden" terms if keywords already contain garden-related words
-    if (!query.toLowerCase().includes('garden')) {
-      query += ' garden';
-    }
-  } else if (/outdoor|patio|landscape/.test(primaryKeyword)) {
-    query += ' outdoor space';
-  } else if (/tool|equipment/.test(primaryKeyword)) {
-    query += ' tools equipment';
+  if (specificFlowerRegex.test(primaryKeyword)) {
+    // For specific flowers, use the pure flower name to avoid confusion (e.g., "hydrangeas" not "hydrangeas garden")
+    console.log('[IMAGE_HOOK] Using specific flower query without additional context:', query);
   } else {
-    // Generic garden center context only if not already garden-related
-    if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant')) {
-      query += ' garden center';
+    // Add context based on primary keyword themes for non-specific terms
+    if (/ice.?cream|frozen|dessert|sweet/.test(primaryKeyword)) {
+      query += ' photography fresh';
+    } else if (/plant|flower|garden|bloom/.test(primaryKeyword)) {
+      // Don't add redundant "garden" terms if keywords already contain garden-related words
+      if (!query.toLowerCase().includes('garden')) {
+        query += ' garden';
+      }
+    } else if (/outdoor|patio|landscape/.test(primaryKeyword)) {
+      query += ' outdoor space';
+    } else if (/tool|equipment/.test(primaryKeyword)) {
+      query += ' tools equipment';
+    } else {
+      // Generic garden center context only if not already garden-related
+      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant')) {
+        query += ' garden center';
+      }
     }
   }
 
