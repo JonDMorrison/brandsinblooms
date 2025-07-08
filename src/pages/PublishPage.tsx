@@ -472,15 +472,6 @@ const PublishPage = () => {
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
               </TabsList>
               
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDebugger(true)}
-                className="text-xs"
-              >
-                <Zap className="w-4 h-4 mr-1" />
-                Debug
-              </Button>
             </div>
           </div>
 
