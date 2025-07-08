@@ -1,20 +1,10 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Navigate } from 'react-router-dom';
 
 const TestPage = () => {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Test Page</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Test functionality coming soon...</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  // Redirect test page to main dashboard in production
+  return <Navigate to="/" replace />;
 };
 
 export default TestPage;

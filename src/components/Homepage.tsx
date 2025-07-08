@@ -23,7 +23,6 @@ const HomepageContent = () => {
   const [showQuickstart, setShowQuickstart] = useState(false);
 
   const handleTaskUpdate = () => {
-    console.log('🔄 Refreshing content data...');
     refreshData();
   };
 

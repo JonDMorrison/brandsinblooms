@@ -2,6 +2,7 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 @import './components/smart-time/smart-time.css';
+@import './styles/overrides/production-cleanup.css';
 
 /* Checkered background pattern for image transparency */
 .bg-checkered {

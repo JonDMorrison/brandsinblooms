@@ -1,0 +1,35 @@
+/* Production cleanup styles */
+
+/* Remove any floating chat widgets or third-party elements */
+[class*="elfsight"],
+[class*="chat-widget"],
+[class*="floating-widget"],
+.fixed.bottom-4.right-4:not([data-app]),
+.fixed.top-4.right-4:not([data-app]),
+iframe[src*="elfsight"],
+iframe[src*="chat"] {
+  display: none !important;
+}
+
+/* Ensure no unwanted floating elements appear */
+body > div:last-child:not(#root):not([id]):not([class*="sonner"]):not([data-radix]) {
+  display: none !important;
+}
+
+/* Hide any potential third-party floating elements */
+div[style*="position: fixed"]:not([data-app]):not([class*="sonner"]):not([data-radix]) {
+  display: none !important;
+}
+
+/* Performance optimizations */
+img[loading="lazy"] {
+  transition: opacity 0.2s ease-in-out;
+}
+
+img[loading="lazy"]:not([src]) {
+  opacity: 0;
+}
+
+img[loading="lazy"][src] {
+  opacity: 1;
+}

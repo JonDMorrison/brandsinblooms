@@ -27,9 +27,8 @@ export const SubscriptionGate = ({
   // Check if current user is a developer with super admin access
   const isDeveloper = user?.email ? isSuperAdmin(user.email) : false;
 
-  // Developer bypass: always allow access for super admins
+  // Production feature access control for super admins
   if (isDeveloper) {
-    console.log('SubscriptionGate: Developer bypass for feature:', feature);
     return <>{children}</>;
   }
 

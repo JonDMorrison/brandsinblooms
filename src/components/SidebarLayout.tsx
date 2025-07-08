@@ -39,8 +39,8 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
       {/* Floating FAB for Help + Notifications */}
       <FloatingFAB 
         notificationCount={0} 
-        onHelpClick={() => console.log('Help clicked')}
-        onNotificationClick={() => console.log('Notifications clicked')}
+        onHelpClick={() => {/* Help functionality */}}
+        onNotificationClick={() => {/* Notification functionality */}}
       />
     </SidebarProvider>
   );

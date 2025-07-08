@@ -33,7 +33,7 @@ export class NetworkErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Network Error Boundary caught an error:', error, errorInfo);
+    // Network error tracking would go here in production
   }
 
   render() {

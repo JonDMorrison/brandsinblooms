@@ -88,7 +88,6 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
         title: "Error completing tasks.",
         description: "Failed to complete selected tasks. Please try again.",
       })
-      console.error("Error completing tasks:", error);
     } finally {
       setBulkCompleteLoading(false);
     }
@@ -126,32 +125,27 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
         title: "Error deleting tasks.",
         description: "Failed to delete selected tasks. Please try again.",
       })
-      console.error("Error deleting tasks:", error);
     } finally {
       setBulkDeleteLoading(false);
     }
   };
 
   const handleTaskClick = (task: any) => {
-    console.log('Task clicked for modal:', task);
     setSelectedTaskForModal(task);
     setContentModalOpen(true);
   };
 
   const handleTaskLongPress = (task: any) => {
-    console.log('Task long pressed for drag:', task);
     handleDragStart(task);
   };
 
   const handleCampaignClick = (campaign: any) => {
-    console.log('Campaign clicked for modal:', campaign);
     setSelectedCampaignForModal(campaign);
     setCampaignModalOpen(true);
   };
 
   const handleDateClick = (date: Date) => {
-    // TODO: Implement date modal
-    console.log('Date clicked:', date);
+    // Date modal functionality to be implemented
   };
 
   const isTaskSelected = (task: any) => {

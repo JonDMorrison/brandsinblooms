@@ -15,22 +15,11 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const [timeoutReached, setTimeoutReached] = useState(false);
   const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
 
-  console.log('🛡️ OnboardingGuard: State check', {
-    user: user?.id,
-    authLoading,
-    onboardingLoading,
-    isCompleted,
-    timeoutReached,
-    hasCheckedOnce,
-    onboardingError,
-    currentPath: window.location.pathname,
-    timestamp: new Date().toISOString()
-  });
+  // Production ready state check
 
   // Add timeout to prevent infinite loading
   useEffect(() => {
     const timeout = setTimeout(() => {
-      console.warn('⚠️ OnboardingGuard: Loading timeout reached - forcing fallback');
       setTimeoutReached(true);
     }, 5000); // Reduced timeout to 5 seconds
 
@@ -50,7 +39,6 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
 
   // Show loading while checking auth or onboarding status (with timeout)
   if (shouldShowLoading) {
-    console.log('⏳ OnboardingGuard: Showing loading state');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -73,7 +61,6 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
 
   // If no user, let the ProtectedRoute handle the redirect
   if (!user) {
-    console.log('🛡️ OnboardingGuard: No user, letting ProtectedRoute handle redirect');
     return <>{children}</>;
   }
 
@@ -86,24 +73,9 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     window.location.pathname !== '/onboarding';
 
   if (shouldRedirectToOnboarding) {
-    console.log('🔄 OnboardingGuard: User needs onboarding, redirecting');
     return <Navigate to="/onboarding" replace />;
   }
 
   // If we have an error, timeout, or onboarding is completed, allow access
-  if (onboardingError || timeoutReached || isCompleted) {
-    if (onboardingError) {
-      console.log('⚠️ OnboardingGuard: Error detected, allowing access:', onboardingError);
-    }
-    if (timeoutReached) {
-      console.log('⚠️ OnboardingGuard: Timeout reached, allowing access to prevent infinite loading');
-    }
-    if (isCompleted) {
-      console.log('✅ OnboardingGuard: Onboarding completed, allowing access');
-    }
-  }
-
-  // If onboarding is completed or we've hit edge cases, show the protected content
-  console.log('✅ OnboardingGuard: Allowing access to protected content');
   return <>{children}</>;
 };

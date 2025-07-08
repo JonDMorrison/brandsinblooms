@@ -1,5 +1,6 @@
 
 import { Textarea } from "@/components/ui/textarea";
+import { SafeHtml } from "@/components/ui/safe-html";
 import { cleanContentForDisplay } from "@/utils/contentUtils";
 import { MagazineNewsletterDisplay } from "./MagazineNewsletterDisplay";
 import { SocialMediaPostPreview } from "@/components/content/task-item/SocialMediaPostPreview";
@@ -56,9 +57,10 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
           ) : isStructuredNewsletter ? (
             <MagazineNewsletterDisplay content={content} />
           ) : (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
-            <div 
+            <SafeHtml
+              content={cleanContentForDisplay(content, task?.post_type)}
               className="text-sm prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{ __html: cleanContentForDisplay(content, task?.post_type) }}
+              type="social"
             />
           ) : (
             <div className="text-sm whitespace-pre-wrap">
