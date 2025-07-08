@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface MetricCardProps {
   title: string;
@@ -29,19 +30,8 @@ export const MetricCard = ({
   suffix = "",
   prefix = ""
 }: MetricCardProps) => {
-  const handleClick = () => {
-    if (clickable && href) {
-      console.log(`Navigate to: ${href}`);
-    }
-  };
-
-  return (
-    <Card 
-      className={`${borderColor} ${bgColor} rounded-xl transition-all duration-200 ${
-        clickable ? 'cursor-pointer hover:shadow-md hover:scale-105' : ''
-      }`}
-      onClick={handleClick}
-    >
+  const cardContent = (
+    <>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-gray-600">{title}</CardTitle>
         <Icon className="h-5 w-5 text-gray-400" />
@@ -52,6 +42,24 @@ export const MetricCard = ({
         </div>
         <p className="text-sm text-gray-500 mt-1">{description}</p>
       </CardContent>
+    </>
+  );
+
+  if (clickable && href) {
+    return (
+      <Link to={href} className="block">
+        <Card 
+          className={`${borderColor} ${bgColor} rounded-xl transition-all duration-200 cursor-pointer hover:shadow-md hover:scale-105`}
+        >
+          {cardContent}
+        </Card>
+      </Link>
+    );
+  }
+
+  return (
+    <Card className={`${borderColor} ${bgColor} rounded-xl transition-all duration-200`}>
+      {cardContent}
     </Card>
   );
 };

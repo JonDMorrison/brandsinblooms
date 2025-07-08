@@ -70,12 +70,22 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
         
         {block.cta && (
           <div className="mt-6">
-            <a 
-              href={block.link || '#'} 
-              className="inline-flex items-center text-primary font-semibold hover:text-primary/80 transition-colors"
-            >
-              {block.cta} →
-            </a>
+            {block.link && block.link.startsWith('http') ? (
+              // External link - use anchor tag
+              <a 
+                href={block.link} 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-primary font-semibold hover:text-primary/80 transition-colors"
+              >
+                {block.cta} →
+              </a>
+            ) : (
+              // Internal link - use span for newsletter content (not navigational)
+              <span className="inline-flex items-center text-primary font-semibold">
+                {block.cta} →
+              </span>
+            )}
           </div>
         )}
       </div>
