@@ -67,7 +67,7 @@ export const CustomContentItem = ({
   };
 
   return (
-    <Card className={`mb-4 hover:shadow-md transition-all duration-300 ${
+    <Card className={`mb-4 hover:shadow-md transition-all duration-300 h-full flex flex-col ${
       isAnimatingOut ? 'animate-[fadeOut_0.5s_ease-out_forwards,scaleDown_0.5s_ease-out_forwards]' : ''
     }`}>
       <CardHeader>
@@ -121,7 +121,7 @@ export const CustomContentItem = ({
           {formatCampaignDate(campaign.created_at)}
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1">
         <div className="space-y-3">
           {campaign.description && (
             <p className="text-sm text-gray-600">{campaign.description}</p>
