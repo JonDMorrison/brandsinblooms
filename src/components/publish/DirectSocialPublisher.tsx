@@ -359,7 +359,11 @@ export const DirectSocialPublisher = ({
         <p className="text-orange-700 text-sm mb-4">
           Connect your Facebook and Instagram accounts to publish content directly
         </p>
-        <Button variant="outline" className="border-orange-300 text-orange-700">
+        <Button 
+          variant="outline" 
+          className="border-orange-300 text-orange-700 hover:bg-orange-100"
+          onClick={() => window.location.href = '/social'}
+        >
           <Settings className="w-4 h-4 mr-2" />
           Connect Accounts
         </Button>

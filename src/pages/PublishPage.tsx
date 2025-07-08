@@ -9,6 +9,9 @@ import { CalendarRibbon } from '@/components/publish/CalendarRibbon';
 import { PublishingCalendarView } from '@/components/publish/PublishingCalendarView';
 import { AnalyticsIntegration } from '@/components/publish/AnalyticsIntegration';
 import { WorkflowAutomation } from '@/components/publish/WorkflowAutomation';
+import { PublishDebugger } from '@/components/publish/PublishDebugger';
+import { PublishMetrics } from '@/components/publish/PublishMetrics';
+import { TestModeToggle } from '@/components/publish/TestModeToggle';
 import { showSuccessToast, triggerCardPulse } from '@/components/publish/SuccessFeedback';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
@@ -16,6 +19,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Calendar, BarChart3, Zap, Grid, Send, Clock } from 'lucide-react';
 import { fetchSmartImage } from '@/services/unsplashService';
 import { ImageAssetManager } from '@/lib/imageAssetManager';
@@ -62,6 +66,9 @@ const PublishPage = () => {
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('publisher');
+  const [showDebugger, setShowDebugger] = useState(false);
+  const [metricsRefresh, setMetricsRefresh] = useState(0);
+  const [testMode, setTestMode] = useState(false);
 
   // Function to fetch images for multiple content items
   const fetchImagesForContent = async (content: GeneratedContent[]): Promise<GeneratedContent[]> => {
@@ -239,6 +246,7 @@ const PublishPage = () => {
       // Refresh data
       await refetch();
       await initializePublishData();
+      setMetricsRefresh(prev => prev + 1);
       
     } catch (error) {
       console.error('Error scheduling post:', error);
@@ -253,7 +261,24 @@ const PublishPage = () => {
     platforms: string[];
   }) => {
     try {
-      console.log('🚀 Publishing now:', publishDataPayload);
+      console.log('🚀 Publishing now:', publishDataPayload, { testMode });
+      
+      // If in test mode, simulate the publish
+      if (testMode) {
+        console.log('🧪 TEST MODE: Simulating publish...');
+        
+        // Simulate processing time
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Mock successful response
+        toast.success(`✅ TEST: Successfully simulated publishing to ${publishDataPayload.platforms.length} platform(s)!`);
+        showSuccessToast('published');
+        triggerCardPulse(publishDataPayload.contentId);
+        
+        // Refresh data
+        setMetricsRefresh(prev => prev + 1);
+        return;
+      }
       
       // Call our new publish-task endpoint
       const { data, error } = await supabase.functions.invoke('publish-task', {
@@ -290,6 +315,7 @@ const PublishPage = () => {
       // Refresh data
       await refetch();
       await initializePublishData();
+      setMetricsRefresh(prev => prev + 1);
       
     } catch (error) {
       console.error('Error publishing post:', error);
@@ -392,28 +418,32 @@ const PublishPage = () => {
         {/* Enhanced Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
           <div className="px-4 sm:px-6 py-3 bg-white border-b">
-            <TabsList className="grid w-full max-w-lg grid-cols-4">
-              <TabsTrigger value="publisher" className="flex items-center gap-2">
-                <Send className="w-4 h-4" />
-                Publisher
-              </TabsTrigger>
-              <TabsTrigger value="dashboard" className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger value="calendar" className="flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                Calendar
-              </TabsTrigger>
-              <TabsTrigger value="automation" className="flex items-center gap-2">
-                <Zap className="w-4 h-4" />
-                Automation
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between">
+              <TabsList className="grid w-full max-w-md grid-cols-3">
+                <TabsTrigger value="publisher">Publisher</TabsTrigger>
+                <TabsTrigger value="calendar">Calendar</TabsTrigger>
+                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              </TabsList>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDebugger(true)}
+                className="text-xs"
+              >
+                <Zap className="w-4 h-4 mr-1" />
+                Debug
+              </Button>
+            </div>
           </div>
 
           <div className="p-4 sm:p-6">
-            <TabsContent value="publisher" className="mt-0">
+            <TabsContent value="publisher" className="space-y-6 mt-6">
+              {/* Test Mode Toggle */}
+              <TestModeToggle onTestModeChange={setTestMode} />
+              
+              {/* Metrics Overview */}
+              <PublishMetrics refreshTrigger={metricsRefresh} />
               <div className="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-20rem)]">
                 {/* Left Panel - Enhanced Content Library */}
                 <div className="w-full lg:w-96 xl:w-[420px] flex-shrink-0">
@@ -434,18 +464,16 @@ const PublishPage = () => {
                     onPublishSuccess={() => {
                       refetch();
                       initializePublishData();
+                      setMetricsRefresh(prev => prev + 1);
                     }}
                     onScheduleSuccess={() => {
                       refetch();
                       initializePublishData();
+                      setMetricsRefresh(prev => prev + 1);
                     }}
                   />
                 </div>
               </div>
-            </TabsContent>
-
-            <TabsContent value="dashboard" className="mt-0">
-              <ModernPublishDashboard />
             </TabsContent>
 
             <TabsContent value="calendar" className="mt-0">
@@ -456,23 +484,26 @@ const PublishPage = () => {
               />
             </TabsContent>
 
-
-            <TabsContent value="automation" className="mt-0">
-              <WorkflowAutomation
-                onRuleUpdate={handleAutomationUpdate}
-              />
+            <TabsContent value="analytics" className="mt-0">
+              <ModernPublishDashboard />
             </TabsContent>
           </div>
         </Tabs>
 
-        {/* Composer Drawer */}
+        {/* ComposerDrawer for scheduling */}
         <ComposerDrawer
           isOpen={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           selectedContent={selectedContent}
           socialConnections={publishData?.socialConnections || []}
           onSchedule={handleSchedulePost}
-          onPublishNow={handlePublishNow}
+          onPublishNow={() => {}}
+        />
+
+        {/* Debug Tool */}
+        <PublishDebugger 
+          isVisible={showDebugger}
+          onClose={() => setShowDebugger(false)}
         />
       </div>
     </SidebarLayout>

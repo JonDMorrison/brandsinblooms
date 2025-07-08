@@ -126,7 +126,19 @@ const EnhancedStatusBadge = ({ status }: { status: string }) => {
   
   const config = getStatusConfig(status);
   
-  return null;
+  return (
+    <Badge 
+      variant="outline" 
+      className={cn(
+        "text-xs border flex items-center gap-1",
+        config.color,
+        config.pulse && "animate-pulse"
+      )}
+    >
+      {config.icon}
+      {status}
+    </Badge>
+  );
 };
 
 // Quick action buttons for each content item
