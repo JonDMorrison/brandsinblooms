@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Settings,
   ChevronDown,
+  Send,
   LucideIcon,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -70,7 +71,7 @@ const AppSidebar: React.FC = () => {
     {
       title: "Publish Portal",
       url: "/publish",
-      icon: Share2,
+      icon: Send,
     },
     {
       title: "Calendar",
