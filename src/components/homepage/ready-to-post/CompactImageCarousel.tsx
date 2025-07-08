@@ -26,11 +26,17 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
       console.log('[COMPACT_CAROUSEL] Task content preview:', task.ai_output?.substring(0, 100));
       console.log('[COMPACT_CAROUSEL] Campaign theme:', campaignTheme);
       
-      // Use smart analysis - pass content and campaign info
-      fetchNewImages('', task.id, task.post_type, task.ai_output, campaignTheme);
+      // Add a small delay to prevent race conditions with other image fetching
+      const timeoutId = setTimeout(() => {
+        if (images.length === 0) { // Double-check images haven't loaded from elsewhere
+          fetchNewImages('', task.id, task.post_type, task.ai_output, campaignTheme);
+        }
+      }, 100);
+      
       setHasAutoFetched(true);
+      return () => clearTimeout(timeoutId);
     }
-  }, [task?.id, images.length, loading, hasAutoFetched, task?.ai_output, campaignTheme]);
+  }, [task?.id, images.length, loading, hasAutoFetched]);
 
   const handleDownload = (imageUrl: string, photographer: string, event: React.MouseEvent) => {
     event.stopPropagation();

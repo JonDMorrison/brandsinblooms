@@ -174,6 +174,12 @@ export const useImageSuggestions = (contentTaskId?: string, postType?: string) =
   };
 
   const fetchNewImages = async (searchQuery: string, taskId?: string, contentType?: string, content?: string, campaignTitle?: string) => {
+    // Prevent redundant fetches if we already have stored images
+    if (hasStoredImages && images.length > 0 && !searchQuery) {
+      console.log('[IMAGE_HOOK] Skipping fetch - already have stored images');
+      return;
+    }
+
     setLoading(true);
     console.log('[IMAGE_HOOK] Fetching NEW images with params:', { searchQuery, contentType, campaignTitle });
     
