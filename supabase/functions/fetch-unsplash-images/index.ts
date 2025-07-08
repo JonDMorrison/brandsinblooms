@@ -23,7 +23,7 @@ serve(async (req) => {
       contentTaskId, 
       maxImages = 4,
       orientation = 'squarish',
-      orderBy = 'popular',
+      orderBy = 'relevant', // Changed from 'popular' to 'relevant' for better quality
       contentFilter = 'high'
     } = await req.json();
 
@@ -97,19 +97,31 @@ serve(async (req) => {
     // Limit to exactly maxImages
     const limitedImages = images.slice(0, maxImages);
 
-    // Validate image relevance
+    // Enhanced image validation and filtering
     const validImages = limitedImages.filter(image => {
       const alt = (image.alt_description || '').toLowerCase();
       const desc = (image.description || '').toLowerCase();
       const tags = image.tags?.map(t => t.title.toLowerCase()).join(' ') || '';
       
       const content = `${alt} ${desc} ${tags}`;
+      const queryWords = query.toLowerCase().split(' ');
       
-      // Check for problematic content
-      const hasProblematicContent = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i.test(content);
-      
-      if (hasProblematicContent) {
+      // Check for problematic content (expanded list)
+      const problematicTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number|people|person|human|face|portrait|indoor|office|computer|technology)\b/i;
+      if (problematicTerms.test(content)) {
         console.warn(`[UNSPLASH] Filtering out irrelevant image: ${image.id} - ${alt}`);
+        return false;
+      }
+      
+      // Positive validation - ensure garden/plant relevance
+      const gardenTerms = ['garden', 'plant', 'flower', 'bloom', 'nursery', 'botanical', 'leaf', 'green', 'nature', 'outdoor'];
+      const hasGardenContext = gardenTerms.some(term => content.includes(term));
+      
+      // Check for query word matches
+      const hasQueryMatch = queryWords.some(word => word.length > 2 && content.includes(word));
+      
+      if (!hasGardenContext && !hasQueryMatch) {
+        console.warn(`[UNSPLASH] Filtering out non-relevant image: ${image.id} - no garden context or query match`);
         return false;
       }
       

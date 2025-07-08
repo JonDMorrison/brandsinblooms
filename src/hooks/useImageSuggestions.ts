@@ -88,7 +88,7 @@ const extractKeywordsFromContent = (content: string, campaignTitle?: string): st
   return words.length > 0 ? words : ['garden center'];
 };
 
-// Build smart search query based on content analysis
+// Build smart search query based on content analysis with improved deduplication
 const buildSmartQuery = (keywords: string[], postType: string, campaignTitle?: string): string => {
   console.log('[IMAGE_HOOK] Building query with keywords:', keywords, 'type:', postType);
 
@@ -98,39 +98,44 @@ const buildSmartQuery = (keywords: string[], postType: string, campaignTitle?: s
     return fallback;
   }
 
-  // Build primary query from top keywords
-  let query = keywords.slice(0, 2).join(' ');
-  const primaryKeyword = keywords[0].toLowerCase();
+  // Remove duplicates and build primary query from unique keywords
+  const uniqueKeywords = [...new Set(keywords.map(k => k.toLowerCase()))];
+  let query = uniqueKeywords.slice(0, 2).join(' ');
+  const primaryKeyword = uniqueKeywords[0];
 
-  // Check if primary keyword is a specific flower - if so, keep it pure without diluting terms
+  // Check if primary keyword is a specific flower - if so, keep it pure
   const specificFlowerRegex = /\b(hydrangea|hydrangeas|zinnia|marigold|petunia|impatiens|sunflower|dahlia|cosmos|salvia|begonia|geranium|pansy|violet|rose|roses|tulip|tulips|daffodil|daffodils|lily|lilies|chrysanthemum|azalea|rhododendron)\b/gi;
   
   if (specificFlowerRegex.test(primaryKeyword)) {
-    // For specific flowers, use the pure flower name to avoid confusion (e.g., "hydrangeas" not "hydrangeas garden")
-    console.log('[IMAGE_HOOK] Using specific flower query without additional context:', query);
-  } else {
-    // Add context based on primary keyword themes for non-specific terms
-    if (/ice.?cream|frozen|dessert|sweet/.test(primaryKeyword)) {
-      query += ' photography fresh';
-    } else if (/plant|flower|garden|bloom/.test(primaryKeyword)) {
-      // Don't add redundant "garden" terms if keywords already contain garden-related words
-      if (!query.toLowerCase().includes('garden')) {
-        query += ' garden';
-      }
-    } else if (/outdoor|patio|landscape/.test(primaryKeyword)) {
-      query += ' outdoor space';
+    // For specific flowers, use the pure flower name to get the best results
+    console.log('[IMAGE_HOOK] Using specific flower query:', query);
+    return query;
+  }
+
+  // Check if we already have garden-related context
+  const hasGardenContext = query.includes('garden') || query.includes('plant') || 
+                          query.includes('flower') || query.includes('nursery') ||
+                          query.includes('bloom') || query.includes('botanical');
+
+  if (!hasGardenContext) {
+    // Add minimal context based on primary keyword themes
+    if (/outdoor|patio|landscape/.test(primaryKeyword)) {
+      query += ' outdoor garden';
     } else if (/tool|equipment/.test(primaryKeyword)) {
-      query += ' tools equipment';
+      query += ' garden tools';
     } else {
-      // Generic garden center context only if not already garden-related
-      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant')) {
-        query += ' garden center';
-      }
+      // Add minimal garden context to ensure relevance
+      query += ' garden';
     }
   }
 
-  console.log('[IMAGE_HOOK] Final smart query:', query);
-  return query;
+  // Remove any duplicate words from final query
+  const words = query.split(' ');
+  const uniqueWords = [...new Set(words)];
+  const finalQuery = uniqueWords.join(' ');
+
+  console.log('[IMAGE_HOOK] Final optimized query:', finalQuery);
+  return finalQuery;
 };
 
 export const useImageSuggestions = (contentTaskId?: string, postType?: string) => {

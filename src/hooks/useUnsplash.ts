@@ -27,7 +27,7 @@ export const useUnsplash = () => {
           query,
           maxImages: count,
           orientation: 'squarish',
-          orderBy: 'relevant',
+          orderBy: 'relevant', // Use relevant instead of popular for better quality
           contentFilter: 'high'
         }
       });

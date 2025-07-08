@@ -56,19 +56,34 @@ export const extractKeywords = (raw: string, fallback = 'garden center plants'):
 
   console.log('[KEYWORDS] All found garden center terms:', Array.from(foundTerms));
 
-  // Validate and build query
+  // Validate and build query with smart deduplication
   if (foundTerms.size > 0) {
     const validTerms = Array.from(foundTerms);
     
-    // Build strong garden center query
-    const result = `${validTerms.join(' ')} garden center nursery plants`;
-    console.log('[KEYWORDS] Built garden center query:', result);
+    // Remove duplicates and build smart query
+    const uniqueTerms = [...new Set(validTerms)];
+    const baseTerms = uniqueTerms.slice(0, 3); // Limit to 3 main terms
+    
+    // Check if we already have garden context
+    const hasGardenContext = baseTerms.some(term => 
+      /garden|nursery|plant|flower|bloom|botanical/.test(term)
+    );
+    
+    // Build query without redundant terms
+    let result;
+    if (hasGardenContext) {
+      result = baseTerms.join(' ');
+    } else {
+      result = `${baseTerms.join(' ')} garden center`;
+    }
+    
+    console.log('[KEYWORDS] Built optimized query:', result);
     
     // Validate query doesn't contain irrelevant terms
     const invalidTerms = /\b(ice.?cream|dessert|sweet|food|restaurant|cafe|%|percent|symbol|sign|math|number)\b/i;
     if (invalidTerms.test(result)) {
       console.warn('[KEYWORDS] Query contains invalid terms, using safe fallback');
-      return `${validTerms[0]} garden center plants nursery`;
+      return `${baseTerms[0]} garden center`;
     }
     
     return result;

@@ -105,7 +105,7 @@ function extractKeywordsFromContent(content: string): string {
 function sanitizeQuery(query: string): string {
   if (!query) return 'garden center';
 
-  // Clean up the query
+  // Clean up the query and remove duplicates
   let cleaned = query
     .toLowerCase()
     .trim()
@@ -120,14 +120,22 @@ function sanitizeQuery(query: string): string {
     .replace(/\s+/g, ' ')
     .trim();
 
+  // Remove duplicate words within the query
+  const words = cleaned.split(' ');
+  const uniqueWords = [...new Set(words)];
+  cleaned = uniqueWords.join(' ');
+
   // If query becomes too short, add garden context for relevance
   if (cleaned.length < 3) {
     return 'garden center';
   }
 
-  // Add garden context if it's not already garden-related
+  // Add garden context if it's not already garden-related (avoid duplicates)
   if (!isGardenRelated(cleaned)) {
-    cleaned = `${cleaned} garden center`;
+    // Only add garden context if it's not already there
+    if (!cleaned.includes('garden') && !cleaned.includes('nursery')) {
+      cleaned = `${cleaned} garden nursery`;
+    }
   }
 
   return cleaned;

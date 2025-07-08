@@ -50,8 +50,14 @@ export const useComposerImages = (selectedDraft: any) => {
       
       let query = keywords;
       
-      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
-        query = `${keywords} garden center`;
+      // Smart context addition - avoid duplicates
+      const hasGardenContext = query.toLowerCase().includes('garden') || 
+                              query.toLowerCase().includes('plant') || 
+                              query.toLowerCase().includes('nursery') ||
+                              query.toLowerCase().includes('flower');
+      
+      if (!hasGardenContext) {
+        query = `${keywords} garden`;
       }
       
       console.log('[COMPOSER] Final garden center query:', query);
@@ -101,8 +107,14 @@ export const useComposerImages = (selectedDraft: any) => {
       const keywords = extractKeywords(selectedDraft.ai_output, 'garden center plants');
       let query = keywords;
       
-      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
-        query = `${keywords} garden center`;
+      // Smart context addition - avoid duplicates
+      const hasGardenContext = query.toLowerCase().includes('garden') || 
+                              query.toLowerCase().includes('plant') || 
+                              query.toLowerCase().includes('nursery') ||
+                              query.toLowerCase().includes('flower');
+      
+      if (!hasGardenContext) {
+        query = `${keywords} garden`;
       }
       
       const newImages = await refreshImages(query);
@@ -124,8 +136,13 @@ export const useComposerImages = (selectedDraft: any) => {
     
     try {
       let enhancedQuery = query;
-      if (!query.toLowerCase().includes('garden') && !query.toLowerCase().includes('plant') && !query.toLowerCase().includes('nursery')) {
-        enhancedQuery = `${query} garden center`;
+      const hasGardenContext = query.toLowerCase().includes('garden') || 
+                              query.toLowerCase().includes('plant') || 
+                              query.toLowerCase().includes('nursery') ||
+                              query.toLowerCase().includes('flower');
+      
+      if (!hasGardenContext) {
+        enhancedQuery = `${query} garden`;
       }
       
       const searchResults = await searchImages(enhancedQuery);
