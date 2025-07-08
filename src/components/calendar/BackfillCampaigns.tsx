@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { handleError } from "@/utils/errorHandling";
+import { getDateForWeek } from "@/utils/dateUtils";
 
 interface BackfillCampaignsProps {
   currentCampaignCount: number;
@@ -124,16 +125,15 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
   const saveCampaignsToDatabase = async (themes: any[]) => {
     if (!user) throw new Error('User not authenticated');
 
-    const campaigns = themes.map((theme, index) => {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() + (index * 7));
+    const campaigns = themes.map((theme) => {
+      const weekStartDate = getDateForWeek(theme.week);
       
       return {
         week_number: theme.week,
         title: theme.title,
         theme: theme.title,
         description: theme.description,
-        start_date: startDate.toISOString().split('T')[0],
+        start_date: weekStartDate.toISOString().split('T')[0],
         prompt: theme.content_ideas.join(' • '),
         user_id: user.id,
         source: 'backfill_52_weeks'
