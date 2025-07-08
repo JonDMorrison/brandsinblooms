@@ -218,11 +218,22 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   return (
     <>
       {/* Header Section - Always shown, matches Seasonal Marketing Opportunities pattern */}
-      <div className="flex flex-col gap-2 text-left">
-        <HeadlineLarge className="text-left">Your Approved Posts</HeadlineLarge>
-        <BodyMedium className="text-muted-foreground text-left">
-          Approved content ready for publishing and scheduling
-        </BodyMedium>
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-2 text-left">
+          <HeadlineLarge className="text-left">Your Approved Posts</HeadlineLarge>
+          <BodyMedium className="text-muted-foreground text-left">
+            Approved content ready for publishing and scheduling
+          </BodyMedium>
+        </div>
+        {readyTasks.length > 0 && (
+          <Button 
+            onClick={() => window.location.href = '/publish'}
+            className="flex-shrink-0 inline-flex items-center gap-2 rounded-md bg-mint-600 px-4 py-2 text-white text-sm font-semibold shadow-md transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-mint-600"
+          >
+            <Sparkles className="w-4 h-4" />
+            Open Publish Portal
+          </Button>
+        )}
       </div>
 
       {/* Content Card */}
@@ -257,20 +268,9 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
       ) : (
         <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm" data-section="ready-to-post-section">
           <CardHeader>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <Badge className="px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 text-[11px] font-medium">
-                  {readyTasks.length} items ready
-                </Badge>
-              </div>
-              <Button 
-                onClick={() => window.location.href = '/publish'}
-                className="flex-shrink-0 inline-flex items-center gap-2 rounded-md bg-mint-600 px-4 py-2 text-white text-sm font-semibold shadow-md transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-mint-600"
-              >
-                <Sparkles className="w-4 h-4" />
-                Open Publish Portal
-              </Button>
-            </div>
+            <Badge className="px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 text-[11px] font-medium">
+              {readyTasks.length} items ready
+            </Badge>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Social Connection Status */}
