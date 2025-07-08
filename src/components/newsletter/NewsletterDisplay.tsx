@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { MagazineNewsletterDisplay } from '../content-sidebar/MagazineNewsletterDisplay';
+import { OptimizedNewsletterDisplay } from '../content-sidebar/newsletter/OptimizedNewsletterDisplay';
 import { normalizeTask } from '@/utils/normalizeTask';
 import { validateContentCompliance } from '@/utils/campaignTitleUtils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -154,7 +154,11 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
   
   return (
     <div className="prose lg:prose-lg mx-auto">
-      <MagazineNewsletterDisplay content={displayContent} />
+      <OptimizedNewsletterDisplay 
+        content={displayContent} 
+        contentTaskId={task.id}
+        campaignTitle={task.campaigns?.title}
+      />
     </div>
   );
 };

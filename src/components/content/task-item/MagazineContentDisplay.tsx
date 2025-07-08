@@ -289,115 +289,41 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   };
 
   if (postType === 'newsletter') {
-    // Use the new newsletter processor
-    const processedNewsletter = processNewsletterContent(content, campaignTitle);
+    // Newsletter handling removed from MagazineContentDisplay
+    // All newsletter content should use MagazineNewsletterDisplay instead
+    console.log('[MAGAZINE_DISPLAY] Newsletter detected - this should use MagazineNewsletterDisplay instead');
     
-    if (processedNewsletter.isStructured && processedNewsletter.blocks.length > 0) {
-      // Structured newsletter - show enhanced preview
-      return (
-        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            {getPostTypeIcon()}
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-              Structured Newsletter
-            </Badge>
-          </div>
-
-          {/* Featured Image */}
-          {renderFeaturedImage(
-            "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
-            "Newsletter featured image"
-          )}
-
-          {/* Newsletter Content with proper HTML rendering */}
-          <div className="space-y-6">
-            <div className="text-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900 leading-tight mb-2">
-                {processedNewsletter.meta.theme || 'Newsletter'}
-              </h2>
-              <div className="w-16 h-1 bg-purple-500 mx-auto rounded-full"></div>
-            </div>
-            
-            {/* Render the newsletter_md content with proper HTML formatting */}
-            {processedNewsletter.newsletter_md && (
-              <div className="prose prose-sm max-w-none">
-                <div 
-                  dangerouslySetInnerHTML={{ 
-                    __html: convertNewsletterMarkdownToHtml(processedNewsletter.newsletter_md) 
-                  }} 
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Newsletter Footer */}
-          <div className="mt-6 pt-4 border-t border-purple-200">
-            <p className="text-center text-sm text-purple-600 italic">
-              {processedNewsletter.meta.reading_time} • {processedNewsletter.blocks.length} sections
-            </p>
-          </div>
-
-          {/* Thumbnail Alternatives Section */}
-          {renderThumbnailSection()}
-        </div>
-      );
-    }
-
-    // Fallback for plain text newsletter with proper formatting
-    if (content && content.trim().length > 0) {
-      return (
-        <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            {getPostTypeIcon()}
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-              Newsletter
-            </Badge>
-          </div>
-
-          {/* Featured Image */}
-          {renderFeaturedImage(
-            "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
-            "Newsletter featured image"
-          )}
-
-          {/* Content with proper HTML formatting */}
-          <div className="space-y-4">
-            <div className="prose prose-sm max-w-none">
-              <div 
-                dangerouslySetInnerHTML={{ 
-                  __html: convertNewsletterMarkdownToHtml(content) 
-                }} 
-              />
-            </div>
-          </div>
-
-          {/* Newsletter Footer */}
-          <div className="mt-6 pt-4 border-t border-purple-200">
-            <p className="text-center text-sm text-purple-600 italic">
-              Thanks for reading! 📧
-            </p>
-          </div>
-
-          {/* Thumbnail Alternatives Section */}
-          {renderThumbnailSection()}
-        </div>
-      );
-    }
-
-    // Empty content fallback
     return (
       <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
         <div className="flex items-center gap-3 mb-6">
           {getPostTypeIcon()}
           <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-            Newsletter
+            Newsletter Preview
           </Badge>
         </div>
-        <p className="text-gray-500 italic text-center py-8">
-          Newsletter content is being generated...
-        </p>
+        
+        {/* Simple preview with featured image */}
+        {renderFeaturedImage(
+          "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
+          "Newsletter featured image"
+        )}
+        
+        {/* Simple content preview */}
+        <div className="space-y-4">
+          <div className="prose prose-sm max-w-none">
+            <div 
+              dangerouslySetInnerHTML={{ 
+                __html: convertNewsletterMarkdownToHtml(content.substring(0, 300) + '...') 
+              }} 
+            />
+          </div>
+        </div>
+        
+        <div className="mt-6 pt-4 border-t border-purple-200">
+          <p className="text-center text-sm text-purple-600 italic">
+            Use full newsletter view for complete experience
+          </p>
+        </div>
       </div>
     );
   }

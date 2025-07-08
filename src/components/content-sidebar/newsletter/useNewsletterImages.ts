@@ -37,9 +37,16 @@ export const useNewsletterImages = (
       return;
     }
     
+    // Check if we already have all the images we need
+    const existingImageCount = Object.keys(images).length;
+    if (existingImageCount >= blocks.length) {
+      console.log('[NEWSLETTER] Already have sufficient images, skipping fetch');
+      return;
+    }
+    
     setLoadingImages(true);
     setImageErrors({});
-    console.log('[NEWSLETTER] Starting image fetch for', blocks.length, 'blocks');
+    console.log('[NEWSLETTER] Starting optimized image fetch for', blocks.length, 'blocks with', existingImageCount, 'existing images');
     
     const fetchImages = async () => {
       const imagePromises = blocks.map(async (block, index) => {
@@ -54,7 +61,9 @@ export const useNewsletterImages = (
           const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
             body: { 
               query: block.image_prompt,
-              contentType: 'newsletter'
+              contentType: 'newsletter',
+              maxImages: 1, // Only fetch 1 image per block for efficiency
+              orientation: 'landscape'
             }
           });
           
@@ -106,7 +115,7 @@ export const useNewsletterImages = (
     };
 
     fetchImages();
-  }, [blocks, isPlaceholderContent, contentTaskId]);
+  }, [blocks, isPlaceholderContent, contentTaskId, images]); // Added images dependency for optimization
 
   return {
     images,
