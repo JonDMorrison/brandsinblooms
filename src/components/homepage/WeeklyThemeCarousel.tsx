@@ -49,13 +49,13 @@ export const WeeklyThemeCarousel = ({
   const allThemes = themes;
   const currentTheme = allThemes[currentIndex];
   
-  // Check if there are tasks with content for the current theme being viewed
+  // Improved content detection logic
   const getThemeContentTasks = (theme?: WeeklyTheme) => {
     if (!theme) return [];
     
     // If it's the current week theme and we have a current campaign, check those tasks
     if (theme.isCurrentWeek && currentCampaign) {
-      const campaignTasks = tasks.filter(task => 
+      const campaignTasksWithContent = tasks.filter(task => 
         task.campaign_id === currentCampaign.id && 
         task.ai_output && 
         task.ai_output.trim().length > 0
@@ -65,8 +65,8 @@ export const WeeklyThemeCarousel = ({
         themeId: theme.id,
         currentCampaignId: currentCampaign.id,
         totalTasks: tasks.length,
-        campaignTasksFound: campaignTasks.length,
-        campaignTasksWithContent: campaignTasks.map(t => ({
+        campaignTasksFound: campaignTasksWithContent.length,
+        campaignTasksWithContent: campaignTasksWithContent.map(t => ({
           id: t.id,
           type: t.post_type,
           hasContent: !!t.ai_output,
@@ -75,26 +75,29 @@ export const WeeklyThemeCarousel = ({
         }))
       });
       
-      return campaignTasks;
+      return campaignTasksWithContent;
     }
     
     // For other themes, find tasks with content that match the theme's week
     return tasks.filter(task => {
       const hasContent = task.ai_output && task.ai_output.trim().length > 0;
-      // This is simplified - ideally we'd match by campaign theme/title
       return hasContent;
     });
   };
   
   const currentThemeContentTasks = getThemeContentTasks(currentTheme);
+  const hasCurrentThemeContent = currentThemeContentTasks.length > 0;
   
   console.log('📊 Button state debug:', {
     currentWeek,
     tasksTotal: tasks.length,
     campaignTasksCount: campaignTasks.length,
     currentThemeContentTasksCount: currentThemeContentTasks.length,
+    hasCurrentThemeContent,
     currentThemeIsCurrentWeek: currentTheme?.isCurrentWeek,
-    currentThemeId: currentTheme?.id
+    currentThemeId: currentTheme?.id,
+    isGenerating,
+    generatingTheme
   });
 
   const handlePrevious = () => {
@@ -457,8 +460,6 @@ export const WeeklyThemeCarousel = ({
                             </span>
                           </div>
 
-                          {/* Premium Tag Pills */}
-
                           {/* Theme Title */}
                           <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3 max-w-lg">
                             {currentTheme.title}
@@ -482,8 +483,8 @@ export const WeeklyThemeCarousel = ({
                               </div>
                             ) : (
                               <>
-                                {/* Main CTA Button - Changes based on content state */}
-                                {currentTheme.isCurrentWeek && currentThemeContentTasks.length > 0 ? (
+                                {/* Main CTA Button - Fixed condition for current week with content */}
+                                {currentTheme.isCurrentWeek && hasCurrentThemeContent ? (
                                   <Button 
                                     onClick={handleViewContent}
                                     className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-emerald-200"
