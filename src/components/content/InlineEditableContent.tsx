@@ -29,27 +29,68 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
   };
 
   const handleSave = async () => {
+    console.log('[SAVE] Starting save operation', {
+      taskId: task?.id,
+      hasContent: !!editedContent,
+      contentLength: editedContent?.length,
+      isAuthenticated: !!(await supabase.auth.getUser()).data.user
+    });
+
+    // Enhanced validation
+    if (!task?.id) {
+      console.error('[SAVE] No task ID available');
+      toast.error('Cannot save: Missing task information');
+      return;
+    }
+
     if (!editedContent.trim()) {
+      console.error('[SAVE] Empty content');
       toast.error('Content cannot be empty');
+      return;
+    }
+
+    if (editedContent === task.ai_output) {
+      console.log('[SAVE] No changes detected');
+      toast.success('No changes to save');
       return;
     }
 
     setIsSaving(true);
     try {
-      const { error } = await supabase
+      // Verify user authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        console.error('[SAVE] Authentication error:', authError);
+        toast.error('Please log in to save changes');
+        return;
+      }
+
+      console.log('[SAVE] Updating content_tasks', {
+        taskId: task.id,
+        userId: user.id,
+        newContentLength: editedContent.length
+      });
+
+      const { data, error } = await supabase
         .from('content_tasks')
         .update({ ai_output: editedContent })
-        .eq('id', task.id);
+        .eq('id', task.id)
+        .select();
+
+      console.log('[SAVE] Database response:', { data, error });
 
       if (error) {
-        toast.error('Failed to save content');
+        console.error('[SAVE] Database error:', error);
+        toast.error(`Failed to save: ${error.message}`);
       } else {
+        console.log('[SAVE] Save successful');
         toast.success('Content saved successfully!');
         setIsEditing(false);
         if (onTaskUpdate) onTaskUpdate();
       }
     } catch (error) {
-      toast.error('Failed to save content');
+      console.error('[SAVE] Unexpected error:', error);
+      toast.error(`Failed to save content: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSaving(false);
     }
