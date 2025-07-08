@@ -35,9 +35,10 @@ export const useCalendarData = () => {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isRefresh = false) => {
     if (!user) {
       setLoading(false);
       return;
@@ -45,7 +46,10 @@ export const useCalendarData = () => {
 
     try {
       setError(null);
-      setLoading(true);
+      // Only show loading spinner for initial load or explicit refresh
+      if (!initialLoaded || isRefresh) {
+        setLoading(true);
+      }
       
       console.log('useCalendarData: Fetching fresh data after cleanup');
       console.log('useCalendarData: User ID:', user.id, 'Tenant ID:', tenant?.id);
@@ -123,11 +127,42 @@ export const useCalendarData = () => {
       setError(error instanceof Error ? error.message : 'Failed to load calendar data');
     } finally {
       setLoading(false);
+      setInitialLoaded(true);
     }
-  }, [user, tenant]);
+  }, [user, tenant, initialLoaded]);
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  // Set up real-time subscriptions for data updates
+  useEffect(() => {
+    if (!user) return;
+
+    const campaignSubscription = supabase
+      .channel('calendar-campaigns-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'campaigns' },
+        () => fetchData(false) // Silent refresh for real-time updates
+      )
+      .subscribe();
+
+    const taskSubscription = supabase
+      .channel('calendar-content-tasks-channel')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'content_tasks' },
+        () => fetchData(false) // Silent refresh for real-time updates
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(campaignSubscription);
+      supabase.removeChannel(taskSubscription);
+    };
+  }, [user, fetchData]);
+
+  const refreshData = useCallback(() => {
+    fetchData(true); // Explicit refresh shows loading
   }, [fetchData]);
 
   // Memoized stats
@@ -151,6 +186,6 @@ export const useCalendarData = () => {
     loading,
     error,
     stats,
-    refetch: fetchData
+    refetch: refreshData
   };
 };
