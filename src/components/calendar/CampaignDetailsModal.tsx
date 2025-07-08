@@ -197,20 +197,6 @@ export const CampaignDetailsModal = ({ campaign, isOpen, onClose, onUpdate }: Ca
             />
           </div>
 
-          {/* Additional Campaign Details */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">Campaign Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div className="space-y-2">
-                <p><span className="font-medium text-gray-700">Duration:</span> 7 days</p>
-                <p><span className="font-medium text-gray-700">Content Types:</span> Social posts, email, newsletter</p>
-              </div>
-              <div className="space-y-2">
-                <p><span className="font-medium text-gray-700">Platform Focus:</span> Multi-channel</p>
-                <p><span className="font-medium text-gray-700">Audience:</span> Garden center customers</p>
-              </div>
-            </div>
-          </div>
         </div>
       </DialogContent>
     </Dialog>
