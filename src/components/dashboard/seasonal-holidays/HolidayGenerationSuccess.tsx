@@ -14,7 +14,7 @@ export const HolidayGenerationSuccess = ({
   onViewContent 
 }: HolidayGenerationSuccessProps) => {
   return (
-    <div className="space-y-3 p-4 bg-mint-100 border border-mint-200 rounded-lg">
+    <div className="space-y-3 p-4 rounded-lg">
       <Button 
         onClick={onViewContent}
         size="sm"
