@@ -28,6 +28,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { addHours, format, setHours, setMinutes } from 'date-fns';
+import { EnhancedImageSelector } from './EnhancedImageSelector';
 
 interface GeneratedContent {
   id: string;
@@ -188,11 +189,13 @@ export const DirectSocialPublisher = ({
   const [isScheduling, setIsScheduling] = useState(false);
   const [editedCaption, setEditedCaption] = useState('');
   const [autoImage, setAutoImage] = useState(true);
+  const [currentContent, setCurrentContent] = useState<GeneratedContent | null>(null);
 
   // Load connections and set initial state
   useEffect(() => {
     if (selectedContent) {
       setEditedCaption(selectedContent.caption);
+      setCurrentContent(selectedContent);
       loadConnections();
     }
   }, [selectedContent]);
@@ -254,10 +257,10 @@ export const DirectSocialPublisher = ({
         body: {
           taskId: selectedContent.id,
           platforms: selectedPlatforms,
-          // Force use of existing image if available, disable auto-fetch if image exists
-          autoImage: selectedContent.mediaUrl ? false : autoImage,
-          // Pass the exact image URL if we have one to ensure consistency
-          imageUrl: selectedContent.mediaUrl
+          // Use current content's selected image if available
+          autoImage: (currentContent?.mediaUrl || selectedContent.mediaUrl) ? false : autoImage,
+          // Pass the selected image URL to ensure consistency
+          imageUrl: currentContent?.mediaUrl || selectedContent.mediaUrl
         }
       });
 
@@ -314,10 +317,10 @@ export const DirectSocialPublisher = ({
           taskId: selectedContent.id,
           platforms: selectedPlatforms,
           publishAt: publishAt.toISOString(),
-          // Force use of existing image if available, disable auto-fetch if image exists
-          autoImage: selectedContent.mediaUrl ? false : autoImage,
-          // Pass the exact image URL if we have one to ensure consistency
-          imageUrl: selectedContent.mediaUrl
+          // Use current content's selected image if available
+          autoImage: (currentContent?.mediaUrl || selectedContent.mediaUrl) ? false : autoImage,
+          // Pass the selected image URL to ensure consistency
+          imageUrl: currentContent?.mediaUrl || selectedContent.mediaUrl
         }
       });
 
@@ -342,6 +345,24 @@ export const DirectSocialPublisher = ({
       toast.error(error.message || 'Failed to schedule content');
     } finally {
       setIsScheduling(false);
+    }
+  };
+
+  const handleImageSelect = (imageUrl: string, metadata: any) => {
+    // Update current content state to reflect the new image
+    if (currentContent) {
+      const updatedContent = {
+        ...currentContent,
+        mediaUrl: imageUrl,
+        imageSource: metadata.source,
+        photographer: metadata.photographer
+      };
+      setCurrentContent(updatedContent);
+      
+      // Also disable auto-image since we now have a selected image
+      setAutoImage(false);
+      
+      toast.success('Image selected and will be used for posting!');
     }
   };
 
@@ -381,67 +402,66 @@ export const DirectSocialPublisher = ({
 
   return (
     <div className="space-y-6">
-      {/* Enhanced Content Preview with Image Source Info */}
+      {/* Content Editor */}
       <Card className="p-4">
-        <div className="flex items-start gap-4">
-          {selectedContent.mediaUrl && (
-            <div className="flex-shrink-0">
-              <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 relative">
-                <img 
-                  src={selectedContent.mediaUrl} 
-                  alt="Content preview"
-                  className="w-full h-full object-cover"
-                />
-                {/* Image source indicator */}
-                {selectedContent.imageSource && (
-                  <div className="absolute top-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1 py-0.5 rounded">
-                    {selectedContent.imageSource === 'unsplash' ? '📷' : '🖼️'}
-                  </div>
-                )}
-              </div>
-              {/* Image metadata */}
-              {selectedContent.imageSource && (
-                <div className="mt-1 text-xs text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">Source:</span>
-                    <span className="capitalize">{selectedContent.imageSource}</span>
-                  </div>
-                  {selectedContent.photographer && (
-                    <div className="text-xs text-gray-400 truncate max-w-20" title={selectedContent.photographer}>
-                      by {selectedContent.photographer}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline" className="capitalize">
-                {selectedContent.platform || 'Social'}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="capitalize">
+              {selectedContent.platform || 'Social'}
+            </Badge>
+            <Badge variant="secondary">{selectedContent.status}</Badge>
+            {/* Image confirmation badge */}
+            {(currentContent?.mediaUrl || selectedContent.mediaUrl) && (
+              <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Image Ready
               </Badge>
-              <Badge variant="secondary">{selectedContent.status}</Badge>
-              {/* Image preview confirmation */}
-              {selectedContent.mediaUrl && (
-                <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">
-                  <CheckCircle className="w-3 h-3 mr-1" />
-                  Image Ready
-                </Badge>
-              )}
-            </div>
+            )}
+          </div>
+          
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Edit Caption</Label>
             <Textarea
               value={editedCaption}
               onChange={(e) => setEditedCaption(e.target.value)}
               className="min-h-[100px] text-sm"
               placeholder="Edit caption before publishing..."
             />
-            {/* Image posting confirmation */}
-            {selectedContent.mediaUrl && (
-              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-                ✅ This exact image will be posted to social media
-              </div>
-            )}
           </div>
+          
+          {/* Image confirmation */}
+          {(currentContent?.mediaUrl || selectedContent.mediaUrl) && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <p className="text-sm text-green-800">
+                  <strong>Image confirmed:</strong> Selected image will be posted to social media
+                </p>
+              </div>
+              {(currentContent?.photographer || selectedContent.photographer) && (
+                <p className="text-xs text-green-700 mt-1">
+                  📸 Photo by {currentContent?.photographer || selectedContent.photographer}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Enhanced Image Selection */}
+      <Card className="p-4">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-medium text-gray-900">Select Image</h3>
+            <Badge variant="outline" className="text-xs">
+              Choose from 4 curated options
+            </Badge>
+          </div>
+          
+          <EnhancedImageSelector
+            selectedContent={currentContent || selectedContent}
+            onImageSelect={handleImageSelect}
+          />
         </div>
       </Card>
 
