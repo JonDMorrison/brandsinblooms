@@ -142,9 +142,8 @@ export const CustomContentItem = ({
               <div className="flex gap-2">
                 <Button
                   onClick={handleViewClick}
-                  variant="outline"
                   size="sm"
-                  className="flex items-center gap-2"
+                  className="bg-mint-600 hover:bg-mint-700 flex items-center gap-2"
                 >
                   <Eye className="w-4 h-4" />
                   View Content ({contentState.contentCount})
