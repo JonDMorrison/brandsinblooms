@@ -12,6 +12,7 @@ import {
   CreditCard,
   TrendingUp,
   Settings,
+  ChevronDown,
   LucideIcon,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -80,18 +81,6 @@ const AppSidebar: React.FC = () => {
       title: "Social Media",
       url: "/social-accounts",
       icon: Share2,
-      items: [
-        {
-          title: "Content Planner",
-          url: "/social",
-          icon: Share2,
-        },
-        {
-          title: "Analytics & Scheduling",
-          url: "/social-media",
-          icon: TrendingUp,
-        },
-      ],
     },
     {
       title: "Advanced",
@@ -153,11 +142,10 @@ const AppSidebar: React.FC = () => {
                   <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
                     <SidebarMenuItem>
                       <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className="group" asChild>
-                          <NavLink to={item.url}>
-                            <item.icon className="h-4 w-4" />
-                            {!isCollapsed && <span>{item.title}</span>}
-                          </NavLink>
+                        <SidebarMenuButton className="group">
+                          <item.icon className="h-4 w-4" />
+                          {!isCollapsed && <span>{item.title}</span>}
+                          {!isCollapsed && <ChevronDown className="h-4 w-4 ml-auto transition-transform group-data-[state=open]:rotate-180" />}
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       {!isCollapsed && (
