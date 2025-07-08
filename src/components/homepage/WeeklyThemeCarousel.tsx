@@ -395,7 +395,7 @@ export const WeeklyThemeCarousel = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 p-0 border-2 border-teal-300 text-teal-600 hover:bg-mint-100 hover:border-teal-400 rounded-full backdrop-blur-sm lg:left-2 focus-visible:ring-4 focus-visible:ring-teal-200"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 p-0 border-2 border-black text-teal-600 hover:bg-mint-100 hover:border-black rounded-full backdrop-blur-sm lg:left-2 focus-visible:ring-4 focus-visible:ring-teal-200"
                       onClick={handlePrevious}
                       aria-label="Previous theme"
                     >
@@ -404,7 +404,7 @@ export const WeeklyThemeCarousel = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 p-0 border-2 border-teal-300 text-teal-600 hover:bg-mint-100 hover:border-teal-400 rounded-full backdrop-blur-sm lg:right-2 focus-visible:ring-4 focus-visible:ring-teal-200"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 p-0 border-2 border-black text-teal-600 hover:bg-mint-100 hover:border-black rounded-full backdrop-blur-sm lg:right-2 focus-visible:ring-4 focus-visible:ring-teal-200"
                       onClick={handleNext}
                       aria-label="Next theme"
                     >
