@@ -441,9 +441,6 @@ const PublishPage = () => {
 
           <div className="p-4 sm:p-6">
             <TabsContent value="publisher" className="space-y-6 mt-6">
-              
-              {/* Metrics Overview */}
-              <PublishMetrics refreshTrigger={metricsRefresh} />
               <div className="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-20rem)]">
                 {/* Left Panel - Enhanced Content Library */}
                 <div className="w-full lg:w-96 xl:w-[420px] flex-shrink-0">
@@ -474,6 +471,9 @@ const PublishPage = () => {
                   />
                 </div>
               </div>
+              
+              {/* Metrics Overview - Moved to bottom */}
+              <PublishMetrics refreshTrigger={metricsRefresh} />
             </TabsContent>
 
             <TabsContent value="calendar" className="mt-0">
