@@ -267,8 +267,6 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
         </Card>
       ) : (
         <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm" data-section="ready-to-post-section">
-          <CardHeader>
-          </CardHeader>
           <CardContent className="space-y-4">
             {/* Social Connection Status */}
             <SocialConnectionStatus
