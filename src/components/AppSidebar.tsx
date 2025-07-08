@@ -88,11 +88,6 @@ const AppSidebar: React.FC = () => {
       ],
     },
     {
-      title: "Content Tasks",
-      url: "/content-tasks",
-      icon: ClipboardList,
-    },
-    {
       title: "Success Metrics",
       url: "/success",
       icon: Trophy,
