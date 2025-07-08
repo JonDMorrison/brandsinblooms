@@ -108,8 +108,8 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
       `}>
         <CollapsibleTrigger asChild>
           <div className={`
-            p-5 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2
-            ${isMobile ? 'p-4' : 'p-5'}
+            p-4 cursor-pointer transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal focus-visible:ring-offset-2
+            ${isMobile ? 'p-3' : 'p-4'}
           `}>
             <div className="flex items-center gap-3">
               {batchMode && (
