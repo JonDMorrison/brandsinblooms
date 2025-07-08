@@ -157,17 +157,14 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
         
         {/* Prominent TaskActions positioned at top right */}
         <div className="flex-shrink-0">
-          <div className="border p-2 bg-yellow-100">
-            <div className="text-xs mb-1">Debug: isEditing = {isEditing.toString()}</div>
-            <TaskActions
-              task={task}
-              onTaskUpdate={onTaskUpdate}
-              onEdit={handleEdit}
-              isEditing={isEditing}
-              onSave={handleSave}
-              onCancel={handleCancel}
-            />
-          </div>
+          <TaskActions
+            task={task}
+            onTaskUpdate={onTaskUpdate}
+            onEdit={handleEdit}
+            isEditing={isEditing}
+            onSave={handleSave}
+            onCancel={handleCancel}
+          />
         </div>
       </div>
 
