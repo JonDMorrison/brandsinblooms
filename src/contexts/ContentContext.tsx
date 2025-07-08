@@ -42,11 +42,12 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [userCreatedCampaigns, setUserCreatedCampaigns] = useState<Campaign[]>([]);
   const [approvedTasks, setApprovedTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isDeveloper = user?.email === 'jon@getclear.ca';
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isRefresh = false) => {
     if (!user || tenantLoading) {
       setLoading(false);
       return;
@@ -54,7 +55,10 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       setError(null);
-      setLoading(true);
+      // Only show loading spinner for initial load or explicit refresh
+      if (!initialLoaded || isRefresh) {
+        setLoading(true);
+      }
 
       const filterConfig: FilterConfig = {
         userId: user.id,
@@ -102,8 +106,9 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setError(err.message || 'Failed to load content data');
     } finally {
       setLoading(false);
+      setInitialLoaded(true);
     }
-  }, [user, tenant, tenantLoading, isDeveloper]);
+  }, [user, tenant, tenantLoading, isDeveloper, initialLoaded]);
 
   useEffect(() => {
     fetchData();
@@ -117,7 +122,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .channel('campaigns-channel')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'campaigns' },
-        () => fetchData()
+        () => fetchData(false) // Silent refresh for real-time updates
       )
       .subscribe();
 
@@ -125,7 +130,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .channel('content-tasks-channel')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'content_tasks' },
-        () => fetchData()
+        () => fetchData(false) // Silent refresh for real-time updates
       )
       .subscribe();
 
@@ -136,7 +141,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [user, fetchData]);
 
   const refreshData = useCallback(() => {
-    fetchData();
+    fetchData(true); // Explicit refresh shows loading
   }, [fetchData]);
 
   const value: ContentContextType = {
