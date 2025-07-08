@@ -243,9 +243,6 @@ export const EnhancedComposerTray = ({
       <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-900">Content Library</h2>
-          <Badge variant="outline" className="text-xs">
-            {filteredAndSortedContent.length}
-          </Badge>
         </div>
         
         {/* Stats Row */}
