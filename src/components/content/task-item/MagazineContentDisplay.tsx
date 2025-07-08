@@ -190,18 +190,6 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
             return (
               <div key={image.id || index} className="relative group cursor-pointer">
                 <div className="aspect-[4/3] overflow-hidden rounded-lg border border-gray-200 hover:border-gray-400 transition-colors">
-                  <img
-                    src={image.thumb_url}
-                    alt={image.alt}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.error('[MAGAZINE_DISPLAY] Thumbnail image failed to load:', image.thumb_url);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    onLoad={() => {
-                      console.log('[MAGAZINE_DISPLAY] Thumbnail image loaded successfully:', image.thumb_url);
-                    }}
-                  />
                 </div>
                 <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded-lg pointer-events-none" />
               </div>
