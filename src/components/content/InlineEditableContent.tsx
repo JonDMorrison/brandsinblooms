@@ -28,6 +28,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
   }, [task?.ai_output, isEditing, hasUnsavedChanges]);
 
   const handleEdit = () => {
+    console.log('[INLINE_EDIT] Edit button clicked');
     setIsEditing(true);
   };
 

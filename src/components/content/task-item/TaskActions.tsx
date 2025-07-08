@@ -86,7 +86,10 @@ export const TaskActions = ({
           <Button
             size="sm"
             variant="ghost"
-            onClick={onSave}
+            onClick={() => {
+              console.log('[TASK_ACTIONS] Save button clicked');
+              onSave?.();
+            }}
             className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
           >
             <Save className="w-3 h-3 mr-1" />
@@ -95,7 +98,10 @@ export const TaskActions = ({
           <Button
             size="sm"
             variant="ghost"
-            onClick={onCancel}
+            onClick={() => {
+              console.log('[TASK_ACTIONS] Cancel button clicked');
+              onCancel?.();
+            }}
             className="h-8 px-2 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
           >
             <X className="w-3 h-3 mr-1" />
