@@ -17,12 +17,15 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
+  // Only update editedContent when not editing and no unsaved changes
   useEffect(() => {
-    if (task?.ai_output) {
+    if (task?.ai_output && !isEditing && !hasUnsavedChanges) {
+      console.log('[INLINE_EDIT] Setting content from task:', task.ai_output.substring(0, 50) + '...');
       setEditedContent(task.ai_output);
     }
-  }, [task]);
+  }, [task?.ai_output, isEditing, hasUnsavedChanges]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -52,6 +55,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
     if (editedContent === task.ai_output) {
       console.log('[SAVE] No changes detected');
       toast.success('No changes to save');
+      setHasUnsavedChanges(false);
       return;
     }
 
@@ -86,6 +90,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
         console.log('[SAVE] Save successful');
         toast.success('Content saved successfully!');
         setIsEditing(false);
+        setHasUnsavedChanges(false); // Clear unsaved changes flag
         if (onTaskUpdate) onTaskUpdate();
       }
     } catch (error) {
@@ -99,6 +104,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
   const handleCancel = () => {
     setEditedContent(task?.ai_output || '');
     setIsEditing(false);
+    setHasUnsavedChanges(false); // Clear unsaved changes flag
   };
 
   if (!task) return null;
@@ -167,7 +173,10 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
           <div className="space-y-2">
             <Textarea
               value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
+              onChange={(e) => {
+                setEditedContent(e.target.value);
+                setHasUnsavedChanges(e.target.value !== task?.ai_output);
+              }}
               className="min-h-[200px] resize-none"
               placeholder={`Edit your ${task.post_type} content...`}
               disabled={isSaving}
