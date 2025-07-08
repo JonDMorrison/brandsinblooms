@@ -134,7 +134,19 @@ const EnhancedStatusBadge = ({ status }: { status: string }) => {
   
   const config = getStatusConfig(status);
   
-  return null;
+  return (
+    <Badge 
+      variant="outline" 
+      className={cn(
+        "text-xs px-2 py-0.5 border inline-flex items-center gap-1",
+        config.color,
+        config.pulse && "animate-pulse"
+      )}
+    >
+      {config.icon}
+      {status.toLowerCase()}
+    </Badge>
+  );
 };
 
 // Quick action buttons for each content item
@@ -309,26 +321,28 @@ export const EnhancedComposerTray = ({
                     isLoading={imageLoadingStates[item.id]}
                   />
 
-                  {/* Enhanced Content Details */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-medium text-gray-900 text-sm leading-tight line-clamp-2">
-                        {truncateCaption(item.caption)}
-                      </h3>
-                    </div>
-                    
-                    <EnhancedStatusBadge status={item.status} />
-                    <span className="text-xs text-gray-500">
-                      {formatRelativeTime(item.createdAt)}
-                    </span>
+                   {/* Enhanced Content Details */}
+                   <div className="flex-1 min-w-0">
+                     <div className="flex items-start justify-between mb-2">
+                       <h3 className="font-medium text-gray-900 text-sm leading-tight line-clamp-2">
+                         {truncateCaption(item.caption)}
+                       </h3>
+                     </div>
+                     
+                     <div className="flex items-center gap-2 mb-1">
+                       <EnhancedStatusBadge status={item.status} />
+                       <span className="text-xs text-gray-500">
+                         {formatRelativeTime(item.createdAt)}
+                       </span>
+                     </div>
 
-                    {/* Quick Actions for approved content */}
-                    <QuickActions
-                      content={item}
-                      onQuickPublish={onQuickPublish}
-                      onQuickSchedule={onQuickSchedule}
-                    />
-                  </div>
+                     {/* Quick Actions for approved content */}
+                     <QuickActions
+                       content={item}
+                       onQuickPublish={onQuickPublish}
+                       onQuickSchedule={onQuickSchedule}
+                     />
+                   </div>
                 </div>
               ))
             )}

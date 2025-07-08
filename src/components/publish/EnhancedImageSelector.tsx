@@ -258,26 +258,41 @@ export const EnhancedImageSelector = ({
     
     setLoading(true);
     try {
+      console.log('[IMAGE SELECTOR] Fetching images for query:', query);
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
           query: query.trim(),
-          per_page: 8,
+          maxImages: 8,
           orientation: 'squarish'
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[IMAGE SELECTOR] Edge function error:', error);
+        throw error;
+      }
       
-      if (data?.results) {
-        const formattedImages: UnsplashImage[] = data.results.map((img: any) => ({
-          id: img.id,
-          urls: img.urls,
-          alt_description: img.alt_description,
-          user: img.user,
-          photographer: img.user.name,
-          download_url: img.urls.regular
+      console.log('[IMAGE SELECTOR] Raw response:', data);
+      
+      if (data?.images && Array.isArray(data.images)) {
+        const formattedImages: UnsplashImage[] = data.images.map((img: any) => ({
+          id: img.id || img.unsplash_id,
+          urls: {
+            thumb: img.thumb_url,
+            small: img.thumb_url,
+            regular: img.download_url,
+            full: img.download_url
+          },
+          alt_description: img.alt,
+          user: {
+            name: img.photographer,
+            username: img.photographer
+          },
+          photographer: img.photographer,
+          download_url: img.download_url
         }));
         
+        console.log('[IMAGE SELECTOR] Formatted images:', formattedImages);
         setImages(formattedImages);
         
         // Auto-select first image if none selected
@@ -285,11 +300,12 @@ export const EnhancedImageSelector = ({
           setSelectedImage(formattedImages[0]);
         }
       } else {
+        console.log('[IMAGE SELECTOR] No images in response or wrong format');
         setImages([]);
       }
     } catch (error) {
-      console.error('Error fetching images:', error);
-      toast.error('Failed to fetch images');
+      console.error('[IMAGE SELECTOR] Error fetching images:', error);
+      toast.error('Failed to fetch images. Please try again.');
       setImages([]);
     } finally {
       setLoading(false);
