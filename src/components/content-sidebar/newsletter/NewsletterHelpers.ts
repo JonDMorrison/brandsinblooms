@@ -142,25 +142,29 @@ export const checkIsPlaceholderContent = (content: string): boolean => {
     return true;
   }
   
-  // Check for common placeholder patterns
+  // Check for common placeholder patterns and incomplete content
   const placeholderPatterns = [
     /Seasonal Gardening Focus - Week/i,
     /This week's theme:/i,
     /content will be generated/i,
-    /placeholder/i
+    /placeholder/i,
+    /^Subject Line:/i,
+    /Greetings Green Thumbs,[\s\S]*This week, we're focusing on helping you keep these beauties healthy\.\.\.$/i
   ];
   
   const hasPlaceholderPattern = placeholderPatterns.some(pattern => pattern.test(content));
-  const isTooShort = content.replace(/\s/g, '').length < 50;
+  const isTooShort = content.replace(/\s/g, '').length < 200; // Increased threshold
+  const isIncompleteNewsletter = content.includes('Subject Line:') && content.length < 500;
   
   console.log('Placeholder check:', {
     hasPlaceholderPattern,
     isTooShort,
+    isIncompleteNewsletter,
     contentLength: content.length,
-    isPlaceholder: hasPlaceholderPattern || isTooShort
+    isPlaceholder: hasPlaceholderPattern || isTooShort || isIncompleteNewsletter
   });
   
-  return hasPlaceholderPattern || isTooShort;
+  return hasPlaceholderPattern || isTooShort || isIncompleteNewsletter;
 };
 
 // Helper functions for enhanced content processing

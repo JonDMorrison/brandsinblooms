@@ -33,11 +33,13 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
       
       const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {
         body: {
-          business_name: '',
-          theme: campaignTitle || 'Seasonal Gardening',
-          week_focus: `Expert gardening advice for ${campaignTitle || 'seasonal care'}`,
+          business_name: 'Homestead Nurseryland',
+          theme: campaignTitle || 'Roses Week',
+          week_focus: campaignTitle === 'Roses Week' ? 
+            'Expert rose care tips, pruning techniques, disease prevention, feeding schedules, and seasonal maintenance to help your roses thrive all season long' :
+            `Expert gardening advice for ${campaignTitle || 'seasonal care'}`,
           promo_items: [],
-          tone_note: '',
+          tone_note: 'Professional yet friendly nursery tone with expert gardening advice',
           userId: user.id,
           is_holiday: false
         }

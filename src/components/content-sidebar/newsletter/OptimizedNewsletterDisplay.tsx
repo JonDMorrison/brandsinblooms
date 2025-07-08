@@ -52,13 +52,14 @@ export const OptimizedNewsletterDisplay = ({
   // Extract intro from content
   const intro = generateIntroFromContent(content, campaignTitle);
 
-  // If content is placeholder, show regeneration option
+  // If content is placeholder or incomplete, show regeneration option
   if (isPlaceholderContent) {
+    console.log('[NEWSLETTER] Showing regeneration component for placeholder content');
     return (
       <div className={`max-w-4xl mx-auto ${className || ''}`}>
         <NewsletterRegenerator
           contentTaskId={contentTaskId}
-          campaignTitle={campaignTitle}
+          campaignTitle={campaignTitle || 'Roses Week'}
           regenerating={false}
           setRegenerating={() => {}}
         />
