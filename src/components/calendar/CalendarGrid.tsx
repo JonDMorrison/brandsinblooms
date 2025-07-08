@@ -115,16 +115,16 @@ export const CalendarGrid = ({
   console.log('CalendarGrid: Rendering with', campaigns.length, 'campaigns and', tasks.length, 'tasks');
 
   return (
-    <div className="bg-gradient-to-br from-green-50/30 to-blue-50/20 rounded-xl shadow-sm border border-green-100/50 overflow-hidden">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200/60 overflow-hidden">
       <div className={`grid ${gridCols} ${dayHeight}`}>
-        {/* Enhanced Day headers */}
+        {/* Clean Day headers */}
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-          <div key={day} className="bg-gradient-to-b from-green-100/80 to-green-50/60 p-3 text-sm font-semibold text-green-800 h-12 flex items-center justify-center border-b border-green-200/50">
+          <div key={day} className="bg-gray-50/80 p-3 text-sm font-medium text-gray-700 h-12 flex items-center justify-center border-b border-gray-200/50">
             <span className="tracking-wide">{day}</span>
           </div>
         ))}
         
-        {/* Calendar days with enhanced styling */}
+        {/* Calendar days with clean styling */}
         {days.map((date) => {
           const dateKey = format(date, 'yyyy-MM-dd');
           

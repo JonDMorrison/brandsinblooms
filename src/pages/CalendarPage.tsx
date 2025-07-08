@@ -117,14 +117,9 @@ const CalendarPage = () => {
           <div className="flex items-center gap-3">
             <Button
               onClick={() => setShowAddEventDialog(true)}
-              variant="secondary"
+              variant="outline"
               size="lg"
-              className="flex items-center gap-2 !bg-blue-600 !text-white hover:!bg-blue-700 !border-blue-600 shadow-md z-10 relative"
-              style={{
-                backgroundColor: '#2563eb !important',
-                color: 'white !important',
-                borderColor: '#2563eb !important'
-              }}
+              className="flex items-center gap-2 bg-white text-teal-700 border-teal-300 hover:bg-teal-50 hover:border-teal-400 shadow-sm"
             >
               <CalendarPlus className="w-5 h-5" />
               Promote Event
@@ -132,14 +127,8 @@ const CalendarPage = () => {
             
             <Button
               onClick={() => setShowNewCampaignModal(true)}
-              variant="secondary"
               size="lg"
-              className="flex items-center gap-2 !bg-green-600 !text-white hover:!bg-green-700 !border-green-600 shadow-md z-10 relative"
-              style={{
-                backgroundColor: '#16a34a !important',
-                color: 'white !important',
-                borderColor: '#16a34a !important'
-              }}
+              className="flex items-center gap-2 bg-teal-600 text-white hover:bg-teal-700 border-teal-600 shadow-sm"
             >
               <PlusCircle className="w-5 h-5" />
               Create Campaign
