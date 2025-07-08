@@ -181,23 +181,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
     const thumbnails = images.slice(1); // Get alternatives (skip featured image)
     console.log('[MAGAZINE_DISPLAY] Thumbnails to render:', thumbnails);
     
-    return (
-      <div className="mt-8 pt-6 border-t border-gray-200">
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Alternative Images</h4>
-        <div className="grid grid-cols-3 gap-4">
-          {thumbnails.map((image, index) => {
-            console.log('[MAGAZINE_DISPLAY] Rendering thumbnail:', { index, image });
-            return (
-              <div key={image.id || index} className="relative group cursor-pointer">
-                <div className="aspect-[4/3] overflow-hidden rounded-lg border border-gray-200 hover:border-gray-400 transition-colors">
-                </div>
-                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-opacity rounded-lg pointer-events-none" />
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
+    return null;
   };
 
   // Helper function to render ImageCarousel or fallback (for social media types)
