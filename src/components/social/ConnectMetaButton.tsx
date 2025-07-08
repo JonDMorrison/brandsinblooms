@@ -76,13 +76,14 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       const configData = await fetchOAuthConfig();
       const clientId = configData.clientId;
       
-      // Build Facebook OAuth URL
+      // Build Facebook OAuth URL with enhanced parameters for App Review
       const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
       authUrl.searchParams.set('client_id', clientId);
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('scope', scopes);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('state', combinedState);
+      authUrl.searchParams.set('auth_type', 'rerequest'); // Ensures consent screen is shown
       
       console.log('🔗 Redirecting to Meta OAuth:', {
         redirectUri,
@@ -122,16 +123,43 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   return (
     <>
       <OAuthLoadingOverlay isVisible={loading} step={loadingStep} />
-      <Button 
-        onClick={handleConnect} 
-        disabled={loading || !user}
-        className="bg-primary hover:bg-primary/90 px-6"
-        size="lg"
-      >
-        <Facebook className="h-4 w-4" />
-        <Instagram className="h-4 w-4" />
-        {loading ? 'Connecting...' : 'Connect Meta'}
-      </Button>
+      <div className="space-y-3">
+        {/* Privacy Policy Notice - Prominently displayed before login */}
+        <div className="text-center px-4 py-2 bg-muted/50 rounded-lg border">
+          <p className="text-xs italic text-muted-foreground leading-relaxed">
+            By logging in you agree to our{' '}
+            <a 
+              href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 underline"
+            >
+              Privacy Policy
+            </a>
+            {' '}and{' '}
+            <a 
+              href="https://brandsinblooms.com/pages/terms-of-service" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-primary hover:text-primary/80 underline"
+            >
+              Terms of Service
+            </a>
+            .
+          </p>
+        </div>
+        
+        <Button 
+          onClick={handleConnect} 
+          disabled={loading || !user}
+          className="bg-primary hover:bg-primary/90 px-6 w-full"
+          size="lg"
+        >
+          <Facebook className="h-4 w-4" />
+          <Instagram className="h-4 w-4" />
+          {loading ? 'Connecting...' : 'Connect Meta'}
+        </Button>
+      </div>
     </>
   );
 };

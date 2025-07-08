@@ -90,13 +90,14 @@ export const SocialConnectionManager = () => {
       const redirectUri = `${window.location.origin}/auth/callback`;
       const scope = 'pages_read_engagement,pages_show_list,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
       
-      // Build Facebook OAuth URL (Instagram also uses Facebook OAuth)
+      // Build Facebook OAuth URL with enhanced parameters for App Review
       const authUrl = new URL('https://www.facebook.com/v19.0/dialog/oauth');
       authUrl.searchParams.set('client_id', clientId);
       authUrl.searchParams.set('redirect_uri', redirectUri);
       authUrl.searchParams.set('scope', scope);
       authUrl.searchParams.set('response_type', 'code');
       authUrl.searchParams.set('state', combinedState);
+      authUrl.searchParams.set('auth_type', 'rerequest'); // Ensures consent screen is shown
       
       console.log(`🔗 Redirecting to ${platformId} OAuth:`, {
         redirectUri,
@@ -263,44 +264,73 @@ export const SocialConnectionManager = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {isConnected ? (
-                  <>
-                    {isExpired && (
+              <div className="flex flex-col items-end gap-2">
+                {/* Privacy Policy Notice for Facebook/Instagram */}
+                {(platform.id === 'facebook' || platform.id === 'instagram') && !isConnected && (
+                  <div className="text-right max-w-xs">
+                    <p className="text-xs italic text-muted-foreground">
+                      By connecting you agree to our{' '}
+                      <a 
+                        href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary/80 underline"
+                      >
+                        Privacy Policy
+                      </a>
+                      {' '}and{' '}
+                      <a 
+                        href="https://brandsinblooms.com/pages/terms-of-service" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary/80 underline"
+                      >
+                        Terms
+                      </a>
+                      .
+                    </p>
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  {isConnected ? (
+                    <>
+                      {isExpired && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                        if (platform.id === 'facebook') connectMeta(platform.id);
+                        else if (platform.id === 'instagram') connectMeta(platform.id);
+                            else if (platform.id === 'google_my_business') connectGoogleBusiness();
+                          }}
+                          disabled={connecting === platform.id}
+                        >
+                          Reconnect
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => {
-                      if (platform.id === 'facebook') connectMeta(platform.id);
-                      else if (platform.id === 'instagram') connectMeta(platform.id);
-                          else if (platform.id === 'google_my_business') connectGoogleBusiness();
-                        }}
-                        disabled={connecting === platform.id}
+                        onClick={() => disconnectPlatform(connection.id, platform.name)}
                       >
-                        Reconnect
+                        Disconnect
                       </Button>
-                    )}
+                    </>
+                  ) : (
                     <Button
                       size="sm"
-                      variant="outline"
-                      onClick={() => disconnectPlatform(connection.id, platform.name)}
+                      onClick={() => {
+                        if (platform.id === 'facebook') connectMeta(platform.id);
+                        else if (platform.id === 'instagram') connectMeta(platform.id);
+                        else if (platform.id === 'google_my_business') connectGoogleBusiness();
+                      }}
+                      disabled={connecting === platform.id}
                     >
-                      Disconnect
+                      {connecting === platform.id ? 'Connecting...' : 'Connect'}
                     </Button>
-                  </>
-                ) : (
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (platform.id === 'facebook') connectMeta(platform.id);
-                      else if (platform.id === 'instagram') connectMeta(platform.id);
-                      else if (platform.id === 'google_my_business') connectGoogleBusiness();
-                    }}
-                    disabled={connecting === platform.id}
-                  >
-                    {connecting === platform.id ? 'Connecting...' : 'Connect'}
-                  </Button>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           );

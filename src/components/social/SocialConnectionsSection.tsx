@@ -94,9 +94,35 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                   </div>
                 </div>
                 <h3 className="text-xl font-semibold mb-2">Connect Meta Accounts</h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-600 mb-4">
                   One simple login connects both your Facebook pages and Instagram business accounts
                 </p>
+                
+                {/* Privacy Policy Notice */}
+                <div className="mb-6 p-3 bg-muted/30 rounded-lg">
+                  <p className="text-xs italic text-muted-foreground text-center">
+                    By connecting you agree to our{' '}
+                    <a 
+                      href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 underline"
+                    >
+                      Privacy Policy
+                    </a>
+                    {' '}and{' '}
+                    <a 
+                      href="https://brandsinblooms.com/pages/terms-of-service" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 underline"
+                    >
+                      Terms of Service
+                    </a>
+                    .
+                  </p>
+                </div>
+                
                 <ConnectMetaButton onSuccess={onConnectionSuccess} />
               </CardContent>
             </Card>
