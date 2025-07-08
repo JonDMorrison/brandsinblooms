@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, BarChart3, Zap, Grid, Send, Clock } from 'lucide-react';
-import { fetchSmartImage } from '@/services/unsplashService';
+import { fetchSmartImageFromContent } from '@/services/unsplashService';
 import { ImageAssetManager } from '@/lib/imageAssetManager';
 
 interface PublishData {
@@ -85,8 +85,10 @@ const PublishPage = () => {
     const imagePromises = content.map(async (item, index) => {
       if (item.caption) {
         try {
-          const image = await fetchSmartImage(item.caption, 'garden center social media');
+          console.log(`[PUBLISH] Fetching smart image for ${item.platform} content (${item.caption.length} chars)`);
+          const image = await fetchSmartImageFromContent(item.caption, item.platform);
           if (image) {
+            console.log(`[PUBLISH] Successfully found image for content ${item.id}`);
             updatedContent[index] = { ...item, mediaUrl: image.url };
             
             // Create image asset record for tracking

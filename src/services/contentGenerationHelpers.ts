@@ -1,5 +1,5 @@
 
-import { fetchSmartImage } from './unsplashService';
+import { fetchSmartImage, fetchSmartImageFromContent } from './unsplashService';
 import { extractKeywordsFromContent } from '@/utils/markdownUtils';
 
 export async function attachImagesToTask(taskId: string | null, holidayName?: string): Promise<any> {
