@@ -11,7 +11,7 @@ import { AnalyticsIntegration } from '@/components/publish/AnalyticsIntegration'
 import { WorkflowAutomation } from '@/components/publish/WorkflowAutomation';
 import { PublishDebugger } from '@/components/publish/PublishDebugger';
 import { PublishMetrics } from '@/components/publish/PublishMetrics';
-import { TestModeToggle } from '@/components/publish/TestModeToggle';
+
 import { showSuccessToast, triggerCardPulse } from '@/components/publish/SuccessFeedback';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
@@ -439,8 +439,6 @@ const PublishPage = () => {
 
           <div className="p-4 sm:p-6">
             <TabsContent value="publisher" className="space-y-6 mt-6">
-              {/* Test Mode Toggle */}
-              <TestModeToggle onTestModeChange={setTestMode} />
               
               {/* Metrics Overview */}
               <PublishMetrics refreshTrigger={metricsRefresh} />
