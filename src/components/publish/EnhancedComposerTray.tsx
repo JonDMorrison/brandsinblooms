@@ -372,12 +372,10 @@ export const EnhancedComposerTray = ({
                       </h3>
                     </div>
                     
-                    <div className="flex items-center justify-between mb-2">
-                      <EnhancedStatusBadge status={item.status} />
-                      <span className="text-xs text-gray-500">
-                        {formatRelativeTime(item.createdAt)}
-                      </span>
-                    </div>
+                    <EnhancedStatusBadge status={item.status} />
+                    <span className="text-xs text-gray-500">
+                      {formatRelativeTime(item.createdAt)}
+                    </span>
 
                     {/* Quick Actions for approved content */}
                     <QuickActions
