@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { SidebarLayout } from '@/components/SidebarLayout';
-import { ComposerTray } from '@/components/publish/ComposerTray';
-import { ComposerEditor } from '@/components/publish/ComposerEditor';
+import { EnhancedComposerTray } from '@/components/publish/EnhancedComposerTray';
+import { DirectSocialPublisher } from '@/components/publish/DirectSocialPublisher';
+import { ModernPublishDashboard } from '@/components/publish/ModernPublishDashboard';
 import { ComposerDrawer } from '@/components/publish/ComposerDrawer';
 import { CalendarRibbon } from '@/components/publish/CalendarRibbon';
 import { PublishingCalendarView } from '@/components/publish/PublishingCalendarView';
@@ -11,10 +12,11 @@ import { WorkflowAutomation } from '@/components/publish/WorkflowAutomation';
 import { showSuccessToast, triggerCardPulse } from '@/components/publish/SuccessFeedback';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, BarChart3, Zap, Grid } from 'lucide-react';
+import { Calendar, BarChart3, Zap, Grid, Send, Clock } from 'lucide-react';
 import { fetchSmartImage } from '@/services/unsplashService';
 import { ImageAssetManager } from '@/lib/imageAssetManager';
 
@@ -36,11 +38,11 @@ interface GeneratedContent {
 
 interface ScheduledPost {
   id: string;
-  contentId: string;
+  content_id: string;
   platform: 'FB' | 'IG_FEED' | 'IG_REEL';
-  publishAt: string;
+  publish_at: string;
   status: 'QUEUED' | 'PUBLISHED' | 'ERROR';
-  publishedId?: string;
+  published_id?: string;
 }
 
 interface SocialConnection {
@@ -53,12 +55,13 @@ interface SocialConnection {
 const PublishPage = () => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { data: dashboardData, isLoading, refetch } = useDashboardData();
   const [publishData, setPublishData] = useState<PublishData | null>(null);
   const [selectedContent, setSelectedContent] = useState<GeneratedContent | null>(null);
   const [loading, setLoading] = useState(true);
   const [imageLoadingStates, setImageLoadingStates] = useState<Record<string, boolean>>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('content');
+  const [activeTab, setActiveTab] = useState('publisher');
 
   // Function to fetch images for multiple content items
   const fetchImagesForContent = async (content: GeneratedContent[]): Promise<GeneratedContent[]> => {
@@ -107,98 +110,50 @@ const PublishPage = () => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && !isLoading && dashboardData) {
       initializePublishData();
     }
-  }, [user, tenant]);
+  }, [user, tenant, dashboardData, isLoading]);
 
   const initializePublishData = async () => {
     try {
       setLoading(true);
       
-      console.log('Fetching content with params:', {
-        tenant_id: tenant?.id,
-        user_id: user?.id,
-        using_tenant: !!tenant?.id
+      // Use data from the dashboard hook for better performance
+      if (!dashboardData) {
+        console.log('No dashboard data available yet');
+        return;
+      }
+
+      console.log('Using dashboard data:', {
+        draftsCount: dashboardData.drafts?.length || 0,
+        tasksCount: dashboardData.tasks?.length || 0,
+        connectionsCount: dashboardData.socialConnections?.length || 0
       });
-      
-      // Fetch approved Facebook and Instagram content tasks
-      // Try both tenant-based and user-based queries to see what content exists
-      const query = supabase
-        .from('content_tasks')
-        .select(`
-          *,
-          campaigns!inner (
-            title,
-            user_id,
-            tenant_id
-          )
-        `)
-        .eq('status', 'approved')
-        .in('post_type', ['facebook', 'instagram'])
-        .order('created_at', { ascending: false });
 
-      // Apply the appropriate filter based on tenant setup
-      if (tenant?.id) {
-        query.eq('tenant_id', tenant.id);
-      } else {
-        query.eq('user_id', user?.id);
-      }
+      // Get approved content from dashboard data
+      const approvedTasks = dashboardData.tasks?.filter(task => 
+        task.status === 'approved' && 
+        ['facebook', 'instagram'].includes(task.post_type)
+      ) || [];
 
-      const { data: contentTasks, error: contentError } = await query;
-
-      console.log('Content query result:', { contentTasks, contentError });
-
-      if (contentError) {
-        console.error('Content fetch error:', contentError);
-        throw contentError;
-      }
-
-      // Also try to fetch all content tasks to see what's available for debugging
-      const { data: allTasks, error: allTasksError } = await supabase
-        .from('content_tasks')
-        .select(`
-          *,
-          campaigns (
-            title,
-            user_id,
-            tenant_id
-          )
-        `)
-        .in('post_type', ['facebook', 'instagram'])
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      console.log('All available tasks (debug):', { allTasks, allTasksError });
-
-      // Transform content_tasks to GeneratedContent format and fetch images
-      const generatedContent: GeneratedContent[] = (contentTasks || []).map(task => ({
+      // Transform to GeneratedContent format and fetch images
+      const generatedContent: GeneratedContent[] = approvedTasks.map(task => ({
         id: task.id,
         status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED',
         caption: task.ai_output || '',
-        mediaUrl: undefined, // Will be populated by fetchImagesForContent
+        mediaUrl: (task.attachments as any)?.image?.url || undefined,
         platform: task.post_type,
         campaignId: task.campaign_id,
         createdAt: task.created_at
       }));
 
-      console.log('Generated content (before image fetch):', generatedContent);
+      console.log('Generated content:', generatedContent);
 
-      // Fetch images for all content automatically
+      // Fetch images for content that doesn't have them
       const contentWithImages = await fetchImagesForContent(generatedContent);
-      
-      console.log('Generated content (after image fetch):', contentWithImages);
 
-      // Fetch social connections
-      const { data: connections, error: connectionsError } = await supabase
-        .from('social_connections')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('is_active', true);
-
-      if (connectionsError) throw connectionsError;
-
-      const socialConnections: SocialConnection[] = (connections || []).map(conn => ({
+      const socialConnections: SocialConnection[] = (dashboardData.socialConnections || []).map(conn => ({
         id: conn.id,
         platform: conn.platform,
         isActive: conn.is_active,
@@ -207,14 +162,14 @@ const PublishPage = () => {
 
       setPublishData({
         content: contentWithImages,
-        scheduledPosts: [], // TODO: Implement scheduled posts table
+        scheduledPosts: dashboardData.scheduledPosts || [],
         socialConnections
       });
 
       console.log('Final publish data:', {
-        contentCount: generatedContent.length,
+        contentCount: contentWithImages.length,
         connectionsCount: socialConnections.length,
-        socialConnections: socialConnections
+        scheduledCount: dashboardData.scheduledPosts?.length || 0
       });
 
     } catch (error) {
@@ -281,7 +236,8 @@ const PublishPage = () => {
         toast.error(data?.message || 'Scheduling failed');
       }
       
-      // Refresh data regardless of success/failure
+      // Refresh data
+      await refetch();
       await initializePublishData();
       
     } catch (error) {
@@ -331,7 +287,8 @@ const PublishPage = () => {
         toast.error(data?.message || 'Publishing failed');
       }
       
-      // Refresh data regardless of success/failure
+      // Refresh data
+      await refetch();
       await initializePublishData();
       
     } catch (error) {
@@ -366,11 +323,32 @@ const PublishPage = () => {
     // Apply automation rules to content
   };
 
-  if (loading) {
+  const handleQuickPublish = async (content: GeneratedContent) => {
+    try {
+      await handlePublishNow({
+        contentId: content.id,
+        caption: content.caption,
+        mediaUrl: content.mediaUrl,
+        platforms: content.platform ? [content.platform] : ['facebook', 'instagram']
+      });
+    } catch (error) {
+      console.error('Quick publish error:', error);
+    }
+  };
+
+  const handleQuickSchedule = (content: GeneratedContent) => {
+    setSelectedContent(content);
+    setDrawerOpen(true);
+  };
+
+  if (loading || isLoading) {
     return (
       <SidebarLayout>
         <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
-          <div className="animate-spin w-8 h-8 border-2 border-[#68BEB9] border-t-transparent rounded-full"></div>
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
+            <p className="text-gray-600">Loading publish portal...</p>
+          </div>
         </div>
       </SidebarLayout>
     );
@@ -379,32 +357,53 @@ const PublishPage = () => {
   return (
     <SidebarLayout>
       <div className="min-h-screen bg-[#F9FAFB]">
-        {/* Header */}
-        <div className="px-4 sm:px-6 py-4 bg-white border-b border-gray-200">
-          <h1 className="text-xl sm:text-2xl font-semibold text-[#3E5A6B] mb-1">Publish Portal</h1>
-          <p className="text-sm sm:text-base text-gray-600">Advanced publishing with calendar, analytics, and automation</p>
-          {publishData && (
-            <p className="text-xs text-gray-500 mt-1">
-              {publishData.content.length} approved posts, {publishData.socialConnections.length} connections
-            </p>
-          )}
+        {/* Enhanced Header */}
+        <div className="px-4 sm:px-6 py-6 bg-gradient-to-r from-white to-gray-50 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Publish Portal</h1>
+              <p className="text-sm sm:text-base text-gray-600">Direct social publishing with smart scheduling and analytics</p>
+              {publishData && (
+                <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    {publishData.content.length} ready to publish
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    {publishData.socialConnections.length} connections
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="text-right">
+                <p className="text-sm font-medium text-gray-900">Connected Platforms</p>
+                <div className="flex items-center gap-1 mt-1">
+                  {publishData?.socialConnections.map(conn => (
+                    <div key={conn.id} className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Tabbed Interface */}
+        {/* Enhanced Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
           <div className="px-4 sm:px-6 py-3 bg-white border-b">
-            <TabsList className="grid w-full max-w-md grid-cols-4">
-              <TabsTrigger value="content" className="flex items-center gap-2">
-                <Grid className="w-4 h-4" />
-                Content
+            <TabsList className="grid w-full max-w-lg grid-cols-4">
+              <TabsTrigger value="publisher" className="flex items-center gap-2">
+                <Send className="w-4 h-4" />
+                Publisher
+              </TabsTrigger>
+              <TabsTrigger value="dashboard" className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                Dashboard
               </TabsTrigger>
               <TabsTrigger value="calendar" className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 Calendar
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                Analytics
               </TabsTrigger>
               <TabsTrigger value="automation" className="flex items-center gap-2">
                 <Zap className="w-4 h-4" />
@@ -414,27 +413,39 @@ const PublishPage = () => {
           </div>
 
           <div className="p-4 sm:p-6">
-            <TabsContent value="content" className="mt-0">
-              <div className="flex flex-col lg:flex-row gap-4 min-h-[calc(100vh-20rem)]">
-                {/* Left Panel - Content Tray */}
-                <div className="w-full lg:w-80 xl:w-96 flex-shrink-0">
-                  <ComposerTray
+            <TabsContent value="publisher" className="mt-0">
+              <div className="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-20rem)]">
+                {/* Left Panel - Enhanced Content Library */}
+                <div className="w-full lg:w-96 xl:w-[420px] flex-shrink-0">
+                  <EnhancedComposerTray
                     content={publishData?.content || []}
                     selectedContent={selectedContent}
                     onContentSelect={handleContentSelect}
                     imageLoadingStates={imageLoadingStates}
+                    onQuickPublish={handleQuickPublish}
+                    onQuickSchedule={handleQuickSchedule}
                   />
                 </div>
 
-                {/* Right Panel - Editor */}
+                {/* Right Panel - Direct Publisher */}
                 <div className="flex-1 min-w-0">
-                  <ComposerEditor
+                  <DirectSocialPublisher
                     selectedContent={selectedContent}
-                    onContentUpdate={(updatedContent) => setSelectedContent(updatedContent)}
-                    onOpenDrawer={() => setDrawerOpen(true)}
+                    onPublishSuccess={() => {
+                      refetch();
+                      initializePublishData();
+                    }}
+                    onScheduleSuccess={() => {
+                      refetch();
+                      initializePublishData();
+                    }}
                   />
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="dashboard" className="mt-0">
+              <ModernPublishDashboard />
             </TabsContent>
 
             <TabsContent value="calendar" className="mt-0">
@@ -445,12 +456,6 @@ const PublishPage = () => {
               />
             </TabsContent>
 
-            <TabsContent value="analytics" className="mt-0">
-              <AnalyticsIntegration
-                selectedPost={selectedContent?.id}
-                onOptimalTimeSelect={handleOptimalTimeSelect}
-              />
-            </TabsContent>
 
             <TabsContent value="automation" className="mt-0">
               <WorkflowAutomation
