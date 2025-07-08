@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Facebook, Instagram } from 'lucide-react';
@@ -123,32 +124,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   return (
     <>
       <OAuthLoadingOverlay isVisible={loading} step={loadingStep} />
-      <div className="space-y-3">
-        {/* Privacy Policy Notice - Prominently displayed before login */}
-        <div className="text-center px-4 py-2 bg-muted/50 rounded-lg border">
-          <p className="text-xs italic text-muted-foreground leading-relaxed">
-            By logging in you agree to our{' '}
-            <a 
-              href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:text-primary/80 underline"
-            >
-              Privacy Policy
-            </a>
-            {' '}and{' '}
-            <a 
-              href="https://brandsinblooms.com/pages/terms-of-service" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-primary hover:text-primary/80 underline"
-            >
-              Terms of Service
-            </a>
-            .
-          </p>
-        </div>
-        
+      <div className="space-y-3">        
         <Button 
           onClick={handleConnect} 
           disabled={loading || !user}
