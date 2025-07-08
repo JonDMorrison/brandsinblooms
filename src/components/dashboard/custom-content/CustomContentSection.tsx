@@ -129,6 +129,7 @@ export const CustomContentSection = ({
         [campaign],
         user.id,
         () => {
+          // Immediate refresh callback
           fetchCampaignContent();
           if (onContentGenerated) onContentGenerated();
         },
@@ -137,7 +138,15 @@ export const CustomContentSection = ({
 
       if (result.success) {
         toast.success(`Generated content for ${campaign.title}!`);
+        
+        // Immediate refresh and delayed refresh to catch any async updates
         await fetchCampaignContent();
+        setTimeout(() => {
+          console.log('🔄 Delayed content state refresh for campaign:', campaignId);
+          fetchCampaignContent();
+        }, 1000);
+        
+        if (onContentGenerated) onContentGenerated();
       } else {
         toast.error(`Failed to generate content: ${result.message}`);
       }
