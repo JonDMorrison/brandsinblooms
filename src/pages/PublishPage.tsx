@@ -38,6 +38,8 @@ interface GeneratedContent {
   platform?: string;
   campaignId?: string;
   createdAt: string;
+  imageSource?: string;
+  photographer?: string;
 }
 
 interface ScheduledPost {
@@ -70,44 +72,80 @@ const PublishPage = () => {
   const [metricsRefresh, setMetricsRefresh] = useState(0);
   const [testMode, setTestMode] = useState(false);
 
-  // Function to fetch images for multiple content items
+  // Function to fetch images for content items that don't have them and store in DB
   const fetchImagesForContent = async (content: GeneratedContent[]): Promise<GeneratedContent[]> => {
     const updatedContent = [...content];
     
-    // Set loading states for all content
+    // Only process content that doesn't have images
+    const contentNeedingImages = content.filter(item => !item.mediaUrl);
+    
+    if (contentNeedingImages.length === 0) {
+      console.log('[PUBLISH] All content already has images, skipping fetch');
+      return updatedContent;
+    }
+    
+    // Set loading states only for content needing images
     const initialLoadingStates: Record<string, boolean> = {};
-    content.forEach(item => {
+    contentNeedingImages.forEach(item => {
       initialLoadingStates[item.id] = true;
     });
     setImageLoadingStates(initialLoadingStates);
 
-    // Fetch images for each content item in parallel
-    const imagePromises = content.map(async (item, index) => {
-      if (item.caption) {
-        try {
-          console.log(`[PUBLISH] Fetching smart image for ${item.platform} content (${item.caption.length} chars)`);
-          const image = await fetchSmartImageFromContent(item.caption, item.platform);
-          if (image) {
-            console.log(`[PUBLISH] Successfully found image for content ${item.id}`);
-            updatedContent[index] = { ...item, mediaUrl: image.url };
-            
-            // Create image asset record for tracking
-            await ImageAssetManager.createUnsplashAsset(user?.id || '', item.id, {
-              url: image.url,
-              thumb: image.thumb,
-              alt: image.alt,
-              photographer: image.photographer,
-              unsplash_id: image.unsplash_id
-            });
-          }
-        } catch (error) {
-          console.error(`Error fetching image for content ${item.id}:`, error);
+    // Fetch images for content that needs them
+    const imagePromises = contentNeedingImages.map(async (item) => {
+      const index = content.findIndex(c => c.id === item.id);
+      
+      try {
+        console.log(`[PUBLISH] Fetching smart image for ${item.platform} content (${item.caption.length} chars)`);
+        const image = await fetchSmartImageFromContent(item.caption, item.platform);
+        
+        if (image) {
+          console.log(`[PUBLISH] Successfully found image for content ${item.id}`);
+          
+          // Update the content item with the new image
+          updatedContent[index] = { 
+            ...item, 
+            mediaUrl: image.url,
+            imageSource: 'unsplash',
+            photographer: image.photographer
+          };
+          
+          // CRITICAL: Store the image attachment in the database for consistency
+          await supabase
+            .from('content_tasks')
+            .update({
+              attachments: {
+                image: {
+                  id: image.unsplash_id || `img_${Date.now()}`,
+                  url: image.url,
+                  thumb: image.thumb,
+                  alt: image.alt,
+                  photographer: image.photographer,
+                  author_name: image.photographer,
+                  source: 'unsplash',
+                  unsplash_id: image.unsplash_id
+                }
+              }
+            })
+            .eq('id', item.id);
+          
+          // Create image asset record for tracking
+          await ImageAssetManager.createUnsplashAsset(user?.id || '', item.id, {
+            url: image.url,
+            thumb: image.thumb,
+            alt: image.alt,
+            photographer: image.photographer,
+            unsplash_id: image.unsplash_id
+          });
+          
+          console.log(`[PUBLISH] ✅ Stored image attachment for task ${item.id}`);
         }
+      } catch (error) {
+        console.error(`Error fetching image for content ${item.id}:`, error);
       }
       
       // Update individual loading state
       setImageLoadingStates(prev => ({ ...prev, [item.id]: false }));
-      return updatedContent[index];
     });
 
     await Promise.allSettled(imagePromises);
@@ -146,20 +184,27 @@ const PublishPage = () => {
         ['facebook', 'instagram'].includes(task.post_type)
       ) || [];
 
-      // Transform to GeneratedContent format and fetch images
-      const generatedContent: GeneratedContent[] = approvedTasks.map(task => ({
-        id: task.id,
-        status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED',
-        caption: task.ai_output || '',
-        mediaUrl: (task.attachments as any)?.image?.url || undefined,
-        platform: task.post_type,
-        campaignId: task.campaign_id,
-        createdAt: task.created_at
-      }));
+      // Transform to GeneratedContent format and prioritize existing attachments
+      const generatedContent: GeneratedContent[] = approvedTasks.map(task => {
+        // Check for existing image attachment first
+        const existingImage = (task.attachments as any)?.image;
+        
+        return {
+          id: task.id,
+          status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED',
+          caption: task.ai_output || '',
+          mediaUrl: existingImage?.url || undefined,
+          platform: task.post_type,
+          campaignId: task.campaign_id,
+          createdAt: task.created_at,
+          imageSource: existingImage?.source || undefined,
+          photographer: existingImage?.photographer || existingImage?.author_name || undefined
+        };
+      });
 
       console.log('Generated content:', generatedContent);
 
-      // Fetch images for content that doesn't have them
+      // Only fetch images for content that doesn't have them AND store them properly
       const contentWithImages = await fetchImagesForContent(generatedContent);
 
       const socialConnections: SocialConnection[] = (dashboardData.socialConnections || []).map(conn => ({

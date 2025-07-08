@@ -18,6 +18,8 @@ interface GeneratedContent {
   createdAt: string;
   scheduledDate?: string;
   publishedAt?: string;
+  imageSource?: string;
+  photographer?: string;
 }
 
 interface EnhancedComposerTrayProps {
@@ -80,6 +82,12 @@ const EnhancedThumbnail = ({
         className="w-full h-full object-cover"
         onError={() => setImageError(true)}
       />
+      {/* Image source indicator */}
+      {content.imageSource && (
+        <div className="absolute top-1 left-1 bg-black bg-opacity-75 text-white text-xs px-1 py-0.5 rounded">
+          {content.imageSource === 'unsplash' ? '📷' : '🖼️'}
+        </div>
+      )}
       <div className="absolute bottom-1 right-1 bg-white rounded-full p-0.5">
         {getPlatformIcon()}
       </div>

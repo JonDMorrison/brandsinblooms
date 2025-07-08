@@ -37,6 +37,8 @@ interface GeneratedContent {
   platform?: string;
   campaignId?: string;
   createdAt: string;
+  imageSource?: string;
+  photographer?: string;
 }
 
 interface SocialConnection {
@@ -252,7 +254,10 @@ export const DirectSocialPublisher = ({
         body: {
           taskId: selectedContent.id,
           platforms: selectedPlatforms,
-          autoImage
+          // Force use of existing image if available, disable auto-fetch if image exists
+          autoImage: selectedContent.mediaUrl ? false : autoImage,
+          // Pass the exact image URL if we have one to ensure consistency
+          imageUrl: selectedContent.mediaUrl
         }
       });
 
@@ -309,7 +314,10 @@ export const DirectSocialPublisher = ({
           taskId: selectedContent.id,
           platforms: selectedPlatforms,
           publishAt: publishAt.toISOString(),
-          autoImage
+          // Force use of existing image if available, disable auto-fetch if image exists
+          autoImage: selectedContent.mediaUrl ? false : autoImage,
+          // Pass the exact image URL if we have one to ensure consistency
+          imageUrl: selectedContent.mediaUrl
         }
       });
 
@@ -373,16 +381,38 @@ export const DirectSocialPublisher = ({
 
   return (
     <div className="space-y-6">
-      {/* Content Preview */}
+      {/* Enhanced Content Preview with Image Source Info */}
       <Card className="p-4">
         <div className="flex items-start gap-4">
           {selectedContent.mediaUrl && (
-            <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-              <img 
-                src={selectedContent.mediaUrl} 
-                alt="Content preview"
-                className="w-full h-full object-cover"
-              />
+            <div className="flex-shrink-0">
+              <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 relative">
+                <img 
+                  src={selectedContent.mediaUrl} 
+                  alt="Content preview"
+                  className="w-full h-full object-cover"
+                />
+                {/* Image source indicator */}
+                {selectedContent.imageSource && (
+                  <div className="absolute top-1 right-1 bg-black bg-opacity-75 text-white text-xs px-1 py-0.5 rounded">
+                    {selectedContent.imageSource === 'unsplash' ? '📷' : '🖼️'}
+                  </div>
+                )}
+              </div>
+              {/* Image metadata */}
+              {selectedContent.imageSource && (
+                <div className="mt-1 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <span className="font-medium">Source:</span>
+                    <span className="capitalize">{selectedContent.imageSource}</span>
+                  </div>
+                  {selectedContent.photographer && (
+                    <div className="text-xs text-gray-400 truncate max-w-20" title={selectedContent.photographer}>
+                      by {selectedContent.photographer}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           <div className="flex-1 min-w-0">
@@ -391,6 +421,13 @@ export const DirectSocialPublisher = ({
                 {selectedContent.platform || 'Social'}
               </Badge>
               <Badge variant="secondary">{selectedContent.status}</Badge>
+              {/* Image preview confirmation */}
+              {selectedContent.mediaUrl && (
+                <Badge variant="outline" className="text-green-700 border-green-200 bg-green-50">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Image Ready
+                </Badge>
+              )}
             </div>
             <Textarea
               value={editedCaption}
@@ -398,6 +435,12 @@ export const DirectSocialPublisher = ({
               className="min-h-[100px] text-sm"
               placeholder="Edit caption before publishing..."
             />
+            {/* Image posting confirmation */}
+            {selectedContent.mediaUrl && (
+              <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
+                ✅ This exact image will be posted to social media
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -422,12 +465,39 @@ export const DirectSocialPublisher = ({
             />
           </div>
           
-          {!selectedContent.mediaUrl && autoImage && (
+          {/* Enhanced image status info */}
+          {selectedContent.mediaUrl ? (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <p className="text-sm text-green-800">
+                  <strong>Image confirmed:</strong> The image shown above will be posted to social media
+                </p>
+              </div>
+              {selectedContent.photographer && (
+                <p className="text-xs text-green-700 mt-1">
+                  📸 Photo by {selectedContent.photographer}
+                </p>
+              )}
+            </div>
+          ) : autoImage ? (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <Image className="w-4 h-4 text-blue-600" />
                 <p className="text-sm text-blue-800">
                   An image will be automatically fetched from Unsplash for better engagement
+                </p>
+              </div>
+              <p className="text-xs text-blue-600 mt-1">
+                ⚠️ Note: Auto-fetched image may differ from any images shown in content preview
+              </p>
+            </div>
+          ) : (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-600" />
+                <p className="text-sm text-yellow-800">
+                  No image will be included (Instagram posts require images)
                 </p>
               </div>
             </div>
