@@ -1,0 +1,1 @@
+DELETE FROM content_tasks WHERE campaign_id = '44d95599-1c38-4295-8635-ac0f050b08e8' AND user_id = 'df62a03b-b052-41e1-96ef-6c0c28105440' AND ai_output IS NULL;
