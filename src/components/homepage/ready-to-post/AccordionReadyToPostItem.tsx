@@ -260,18 +260,7 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                         socialConnections={socialConnections}
                       />
                     )}
-                    
-                    {/* Show generic "Post to Social" button for other content types */}
-                    {task.post_type !== 'facebook' && task.post_type !== 'instagram' && (socialConnections.length > 0) && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => toast.info('This content type is not directly postable to social media')}
-                        className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                      >
-                        Post to Social
-                      </Button>
-                    )}
+                    {/* No posting buttons for video, newsletter, email, or other content types */}
                   </div>
                 )}
               </div>
