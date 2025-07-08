@@ -268,9 +268,6 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
       ) : (
         <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm" data-section="ready-to-post-section">
           <CardHeader>
-            <Badge className="px-2 py-0.5 rounded-full bg-mint-50 text-mint-700 text-[11px] font-medium">
-              {readyTasks.length} items ready
-            </Badge>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Social Connection Status */}
