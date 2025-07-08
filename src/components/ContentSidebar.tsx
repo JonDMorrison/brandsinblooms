@@ -9,7 +9,7 @@ import { ContentMetadata } from "./content-sidebar/ContentMetadata";
 import { QuickCopyActions } from "./content-sidebar/QuickCopyActions";
 import { ContentApproval } from "./content-sidebar/ContentApproval";
 import { ContentHeader } from "./content-sidebar/ContentHeader";
-import { ImageSuggestionPanel } from "./content-sidebar/ImageSuggestionPanel";
+import { LiveUnsplashPicker } from "./content-sidebar/LiveUnsplashPicker";
 import { ApprovalButton } from "./content-sidebar/ApprovalButton";
 import { Edit, Save, X } from "lucide-react";
 
@@ -170,8 +170,8 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
                 isEditing={isEditing}
               />
               
-              {/* Add image suggestions below content */}
-              <ImageSuggestionPanel 
+              {/* Live Unsplash picker below content */}
+              <LiveUnsplashPicker 
                 task={task} 
                 campaignTheme={task.campaigns?.title || task.campaigns?.theme}
               />
