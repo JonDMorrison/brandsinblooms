@@ -41,11 +41,19 @@ interface GeneratedContent {
 
 interface SocialConnection {
   id: string;
-  platform: 'facebook' | 'instagram';
-  platform_account_name: string;
+  platform: string;
+  platform_account_name: string | null;
   is_active: boolean;
-  page_id?: string;
-  platform_account_id?: string;
+  page_id: string | null;
+  platform_account_id: string;
+  access_token: string;
+  created_at: string;
+  deleted_at: string | null;
+  expires_at: string | null;
+  refresh_token: string | null;
+  updated_at: string;
+  user_id: string;
+  username: string | null;
 }
 
 interface DirectSocialPublisherProps {
