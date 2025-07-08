@@ -101,7 +101,7 @@ const EnhancedStatusBadge = ({ status }: { status: string }) => {
         return { 
           color: 'bg-emerald-50 text-emerald-700 border-emerald-200', 
           icon: <CheckCircle className="w-3 h-3" />,
-          pulse: true 
+          pulse: false 
         };
       case 'SCHEDULED':
         return { 
