@@ -37,7 +37,7 @@ export const HolidayGenerationButton = ({
         ) : (
           <>
             <Sparkles className="w-4 h-4 mr-2" />
-            Generate Content & Review
+            Generate Content
           </>
         )}
       </Button>
