@@ -73,24 +73,6 @@ export const CampaignContentSection = ({
         <div className="flex items-center gap-2">
           <Button
             size="sm"
-            variant="outline"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-xs px-2 py-1"
-          >
-            {isExpanded ? (
-              <>
-                <ChevronUp className="w-3 h-3 mr-1" />
-                Hide Content
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-3 h-3 mr-1" />
-                Show Content
-              </>
-            )}
-          </Button>
-          <Button
-            size="sm"
             onClick={handleViewContent}
             className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700"
           >
