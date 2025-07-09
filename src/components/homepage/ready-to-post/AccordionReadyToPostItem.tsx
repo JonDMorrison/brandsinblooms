@@ -243,8 +243,7 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
 
                 {!batchMode && (
                   <div className="flex gap-2">
-                    {/* Only show platform-specific buttons for facebook and instagram content */}
-                    {task.post_type === 'facebook' && facebookConnection && (
+                    {facebookConnection && (
                       <EnhancedPostNowButton
                         task={task}
                         platform="facebook"
@@ -252,7 +251,7 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                         socialConnections={socialConnections}
                       />
                     )}
-                    {task.post_type === 'instagram' && instagramConnection && (
+                    {instagramConnection && (
                       <EnhancedPostNowButton
                         task={task}
                         platform="instagram"
@@ -260,7 +259,6 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                         socialConnections={socialConnections}
                       />
                     )}
-                    {/* No posting buttons for video, newsletter, email, or other content types */}
                   </div>
                 )}
               </div>

@@ -390,75 +390,50 @@ serve(async (req) => {
           let imageUrl: string | undefined
           let attribution: string | undefined
 
-          // ENHANCED IMAGE PRIORITY LOGIC - ensures frontend/backend consistency
-          console.log(`[IMAGE] Processing image for ${platform}:`, {
-            hasDirectUrl: !!body.imageUrl,
-            hasAttachment: !!task.attachments?.image,
-            autoImageEnabled: body.autoImage !== false
-          });
-
+          // Determine image source - priority: direct URL > existing attachment > auto-fetch from Unsplash
           if (body.imageUrl) {
-            // 1. HIGHEST PRIORITY: Direct image URL provided by frontend (ensures consistency)
-            imageUrl = body.imageUrl;
-            console.log(`[IMAGE] ✅ Using direct URL from frontend: ${imageUrl}`);
-            
-            // Check if this matches an existing attachment to get attribution
-            if (task.attachments?.image?.url === body.imageUrl) {
-              const imageAttachment = task.attachments.image;
-              if (imageAttachment.source === 'unsplash' && (imageAttachment.author_name || imageAttachment.photographer)) {
-                attribution = `📸 Photo by ${imageAttachment.author_name || imageAttachment.photographer} on Unsplash`;
-              }
-            }
+            // Direct image URL provided
+            imageUrl = body.imageUrl
           } else if (task.attachments?.image) {
-            // 2. SECOND PRIORITY: Use existing image attachment
-            const imageAttachment = task.attachments.image;
-            imageUrl = imageAttachment.url;
-            console.log(`[IMAGE] ✅ Using existing attachment: ${imageUrl}`);
+            // Use existing image attachment
+            const imageAttachment = task.attachments.image
+            imageUrl = imageAttachment.url
             
             // Create attribution text
-            if (imageAttachment.source === 'unsplash' && (imageAttachment.author_name || imageAttachment.photographer)) {
-              attribution = `📸 Photo by ${imageAttachment.author_name || imageAttachment.photographer} on Unsplash`;
+            if (imageAttachment.source === 'unsplash' && imageAttachment.author_name) {
+              attribution = `📸 Photo by ${imageAttachment.author_name} on Unsplash`
             }
           } else if (body.autoImage !== false) {
-            // 3. FALLBACK: Auto-fetch from Unsplash ONLY if no existing image
+            // Auto-fetch from Unsplash if no image provided and auto-fetch not disabled
             const searchKeyword = body.keyword || task.ai_output?.split(' ').slice(0, 3).join(' ') || task.campaigns?.title || 'garden plants';
-            console.log(`[UNSPLASH] 🔍 Auto-fetching image for keyword: "${searchKeyword}"`);
+            console.log(`[UNSPLASH] Auto-fetching image for keyword: "${searchKeyword}"`);
             
             const unsplashResult = await getUnsplashImage(searchKeyword);
             if (unsplashResult) {
               imageUrl = unsplashResult.url;
               attribution = `📸 Photo by ${unsplashResult.author_name} on Unsplash`;
-              console.log(`[UNSPLASH] ✅ Found and will use auto-fetched image: ${imageUrl}`);
+              console.log(`[UNSPLASH] ✅ Found image: ${imageUrl}`);
               
-              // Update task with the auto-fetched image for future consistency
+              // Update task with the auto-fetched image for future reference
               await supabaseAdmin
                 .from('content_tasks')
                 .update({
                   attachments: {
                     image: {
                       url: imageUrl,
-                      thumb: imageUrl,
+                      thumb: imageUrl, // Use same URL for thumb
                       alt: searchKeyword,
                       author_name: unsplashResult.author_name,
-                      photographer: unsplashResult.author_name,
                       source: 'unsplash',
                       unsplash_id: 'auto-fetched'
                     }
                   }
                 })
                 .eq('id', body.taskId);
-              
-              console.log(`[IMAGE] ✅ Stored auto-fetched image attachment for future consistency`);
             } else {
               console.warn(`[UNSPLASH] ❌ No image found for keyword: "${searchKeyword}"`);
             }
           }
-
-          console.log(`[IMAGE] Final decision for ${platform}:`, {
-            willUseImage: !!imageUrl,
-            imageUrl: imageUrl,
-            hasAttribution: !!attribution
-          });
 
           // Validate image requirement for Instagram
           if (normalizedPlatform === 'instagram' && !imageUrl) {

@@ -129,7 +129,6 @@ export const CustomContentSection = ({
         [campaign],
         user.id,
         () => {
-          // Immediate refresh callback
           fetchCampaignContent();
           if (onContentGenerated) onContentGenerated();
         },
@@ -138,15 +137,7 @@ export const CustomContentSection = ({
 
       if (result.success) {
         toast.success(`Generated content for ${campaign.title}!`);
-        
-        // Immediate refresh and delayed refresh to catch any async updates
         await fetchCampaignContent();
-        setTimeout(() => {
-          console.log('🔄 Delayed content state refresh for campaign:', campaignId);
-          fetchCampaignContent();
-        }, 1000);
-        
-        if (onContentGenerated) onContentGenerated();
       } else {
         toast.error(`Failed to generate content: ${result.message}`);
       }
@@ -236,10 +227,8 @@ export const CustomContentSection = ({
     fetchCampaignContent();
   };
 
-  // Only show the section if there are campaigns
-  if (campaigns.length === 0) {
-    return null;
-  }
+  // Always show the section, even if empty - this allows users to create campaigns
+  const shouldShowEmptyState = campaigns.length === 0;
 
   return (
     <>
@@ -254,28 +243,47 @@ export const CustomContentSection = ({
           </div>
         </div>
 
-        {/* Campaign Cards Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {displayedCampaigns.map((campaign, index) => (
-            <div 
-              key={campaign.id}
-              className="transform transition-all duration-300 hover:scale-[1.02] group"
-              style={{ 
-                animationDelay: `${index * 100}ms`,
-                animation: 'fadeInUp 0.6s ease-out forwards'
-              }}
-            >
-              <CustomContentItem
-                campaign={campaign}
-                onGenerateContent={handleGenerateContent}
-                onViewContent={handleViewContent}
-                onDeleteCampaign={handleDeleteCampaign}
-                isGenerating={generatingCampaigns.has(campaign.id)}
-                contentState={campaignContentState[campaign.id]}
-              />
+        {/* Campaign Cards Grid or Empty State */}
+        {shouldShowEmptyState ? (
+          <div className="text-center py-12 px-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <Plus className="w-8 h-8 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold text-foreground">No Custom Campaigns Yet</h3>
+                <p className="text-muted-foreground max-w-md">
+                  Create custom campaigns for special events, promotions, or seasonal content that's unique to your garden center.
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Try creating a campaign using the Quick Actions section above
+              </p>
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {displayedCampaigns.map((campaign, index) => (
+              <div 
+                key={campaign.id}
+                className="transform transition-all duration-300 hover:scale-[1.02] group"
+                style={{ 
+                  animationDelay: `${index * 100}ms`,
+                  animation: 'fadeInUp 0.6s ease-out forwards'
+                }}
+              >
+                <CustomContentItem
+                  campaign={campaign}
+                  onGenerateContent={handleGenerateContent}
+                  onViewContent={handleViewContent}
+                  onDeleteCampaign={handleDeleteCampaign}
+                  isGenerating={generatingCampaigns.has(campaign.id)}
+                  contentState={campaignContentState[campaign.id]}
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Load More Button */}
         {hasMoreCampaigns && (

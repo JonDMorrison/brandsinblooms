@@ -18,8 +18,6 @@ interface GeneratedContent {
   createdAt: string;
   scheduledDate?: string;
   publishedAt?: string;
-  imageSource?: string;
-  photographer?: string;
 }
 
 interface EnhancedComposerTrayProps {
@@ -82,12 +80,6 @@ const EnhancedThumbnail = ({
         className="w-full h-full object-cover"
         onError={() => setImageError(true)}
       />
-      {/* Image source indicator */}
-      {content.imageSource && (
-        <div className="absolute top-1 left-1 bg-black bg-opacity-75 text-white text-xs px-1 py-0.5 rounded">
-          {content.imageSource === 'unsplash' ? '📷' : '🖼️'}
-        </div>
-      )}
       <div className="absolute bottom-1 right-1 bg-white rounded-full p-0.5">
         {getPlatformIcon()}
       </div>
@@ -134,19 +126,19 @@ const EnhancedStatusBadge = ({ status }: { status: string }) => {
   
   const config = getStatusConfig(status);
   
-  return (
-    <Badge 
-      variant="outline" 
-      className={cn(
-        "text-xs px-2 py-0.5 border inline-flex items-center gap-1",
-        config.color,
-        config.pulse && "animate-pulse"
-      )}
-    >
-      {config.icon}
-      {status.toLowerCase()}
-    </Badge>
-  );
+      return (
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "text-xs border flex items-center gap-1",
+            config.color,
+            config.pulse && "animate-pulse"
+          )}
+        >
+          {config.icon}
+          {status}
+        </Badge>
+      );
 };
 
 // Quick action buttons for each content item
@@ -255,6 +247,9 @@ export const EnhancedComposerTray = ({
       <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-900">Content Library</h2>
+          <Badge variant="outline" className="text-xs">
+            {filteredAndSortedContent.length} of {stats.total}
+          </Badge>
         </div>
         
         {/* Stats Row */}
@@ -273,7 +268,55 @@ export const EnhancedComposerTray = ({
           </div>
         </div>
 
-        {/* Filters section removed */}
+        {/* Enhanced Filters */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Search content..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-8 text-sm"
+            />
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+                <SelectItem value="PUBLISHED">Published</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={platformFilter} onValueChange={setPlatformFilter}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Platform" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Platforms</SelectItem>
+                <SelectItem value="facebook">Facebook</SelectItem>
+                <SelectItem value="instagram">Instagram</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">By Date</SelectItem>
+                <SelectItem value="status">By Status</SelectItem>
+                <SelectItem value="platform">By Platform</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
       
       {/* Enhanced Content List */}
@@ -321,28 +364,26 @@ export const EnhancedComposerTray = ({
                     isLoading={imageLoadingStates[item.id]}
                   />
 
-                   {/* Enhanced Content Details */}
-                   <div className="flex-1 min-w-0">
-                     <div className="flex items-start justify-between mb-2">
-                       <h3 className="font-medium text-gray-900 text-sm leading-tight line-clamp-2">
-                         {truncateCaption(item.caption)}
-                       </h3>
-                     </div>
-                     
-                     <div className="flex items-center gap-2 mb-1">
-                       <EnhancedStatusBadge status={item.status} />
-                       <span className="text-xs text-gray-500">
-                         {formatRelativeTime(item.createdAt)}
-                       </span>
-                     </div>
+                  {/* Enhanced Content Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-medium text-gray-900 text-sm leading-tight line-clamp-2">
+                        {truncateCaption(item.caption)}
+                      </h3>
+                    </div>
+                    
+                    <EnhancedStatusBadge status={item.status} />
+                    <span className="text-xs text-gray-500">
+                      {formatRelativeTime(item.createdAt)}
+                    </span>
 
-                     {/* Quick Actions for approved content */}
-                     <QuickActions
-                       content={item}
-                       onQuickPublish={onQuickPublish}
-                       onQuickSchedule={onQuickSchedule}
-                     />
-                   </div>
+                    {/* Quick Actions for approved content */}
+                    <QuickActions
+                      content={item}
+                      onQuickPublish={onQuickPublish}
+                      onQuickSchedule={onQuickSchedule}
+                    />
+                  </div>
                 </div>
               ))
             )}

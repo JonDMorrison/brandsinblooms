@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { ImageAttachment } from '@/lib/contentTypes';
 import { extractKeywords } from '@/utils/imageKeywords';
-import { fetchSmartImageFromContent } from '@/services/unsplashService';
 
 export const useComposerImages = (selectedDraft: any) => {
   const [images, setImages] = useState<ImageAttachment[]>([]);
@@ -46,29 +45,6 @@ export const useComposerImages = (selectedDraft: any) => {
     setImageError(null);
     
     try {
-      console.log('[COMPOSER] Using smart image extraction for draft content');
-      
-      // Try the new smart image extraction first
-      const smartImage = await fetchSmartImageFromContent(selectedDraft.ai_output, selectedDraft.post_type);
-      
-      if (smartImage) {
-        console.log('[COMPOSER] Smart image extraction successful');
-        const imageAttachment = {
-          id: smartImage.unsplash_id || `img_${Date.now()}`,
-          url: smartImage.url,
-          thumb: smartImage.thumb,
-          alt: smartImage.alt,
-          photographer: smartImage.photographer,
-          source: 'unsplash' as const
-        };
-        
-        setImages([imageAttachment]);
-        setSelectedImageId(imageAttachment.id);
-        return;
-      }
-      
-      // Fallback to original method if smart extraction fails
-      console.log('[COMPOSER] Smart extraction failed, trying fallback method');
       const keywords = extractKeywords(selectedDraft.ai_output, 'garden center plants');
       console.log('[COMPOSER] Extracted keywords for images:', keywords);
       
@@ -94,7 +70,7 @@ export const useComposerImages = (selectedDraft: any) => {
         setSelectedImageId(fetchedImages[0].id);
         console.log('[COMPOSER] Auto-selected first image:', fetchedImages[0].id);
       } else {
-        console.warn('[COMPOSER] No images returned, trying final fallback');
+        console.warn('[COMPOSER] No images returned, trying fallback');
         const fallbackQuery = `${selectedDraft.post_type || 'gardening'} garden center plants`;
         const fallbackImages = await getSmartImages(fallbackQuery);
         

@@ -21,7 +21,7 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, BarChart3, Zap, Grid, Send, Clock } from 'lucide-react';
-import { fetchSmartImageFromContent } from '@/services/unsplashService';
+import { fetchSmartImage } from '@/services/unsplashService';
 import { ImageAssetManager } from '@/lib/imageAssetManager';
 
 interface PublishData {
@@ -38,8 +38,6 @@ interface GeneratedContent {
   platform?: string;
   campaignId?: string;
   createdAt: string;
-  imageSource?: string;
-  photographer?: string;
 }
 
 interface ScheduledPost {
@@ -72,80 +70,42 @@ const PublishPage = () => {
   const [metricsRefresh, setMetricsRefresh] = useState(0);
   const [testMode, setTestMode] = useState(false);
 
-  // Function to fetch images for content items that don't have them and store in DB
+  // Function to fetch images for multiple content items
   const fetchImagesForContent = async (content: GeneratedContent[]): Promise<GeneratedContent[]> => {
     const updatedContent = [...content];
     
-    // Only process content that doesn't have images
-    const contentNeedingImages = content.filter(item => !item.mediaUrl);
-    
-    if (contentNeedingImages.length === 0) {
-      console.log('[PUBLISH] All content already has images, skipping fetch');
-      return updatedContent;
-    }
-    
-    // Set loading states only for content needing images
+    // Set loading states for all content
     const initialLoadingStates: Record<string, boolean> = {};
-    contentNeedingImages.forEach(item => {
+    content.forEach(item => {
       initialLoadingStates[item.id] = true;
     });
     setImageLoadingStates(initialLoadingStates);
 
-    // Fetch images for content that needs them
-    const imagePromises = contentNeedingImages.map(async (item) => {
-      const index = content.findIndex(c => c.id === item.id);
-      
-      try {
-        console.log(`[PUBLISH] Fetching smart image for ${item.platform} content (${item.caption.length} chars)`);
-        const image = await fetchSmartImageFromContent(item.caption, item.platform);
-        
-        if (image) {
-          console.log(`[PUBLISH] Successfully found image for content ${item.id}`);
-          
-          // Update the content item with the new image
-          updatedContent[index] = { 
-            ...item, 
-            mediaUrl: image.url,
-            imageSource: 'unsplash',
-            photographer: image.photographer
-          };
-          
-          // CRITICAL: Store the image attachment in the database for consistency
-          await supabase
-            .from('content_tasks')
-            .update({
-              attachments: {
-                image: {
-                  id: image.unsplash_id || `img_${Date.now()}`,
-                  url: image.url,
-                  thumb: image.thumb,
-                  alt: image.alt,
-                  photographer: image.photographer,
-                  author_name: image.photographer,
-                  source: 'unsplash',
-                  unsplash_id: image.unsplash_id
-                }
-              }
-            })
-            .eq('id', item.id);
-          
-          // Create image asset record for tracking
-          await ImageAssetManager.createUnsplashAsset(user?.id || '', item.id, {
-            url: image.url,
-            thumb: image.thumb,
-            alt: image.alt,
-            photographer: image.photographer,
-            unsplash_id: image.unsplash_id
-          });
-          
-          console.log(`[PUBLISH] ✅ Stored image attachment for task ${item.id}`);
+    // Fetch images for each content item in parallel
+    const imagePromises = content.map(async (item, index) => {
+      if (item.caption) {
+        try {
+          const image = await fetchSmartImage(item.caption, 'garden center social media');
+          if (image) {
+            updatedContent[index] = { ...item, mediaUrl: image.url };
+            
+            // Create image asset record for tracking
+            await ImageAssetManager.createUnsplashAsset(user?.id || '', item.id, {
+              url: image.url,
+              thumb: image.thumb,
+              alt: image.alt,
+              photographer: image.photographer,
+              unsplash_id: image.unsplash_id
+            });
+          }
+        } catch (error) {
+          console.error(`Error fetching image for content ${item.id}:`, error);
         }
-      } catch (error) {
-        console.error(`Error fetching image for content ${item.id}:`, error);
       }
       
       // Update individual loading state
       setImageLoadingStates(prev => ({ ...prev, [item.id]: false }));
+      return updatedContent[index];
     });
 
     await Promise.allSettled(imagePromises);
@@ -184,27 +144,20 @@ const PublishPage = () => {
         ['facebook', 'instagram'].includes(task.post_type)
       ) || [];
 
-      // Transform to GeneratedContent format and prioritize existing attachments
-      const generatedContent: GeneratedContent[] = approvedTasks.map(task => {
-        // Check for existing image attachment first
-        const existingImage = (task.attachments as any)?.image;
-        
-        return {
-          id: task.id,
-          status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED',
-          caption: task.ai_output || '',
-          mediaUrl: existingImage?.url || undefined,
-          platform: task.post_type,
-          campaignId: task.campaign_id,
-          createdAt: task.created_at,
-          imageSource: existingImage?.source || undefined,
-          photographer: existingImage?.photographer || existingImage?.author_name || undefined
-        };
-      });
+      // Transform to GeneratedContent format and fetch images
+      const generatedContent: GeneratedContent[] = approvedTasks.map(task => ({
+        id: task.id,
+        status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED',
+        caption: task.ai_output || '',
+        mediaUrl: (task.attachments as any)?.image?.url || undefined,
+        platform: task.post_type,
+        campaignId: task.campaign_id,
+        createdAt: task.created_at
+      }));
 
       console.log('Generated content:', generatedContent);
 
-      // Only fetch images for content that doesn't have them AND store them properly
+      // Fetch images for content that doesn't have them
       const contentWithImages = await fetchImagesForContent(generatedContent);
 
       const socialConnections: SocialConnection[] = (dashboardData.socialConnections || []).map(conn => ({
@@ -472,11 +425,23 @@ const PublishPage = () => {
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
               </TabsList>
               
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDebugger(true)}
+                className="text-xs"
+              >
+                <Zap className="w-4 h-4 mr-1" />
+                Debug
+              </Button>
             </div>
           </div>
 
           <div className="p-4 sm:p-6">
             <TabsContent value="publisher" className="space-y-6 mt-6">
+              
+              {/* Metrics Overview */}
+              <PublishMetrics refreshTrigger={metricsRefresh} />
               <div className="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-20rem)]">
                 {/* Left Panel - Enhanced Content Library */}
                 <div className="w-full lg:w-96 xl:w-[420px] flex-shrink-0">
@@ -507,9 +472,6 @@ const PublishPage = () => {
                   />
                 </div>
               </div>
-              
-              {/* Metrics Overview - Moved to bottom */}
-              <PublishMetrics refreshTrigger={metricsRefresh} />
             </TabsContent>
 
             <TabsContent value="calendar" className="mt-0">

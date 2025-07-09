@@ -100,6 +100,11 @@ const Index = () => {
   return (
     <DashboardErrorBoundary>
       <div className="min-h-screen relative">
+        {/* Fixed UserMenu - always visible at top right */}
+        <div className={`fixed top-4 right-4 z-[9999] ${isMobile ? 'top-2 right-2' : ''}`}>
+          <UserMenu />
+        </div>
+        
         <SidebarLayout>
           <div className="w-full h-full bg-garden-background">
             {/* Dashboard Content */}
