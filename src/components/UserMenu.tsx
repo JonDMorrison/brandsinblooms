@@ -112,7 +112,7 @@ export const UserMenu = () => {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button 
             variant="ghost" 
@@ -126,7 +126,12 @@ export const UserMenu = () => {
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-60" align="end">
+        <DropdownMenuContent 
+          className="w-60" 
+          align="end" 
+          side="bottom"
+          sideOffset={8}
+        >
           <div className="flex items-center justify-start gap-2 p-2">
             <div className="flex flex-col space-y-1 leading-none">
               <p className="font-medium text-sm">{user?.email}</p>
