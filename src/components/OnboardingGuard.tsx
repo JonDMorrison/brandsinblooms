@@ -33,9 +33,20 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
     }
   }, [authLoading, onboardingLoading]);
 
-  // If there's an onboarding error and we've timed out, assume incomplete
   const shouldShowLoading = authLoading || 
     (user && onboardingLoading && !timeoutReached && !hasCheckedOnce && !onboardingError);
+
+  // Debug logging
+  console.log('🔍 OnboardingGuard state:', {
+    authLoading,
+    onboardingLoading,
+    timeoutReached,
+    hasCheckedOnce,
+    onboardingError,
+    shouldShowLoading,
+    isCompleted,
+    userExists: !!user
+  });
 
   // Show loading while checking auth or onboarding status (with timeout)
   if (shouldShowLoading) {

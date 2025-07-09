@@ -11,6 +11,8 @@ import { Loader2 } from 'lucide-react';
 
 export const SmartRootRoute = () => {
   const { user, loading } = useAuth();
+  
+  console.log('🔍 SmartRootRoute state:', { userExists: !!user, loading });
 
   // Show loading while checking auth state
   if (loading) {
