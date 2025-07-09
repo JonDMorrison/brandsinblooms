@@ -383,32 +383,55 @@ const PublishPage = () => {
   return (
     <SidebarLayout>
       <div className="min-h-screen bg-[#F9FAFB]">
-        {/* Enhanced Header */}
-        <div className="px-4 sm:px-6 py-6 bg-gradient-to-r from-white to-gray-50 border-b border-gray-200">
-          <div className="flex items-center justify-between">
+        {/* Modern SaaS Gradient Header */}
+        <div className="relative px-4 sm:px-6 py-8 bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border-b border-white/30 overflow-hidden">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+          <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
+          
+          {/* Background Send Icon */}
+          <div className="absolute top-4 right-8 opacity-20">
+            <Send className="w-32 h-32 text-slate-300" />
+          </div>
+          
+          {/* Subtle Overlay */}
+          <div className="absolute inset-0 bg-black/5"></div>
+          
+          <div className="relative z-10 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Publish Portal</h1>
-              <p className="text-sm sm:text-base text-gray-600">Direct social publishing with smart scheduling and analytics</p>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-3 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent">
+                Publish Portal
+              </h1>
+              <p className="text-base sm:text-lg text-slate-700 font-medium mb-4">
+                Direct social publishing with smart scheduling and analytics
+              </p>
               {publishData && (
-                <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                  <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    {publishData.content.length} ready to publish
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    {publishData.socialConnections.length} connections
-                  </span>
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/50 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/30 shadow-lg">
+                    <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                      {publishData.content.length} ready to publish
+                    </span>
+                  </div>
+                  <div className="bg-white/50 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/30 shadow-lg">
+                    <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      {publishData.socialConnections.length} connections
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
-            <div className="hidden sm:flex items-center gap-2">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">Connected Platforms</p>
-                <div className="flex items-center gap-1 mt-1">
+            <div className="hidden lg:flex items-center gap-3">
+              <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-4 border border-white/30 shadow-lg">
+                <p className="text-sm font-semibold text-slate-800 mb-2">Connected Platforms</p>
+                <div className="flex items-center gap-2">
                   {publishData?.socialConnections.map(conn => (
-                    <div key={conn.id} className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <div key={conn.id} className="w-3 h-3 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-full shadow-md"></div>
                   ))}
+                  {(!publishData?.socialConnections || publishData.socialConnections.length === 0) && (
+                    <span className="text-xs text-slate-500">No connections</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -417,12 +440,12 @@ const PublishPage = () => {
 
         {/* Enhanced Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-          <div className="px-4 sm:px-6 py-3 bg-white border-b">
+          <div className="px-4 sm:px-6 py-3 bg-white/80 backdrop-blur-sm border-b border-white/30">
             <div className="flex items-center justify-between">
-              <TabsList className="grid w-full max-w-md grid-cols-3">
-                <TabsTrigger value="publisher">Publisher</TabsTrigger>
-                <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                <TabsTrigger value="analytics">Analytics</TabsTrigger>
+              <TabsList className="bg-white/50 backdrop-blur-sm border border-white/30 shadow-lg">
+                <TabsTrigger value="publisher" className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all">Publisher</TabsTrigger>
+                <TabsTrigger value="calendar" className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all">Calendar</TabsTrigger>
+                <TabsTrigger value="analytics" className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all">Analytics</TabsTrigger>
               </TabsList>
               
               <Button
