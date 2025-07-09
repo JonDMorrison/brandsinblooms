@@ -225,173 +225,188 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
       requiredPlan="bloom" 
       feature="Social Media Connections"
     >
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <h2 className="text-2xl font-bold text-gray-900">Your Meta Accounts</h2>
-          <p className="text-gray-600">
-            Manage your Facebook and Instagram connections
-          </p>
+      <div className="relative">
+        {/* Gradient Hero Header */}
+        <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden mb-8">
+          {/* Decorative Background Pattern */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
+              <Wifi className="w-64 h-64 text-gray-400" />
+            </div>
+          </div>
+          
+          {/* Header Content */}
+          <div className="relative z-10 p-8 text-center">
+            <div className="inline-flex items-center gap-3 mb-4">
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
+                <Facebook className="w-8 h-8 text-white" />
+              </div>
+              <div className="p-3 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-2xl shadow-lg">
+                <Instagram className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            
+            <h2 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent mb-3">
+              Meta Platforms
+            </h2>
+            <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+              Manage your Facebook and Instagram connections with enterprise-grade security and seamless integration
+            </p>
+            
+            {/* Status Badge */}
+            {bothConnected && (
+              <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500/20 to-green-500/20 backdrop-blur-sm border border-emerald-200/50 rounded-full text-emerald-700 font-medium mt-4 shadow-lg">
+                <div className="w-2.5 h-2.5 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full animate-pulse shadow-sm"></div>
+                All platforms connected
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Connection Status */}
-        <div className="max-w-4xl mx-auto">
-          <Card className={`relative overflow-hidden transition-all duration-300 ${
-            bothConnected 
-              ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg' 
-              : isConnected 
-                ? 'border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 shadow-md' 
-                : 'border-gray-200 shadow-sm'
+        {/* Individual Platform Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-6xl mx-auto">
+          {/* Facebook Card */}
+          <div className={`group relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl p-6 shadow-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl ${
+            facebookConnection ? 'ring-2 ring-blue-500/20' : ''
           }`}>
-            <CardContent className="p-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                {/* Platform Info Section */}
-                <div className="flex items-start gap-6">
-                  {/* Platform Icons */}
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
-                        <Facebook className="w-7 h-7 text-white" />
-                      </div>
-                      {facebookConnection && (
-                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                          <span className="text-white text-xs">✓</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="relative">
-                      <div className="w-14 h-14 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-                        <Instagram className="w-7 h-7 text-white" />
-                      </div>
-                      {instagramConnection && (
-                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
-                          <span className="text-white text-xs">✓</span>
-                        </div>
-                      )}
-                    </div>
+            {/* Card Background Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-blue-600/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            {/* Platform Header */}
+            <div className="relative z-10 flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <Facebook className="w-8 h-8 text-white" />
                   </div>
-                  
-                  {/* Platform Details */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-2xl font-bold text-gray-900">Meta Platforms</h3>
-                      {bothConnected && (
-                        <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                          Fully Connected
-                        </div>
-                      )}
+                  {facebookConnection && (
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full border-3 border-white flex items-center justify-center shadow-lg">
+                      <span className="text-white text-xs font-bold">✓</span>
                     </div>
-                    
-                    {/* Connection Status Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      {/* Facebook Status */}
-                      <div className="flex items-center gap-3 p-3 bg-white/50 rounded-xl border border-gray-100">
-                        <Facebook className="w-5 h-5 text-blue-600" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900">Facebook</span>
-                            {facebookConnection ? (
-                              <div className="flex items-center gap-1 text-green-600">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-sm font-medium">Connected</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-gray-500">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                                <span className="text-sm">Not connected</span>
-                              </div>
-                            )}
-                          </div>
-                          {facebookConnection && (
-                            <p className="text-sm text-gray-600 mt-1">
-                              {facebookConnection.platform_account_name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      
-                      {/* Instagram Status */}
-                      <div className="flex items-center gap-3 p-3 bg-white/50 rounded-xl border border-gray-100">
-                        <Instagram className="w-5 h-5 text-purple-600" />
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900">Instagram</span>
-                            {instagramConnection ? (
-                              <div className="flex items-center gap-1 text-green-600">
-                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                <span className="text-sm font-medium">Connected</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-gray-500">
-                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                                <span className="text-sm">Not connected</span>
-                              </div>
-                            )}
-                          </div>
-                          {instagramConnection && (
-                            <p className="text-sm text-gray-600 mt-1">
-                              {instagramConnection.platform_account_name}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </div>
-
-                {/* Action Section */}
-                <div className="flex flex-col items-end gap-3">
-                  {!bothConnected && (
-                    <ConnectMetaButton onSuccess={handleConnectionSuccess} />
-                  )}
-                  
-                  {bothConnected && (
-                    <div className="text-center mb-3">
-                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        All platforms connected
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Individual Platform Disconnect Buttons - Always show for connected platforms */}
-                  <div className="flex flex-wrap gap-2 justify-end">
-                    {facebookConnection && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDisconnectClick('facebook', facebookConnection.id, 'Facebook')}
-                        className="text-xs hover:bg-red-50 hover:border-red-200 hover:text-red-600"
-                      >
-                        <Facebook className="w-3 h-3 mr-1" />
-                        Disconnect
-                      </Button>
-                    )}
-                    {instagramConnection && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDisconnectClick('instagram', instagramConnection.id, 'Instagram')}
-                        className="text-xs hover:bg-red-50 hover:border-red-200 hover:text-red-600"
-                      >
-                        <Instagram className="w-3 h-3 mr-1" />
-                        Disconnect
-                      </Button>
-                    )}
-                  </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-800 mb-1">Facebook</h3>
+                  <p className="text-slate-600">Connect your Facebook pages</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              
+              {/* Connection Status */}
+              <div className={`px-4 py-2 rounded-xl font-medium text-sm backdrop-blur-sm transition-all duration-300 ${
+                facebookConnection 
+                  ? 'bg-emerald-100/80 text-emerald-700 border border-emerald-200/50' 
+                  : 'bg-slate-100/80 text-slate-600 border border-slate-200/50'
+              }`}>
+                {facebookConnection ? 'Connected' : 'Not Connected'}
+              </div>
+            </div>
+            
+            {/* Account Details */}
+            {facebookConnection && (
+              <div className="relative z-10 mb-6 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-white/30">
+                <p className="text-sm text-slate-500 mb-1">Connected Account</p>
+                <p className="font-semibold text-slate-800">{facebookConnection.platform_account_name}</p>
+              </div>
+            )}
+            
+            {/* Actions */}
+            <div className="relative z-10 flex gap-3">
+              {!facebookConnection && !bothConnected && (
+                <ConnectMetaButton onSuccess={handleConnectionSuccess} />
+              )}
+              
+              {facebookConnection && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleDisconnectClick('facebook', facebookConnection.id, 'Facebook')}
+                  className="group/btn bg-white/80 backdrop-blur-sm border-red-200/50 text-red-600 hover:bg-red-50/80 hover:border-red-300 hover:text-red-700 transition-all duration-300 hover:shadow-lg"
+                >
+                  <Facebook className="w-4 h-4 mr-2 group-hover/btn:scale-110 transition-transform duration-200" />
+                  Disconnect
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Instagram Card */}
+          <div className={`group relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl p-6 shadow-xl transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl ${
+            instagramConnection ? 'ring-2 ring-purple-500/20' : ''
+          }`}>
+            {/* Card Background Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/5 to-orange-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            {/* Platform Header */}
+            <div className="relative z-10 flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <Instagram className="w-8 h-8 text-white" />
+                  </div>
+                  {instagramConnection && (
+                    <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-emerald-400 to-green-500 rounded-full border-3 border-white flex items-center justify-center shadow-lg">
+                      <span className="text-white text-xs font-bold">✓</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-800 mb-1">Instagram</h3>
+                  <p className="text-slate-600">Connect your Instagram business</p>
+                </div>
+              </div>
+              
+              {/* Connection Status */}
+              <div className={`px-4 py-2 rounded-xl font-medium text-sm backdrop-blur-sm transition-all duration-300 ${
+                instagramConnection 
+                  ? 'bg-emerald-100/80 text-emerald-700 border border-emerald-200/50' 
+                  : 'bg-slate-100/80 text-slate-600 border border-slate-200/50'
+              }`}>
+                {instagramConnection ? 'Connected' : 'Not Connected'}
+              </div>
+            </div>
+            
+            {/* Account Details */}
+            {instagramConnection && (
+              <div className="relative z-10 mb-6 p-4 bg-white/50 backdrop-blur-sm rounded-xl border border-white/30">
+                <p className="text-sm text-slate-500 mb-1">Connected Account</p>
+                <p className="font-semibold text-slate-800">{instagramConnection.platform_account_name}</p>
+              </div>
+            )}
+            
+            {/* Actions */}
+            <div className="relative z-10 flex gap-3">
+              {!instagramConnection && !bothConnected && (
+                <ConnectMetaButton onSuccess={handleConnectionSuccess} />
+              )}
+              
+              {instagramConnection && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleDisconnectClick('instagram', instagramConnection.id, 'Instagram')}
+                  className="group/btn bg-white/80 backdrop-blur-sm border-red-200/50 text-red-600 hover:bg-red-50/80 hover:border-red-300 hover:text-red-700 transition-all duration-300 hover:shadow-lg"
+                >
+                  <Instagram className="w-4 h-4 mr-2 group-hover/btn:scale-110 transition-transform duration-200" />
+                  Disconnect
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         {!bothConnected && (
-          <Card className="max-w-2xl mx-auto border-blue-200 bg-blue-50">
-            <CardContent className="p-4">
-              <p className="text-sm text-blue-800">
-                💡 <strong>Tip:</strong> The "Connect Meta" button will link both your Facebook pages and Instagram business accounts in one go. 
-                You don't need to connect them separately!
-              </p>
+          <Card className="max-w-2xl mx-auto mt-8 border-blue-200/50 bg-gradient-to-r from-blue-50/80 to-sky-50/60 backdrop-blur-sm shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-full bg-gradient-to-br from-blue-500/20 to-sky-500/10">
+                  <AlertCircle className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-blue-800 leading-relaxed">
+                    <span className="font-semibold">Pro Tip:</span> The "Connect Meta" button will seamlessly link both your Facebook pages and Instagram business accounts in one streamlined process. You don't need to connect them separately!
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         )}
