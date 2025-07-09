@@ -11,6 +11,7 @@ import {
   Users,
   CreditCard,
   TrendingUp,
+  Settings,
   LucideIcon,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -88,19 +89,26 @@ const AppSidebar: React.FC = () => {
       ],
     },
     {
-      title: "Success Metrics",
-      url: "/success",
-      icon: Trophy,
-    },
-    {
-      title: "Integrations",
+      title: "Advanced",
       url: "/integrations",
-      icon: Puzzle,
-    },
-    {
-      title: "Automation",
-      url: "/automation",
-      icon: Zap,
+      icon: Settings,
+      items: [
+        {
+          title: "Success Metrics",
+          url: "/success",
+          icon: Trophy,
+        },
+        {
+          title: "Integrations",
+          url: "/integrations",
+          icon: Puzzle,
+        },
+        {
+          title: "Automation",
+          url: "/automation",
+          icon: Zap,
+        },
+      ],
     },
     {
       title: "Company Profile",
