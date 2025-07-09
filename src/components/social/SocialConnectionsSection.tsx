@@ -346,40 +346,39 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                   )}
                   
                   {bothConnected && (
-                    <div className="flex flex-col items-end gap-3">
-                      <div className="text-center">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium mb-2">
-                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                          All platforms connected
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2 justify-end">
-                        {facebookConnection && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDisconnectClick('facebook', facebookConnection.id, 'Facebook')}
-                            className="text-xs hover:bg-red-50 hover:border-red-200 hover:text-red-600"
-                          >
-                            <Facebook className="w-3 h-3 mr-1" />
-                            Disconnect
-                          </Button>
-                        )}
-                        {instagramConnection && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDisconnectClick('instagram', instagramConnection.id, 'Instagram')}
-                            className="text-xs hover:bg-red-50 hover:border-red-200 hover:text-red-600"
-                          >
-                            <Instagram className="w-3 h-3 mr-1" />
-                            Disconnect
-                          </Button>
-                        )}
+                    <div className="text-center mb-3">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        All platforms connected
                       </div>
                     </div>
                   )}
+                  
+                  {/* Individual Platform Disconnect Buttons - Always show for connected platforms */}
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    {facebookConnection && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDisconnectClick('facebook', facebookConnection.id, 'Facebook')}
+                        className="text-xs hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+                      >
+                        <Facebook className="w-3 h-3 mr-1" />
+                        Disconnect
+                      </Button>
+                    )}
+                    {instagramConnection && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDisconnectClick('instagram', instagramConnection.id, 'Instagram')}
+                        className="text-xs hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+                      >
+                        <Instagram className="w-3 h-3 mr-1" />
+                        Disconnect
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </CardContent>
