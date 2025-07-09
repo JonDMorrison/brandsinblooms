@@ -125,7 +125,7 @@ export const UserMenu = () => {
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-60 z-[100] bg-popover border shadow-lg" align="end" forceMount>
+        <DropdownMenuContent className="w-60 z-[200] bg-background text-foreground border border-border shadow-xl" align="end">
           <div className="flex items-center justify-start gap-2 p-2">
             <div className="flex flex-col space-y-1 leading-none">
               <p className="font-medium text-sm">{user?.email}</p>

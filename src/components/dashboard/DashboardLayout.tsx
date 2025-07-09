@@ -28,7 +28,7 @@ export const DashboardLayout = ({
       <AppSidebar />
       
       {/* Fixed UserMenu - always visible in top-right */}
-      <div className={`fixed top-6 right-6 z-[60] ${isMobile ? 'top-2 right-2' : ''}`}>
+      <div className={`fixed top-6 right-6 z-[150] ${isMobile ? 'top-2 right-2' : ''}`}>
         <UserMenu />
       </div>
       
