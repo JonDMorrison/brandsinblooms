@@ -5,6 +5,7 @@ import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { ImageCarousel } from '@/components/ui/image-carousel';
 import { processNewsletterContent, convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
+import { MagazineNewsletterDisplay } from '@/components/content-sidebar/MagazineNewsletterDisplay';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -261,42 +262,15 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   };
 
   if (postType === 'newsletter') {
-    // Newsletter handling removed from MagazineContentDisplay
-    // All newsletter content should use MagazineNewsletterDisplay instead
-    console.log('[MAGAZINE_DISPLAY] Newsletter detected - this should use MagazineNewsletterDisplay instead');
+    console.log('[MAGAZINE_DISPLAY] Newsletter detected - using full MagazineNewsletterDisplay');
     
     return (
-      <div className={`bg-gradient-to-br ${getPostTypeColor()} rounded-lg p-6 border ${className || ''}`}>
-        <div className="flex items-center gap-3 mb-6">
-          {getPostTypeIcon()}
-          <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
-            Newsletter Preview
-          </Badge>
-        </div>
-        
-        {/* Simple preview with featured image */}
-        {renderFeaturedImage(
-          "bg-gradient-to-br from-purple-100 to-indigo-100 rounded-lg mb-6 border border-purple-200 p-4 h-40",
-          "Newsletter featured image"
-        )}
-        
-        {/* Simple content preview */}
-        <div className="space-y-4">
-          <div className="prose prose-sm max-w-none">
-            <div 
-              dangerouslySetInnerHTML={{ 
-                __html: convertNewsletterMarkdownToHtml(content.substring(0, 300) + '...') 
-              }} 
-            />
-          </div>
-        </div>
-        
-        <div className="mt-6 pt-4 border-t border-purple-200">
-          <p className="text-center text-sm text-purple-600 italic">
-            Use full newsletter view for complete experience
-          </p>
-        </div>
-      </div>
+      <MagazineNewsletterDisplay
+        content={content}
+        className={className}
+        contentTaskId={contentTaskId}
+        campaignTitle={campaignTitle}
+      />
     );
   }
 
