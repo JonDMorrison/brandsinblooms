@@ -460,33 +460,6 @@ const PublishPage = () => {
 
         {/* Enhanced Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-          {/* Glassmorphism Tab Navigation */}
-          <div className="px-4 sm:px-6 pt-4">
-            <TabsList className="bg-white/50 backdrop-blur-sm border border-white/30 shadow-lg rounded-xl p-1 h-auto">
-              <TabsTrigger 
-                value="publisher" 
-                className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-2.5 text-sm font-medium"
-              >
-                <Grid className="w-4 h-4 mr-2" />
-                Publisher
-              </TabsTrigger>
-              <TabsTrigger 
-                value="calendar" 
-                className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-2.5 text-sm font-medium"
-              >
-                <Calendar className="w-4 h-4 mr-2" />
-                Schedule
-              </TabsTrigger>
-              <TabsTrigger 
-                value="analytics" 
-                className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-2.5 text-sm font-medium"
-              >
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Analytics
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
           <div className="p-4 sm:p-6">
             <TabsContent value="publisher" className="space-y-6 mt-6">
               
