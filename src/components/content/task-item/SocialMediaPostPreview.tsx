@@ -159,14 +159,14 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
     return postType === 'instagram' ? (
       <Instagram className="w-5 h-5 text-pink-600" />
     ) : (
-      <Facebook className="w-5 h-5 text-blue-600" />
+      <Facebook className="w-5 h-5 text-gray-600" />
     );
   };
 
   const getPlatformStyle = () => {
     return postType === 'instagram' 
       ? 'bg-gradient-to-br from-purple-50 to-pink-50 border-pink-200'
-      : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200';
+      : 'bg-gradient-to-br from-gray-50 to-slate-50 border-gray-200';
   };
 
   return (
@@ -216,7 +216,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
               {hashtags.map((tag, index) => (
                 <span 
                   key={index}
-                  className="text-blue-600 text-sm font-medium hover:underline cursor-pointer"
+                  className="text-gray-600 text-sm font-medium hover:underline cursor-pointer"
                 >
                   {tag}
                 </span>
@@ -232,7 +232,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
                   <Heart className="w-4 h-4" />
                   <span className="text-xs">24</span>
                 </button>
-                <button className="flex items-center gap-1 hover:text-blue-500 transition-colors">
+                <button className="flex items-center gap-1 hover:text-gray-700 transition-colors">
                   <MessageCircle className="w-4 h-4" />
                   <span className="text-xs">3</span>
                 </button>
