@@ -22,7 +22,7 @@ interface CampaignData {
 
 /**
  * Extracts dynamic search query from content task
- * Priority: image_idea > campaign theme > content keywords > post type
+ * Priority: campaign theme > image_idea > content keywords > post type
  */
 export function extractDynamicQuery(
   task?: ContentTask | null, 
@@ -33,18 +33,28 @@ export function extractDynamicQuery(
     return fallback;
   }
 
-  // Priority 1: Use image_idea if available (most specific)
-  if (task?.image_idea && task.image_idea.trim()) {
-    return sanitizeQuery(task.image_idea.trim());
-  }
-
-  // Priority 2: Use campaign theme or title (content-specific)
+  // Priority 1: Use campaign theme or title first (most consistent across posts)
   const campaignSource = campaign || task?.campaigns;
   if (campaignSource?.theme && campaignSource.theme.trim()) {
-    return sanitizeQuery(campaignSource.theme.trim());
+    const cleanTheme = campaignSource.theme.trim();
+    // Check if it's a specific flower name - if so, use it directly
+    if (isSpecificFlower(cleanTheme)) {
+      return sanitizeQuery(cleanTheme);
+    }
+    return sanitizeQuery(cleanTheme);
   }
   if (campaignSource?.title && campaignSource.title.trim()) {
-    return sanitizeQuery(campaignSource.title.trim());
+    const cleanTitle = campaignSource.title.trim();
+    // Check if it's a specific flower name - if so, use it directly
+    if (isSpecificFlower(cleanTitle)) {
+      return sanitizeQuery(cleanTitle);
+    }
+    return sanitizeQuery(cleanTitle);
+  }
+
+  // Priority 2: Use image_idea if available (specific override)
+  if (task?.image_idea && task.image_idea.trim()) {
+    return sanitizeQuery(task.image_idea.trim());
   }
 
   // Priority 3: Extract keywords from AI output (content-driven)
@@ -65,7 +75,22 @@ export function extractDynamicQuery(
 }
 
 /**
- * Extracts meaningful keywords from content text
+ * Checks if a term contains specific flower names
+ */
+function isSpecificFlower(term: string): boolean {
+  const specificFlowers = [
+    'hydrangea', 'hydrangeas', 'zinnia', 'marigold', 'petunia', 'impatiens', 
+    'sunflower', 'dahlia', 'cosmos', 'salvia', 'begonia', 'geranium', 
+    'pansy', 'violet', 'rose', 'roses', 'tulip', 'tulips', 'daffodil', 
+    'daffodils', 'lily', 'lilies', 'chrysanthemum', 'azalea', 'rhododendron'
+  ];
+  
+  const lowercaseTerm = term.toLowerCase();
+  return specificFlowers.some(flower => lowercaseTerm.includes(flower));
+}
+
+/**
+ * Extracts meaningful keywords from content text with priority for specific flowers
  */
 function extractKeywordsFromContent(content: string): string {
   if (!content) return '';
@@ -76,6 +101,16 @@ function extractKeywordsFromContent(content: string): string {
     .replace(/[#@$%^&*(),.?":{}|<>]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+
+  // First, look for specific flower names in the content
+  const specificFlowerRegex = /\b(hydrangea|hydrangeas|zinnia|marigold|petunia|impatiens|sunflower|dahlia|cosmos|salvia|begonia|geranium|pansy|violet|rose|roses|tulip|tulips|daffodil|daffodils|lily|lilies|chrysanthemum|azalea|rhododendron)\b/gi;
+  const flowerMatches = cleanContent.match(specificFlowerRegex);
+  
+  if (flowerMatches && flowerMatches.length > 0) {
+    // Use the specific flower names found
+    const uniqueFlowers = [...new Set(flowerMatches.map(f => f.toLowerCase()))];
+    return uniqueFlowers.slice(0, 2).join(' ');
+  }
 
   // Common words to exclude
   const commonWords = [

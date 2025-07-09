@@ -17,10 +17,12 @@ export const ImageSuggestionPanel = ({ task, campaignTheme }: ImageSuggestionPan
   const { images, loading, query, hasStoredImages, fetchNewImages, shuffleImages, usingPlaceholders } = useImageSuggestions(task?.id);
   const [searchInput, setSearchInput] = useState('');
 
-  // Extract dynamic query from task content using the new utility
+  // Extract dynamic query prioritizing campaign theme for consistency
   const getInitialQuery = () => {
     const campaign = campaignTheme ? { theme: campaignTheme } : task?.campaigns;
-    return extractDynamicQuery(task, campaign);
+    const query = extractDynamicQuery(task, campaign);
+    console.log('[IMAGE_PANEL] Dynamic query for task:', task?.id, 'query:', query);
+    return query;
   };
 
   const handleSearch = () => {
