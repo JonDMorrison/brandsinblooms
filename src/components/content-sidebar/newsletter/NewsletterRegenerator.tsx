@@ -74,5 +74,16 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
       setRegenerating(false);
     }
   };
-  return;
+  return (
+    <Button 
+      onClick={regenerateNewsletter}
+      disabled={regenerating}
+      variant="outline"
+      size="sm"
+      className="gap-2"
+    >
+      <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
+      {regenerating ? 'Regenerating...' : 'Regenerate Newsletter'}
+    </Button>
+  );
 };
