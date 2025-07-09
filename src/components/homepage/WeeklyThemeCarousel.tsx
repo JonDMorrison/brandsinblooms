@@ -419,8 +419,8 @@ export const WeeklyThemeCarousel = ({
                           <div className="relative w-20 h-20 mx-auto mb-6">
                             <div className="glass-coin-enhanced w-20 h-20 flex items-center justify-center group cursor-pointer animate-float">
                               {(() => {
-                                const iconMap = getFocusThemeIcon(currentTheme.category);
-                                const IconComponent = (iconMap && typeof iconMap === 'object' && 'icon' in iconMap) ? iconMap.icon : Sprout;
+                                const iconMap = getFocusThemeIcon(currentTheme);
+                                const IconComponent = iconMap.icon;
                                 return <IconComponent className="w-10 h-10 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
                               })()}
                               <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300" />
