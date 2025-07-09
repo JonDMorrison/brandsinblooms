@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Filter, SortAsc, Calendar, Image, Send, CheckCircle, Facebook, Instagram } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
-
 interface GeneratedContent {
   id: string;
   status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW';
@@ -19,7 +18,6 @@ interface GeneratedContent {
   scheduledDate?: string;
   publishedAt?: string;
 }
-
 interface EnhancedComposerTrayProps {
   content: GeneratedContent[];
   selectedContent: GeneratedContent | null;
@@ -30,15 +28,14 @@ interface EnhancedComposerTrayProps {
 }
 
 // Enhanced thumbnail with loading states and platform indicators
-const EnhancedThumbnail = ({ 
-  content, 
-  isLoading = false 
-}: { 
-  content: GeneratedContent; 
+const EnhancedThumbnail = ({
+  content,
+  isLoading = false
+}: {
+  content: GeneratedContent;
   isLoading?: boolean;
 }) => {
   const [imageError, setImageError] = useState(false);
-  
   const getPlatformIcon = () => {
     switch (content.platform) {
       case 'facebook':
@@ -49,150 +46,112 @@ const EnhancedThumbnail = ({
         return <Send className="w-3 h-3 text-gray-400" />;
     }
   };
-  
   if (isLoading) {
-    return (
-      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden">
+    return <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center relative overflow-hidden">
         <div className="animate-spin w-4 h-4 border-2 border-primary border-t-transparent rounded-full"></div>
         <div className="absolute bottom-1 right-1 bg-white rounded-full p-0.5">
           {getPlatformIcon()}
         </div>
-      </div>
-    );
+      </div>;
   }
-  
   if (imageError || !content.mediaUrl) {
-    return (
-      <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center relative">
+    return <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center relative">
         <Image className="w-6 h-6 text-gray-400" />
         <div className="absolute bottom-1 right-1 bg-white rounded-full p-0.5">
           {getPlatformIcon()}
         </div>
-      </div>
-    );
+      </div>;
   }
-  
-  return (
-    <div className="w-16 h-16 rounded-lg overflow-hidden relative">
-      <img
-        src={content.mediaUrl}
-        alt="Content preview"
-        className="w-full h-full object-cover"
-        onError={() => setImageError(true)}
-      />
+  return <div className="w-16 h-16 rounded-lg overflow-hidden relative">
+      <img src={content.mediaUrl} alt="Content preview" className="w-full h-full object-cover" onError={() => setImageError(true)} />
       <div className="absolute bottom-1 right-1 bg-white rounded-full p-0.5">
         {getPlatformIcon()}
       </div>
-    </div>
-  );
+    </div>;
 };
 
 // Enhanced status badge with animations and better colors
-const EnhancedStatusBadge = ({ status }: { status: string }) => {
+const EnhancedStatusBadge = ({
+  status
+}: {
+  status: string;
+}) => {
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'DRAFT':
-        return { 
-          color: 'bg-gray-100 text-gray-700 border-gray-200', 
+        return {
+          color: 'bg-gray-100 text-gray-700 border-gray-200',
           icon: null,
-          pulse: false 
+          pulse: false
         };
       case 'APPROVED':
-        return { 
-          color: 'bg-emerald-50 text-emerald-700 border-emerald-200', 
+        return {
+          color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
           icon: <CheckCircle className="w-3 h-3" />,
-          pulse: false 
+          pulse: false
         };
       case 'SCHEDULED':
-        return { 
-          color: 'bg-blue-50 text-blue-700 border-blue-200', 
+        return {
+          color: 'bg-blue-50 text-blue-700 border-blue-200',
           icon: <Calendar className="w-3 h-3" />,
-          pulse: false 
+          pulse: false
         };
       case 'PUBLISHED':
-        return { 
-          color: 'bg-green-50 text-green-700 border-green-200', 
+        return {
+          color: 'bg-green-50 text-green-700 border-green-200',
           icon: <Send className="w-3 h-3" />,
-          pulse: false 
+          pulse: false
         };
       case 'REVIEW':
-        return { 
-          color: 'bg-amber-50 text-amber-700 border-amber-200', 
+        return {
+          color: 'bg-amber-50 text-amber-700 border-amber-200',
           icon: null,
-          pulse: true 
+          pulse: true
         };
       default:
-        return { 
-          color: 'bg-gray-100 text-gray-700 border-gray-200', 
+        return {
+          color: 'bg-gray-100 text-gray-700 border-gray-200',
           icon: null,
-          pulse: false 
+          pulse: false
         };
     }
   };
-  
   const config = getStatusConfig(status);
-  
-      return (
-        <Badge 
-          variant="outline" 
-          className={cn(
-            "text-xs border flex items-center gap-1",
-            config.color,
-            config.pulse && "animate-pulse"
-          )}
-        >
-          {config.icon}
-          {status}
-        </Badge>
-      );
+  return;
 };
 
 // Quick action buttons for each content item
-const QuickActions = ({ 
-  content, 
-  onQuickPublish, 
-  onQuickSchedule 
-}: { 
+const QuickActions = ({
+  content,
+  onQuickPublish,
+  onQuickSchedule
+}: {
   content: GeneratedContent;
   onQuickPublish?: (content: GeneratedContent) => void;
   onQuickSchedule?: (content: GeneratedContent) => void;
 }) => {
   if (content.status !== 'APPROVED') return null;
-  
-  return (
-    <div className="flex items-center gap-1 mt-2">
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={(e) => {
-          e.stopPropagation();
-          onQuickPublish?.(content);
-        }}
-        className="h-6 px-2 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-      >
+  return <div className="flex items-center gap-1 mt-2">
+      <Button size="sm" variant="outline" onClick={e => {
+      e.stopPropagation();
+      onQuickPublish?.(content);
+    }} className="h-6 px-2 text-xs bg-green-50 border-green-200 text-green-700 hover:bg-green-100">
         <Send className="w-3 h-3 mr-1" />
         Publish
       </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={(e) => {
-          e.stopPropagation();
-          onQuickSchedule?.(content);
-        }}
-        className="h-6 px-2 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
-      >
+      <Button size="sm" variant="outline" onClick={e => {
+      e.stopPropagation();
+      onQuickSchedule?.(content);
+    }} className="h-6 px-2 text-xs bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100">
         <Calendar className="w-3 h-3 mr-1" />
         Schedule
       </Button>
-    </div>
-  );
+    </div>;
 };
-
-export const EnhancedComposerTray = ({ 
-  content, 
-  selectedContent, 
-  onContentSelect, 
+export const EnhancedComposerTray = ({
+  content,
+  selectedContent,
+  onContentSelect,
   imageLoadingStates = {},
   onQuickPublish,
   onQuickSchedule
@@ -208,7 +167,6 @@ export const EnhancedComposerTray = ({
       const matchesSearch = item.caption.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
       const matchesPlatform = platformFilter === 'all' || item.platform === platformFilter;
-      
       return matchesSearch && matchesStatus && matchesPlatform;
     });
 
@@ -225,7 +183,6 @@ export const EnhancedComposerTray = ({
           return 0;
       }
     });
-
     return filtered;
   }, [content, searchTerm, statusFilter, platformFilter, sortBy]);
 
@@ -234,21 +191,23 @@ export const EnhancedComposerTray = ({
     const approved = content.filter(c => c.status === 'APPROVED').length;
     const scheduled = content.filter(c => c.status === 'SCHEDULED').length;
     const published = content.filter(c => c.status === 'PUBLISHED').length;
-    
-    return { approved, scheduled, published, total: content.length };
+    return {
+      approved,
+      scheduled,
+      published,
+      total: content.length
+    };
   }, [content]);
-
   const truncateCaption = (caption: string, maxLength: number = 50) => {
     if (caption.length <= maxLength) return caption;
     return caption.substring(0, maxLength) + '…';
   };
-
   const formatRelativeTime = (dateString: string) => {
-    return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    return formatDistanceToNow(new Date(dateString), {
+      addSuffix: true
+    });
   };
-
-  return (
-    <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
+  return <div className="h-full bg-white rounded-lg border border-gray-200 shadow-sm flex flex-col overflow-hidden">
       {/* Enhanced Header with Stats */}
       <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100">
         <div className="flex items-center justify-between mb-3">
@@ -278,46 +237,19 @@ export const EnhancedComposerTray = ({
       <div className="flex-1 min-h-0">
         <ScrollArea className="h-full">
           <div className="p-3 space-y-3">
-            {filteredAndSortedContent.length === 0 ? (
-              <div className="text-center py-12">
+            {filteredAndSortedContent.length === 0 ? <div className="text-center py-12">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  {searchTerm || statusFilter !== 'all' || platformFilter !== 'all' ? (
-                    <Filter className="w-8 h-8 text-gray-400" />
-                  ) : (
-                    <Send className="w-8 h-8 text-gray-400" />
-                  )}
+                  {searchTerm || statusFilter !== 'all' || platformFilter !== 'all' ? <Filter className="w-8 h-8 text-gray-400" /> : <Send className="w-8 h-8 text-gray-400" />}
                 </div>
                 <h3 className="text-lg font-medium text-gray-700 mb-2">
-                  {searchTerm || statusFilter !== 'all' || platformFilter !== 'all' 
-                    ? 'No content matches your filters' 
-                    : 'No content available'
-                  }
+                  {searchTerm || statusFilter !== 'all' || platformFilter !== 'all' ? 'No content matches your filters' : 'No content available'}
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  {searchTerm || statusFilter !== 'all' || platformFilter !== 'all'
-                    ? 'Try adjusting your search or filters'
-                    : 'Generate and approve content to start publishing'
-                  }
+                  {searchTerm || statusFilter !== 'all' || platformFilter !== 'all' ? 'Try adjusting your search or filters' : 'Generate and approve content to start publishing'}
                 </p>
-              </div>
-            ) : (
-              filteredAndSortedContent.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => onContentSelect(item)}
-                  className={cn(
-                    "group flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-all duration-200",
-                    "hover:shadow-md hover:border-primary/30",
-                    selectedContent?.id === item.id
-                      ? "border-primary bg-primary/5 shadow-sm"
-                      : "border-gray-200 bg-white hover:bg-primary/5"
-                  )}
-                >
+              </div> : filteredAndSortedContent.map(item => <div key={item.id} onClick={() => onContentSelect(item)} className={cn("group flex items-start gap-4 p-4 rounded-lg border cursor-pointer transition-all duration-200", "hover:shadow-md hover:border-primary/30", selectedContent?.id === item.id ? "border-primary bg-primary/5 shadow-sm" : "border-gray-200 bg-white hover:bg-primary/5")}>
                   {/* Enhanced Thumbnail */}
-                  <EnhancedThumbnail 
-                    content={item}
-                    isLoading={imageLoadingStates[item.id]}
-                  />
+                  <EnhancedThumbnail content={item} isLoading={imageLoadingStates[item.id]} />
 
                   {/* Enhanced Content Details */}
                   <div className="flex-1 min-w-0">
@@ -333,18 +265,11 @@ export const EnhancedComposerTray = ({
                     </span>
 
                     {/* Quick Actions for approved content */}
-                    <QuickActions
-                      content={item}
-                      onQuickPublish={onQuickPublish}
-                      onQuickSchedule={onQuickSchedule}
-                    />
+                    <QuickActions content={item} onQuickPublish={onQuickPublish} onQuickSchedule={onQuickSchedule} />
                   </div>
-                </div>
-              ))
-            )}
+                </div>)}
           </div>
         </ScrollArea>
       </div>
-    </div>
-  );
+    </div>;
 };
