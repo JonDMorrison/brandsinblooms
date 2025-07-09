@@ -38,7 +38,7 @@ export const UserMenu = () => {
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu onOpenChange={(open) => console.log('🔍 DropdownMenu state changed:', open)}>
         <UserMenuTrigger userInitials={getUserInitials()} />
         <UserMenuContent
           userEmail={user?.email}
