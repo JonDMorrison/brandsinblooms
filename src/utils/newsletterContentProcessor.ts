@@ -36,7 +36,8 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     length: content.length,
     hasBlocks: content.includes('blocks:'),
     hasTitleStructure: content.includes('- title:'),
-    preview: content.substring(0, 200)
+    preview: content.substring(0, 200),
+    contentType: 'Holiday Newsletter Debug'
   });
 
   // Check if content is YAML structured
