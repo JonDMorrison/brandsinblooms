@@ -117,6 +117,7 @@ export const UserMenu = () => {
           <Button 
             variant="ghost" 
             className="relative h-10 w-10 rounded-full bg-primary hover:bg-primary/90 transition-all duration-200 shadow-lg border-2 border-background"
+            onClick={() => console.log('UserMenu trigger clicked')}
           >
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-semibold">
