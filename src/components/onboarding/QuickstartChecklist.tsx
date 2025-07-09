@@ -177,7 +177,7 @@ export const QuickstartChecklist: React.FC<QuickstartChecklistProps> = ({
             <Button
               key={step.id}
               variant="ghost"
-              className={`h-auto p-4 flex flex-col items-start text-left transition-all duration-300 hover:scale-105 hover:shadow-lg rounded-2xl border ${
+              className={`h-auto p-4 flex flex-col items-start text-left transition-all duration-300 hover:scale-105 hover:shadow-lg rounded-2xl border w-full overflow-hidden ${
                 step.completed 
                   ? 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200 shadow-md' 
                   : 'bg-white/70 backdrop-blur-sm border-white/30 hover:bg-white/90'
@@ -186,21 +186,21 @@ export const QuickstartChecklist: React.FC<QuickstartChecklistProps> = ({
             >
               <div className="flex items-center gap-3 mb-3 w-full">
                 {step.completed ? (
-                  <div className="p-1 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full">
+                  <div className="p-1 bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex-shrink-0">
                     <CheckCircle2 className="w-5 h-5 text-white" />
                   </div>
                 ) : (
-                  <div className="p-1 bg-slate-200 rounded-full">
+                  <div className="p-1 bg-slate-200 rounded-full flex-shrink-0">
                     <Circle className="w-5 h-5 text-slate-400" />
                   </div>
                 )}
-                <div className="p-2 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg">
+                <div className="p-2 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg flex-shrink-0">
                   {step.icon}
                 </div>
               </div>
-              <div>
-                <div className="font-bold text-base bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">{step.title}</div>
-                <div className="text-sm text-slate-600 mt-1">{step.description}</div>
+              <div className="w-full overflow-hidden">
+                <div className="font-bold text-base bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent break-words">{step.title}</div>
+                <div className="text-sm text-slate-600 mt-1 break-words">{step.description}</div>
               </div>
             </Button>
           ))}
