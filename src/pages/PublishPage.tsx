@@ -420,25 +420,6 @@ const PublishPage = () => {
                     </span>
                   </div>
                   
-                  {/* Test Mode Toggle */}
-                  <div className="bg-white/50 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/30 shadow-lg">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={() => setTestMode(!testMode)}
-                        variant={testMode ? "default" : "outline"}
-                        size="sm"
-                        className={`transition-all duration-200 ${
-                          testMode 
-                            ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-400 shadow-amber-200' 
-                            : 'bg-white/70 hover:bg-amber-50 text-slate-700 border-white/40'
-                        }`}
-                        title={testMode ? "Disable test mode" : "Enable test mode - simulate publishing without posting"}
-                      >
-                        <Zap className={`w-3 h-3 mr-1 ${testMode ? 'text-white' : 'text-amber-500'}`} />
-                        {testMode ? 'TEST MODE' : 'Test Mode'}
-                      </Button>
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
