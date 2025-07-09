@@ -244,15 +244,13 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           </div>
           {readyTasks.length > 0 && (
             <div className="relative group">
-              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl transition-all duration-300 group-hover:scale-110">
-                <Button 
-                  onClick={() => window.location.href = '/publish'}
-                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
-                >
-                  <Sparkles className="w-5 h-5" />
-                  Open Publish Portal
-                </Button>
-              </div>
+              <Button 
+                onClick={() => window.location.href = '/publish'}
+                className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
+              >
+                <Sparkles className="w-5 h-5" />
+                Open Publish Portal
+              </Button>
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
             </div>
           )}
