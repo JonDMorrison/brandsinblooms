@@ -226,21 +226,6 @@ export const EnhancedComposerTray = ({
           <h2 className="text-lg font-semibold text-gray-900">Content Library</h2>
         </div>
         
-        {/* Stats Row */}
-        <div className="flex items-center gap-4 mb-4">
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
-            <span className="text-xs text-gray-600">{stats.approved} ready</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            <span className="text-xs text-gray-600">{stats.scheduled} scheduled</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-xs text-gray-600">{stats.published} published</span>
-          </div>
-        </div>
 
         {/* Enhanced Filters - Removed */}
       </div>
