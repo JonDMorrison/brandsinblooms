@@ -115,11 +115,15 @@ export const CalendarGrid = ({
   console.log('CalendarGrid: Rendering with', campaigns.length, 'campaigns and', tasks.length, 'tasks');
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200/60 overflow-hidden">
-      <div className={`grid ${gridCols} ${dayHeight}`}>
+    <div className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
+      {/* Gradient Background Overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
+      <div className="absolute inset-0 bg-black/5"></div>
+      
+      <div className={`relative z-10 grid ${gridCols} ${dayHeight}`}>
         {/* Clean Day headers */}
         {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => (
-          <div key={day} className="bg-gray-50/80 p-3 text-sm font-medium text-gray-700 h-12 flex items-center justify-center border-b border-gray-200/50">
+          <div key={day} className="bg-gradient-to-br from-slate-100/80 to-slate-200/60 backdrop-blur-sm p-3 text-sm font-bold text-slate-700 h-12 flex items-center justify-center border-b border-white/30">
             <span className="tracking-wide">{day}</span>
           </div>
         ))}

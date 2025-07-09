@@ -44,10 +44,11 @@ const CalendarPage = () => {
   if (!user) {
     return (
       <SidebarLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <Card className="p-8 shadow-lg border-0">
-            <CardContent className="text-center space-y-4">
-              <p className="text-lg font-semibold text-gray-900">Please log in to access your calendar</p>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 flex items-center justify-center">
+          <Card className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden p-8">
+            <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
+            <CardContent className="relative z-10 text-center space-y-4">
+              <p className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Please log in to access your calendar</p>
             </CardContent>
           </Card>
         </div>
@@ -58,13 +59,14 @@ const CalendarPage = () => {
   if (loading) {
     return (
       <SidebarLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <Card className="p-8 shadow-lg border-0">
-            <CardContent className="text-center space-y-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 flex items-center justify-center">
+          <Card className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden p-8">
+            <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
+            <CardContent className="relative z-10 text-center space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-3 border-blue-600 border-t-transparent mx-auto"></div>
               <div>
-                <p className="text-lg font-semibold text-gray-900">Loading calendar...</p>
-                <p className="text-sm text-gray-600 mt-1">Preparing your campaign overview</p>
+                <p className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">Loading calendar...</p>
+                <p className="text-slate-600 mt-2">Preparing your campaign overview</p>
               </div>
             </CardContent>
           </Card>
@@ -76,20 +78,26 @@ const CalendarPage = () => {
   if (error) {
     return (
       <SidebarLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <Card className="p-8 shadow-lg border-0 max-w-md">
-            <CardContent className="text-center space-y-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 flex items-center justify-center">
+          <Card className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden p-8 max-w-md">
+            <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
+            <CardContent className="relative z-10 text-center space-y-4">
               <div className="text-red-600 mb-4">
-                <Calendar className="w-12 h-12 mx-auto mb-3" />
-                <p className="text-lg font-semibold">Error loading calendar</p>
-                <p className="text-sm text-gray-600 mt-1">{error}</p>
+                <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-red-100 to-red-200 rounded-full flex items-center justify-center shadow-lg">
+                  <Calendar className="w-8 h-8 text-red-600" />
+                </div>
+                <p className="text-xl font-bold bg-gradient-to-r from-red-800 to-red-600 bg-clip-text text-transparent">Error loading calendar</p>
+                <p className="text-slate-600 mt-2">{error}</p>
               </div>
-              <Button 
-                onClick={refetch}
-                className="w-full bg-red-600 hover:bg-red-700"
-              >
-                Try Again
-              </Button>
+              <div className="relative group">
+                <Button 
+                  onClick={refetch}
+                  className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                >
+                  Try Again
+                </Button>
+                <div className="absolute inset-0 bg-gradient-to-br from-red-500/20 to-red-600/20 rounded-lg blur-xl group-hover:blur-lg transition-all duration-300"></div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -101,38 +109,60 @@ const CalendarPage = () => {
 
   return (
     <SidebarLayout>
-      <div className="p-6 space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
-              <Calendar className="w-10 h-10 text-blue-600" />
-              Campaign Calendar
-            </h1>
-            <p className="text-lg text-gray-600 font-medium">
-              Plan, schedule, and track your marketing campaigns
-            </p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 p-6 space-y-8">
+        {/* Modern Gradient Header Section */}
+        <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8">
+          {/* Decorative Background Pattern */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
+              <Calendar className="w-64 h-64 text-blue-400" />
+            </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => setShowAddEventDialog(true)}
-              variant="outline"
-              size="lg"
-              className="flex items-center gap-2 bg-white text-teal-700 border-teal-300 hover:bg-teal-50 hover:border-teal-400 shadow-sm"
-            >
-              <CalendarPlus className="w-5 h-5" />
-              Promote Event
-            </Button>
+          {/* Header Content */}
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-3 mb-2">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
+                  <Calendar className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent">
+                Campaign Calendar
+              </h1>
+              <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
+                Plan, schedule, and track your marketing campaigns
+              </p>
+            </div>
             
-            <Button
-              onClick={() => setShowNewCampaignModal(true)}
-              size="lg"
-              className="flex items-center gap-2 bg-teal-600 text-white hover:bg-teal-700 border-teal-600 shadow-sm"
-            >
-              <PlusCircle className="w-5 h-5" />
-              Create Campaign
-            </Button>
+            <div className="flex items-center gap-3">
+              <div className="relative group">
+                <Button
+                  onClick={() => setShowAddEventDialog(true)}
+                  variant="outline"
+                  size="lg"
+                  className="flex items-center gap-2 bg-white/70 backdrop-blur-sm border-white/30 text-slate-700 hover:bg-white/90 hover:border-teal-200 shadow-lg transition-all duration-300 hover:scale-105"
+                >
+                  <CalendarPlus className="w-5 h-5" />
+                  Promote Event
+                </Button>
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 to-blue-500/20 rounded-lg blur-xl group-hover:blur-lg transition-all duration-300"></div>
+              </div>
+              
+              <div className="relative group">
+                <Button
+                  onClick={() => setShowNewCampaignModal(true)}
+                  size="lg"
+                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white hover:shadow-2xl transition-all duration-300 hover:scale-105 shadow-lg"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                  Create Campaign
+                </Button>
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-lg blur-xl group-hover:blur-lg transition-all duration-300"></div>
+              </div>
+            </div>
           </div>
         </div>
         
