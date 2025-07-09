@@ -22,7 +22,7 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
     <SidebarProvider>
       <div className="min-h-screen w-full flex">
         {/* Fixed UserMenu - always visible in top-right */}
-        <div className="fixed top-6 right-6 z-50">
+        <div className="fixed top-6 right-6 z-[9999]">
           <UserMenu />
         </div>
         
