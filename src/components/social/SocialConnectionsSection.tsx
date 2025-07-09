@@ -88,10 +88,10 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                 <Wifi className="w-8 h-8 text-blue-600" />
               </div>
               <div>
-                <h2 className="text-3xl font-bold text-gray-900">Social Media Connections</h2>
-                <p className="text-lg text-gray-600 mt-2 max-w-2xl mx-auto">
-                  Connect your Facebook and Instagram accounts to start scheduling and managing your social media content from one place.
-                </p>
+                  <h2 className="text-3xl font-bold text-gray-900">Link Your Social Accounts</h2>
+                  <p className="text-lg text-gray-600 mt-2 max-w-2xl mx-auto">
+                    Manage Facebook and Instagram from one dashboard.
+                  </p>
                 <p className="text-sm text-amber-600 mt-4 font-medium">
                   Upgrade to Bloom plan to connect your social media accounts
                 </p>
@@ -110,9 +110,9 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                       <Instagram className="w-8 h-8 text-white" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-semibold mb-2">Connect Meta Accounts</h3>
+                  <h3 className="text-xl font-semibold mb-2">Connect Meta</h3>
                   <p className="text-gray-600 mb-6">
-                    One login connects both your Facebook pages and Instagram business accounts
+                    One click connects both your Facebook page and Instagram business account.
                   </p>
                   <div className="w-full bg-gray-200 h-12 rounded-lg flex items-center justify-center">
                     <span className="text-gray-500">Requires Bloom Plan</span>
@@ -139,9 +139,9 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                 </>
               ) : (
                 <>
-                  <h2 className="text-3xl font-bold text-gray-900">Connect Your Social Media</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">Link Your Social Accounts</h2>
                   <p className="text-lg text-gray-600 mt-2 max-w-2xl mx-auto">
-                    Connect your Facebook and Instagram accounts to start scheduling and managing your social media content from one place.
+                    Manage Facebook and Instagram from one dashboard.
                   </p>
                 </>
               )}
@@ -160,33 +160,25 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                     <Instagram className="w-8 h-8 text-white" />
                   </div>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Connect Meta Accounts</h3>
+                <h3 className="text-xl font-semibold mb-2">Connect Meta</h3>
                 <p className="text-gray-600 mb-4">
-                  One simple login connects both your Facebook pages and Instagram business accounts
+                  One click connects both your Facebook page and Instagram business account.
                 </p>
                 
                 {/* Privacy Policy Notice */}
                 <div className="mb-6 p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs italic text-muted-foreground text-center">
-                    By connecting you agree to our{' '}
-                    <a 
+                  <p className="text-xs text-muted-foreground text-center">
+                    By connecting, you agree to our <a 
                       href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
                       className="text-primary hover:text-primary/80 underline"
                     >
                       Privacy Policy
-                    </a>
-                    {' '}and{' '}
-                    <a 
+                    </a> and <a 
                       href="https://brandsinblooms.com/pages/terms-of-service" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
                       className="text-primary hover:text-primary/80 underline"
                     >
                       Terms of Service
-                    </a>
-                    .
+                    </a>.
                   </p>
                 </div>
                 
@@ -249,10 +241,10 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
             </div>
             
             <h2 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent mb-3">
-              Meta Platforms
+              Link Your Social Accounts
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-              Manage your Facebook and Instagram connections with enterprise-grade security and seamless integration
+              Manage Facebook and Instagram from one dashboard.
             </p>
             
             {/* Status Badge */}
