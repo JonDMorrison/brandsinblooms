@@ -440,25 +440,6 @@ const PublishPage = () => {
 
         {/* Enhanced Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
-          <div className="px-4 sm:px-6 py-3 bg-white/80 backdrop-blur-sm border-b border-white/30">
-            <div className="flex items-center justify-between">
-              <TabsList className="bg-white/50 backdrop-blur-sm border border-white/30 shadow-lg">
-                <TabsTrigger value="publisher" className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all">Publisher</TabsTrigger>
-                <TabsTrigger value="calendar" className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all">Calendar</TabsTrigger>
-                <TabsTrigger value="analytics" className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all">Analytics</TabsTrigger>
-              </TabsList>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDebugger(true)}
-                className="text-xs"
-              >
-                <Zap className="w-4 h-4 mr-1" />
-                Debug
-              </Button>
-            </div>
-          </div>
 
           <div className="p-4 sm:p-6">
             <TabsContent value="publisher" className="space-y-6 mt-6">
