@@ -1,7 +1,7 @@
 import React from "react";
 import {
   LayoutDashboard,
-  Share2,
+  Send,
   Calendar,
   ClipboardList,
   Trophy,
@@ -12,6 +12,7 @@ import {
   CreditCard,
   TrendingUp,
   Settings,
+  ChevronDown,
   LucideIcon,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -62,9 +63,14 @@ const AppSidebar: React.FC = () => {
       icon: LayoutDashboard,
     },
     {
+      title: "Company Profile",
+      url: "/profile",
+      icon: Building2,
+    },
+    {
       title: "Publish Portal",
       url: "/publish",
-      icon: Share2,
+      icon: Send,
     },
     {
       title: "Calendar",
@@ -74,12 +80,12 @@ const AppSidebar: React.FC = () => {
     {
       title: "Social Media",
       url: "/social-accounts",
-      icon: Share2,
+      icon: Send,
       items: [
         {
           title: "Content Planner",
           url: "/social",
-          icon: Share2,
+          icon: Send,
         },
         {
           title: "Analytics & Scheduling",
@@ -109,11 +115,6 @@ const AppSidebar: React.FC = () => {
           icon: Zap,
         },
       ],
-    },
-    {
-      title: "Company Profile",
-      url: "/profile",
-      icon: Building2,
     },
     {
       title: "Account",
@@ -152,14 +153,15 @@ const AppSidebar: React.FC = () => {
                 item.items ? (
                   <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
                     <SidebarMenuItem>
-                      <CollapsibleTrigger asChild>
-                        <SidebarMenuButton className="group" asChild>
-                          <NavLink to={item.url}>
-                            <item.icon className="h-4 w-4" />
-                            {!isCollapsed && <span>{item.title}</span>}
-                          </NavLink>
-                        </SidebarMenuButton>
-                      </CollapsibleTrigger>
+                       <CollapsibleTrigger asChild>
+                         <SidebarMenuButton className="group" asChild>
+                           <NavLink to={item.url}>
+                             <item.icon className="h-4 w-4" />
+                             {!isCollapsed && <span>{item.title}</span>}
+                             {!isCollapsed && <ChevronDown className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
+                           </NavLink>
+                         </SidebarMenuButton>
+                       </CollapsibleTrigger>
                       {!isCollapsed && (
                         <CollapsibleContent>
                           <SidebarMenuSub>
