@@ -235,74 +235,135 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
         </div>
 
         {/* Connection Status */}
-        <div className="max-w-2xl mx-auto">
-          <Card className={`border-2 ${bothConnected ? 'border-green-200 bg-green-50' : isConnected ? 'border-yellow-200 bg-yellow-50' : 'border-gray-200'}`}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-2 bg-blue-600 rounded-lg">
-                      <Facebook className="w-6 h-6 text-white" />
+        <div className="max-w-4xl mx-auto">
+          <Card className={`relative overflow-hidden transition-all duration-300 ${
+            bothConnected 
+              ? 'border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-lg' 
+              : isConnected 
+                ? 'border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 shadow-md' 
+                : 'border-gray-200 shadow-sm'
+          }`}>
+            <CardContent className="p-8">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                {/* Platform Info Section */}
+                <div className="flex items-start gap-6">
+                  {/* Platform Icons */}
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center shadow-lg">
+                        <Facebook className="w-7 h-7 text-white" />
+                      </div>
+                      {facebookConnection && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="p-2 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg">
-                      <Instagram className="w-6 h-6 text-white" />
+                    <div className="relative">
+                      <div className="w-14 h-14 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
+                        <Instagram className="w-7 h-7 text-white" />
+                      </div>
+                      {instagramConnection && (
+                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white flex items-center justify-center">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
-                  <div>
-                    <h3 className="font-semibold text-lg">Meta Platforms</h3>
-                    <div className="flex items-center gap-4 mt-1">
-                      <div className="flex items-center gap-1">
-                        <Facebook className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm">Facebook</span>
-                        {facebookConnection ? (
-                          <span className="text-xs text-green-600 font-medium">✓ Connected</span>
-                        ) : (
-                          <span className="text-xs text-gray-500">Not connected</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Instagram className="w-4 h-4 text-purple-600" />
-                        <span className="text-sm">Instagram</span>
-                        {instagramConnection ? (
-                          <span className="text-xs text-green-600 font-medium">✓ Connected</span>
-                        ) : (
-                          <span className="text-xs text-gray-500">Not connected</span>
-                        )}
-                      </div>
+                  {/* Platform Details */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-2xl font-bold text-gray-900">Meta Platforms</h3>
+                      {bothConnected && (
+                        <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                          Fully Connected
+                        </div>
+                      )}
                     </div>
                     
-                    {(facebookConnection || instagramConnection) && (
-                      <div className="mt-2 text-xs text-gray-600">
-                        {facebookConnection && (
-                          <div>Facebook: {facebookConnection.platform_account_name}</div>
-                        )}
-                        {instagramConnection && (
-                          <div>Instagram: {instagramConnection.platform_account_name}</div>
-                        )}
+                    {/* Connection Status Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {/* Facebook Status */}
+                      <div className="flex items-center gap-3 p-3 bg-white/50 rounded-xl border border-gray-100">
+                        <Facebook className="w-5 h-5 text-blue-600" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">Facebook</span>
+                            {facebookConnection ? (
+                              <div className="flex items-center gap-1 text-green-600">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium">Connected</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                <span className="text-sm">Not connected</span>
+                              </div>
+                            )}
+                          </div>
+                          {facebookConnection && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {facebookConnection.platform_account_name}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    )}
+                      
+                      {/* Instagram Status */}
+                      <div className="flex items-center gap-3 p-3 bg-white/50 rounded-xl border border-gray-100">
+                        <Instagram className="w-5 h-5 text-purple-600" />
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900">Instagram</span>
+                            {instagramConnection ? (
+                              <div className="flex items-center gap-1 text-green-600">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span className="text-sm font-medium">Connected</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-gray-500">
+                                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                <span className="text-sm">Not connected</span>
+                              </div>
+                            )}
+                          </div>
+                          {instagramConnection && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              {instagramConnection.platform_account_name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* Action Section */}
+                <div className="flex flex-col items-end gap-3">
                   {!bothConnected && (
                     <ConnectMetaButton onSuccess={handleConnectionSuccess} />
                   )}
+                  
                   {bothConnected && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-green-600 font-medium text-sm">
-                        Both platforms connected!
-                      </span>
-                      <div className="flex gap-1">
+                    <div className="flex flex-col items-end gap-3">
+                      <div className="text-center">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg text-sm font-medium mb-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                          All platforms connected
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 justify-end">
                         {facebookConnection && (
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => handleDisconnectClick('facebook', facebookConnection.id, 'Facebook')}
-                            className="text-xs px-2 py-1 h-auto"
+                            className="text-xs hover:bg-red-50 hover:border-red-200 hover:text-red-600"
                           >
-                            Disconnect Facebook
+                            <Facebook className="w-3 h-3 mr-1" />
+                            Disconnect
                           </Button>
                         )}
                         {instagramConnection && (
@@ -310,9 +371,10 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                             variant="outline"
                             size="sm"
                             onClick={() => handleDisconnectClick('instagram', instagramConnection.id, 'Instagram')}
-                            className="text-xs px-2 py-1 h-auto"
+                            className="text-xs hover:bg-red-50 hover:border-red-200 hover:text-red-600"
                           >
-                            Disconnect Instagram
+                            <Instagram className="w-3 h-3 mr-1" />
+                            Disconnect
                           </Button>
                         )}
                       </div>
