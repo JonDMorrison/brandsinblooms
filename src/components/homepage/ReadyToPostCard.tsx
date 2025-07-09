@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Clock, Leaf, Sparkles } from "lucide-react";
@@ -243,7 +244,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           </div>
           {readyTasks.length > 0 && (
             <div className="relative group">
-              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/30 transition-all duration-300 group-hover:scale-110">
+              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl transition-all duration-300 group-hover:scale-110">
                 <Button 
                   onClick={() => window.location.href = '/publish'}
                   className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
