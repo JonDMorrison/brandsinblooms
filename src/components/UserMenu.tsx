@@ -117,6 +117,7 @@ export const UserMenu = () => {
           <Button 
             variant="ghost" 
             className="relative h-10 w-10 rounded-full bg-[#68BEB9] hover:bg-[#5AA8A3] transition-all duration-200 shadow-lg border-2 border-white"
+            onClick={() => console.log('UserMenu button clicked')}
           >
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-[#3E5A6B] text-white text-sm font-semibold">
@@ -125,7 +126,7 @@ export const UserMenu = () => {
             </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-60" align="end" forceMount>
+        <DropdownMenuContent className="w-60" align="end">
           <div className="flex items-center justify-start gap-2 p-2">
             <div className="flex flex-col space-y-1 leading-none">
               <p className="font-medium text-sm">{user?.email}</p>
