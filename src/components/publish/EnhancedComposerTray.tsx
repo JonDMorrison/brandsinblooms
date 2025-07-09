@@ -270,16 +270,15 @@ export const EnhancedComposerTray = ({
                         {truncateCaption(item.caption)}
                       </h3>
                     </div>
-                    
-                    <EnhancedStatusBadge status={item.status} />
-                    <span className="text-xs text-gray-500">
-                      {formatRelativeTime(item.createdAt)}
-                    </span>
+                     
+                     <span className="text-xs text-gray-500">
+                       {formatRelativeTime(item.createdAt)}
+                     </span>
 
-                    {/* Quick Actions for approved content */}
-                    <QuickActions content={item} onQuickPublish={onQuickPublish} onQuickSchedule={onQuickSchedule} />
-                  </div>
-                </div>)}
+                     {/* Quick Actions for approved content */}
+                     <QuickActions content={item} onQuickPublish={onQuickPublish} onQuickSchedule={onQuickSchedule} />
+                   </div>
+                 </div>)}
           </div>
         </ScrollArea>
       </div>
