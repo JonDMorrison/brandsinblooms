@@ -113,14 +113,7 @@ export const UserMenu = () => {
 
   return (
     <>
-      <DropdownMenu 
-        modal={false} 
-        open={dropdownOpen} 
-        onOpenChange={(open) => {
-          console.log('Dropdown state changing to:', open);
-          setDropdownOpen(open);
-        }}
-      >
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button 
             variant="ghost" 
