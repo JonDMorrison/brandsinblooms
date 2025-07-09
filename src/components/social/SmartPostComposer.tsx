@@ -9,8 +9,7 @@ import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles, X } from 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ContentOptimizer } from './ContentOptimizer';
-import { UnsplashPicker } from '@/components/images/UnsplashPicker';
-import { extractImageKeyword } from '@/lib/api/unsplash';
+import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
 
 interface SmartPostComposerProps {
   isOpen: boolean;
@@ -38,10 +37,7 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
   const [hashtags, setHashtags] = useState('');
   const [isPosting, setIsPosting] = useState(false);
   const [activeTab, setActiveTab] = useState('compose');
-  const [selectedImage, setSelectedImage] = useState<any>(null);
-  const [showImagePicker, setShowImagePicker] = useState(false);
-  const [autoImage, setAutoImage] = useState(true);
-  const [imageKeyword, setImageKeyword] = useState('');
+  const [showImageSection, setShowImageSection] = useState(true);
 
   const limits = PLATFORM_LIMITS[platform];
   const contentLength = content.length;
@@ -63,16 +59,6 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
       }
     }
 
-    // Load existing image attachment
-    if (task?.attachments?.image) {
-      setSelectedImage(task.attachments.image);
-    }
-
-    // Set initial image keyword based on content
-    if (task?.ai_output) {
-      const keyword = extractImageKeyword(task.ai_output);
-      setImageKeyword(keyword);
-    }
   }, [task]);
 
   const handlePost = async () => {
@@ -113,15 +99,12 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         userId: sessionData.session.user.id
       });
       
-      // Update the task with the edited content, image attachment, and ensure it's approved
-      const attachments = selectedImage ? { image: selectedImage } : null;
-      
+      // Update the task with the edited content and ensure it's approved
       await supabase
         .from('content_tasks')
         .update({ 
           ai_output: fullContent,
-          status: 'approved', // Ensure task is approved for posting
-          attachments
+          status: 'approved' // Ensure task is approved for posting
         })
         .eq('id', task.id);
       
@@ -134,9 +117,7 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
         },
         body: {
           taskId: task.id,
-          platforms: [platform],
-          keyword: imageKeyword || extractImageKeyword(fullContent),
-          autoImage: autoImage && !selectedImage // Only auto-fetch if enabled and no manual image selected
+          platforms: [platform]
         }
       });
         
@@ -185,14 +166,6 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
     setActiveTab('compose');
   };
 
-  const handleImageSelect = (imageData: any) => {
-    setSelectedImage(imageData);
-    setShowImagePicker(false);
-  };
-
-  const removeSelectedImage = () => {
-    setSelectedImage(null);
-  };
 
   const PlatformIcon = platform === 'facebook' ? Facebook : Instagram;
   const platformName = platform === 'facebook' ? 'Facebook' : 'Instagram';
@@ -241,83 +214,22 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
               </div>
             </div>
 
-            {/* Auto-Image Option */}
-            <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="auto-image"
-                  checked={autoImage}
-                  onCheckedChange={(checked) => setAutoImage(checked === true)}
-                />
-                <label htmlFor="auto-image" className="text-sm font-medium">
-                  Attach Unsplash image automatically
-                </label>
-              </div>
-              
-              {autoImage && !selectedImage && (
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-600">Search keyword for image:</label>
-                  <input
-                    type="text"
-                    value={imageKeyword}
-                    onChange={(e) => setImageKeyword(e.target.value)}
-                    placeholder="e.g., garden flowers, plant care"
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                  />
-                  <p className="text-xs text-gray-500">
-                    A royalty-free image from Unsplash will be automatically attached based on this keyword.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Manual Image Attachment */}
+            {/* Enhanced Image Section */}
             <div className="space-y-2">
               <label className="text-sm font-medium flex items-center gap-2">
                 <Image className="w-4 h-4" />
-                Manual Image Selection
+                Images
               </label>
-              
-              {selectedImage ? (
-                <div className="relative border rounded-lg p-3 bg-gray-50">
-                  <div className="flex items-start gap-3">
-                    <img
-                      src={selectedImage.thumb}
-                      alt={selectedImage.alt}
-                      className="w-20 h-20 object-cover rounded-lg"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{selectedImage.alt}</p>
-                      <p className="text-xs text-gray-500">by {selectedImage.author_name}</p>
-                      <Badge variant="outline" className="mt-1 text-xs">
-                        Unsplash
-                      </Badge>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={removeSelectedImage}
-                      className="p-1 h-6 w-6"
-                    >
-                      <X className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowImagePicker(true)}
-                  className="w-full h-20 border-dashed"
-                  disabled={autoImage}
-                >
-                  <div className="text-center">
-                    <Image className="w-6 h-6 mx-auto mb-1 text-gray-400" />
-                    <span className="text-sm text-gray-600">
-                      {autoImage ? 'Disable auto-image to select manually' : 'Add Image from Unsplash'}
-                    </span>
-                  </div>
-                </Button>
-              )}
+              <UniversalImageSelector
+                task={task}
+                onImageChange={(imageUrl) => {
+                  console.log('Image selected in composer:', imageUrl);
+                  // The component handles database updates internally
+                }}
+                contentContext={content || task?.ai_output}
+                showTabs={true}
+                defaultTab="find"
+              />
             </div>
 
             {/* Hashtags */}
@@ -353,11 +265,6 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
                   ) : (
                     <p>Instagram tips: Images are required for Instagram posts. Use all 30 hashtags for maximum reach.</p>
                   )}
-                  {autoImage && (
-                    <p className="mt-1">
-                      ✨ Auto-image is enabled - a relevant image will be automatically attached from Unsplash.
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
@@ -369,7 +276,7 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
               </Button>
               <Button 
                 onClick={handlePost} 
-                disabled={isPosting || contentLength === 0 || hashtagCount > limits.hashtags || (platform === 'instagram' && !selectedImage && !autoImage)}
+                disabled={isPosting || contentLength === 0 || hashtagCount > limits.hashtags}
                 className={platform === 'facebook' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'}
               >
                 {isPosting ? 'Posting...' : `Post to ${platformName}`}
@@ -386,13 +293,6 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
           </TabsContent>
         </Tabs>
 
-        {/* Unsplash Image Picker */}
-        <UnsplashPicker
-          isOpen={showImagePicker}
-          onClose={() => setShowImagePicker(false)}
-          onSelect={handleImageSelect}
-          initialQuery={content.split(' ').slice(0, 3).join(' ')} // Use first few words as search hint
-        />
       </DialogContent>
     </Dialog>
   );

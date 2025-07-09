@@ -2,11 +2,10 @@ import React, { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { ImageCarousel } from '@/components/ui/image-carousel';
+import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
 
 interface SocialMediaPostPreviewProps {
   content: string;
@@ -141,19 +140,6 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
 
   // Enhanced content processing without validation warnings
   const { text, hashtags } = formatContentForDisplay(content);
-  const { images, loading, fetchNewImages, query } = useImageSuggestions(contentTaskId, postType);
-
-  // Auto-fetch images when component mounts or content changes
-  useEffect(() => {
-    if (contentTaskId && content && content.trim().length > 10) {
-      console.log('[PREVIEW] Auto-fetching images with smart analysis');
-      console.log('[PREVIEW] Content preview:', content.substring(0, 100));
-      console.log('[PREVIEW] Campaign title:', campaignTitle);
-      
-      // Use smart content analysis for image search
-      fetchNewImages('', contentTaskId, postType, content, campaignTitle);
-    }
-  }, [content, contentTaskId, postType, campaignTitle]);
 
   const getPlatformIcon = () => {
     return postType === 'instagram' ? (
@@ -247,15 +233,24 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
           </div>
         </div>
 
-        {/* Image Area - Right 50% with ImageCarousel */}
+        {/* Enhanced Image Area - Right 50% */}
         <div className="flex-1 border-l border-gray-200">
           <div className="p-4">
-            <ImageCarousel
-              images={images}
-              query={query}
-              contentTaskId={contentTaskId}
-              className="h-full"
-            />
+            {contentTaskId ? (
+              <UniversalImageSelector
+                task={{ id: contentTaskId }}
+                onImageChange={(imageUrl) => {
+                  console.log('Image updated in preview:', imageUrl);
+                }}
+                contentContext={content}
+                showTabs={false}
+                defaultTab="find"
+              />
+            ) : (
+              <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center">
+                <p className="text-gray-500 text-sm">No image available</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

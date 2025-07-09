@@ -5,10 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar, Send, Clock, Loader2 } from 'lucide-react';
+import { Calendar, Send, Clock, Loader2, Image } from 'lucide-react';
 import { StatusIndicator } from '@/components/ui/status-indicator';
 import { TASK_STATUS } from '@/constants/taskStatus';
 import { format, addHours, addDays } from 'date-fns';
+import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
 
 interface QuickPublishModalProps {
   isOpen: boolean;
@@ -94,9 +95,27 @@ export const QuickPublishModal = ({
               className="min-h-[120px]"
               placeholder="Content to publish..."
             />
-          </div>
+            </div>
 
-          {/* Platform Selection */}
+            {/* Image Section */}
+            <div>
+              <Label className="flex items-center gap-2">
+                <Image className="w-4 h-4" />
+                Images
+              </Label>
+              <UniversalImageSelector
+                task={task}
+                onImageChange={(imageUrl) => {
+                  console.log('Image selected in quick publish:', imageUrl);
+                  // The component handles database updates internally
+                }}
+                contentContext={content}
+                showTabs={true}
+                defaultTab="find"
+              />
+            </div>
+
+            {/* Platform Selection */}
           <div>
             <Label>Platform</Label>
             <Select value={selectedPlatform} onValueChange={setSelectedPlatform}>
