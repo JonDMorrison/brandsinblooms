@@ -6,8 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Save, X } from 'lucide-react';
 import { FacebookPostPreview } from './FacebookPostPreview';
 import { InstagramPostPreview } from './InstagramPostPreview';
-import { ImagePicker } from '@/components/composer/ImagePicker';
-import { useUnsplash } from '@/hooks/useUnsplash';
+import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
 import { ImageAttachment } from '@/lib/contentTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -26,88 +25,28 @@ export const ScheduledContentModal = ({
   onUpdate 
 }: ScheduledContentModalProps) => {
   const [content, setContent] = useState('');
-  const [images, setImages] = useState<ImageAttachment[]>([]);
-  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const { getSmartImages, searchImages, refreshImages, loading: imagesLoading } = useUnsplash();
+  
 
   useEffect(() => {
     if (scheduledTask?.ai_output) {
       setContent(scheduledTask.ai_output);
       
-      // Load existing image attachment - handle JSONB properly
-      if (scheduledTask.attachments?.image) {
-        const existingImage = scheduledTask.attachments.image;
-        setImages([existingImage]);
-        setSelectedImageId(existingImage.id);
-      } else {
-        // Fetch new images based on content
-        fetchImagesForContent();
-      }
+      // The UniversalImageSelector handles all image management now
     }
   }, [scheduledTask]);
 
-  const fetchImagesForContent = async () => {
-    if (!scheduledTask?.ai_output) return;
-    
-    const query = extractKeywordsFromContent(scheduledTask.ai_output);
-    const fetchedImages = await getSmartImages(query);
-    setImages(fetchedImages);
-    
-    // Auto-select first image
-    if (fetchedImages.length > 0) {
-      setSelectedImageId(fetchedImages[0].id);
-    }
-  };
-
-  const extractKeywordsFromContent = (content: string): string => {
-    const words = content
-      .replace(/<[^>]*>/g, ' ')
-      .replace(/[^\w\s]/g, ' ')
-      .split(/\s+/)
-      .filter(word => word.length > 3)
-      .slice(0, 3);
-    
-    return words.join(' ') || scheduledTask?.post_type || 'business';
-  };
-
-  const handleImageSelect = (imageId: string) => {
-    setSelectedImageId(imageId);
-  };
-
-  const handleImageRefresh = async () => {
-    if (!scheduledTask?.ai_output) return;
-    const query = extractKeywordsFromContent(scheduledTask.ai_output);
-    const newImages = await refreshImages(query);
-    setImages(newImages);
-    setSelectedImageId(newImages.length > 0 ? newImages[0].id : null);
-  };
-
-  const handleImageSearch = async (query: string) => {
-    const searchResults = await searchImages(query);
-    setImages(searchResults);
-    setSelectedImageId(searchResults.length > 0 ? searchResults[0].id : null);
-  };
-
-  const getSelectedImage = (): ImageAttachment | null => {
-    return images.find(img => img.id === selectedImageId) || null;
-  };
 
   const handleSave = async () => {
     if (!scheduledTask || !content.trim()) return;
 
     setSaving(true);
     try {
-      const selectedImage = getSelectedImage();
-      // Properly format the attachments as JSONB - need to convert to JSON string
-      const attachments = selectedImage ? { image: selectedImage } : null;
-
       const { error } = await supabase
         .from('content_tasks')
         .update({ 
-          ai_output: content,
-          attachments: attachments as any
+          ai_output: content
         })
         .eq('id', scheduledTask.id);
 
@@ -127,10 +66,9 @@ export const ScheduledContentModal = ({
   if (!scheduledTask) return null;
 
   const isInstagram = scheduledTask.post_type?.toLowerCase().includes('instagram');
-  const selectedImage = getSelectedImage();
-  const imageForPreview = selectedImage ? {
-    url: selectedImage.url,
-    alt: selectedImage.alt
+  const imageForPreview = scheduledTask.attachments?.[0] ? {
+    url: scheduledTask.attachments[0].url,
+    alt: scheduledTask.attachments[0].alt
   } : undefined;
 
   return (
@@ -176,13 +114,16 @@ export const ScheduledContentModal = ({
             </div>
 
             <div className="space-y-3">
-              <ImagePicker
-                images={images}
-                selected={selectedImageId}
-                onSelect={handleImageSelect}
-                onRefresh={handleImageRefresh}
-                onSearch={handleImageSearch}
-                loading={imagesLoading}
+              <h3 className="font-medium text-[#3E5A6B]">Images</h3>
+              <UniversalImageSelector
+                task={scheduledTask}
+                onImageChange={(imageUrl) => {
+                  console.log('Image selected in scheduled modal:', imageUrl);
+                  // The component handles database updates internally for tasks
+                }}
+                contentContext={scheduledTask?.ai_output}
+                showTabs={true}
+                defaultTab="find"
               />
             </div>
 

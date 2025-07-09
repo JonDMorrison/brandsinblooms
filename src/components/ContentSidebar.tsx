@@ -9,7 +9,7 @@ import { ContentMetadata } from "./content-sidebar/ContentMetadata";
 import { QuickCopyActions } from "./content-sidebar/QuickCopyActions";
 import { ContentApproval } from "./content-sidebar/ContentApproval";
 import { ContentHeader } from "./content-sidebar/ContentHeader";
-import { LiveUnsplashPicker } from "./content-sidebar/LiveUnsplashPicker";
+import { UniversalImageSelector } from "./publish/EnhancedImageSelector";
 import { ApprovalButton } from "./content-sidebar/ApprovalButton";
 import { Edit, Save, X } from "lucide-react";
 
@@ -170,11 +170,21 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
                 isEditing={isEditing}
               />
               
-              {/* Live Unsplash picker below content */}
-              <LiveUnsplashPicker 
-                task={task} 
-                campaignTheme={task.campaigns?.title || task.campaigns?.theme}
-              />
+              {/* Enhanced image selector below content */}
+              <div className="p-4 border rounded-lg bg-gray-50">
+                <h3 className="font-medium text-lg mb-4">Add or Change Image</h3>
+                <UniversalImageSelector 
+                  task={task}
+                  onImageChange={(imageUrl) => {
+                    console.log('Image selected in sidebar:', imageUrl);
+                    // The component handles database updates internally for tasks
+                  }}
+                  contentContext={task?.ai_output}
+                  campaignTitle={task.campaigns?.title || task.campaigns?.theme}
+                  showTabs={true}
+                  defaultTab="find"
+                />
+              </div>
             </div>
 
             <div className="space-y-4">

@@ -372,18 +372,9 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
             <ImageSection
               selectedDraft={selectedDraft}
-              images={images}
-              selectedImageId={selectedImageId}
               postWithoutImage={postWithoutImage}
               setPostWithoutImage={setPostWithoutImage}
-              imagesFetching={imagesFetching}
-              imagesLoading={imagesLoading}
-              imageError={imageError}
               hasValidImage={hasValidImage}
-              onImageSelect={handleImageSelect}
-              onImageRefresh={handleImageRefresh}
-              onImageSearch={handleImageSearch}
-              onFetchImages={() => {}} // This will be handled by the hook
             />
 
             <div className="mt-4 p-4 border-t flex-shrink-0">
