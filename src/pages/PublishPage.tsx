@@ -32,7 +32,7 @@ interface PublishData {
 
 interface GeneratedContent {
   id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW';
   caption: string;
   mediaUrl?: string;
   platform?: string;
@@ -138,16 +138,16 @@ const PublishPage = () => {
         connectionsCount: dashboardData.socialConnections?.length || 0
       });
 
-      // Get approved content from dashboard data
-      const approvedTasks = dashboardData.tasks?.filter(task => 
-        task.status === 'approved' && 
+      // Get approved and review content from dashboard data
+      const publishableTasks = dashboardData.tasks?.filter(task => 
+        (task.status === 'approved' || task.status === 'review') && 
         ['facebook', 'instagram'].includes(task.post_type)
       ) || [];
 
       // Transform to GeneratedContent format and fetch images
-      const generatedContent: GeneratedContent[] = approvedTasks.map(task => ({
+      const generatedContent: GeneratedContent[] = publishableTasks.map(task => ({
         id: task.id,
-        status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED',
+        status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW',
         caption: task.ai_output || '',
         mediaUrl: (task.attachments as any)?.image?.url || undefined,
         platform: task.post_type,

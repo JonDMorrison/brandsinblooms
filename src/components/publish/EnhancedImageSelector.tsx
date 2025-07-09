@@ -119,28 +119,48 @@ export const EnhancedImageSelector = ({ task, onImageSelected, selectedImage }: 
 
     setAddingToPost(true);
     try {
+      // Check if this is a different image than what's currently approved
+      const currentAttachment = task.attachments?.[0];
+      const isDifferentImage = !currentAttachment || 
+        currentAttachment.url !== image.download_url ||
+        currentAttachment.unsplash_id !== image.id;
+
+      // If it's a different image and task is currently approved, set to review
+      const shouldRequireReApproval = isDifferentImage && task.status === 'approved';
+      
+      const updateData: any = {
+        attachments: [
+          {
+            type: 'image',
+            url: image.download_url,
+            thumbnail: image.thumb_url,
+            alt: image.alt,
+            photographer: image.photographer,
+            source: 'unsplash',
+            unsplash_id: image.id
+          }
+        ]
+      };
+
+      // If changing image on approved content, require re-approval
+      if (shouldRequireReApproval) {
+        updateData.status = 'review';
+      }
+
       const { error } = await supabase
         .from('content_tasks')
-        .update({ 
-          attachments: [
-            {
-              type: 'image',
-              url: image.download_url,
-              thumbnail: image.thumb_url,
-              alt: image.alt,
-              photographer: image.photographer,
-              source: 'unsplash',
-              unsplash_id: image.id
-            }
-          ]
-        })
+        .update(updateData)
         .eq('id', task.id);
 
       if (error) {
         throw error;
       }
 
-      toast.success('Image added to post successfully!');
+      if (shouldRequireReApproval) {
+        toast.success('Image updated! Content moved to review for re-approval.');
+      } else {
+        toast.success('Image added to post successfully!');
+      }
       
       // Trigger refresh
       window.dispatchEvent(new CustomEvent('draft-updated'));

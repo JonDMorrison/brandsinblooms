@@ -21,7 +21,9 @@ import {
   AlertCircle,
   Loader2,
   Settings,
-  X
+  X,
+  Shield,
+  ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -187,6 +189,7 @@ export const DirectSocialPublisher = ({
   const [isScheduling, setIsScheduling] = useState(false);
   const [editedCaption, setEditedCaption] = useState('');
   const [autoImage, setAutoImage] = useState(true);
+  const [isApproving, setIsApproving] = useState(false);
 
   // Load connections and set initial state
   useEffect(() => {
@@ -283,6 +286,31 @@ export const DirectSocialPublisher = ({
     }
   };
 
+  const handleApproveContent = async () => {
+    if (!selectedContent) return;
+    
+    setIsApproving(true);
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({ status: 'approved' })
+        .eq('id', selectedContent.id);
+
+      if (error) throw error;
+
+      toast.success('Content approved and ready to publish!');
+      
+      // Trigger refresh
+      window.dispatchEvent(new CustomEvent('draft-updated'));
+      
+    } catch (error) {
+      console.error('Error approving content:', error);
+      toast.error('Failed to approve content');
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
   const handleSchedulePost = async () => {
     if (!selectedContent || selectedPlatforms.length === 0) {
       toast.error('Please select at least one platform');
@@ -372,8 +400,45 @@ export const DirectSocialPublisher = ({
     );
   }
 
+  // Check if content needs approval
+  const needsApproval = selectedContent.status === 'review';
+  const isApproved = selectedContent.status === 'approved';
+
   return (
     <div className="space-y-6">
+      {/* Approval Status Banner */}
+      {needsApproval && (
+        <Card className="p-4 border-amber-200 bg-amber-50">
+          <div className="flex items-center gap-3">
+            <Shield className="w-5 h-5 text-amber-600" />
+            <div className="flex-1">
+              <h4 className="font-medium text-amber-800">Content Needs Approval</h4>
+              <p className="text-sm text-amber-700">
+                Recent changes require approval before publishing
+              </p>
+            </div>
+            <Button
+              onClick={handleApproveContent}
+              disabled={isApproving}
+              variant="outline"
+              className="border-amber-300 text-amber-700 hover:bg-amber-100"
+            >
+              {isApproving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4 mr-2" />
+                  Approve
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Content Preview */}
       <Card className="p-4">
         <div className="flex items-start gap-4">
@@ -391,7 +456,15 @@ export const DirectSocialPublisher = ({
               <Badge variant="outline" className="capitalize">
                 {selectedContent.platform || 'Social'}
               </Badge>
-              <Badge variant="secondary">{selectedContent.status}</Badge>
+              <Badge 
+                variant={isApproved ? "default" : needsApproval ? "destructive" : "secondary"}
+                className={cn(
+                  isApproved && "bg-green-600 text-white",
+                  needsApproval && "bg-amber-600 text-white"
+                )}
+              >
+                {needsApproval ? 'Needs Approval' : selectedContent.status}
+              </Badge>
             </div>
             <Textarea
               value={editedCaption}
@@ -426,13 +499,23 @@ export const DirectSocialPublisher = ({
       <div className="flex items-center gap-3">
         <Button
           onClick={handlePublishNow}
-          disabled={isPublishing || selectedPlatforms.length === 0}
-          className="flex-1 bg-green-600 hover:bg-green-700"
+          disabled={isPublishing || selectedPlatforms.length === 0 || needsApproval}
+          className={cn(
+            "flex-1",
+            needsApproval 
+              ? "bg-gray-400 hover:bg-gray-400 cursor-not-allowed" 
+              : "bg-green-600 hover:bg-green-700"
+          )}
         >
           {isPublishing ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               Publishing...
+            </>
+          ) : needsApproval ? (
+            <>
+              <Shield className="w-4 h-4 mr-2" />
+              Needs Approval
             </>
           ) : (
             <>
@@ -444,7 +527,7 @@ export const DirectSocialPublisher = ({
         
         <Button
           onClick={() => setShowScheduleDialog(true)}
-          disabled={selectedPlatforms.length === 0}
+          disabled={selectedPlatforms.length === 0 || needsApproval}
           variant="outline"
           className="flex-1"
         >

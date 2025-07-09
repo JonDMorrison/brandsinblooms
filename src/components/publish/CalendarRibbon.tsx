@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 
 interface GeneratedContent {
   id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW';
   caption: string;
   mediaUrl?: string;
   platform?: string;

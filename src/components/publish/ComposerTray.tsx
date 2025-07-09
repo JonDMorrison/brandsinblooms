@@ -24,7 +24,7 @@ const ThumbnailImage = ({ src, alt, fallback }: { src: string; alt: string; fall
 
 interface GeneratedContent {
   id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW';
   caption: string;
   mediaUrl?: string;
   platform?: string;

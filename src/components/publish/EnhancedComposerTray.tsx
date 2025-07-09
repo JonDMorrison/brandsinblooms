@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 interface GeneratedContent {
   id: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED';
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW';
   caption: string;
   mediaUrl?: string;
   platform?: string;
@@ -114,6 +114,12 @@ const EnhancedStatusBadge = ({ status }: { status: string }) => {
           color: 'bg-green-50 text-green-700 border-green-200', 
           icon: <Send className="w-3 h-3" />,
           pulse: false 
+        };
+      case 'REVIEW':
+        return { 
+          color: 'bg-amber-50 text-amber-700 border-amber-200', 
+          icon: null,
+          pulse: true 
         };
       default:
         return { 
