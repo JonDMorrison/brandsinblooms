@@ -175,7 +175,7 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                   </div>
                   <div className="relative group">
                     <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/30 transition-all duration-300 group-hover:scale-110">
-                      <Instagram className="w-10 h-10 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent" />
+                      <Instagram className="w-10 h-10 text-pink-600" />
                     </div>
                     <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-orange-500/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
                   </div>
