@@ -26,11 +26,17 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
     platformName: string;
   }>({ open: false, platform: '', connectionId: '', platformName: '' });
   const [disconnecting, setDisconnecting] = useState(false);
+  const [showReconnectFlow, setShowReconnectFlow] = useState(false);
 
   const facebookConnection = connections.find(conn => conn.platform === 'facebook');
   const instagramConnection = connections.find(conn => conn.platform === 'instagram');
   const isConnected = facebookConnection || instagramConnection;
   const bothConnected = facebookConnection && instagramConnection;
+
+  const handleConnectionSuccess = () => {
+    setShowReconnectFlow(false); // Reset reconnect flow when successfully connected
+    onConnectionSuccess();
+  };
 
   const handleDisconnectClick = (platform: string, connectionId: string, platformName: string) => {
     setDisconnectDialog({
@@ -53,6 +59,13 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
 
       toast.success(`${disconnectDialog.platformName} disconnected successfully`);
       onConnectionSuccess(); // Refresh connections
+      
+      // Check if this was the last connection and show reconnect flow
+      const remainingConnections = connections.filter(conn => conn.id !== disconnectDialog.connectionId);
+      if (remainingConnections.length === 0) {
+        setShowReconnectFlow(true);
+      }
+      
       setDisconnectDialog({ open: false, platform: '', connectionId: '', platformName: '' });
     } catch (error) {
       console.error('Error disconnecting platform:', error);
@@ -62,7 +75,8 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
     }
   };
 
-  if (connections.length === 0) {
+  // Show reconnection flow if user just disconnected all accounts or has no connections
+  if (connections.length === 0 || showReconnectFlow) {
     return (
       <SubscriptionGate 
         requiredPlan="bloom" 
@@ -116,10 +130,21 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
               <Wifi className="w-8 h-8 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Connect Your Social Media</h2>
-              <p className="text-lg text-gray-600 mt-2 max-w-2xl mx-auto">
-                Connect your Facebook and Instagram accounts to start scheduling and managing your social media content from one place.
-              </p>
+              {showReconnectFlow ? (
+                <>
+                  <h2 className="text-3xl font-bold text-gray-900">Ready to Reconnect?</h2>
+                  <p className="text-lg text-gray-600 mt-2 max-w-2xl mx-auto">
+                    Your accounts have been disconnected. You can reconnect your Facebook and Instagram accounts anytime to continue managing your social media content.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-3xl font-bold text-gray-900">Connect Your Social Media</h2>
+                  <p className="text-lg text-gray-600 mt-2 max-w-2xl mx-auto">
+                    Connect your Facebook and Instagram accounts to start scheduling and managing your social media content from one place.
+                  </p>
+                </>
+              )}
             </div>
           </div>
 
@@ -165,7 +190,7 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                   </p>
                 </div>
                 
-                <ConnectMetaButton onSuccess={onConnectionSuccess} />
+                <ConnectMetaButton onSuccess={handleConnectionSuccess} />
               </CardContent>
             </Card>
           </div>
@@ -262,7 +287,7 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
 
                 <div className="flex items-center gap-2">
                   {!bothConnected && (
-                    <ConnectMetaButton onSuccess={onConnectionSuccess} />
+                    <ConnectMetaButton onSuccess={handleConnectionSuccess} />
                   )}
                   {bothConnected && (
                     <div className="flex items-center gap-2">
