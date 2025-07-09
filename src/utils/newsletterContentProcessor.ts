@@ -191,38 +191,38 @@ const parseSimpleYAML = (content: string) => {
         continue;
       }
       
-      // Look for newsletter_md section
-      if (trimmed === 'newsletter_md: |' || trimmed.startsWith('newsletter_md:')) {
-        console.log('🔍 Found newsletter_md section at line', i);
-        inNewsletterMd = true;
-        inBlocks = false;
-        currentSection = 'newsletter_md';
-        continue;
-      }
-      
-      
-      // Look for blocks section
-      if (trimmed === 'blocks:') {
-        console.log('🔍 Found blocks section at line', i, 'content:', trimmed);
-        inNewsletterMd = false;
-        inBlocks = true;
-        currentSection = 'blocks';
-        continue;
-      }
-      
-      // Look for meta section  
-      if (trimmed === 'meta:') {
-        console.log('🔍 Found meta section at line', i);
-        inNewsletterMd = false;
-        inBlocks = false;
-        currentSection = 'meta';
-        continue;
-      }
-      
-      // Stop collecting newsletter_md when we hit blocks or other sections
-      if (inNewsletterMd && (trimmed === 'blocks:' || trimmed === 'meta:' || trimmed === 'extra_content_ideas:')) {
-        console.log('🛑 Stopping newsletter_md collection at line', i, 'due to:', trimmed);
-        inNewsletterMd = false;
+      // Look for main sections (at root level - no indentation)
+      if (line.length > 0 && !line.startsWith(' ') && !line.startsWith('\t')) {
+        // Root level section detected
+        if (trimmed === 'newsletter_md: |' || trimmed.startsWith('newsletter_md:')) {
+          console.log('🔍 Found newsletter_md section at line', i);
+          inNewsletterMd = true;
+          inBlocks = false;
+          currentSection = 'newsletter_md';
+          continue;
+        }
+        
+        if (trimmed === 'blocks:') {
+          console.log('🔍 Found blocks section at line', i, 'content:', trimmed);
+          inNewsletterMd = false;
+          inBlocks = true;
+          currentSection = 'blocks';
+          continue;
+        }
+        
+        if (trimmed === 'meta:') {
+          console.log('🔍 Found meta section at line', i);
+          inNewsletterMd = false;
+          inBlocks = false;
+          currentSection = 'meta';
+          continue;
+        }
+        
+        // Any other root-level section stops newsletter_md collection
+        if (inNewsletterMd && trimmed !== 'newsletter_md: |' && !trimmed.startsWith('newsletter_md:')) {
+          console.log('🛑 Stopping newsletter_md collection at line', i, 'due to root section:', trimmed);
+          inNewsletterMd = false;
+        }
       }
       
       if (inNewsletterMd) {
