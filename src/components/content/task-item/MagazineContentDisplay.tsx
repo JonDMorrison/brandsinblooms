@@ -241,7 +241,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
     switch (postType) {
       case 'instagram': return 'from-pink-50 to-purple-50 border-pink-200';
       case 'facebook': return 'from-blue-50 to-indigo-50 border-blue-200';
-      case 'blog': return 'from-green-50 to-emerald-50 border-green-200';
+      case 'blog': return 'from-slate-50 to-gray-50 border-slate-200';
       case 'video': return 'from-gray-50 to-slate-50 border-gray-200';
       case 'newsletter': return 'from-purple-50 to-indigo-50 border-purple-200';
       default: return 'from-gray-50 to-slate-50 border-gray-200';
@@ -394,7 +394,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           {getPostTypeIcon()}
-          <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200">
             Blog Article
           </Badge>
         </div>
@@ -411,7 +411,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           {/* Floating Featured Image - Top Right */}
           <div className="w-1/3 float-right ml-6 mb-4">
             {renderFeaturedImage(
-              "bg-gradient-to-br from-green-100 to-emerald-100 rounded-lg border border-green-200 p-2 h-48",
+              "bg-gradient-to-br from-slate-100 to-gray-100 rounded-lg border border-slate-200 p-2 h-48",
               "Featured image"
             )}
           </div>
@@ -442,7 +442,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           {getPostTypeIcon()}
-          <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+          <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200">
             Teaching Content
           </Badge>
         </div>
