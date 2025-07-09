@@ -28,6 +28,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { addHours, format, setHours, setMinutes } from 'date-fns';
+import { EnhancedImageSelector } from './EnhancedImageSelector';
 
 interface GeneratedContent {
   id: string;
@@ -411,29 +412,15 @@ export const DirectSocialPublisher = ({
         />
       </Card>
 
-      {/* Publishing Options */}
-      <Card className="p-4">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">Auto-fetch images</Label>
-            <Switch 
-              checked={autoImage} 
-              onCheckedChange={setAutoImage}
-            />
-          </div>
-          
-          {!selectedContent.mediaUrl && autoImage && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Image className="w-4 h-4 text-blue-600" />
-                <p className="text-sm text-blue-800">
-                  An image will be automatically fetched from Unsplash for better engagement
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
+      {/* Enhanced Image Selection */}
+      <EnhancedImageSelector
+        task={selectedContent}
+        onImageSelected={(image) => {
+          // The component handles updating the task internally
+          console.log('Image selected:', image);
+        }}
+        selectedImage={null}
+      />
 
       {/* Action Buttons */}
       <div className="flex items-center gap-3">
