@@ -35,9 +35,9 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
   loadingImages
 }) => {
   return (
-    <div className="grid lg:grid-cols-3 gap-8 items-start">
+    <div className="grid lg:grid-cols-2 gap-8 items-start">
       {/* Content */}
-      <div className="lg:col-span-2">
+      <div>
         {isStructuredNewsletter ? (
           // Structured newsletter - show title and body separately
           <>
@@ -91,7 +91,7 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
       </div>
 
       {/* Image */}
-      <div className="lg:col-span-1">
+      <div>
         <NewsletterImageManager
           images={images}
           imageErrors={imageErrors}
