@@ -40,6 +40,14 @@ export const OptimizedNewsletterDisplay = ({
   const processedNewsletter = processNewsletterContent(content || '', campaignTitle);
   
   // Use the specialized newsletter images hook for structured newsletters only
+  console.log('[NEWSLETTER] Calling useNewsletterImages with:', {
+    blocksCount: processedNewsletter.blocks.length,
+    isPlaceholder: isPlaceholderContent || !processedNewsletter.isStructured,
+    isStructured: processedNewsletter.isStructured,
+    contentTaskId,
+    sampleBlock: processedNewsletter.blocks[0]
+  });
+  
   const { images, loadingImages, imageErrors } = useNewsletterImages(
     processedNewsletter.blocks,
     isPlaceholderContent || !processedNewsletter.isStructured,

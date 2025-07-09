@@ -38,6 +38,13 @@ export const useNewsletterImages = (
   }, [blocks]);
 
   useEffect(() => {
+    console.log('[NEWSLETTER] useNewsletterImages effect triggered:', {
+      isPlaceholderContent,
+      blocksLength: blocks.length,
+      contentTaskId,
+      blocksKey
+    });
+    
     if (isPlaceholderContent) {
       console.log('[NEWSLETTER] Skipping image fetch - placeholder content detected');
       return;
