@@ -79,9 +79,14 @@ const AppSidebar: React.FC = () => {
     },
     {
       title: "Social Media",
-      url: "/social-accounts",
+      url: "",
       icon: Send,
       items: [
+        {
+          title: "Social Accounts",
+          url: "/social-accounts",
+          icon: Send,
+        },
         {
           title: "Content Planner",
           url: "/social",
