@@ -163,6 +163,7 @@ export const convertNewsletterMarkdownToHtml = (content: string): string => {
 const parseSimpleYAML = (content: string) => {
   try {
     console.log('📥 Parsing YAML content, length:', content.length);
+    console.log('📥 Content preview:', content.substring(0, 500));
     
     const lines = content.split('\n');
     const result: any = {
@@ -174,14 +175,9 @@ const parseSimpleYAML = (content: string) => {
     let currentSection = '';
     let inNewsletterMd = false;
     let currentBlock: any = {};
-    let skipNextLines = 0;
+    let inBlocks = false;
     
     for (let i = 0; i < lines.length; i++) {
-      if (skipNextLines > 0) {
-        skipNextLines--;
-        continue;
-      }
-      
       const line = lines[i];
       const trimmed = line.trim();
       
@@ -190,20 +186,29 @@ const parseSimpleYAML = (content: string) => {
         continue;
       }
       
-      if (trimmed === 'newsletter_md: |') {
+      // Look for newsletter_md section
+      if (trimmed === 'newsletter_md: |' || trimmed.startsWith('newsletter_md:')) {
+        console.log('🔍 Found newsletter_md section at line', i);
         inNewsletterMd = true;
+        inBlocks = false;
         currentSection = 'newsletter_md';
         continue;
       }
       
+      // Look for blocks section
       if (trimmed === 'blocks:') {
+        console.log('🔍 Found blocks section at line', i);
         inNewsletterMd = false;
+        inBlocks = true;
         currentSection = 'blocks';
         continue;
       }
       
+      // Look for meta section
       if (trimmed === 'meta:') {
+        console.log('🔍 Found meta section at line', i);
         inNewsletterMd = false;
+        inBlocks = false;
         currentSection = 'meta';
         continue;
       }
@@ -215,9 +220,11 @@ const parseSimpleYAML = (content: string) => {
         continue;
       }
       
-      if (currentSection === 'blocks' && trimmed.startsWith('- title:')) {
+      if (inBlocks && trimmed.startsWith('- title:')) {
+        console.log('🔍 Found new block at line', i, ':', trimmed);
         if (Object.keys(currentBlock).length > 0) {
           result.blocks.push(currentBlock);
+          console.log('✅ Added block:', currentBlock.title);
         }
         currentBlock = {
           title: trimmed.replace('- title:', '').replace(/"/g, '').trim(),
@@ -227,7 +234,8 @@ const parseSimpleYAML = (content: string) => {
           image_prompt: '',
           alt_text: ''
         };
-      } else if (currentSection === 'blocks') {
+      } else if (inBlocks && Object.keys(currentBlock).length > 0) {
+        // Parse block properties
         if (trimmed.startsWith('body:')) {
           currentBlock.body = trimmed.replace('body:', '').replace(/"/g, '').trim();
         } else if (trimmed.startsWith('cta:')) {
@@ -250,8 +258,10 @@ const parseSimpleYAML = (content: string) => {
       }
     }
     
+    // Add the last block if it exists
     if (Object.keys(currentBlock).length > 0) {
       result.blocks.push(currentBlock);
+      console.log('✅ Added final block:', currentBlock.title);
     }
     
     result.newsletter_md = filterUnwantedSections(result.newsletter_md.trim());
@@ -260,7 +270,8 @@ const parseSimpleYAML = (content: string) => {
       hasNewsletterMd: !!result.newsletter_md,
       newsletterMdLength: result.newsletter_md.length,
       blockCount: result.blocks.length,
-      metaKeys: Object.keys(result.meta)
+      metaKeys: Object.keys(result.meta),
+      firstBlockTitle: result.blocks[0]?.title
     });
     
     return result.blocks.length > 0 || result.newsletter_md ? result : null;
