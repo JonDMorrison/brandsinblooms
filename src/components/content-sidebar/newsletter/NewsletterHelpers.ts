@@ -142,37 +142,35 @@ export const checkIsPlaceholderContent = (content: string): boolean => {
     return true;
   }
   
-  // Check for common placeholder patterns and incomplete content
+  // Only check for truly obvious placeholder patterns
   const placeholderPatterns = [
-    /Seasonal Gardening Focus - Week/i,
-    /This week's theme:/i,
     /content will be generated/i,
     /placeholder/i,
-    /Greetings Green Thumbs,[\s\S]*This week, we're focusing on helping you keep these beauties healthy\.\.\.$/i
+    /^Seasonal Gardening Focus - Week \d+$/i, // Only exact template format
+    /^This week's theme:$/i, // Only if it's just the header with no content
   ];
   
   const hasPlaceholderPattern = placeholderPatterns.some(pattern => pattern.test(content));
-  const isTooShort = content.replace(/\s/g, '').length < 200;
   
-  // More specific check for incomplete newsletters
-  // Only flag as incomplete if it has "Subject Line:" but lacks substantial content
-  const hasSubjectLine = content.includes('Subject Line:');
-  const isIncompleteNewsletter = hasSubjectLine && (
-    content.length < 500 || 
-    !content.includes('Dear ') ||
-    content.trim().endsWith('...')
-  );
+  // Only flag as too short if it's extremely minimal (less than 50 characters)
+  const isTooShort = content.replace(/\s/g, '').length < 50;
   
-  console.log('Placeholder check:', {
+  // Only flag incomplete newsletters that are obviously just templates
+  const isObviousTemplate = content.includes('Subject Line:') && 
+    content.length < 100 && 
+    !content.includes('Dear') && 
+    !content.includes('garden') && 
+    !content.includes('plant');
+  
+  console.log('Placeholder check (updated):', {
     hasPlaceholderPattern,
     isTooShort,
-    isIncompleteNewsletter,
+    isObviousTemplate,
     contentLength: content.length,
-    hasSubjectLine,
-    isPlaceholder: hasPlaceholderPattern || isTooShort || isIncompleteNewsletter
+    isPlaceholder: hasPlaceholderPattern || isTooShort || isObviousTemplate
   });
   
-  return hasPlaceholderPattern || isTooShort || isIncompleteNewsletter;
+  return hasPlaceholderPattern || isTooShort || isObviousTemplate;
 };
 
 // Helper functions for enhanced content processing
