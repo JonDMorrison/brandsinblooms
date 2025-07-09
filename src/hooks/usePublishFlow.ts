@@ -29,18 +29,45 @@ export const usePublishFlow = (): PublishFlowHook => {
 
       if (taskError) throw taskError;
 
-      // Create generated content record
+      // Extract image data from task attachments or image_url field
+      let mediaUrl: string | undefined;
+      const attachments = task.attachments as any;
+      
+      console.log('🎯 APPROVE_DRAFT: Task data:', {
+        taskId,
+        hasAttachments: !!attachments,
+        hasImage: !!attachments?.image,
+        imageUrl: attachments?.image?.url || task.image_url,
+        status: task.status
+      });
+
+      if (attachments?.image?.url) {
+        mediaUrl = attachments.image.url;
+        console.log('📸 APPROVE_DRAFT: Using image from attachments:', mediaUrl);
+      } else if (task.image_url) {
+        mediaUrl = task.image_url;
+        console.log('📸 APPROVE_DRAFT: Using image from image_url field:', mediaUrl);
+      }
+
+      // Create generated content record with image
       const { data: generatedContent, error: contentError } = await supabase
         .from('generated_content')
         .insert({
           user_id: user.id,
           caption: task.ai_output || '',
+          media_url: mediaUrl,
           status: 'DRAFT'
         })
         .select()
         .single();
 
       if (contentError) throw contentError;
+
+      console.log('✅ APPROVE_DRAFT: Created generated content:', {
+        contentId: generatedContent.id,
+        hasMediaUrl: !!generatedContent.media_url,
+        mediaUrl: generatedContent.media_url
+      });
 
       // Update content task status
       const { error: updateError } = await supabase
@@ -66,6 +93,22 @@ export const usePublishFlow = (): PublishFlowHook => {
 
     setLoading(true);
     try {
+      // Get the generated content to verify image data
+      const { data: content, error: contentFetchError } = await supabase
+        .from('generated_content')
+        .select('*')
+        .eq('id', contentId)
+        .single();
+
+      if (contentFetchError) throw contentFetchError;
+
+      console.log('📅 SCHEDULE_DRAFT: Generated content data:', {
+        contentId,
+        hasMediaUrl: !!content.media_url,
+        mediaUrl: content.media_url,
+        caption: content.caption?.substring(0, 50) + '...'
+      });
+
       const { error } = await supabase
         .from('scheduled_posts')
         .insert({
@@ -83,6 +126,8 @@ export const usePublishFlow = (): PublishFlowHook => {
         .from('generated_content')
         .update({ status: 'SCHEDULED' })
         .eq('id', contentId);
+
+      console.log('✅ SCHEDULE_DRAFT: Successfully scheduled post with image preserved');
 
       toast.success('Content scheduled for publishing', {
         action: {

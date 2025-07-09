@@ -390,29 +390,56 @@ serve(async (req) => {
           let imageUrl: string | undefined
           let attribution: string | undefined
 
-          // Determine image source - priority: direct URL > existing attachment > auto-fetch from Unsplash
-          if (body.imageUrl) {
+          // Check if we have a generated_content record with image data
+          let generatedContentImage: string | undefined;
+          try {
+            const { data: generatedContent } = await supabaseAdmin
+              .from('generated_content')
+              .select('media_url')
+              .eq('id', task.id)
+              .maybeSingle();
+            
+            if (generatedContent?.media_url) {
+              generatedContentImage = generatedContent.media_url;
+              console.log(`[IMAGE_FLOW] ✅ Found generated content image: ${generatedContentImage}`);
+            }
+          } catch (error) {
+            console.warn('[IMAGE_FLOW] Could not fetch generated content image:', error);
+          }
+
+          // Determine image source - STRICT PRIORITY: generated_content.media_url > direct URL > existing attachment > auto-fetch ONLY as last resort
+          if (generatedContentImage) {
+            // HIGHEST PRIORITY: Use image from approved generated content
+            imageUrl = generatedContentImage;
+            console.log(`[IMAGE_FLOW] 🎯 Using generated content image: ${imageUrl}`);
+          } else if (body.imageUrl) {
             // Direct image URL provided
-            imageUrl = body.imageUrl
+            imageUrl = body.imageUrl;
+            console.log(`[IMAGE_FLOW] 📎 Using direct image URL: ${imageUrl}`);
           } else if (task.attachments?.image) {
             // Use existing image attachment
-            const imageAttachment = task.attachments.image
-            imageUrl = imageAttachment.url
+            const imageAttachment = task.attachments.image;
+            imageUrl = imageAttachment.url;
+            console.log(`[IMAGE_FLOW] 📋 Using task attachment image: ${imageUrl}`);
             
             // Create attribution text
             if (imageAttachment.source === 'unsplash' && imageAttachment.author_name) {
-              attribution = `📸 Photo by ${imageAttachment.author_name} on Unsplash`
+              attribution = `📸 Photo by ${imageAttachment.author_name} on Unsplash`;
             }
+          } else if (task.image_url) {
+            // Legacy: use image_url field
+            imageUrl = task.image_url;
+            console.log(`[IMAGE_FLOW] 🗂️ Using legacy image_url field: ${imageUrl}`);
           } else if (body.autoImage !== false) {
-            // Auto-fetch from Unsplash if no image provided and auto-fetch not disabled
+            // LAST RESORT: Auto-fetch from Unsplash ONLY if no image exists anywhere
             const searchKeyword = body.keyword || task.ai_output?.split(' ').slice(0, 3).join(' ') || task.campaigns?.title || 'garden plants';
-            console.log(`[UNSPLASH] Auto-fetching image for keyword: "${searchKeyword}"`);
+            console.log(`[IMAGE_FLOW] 🔍 LAST RESORT: Auto-fetching image for keyword: "${searchKeyword}"`);
             
             const unsplashResult = await getUnsplashImage(searchKeyword);
             if (unsplashResult) {
               imageUrl = unsplashResult.url;
               attribution = `📸 Photo by ${unsplashResult.author_name} on Unsplash`;
-              console.log(`[UNSPLASH] ✅ Found image: ${imageUrl}`);
+              console.log(`[IMAGE_FLOW] ✅ Auto-fetched image: ${imageUrl}`);
               
               // Update task with the auto-fetched image for future reference
               await supabaseAdmin
@@ -421,7 +448,7 @@ serve(async (req) => {
                   attachments: {
                     image: {
                       url: imageUrl,
-                      thumb: imageUrl, // Use same URL for thumb
+                      thumb: imageUrl,
                       alt: searchKeyword,
                       author_name: unsplashResult.author_name,
                       source: 'unsplash',
@@ -431,9 +458,12 @@ serve(async (req) => {
                 })
                 .eq('id', body.taskId);
             } else {
-              console.warn(`[UNSPLASH] ❌ No image found for keyword: "${searchKeyword}"`);
+              console.warn(`[IMAGE_FLOW] ❌ No image found for keyword: "${searchKeyword}"`);
             }
           }
+
+          console.log(`[IMAGE_FLOW] 🎯 FINAL IMAGE DECISION: ${imageUrl || 'NO IMAGE'}`);
+          if (attribution) console.log(`[IMAGE_FLOW] 📝 Attribution: ${attribution}`);
 
           // Validate image requirement for Instagram
           if (normalizedPlatform === 'instagram' && !imageUrl) {
