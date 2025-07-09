@@ -406,7 +406,7 @@ const PublishPage = () => {
                 Direct social publishing with smart scheduling and analytics
               </p>
               {publishData && (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <div className="bg-white/50 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/30 shadow-lg">
                     <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
                       <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
@@ -418,6 +418,26 @@ const PublishPage = () => {
                       <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                       {publishData.socialConnections.length} connections
                     </span>
+                  </div>
+                  
+                  {/* Test Mode Toggle */}
+                  <div className="bg-white/50 backdrop-blur-sm rounded-xl px-4 py-2 border border-white/30 shadow-lg">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={() => setTestMode(!testMode)}
+                        variant={testMode ? "default" : "outline"}
+                        size="sm"
+                        className={`transition-all duration-200 ${
+                          testMode 
+                            ? 'bg-amber-500 hover:bg-amber-600 text-white border-amber-400 shadow-amber-200' 
+                            : 'bg-white/70 hover:bg-amber-50 text-slate-700 border-white/40'
+                        }`}
+                        title={testMode ? "Disable test mode" : "Enable test mode - simulate publishing without posting"}
+                      >
+                        <Zap className={`w-3 h-3 mr-1 ${testMode ? 'text-white' : 'text-amber-500'}`} />
+                        {testMode ? 'TEST MODE' : 'Test Mode'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -440,13 +460,41 @@ const PublishPage = () => {
 
         {/* Enhanced Tabbed Interface */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+          {/* Glassmorphism Tab Navigation */}
+          <div className="px-4 sm:px-6 pt-4">
+            <TabsList className="bg-white/50 backdrop-blur-sm border border-white/30 shadow-lg rounded-xl p-1 h-auto">
+              <TabsTrigger 
+                value="publisher" 
+                className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-2.5 text-sm font-medium"
+              >
+                <Grid className="w-4 h-4 mr-2" />
+                Publisher
+              </TabsTrigger>
+              <TabsTrigger 
+                value="calendar" 
+                className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-2.5 text-sm font-medium"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Schedule
+              </TabsTrigger>
+              <TabsTrigger 
+                value="analytics" 
+                className="data-[state=active]:bg-white/80 data-[state=active]:shadow-md transition-all duration-200 rounded-lg px-4 py-2.5 text-sm font-medium"
+              >
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <div className="p-4 sm:p-6">
             <TabsContent value="publisher" className="space-y-6 mt-6">
               
               {/* Metrics Overview */}
               <PublishMetrics refreshTrigger={metricsRefresh} />
-              <div className="flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-20rem)]">
+              <div className={`flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-20rem)] transition-all duration-300 ${
+                testMode ? 'bg-amber-50/30 rounded-xl border border-amber-200/50' : ''
+              }`}>
                 {/* Left Panel - Enhanced Content Library */}
                 <div className="w-full lg:w-96 xl:w-[420px] flex-shrink-0">
                   <EnhancedComposerTray
@@ -501,6 +549,34 @@ const PublishPage = () => {
           onSchedule={handleSchedulePost}
           onPublishNow={() => {}}
         />
+
+        {/* Floating Debug Button */}
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            onClick={() => setShowDebugger(!showDebugger)}
+            className={`bg-white/70 backdrop-blur-sm border border-white/40 shadow-lg hover:shadow-xl transition-all duration-300 ${
+              showDebugger ? 'bg-slate-600 text-white' : 'text-slate-700 hover:bg-white/90'
+            }`}
+            size="sm"
+            title="Toggle debug panel"
+          >
+            <Clock className="w-4 h-4 mr-2" />
+            Debug
+            {showDebugger && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></div>
+            )}
+          </Button>
+        </div>
+
+        {/* Test Mode Visual Overlay */}
+        {testMode && (
+          <div className="fixed inset-0 pointer-events-none z-10">
+            <div className="absolute inset-0 border-4 border-amber-400/30 animate-pulse"></div>
+            <div className="absolute top-4 right-4 bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg animate-bounce">
+              🧪 TEST MODE ACTIVE
+            </div>
+          </div>
+        )}
 
         {/* Debug Tool */}
         <PublishDebugger 
