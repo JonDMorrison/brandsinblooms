@@ -395,20 +395,20 @@ export const WeeklyThemeCarousel = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 p-0 border-2 border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 rounded-full backdrop-blur-sm lg:left-2 focus-visible:ring-4 focus-visible:ring-gray-200"
+                      className="absolute left-4 top-1/2 -translate-y-1/2 z-20 px-3 py-2 text-gray-700 hover:bg-gray-50 backdrop-blur-sm lg:left-2 focus-visible:ring-2 focus-visible:ring-gray-300"
                       onClick={handlePrevious}
                       aria-label="Previous theme"
                     >
-                      <ChevronLeft className="w-4 h-4" />
+                      <ChevronLeft className="w-6 h-6" strokeWidth={3} />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-4 top-1/2 -translate-y-1/2 z-20 h-9 w-9 p-0 border-2 border-gray-400 text-gray-600 hover:bg-gray-50 hover:border-gray-500 rounded-full backdrop-blur-sm lg:right-2 focus-visible:ring-4 focus-visible:ring-gray-200"
+                      className="absolute right-4 top-1/2 -translate-y-1/2 z-20 px-3 py-2 text-gray-700 hover:bg-gray-50 backdrop-blur-sm lg:right-2 focus-visible:ring-2 focus-visible:ring-gray-300"
                       onClick={handleNext}
                       aria-label="Next theme"
                     >
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-6 h-6" strokeWidth={3} />
                     </Button>
 
                     {/* Current Theme Card */}
