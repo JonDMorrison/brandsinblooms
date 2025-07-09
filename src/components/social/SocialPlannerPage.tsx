@@ -213,16 +213,50 @@ export const SocialPlannerPage = () => {
 
           {/* Posts Section - Only show if there are connections */}
           {connections.length > 0 && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Your Content</h2>
-                  <p className="text-gray-600">Create, schedule, and manage your social media posts</p>
+            <div className="space-y-8">
+              {/* Your Content Hero Section */}
+              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50 via-white to-gray-50/30 border border-white/20 shadow-2xl backdrop-blur-sm">
+                {/* Decorative Background Elements */}
+                <div className="absolute inset-0 opacity-5">
+                  <div className="absolute top-10 left-10 text-8xl">📱</div>
+                  <div className="absolute top-20 right-20 text-6xl">✨</div>
+                  <div className="absolute bottom-10 left-1/3 text-7xl">📊</div>
+                  <div className="absolute bottom-20 right-10 text-5xl">🎯</div>
                 </div>
-                <Button onClick={() => setIsNewPostModalOpen(true)} size="lg">
-                  <Plus className="h-5 w-5 mr-2" />
-                  Create Post
-                </Button>
+                
+                <div className="relative px-8 py-12">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-3">
+                      <h2 className="text-4xl font-bold bg-gradient-to-r from-text-primary via-primary to-text-primary bg-clip-text text-transparent">
+                        Your Content
+                      </h2>
+                      <p className="text-lg text-text-secondary max-w-2xl leading-relaxed">
+                        Create engaging content, schedule posts across platforms, and track your social media performance
+                      </p>
+                      <div className="flex items-center gap-4 pt-2">
+                        <div className="flex items-center gap-2 text-sm text-text-tertiary">
+                          <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                          <span>{posts.length} posts created</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-text-tertiary">
+                          <div className="w-2 h-2 rounded-full bg-success"></div>
+                          <span>{connections.length} platforms connected</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Floating Create Post Button */}
+                    <Button 
+                      onClick={() => setIsNewPostModalOpen(true)} 
+                      size="lg"
+                      className="relative group bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-0 px-8 py-6 text-base font-semibold"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <Plus className="h-5 w-5 mr-2 relative z-10" />
+                      <span className="relative z-10">Create Post</span>
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               <PostList posts={posts} onRefresh={loadData} />

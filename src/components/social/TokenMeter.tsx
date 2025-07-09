@@ -127,37 +127,95 @@ export const TokenMeter = () => {
   const isLow = percentage < 20;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <Zap className="h-5 w-5" />
-          Post Credits
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="flex justify-between text-sm">
-            <span>Available credits</span>
-            <span className={isLow ? 'text-red-600 font-medium' : ''}>
-              {tokenData.balance} / {tokenData.maxTokens}
-            </span>
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white via-primary/5 to-primary/10 border border-primary/20 shadow-xl backdrop-blur-sm">
+      {/* Decorative Background */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-4 right-4 text-4xl">⚡</div>
+        <div className="absolute bottom-4 left-4 text-3xl">💎</div>
+      </div>
+      
+      <div className="relative p-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 shadow-sm">
+              <Zap className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Post Credits
+              </h3>
+              <p className="text-xs text-text-tertiary">
+                Your monthly allowance
+              </p>
+            </div>
           </div>
-          <Progress 
-            value={percentage} 
-            className={`h-2 ${isLow ? '[&>div]:bg-red-500' : ''}`}
-          />
+          
+          {/* Floating Credit Display */}
+          <div className={`px-4 py-2 rounded-xl backdrop-blur-sm shadow-lg border transition-all duration-300 ${
+            isLow 
+              ? 'bg-gradient-to-r from-red-50 to-orange-50 border-red-200/50 animate-pulse' 
+              : 'bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20'
+          }`}>
+            <div className="text-center">
+              <div className={`text-xl font-bold ${
+                isLow ? 'text-red-600' : 'bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent'
+              }`}>
+                {tokenData.balance}
+              </div>
+              <div className="text-xs text-text-tertiary">
+                of {tokenData.maxTokens}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Progress Bar */}
+        <div className="space-y-4">
+          <div className="relative">
+            <div className="h-3 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+              <div 
+                className={`h-full rounded-full transition-all duration-700 ${
+                  isLow 
+                    ? 'bg-gradient-to-r from-red-400 to-orange-400 shadow-lg shadow-red-200' 
+                    : 'bg-gradient-to-r from-primary to-primary/80 shadow-lg shadow-primary/20'
+                }`}
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+            
+            {/* Progress Indicator */}
+            <div 
+              className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-white shadow-lg transition-all duration-700 ${
+                isLow 
+                  ? 'bg-gradient-to-r from-red-400 to-orange-400' 
+                  : 'bg-gradient-to-r from-primary to-primary/80'
+              }`}
+              style={{ left: `calc(${percentage}% - 8px)` }}
+            />
+          </div>
+
+          {/* Reset Date */}
           {tokenData.resetAt && (
-            <p className="text-xs text-muted-foreground">
-              Credits reset on {new Date(tokenData.resetAt).toLocaleDateString()}
-            </p>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-text-tertiary">Credits reset</span>
+              <span className="font-medium text-text-secondary bg-white/50 px-2 py-1 rounded-md">
+                {new Date(tokenData.resetAt).toLocaleDateString()}
+              </span>
+            </div>
           )}
+          
+          {/* Low Credits Warning */}
           {isLow && (
-            <p className="text-xs text-red-600">
-              Running low on credits! Consider upgrading your plan.
-            </p>
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-red-50 to-orange-50 border border-red-200/50">
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+              <p className="text-xs text-red-700 font-medium">
+                Running low on credits! Consider upgrading your plan.
+              </p>
+            </div>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
