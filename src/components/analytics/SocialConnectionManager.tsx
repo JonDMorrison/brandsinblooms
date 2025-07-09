@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { fetchOAuthConfig } from "@/lib/api/oauth";
 import { showConnectionSuccessToast } from "../social/ConnectionSuccessToast";
+import { MetaConnectionSuccess } from "../social/MetaConnectionSuccess";
 
 interface SocialConnection {
   id: string;
@@ -196,6 +197,29 @@ export const SocialConnectionManager = () => {
           </div>
         </CardContent>
       </Card>
+    );
+  }
+
+  // Check if both Facebook and Instagram are connected
+  const facebookConnection = connections.find(c => c.platform === 'facebook' && c.is_active);
+  const instagramConnection = connections.find(c => c.platform === 'instagram' && c.is_active);
+  const bothMetaConnected = facebookConnection && instagramConnection;
+
+  // Show success section if both Meta platforms are connected
+  if (bothMetaConnected) {
+    return (
+      <div className="space-y-6">
+        <MetaConnectionSuccess
+          facebookConnection={facebookConnection}
+          instagramConnection={instagramConnection}
+          onSyncAnalytics={syncAnalytics}
+          onManageConnections={() => {
+            // This will be handled by toggling back to the regular view
+            // For now, just refresh connections to show the regular interface
+            fetchConnections();
+          }}
+        />
+      </div>
     );
   }
 
