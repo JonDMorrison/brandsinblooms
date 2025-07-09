@@ -75,10 +75,17 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
   };
 };
 
+const filterUnwantedSections = (content: string): string => {
+  // Remove the "Get Informed with Our Content" section
+  const sectionToRemove = /Section 3: Get Informed with Our Content[\s\S]*?(?=\n\n(?:[A-Z]|$)|\n*$)/i;
+  return content.replace(sectionToRemove, '').trim();
+};
+
 export const convertNewsletterMarkdownToHtml = (content: string): string => {
   if (!content) return '';
 
-  let processed = content;
+  // Filter out unwanted sections first
+  let processed = filterUnwantedSections(content);
 
   // Enhanced header detection and conversion
   processed = processed
@@ -246,7 +253,7 @@ const parseSimpleYAML = (content: string) => {
       result.blocks.push(currentBlock);
     }
     
-    result.newsletter_md = result.newsletter_md.trim();
+    result.newsletter_md = filterUnwantedSections(result.newsletter_md.trim());
     
     console.log('✅ YAML parsing result:', {
       hasNewsletterMd: !!result.newsletter_md,
