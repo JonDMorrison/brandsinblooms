@@ -79,6 +79,13 @@ export const TaskActions = ({
     }
   };
 
+  const handleSave = () => {
+    console.log('[TASK_ACTIONS] Save button clicked - always executing save and close');
+    if (onSave) {
+      onSave();
+    }
+  };
+
   return (
     <div className="flex items-center gap-1">
       {isEditing ? (
@@ -86,10 +93,7 @@ export const TaskActions = ({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => {
-              console.log('[TASK_ACTIONS] Save button clicked');
-              onSave?.();
-            }}
+            onClick={handleSave}
             className="h-8 px-2 text-green-600 hover:text-green-700 hover:bg-green-50"
           >
             <Save className="w-3 h-3 mr-1" />
