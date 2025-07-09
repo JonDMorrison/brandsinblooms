@@ -165,6 +165,11 @@ const parseSimpleYAML = (content: string) => {
     console.log('📥 Parsing YAML content, length:', content.length);
     console.log('📥 Content preview:', content.substring(0, 500));
     
+    // First, let's see if we can find where blocks section actually starts
+    const blocksIndex = content.indexOf('blocks:');
+    const metaIndex = content.indexOf('meta:');
+    console.log('🔍 Sections found at:', { blocksIndex, metaIndex });
+    
     const lines = content.split('\n');
     const result: any = {
       blocks: [],
@@ -195,22 +200,29 @@ const parseSimpleYAML = (content: string) => {
         continue;
       }
       
+      
       // Look for blocks section
       if (trimmed === 'blocks:') {
-        console.log('🔍 Found blocks section at line', i);
+        console.log('🔍 Found blocks section at line', i, 'content:', trimmed);
         inNewsletterMd = false;
         inBlocks = true;
         currentSection = 'blocks';
         continue;
       }
       
-      // Look for meta section
+      // Look for meta section  
       if (trimmed === 'meta:') {
         console.log('🔍 Found meta section at line', i);
         inNewsletterMd = false;
         inBlocks = false;
         currentSection = 'meta';
         continue;
+      }
+      
+      // Stop collecting newsletter_md when we hit blocks or other sections
+      if (inNewsletterMd && (trimmed === 'blocks:' || trimmed === 'meta:' || trimmed === 'extra_content_ideas:')) {
+        console.log('🛑 Stopping newsletter_md collection at line', i, 'due to:', trimmed);
+        inNewsletterMd = false;
       }
       
       if (inNewsletterMd) {
