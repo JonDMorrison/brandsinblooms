@@ -200,7 +200,7 @@ export const QuickstartChecklist: React.FC<QuickstartChecklistProps> = ({
               </div>
               <div className="w-full overflow-hidden">
                 <div className="font-bold text-base bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent break-words">{step.title}</div>
-                <div className="text-sm text-slate-600 mt-1 break-words">{step.description}</div>
+                <div className="text-sm text-slate-600 mt-1 break-words">Review and Approve</div>
               </div>
             </Button>
           ))}
