@@ -22,6 +22,16 @@ const HomepageContent = () => {
   const { campaigns, tasks, userCreatedCampaigns, loading, error, refreshData } = useContent();
   const [showQuickstart, setShowQuickstart] = useState(false);
 
+  console.log('🔍 Homepage state:', {
+    userExists: !!user,
+    tenantExists: !!tenant,
+    tenantLoading,
+    contentLoading: loading,
+    contentError: error,
+    campaignsCount: campaigns?.length || 0,
+    tasksCount: tasks?.length || 0
+  });
+
   const handleTaskUpdate = () => {
     refreshData();
   };
@@ -68,6 +78,7 @@ const HomepageContent = () => {
 
   // Handle early returns with proper loading states
   if (!user || tenantLoading) {
+    console.log('🔍 Homepage: Showing loading - no user or tenant loading');
     return (
       <div className="min-h-screen bg-garden-background">
         <div className="max-w-5xl mx-auto p-6">
@@ -86,6 +97,7 @@ const HomepageContent = () => {
 
   // Show tenant assignment message if user has no tenant
   if (!tenant) {
+    console.log('🔍 Homepage: No tenant found');
     return (
       <div className="min-h-screen bg-garden-background">
         <div className="max-w-5xl mx-auto p-6">
@@ -102,6 +114,7 @@ const HomepageContent = () => {
 
   // Show error state
   if (error) {
+    console.log('🔍 Homepage: Content error:', error);
     return (
       <div className="min-h-screen bg-garden-background">
         <div className="max-w-5xl mx-auto p-6">
@@ -123,6 +136,7 @@ const HomepageContent = () => {
   }
 
   if (loading) {
+    console.log('🔍 Homepage: Content still loading');
     return (
       <div className="min-h-screen bg-garden-background">
         <div className="max-w-5xl mx-auto p-6">
@@ -137,6 +151,8 @@ const HomepageContent = () => {
       </div>
     );
   }
+
+  console.log('🔍 Homepage: All checks passed, rendering dashboard');
 
   const weekNumber = getCurrentWeekNumber();
   let currentCampaign = campaigns.find(c => c.week_number === weekNumber);
