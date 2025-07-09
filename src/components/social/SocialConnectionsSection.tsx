@@ -150,32 +150,55 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
 
           {/* Single Meta Connection Card */}
           <div className="max-w-2xl mx-auto">
-            <Card className="border-2 border-primary/20 hover:border-primary/40 transition-colors">
-              <CardContent className="p-8 text-center">
-                <div className="flex justify-center items-center space-x-3 mb-4">
-                  <div className="p-3 bg-blue-600 rounded-xl">
-                    <Facebook className="w-8 h-8 text-white" />
+            <Card className="relative border-2 border-primary/20 hover:border-primary/40 transition-colors overflow-hidden shadow-2xl">
+              {/* Gradient Background Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
+              <div className="absolute inset-0 bg-black/5"></div>
+              
+              {/* Decorative Background Icons */}
+              <div className="absolute inset-0 overflow-hidden">
+                <div className="absolute top-4 right-4 opacity-10">
+                  <Facebook className="w-32 h-32 text-blue-600" />
+                </div>
+                <div className="absolute bottom-4 left-4 opacity-10">
+                  <Instagram className="w-24 h-24 text-purple-600" />
+                </div>
+              </div>
+              
+              <CardContent className="relative z-10 p-8 text-center backdrop-blur-sm">
+                <div className="flex justify-center items-center space-x-4 mb-6">
+                  <div className="relative group">
+                    <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/30 transition-all duration-300 group-hover:scale-110">
+                      <Facebook className="w-10 h-10 text-blue-600" />
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 to-blue-700/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
                   </div>
-                  <div className="p-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl">
-                    <Instagram className="w-8 h-8 text-white" />
+                  <div className="relative group">
+                    <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/30 transition-all duration-300 group-hover:scale-110">
+                      <Instagram className="w-10 h-10 bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500 bg-clip-text text-transparent" />
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-600/20 via-pink-600/20 to-orange-500/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
                   </div>
                 </div>
-                <h3 className="text-xl font-semibold mb-2">Connect Meta</h3>
-                <p className="text-gray-600 mb-4">
+                
+                <h3 className="text-2xl font-bold mb-3 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent">
+                  Connect Meta
+                </h3>
+                <p className="text-slate-600 mb-6 text-lg leading-relaxed">
                   One click connects both your Facebook page and Instagram business account.
                 </p>
                 
                 {/* Privacy Policy Notice */}
-                <div className="mb-6 p-3 bg-muted/30 rounded-lg">
-                  <p className="text-xs text-muted-foreground text-center">
+                <div className="mb-8 p-4 bg-white/20 backdrop-blur-sm rounded-2xl border border-white/30 shadow-lg">
+                  <p className="text-xs text-slate-500 text-center leading-relaxed">
                     By connecting, you agree to our <a 
                       href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
-                      className="text-primary hover:text-primary/80 underline"
+                      className="text-primary hover:text-primary/80 underline font-medium transition-colors duration-200"
                     >
                       Privacy Policy
                     </a> and <a 
                       href="https://brandsinblooms.com/pages/terms-of-service" 
-                      className="text-primary hover:text-primary/80 underline"
+                      className="text-primary hover:text-primary/80 underline font-medium transition-colors duration-200"
                     >
                       Terms of Service
                     </a>.

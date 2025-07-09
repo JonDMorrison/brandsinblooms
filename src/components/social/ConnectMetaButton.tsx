@@ -128,12 +128,27 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
         <Button 
           onClick={handleConnect} 
           disabled={loading || !user}
-          className="bg-primary hover:bg-primary/90 px-6 w-full"
+          className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white px-8 w-full shadow-2xl hover:shadow-blue-500/25 backdrop-blur-sm border border-white/20 transition-all duration-500 hover:scale-105 group"
           size="lg"
         >
-          <Facebook className="h-4 w-4" />
-          <Instagram className="h-4 w-4" />
-          {loading ? 'Connecting...' : 'Connect Meta'}
+          {/* Glassmorphism overlay */}
+          <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-lg transition-opacity duration-300 group-hover:bg-white/20"></div>
+          
+          {/* Icon container with animations */}
+          <div className="relative z-10 flex items-center justify-center gap-3">
+            <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:bg-white/30">
+              <Facebook className="h-4 w-4 text-white" />
+            </div>
+            <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:bg-white/30">
+              <Instagram className="h-4 w-4 text-white" />
+            </div>
+            <span className="font-semibold text-white ml-2 transition-all duration-300 group-hover:text-white/90">
+              {loading ? 'Connecting...' : 'Connect Meta'}
+            </span>
+          </div>
+          
+          {/* Animated gradient overlay on hover */}
+          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"></div>
         </Button>
       </div>
     </>
