@@ -5,7 +5,7 @@ import { TrialBanner } from "@/components/TrialBanner";
 import { UserMenu } from "@/components/UserMenu";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/AppSidebar";
-import { FloatingFAB } from "@/components/ui/floating-fab";
+
 
 interface SidebarLayoutProps {
   children: ReactNode;
@@ -36,12 +36,6 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
         </main>
       </div>
         
-      {/* Floating FAB for Help + Notifications */}
-      <FloatingFAB 
-        notificationCount={0} 
-        onHelpClick={() => {/* Help functionality */}}
-        onNotificationClick={() => {/* Notification functionality */}}
-      />
     </SidebarProvider>
   );
 };
