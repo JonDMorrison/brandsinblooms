@@ -44,10 +44,23 @@ export const UserMenuContent = ({
 
   return (
     <DropdownMenuContent 
-      className="w-60" 
+      className="w-60 bg-background border shadow-lg" 
       align="end" 
       side="bottom"
       sideOffset={8}
+      onCloseAutoFocus={(e) => {
+        console.log('🔍 DropdownMenuContent: onCloseAutoFocus triggered');
+        e.preventDefault();
+      }}
+      onEscapeKeyDown={(e) => {
+        console.log('🔍 DropdownMenuContent: Escape key pressed');
+      }}
+      onPointerDownOutside={(e) => {
+        console.log('🔍 DropdownMenuContent: Pointer down outside', e.target);
+      }}
+      onInteractOutside={(e) => {
+        console.log('🔍 DropdownMenuContent: Interact outside', e.target);
+      }}
     >
       <div className="flex items-center justify-start gap-2 p-2">
         <div className="flex flex-col space-y-1 leading-none">
