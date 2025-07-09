@@ -248,7 +248,7 @@ export const EnhancedComposerTray = ({
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-900">Content Library</h2>
           <Badge variant="outline" className="text-xs">
-            {filteredAndSortedContent.length} of {stats.total}
+            {filteredAndSortedContent.length} {stats.total}
           </Badge>
         </div>
         
