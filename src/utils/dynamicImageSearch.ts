@@ -1,3 +1,4 @@
+
 /**
  * Dynamic Image Search Utilities
  * Extracts relevant topics from content tasks for Unsplash image searches
@@ -39,7 +40,7 @@ export function extractDynamicQuery(
     const cleanTheme = campaignSource.theme.trim();
     // Check if it's a specific flower name - if so, use it directly
     if (isSpecificFlower(cleanTheme)) {
-      return sanitizeQuery(cleanTheme);
+      return sanitizeQuery(cleanTheme, true); // Pass true for preserveSpecificTerms
     }
     return sanitizeQuery(cleanTheme);
   }
@@ -47,7 +48,7 @@ export function extractDynamicQuery(
     const cleanTitle = campaignSource.title.trim();
     // Check if it's a specific flower name - if so, use it directly
     if (isSpecificFlower(cleanTitle)) {
-      return sanitizeQuery(cleanTitle);
+      return sanitizeQuery(cleanTitle, true); // Pass true for preserveSpecificTerms
     }
     return sanitizeQuery(cleanTitle);
   }
@@ -137,7 +138,7 @@ function extractKeywordsFromContent(content: string): string {
 /**
  * Sanitizes and optimizes query for Unsplash search
  */
-function sanitizeQuery(query: string): string {
+function sanitizeQuery(query: string, preserveSpecificTerms = false): string {
   if (!query) return 'garden center';
 
   // Clean up the query and remove duplicates
@@ -148,12 +149,14 @@ function sanitizeQuery(query: string): string {
     .replace(/\s+/g, ' ') // Normalize spaces
     .trim();
 
-  // Remove week numbers and generic terms
-  cleaned = cleaned
-    .replace(/\bweek\s+\d+\b/gi, '')
-    .replace(/\b(the|and|or|of|in|on|at|to|for|with|by)\b/gi, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  // Remove week numbers and generic terms (but preserve specific flower names)
+  if (!preserveSpecificTerms) {
+    cleaned = cleaned
+      .replace(/\bweek\s+\d+\b/gi, '')
+      .replace(/\b(the|and|or|of|in|on|at|to|for|with|by)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
 
   // Remove duplicate words within the query
   const words = cleaned.split(' ');
@@ -163,6 +166,11 @@ function sanitizeQuery(query: string): string {
   // If query becomes too short, add garden context for relevance
   if (cleaned.length < 3) {
     return 'garden center';
+  }
+
+  // For specific flower terms, don't add garden context - they're already specific enough
+  if (preserveSpecificTerms || isSpecificFlower(cleaned)) {
+    return cleaned;
   }
 
   // Add garden context if it's not already garden-related (avoid duplicates)
@@ -199,6 +207,11 @@ export function getEnhancedTopicForPostType(
   const baseQuery = extractDynamicQuery(task, campaign);
   
   if (!task?.post_type) {
+    return baseQuery;
+  }
+
+  // For specific flowers, don't enhance with post type context
+  if (isSpecificFlower(baseQuery)) {
     return baseQuery;
   }
 

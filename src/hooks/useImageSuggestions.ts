@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -88,7 +87,21 @@ const extractKeywordsFromContent = (content: string, campaignTitle?: string): st
   return words.length > 0 ? words : ['garden center'];
 };
 
-// Build smart search query based on content analysis with improved deduplication
+// Check if keywords contain specific flower names
+const isSpecificFlower = (keywords: string[]): boolean => {
+  const specificFlowers = [
+    'hydrangea', 'hydrangeas', 'zinnia', 'marigold', 'petunia', 'impatiens', 
+    'sunflower', 'dahlia', 'cosmos', 'salvia', 'begonia', 'geranium', 
+    'pansy', 'violet', 'rose', 'roses', 'tulip', 'tulips', 'daffodil', 
+    'daffodils', 'lily', 'lilies', 'chrysanthemum', 'azalea', 'rhododendron'
+  ];
+  
+  return keywords.some(keyword => 
+    specificFlowers.some(flower => keyword.toLowerCase().includes(flower))
+  );
+};
+
+// Build smart search query based on content analysis with improved handling for specific flowers
 const buildSmartQuery = (keywords: string[], postType: string, campaignTitle?: string): string => {
   console.log('[IMAGE_HOOK] Building query with keywords:', keywords, 'type:', postType);
 
@@ -103,12 +116,9 @@ const buildSmartQuery = (keywords: string[], postType: string, campaignTitle?: s
   let query = uniqueKeywords.slice(0, 2).join(' ');
   const primaryKeyword = uniqueKeywords[0];
 
-  // Check if primary keyword is a specific flower - if so, keep it pure
-  const specificFlowerRegex = /\b(hydrangea|hydrangeas|zinnia|marigold|petunia|impatiens|sunflower|dahlia|cosmos|salvia|begonia|geranium|pansy|violet|rose|roses|tulip|tulips|daffodil|daffodils|lily|lilies|chrysanthemum|azalea|rhododendron)\b/gi;
-  
-  if (specificFlowerRegex.test(primaryKeyword)) {
-    // For specific flowers, use the pure flower name to get the best results
-    console.log('[IMAGE_HOOK] Using specific flower query:', query);
+  // Check if we have specific flower names - if so, use them directly without extra context
+  if (isSpecificFlower(uniqueKeywords)) {
+    console.log('[IMAGE_HOOK] Using specific flower query without extra context:', query);
     return query;
   }
 
