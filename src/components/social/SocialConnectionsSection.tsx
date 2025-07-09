@@ -1,10 +1,14 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { SocialConnectionCard } from './SocialConnectionCard';
 import { ConnectMetaButton } from './ConnectMetaButton';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { AlertCircle, Wifi, Facebook, Instagram } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface SocialConnectionsSectionProps {
   connections: any[];
@@ -15,10 +19,48 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
   connections,
   onConnectionSuccess
 }) => {
+  const [disconnectDialog, setDisconnectDialog] = useState<{
+    open: boolean;
+    platform: string;
+    connectionId: string;
+    platformName: string;
+  }>({ open: false, platform: '', connectionId: '', platformName: '' });
+  const [disconnecting, setDisconnecting] = useState(false);
+
   const facebookConnection = connections.find(conn => conn.platform === 'facebook');
   const instagramConnection = connections.find(conn => conn.platform === 'instagram');
   const isConnected = facebookConnection || instagramConnection;
   const bothConnected = facebookConnection && instagramConnection;
+
+  const handleDisconnectClick = (platform: string, connectionId: string, platformName: string) => {
+    setDisconnectDialog({
+      open: true,
+      platform,
+      connectionId,
+      platformName
+    });
+  };
+
+  const handleDisconnectConfirm = async () => {
+    setDisconnecting(true);
+    try {
+      const { error } = await supabase
+        .from('social_connections')
+        .delete()
+        .eq('id', disconnectDialog.connectionId);
+
+      if (error) throw error;
+
+      toast.success(`${disconnectDialog.platformName} disconnected successfully`);
+      onConnectionSuccess(); // Refresh connections
+      setDisconnectDialog({ open: false, platform: '', connectionId: '', platformName: '' });
+    } catch (error) {
+      console.error('Error disconnecting platform:', error);
+      toast.error(`Failed to disconnect ${disconnectDialog.platformName}`);
+    } finally {
+      setDisconnecting(false);
+    }
+  };
 
   if (connections.length === 0) {
     return (
@@ -223,8 +265,32 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                     <ConnectMetaButton onSuccess={onConnectionSuccess} />
                   )}
                   {bothConnected && (
-                    <div className="text-green-600 font-medium text-sm">
-                      Both platforms connected!
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-600 font-medium text-sm">
+                        Both platforms connected!
+                      </span>
+                      <div className="flex gap-1">
+                        {facebookConnection && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDisconnectClick('facebook', facebookConnection.id, 'Facebook')}
+                            className="text-xs px-2 py-1 h-auto"
+                          >
+                            Disconnect Facebook
+                          </Button>
+                        )}
+                        {instagramConnection && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDisconnectClick('instagram', instagramConnection.id, 'Instagram')}
+                            className="text-xs px-2 py-1 h-auto"
+                          >
+                            Disconnect Instagram
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -243,6 +309,16 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
             </CardContent>
           </Card>
         )}
+
+        <ConfirmationDialog
+          open={disconnectDialog.open}
+          onOpenChange={(open) => setDisconnectDialog(prev => ({ ...prev, open }))}
+          title={`Disconnect ${disconnectDialog.platformName}?`}
+          description={`Are you sure you want to disconnect your ${disconnectDialog.platformName} account? You can reconnect it anytime.`}
+          confirmText="Disconnect"
+          onConfirm={handleDisconnectConfirm}
+          loading={disconnecting}
+        />
       </div>
     </SubscriptionGate>
   );
