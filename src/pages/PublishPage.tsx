@@ -463,8 +463,6 @@ const PublishPage = () => {
           <div className="p-4 sm:p-6">
             <TabsContent value="publisher" className="space-y-6 mt-6">
               
-              {/* Metrics Overview */}
-              <PublishMetrics refreshTrigger={metricsRefresh} />
               <div className={`flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-20rem)] transition-all duration-300 ${
                 testMode ? 'bg-amber-50/30 rounded-xl border border-amber-200/50' : ''
               }`}>
@@ -556,6 +554,11 @@ const PublishPage = () => {
           isVisible={showDebugger}
           onClose={() => setShowDebugger(false)}
         />
+
+        {/* Metrics Overview - Moved to Bottom */}
+        <div className="p-4 sm:p-6">
+          <PublishMetrics refreshTrigger={metricsRefresh} />
+        </div>
       </div>
     </SidebarLayout>
   );
