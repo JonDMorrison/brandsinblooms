@@ -25,6 +25,7 @@ export const useNewsletterImages = (
   const [images, setImages] = useState<Record<number, ImageData>>({});
   const [loadingImages, setLoadingImages] = useState(false);
   const [imageErrors, setImageErrors] = useState<Record<number, string>>({});
+  const [fetchedBlocks, setFetchedBlocks] = useState<string>('');
 
   useEffect(() => {
     if (isPlaceholderContent) {
@@ -37,16 +38,26 @@ export const useNewsletterImages = (
       return;
     }
     
-    // Check if we already have all the images we need
+    // Create a unique key for current blocks to prevent unnecessary fetches
+    const currentBlocksKey = blocks.map(b => b.image_prompt || '').join('|');
+    if (fetchedBlocks === currentBlocksKey) {
+      console.log('[NEWSLETTER] Already fetched images for these blocks, skipping');
+      return;
+    }
+    
+    // Check if we already have all the images we need for current blocks
     const existingImageCount = Object.keys(images).length;
-    if (existingImageCount >= blocks.length) {
+    const blocksWithPrompts = blocks.filter(b => b.image_prompt).length;
+    
+    if (existingImageCount >= blocksWithPrompts && fetchedBlocks) {
       console.log('[NEWSLETTER] Already have sufficient images, skipping fetch');
       return;
     }
     
     setLoadingImages(true);
     setImageErrors({});
-    console.log('[NEWSLETTER] Starting optimized image fetch for', blocks.length, 'blocks with', existingImageCount, 'existing images');
+    setFetchedBlocks(currentBlocksKey);
+    console.log('[NEWSLETTER] Starting optimized image fetch for', blocksWithPrompts, 'blocks with prompts');
     
     const fetchImages = async () => {
       const imagePromises = blocks.map(async (block, index) => {
@@ -62,7 +73,7 @@ export const useNewsletterImages = (
             body: { 
               query: block.image_prompt,
               contentType: 'newsletter',
-              maxImages: 1, // Only fetch 1 image per block for efficiency
+              maxImages: 1,
               orientation: 'landscape'
             }
           });
@@ -115,7 +126,7 @@ export const useNewsletterImages = (
     };
 
     fetchImages();
-  }, [blocks, isPlaceholderContent, contentTaskId, images]); // Added images dependency for optimization
+  }, [blocks, isPlaceholderContent, contentTaskId]); // Removed images dependency to prevent infinite loop
 
   return {
     images,
