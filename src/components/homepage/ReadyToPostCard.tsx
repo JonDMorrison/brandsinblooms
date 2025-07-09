@@ -217,59 +217,88 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
   return (
     <>
-      {/* Header Section - Always shown, matches Seasonal Marketing Opportunities pattern */}
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-2 text-left">
-          <HeadlineLarge className="text-left">Your Approved Posts</HeadlineLarge>
-          <BodyMedium className="text-muted-foreground text-left">
-            Approved content ready for publishing and scheduling
-          </BodyMedium>
+      {/* Modern Gradient Header Section */}
+      <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8 mb-8">
+        {/* Decorative Background Pattern */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
+            <Sparkles className="w-64 h-64 text-green-400" />
+          </div>
         </div>
-        {readyTasks.length > 0 && (
-          <Button 
-            onClick={() => window.location.href = '/publish'}
-            className="flex-shrink-0 inline-flex items-center gap-2 rounded-md bg-mint-600 px-4 py-2 text-white text-sm font-semibold shadow-md transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-mint-600"
-          >
-            <Sparkles className="w-4 h-4" />
-            Open Publish Portal
-          </Button>
-        )}
+        
+        {/* Header Content */}
+        <div className="relative z-10 flex items-start justify-between">
+          <div className="flex flex-col gap-3 text-left">
+            <div className="inline-flex items-center gap-3 mb-2">
+              <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
+                <Sparkles className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Your Approved Posts</HeadlineLarge>
+            <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed text-left">
+              Approved content ready for publishing and scheduling
+            </BodyMedium>
+          </div>
+          {readyTasks.length > 0 && (
+            <div className="relative group">
+              <div className="p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/30 transition-all duration-300 group-hover:scale-110">
+                <Button 
+                  onClick={() => window.location.href = '/publish'}
+                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  Open Publish Portal
+                </Button>
+              </div>
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Content Card */}
       {loading ? (
-        <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm">
-          <CardContent className="py-8">
+        <Card className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
+          <CardContent className="relative z-10 py-8">
             <div className="text-center">
-              <div className="animate-spin w-6 h-6 border-2 border-mint-600 border-t-transparent rounded-full mx-auto mb-2"></div>
-              <p className="text-gray-600 text-sm">Loading ready content...</p>
+              <div className="animate-spin w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p className="text-slate-600 font-medium">Loading ready content...</p>
             </div>
           </CardContent>
         </Card>
       ) : readyTasks.length === 0 ? (
-        <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm">
-          <CardContent className="py-8">
+        <Card className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
+          <CardContent className="relative z-10 py-16 px-8">
             <div className="text-center">
-              <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-600 font-medium mb-2">No content ready to post</p>
-              <p className="text-gray-500 text-sm mb-4">
+              <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center shadow-lg">
+                <Clock className="w-10 h-10 text-slate-400" />
+              </div>
+              <h3 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-3">No content ready to post</h3>
+              <p className="text-slate-600 max-w-md mx-auto mb-6 leading-relaxed">
                 Generate and approve content to see it here. Content needs to be approved before it can be published.
               </p>
-              <Button 
-                onClick={() => window.location.href = '/'}
-                variant="outline"
-                className="text-sm"
-              >
-                Generate Content
-              </Button>
+              <div className="relative group inline-block">
+                <Button 
+                  onClick={() => window.location.href = '/'}
+                  className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                >
+                  Generate Content
+                </Button>
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
+              </div>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <Card className="rounded-xl border border-gray-200 bg-[#FBF9F4] shadow-sm" data-section="ready-to-post-section">
-          <CardHeader>
+        <Card className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden" data-section="ready-to-post-section">
+          <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
+          <CardHeader className="relative z-10">
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="relative z-10 space-y-4">
             {/* Social Connection Status */}
             <SocialConnectionStatus
               connections={socialConnections}

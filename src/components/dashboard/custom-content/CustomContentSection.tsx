@@ -232,14 +232,31 @@ export const CustomContentSection = ({
 
   return (
     <>
-      <div className={cn('space-y-6', className)}>
-        {/* Header Section */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-2">
-            <HeadlineLarge>Your Custom Content</HeadlineLarge>
-            <BodyMedium className="text-muted-foreground">
-              Your custom campaigns and promotional content
-            </BodyMedium>
+      <div className={cn('space-y-8', className)}>
+        {/* Modern Gradient Header Section */}
+        <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8">
+          {/* Decorative Background Pattern */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
+              <Plus className="w-64 h-64 text-purple-400" />
+            </div>
+          </div>
+          
+          {/* Header Content */}
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex flex-col gap-3">
+              <div className="inline-flex items-center gap-3 mb-2">
+                <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg">
+                  <Plus className="w-8 h-8 text-white" />
+                </div>
+              </div>
+              <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent">Your Custom Content</HeadlineLarge>
+              <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed">
+                Your custom campaigns and promotional content
+              </BodyMedium>
+            </div>
           </div>
         </div>
 
