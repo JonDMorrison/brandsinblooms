@@ -9,7 +9,7 @@ import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles, X } from 
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { ContentOptimizer } from './ContentOptimizer';
-import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
+import { ImageSelectButton } from '@/components/image';
 
 interface SmartPostComposerProps {
   isOpen: boolean;
@@ -220,15 +220,12 @@ export const SmartPostComposer: React.FC<SmartPostComposerProps> = ({
                 <Image className="w-4 h-4" />
                 Images
               </label>
-              <UniversalImageSelector
-                task={task}
-                onImageChange={(imageUrl) => {
+              <ImageSelectButton
+                onImageSelect={async (imageUrl, metadata) => {
                   console.log('Image selected in composer:', imageUrl);
                   // The component handles database updates internally
                 }}
                 contentContext={content || task?.ai_output}
-                showTabs={true}
-                defaultTab="find"
               />
             </div>
 

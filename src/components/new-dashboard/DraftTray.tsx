@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ImageEditOverlay } from '@/components/image';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, FileText, Image, Video, Mail, CheckCircle, ArrowRight, Clock, Send, Settings } from 'lucide-react';
@@ -212,13 +213,54 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
                           >
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center gap-2">
-                                {imageThumb && (
+                                {draft.attachments?.[0]?.url && draft.status === 'approved' ? (
+                                  <ImageEditOverlay
+                                    imageUrl={draft.attachments[0].url}
+                                    onImageSelect={async (imageUrl, metadata) => {
+                                      // Update image and set status to review for approved content
+                                      const updateData: any = {
+                                        attachments: [
+                                          {
+                                            type: 'image',
+                                            url: imageUrl,
+                                            alt: metadata?.alt || 'Selected image',
+                                            photographer: metadata?.photographer,
+                                            source: metadata?.source || 'unknown',
+                                            unsplash_id: metadata?.unsplash_id
+                                          }
+                                        ],
+                                        status: 'review' // Move back to review when changing approved content
+                                      };
+
+                                      try {
+                                        const { supabase } = await import('@/integrations/supabase/client');
+                                        const { toast } = await import('sonner');
+                                        
+                                        const { error } = await supabase
+                                          .from('content_tasks')
+                                          .update(updateData)
+                                          .eq('id', draft.id);
+
+                                        if (error) throw error;
+
+                                        toast.success('Image updated! Content moved to review for re-approval.');
+                                        
+                                        // Trigger refresh
+                                        window.dispatchEvent(new CustomEvent('draft-updated'));
+                                      } catch (error) {
+                                        console.error('Error updating image:', error);
+                                      }
+                                    }}
+                                    contentContext={draft.ai_output}
+                                    className="w-8 h-8 rounded object-cover flex-shrink-0"
+                                  />
+                                ) : imageThumb ? (
                                   <img 
                                     src={imageThumb} 
                                     alt="Draft image" 
                                     className="w-8 h-8 rounded object-cover flex-shrink-0"
                                   />
-                                )}
+                                ) : null}
                                 {getPostTypeIcon(draft.post_type)}
                                 <Badge 
                                   variant="outline" 

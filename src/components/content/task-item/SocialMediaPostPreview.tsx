@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { MediaSelector } from '@/components/image/MediaSelector';
+import { ImageSelectButton } from '@/components/image';
 
 interface SocialMediaPostPreviewProps {
   content: string;
@@ -237,8 +237,8 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
         <div className="flex-1 border-l border-gray-200">
           <div className="p-4">
             {contentTaskId ? (
-              <MediaSelector
-                onImageSelect={(imageUrl, metadata) => {
+              <ImageSelectButton
+                onImageSelect={async (imageUrl, metadata) => {
                   console.log('Image updated in preview:', imageUrl, metadata);
                   // Handle image selection logic here
                 }}

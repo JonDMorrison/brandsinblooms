@@ -182,11 +182,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         <TabsList className="grid w-full grid-cols-2 p-1 mt-4 mb-0 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10">
           <TabsTrigger value="find" className="rounded-lg font-medium text-sm flex items-center gap-1.5">
             <Search className="w-4 h-4" />
-            Find Images
+            Find a Free Image
           </TabsTrigger>
           <TabsTrigger value="upload" className="rounded-lg font-medium text-sm flex items-center gap-1.5">
             <Upload className="w-4 h-4" />
-            Upload
+            Upload Your Own
           </TabsTrigger>
         </TabsList>
 

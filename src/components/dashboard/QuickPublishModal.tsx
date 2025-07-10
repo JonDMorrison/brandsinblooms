@@ -9,7 +9,7 @@ import { Calendar, Send, Clock, Loader2, Image } from 'lucide-react';
 import { StatusIndicator } from '@/components/ui/status-indicator';
 import { TASK_STATUS } from '@/constants/taskStatus';
 import { format, addHours, addDays } from 'date-fns';
-import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
+import { ImageSelectButton } from '@/components/image';
 
 interface QuickPublishModalProps {
   isOpen: boolean;
@@ -103,15 +103,12 @@ export const QuickPublishModal = ({
                 <Image className="w-4 h-4" />
                 Images
               </Label>
-              <UniversalImageSelector
-                task={task}
-                onImageChange={(imageUrl) => {
+              <ImageSelectButton
+                onImageSelect={async (imageUrl, metadata) => {
                   console.log('Image selected in quick publish:', imageUrl);
                   // The component handles database updates internally
                 }}
                 contentContext={content}
-                showTabs={true}
-                defaultTab="find"
               />
             </div>
 

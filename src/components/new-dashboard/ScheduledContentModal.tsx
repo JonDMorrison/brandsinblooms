@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Save, X } from 'lucide-react';
 import { FacebookPostPreview } from './FacebookPostPreview';
 import { InstagramPostPreview } from './InstagramPostPreview';
-import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
+import { ImageSelectButton } from '@/components/image';
 import { ImageAttachment } from '@/lib/contentTypes';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -115,15 +115,12 @@ export const ScheduledContentModal = ({
 
             <div className="space-y-3">
               <h3 className="font-medium text-[#3E5A6B]">Images</h3>
-              <UniversalImageSelector
-                task={scheduledTask}
-                onImageChange={(imageUrl) => {
+              <ImageSelectButton
+                onImageSelect={async (imageUrl, metadata) => {
                   console.log('Image selected in scheduled modal:', imageUrl);
                   // The component handles database updates internally for tasks
                 }}
                 contentContext={scheduledTask?.ai_output}
-                showTabs={true}
-                defaultTab="find"
               />
             </div>
 

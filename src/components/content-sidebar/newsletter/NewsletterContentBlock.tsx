@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { MediaSelector } from '@/components/image';
+import { ImageSelectButton } from '@/components/image';
 
 interface NewsletterBlock {
   title: string;
@@ -104,11 +104,12 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
 
       {/* Image */}
       <div>
-        <MediaSelector
+        <ImageSelectButton
           onImageSelect={handleImageSelect}
           selectedImageUrl={currentImageUrl}
           contentContext={`${block.title} ${block.body}`.slice(0, 200)}
           className="aspect-[4/3]"
+          buttonText="Choose Block Image"
         />
       </div>
     </div>

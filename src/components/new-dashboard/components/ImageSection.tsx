@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, AlertCircle } from 'lucide-react';
-import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
+import { ImageSelectButton } from '@/components/image';
 
 interface ImageSectionProps {
   selectedDraft: any;
@@ -30,15 +30,55 @@ export const ImageSection = ({
         <h4 className="text-sm font-medium text-[#3E5A6B]">Images</h4>
       </div>
       
-      <UniversalImageSelector
-        task={selectedDraft}
-        onImageChange={(imageUrl) => {
-          console.log('Image selected in composer:', imageUrl);
-          // The component handles database updates internally for tasks
+      <ImageSelectButton
+        onImageSelect={async (imageUrl, metadata) => {
+          console.log('Image selected in composer:', imageUrl, metadata);
+          
+          // Update the task with the new image
+          if (selectedDraft?.id) {
+            const currentAttachment = selectedDraft.attachments?.[0];
+            const isDifferentImage = !currentAttachment || currentAttachment.url !== imageUrl;
+            
+            // If it's a different image and task is currently approved, set to review
+            const shouldRequireReApproval = isDifferentImage && selectedDraft.status === 'approved';
+            
+            const updateData: any = {
+              attachments: [
+                {
+                  type: 'image',
+                  url: imageUrl,
+                  alt: metadata?.alt || 'Selected image',
+                  photographer: metadata?.photographer,
+                  source: metadata?.source || 'unknown',
+                  unsplash_id: metadata?.unsplash_id
+                }
+              ]
+            };
+
+            // If changing image on approved content, require re-approval
+            if (shouldRequireReApproval) {
+              updateData.status = 'review';
+            }
+
+            try {
+              const { supabase } = await import('@/integrations/supabase/client');
+              const { error } = await supabase
+                .from('content_tasks')
+                .update(updateData)
+                .eq('id', selectedDraft.id);
+
+              if (error) throw error;
+
+              // Trigger refresh
+              window.dispatchEvent(new CustomEvent('draft-updated'));
+            } catch (error) {
+              console.error('Error updating image:', error);
+            }
+          }
         }}
+        selectedImageUrl={selectedDraft?.attachments?.[0]?.url}
         contentContext={selectedDraft?.ai_output}
-        showTabs={true}
-        defaultTab="find"
+        buttonText="Choose an Image"
       />
       
       {!isInstagram && (

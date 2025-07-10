@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
+import { ImageSelectButton } from '@/components/image';
 
 interface LiveUnsplashPickerProps {
   task: any;
@@ -15,15 +15,12 @@ export const LiveUnsplashPicker = ({ task, campaignTheme }: LiveUnsplashPickerPr
         <CardTitle className="text-lg">Need an Image? We'll find you one.</CardTitle>
       </CardHeader>
       <CardContent className="space-y-6 p-6">
-        <UniversalImageSelector
-          task={task}
-          onImageChange={(imageUrl) => {
+        <ImageSelectButton
+          onImageSelect={async (imageUrl, metadata) => {
             console.log('Image selected in live picker:', imageUrl);
             // The component handles database updates internally
           }}
           contentContext={task?.ai_output || campaignTheme}
-          showTabs={true}
-          defaultTab="find"
         />
       </CardContent>
     </Card>
