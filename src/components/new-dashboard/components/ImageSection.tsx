@@ -2,8 +2,8 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { ImageSelectButton } from '@/components/image';
+import { Loader2, AlertCircle, X } from 'lucide-react';
+import { MediaSelector } from '@/components/image/MediaSelector';
 
 interface ImageSectionProps {
   selectedDraft: any;
@@ -30,9 +30,46 @@ export const ImageSection = ({
         <h4 className="text-sm font-medium text-[#3E5A6B]">Images</h4>
       </div>
       
-      <ImageSelectButton
-        mode="inline"
-        compact
+      {/* Selected Image Preview */}
+      {selectedDraft?.attachments?.[0]?.url && (
+        <div className="relative group mb-4">
+          <img 
+            src={selectedDraft.attachments[0].url} 
+            alt="Selected" 
+            className="w-full h-32 object-cover rounded-lg border border-primary/20"
+          />
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={async () => {
+                // Remove the image
+                try {
+                  const { supabase } = await import('@/integrations/supabase/client');
+                  const { error } = await supabase
+                    .from('content_tasks')
+                    .update({ attachments: [] })
+                    .eq('id', selectedDraft.id);
+
+                  if (error) throw error;
+
+                  // Trigger refresh
+                  window.dispatchEvent(new CustomEvent('draft-updated'));
+                } catch (error) {
+                  console.error('Error removing image:', error);
+                }
+              }}
+              className="bg-background/90 hover:bg-background mr-2"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Remove
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Media Selector - Always Visible */}
+      <MediaSelector
         onImageSelect={async (imageUrl, metadata) => {
           console.log('Image selected in composer:', imageUrl, metadata);
           
@@ -80,7 +117,7 @@ export const ImageSection = ({
         }}
         selectedImageUrl={selectedDraft?.attachments?.[0]?.url}
         contentContext={selectedDraft?.ai_output}
-        buttonText="Choose an Image"
+        compact
       />
       
       {!isInstagram && (
