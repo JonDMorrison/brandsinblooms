@@ -19,7 +19,7 @@ export const PricingPlans = ({
   onStartTrial
 }: PricingPlansProps) => {
   const sproutFeatures = ["Weekly AI-generated campaign prompts", "Seasonal content calendar", "Email + social post generation", "1 user", "Unlimited scheduling", "Email support"];
-  const bloomFeatures = ["Everything in Sprout, plus:", "Multi-user access", "Custom brand voice tuning", "Priority support", "Annual event reminders", "Image asset library access", "Dedicated success check-in (monthly)"];
+  const bloomFeatures = ["Everything in Sprout, plus:", "Multi-user access", "Custom brand voice tuning", "Priority support", "Image asset library access", "Dedicated success check-in (monthly)"];
   return <section className="py-12 px-6 bg-white/60">
       <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
