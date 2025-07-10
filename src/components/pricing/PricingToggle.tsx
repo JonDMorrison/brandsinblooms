@@ -27,7 +27,7 @@ export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
   return (
     <div className="flex items-center justify-center gap-4 mb-12">
       <span 
-        className={`text-lg transition-all duration-200 cursor-pointer select-none ${!isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+        className={`text-lg transition-all duration-200 cursor-pointer select-none ${!isAnnual ? 'text-brand-steel-blue font-semibold' : 'text-text-tertiary hover:text-text-secondary'}`}
         onClick={handleMonthlyClick}
         role="button"
         tabIndex={0}
@@ -44,11 +44,11 @@ export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
         <Switch 
           checked={isAnnual} 
           onCheckedChange={handleAnnualToggle}
-          className="data-[state=checked]:bg-garden-green"
+          className="data-[state=checked]:bg-brand-teal-mint"
         />
       </div>
       <span 
-        className={`text-lg transition-all duration-200 cursor-pointer select-none ${isAnnual ? 'text-garden-green-dark font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+        className={`text-lg transition-all duration-200 cursor-pointer select-none ${isAnnual ? 'text-brand-steel-blue font-semibold' : 'text-text-tertiary hover:text-text-secondary'}`}
         onClick={handleAnnualClick}
         role="button"
         tabIndex={0}
@@ -64,8 +64,8 @@ export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
       <Badge 
         className={`ml-2 transition-all duration-200 ${
           isAnnual 
-            ? 'bg-garden-green text-white animate-in slide-in-from-left' 
-            : 'bg-gray-200 text-gray-600 opacity-60'
+            ? 'bg-brand-teal-mint text-white animate-in slide-in-from-left' 
+            : 'bg-muted text-text-tertiary opacity-60'
         }`}
       >
         Save 17%
