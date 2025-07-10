@@ -70,7 +70,7 @@ export const PricingPlans = ({
                 <span className="text-gray-600">/month</span>
                 {isAnnual && <p className="text-sm text-gray-500 mt-1">Billed annually at $790</p>}
               </div>
-              <p className="text-gray-600 mb-6">Best for teams and busy retailers</p>
+              
               
               <ul className="space-y-3 mb-8">
                 {bloomFeatures.map((feature, index) => <li key={index} className="flex items-start gap-3">
