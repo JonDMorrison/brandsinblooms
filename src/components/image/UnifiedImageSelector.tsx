@@ -202,7 +202,7 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
             <Button 
               onClick={() => handleSearch()}
               disabled={isSearching || !searchQuery.trim()}
-              className="w-full h-14 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              className="w-full h-12 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
               {isSearching ? 'Searching...' : 'Search Images'}
             </Button>
