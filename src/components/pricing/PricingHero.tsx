@@ -8,19 +8,21 @@ interface PricingHeroProps {
 
 export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) => {
   return (
-    <section className="relative py-24 px-6 text-center overflow-hidden bg-gradient-to-br from-brand-teal-mint/10 via-brand-steel-blue/5 to-brand-teal-mint/20">
-      {/* Glassmorphism Background Elements */}
+    <section className="relative py-24 px-6 text-center overflow-hidden bg-gradient-to-br from-white via-brand-teal-mint/20 to-brand-steel-blue/15">
+      {/* Bright Background Elements */}
       <div className="absolute inset-0">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-brand-teal-mint/20 to-brand-steel-blue/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-br from-brand-steel-blue/15 to-brand-teal-mint/15 rounded-full blur-3xl"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-brand-teal-mint/5 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-brand-teal-mint/40 to-primary/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-br from-primary/35 to-brand-steel-blue/25 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-brand-teal-mint/15 to-white/20 rounded-full blur-3xl"></div>
+        <div className="absolute top-32 right-32 w-48 h-48 bg-gradient-to-br from-white/30 to-brand-teal-mint/25 rounded-full blur-2xl"></div>
+        <div className="absolute bottom-32 left-32 w-64 h-64 bg-gradient-to-br from-primary/20 to-white/15 rounded-full blur-2xl"></div>
       </div>
 
-      {/* Semi-transparent overlay */}
-      <div className="absolute inset-0 bg-black/5 backdrop-blur-sm"></div>
+      {/* Light overlay for depth */}
+      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
       
       <div className="relative max-w-4xl mx-auto">
-        <div className="bg-white/20 backdrop-blur-sm border border-white/30 rounded-2xl p-12 shadow-2xl">
+        <div className="bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl p-12 shadow-2xl shadow-brand-teal-mint/10">
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight bg-gradient-to-r from-brand-steel-blue via-text-primary to-brand-steel-blue bg-clip-text text-transparent">
             Simple Pricing for Growing Garden Centers
           </h1>
