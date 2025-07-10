@@ -1,0 +1,60 @@
+/* Simplified color override - replace complex system with clean approach */
+
+/* Remove complex gradients and effects */
+*[class*="gradient"],
+*[class*="glass"],
+.glass-coin,
+.glass-coin-enhanced,
+.premium-gradient {
+  background: #FFFFFF !important;
+  background-image: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Force consistent button colors */
+button:not(.btn-primary):not(.btn-secondary):not(.btn-destructive) {
+  background-color: #68BEB9 !important;
+  color: #FFFFFF !important;
+  border-color: #68BEB9 !important;
+}
+
+/* Force consistent status badge colors */
+.status-badge,
+[class*="badge"],
+[class*="chip"] {
+  background-color: #F1F5F9 !important;
+  color: #64748B !important;
+  border-color: #E2E8F0 !important;
+}
+
+.status-badge.approved,
+.status-badge.posted,
+.status-badge.success {
+  background-color: #68BEB9 !important;
+  color: #FFFFFF !important;
+}
+
+/* Clean card styling */
+[class*="card"] {
+  background-color: #FFFFFF !important;
+  border-color: #E2E8F0 !important;
+  color: #334155 !important;
+}
+
+/* Override any remaining problematic colors */
+*[style*="yellow"],
+*[style*="amber"],  
+*[style*="orange"],
+*[style*="purple"],
+*[style*="pink"],
+*[style*="fuchsia"],
+*[class*="yellow"],
+*[class*="amber"],
+*[class*="orange"],
+*[class*="purple"], 
+*[class*="pink"],
+*[class*="fuchsia"] {
+  background-color: #F8FAFC !important;
+  color: #64748B !important;
+  border-color: #E2E8F0 !important;
+}
