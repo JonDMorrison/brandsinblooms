@@ -112,7 +112,7 @@ export const PricingPlans = ({
             {/* Decorative background */}
             <div className="absolute inset-0 bg-gradient-to-br from-brand-teal-mint/10 via-transparent to-brand-steel-blue/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             
-            <CardContent className="relative p-8 pt-6">
+            <CardContent className="relative p-8 pt-12">
               <h3 className="text-2xl font-bold text-text-primary mb-3 bg-gradient-to-r from-brand-teal-mint to-brand-steel-blue bg-clip-text text-transparent">Bloom</h3>
               <div className="mb-6">
                 <span className="text-5xl font-bold bg-gradient-to-r from-brand-steel-blue via-brand-teal-mint to-brand-steel-blue bg-clip-text text-transparent">
