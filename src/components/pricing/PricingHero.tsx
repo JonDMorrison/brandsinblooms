@@ -8,7 +8,7 @@ interface PricingHeroProps {
 
 export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) => {
   return (
-    <section className="relative py-12 md:py-16 px-6 text-center overflow-hidden bg-gradient-to-br from-white via-brand-teal-mint/20 to-brand-steel-blue/15">
+    <section className="relative py-12 md:py-16 px-6 text-center overflow-hidden bg-white">
       {/* Bright Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-brand-teal-mint/40 to-primary/30 rounded-full blur-3xl animate-pulse"></div>
