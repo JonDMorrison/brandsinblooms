@@ -71,7 +71,7 @@ export const PricingPlans = ({
               <Button 
                 onClick={() => subscription ? onSelectPlan('sprout') : onStartTrial()}
                 disabled={loading}
-                className="w-full bg-garden-green hover:bg-garden-green-dark text-white py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-200 hover:scale-105 shadow-xl border-2 border-transparent hover:border-garden-green-dark focus:ring-4 focus:ring-garden-green/30"
+                className="w-full bg-brand-teal-mint hover:bg-brand-teal-mint/90 text-white py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-200 hover:scale-105 shadow-xl border-2 border-transparent hover:border-brand-teal-mint focus:ring-4 focus:ring-brand-teal-mint/30"
               >
                 {loadingPlan === 'sprout' ? (
                   <div className="flex items-center gap-2">
