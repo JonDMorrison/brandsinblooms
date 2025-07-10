@@ -6,6 +6,7 @@ import { Search, Upload, Check, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getUnsplashImage, extractImageKeyword, UnsplashImageResult } from '@/lib/api/unsplash';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UnifiedImageSelectorProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
@@ -91,26 +92,29 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('file', file);
 
-      const response = await fetch('/api/upload/image', {
-        method: 'POST',
+      const { data, error } = await supabase.functions.invoke('image-upload', {
         body: formData
       });
 
-      if (!response.ok) {
-        throw new Error('Upload failed');
+      if (error) {
+        throw new Error(error.message || 'Upload failed');
       }
 
-      const { url } = await response.json();
+      if (!data?.success || !data?.imageUrl) {
+        throw new Error('Invalid response from upload service');
+      }
+
       const imageData: SelectedImageData = {
-        url,
+        url: data.imageUrl,
         source: 'upload'
       };
       setSelectedImage(imageData);
       toast.success('Image uploaded successfully');
     } catch (error) {
-      toast.error('Failed to upload image');
+      console.error('Upload error:', error);
+      toast.error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsUploading(false);
     }
