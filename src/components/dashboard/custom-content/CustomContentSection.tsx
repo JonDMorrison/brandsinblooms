@@ -137,7 +137,30 @@ export const CustomContentSection = ({
 
       if (result.success) {
         toast.success(`Generated content for ${campaign.title}!`);
-        await fetchCampaignContent();
+        
+        // Optimistically update the campaign content state
+        setCampaignContentState(prev => ({
+          ...prev,
+          [campaignId]: {
+            contentCount: 5, // Standard number of content pieces generated
+            totalTasks: 5,
+            needsReview: 5,
+            approvedCount: 0
+          }
+        }));
+
+        // Add delay to allow database transaction to commit, then refresh
+        setTimeout(async () => {
+          await fetchCampaignContent();
+          
+          // Retry once more if content still not found (fallback for timing issues)
+          setTimeout(async () => {
+            const currentState = campaignContentState[campaignId];
+            if (!currentState || currentState.contentCount === 0) {
+              await fetchCampaignContent();
+            }
+          }, 1000);
+        }, 500);
       } else {
         toast.error(`Failed to generate content: ${result.message}`);
       }
