@@ -225,7 +225,7 @@ export const PostToSocialButton: React.FC<PostToSocialButtonProps> = ({
         onClick={() => setIsOpen(true)}
         variant={variant}
         size={size}
-        className={`${className} bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white`}
+        className={`${className} bg-gradient-to-r from-brand-teal-mint-500 to-brand-steel-blue-500 hover:from-brand-teal-mint-600 hover:to-brand-steel-blue-600 text-white`}
       >
         <Send className="w-4 h-4 mr-2" />
         Post to Social
