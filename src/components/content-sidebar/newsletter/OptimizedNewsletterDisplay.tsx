@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { processNewsletterContent, convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,8 @@ import { Clock } from 'lucide-react';
 import { NewsletterRegenerator } from './NewsletterRegenerator';
 import { NewsletterContentBlock } from './NewsletterContentBlock';
 import { useNewsletterImages } from './useNewsletterImages';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   calculateReadingTime,
   extractTitleFromContent,
@@ -27,6 +29,7 @@ export const OptimizedNewsletterDisplay = ({
   campaignTitle 
 }: OptimizedNewsletterDisplayProps) => {
   const isPlaceholderContent = checkIsPlaceholderContent(content);
+  const [selectedImages, setSelectedImages] = useState<Record<number, string>>({});
   
   console.log('[NEWSLETTER] OptimizedNewsletterDisplay processing:', {
     hasContent: !!content,
@@ -59,6 +62,76 @@ export const OptimizedNewsletterDisplay = ({
   
   // Extract intro from content
   const intro = generateIntroFromContent(content, campaignTitle);
+
+  // Load existing selected images from attachments
+  useEffect(() => {
+    const loadSelectedImages = async () => {
+      if (!contentTaskId) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('content_tasks')
+          .select('attachments')
+          .eq('id', contentTaskId)
+          .single();
+          
+        if (error) {
+          console.error('Error loading selected images:', error);
+          return;
+        }
+        
+        if (data?.attachments && typeof data.attachments === 'object' && data.attachments !== null) {
+          const attachments = data.attachments as any;
+          if (attachments.selectedImages) {
+            setSelectedImages(attachments.selectedImages);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading selected images:', error);
+      }
+    };
+    
+    loadSelectedImages();
+  }, [contentTaskId]);
+
+  // Handle image selection for blocks
+  const handleImageSelect = async (blockIndex: number, imageUrl: string, metadata?: any) => {
+    const newSelectedImages = {
+      ...selectedImages,
+      [blockIndex]: imageUrl
+    };
+    
+    setSelectedImages(newSelectedImages);
+    
+    // Save to database if contentTaskId is available
+    if (contentTaskId) {
+      try {
+        const { error } = await supabase
+          .from('content_tasks')
+          .update({
+            attachments: {
+              selectedImages: newSelectedImages,
+              imageMetadata: {
+                ...metadata,
+                blockIndex,
+                timestamp: new Date().toISOString()
+              }
+            }
+          })
+          .eq('id', contentTaskId);
+          
+        if (error) {
+          console.error('Error saving selected image:', error);
+          toast.error('Failed to save image selection');
+        } else {
+          toast.success('Image updated successfully');
+        }
+      } catch (error) {
+        console.error('Error saving selected image:', error);
+        toast.error('Failed to save image selection');
+      }
+    }
+  };
 
   // If content is placeholder or incomplete, show regeneration option
   if (isPlaceholderContent) {
@@ -126,6 +199,8 @@ export const OptimizedNewsletterDisplay = ({
               images={images}
               imageErrors={imageErrors}
               loadingImages={loadingImages}
+              onImageSelect={handleImageSelect}
+              selectedImages={selectedImages}
             />
           ))}
         </div>

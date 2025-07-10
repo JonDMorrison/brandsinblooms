@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NewsletterImageManager } from './NewsletterImageManager';
+import { MediaSelector } from '@/components/image';
 
 interface NewsletterBlock {
   title: string;
@@ -24,6 +24,8 @@ interface NewsletterContentBlockProps {
   images: Record<number, ImageData>;
   imageErrors: Record<number, string>;
   loadingImages: boolean;
+  onImageSelect?: (blockIndex: number, imageUrl: string, metadata?: any) => void;
+  selectedImages?: Record<number, string>;
 }
 
 export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
@@ -32,8 +34,18 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
   isStructuredNewsletter,
   images,
   imageErrors,
-  loadingImages
+  loadingImages,
+  onImageSelect,
+  selectedImages
 }) => {
+  const handleImageSelect = (imageUrl: string, metadata?: any) => {
+    if (onImageSelect) {
+      onImageSelect(index, imageUrl, metadata);
+    }
+  };
+
+  // Use selected image if available, otherwise fall back to auto-generated image
+  const currentImageUrl = selectedImages?.[index] || images[index]?.url;
   return (
     <div className="grid lg:grid-cols-2 gap-8 items-start">
       {/* Content */}
@@ -92,11 +104,11 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
 
       {/* Image */}
       <div>
-        <NewsletterImageManager
-          images={images}
-          imageErrors={imageErrors}
-          loadingImages={loadingImages}
-          blockIndex={index}
+        <MediaSelector
+          onImageSelect={handleImageSelect}
+          selectedImageUrl={currentImageUrl}
+          contentContext={`${block.title} ${block.body}`.slice(0, 200)}
+          className="aspect-[4/3]"
         />
       </div>
     </div>
