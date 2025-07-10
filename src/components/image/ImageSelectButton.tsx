@@ -10,6 +10,7 @@ interface ImageSelectButtonProps {
   contentContext?: string;
   className?: string;
   buttonText?: string;
+  mode?: "modal" | "inline";
 }
 
 export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
@@ -17,7 +18,8 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
   selectedImageUrl,
   contentContext,
   className,
-  buttonText = "Select an Image"
+  buttonText = "Select an Image",
+  mode = "modal"
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -26,6 +28,42 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
     setIsOpen(false);
   };
 
+  // Inline mode - render MediaSelector directly
+  if (mode === "inline") {
+    return (
+      <div className={className}>
+        {selectedImageUrl && (
+          <div className="relative group mb-4">
+            <img 
+              src={selectedImageUrl} 
+              alt="Selected" 
+              className="w-full h-32 object-cover rounded-lg border border-primary/20"
+            />
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsOpen(true)}
+                className="bg-background/90 hover:bg-background"
+              >
+                Change Image
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {/* Always show MediaSelector in inline mode */}
+        <MediaSelector
+          onImageSelect={handleImageSelect}
+          selectedImageUrl={selectedImageUrl}
+          contentContext={contentContext}
+          className="w-full"
+        />
+      </div>
+    );
+  }
+
+  // Modal mode (default)
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>

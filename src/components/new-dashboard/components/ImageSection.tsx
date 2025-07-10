@@ -31,6 +31,7 @@ export const ImageSection = ({
       </div>
       
       <ImageSelectButton
+        mode="inline"
         onImageSelect={async (imageUrl, metadata) => {
           console.log('Image selected in composer:', imageUrl, metadata);
           
