@@ -1,11 +1,12 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Heart, MessageCircle, Share, Bookmark, Instagram, Facebook } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
-import { ImageSelectButton } from '@/components/image';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { MediaSelector } from '@/components/image/MediaSelector';
+import { toast } from 'sonner';
 
 interface SocialMediaPostPreviewProps {
   content: string;
@@ -111,6 +112,8 @@ const formatContentForDisplay = (rawContent: string) => {
 
 export const SocialMediaPostPreview = ({ content, postType, className, contentTaskId, campaignTitle }: SocialMediaPostPreviewProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   // Fetch company profile data
   const { data: companyProfile } = useQuery({
@@ -132,6 +135,60 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
       return data;
     },
     enabled: !!user?.id,
+  });
+
+  // Fetch existing content task data to get current image
+  const { data: contentTask } = useQuery({
+    queryKey: ['content-task', contentTaskId],
+    queryFn: async () => {
+      if (!contentTaskId) return null;
+      
+      const { data, error } = await supabase
+        .from('content_tasks')
+        .select('attachments, image_url')
+        .eq('id', contentTaskId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching content task:', error);
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!contentTaskId,
+  });
+
+  // Update local state when content task data loads
+  useEffect(() => {
+    if (contentTask?.image_url) {
+      setSelectedImageUrl(contentTask.image_url);
+    }
+  }, [contentTask]);
+
+  // Mutation to update content task with selected image
+  const updateImageMutation = useMutation({
+    mutationFn: async ({ imageUrl, metadata }: { imageUrl: string; metadata?: any }) => {
+      if (!contentTaskId) throw new Error('No content task ID');
+      
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({
+          image_url: imageUrl,
+          attachments: metadata ? { image: metadata } : null
+        })
+        .eq('id', contentTaskId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['content-task', contentTaskId] });
+      toast.success('Image updated successfully');
+    },
+    onError: (error) => {
+      console.error('Error updating image:', error);
+      toast.error('Failed to update image');
+    },
   });
 
   // Get company name with fallback
@@ -235,15 +292,29 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
 
         {/* Enhanced Image Area - Right 50% */}
         <div className="flex-1 border-l border-gray-200">
-          <div className="p-4">
-            {contentTaskId ? (
-              <ImageSelectButton
-                mode="inline"
-                onImageSelect={async (imageUrl, metadata) => {
-                  console.log('Image updated in preview:', imageUrl, metadata);
-                  // Handle image selection logic here
+          <div className="p-4 h-full">
+            {selectedImageUrl ? (
+              // Show selected image with option to change
+              <div className="h-full">
+                <img 
+                  src={selectedImageUrl} 
+                  alt="Selected post image" 
+                  className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                  onClick={() => setSelectedImageUrl(null)}
+                />
+                <p className="text-xs text-gray-500 mt-2 text-center">
+                  Click image to change
+                </p>
+              </div>
+            ) : contentTaskId ? (
+              // Show MediaSelector when no image is selected
+              <MediaSelector
+                onImageSelect={(imageUrl, metadata) => {
+                  setSelectedImageUrl(imageUrl);
+                  updateImageMutation.mutate({ imageUrl, metadata });
                 }}
                 contentContext={content}
+                compact={true}
                 className="h-full"
               />
             ) : (
