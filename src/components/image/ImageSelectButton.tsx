@@ -20,7 +20,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
   contentContext,
   className,
   buttonText = "Select an Image",
-  mode = "modal",
+  mode = "inline",
   compact = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
