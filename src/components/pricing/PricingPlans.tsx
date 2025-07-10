@@ -34,7 +34,7 @@ export const PricingPlans = ({
                 <span className="text-gray-600">/month</span>
                 {isAnnual && <p className="text-sm text-gray-500 mt-1">Billed annually at $390</p>}
               </div>
-              <p className="text-gray-600 mb-6">Best for solo garden centers</p>
+              
               
               <ul className="space-y-3 mb-8">
                 {sproutFeatures.map((feature, index) => <li key={index} className="flex items-start gap-3">
