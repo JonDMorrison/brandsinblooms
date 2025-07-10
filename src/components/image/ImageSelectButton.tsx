@@ -24,10 +24,15 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
   compact = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [showSelector, setShowSelector] = useState(false);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     onImageSelect(imageUrl, metadata);
-    setIsOpen(false);
+    if (mode === "modal") {
+      setIsOpen(false);
+    } else {
+      setShowSelector(false);
+    }
   };
 
   // Inline mode - render MediaSelector directly
@@ -45,7 +50,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setIsOpen(true)}
+                onClick={() => setShowSelector(!showSelector)}
                 className="bg-background/90 hover:bg-background"
               >
                 Change Image
@@ -54,14 +59,16 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
           </div>
         )}
         
-        {/* Always show MediaSelector in inline mode */}
-        <MediaSelector
-          onImageSelect={handleImageSelect}
-          selectedImageUrl={selectedImageUrl}
-          contentContext={contentContext}
-          className="w-full"
-          compact={compact}
-        />
+        {/* Show MediaSelector when no image is selected or when showSelector is true */}
+        {(!selectedImageUrl || showSelector) && (
+          <MediaSelector
+            onImageSelect={handleImageSelect}
+            selectedImageUrl={selectedImageUrl}
+            contentContext={contentContext}
+            className="w-full"
+            compact={compact}
+          />
+        )}
       </div>
     );
   }
