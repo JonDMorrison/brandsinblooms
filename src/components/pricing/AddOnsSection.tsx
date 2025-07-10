@@ -17,11 +17,6 @@ export const AddOnsSection = () => {
 
   return (
     <section className="relative py-12 px-6 overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-10 left-10 w-64 h-64 bg-gradient-to-br from-brand-steel-blue/10 to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 right-10 w-80 h-80 bg-gradient-to-br from-brand-teal-mint/10 to-transparent rounded-full blur-3xl"></div>
-      </div>
 
       <div className="relative max-w-4xl mx-auto">
         <div className="text-center mb-12">
