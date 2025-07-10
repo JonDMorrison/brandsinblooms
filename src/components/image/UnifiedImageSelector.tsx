@@ -177,24 +177,24 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
   };
 
   return (
-    <div className={cn('bg-white rounded-lg border border-gray-200', className)}>
+    <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 p-1 bg-gray-100 rounded-lg">
-          <TabsTrigger value="find" className="rounded-md">Find a Free Image</TabsTrigger>
-          <TabsTrigger value="upload" className="rounded-md">Upload Your Own</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 p-1.5 m-4 mb-0 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10">
+          <TabsTrigger value="find" className="rounded-lg font-semibold">Find a Free Image</TabsTrigger>
+          <TabsTrigger value="upload" className="rounded-lg font-semibold">Upload Your Own</TabsTrigger>
         </TabsList>
 
         <div className="p-6">
-          <TabsContent value="find" className="space-y-4 mt-0">
+          <TabsContent value="find" className="space-y-6 mt-0">
             {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-text-tertiary group-focus-within:text-primary w-5 h-5 transition-colors duration-200" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search Unsplash for..."
-                className="pl-10 h-12 rounded-lg"
+                placeholder="Search for beautiful images..."
+                className="pl-12 h-14 rounded-xl border-2 border-primary/20 bg-surface-primary/50 backdrop-blur-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:bg-surface-primary focus:shadow-lg focus:shadow-primary/10 transition-all duration-200"
               />
             </div>
 
@@ -202,30 +202,30 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
             <Button 
               onClick={() => handleSearch()}
               disabled={isSearching || !searchQuery.trim()}
-              className="w-full h-12"
+              className="w-full h-14 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
             >
               {isSearching ? 'Searching...' : 'Search Images'}
             </Button>
 
             {/* Image Grid */}
             {searchResults.length > 0 && (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-4 p-4 bg-surface-primary/30 rounded-xl border border-primary/10">
                 {/* Featured Large Image */}
                 <div 
-                  className="col-span-2 row-span-2 relative cursor-pointer group rounded-lg overflow-hidden"
+                  className="col-span-2 row-span-2 relative cursor-pointer group rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
                   onClick={() => handleImageSelect(searchResults[0])}
                 >
                   <img 
                     src={searchResults[0].thumb} 
                     alt={searchResults[0].alt}
-                    className="w-full h-48 object-cover transition-transform duration-200 group-hover:scale-105"
+                    className="w-full h-52 object-cover transition-all duration-300 group-hover:scale-105"
                   />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200">
-                    <div className="absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <Check className="w-4 h-4 text-green-600" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
+                      <Check className="w-5 h-5 text-white" />
                     </div>
                   </div>
-                  <div className="absolute bottom-2 left-2 text-white text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
+                  <div className="absolute bottom-3 left-3 bg-gradient-to-r from-black/80 to-transparent backdrop-blur-sm text-white text-sm px-3 py-1.5 rounded-lg font-medium">
                     by {searchResults[0].photographer}
                   </div>
                 </div>
@@ -234,20 +234,20 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
                 {searchResults.slice(1, 4).map((image, index) => (
                   <div 
                     key={image.unsplash_id || index}
-                    className="relative cursor-pointer group rounded-lg overflow-hidden"
+                    className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
                     onClick={() => handleImageSelect(image)}
                   >
                     <img 
                       src={image.thumb} 
                       alt={image.alt}
-                      className="w-full h-[70px] object-cover transition-transform duration-200 group-hover:scale-105"
+                      className="w-full h-20 object-cover transition-all duration-300 group-hover:scale-105"
                     />
-                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-200">
-                      <div className="absolute top-1 right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Check className="w-3 h-3 text-green-600" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
+                        <Check className="w-4 h-4 text-white" />
                       </div>
                     </div>
-                    <div className="absolute bottom-1 left-1 text-white text-xs bg-black bg-opacity-50 px-1 py-0.5 rounded text-[10px]">
+                    <div className="absolute bottom-1.5 left-1.5 bg-gradient-to-r from-black/80 to-transparent backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md font-medium">
                       by {image.photographer}
                     </div>
                   </div>
@@ -256,26 +256,35 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
             )}
           </TabsContent>
 
-          <TabsContent value="upload" className="mt-0">
+          <TabsContent value="upload" className="mt-0 space-y-6">
             {/* Drag & Drop Zone */}
             <div 
               className={cn(
-                "border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-colors duration-200",
-                dragActive && "border-green-500 bg-green-50"
+                "border-2 border-dashed rounded-xl p-10 text-center transition-all duration-300 backdrop-blur-sm",
+                dragActive 
+                  ? "border-brand-teal bg-gradient-to-br from-brand-teal/10 to-brand-teal/5 shadow-lg shadow-brand-teal/10" 
+                  : "border-primary/30 bg-surface-primary/30 hover:border-brand-teal/50 hover:bg-surface-primary/50"
               )}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
             >
-              <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 mb-4">Drag & drop here, or</p>
+              <Upload className={cn(
+                "w-16 h-16 mx-auto mb-6 transition-colors duration-300",
+                dragActive ? "text-brand-teal" : "text-text-tertiary"
+              )} />
+              <h3 className="text-lg font-semibold text-text-primary mb-2">
+                {dragActive ? "Drop your image here" : "Upload your image"}
+              </h3>
+              <p className="text-text-secondary mb-6">
+                {dragActive ? "Release to upload" : "Drag & drop your image here, or click to browse"}
+              </p>
               <Button 
-                variant="outline"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="h-12"
+                className="h-12 px-8 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               >
-                {isUploading ? 'Uploading...' : 'Choose a file...'}
+                {isUploading ? 'Uploading...' : 'Choose File'}
               </Button>
               <input
                 ref={fileInputRef}
@@ -284,6 +293,9 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
                 onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                 className="hidden"
               />
+              <p className="text-text-tertiary text-xs mt-4">
+                Supports PNG, JPG, GIF up to 10MB
+              </p>
             </div>
           </TabsContent>
         </div>
@@ -291,38 +303,41 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
 
       {/* Selected Image Panel */}
       {selectedImage && (
-        <div className="border-t border-gray-200 p-6 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-900 mb-3">Selected Image</h3>
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="border-t border-primary/10 p-6 bg-gradient-to-r from-brand-teal/5 via-surface-primary to-brand-teal/5 backdrop-blur-sm rounded-b-2xl">
+          <h3 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
+            <Check className="w-5 h-5 text-brand-teal" />
+            Selected Image
+          </h3>
+          <div className="flex flex-col sm:flex-row gap-6">
             {/* Thumbnail */}
             <div className="flex-shrink-0">
               <img 
                 src={selectedImage.url} 
                 alt="Selected" 
-                className="w-16 h-16 object-cover rounded-lg"
+                className="w-20 h-20 object-cover rounded-xl border-2 border-brand-teal/30 shadow-lg shadow-brand-teal/10"
               />
             </div>
             
             {/* Info & Actions */}
-            <div className="flex-1">
-              <p className="text-sm text-gray-600 mb-3">
+            <div className="flex-1 space-y-4">
+              <p className="text-text-secondary font-medium">
                 {selectedImage.source === 'unsplash' 
                   ? `Photo by ${selectedImage.photographer} on Unsplash`
                   : 'Your uploaded image'
                 }
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button 
                   onClick={handleUseImage}
-                  className="h-12 bg-green-600 hover:bg-green-700 text-white flex-1"
+                  className="h-12 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 transition-all duration-300 flex-1"
                 >
                   Use This Image
                 </Button>
                 <Button 
                   variant="outline"
                   onClick={handleEditInCanva}
-                  className="h-12 flex-1"
+                  className="h-12 border-2 border-brand-teal/30 bg-surface-primary/50 backdrop-blur-sm hover:bg-brand-teal/10 hover:border-brand-teal/50 text-text-primary font-semibold rounded-xl transition-all duration-300 flex-1"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Edit in Canva
