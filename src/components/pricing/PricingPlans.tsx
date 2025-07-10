@@ -36,7 +36,7 @@ export const PricingPlans = ({
     "Custom brand voice tuning",
     "Priority support",
     "Annual event reminders",
-    "Image asset library access",
+    "Post Directly to Social",
     "Dedicated success check-in (monthly)"
   ];
 
