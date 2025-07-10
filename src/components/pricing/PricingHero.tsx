@@ -1,6 +1,5 @@
 
 import { Button } from "@/components/ui/button";
-import { TrialBanner } from "@/components/TrialBanner";
 
 interface PricingHeroProps {
   subscription: any;
@@ -32,26 +31,6 @@ export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) =>
             Whether you're just getting started or managing a full retail team, we've got a plan to fit your season.
           </p>
           
-          {/* Benefit Highlights */}
-          <div className="text-center mb-8">
-            <p className="text-base md:text-lg text-text-secondary max-w-4xl mx-auto leading-relaxed">
-              <span className="inline-flex items-center gap-1">
-                <span className="w-1 h-1 bg-primary rounded-full"></span>
-                Unlimited social calendars & teams
-              </span>
-              <span className="mx-3 hidden sm:inline">•</span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-1 h-1 bg-primary rounded-full sm:hidden"></span>
-                Free image search + Canva design
-              </span>
-              <span className="mx-3 hidden sm:inline">•</span>
-              <span className="inline-flex items-center gap-1">
-                <span className="w-1 h-1 bg-primary rounded-full sm:hidden"></span>
-                Priority support & analytics
-              </span>
-            </p>
-          </div>
-          
           {!subscription && (
             <div className="relative group">
               <Button 
@@ -78,11 +57,6 @@ export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) =>
             </div>
           )}
         </div>
-      </div>
-      
-      {/* Integrated Trial Banner */}
-      <div className="relative mt-8">
-        <TrialBanner />
       </div>
     </section>
   );

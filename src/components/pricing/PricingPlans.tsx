@@ -41,7 +41,7 @@ export const PricingPlans = ({
   ];
 
   return (
-    <section id="pricing-plans" className="relative py-12 px-6 overflow-hidden bg-gradient-to-br from-surface-secondary via-surface-primary to-surface-secondary">
+    <section className="relative py-12 px-6 overflow-hidden bg-gradient-to-br from-surface-secondary via-surface-primary to-surface-secondary">
       {/* Background decorative elements */}
       <div className="absolute inset-0">
         <div className="absolute top-10 right-10 w-64 h-64 bg-gradient-to-br from-brand-teal-mint/10 to-brand-steel-blue/10 rounded-full blur-3xl"></div>
