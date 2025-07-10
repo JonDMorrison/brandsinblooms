@@ -37,6 +37,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const [isSearching, setIsSearching] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [finalizedImageUrl, setFinalizedImageUrl] = useState<string | null>(selectedImageUrl || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-suggest search from content
@@ -161,6 +162,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   const handleUseImage = () => {
     if (selectedImage) {
+      setFinalizedImageUrl(selectedImage.url);
       onImageSelect(selectedImage.url, {
         photographer: selectedImage.photographer,
         source: selectedImage.source,
@@ -177,6 +179,28 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       window.open(canvaUrl, '_blank');
     }
   };
+
+  // Show finalized image if one exists
+  if (finalizedImageUrl) {
+    return (
+      <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
+        <div className={compact ? "p-2 h-full" : "p-4 h-full"}>
+          <img 
+            src={finalizedImageUrl} 
+            alt="Selected image" 
+            className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+            onClick={() => setFinalizedImageUrl(null)}
+          />
+          <p className={cn(
+            "text-text-tertiary text-center mt-2",
+            compact ? "text-xs" : "text-sm"
+          )}>
+            Click image to change
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
