@@ -172,7 +172,7 @@ export const QuickstartChecklist: React.FC<QuickstartChecklistProps> = ({
         </div>
 
         {/* Checklist Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 xl:gap-6">
           {steps.map((step) => (
             <Button
               key={step.id}
