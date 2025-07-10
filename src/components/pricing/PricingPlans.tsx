@@ -1,9 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, Star } from "lucide-react";
-
 interface PricingPlansProps {
   isAnnual: boolean;
   subscription: any;
@@ -12,155 +10,86 @@ interface PricingPlansProps {
   onSelectPlan: (plan: 'sprout' | 'bloom') => void;
   onStartTrial: () => void;
 }
-
-export const PricingPlans = ({ 
-  isAnnual, 
-  subscription, 
-  loading, 
-  loadingPlan, 
-  onSelectPlan, 
-  onStartTrial 
+export const PricingPlans = ({
+  isAnnual,
+  subscription,
+  loading,
+  loadingPlan,
+  onSelectPlan,
+  onStartTrial
 }: PricingPlansProps) => {
-  const sproutFeatures = [
-    "Weekly AI-generated campaign prompts",
-    "Seasonal content calendar",
-    "Email + social post generation",
-    "1 user",
-    "Unlimited scheduling",
-    "Email support"
-  ];
-
-  const bloomFeatures = [
-    "Everything in Sprout, plus:",
-    "Multi-user access",
-    "Priority support",
-    "Annual event reminders",
-    "Post Directly to Social",
-    "Dedicated success check-in (monthly)"
-  ];
-
-  return (
-    <section className="relative py-12 px-6 overflow-hidden bg-gradient-to-br from-surface-secondary via-surface-primary to-surface-secondary">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-10 right-10 w-64 h-64 bg-gradient-to-br from-brand-teal-mint/10 to-brand-steel-blue/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 left-10 w-80 h-80 bg-gradient-to-br from-brand-steel-blue/5 to-brand-teal-mint/10 rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="relative max-w-6xl mx-auto">
+  const sproutFeatures = ["Weekly AI-generated campaign prompts", "Seasonal content calendar", "Email + social post generation", "1 user", "Unlimited scheduling", "Email support"];
+  const bloomFeatures = ["Everything in Sprout, plus:", "Multi-user access", "Custom brand voice tuning", "Priority support", "Annual event reminders", "Image asset library access", "Dedicated success check-in (monthly)"];
+  return <section className="py-12 px-6 bg-white/60">
+      <div className="max-w-6xl mx-auto">
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Sprout Plan */}
-          <Card className="relative group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 rounded-2xl overflow-hidden border border-white/20 bg-white/60 backdrop-blur-sm">
-            {/* Decorative background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-teal-mint/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            
-            <CardContent className="relative p-8 pt-4">
-              <h3 className="text-2xl font-bold text-text-primary mb-3 bg-gradient-to-r from-brand-steel-blue to-text-primary bg-clip-text text-transparent">Sprout</h3>
+          <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl">
+            <CardContent className="pt-4">
+              <h3 className="text-xl font-semibold text-garden-green-dark mb-2">Sprout</h3>
               <div className="mb-6">
-                <span className="text-5xl font-bold text-text-primary">
+                <span className="text-4xl font-bold text-garden-green-dark">
                   ${isAnnual ? '32' : '39'}
                 </span>
-                <span className="text-text-secondary text-lg">/month</span>
-                {isAnnual && (
-                  <p className="text-sm text-text-tertiary mt-1 bg-white/40 backdrop-blur-sm rounded-lg px-2 py-1 inline-block">Billed annually at $390</p>
-                )}
+                <span className="text-gray-600">/month</span>
+                {isAnnual && <p className="text-sm text-gray-500 mt-1">Billed annually at $390</p>}
               </div>
-              <p className="text-text-secondary mb-6 font-medium">Best for solo garden centers</p>
+              <p className="text-gray-600 mb-6">Best for solo garden centers</p>
               
-              <ul className="space-y-4 mb-8">
-                {sproutFeatures.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="p-1 bg-gradient-to-br from-brand-teal-mint to-brand-steel-blue rounded-full">
-                      <CheckCircle className="h-4 w-4 text-white" />
-                    </div>
-                    <span className="text-text-secondary">{feature}</span>
-                  </li>
-                ))}
+              <ul className="space-y-3 mb-8">
+                {sproutFeatures.map((feature, index) => <li key={index} className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-garden-green mt-0.5 flex-shrink-0" />
+                    <span className="text-gray-700">{feature}</span>
+                  </li>)}
               </ul>
               
-              <div className="relative group-hover:scale-105 transition-transform duration-300">
-                <Button 
-                  onClick={() => subscription ? onSelectPlan('sprout') : onStartTrial()}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-brand-teal-mint to-brand-steel-blue hover:from-brand-steel-blue hover:to-brand-teal-mint text-white py-4 px-6 rounded-xl text-lg font-semibold shadow-2xl border border-white/20 backdrop-blur-sm transition-all duration-300"
-                >
-                  {loadingPlan === 'sprout' ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                      Processing...
-                    </div>
-                  ) : (
-                    subscription ? 'Choose Sprout' : 'Start Free Trial'
-                  )}
-                </Button>
-                <div 
-                  className="absolute inset-0 bg-gradient-to-r from-brand-teal-mint/20 to-brand-steel-blue/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-                  onClick={() => subscription ? onSelectPlan('sprout') : onStartTrial()}
-                ></div>
-              </div>
+              <Button onClick={() => subscription ? onSelectPlan('sprout') : onStartTrial()} disabled={loading} className="w-full bg-garden-green hover:bg-garden-green-dark text-white py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-200 hover:scale-105 shadow-xl border-2 border-transparent hover:border-garden-green-dark focus:ring-4 focus:ring-garden-green/30">
+                {loadingPlan === 'sprout' ? <div className="flex items-center gap-2">
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    Processing...
+                  </div> : subscription ? 'Choose Sprout' : 'Start Free Trial'}
+              </Button>
             </CardContent>
           </Card>
 
           {/* Bloom Plan */}
-          <Card className="relative group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 rounded-2xl overflow-hidden border-2 border-brand-teal-mint/30 bg-gradient-to-br from-white/80 to-brand-teal-mint/5 backdrop-blur-sm">
-            {/* Most Popular Badge */}
-            <div className="absolute top-0 left-1/2 transform -translate-x-1/2 z-20">
-              <Badge className="bg-gradient-to-r from-brand-steel-blue to-brand-teal-mint text-white px-8 py-2 rounded-full shadow-2xl border border-white/30 backdrop-blur-sm flex items-center gap-2 whitespace-nowrap z-30">
-                <Star className="h-4 w-4 flex-shrink-0" />
-                Most Popular
-              </Badge>
-            </div>
-
-            {/* Decorative background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-brand-teal-mint/10 via-transparent to-brand-steel-blue/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            
-            <CardContent className="relative p-8 pt-12">
-              <h3 className="text-2xl font-bold text-text-primary mb-3 bg-gradient-to-r from-brand-teal-mint to-brand-steel-blue bg-clip-text text-transparent">Bloom</h3>
+          <Card className="p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1 rounded-2xl relative border-garden-green border-2">
+            <CardContent className="pt-4">
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                <Badge className="bg-garden-green text-white px-4 py-1 flex items-center gap-1">
+                  <Star className="h-4 w-4" />
+                  Most Popular
+                </Badge>
+              </div>
+              
+              <h3 className="text-xl font-semibold text-garden-green-dark mb-2">Bloom</h3>
               <div className="mb-6">
-                <span className="text-5xl font-bold text-text-primary">
+                <span className="text-4xl font-bold text-garden-green-dark">
                   ${isAnnual ? '66' : '79'}
                 </span>
-                <span className="text-text-secondary text-lg">/month</span>
-                {isAnnual && (
-                  <p className="text-sm text-text-tertiary mt-1 bg-white/50 backdrop-blur-sm rounded-lg px-2 py-1 inline-block border border-white/30">Billed annually at $790</p>
-                )}
+                <span className="text-gray-600">/month</span>
+                {isAnnual && <p className="text-sm text-gray-500 mt-1">Billed annually at $790</p>}
               </div>
-              <p className="text-text-secondary mb-6 font-medium">Best for teams and busy retailers</p>
+              <p className="text-gray-600 mb-6">Best for teams and busy retailers</p>
               
-              <ul className="space-y-4 mb-8">
-                {bloomFeatures.map((feature, index) => (
-                  <li key={index} className="flex items-start gap-3">
-                    <div className="p-1 bg-gradient-to-br from-brand-steel-blue to-brand-teal-mint rounded-full">
-                      <CheckCircle className="h-4 w-4 text-white" />
-                    </div>
-                    <span className={`text-text-secondary ${index === 0 ? 'font-semibold' : ''}`}>
+              <ul className="space-y-3 mb-8">
+                {bloomFeatures.map((feature, index) => <li key={index} className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-garden-green mt-0.5 flex-shrink-0" />
+                    <span className={`text-gray-700 ${index === 0 ? 'font-semibold' : ''}`}>
                       {feature}
                     </span>
-                  </li>
-                ))}
+                  </li>)}
               </ul>
               
-              <div className="relative group-hover:scale-105 transition-transform duration-300">
-                <Button 
-                  onClick={() => subscription ? onSelectPlan('bloom') : onStartTrial()}
-                  disabled={loading}
-                  className="w-full bg-gradient-to-r from-brand-steel-blue via-brand-teal-mint to-brand-steel-blue hover:from-brand-teal-mint hover:to-brand-steel-blue text-white py-4 px-6 rounded-xl text-lg font-semibold shadow-2xl border border-white/30 backdrop-blur-sm transition-all duration-300"
-                >
-                  {loadingPlan === 'bloom' ? (
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                      Processing...
-                    </div>
-                  ) : (
-                    subscription ? 'Choose Bloom' : 'Start Free Trial'
-                  )}
-                </Button>
-                <div className="absolute inset-0 bg-gradient-to-r from-brand-steel-blue/30 to-brand-teal-mint/30 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-              </div>
+              <Button onClick={() => subscription ? onSelectPlan('bloom') : onStartTrial()} disabled={loading} className="w-full bg-gradient-to-r from-garden-green to-garden-green-dark hover:from-garden-green-dark hover:to-garden-green text-white py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-200 hover:scale-105 shadow-xl border-2 border-transparent hover:border-garden-green focus:ring-4 focus:ring-garden-green/30">
+                {loadingPlan === 'bloom' ? <div className="flex items-center gap-2">
+                    
+                    Processing...
+                  </div> : subscription ? 'Choose Bloom' : 'Start Free Trial'}
+              </Button>
             </CardContent>
           </Card>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
