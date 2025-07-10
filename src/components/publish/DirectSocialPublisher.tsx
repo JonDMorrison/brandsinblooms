@@ -30,7 +30,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { addHours, format, setHours, setMinutes } from 'date-fns';
-import { EnhancedImageSelector } from './EnhancedImageSelector';
+import { ImageSelectButton } from '@/components/image';
 
 interface GeneratedContent {
   id: string;
@@ -486,13 +486,14 @@ export const DirectSocialPublisher = ({
       </Card>
 
       {/* Enhanced Image Selection */}
-      <EnhancedImageSelector
-        task={selectedContent}
-        onImageSelected={(image) => {
+      <ImageSelectButton
+        onImageSelect={(imageUrl, metadata) => {
           // The component handles updating the task internally
-          console.log('Image selected:', image);
+          console.log('Image selected:', imageUrl, metadata);
         }}
-        selectedImage={null}
+        selectedImageUrl={selectedContent?.mediaUrl}
+        contentContext={selectedContent?.caption}
+        buttonText="Select Content Image"
       />
 
       {/* Action Buttons */}
