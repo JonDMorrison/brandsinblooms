@@ -54,17 +54,34 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
 
     setIsSearching(true);
     try {
-      // For the demo, we'll create mock results since we need multiple images
-      const mainResult = await getUnsplashImage(searchTerm);
-      if (mainResult) {
-        // Create additional mock results for the grid
-        const mockResults: UnsplashImageResult[] = [
-          mainResult,
-          { ...mainResult, unsplash_id: '2', url: mainResult.url + '?variant=2' },
-          { ...mainResult, unsplash_id: '3', url: mainResult.url + '?variant=3' },
-          { ...mainResult, unsplash_id: '4', url: mainResult.url + '?variant=4' }
-        ];
-        setSearchResults(mockResults);
+      // Fetch multiple different images by making several API calls with variations
+      const searchVariations = [
+        searchTerm,
+        `${searchTerm} nature`,
+        `${searchTerm} outdoor`,
+        `${searchTerm} beautiful`
+      ];
+
+      const results = await Promise.all(
+        searchVariations.map(async (variation, index) => {
+          try {
+            const result = await getUnsplashImage(variation);
+            if (result) {
+              return {
+                ...result,
+                unsplash_id: `${result.unsplash_id}-${index}`
+              };
+            }
+            return null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const validResults = results.filter(Boolean) as UnsplashImageResult[];
+      if (validResults.length > 0) {
+        setSearchResults(validResults);
       }
     } catch (error) {
       toast.error('Failed to search images');
