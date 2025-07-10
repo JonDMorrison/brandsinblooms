@@ -179,33 +179,40 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
   return (
     <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 p-1.5 mx-6 mt-6 mb-0 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10">
-          <TabsTrigger value="find" className="rounded-lg font-semibold">Find a Free Image</TabsTrigger>
-          <TabsTrigger value="upload" className="rounded-lg font-semibold">Upload Your Own</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 p-1 mx-4 mt-4 mb-0 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10">
+          <TabsTrigger value="find" className="rounded-lg font-medium text-sm flex items-center gap-1.5">
+            <Search className="w-4 h-4" />
+            Find Images
+          </TabsTrigger>
+          <TabsTrigger value="upload" className="rounded-lg font-medium text-sm flex items-center gap-1.5">
+            <Upload className="w-4 h-4" />
+            Upload
+          </TabsTrigger>
         </TabsList>
 
-        <div className="p-6">
-          <TabsContent value="find" className="space-y-6 mt-0">
-            {/* Search Bar */}
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-text-tertiary group-focus-within:text-primary w-5 h-5 transition-colors duration-200" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="Search for beautiful images..."
-                className="pl-12 h-14 rounded-xl border-2 border-primary/20 bg-surface-primary/50 backdrop-blur-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:bg-surface-primary focus:shadow-lg focus:shadow-primary/10 transition-all duration-200"
-              />
+        <div className="p-4">
+          <TabsContent value="find" className="space-y-3 mt-0">
+            {/* Inline Search Bar */}
+            <div className="flex gap-2">
+              <div className="relative group flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-tertiary group-focus-within:text-primary w-4 h-4 transition-colors duration-200" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  placeholder="Search for beautiful images..."
+                  className="pl-10 h-10 rounded-lg border-2 border-primary/20 bg-surface-primary/50 backdrop-blur-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:bg-surface-primary focus:shadow-lg focus:shadow-primary/10 transition-all duration-200"
+                />
+              </div>
+              <Button 
+                onClick={() => handleSearch()}
+                disabled={isSearching || !searchQuery.trim()}
+                size="icon"
+                className="h-10 w-10 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+              >
+                <Search className="w-4 h-4" />
+              </Button>
             </div>
-
-            {/* Search Button */}
-            <Button 
-              onClick={() => handleSearch()}
-              disabled={isSearching || !searchQuery.trim()}
-              className="w-full h-12 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
-            >
-              {isSearching ? 'Searching...' : 'Search Images'}
-            </Button>
 
             {/* Image Grid */}
             {searchResults.length > 0 && (
@@ -260,11 +267,11 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
             )}
           </TabsContent>
 
-          <TabsContent value="upload" className="mt-0 space-y-6">
+          <TabsContent value="upload" className="mt-0 space-y-3">
             {/* Drag & Drop Zone */}
             <div 
               className={cn(
-                "border-2 border-dashed rounded-xl p-10 text-center transition-all duration-300 backdrop-blur-sm",
+                "border-2 border-dashed rounded-xl p-6 text-center transition-all duration-300 backdrop-blur-sm",
                 dragActive 
                   ? "border-brand-teal bg-gradient-to-br from-brand-teal/10 to-brand-teal/5 shadow-lg shadow-brand-teal/10" 
                   : "border-primary/30 bg-surface-primary/30 hover:border-brand-teal/50 hover:bg-surface-primary/50"
@@ -274,19 +281,19 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
               onDragLeave={handleDragLeave}
             >
               <Upload className={cn(
-                "w-16 h-16 mx-auto mb-6 transition-colors duration-300",
+                "w-12 h-12 mx-auto mb-4 transition-colors duration-300",
                 dragActive ? "text-brand-teal" : "text-text-tertiary"
               )} />
-              <h3 className="text-lg font-semibold text-text-primary mb-2">
+              <h3 className="text-base font-semibold text-text-primary mb-1">
                 {dragActive ? "Drop your image here" : "Upload your image"}
               </h3>
-              <p className="text-text-secondary mb-6">
+              <p className="text-text-secondary text-sm mb-4">
                 {dragActive ? "Release to upload" : "Drag & drop your image here, or click to browse"}
               </p>
               <Button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="h-12 px-8 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                className="h-10 px-6 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-medium rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               >
                 {isUploading ? 'Uploading...' : 'Choose File'}
               </Button>
@@ -307,41 +314,41 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
 
       {/* Selected Image Panel */}
       {selectedImage && (
-        <div className="border-t border-primary/10 p-6 bg-gradient-to-r from-brand-teal/5 via-surface-primary to-brand-teal/5 backdrop-blur-sm rounded-b-2xl">
-          <h3 className="text-lg font-semibold text-text-primary mb-4 flex items-center gap-2">
-            <Check className="w-5 h-5 text-brand-teal" />
+        <div className="border-t border-primary/10 p-4 bg-gradient-to-r from-brand-teal/5 via-surface-primary to-brand-teal/5 backdrop-blur-sm rounded-b-2xl">
+          <h3 className="text-base font-semibold text-text-primary mb-3 flex items-center gap-2">
+            <Check className="w-4 h-4 text-brand-teal" />
             Selected Image
           </h3>
-          <div className="flex flex-col sm:flex-row gap-6">
+          <div className="flex flex-col sm:flex-row gap-4">
             {/* Thumbnail */}
             <div className="flex-shrink-0">
               <img 
                 src={selectedImage.url} 
                 alt="Selected" 
-                className="w-20 h-20 object-cover rounded-xl border-2 border-brand-teal/30 shadow-lg shadow-brand-teal/10"
+                className="w-16 h-16 object-cover rounded-lg border-2 border-brand-teal/30 shadow-lg shadow-brand-teal/10"
               />
             </div>
             
             {/* Info & Actions */}
-            <div className="flex-1 space-y-4">
-              <p className="text-text-secondary font-medium">
+            <div className="flex-1 space-y-3">
+              <p className="text-text-secondary text-sm font-medium">
                 {selectedImage.source === 'unsplash' 
                   ? `Photo by ${selectedImage.photographer} on Unsplash`
                   : 'Your uploaded image'
                 }
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Button 
                   onClick={handleUseImage}
-                  className="h-12 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 transition-all duration-300 flex-1"
+                  className="h-10 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-medium rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 transition-all duration-300 flex-1"
                 >
                   Use This Image
                 </Button>
                 <Button 
                   variant="outline"
                   onClick={handleEditInCanva}
-                  className="h-12 border-2 border-brand-teal/30 bg-surface-primary/50 backdrop-blur-sm hover:bg-brand-teal/10 hover:border-brand-teal/50 text-text-primary font-semibold rounded-xl transition-all duration-300 flex-1"
+                  className="h-10 border-2 border-brand-teal/30 bg-surface-primary/50 backdrop-blur-sm hover:bg-brand-teal/10 hover:border-brand-teal/50 text-text-primary font-medium rounded-lg transition-all duration-300 flex-1"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Edit in Canva
