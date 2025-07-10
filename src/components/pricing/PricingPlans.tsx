@@ -81,7 +81,7 @@ export const PricingPlans = ({
                   </li>)}
               </ul>
               
-              <Button onClick={() => subscription ? onSelectPlan('bloom') : onStartTrial()} disabled={loading} className="w-full bg-gradient-to-r from-garden-green to-garden-green-dark hover:from-garden-green-dark hover:to-garden-green text-white py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-200 hover:scale-105 shadow-xl border-2 border-transparent hover:border-garden-green focus:ring-4 focus:ring-garden-green/30">
+              <Button onClick={() => subscription ? onSelectPlan('bloom') : onStartTrial()} disabled={loading} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 px-6 rounded-xl text-lg font-semibold transition-all duration-200 hover:scale-105 shadow-xl border-2 border-transparent hover:border-primary focus:ring-4 focus:ring-primary/30">
                 {loadingPlan === 'bloom' ? <div className="flex items-center gap-2">
                     
                     Processing...
