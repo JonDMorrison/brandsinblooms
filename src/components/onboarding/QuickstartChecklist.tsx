@@ -123,7 +123,7 @@ export const QuickstartChecklist: React.FC<QuickstartChecklistProps> = ({
   const progressPercentage = (completedCount / steps.length) * 100;
 
   return (
-    <Card className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
+    <Card className="relative bg-gradient-to-br from-white/90 to-white/60 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
       {/* Gradient Background Overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-white via-slate-50/80 to-slate-100/60"></div>
       <div className="absolute inset-0 bg-black/5"></div>
