@@ -94,7 +94,10 @@ export const PricingPlans = ({
                     subscription ? 'Choose Sprout' : 'Start Free Trial'
                   )}
                 </Button>
-                <div className="absolute inset-0 bg-gradient-to-r from-brand-teal-mint/20 to-brand-steel-blue/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div 
+                  className="absolute inset-0 bg-gradient-to-r from-brand-teal-mint/20 to-brand-steel-blue/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                  onClick={() => subscription ? onSelectPlan('sprout') : onStartTrial()}
+                ></div>
               </div>
             </CardContent>
           </Card>
