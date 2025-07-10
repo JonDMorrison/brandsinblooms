@@ -8,67 +8,56 @@ interface PricingToggleProps {
 }
 
 export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
-  const handleAnnualToggle = (checked: boolean) => {
-    onToggle(checked);
-  };
-
   const handleMonthlyClick = () => {
-    if (isAnnual) {
-      onToggle(false);
-    }
+    onToggle(false);
   };
 
   const handleAnnualClick = () => {
-    if (!isAnnual) {
-      onToggle(true);
-    }
+    onToggle(true);
   };
 
   return (
-    <div className="flex items-center justify-center gap-4 mb-12">
-      <span 
-        className={`text-lg transition-all duration-200 cursor-pointer select-none ${!isAnnual ? 'text-brand-steel-blue font-semibold' : 'text-text-tertiary hover:text-text-secondary'}`}
-        onClick={handleMonthlyClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleMonthlyClick();
-          }
-        }}
-      >
-        Monthly
-      </span>
-      <div className="relative">
-        <Switch 
-          checked={isAnnual} 
-          onCheckedChange={handleAnnualToggle}
-          className="data-[state=checked]:bg-brand-teal-mint"
-        />
+    <div className="flex items-center justify-center gap-6 mb-12">
+      {/* Main toggle container */}
+      <div className="relative flex items-center bg-white/80 backdrop-blur-sm rounded-full p-2 shadow-lg border border-white/50">
+        {/* Monthly option */}
+        <button
+          onClick={handleMonthlyClick}
+          className={`relative px-6 py-3 rounded-full text-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+            !isAnnual 
+              ? 'bg-primary text-white shadow-md' 
+              : 'text-text-secondary hover:text-text-primary hover:bg-white/50'
+          }`}
+          aria-pressed={!isAnnual}
+          aria-label="Switch to monthly billing"
+        >
+          Monthly
+        </button>
+        
+        {/* Annual option */}
+        <button
+          onClick={handleAnnualClick}
+          className={`relative px-6 py-3 rounded-full text-lg font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-primary/50 ${
+            isAnnual 
+              ? 'bg-primary text-white shadow-md' 
+              : 'text-text-secondary hover:text-text-primary hover:bg-white/50'
+          }`}
+          aria-pressed={isAnnual}
+          aria-label="Switch to annual billing"
+        >
+          Annual
+        </button>
       </div>
-      <span 
-        className={`text-lg transition-all duration-200 cursor-pointer select-none ${isAnnual ? 'text-brand-steel-blue font-semibold' : 'text-text-tertiary hover:text-text-secondary'}`}
-        onClick={handleAnnualClick}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleAnnualClick();
-          }
-        }}
-      >
-        Annual
-      </span>
+      
+      {/* Savings badge */}
       <Badge 
-        className={`ml-2 transition-all duration-200 ${
+        className={`transition-all duration-300 ${
           isAnnual 
-            ? 'bg-brand-teal-mint text-white animate-in slide-in-from-left' 
-            : 'bg-muted text-text-tertiary opacity-60'
+            ? 'bg-gradient-to-r from-primary to-brand-teal-mint text-white shadow-md scale-110 animate-pulse' 
+            : 'bg-muted/60 text-text-tertiary scale-100'
         }`}
       >
-        Save 17%
+        💰 Save 17%
       </Badge>
     </div>
   );
