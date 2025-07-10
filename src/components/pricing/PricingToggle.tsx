@@ -53,7 +53,7 @@ export const PricingToggle = ({ isAnnual, onToggle }: PricingToggleProps) => {
       <Badge 
         className={`transition-all duration-300 ${
           isAnnual 
-            ? 'bg-gradient-to-r from-primary to-brand-teal-mint text-white shadow-md scale-110 animate-pulse' 
+            ? 'bg-gradient-to-r from-primary to-brand-teal-mint text-white shadow-md scale-110' 
             : 'bg-muted/60 text-text-tertiary scale-100'
         }`}
       >
