@@ -232,9 +232,6 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
                       <Check className="w-5 h-5 text-white" />
                     </div>
                   </div>
-                  <div className="absolute bottom-3 left-3 bg-gradient-to-r from-black/80 to-transparent backdrop-blur-sm text-white text-sm px-3 py-1.5 rounded-lg font-medium">
-                    by {searchResults[0].photographer}
-                  </div>
                 </div>
 
                 {/* Thumbnail Grid */}
