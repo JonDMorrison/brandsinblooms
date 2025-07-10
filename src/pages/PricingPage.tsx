@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { PricingHero } from "@/components/pricing/PricingHero";
 import { PricingToggle } from "@/components/pricing/PricingToggle";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
-import { AddOnsSection } from "@/components/pricing/AddOnsSection";
 import { FAQSection } from "@/components/pricing/FAQSection";
 import { FinalCTA } from "@/components/pricing/FinalCTA";
 import { SidebarLayout } from "@/components/SidebarLayout";
@@ -151,7 +150,6 @@ const PricingPage = () => {
         </div>
       </section>
 
-      <AddOnsSection />
       <FAQSection />
       <FinalCTA 
         subscription={subscription}
