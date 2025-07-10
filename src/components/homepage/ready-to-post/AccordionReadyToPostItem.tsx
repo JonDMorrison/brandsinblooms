@@ -207,113 +207,119 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
 
         <CollapsibleContent>
           <div className="px-4 pb-4 border-t border-gray-100">
-            <div className="pt-4 space-y-4">
-              {/* Image Preview with Edit Overlay */}
-              {task.attachments?.[0]?.url && (
-                <div className="mb-4">
-                  <ImageEditOverlay
-                    imageUrl={task.attachments[0].url}
-                    onImageSelect={async (imageUrl, metadata) => {
-                      // Update image and set status to review if approved
-                      const shouldRequireReApproval = task.status === 'approved';
-                      
-                      const updateData: any = {
-                        attachments: [
-                          {
-                            type: 'image',
-                            url: imageUrl,
-                            alt: metadata?.alt || 'Selected image',
-                            photographer: metadata?.photographer,
-                            source: metadata?.source || 'unknown',
-                            unsplash_id: metadata?.unsplash_id
-                          }
-                        ]
-                      };
-
-                      if (shouldRequireReApproval) {
-                        updateData.status = 'review';
-                      }
-
-                      try {
-                        const { error } = await supabase
-                          .from('content_tasks')
-                          .update(updateData)
-                          .eq('id', task.id);
-
-                        if (error) throw error;
-
-                        if (shouldRequireReApproval) {
-                          toast.success('Image updated! Content moved to review for re-approval.');
-                        } else {
-                          toast.success('Image updated successfully!');
-                        }
-                        
-                        if (onTaskUpdate) onTaskUpdate();
-                      } catch (error) {
-                        console.error('Error updating image:', error);
-                        toast.error('Failed to update image');
-                      }
-                    }}
-                    contentContext={task.ai_output}
-                    className="h-48 w-full rounded-lg overflow-hidden"
-                  />
-                </div>
-              )}
-
-              {/* Content Preview */}
-              {cleanContent && (
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div 
-                    className={`text-gray-700 line-clamp-4 ${isMobile ? 'text-sm' : 'text-base'}`}
-                    dangerouslySetInnerHTML={{ __html: task.ai_output }}
-                  />
-                </div>
-              )}
-
-              {/* Error Message */}
-              {task.last_posting_error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-sm text-red-600">{task.last_posting_error}</p>
-                  {task.posting_attempts > 0 && (
-                    <p className="text-xs text-red-500 mt-1">
-                      Failed {task.posting_attempts} time{task.posting_attempts !== 1 ? 's' : ''}
-                    </p>
+            <div className="pt-4">
+              {/* 2-column grid layout */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Left column - Text content (2/3 width) */}
+                <div className="md:col-span-2 space-y-4">
+                  {/* Content Preview */}
+                  {cleanContent && (
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div 
+                        className={`text-gray-700 line-clamp-4 ${isMobile ? 'text-sm' : 'text-base'}`}
+                        dangerouslySetInnerHTML={{ __html: task.ai_output }}
+                      />
+                    </div>
                   )}
-                </div>
-              )}
 
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onViewFull(task)}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                >
-                  <Eye className="w-4 h-4 mr-2" />
-                  View Full Content
-                </Button>
+                  {/* Error Message */}
+                  {task.last_posting_error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-sm text-red-600">{task.last_posting_error}</p>
+                      {task.posting_attempts > 0 && (
+                        <p className="text-xs text-red-500 mt-1">
+                          Failed {task.posting_attempts} time{task.posting_attempts !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
-                {!batchMode && (
-                  <div className="flex gap-2">
-                    {facebookConnection && (
-                      <EnhancedPostNowButton
-                        task={task}
-                        platform="facebook"
-                        onSuccess={onTaskUpdate}
-                        socialConnections={socialConnections}
-                      />
-                    )}
-                    {instagramConnection && (
-                      <EnhancedPostNowButton
-                        task={task}
-                        platform="instagram"
-                        onSuccess={onTaskUpdate}
-                        socialConnections={socialConnections}
-                      />
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onViewFull(task)}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      View Full Content
+                    </Button>
+
+                    {!batchMode && (
+                      <div className="flex gap-2">
+                        {facebookConnection && (
+                          <EnhancedPostNowButton
+                            task={task}
+                            platform="facebook"
+                            onSuccess={onTaskUpdate}
+                            socialConnections={socialConnections}
+                          />
+                        )}
+                        {instagramConnection && (
+                          <EnhancedPostNowButton
+                            task={task}
+                            platform="instagram"
+                            onSuccess={onTaskUpdate}
+                            socialConnections={socialConnections}
+                          />
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
+
+                {/* Right column - Image (1/3 width) */}
+                <div className="md:col-span-1">
+                  {task.attachments?.[0]?.url && (
+                    <ImageEditOverlay
+                      imageUrl={task.attachments[0].url}
+                      onImageSelect={async (imageUrl, metadata) => {
+                        // Update image and set status to review if approved
+                        const shouldRequireReApproval = task.status === 'approved';
+                        
+                        const updateData: any = {
+                          attachments: [
+                            {
+                              type: 'image',
+                              url: imageUrl,
+                              alt: metadata?.alt || 'Selected image',
+                              photographer: metadata?.photographer,
+                              source: metadata?.source || 'unknown',
+                              unsplash_id: metadata?.unsplash_id
+                            }
+                          ]
+                        };
+
+                        if (shouldRequireReApproval) {
+                          updateData.status = 'review';
+                        }
+
+                        try {
+                          const { error } = await supabase
+                            .from('content_tasks')
+                            .update(updateData)
+                            .eq('id', task.id);
+
+                          if (error) throw error;
+
+                          if (shouldRequireReApproval) {
+                            toast.success('Image updated! Content moved to review for re-approval.');
+                          } else {
+                            toast.success('Image updated successfully!');
+                          }
+                          
+                          if (onTaskUpdate) onTaskUpdate();
+                        } catch (error) {
+                          console.error('Error updating image:', error);
+                          toast.error('Failed to update image');
+                        }
+                      }}
+                      contentContext={task.ai_output}
+                      className="h-40 w-full rounded-lg overflow-hidden"
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>

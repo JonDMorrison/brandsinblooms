@@ -108,21 +108,42 @@ export const EnhancedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
         </div>
       </div>
 
-      {/* Content Preview */}
-      <div className={`mb-4 ${isMobile ? 'responsive-text-sm' : 'text-sm'}`}>
-        <BodySmall className="text-text-secondary leading-relaxed line-clamp-2">
-          {stripHtmlAndFormat(task.ai_output)}
-        </BodySmall>
-      </div>
+      {/* 2-column grid layout */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        {/* Left column - Text content (2/3 width) */}
+        <div className="md:col-span-2 space-y-4">
+          {/* Content Preview */}
+          <div className={`${isMobile ? 'responsive-text-sm' : 'text-sm'}`}>
+            <BodySmall className="text-text-secondary leading-relaxed line-clamp-2">
+              {stripHtmlAndFormat(task.ai_output)}
+            </BodySmall>
+          </div>
 
-      {/* Scheduled Date */}
-      {task.scheduled_date && (
-        <div className="mb-4">
-          <CaptionMedium className="text-text-tertiary">
-            Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-          </CaptionMedium>
+          {/* Scheduled Date */}
+          {task.scheduled_date && (
+            <div>
+              <CaptionMedium className="text-text-tertiary">
+                Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+              </CaptionMedium>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Right column - Image placeholder (1/3 width) */}
+        <div className="md:col-span-1">
+          {task.attachments?.[0]?.url ? (
+            <img 
+              src={task.attachments[0].url} 
+              alt="Content image"
+              className="w-full h-24 object-cover rounded-lg"
+            />
+          ) : (
+            <div className="w-full h-24 bg-gray-100 rounded-lg flex items-center justify-center">
+              <span className="text-xs text-gray-400">No image</span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Action Buttons */}
       <div className={`

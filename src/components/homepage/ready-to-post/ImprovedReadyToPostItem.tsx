@@ -91,7 +91,7 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
       `}
       onClick={handleViewFull}
     >
-      {/* Header Section - Simplified without campaign title */}
+      {/* Header Section */}
       <div className="flex items-start justify-between mb-3 gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <div className="flex-shrink-0 text-stone-600">
@@ -113,33 +113,39 @@ export const ImprovedReadyToPostItem = ({ task, onClick, onTaskUpdate, onEdit }:
         </div>
       </div>
 
-      {/* Content Preview */}
-      {task.ai_output && (
-        <div className="mb-4">
-          <ContentPreview 
-            content={task.ai_output} 
-            postType={task.post_type}
+      {/* 2-column grid layout */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        {/* Left column - Text content (2/3 width) */}
+        <div className="md:col-span-2 space-y-4">
+          {/* Content Preview */}
+          {task.ai_output && (
+            <div>
+              <ContentPreview 
+                content={task.ai_output} 
+                postType={task.post_type}
+              />
+            </div>
+          )}
+
+          {/* Scheduled Date */}
+          {task.scheduled_date && (
+            <div>
+              <CaptionMedium className="text-stone-500">
+                Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+              </CaptionMedium>
+            </div>
+          )}
+        </div>
+
+        {/* Right column - Image (1/3 width) */}
+        <div className="md:col-span-1" onClick={(e) => e.stopPropagation()}>
+          <CompactImageCarousel 
+            task={task}
+            campaignTheme={task.campaigns?.theme}
+            onShowAll={handleShowAllImages}
           />
         </div>
-      )}
-
-      {/* Image Suggestions */}
-      <div className="mb-4" onClick={(e) => e.stopPropagation()}>
-        <CompactImageCarousel 
-          task={task}
-          campaignTheme={task.campaigns?.theme}
-          onShowAll={handleShowAllImages}
-        />
       </div>
-
-      {/* Scheduled Date */}
-      {task.scheduled_date && (
-        <div className="mb-4">
-          <CaptionMedium className="text-stone-500">
-            Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-          </CaptionMedium>
-        </div>
-      )}
 
       {/* Action Buttons */}
       <div className={`

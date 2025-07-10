@@ -81,10 +81,31 @@ export const ReadyToPublishSection = ({
                     </Badge>
                   )}
                 </div>
-                
-                <p className="text-sm text-gray-700 line-clamp-2 mb-3">
-                  {task.ai_output?.substring(0, 120)}...
-                </p>
+
+                {/* 2-column grid layout */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                  {/* Left column - Text content (2/3 width) */}
+                  <div className="md:col-span-2">
+                    <p className="text-sm text-gray-700 line-clamp-2">
+                      {task.ai_output?.substring(0, 120)}...
+                    </p>
+                  </div>
+
+                  {/* Right column - Image (1/3 width) */}
+                  <div className="md:col-span-1">
+                    {task.attachments?.[0]?.url ? (
+                      <img 
+                        src={task.attachments[0].url} 
+                        alt="Content image"
+                        className="w-full h-16 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-full h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <span className="text-xs text-gray-400">No image</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 
                 <div className="flex items-center gap-2">
                   <Button 

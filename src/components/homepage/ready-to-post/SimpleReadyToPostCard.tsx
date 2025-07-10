@@ -62,32 +62,44 @@ export const SimpleReadyToPostCard = ({ task, onClick }: SimpleReadyToPostCardPr
         <div className="w-2 h-2 rounded-full bg-green-500" title="Ready to post" />
       </div>
 
-      {/* Thumbnail image */}
-      {thumbnailImage && (
-        <div className="mb-3 overflow-hidden rounded-md">
-          <img 
-            src={thumbnailImage} 
-            alt="Content preview"
-            className="w-full h-20 object-cover transition-transform duration-200 group-hover:scale-105"
-          />
-        </div>
-      )}
+      {/* 2-column grid layout */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        {/* Left column - Text content (2/3 width) */}
+        <div className="md:col-span-2 space-y-3">
+          {/* Content preview */}
+          <div className="flex-1">
+            <BodySmall className="text-stone-600 line-clamp-2 leading-relaxed">
+              {getContentPreview(task.ai_output)}
+            </BodySmall>
+          </div>
 
-      {/* Content preview */}
-      <div className="mb-3 flex-1">
-        <BodySmall className="text-stone-600 line-clamp-2 leading-relaxed">
-          {getContentPreview(task.ai_output)}
-        </BodySmall>
+          {/* Scheduled date if available */}
+          {task.scheduled_date && (
+            <div>
+              <CaptionMedium className="text-stone-400 text-xs">
+                {new Date(task.scheduled_date).toLocaleDateString()}
+              </CaptionMedium>
+            </div>
+          )}
+        </div>
+
+        {/* Right column - Image (1/3 width) */}
+        <div className="md:col-span-1">
+          {thumbnailImage ? (
+            <div className="overflow-hidden rounded-md h-16">
+              <img 
+                src={thumbnailImage} 
+                alt="Content preview"
+                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+              />
+            </div>
+          ) : (
+            <div className="w-full h-16 bg-stone-100 rounded-md flex items-center justify-center">
+              <span className="text-xs text-stone-400">No image</span>
+            </div>
+          )}
+        </div>
       </div>
-
-      {/* Scheduled date if available */}
-      {task.scheduled_date && (
-        <div className="mt-auto">
-          <CaptionMedium className="text-stone-400 text-xs">
-            {new Date(task.scheduled_date).toLocaleDateString()}
-          </CaptionMedium>
-        </div>
-      )}
 
       {/* Hover indicator */}
       <div className="absolute inset-0 rounded-lg bg-blue-500/5 opacity-0 transition-opacity duration-200 group-hover:opacity-100 pointer-events-none" />

@@ -33,7 +33,7 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
       className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
       onClick={() => onClick(task)}
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <PostIcon className="w-5 h-5" />
           <Badge className={getPostTypeColor(task.post_type)}>
@@ -79,18 +79,39 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
           </Button>
         </div>
       </div>
-      
-      {task.ai_output && (
-        <p className="text-sm text-gray-700 line-clamp-2 mb-2">
-          {stripHtmlAndFormat(task.ai_output)}
-        </p>
-      )}
-      
-      {task.scheduled_date && (
-        <p className="text-xs text-gray-500">
-          Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
-        </p>
-      )}
+
+      {/* 2-column grid layout */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Left column - Text content (2/3 width) */}
+        <div className="md:col-span-2 space-y-2">
+          {task.ai_output && (
+            <p className="text-sm text-gray-700 line-clamp-2">
+              {stripHtmlAndFormat(task.ai_output)}
+            </p>
+          )}
+          
+          {task.scheduled_date && (
+            <p className="text-xs text-gray-500">
+              Scheduled: {new Date(task.scheduled_date).toLocaleDateString()}
+            </p>
+          )}
+        </div>
+
+        {/* Right column - Image (1/3 width) */}
+        <div className="md:col-span-1">
+          {task.attachments?.[0]?.url ? (
+            <img 
+              src={task.attachments[0].url} 
+              alt="Content image"
+              className="w-full h-20 object-cover rounded-lg"
+            />
+          ) : (
+            <div className="w-full h-20 bg-gray-100 rounded-lg flex items-center justify-center">
+              <span className="text-xs text-gray-400">No image</span>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
