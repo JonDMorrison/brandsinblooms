@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { UniversalImageSelector } from '@/components/publish/EnhancedImageSelector';
+import { UnifiedImageSelector } from '@/components/image/UnifiedImageSelector';
 
 interface SocialMediaPostPreviewProps {
   content: string;
@@ -237,14 +237,13 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
         <div className="flex-1 border-l border-gray-200">
           <div className="p-4">
             {contentTaskId ? (
-              <UniversalImageSelector
-                task={{ id: contentTaskId }}
-                onImageChange={(imageUrl) => {
-                  console.log('Image updated in preview:', imageUrl);
+              <UnifiedImageSelector
+                onImageSelect={(imageUrl, metadata) => {
+                  console.log('Image updated in preview:', imageUrl, metadata);
+                  // Handle image selection logic here
                 }}
                 contentContext={content}
-                showTabs={false}
-                defaultTab="find"
+                className="h-full"
               />
             ) : (
               <div className="h-48 bg-gray-100 rounded-lg flex items-center justify-center">
