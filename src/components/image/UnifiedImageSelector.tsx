@@ -209,16 +209,16 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
 
             {/* Image Grid */}
             {searchResults.length > 0 && (
-              <div className="grid grid-cols-3 gap-4 p-4 bg-surface-primary/30 rounded-xl border border-primary/10">
+              <div className="space-y-4 p-4 bg-surface-primary/30 rounded-xl border border-primary/10">
                 {/* Featured Large Image */}
                 <div 
-                  className="col-span-2 row-span-2 relative cursor-pointer group rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
+                  className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
                   onClick={() => handleImageSelect(searchResults[0])}
                 >
                   <img 
                     src={searchResults[0].thumb} 
                     alt={searchResults[0].alt}
-                    className="w-full h-52 object-cover transition-all duration-300 group-hover:scale-105"
+                    className="w-full h-64 object-cover transition-all duration-300 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
                     <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
@@ -230,28 +230,32 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
                   </div>
                 </div>
 
-                {/* Smaller Images */}
-                {searchResults.slice(1, 4).map((image, index) => (
-                  <div 
-                    key={image.unsplash_id || index}
-                    className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
-                    onClick={() => handleImageSelect(image)}
-                  >
-                    <img 
-                      src={image.thumb} 
-                      alt={image.alt}
-                      className="w-full h-20 object-cover transition-all duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
-                        <Check className="w-4 h-4 text-white" />
+                {/* Thumbnail Grid */}
+                {searchResults.length > 1 && (
+                  <div className="grid grid-cols-3 gap-3">
+                    {searchResults.slice(1, 4).map((image, index) => (
+                      <div 
+                        key={image.unsplash_id || index}
+                        className="relative cursor-pointer group rounded-lg overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
+                        onClick={() => handleImageSelect(image)}
+                      >
+                        <img 
+                          src={image.thumb} 
+                          alt={image.alt}
+                          className="w-full h-24 object-cover transition-all duration-300 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
+                            <Check className="w-4 h-4 text-white" />
+                          </div>
+                        </div>
+                        <div className="absolute bottom-1.5 left-1.5 bg-gradient-to-r from-black/80 to-transparent backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md font-medium">
+                          by {image.photographer}
+                        </div>
                       </div>
-                    </div>
-                    <div className="absolute bottom-1.5 left-1.5 bg-gradient-to-r from-black/80 to-transparent backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md font-medium">
-                      by {image.photographer}
-                    </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             )}
           </TabsContent>
