@@ -179,7 +179,7 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
   return (
     <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 p-1.5 m-4 mb-0 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10">
+        <TabsList className="grid w-full grid-cols-2 p-1.5 mx-6 mt-6 mb-0 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10">
           <TabsTrigger value="find" className="rounded-lg font-semibold">Find a Free Image</TabsTrigger>
           <TabsTrigger value="upload" className="rounded-lg font-semibold">Upload Your Own</TabsTrigger>
         </TabsList>
