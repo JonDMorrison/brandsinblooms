@@ -1,7 +1,6 @@
 
 import { EnhancedAppleCard } from "@/components/ui/enhanced-apple-card";
 import { AppleCardContent } from "@/components/ui/apple-card";
-import { BodyMedium } from "@/components/ui/typography";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 export const CampaignLoadingState = () => {
@@ -14,10 +13,11 @@ export const CampaignLoadingState = () => {
       data-campaign-section="true"
     >
       <AppleCardContent className="flex flex-col items-center justify-center py-12">
-        <LoadingSpinner size="lg" />
-        <BodyMedium className="text-text-secondary mt-4">
-          Loading campaign content...
-        </BodyMedium>
+        <LoadingSpinner 
+          size="lg" 
+          color="primary"
+          text="Loading campaign content..."
+        />
       </AppleCardContent>
     </EnhancedAppleCard>
   );

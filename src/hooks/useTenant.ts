@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -13,21 +13,38 @@ interface Tenant {
   updated_at: string;
 }
 
+// Cache to prevent redundant API calls
+const tenantCache = new Map<string, { tenant: Tenant | null; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export const useTenant = () => {
   const { user } = useAuth();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
+  const fetchedRef = useRef(false);
 
   useEffect(() => {
     const fetchTenant = async () => {
       if (!user) {
-        console.log('useTenant: No user, setting loading to false');
         setLoading(false);
         return;
       }
 
+      // Prevent multiple fetches for the same user
+      if (fetchedRef.current) {
+        return;
+      }
+
+      // Check cache first
+      const cached = tenantCache.get(user.id);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setTenant(cached.tenant);
+        setLoading(false);
+        fetchedRef.current = true;
+        return;
+      }
+
       try {
-        console.log('useTenant: Checking for real tenant for user:', user.id);
         
         // First check if user is assigned to a real tenant
         const { data: userData, error: userError } = await supabase
@@ -40,6 +57,8 @@ export const useTenant = () => {
           console.error('useTenant: Error fetching user tenant:', userError);
         }
 
+        let finalTenant: Tenant | null = null;
+
         if (userData?.tenant_id) {
           // User has a real tenant, fetch it
           const { data: tenantData, error: tenantError } = await supabase
@@ -50,26 +69,31 @@ export const useTenant = () => {
 
           if (tenantError) {
             console.error('useTenant: Error fetching tenant:', tenantError);
-            setTenant(null);
           } else {
-            console.log('useTenant: Found real tenant:', tenantData.name);
-            setTenant(tenantData);
+            finalTenant = tenantData;
           }
-        } else {
-          // No real tenant found - operate in single-user mode
-          console.log('useTenant: No real tenant found, operating in single-user mode');
-          setTenant(null);
         }
+
+        // Cache the result
+        tenantCache.set(user.id, { 
+          tenant: finalTenant, 
+          timestamp: Date.now() 
+        });
+        
+        setTenant(finalTenant);
       } catch (error) {
         console.error('useTenant: Error in fetchTenant:', error);
         setTenant(null);
       } finally {
         setLoading(false);
+        fetchedRef.current = true;
       }
     };
 
+    // Reset fetch flag when user changes
+    fetchedRef.current = false;
     fetchTenant();
-  }, [user]);
+  }, [user?.id]); // Only depend on user.id to prevent unnecessary re-fetches
 
   return { tenant, loading };
 };

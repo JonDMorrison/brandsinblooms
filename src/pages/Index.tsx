@@ -7,6 +7,7 @@ import { UserMenu } from "@/components/UserMenu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SidebarLayout } from "@/components/SidebarLayout";
 import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
+import { UnifiedLoadingState } from "@/components/loading/UnifiedLoadingState";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -83,14 +84,7 @@ const Index = () => {
 
   // Show loading state while auth is loading
   if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-2 border-garden-green border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-text-secondary">Loading...</p>
-        </div>
-      </div>
-    );
+    return <UnifiedLoadingState text="Loading dashboard..." />;
   }
 
   if (!user) {

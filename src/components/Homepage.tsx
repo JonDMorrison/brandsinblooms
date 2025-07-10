@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { HomepageErrorBoundary } from "./homepage/HomepageErrorBoundary";
-import { Loader2 } from "lucide-react";
+import { UnifiedLoadingState } from "@/components/loading/UnifiedLoadingState";
 import { Campaign } from "@/types/content";
 
 // Import the 5 main sections
@@ -69,34 +69,18 @@ const HomepageContent = () => {
   // Handle early returns with proper loading states
   if (!user || tenantLoading) {
     return (
-      <div className="min-h-screen bg-garden-background">
-        <div className="max-w-5xl mx-auto p-6">
-          <div className="flex justify-center items-center py-20">
-            <div className="text-center">
-              <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-garden-green" />
-              <p className="text-garden-green font-medium text-lg">
-                {!user ? 'Please log in to access your campaigns' : 'Loading your workspace...'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <UnifiedLoadingState 
+        text={!user ? 'Please log in to access your campaigns' : 'Setting up your workspace...'}
+      />
     );
   }
 
   // Show tenant assignment message if user has no tenant
   if (!tenant) {
     return (
-      <div className="min-h-screen bg-garden-background">
-        <div className="max-w-5xl mx-auto p-6">
-          <div className="flex justify-center items-center py-20">
-            <div className="text-center">
-              <p className="text-garden-green font-medium text-lg">Setting up your workspace...</p>
-              <p className="text-gray-500 text-sm mt-2">Please contact support to assign you to an organization.</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <UnifiedLoadingState 
+        text="Setting up your workspace... Please contact support if this continues."
+      />
     );
   }
 
@@ -124,17 +108,9 @@ const HomepageContent = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-garden-background">
-        <div className="max-w-5xl mx-auto p-6">
-          <div className="flex justify-center items-center py-20">
-            <div className="text-center">
-              <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-garden-green" />
-              <p className="text-garden-green font-medium text-lg">Loading your campaigns and content...</p>
-              <p className="text-gray-500 text-sm mt-2">Setting up your marketing workspace</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <UnifiedLoadingState 
+        text="Loading your campaigns and content..."
+      />
     );
   }
 

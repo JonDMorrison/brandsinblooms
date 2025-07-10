@@ -44,6 +44,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [loading, setLoading] = useState(true);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const isDeveloper = user?.email === 'jon@getclear.ca';
 
@@ -55,9 +56,12 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     try {
       setError(null);
-      // Only show loading spinner for initial load or explicit refresh
-      if (!initialLoaded || isRefresh) {
+      
+      // Differentiate between initial loading and refresh loading
+      if (!initialLoaded) {
         setLoading(true);
+      } else if (isRefresh) {
+        setIsRefreshing(true);
       }
 
       const filterConfig: FilterConfig = {
@@ -106,6 +110,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setError(err.message || 'Failed to load content data');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
       setInitialLoaded(true);
     }
   }, [user, tenant, tenantLoading, isDeveloper, initialLoaded]);
@@ -141,7 +146,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [user, fetchData]);
 
   const refreshData = useCallback(() => {
-    fetchData(true); // Explicit refresh shows loading
+    fetchData(true); // Explicit refresh shows refreshing state, not main loading
   }, [fetchData]);
 
   const value: ContentContextType = {
@@ -149,7 +154,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
     tasks,
     userCreatedCampaigns,
     approvedTasks,
-    loading,
+    loading, // Only true for initial load, not for refreshes
     error,
     refreshData
   };
