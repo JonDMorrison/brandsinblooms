@@ -236,8 +236,8 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
               <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
                 <Send className="w-8 h-8 text-white" />
               </div>
+              <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Your Approved Posts</HeadlineLarge>
             </div>
-            <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Your Approved Posts</HeadlineLarge>
             <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed text-left">
               Approved content ready for publishing and scheduling
             </BodyMedium>

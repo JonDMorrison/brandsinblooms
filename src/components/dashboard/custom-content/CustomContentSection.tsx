@@ -274,8 +274,8 @@ export const CustomContentSection = ({
                 <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg">
                   <Plus className="w-8 h-8 text-white" />
                 </div>
+                <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent">Your Custom Content</HeadlineLarge>
               </div>
-              <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent">Your Custom Content</HeadlineLarge>
               <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed">
                 Your custom campaigns and promotional content
               </BodyMedium>

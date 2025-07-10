@@ -257,8 +257,8 @@ export const SeasonalHolidaysCard = ({
                 <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg">
                   <Calendar className="w-8 h-8 text-white" />
                 </div>
+                <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Seasonal Marketing Opportunities</HeadlineLarge>
               </div>
-              <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Seasonal Marketing Opportunities</HeadlineLarge>
               <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed text-left">
                 Upcoming holidays and seasonal events for your marketing calendar
               </BodyMedium>
