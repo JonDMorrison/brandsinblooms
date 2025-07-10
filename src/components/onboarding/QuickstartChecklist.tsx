@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Circle, Wifi, FileCheck, Send, TrendingUp, X } from 'lucide-react';
+import { CheckCircle2, Circle, Wifi, FileCheck, Send, TrendingUp, X, Rocket } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useTenant } from '@/hooks/useTenant';
@@ -142,7 +142,7 @@ export const QuickstartChecklist: React.FC<QuickstartChecklistProps> = ({
           <div>
             <h3 className="text-2xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent flex items-center gap-3">
               <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl shadow-lg">
-                <CheckCircle2 className="w-6 h-6 text-white" />
+                <Rocket className="w-6 h-6 text-white" />
               </div>
               Quick Start Guide
               <span className="text-lg font-semibold text-slate-500 bg-white/50 backdrop-blur-sm px-3 py-1 rounded-full border border-white/30">

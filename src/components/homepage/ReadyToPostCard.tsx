@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, Clock, Leaf, Sparkles } from "lucide-react";
+import { CheckCircle2, Clock, Leaf, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -225,7 +225,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-full blur-3xl"></div>
           <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
-            <Sparkles className="w-64 h-64 text-green-400" />
+            <Send className="w-64 h-64 text-green-400" />
           </div>
         </div>
         
@@ -234,7 +234,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           <div className="flex flex-col gap-3 text-left">
             <div className="inline-flex items-center gap-3 mb-2">
               <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl shadow-lg">
-                <Sparkles className="w-8 h-8 text-white" />
+                <Send className="w-8 h-8 text-white" />
               </div>
             </div>
             <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Your Approved Posts</HeadlineLarge>
@@ -248,7 +248,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
                 onClick={() => window.location.href = '/publish'}
                 className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
               >
-                <Sparkles className="w-5 h-5" />
+                <Send className="w-5 h-5" />
                 Open Publish Portal
               </Button>
               <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
