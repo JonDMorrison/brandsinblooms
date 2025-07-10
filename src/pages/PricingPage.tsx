@@ -11,6 +11,8 @@ import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { AddOnsSection } from "@/components/pricing/AddOnsSection";
 import { FAQSection } from "@/components/pricing/FAQSection";
 import { FinalCTA } from "@/components/pricing/FinalCTA";
+import { SidebarLayout } from "@/components/SidebarLayout";
+import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 
 const PricingPage = () => {
   const navigate = useNavigate();
@@ -124,7 +126,7 @@ const PricingPage = () => {
     }
   }, [navigate]);
 
-  return (
+  const pricingContent = (
     <div className="min-h-screen bg-garden-background">
       <PricingHero 
         subscription={subscription}
@@ -155,6 +157,20 @@ const PricingPage = () => {
         subscription={subscription}
         onStartTrial={handleStartTrial}
       />
+    </div>
+  );
+
+  if (user) {
+    return <SidebarLayout>{pricingContent}</SidebarLayout>;
+  }
+
+  return (
+    <div className="min-h-screen bg-garden-background">
+      <LandingPageHeader 
+        onLogin={() => navigate('/auth')}
+        showUserMenu={true}
+      />
+      {pricingContent}
     </div>
   );
 };
