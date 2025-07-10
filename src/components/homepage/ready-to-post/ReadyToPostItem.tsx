@@ -25,7 +25,12 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
     else onClick(task); // Fallback to regular click if onEdit not provided
   };
 
+  const getTaskImageUrl = (task: any) => {
+    return task.attachments?.[0]?.url || task.image_url || null;
+  };
+
   const PostIcon = getPostTypeIcon(task.post_type);
+  const imageUrl = getTaskImageUrl(task);
 
   return (
     <div
@@ -99,9 +104,9 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
 
         {/* Right column - Image (1/3 width) */}
         <div className="md:col-span-1">
-          {task.attachments?.[0]?.url ? (
+          {imageUrl ? (
             <img 
-              src={task.attachments[0].url} 
+              src={imageUrl} 
               alt="Content image"
               className="w-full h-20 object-cover rounded-lg"
             />

@@ -26,8 +26,16 @@ export const SimpleReadyToPostCard = ({ task, onClick }: SimpleReadyToPostCardPr
     return firstLine.length > 60 ? `${firstLine.substring(0, 60)}...` : firstLine;
   };
 
-  // Get thumbnail image
+  // Get task image from attachments or image_url
+  const getTaskImageUrl = (task: any) => {
+    return task.attachments?.[0]?.url || task.image_url || null;
+  };
+
+  // Get thumbnail image (fallback to image suggestions)
   const getThumbnailImage = () => {
+    const taskImage = getTaskImageUrl(task);
+    if (taskImage) return taskImage;
+    
     if (task.image_suggestions && task.image_suggestions.length > 0) {
       return task.image_suggestions[0].urls?.small || task.image_suggestions[0].urls?.regular;
     }

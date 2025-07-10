@@ -30,6 +30,10 @@ export const ReadyToPublishSection = ({
     }
   };
 
+  const getTaskImageUrl = (task: any) => {
+    return task.attachments?.[0]?.url || task.image_url || null;
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -93,9 +97,9 @@ export const ReadyToPublishSection = ({
 
                   {/* Right column - Image (1/3 width) */}
                   <div className="md:col-span-1">
-                    {task.attachments?.[0]?.url ? (
+                    {getTaskImageUrl(task) ? (
                       <img 
-                        src={task.attachments[0].url} 
+                        src={getTaskImageUrl(task)} 
                         alt="Content image"
                         className="w-full h-16 object-cover rounded-lg"
                       />
