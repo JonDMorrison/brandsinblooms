@@ -13,6 +13,7 @@ interface MediaSelectorProps {
   selectedImageUrl?: string;
   contentContext?: string;
   className?: string;
+  compact?: boolean;
 }
 
 interface SelectedImageData {
@@ -26,7 +27,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   onImageSelect,
   selectedImageUrl,
   contentContext,
-  className
+  className,
+  compact = false
 }) => {
   const [activeTab, setActiveTab] = useState('find');
   const [searchQuery, setSearchQuery] = useState('');
@@ -179,93 +181,124 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   return (
     <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 p-1 mt-4 mb-0 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10">
-          <TabsTrigger value="find" className="rounded-lg font-medium text-sm flex items-center gap-1.5">
-            <Search className="w-4 h-4" />
-            Find a Free Image
+        <TabsList className={cn(
+          "grid w-full grid-cols-2 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10",
+          compact ? "p-0.5 mt-2 mb-0" : "p-1 mt-4 mb-0"
+        )}>
+          <TabsTrigger value="find" className={cn(
+            "rounded-lg font-medium flex items-center gap-1.5",
+            compact ? "text-xs px-2 py-1" : "text-sm"
+          )}>
+            <Search className={compact ? "w-3 h-3" : "w-4 h-4"} />
+            {compact ? "Find" : "Find a Free Image"}
           </TabsTrigger>
-          <TabsTrigger value="upload" className="rounded-lg font-medium text-sm flex items-center gap-1.5">
-            <Upload className="w-4 h-4" />
-            Upload Your Own
+          <TabsTrigger value="upload" className={cn(
+            "rounded-lg font-medium flex items-center gap-1.5",
+            compact ? "text-xs px-2 py-1" : "text-sm"
+          )}>
+            <Upload className={compact ? "w-3 h-3" : "w-4 h-4"} />
+            {compact ? "Upload" : "Upload Your Own"}
           </TabsTrigger>
         </TabsList>
 
-        <div className="p-4">
-          <TabsContent value="find" className="space-y-3 mt-0">
+        <div className={compact ? "p-2" : "p-4"}>
+          <TabsContent value="find" className={cn("mt-0", compact ? "space-y-2" : "space-y-3")}>
             {/* Inline Search Bar */}
             <div className="flex gap-2">
               <div className="relative group flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-tertiary group-focus-within:text-primary w-4 h-4 transition-colors duration-200" />
+                <Search className={cn(
+                  "absolute left-3 top-1/2 transform -translate-y-1/2 text-text-tertiary group-focus-within:text-primary transition-colors duration-200",
+                  compact ? "w-3 h-3" : "w-4 h-4"
+                )} />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder="Search for beautiful images..."
-                  className="pl-10 h-10 rounded-lg border-2 border-primary/20 bg-surface-primary/50 backdrop-blur-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:bg-surface-primary focus:shadow-lg focus:shadow-primary/10 transition-all duration-200"
+                  placeholder={compact ? "Search images..." : "Search for beautiful images..."}
+                  className={cn(
+                    "rounded-lg border-2 border-primary/20 bg-surface-primary/50 backdrop-blur-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:bg-surface-primary focus:shadow-lg focus:shadow-primary/10 transition-all duration-200",
+                    compact ? "pl-8 h-8 text-sm" : "pl-10 h-10"
+                  )}
                 />
               </div>
               <Button 
                 onClick={() => handleSearch()}
                 disabled={isSearching || !searchQuery.trim()}
                 size="icon"
-                className="h-10 w-10 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                className={cn(
+                  "bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300",
+                  compact ? "h-8 w-8" : "h-10 w-10"
+                )}
               >
-                <Search className="w-4 h-4" />
+                <Search className={compact ? "w-3 h-3" : "w-4 h-4"} />
               </Button>
             </div>
 
             {/* Image Grid */}
             {searchResults.length > 0 && (
-              <div className="space-y-4 p-4 bg-surface-primary/30 rounded-xl border border-primary/10">
-                {/* Featured Large Image */}
-                <div 
-                  className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
-                  onClick={() => handleImageSelect(searchResults[0])}
-                >
-                  <img 
-                    src={searchResults[0].thumb} 
-                    alt={searchResults[0].alt}
-                    className="w-full h-64 object-cover transition-all duration-300 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                    <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
-                      <Check className="w-5 h-5 text-white" />
+              <div className={cn(
+                "bg-surface-primary/30 rounded-xl border border-primary/10",
+                compact ? "space-y-2 p-2" : "space-y-4 p-4"
+              )}>
+                {!compact && (
+                  /* Featured Large Image - only show in non-compact mode */
+                  <div 
+                    className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
+                    onClick={() => handleImageSelect(searchResults[0])}
+                  >
+                    <img 
+                      src={searchResults[0].thumb} 
+                      alt={searchResults[0].alt}
+                      className="w-full h-64 object-cover transition-all duration-300 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                      <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
+                        <Check className="w-5 h-5 text-white" />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Thumbnail Grid */}
-                {searchResults.length > 1 && (
-                  <div className="grid grid-cols-3 gap-3">
-                    {searchResults.slice(1, 4).map((image, index) => (
-                      <div 
-                        key={image.unsplash_id || index}
-                        className="relative cursor-pointer group rounded-lg overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
-                        onClick={() => handleImageSelect(image)}
-                      >
-                        <img 
-                          src={image.thumb} 
-                          alt={image.alt}
-                          className="w-full h-24 object-cover transition-all duration-300 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                          <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
-                            <Check className="w-4 h-4 text-white" />
-                          </div>
+                <div className={cn(
+                  "grid gap-2",
+                  compact ? "grid-cols-2" : "grid-cols-3"
+                )}>
+                  {(compact ? searchResults.slice(0, 4) : searchResults.slice(1, 4)).map((image, index) => (
+                    <div 
+                      key={image.unsplash_id || index}
+                      className="relative cursor-pointer group rounded-lg overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
+                      onClick={() => handleImageSelect(image)}
+                    >
+                      <img 
+                        src={image.thumb} 
+                        alt={image.alt}
+                        className={cn(
+                          "w-full object-cover transition-all duration-300 group-hover:scale-105",
+                          compact ? "h-16" : "h-24"
+                        )}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
+                        <div className={cn(
+                          "absolute bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25",
+                          compact ? "top-1 right-1 w-5 h-5" : "top-2 right-2 w-6 h-6"
+                        )}>
+                          <Check className={compact ? "w-3 h-3 text-white" : "w-4 h-4 text-white"} />
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </TabsContent>
 
-          <TabsContent value="upload" className="mt-0 space-y-3">
+          <TabsContent value="upload" className={cn("mt-0", compact ? "space-y-2" : "space-y-3")}>
             {/* Drag & Drop Zone */}
             <div 
               className={cn(
-                "border-2 border-dashed rounded-xl p-6 text-center transition-all duration-300 backdrop-blur-sm",
+                "border-2 border-dashed rounded-xl text-center transition-all duration-300 backdrop-blur-sm",
+                compact ? "p-3" : "p-6",
                 dragActive 
                   ? "border-brand-teal bg-gradient-to-br from-brand-teal/10 to-brand-teal/5 shadow-lg shadow-brand-teal/10" 
                   : "border-primary/30 bg-surface-primary/30 hover:border-brand-teal/50 hover:bg-surface-primary/50"
@@ -275,19 +308,29 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               onDragLeave={handleDragLeave}
             >
               <Upload className={cn(
-                "w-12 h-12 mx-auto mb-4 transition-colors duration-300",
+                "mx-auto transition-colors duration-300",
+                compact ? "w-6 h-6 mb-2" : "w-12 h-12 mb-4",
                 dragActive ? "text-brand-teal" : "text-text-tertiary"
               )} />
-              <h3 className="text-base font-semibold text-text-primary mb-1">
+              <h3 className={cn(
+                "font-semibold text-text-primary",
+                compact ? "text-sm mb-1" : "text-base mb-1"
+              )}>
                 {dragActive ? "Drop your image here" : "Upload your image"}
               </h3>
-              <p className="text-text-secondary text-sm mb-4">
-                {dragActive ? "Release to upload" : "Drag & drop your image here, or click to browse"}
+              <p className={cn(
+                "text-text-secondary",
+                compact ? "text-xs mb-2" : "text-sm mb-4"
+              )}>
+                {dragActive ? "Release to upload" : (compact ? "Drag & drop or click to browse" : "Drag & drop your image here, or click to browse")}
               </p>
               <Button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="h-10 px-6 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-medium rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                className={cn(
+                  "bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-medium rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300",
+                  compact ? "h-8 px-4 text-sm" : "h-10 px-6"
+                )}
               >
                 {isUploading ? 'Uploading...' : 'Choose File'}
               </Button>
@@ -298,9 +341,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
                 className="hidden"
               />
-              <p className="text-text-tertiary text-xs mt-4">
-                Supports PNG, JPG, GIF up to 10MB
-              </p>
+              {!compact && (
+                <p className="text-text-tertiary text-xs mt-4">
+                  Supports PNG, JPG, GIF up to 10MB
+                </p>
+              )}
             </div>
           </TabsContent>
         </div>
@@ -308,45 +353,65 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
       {/* Selected Image Panel */}
       {selectedImage && (
-        <div className="border-t border-primary/10 p-4 bg-gradient-to-r from-brand-teal/5 via-surface-primary to-brand-teal/5 backdrop-blur-sm rounded-b-2xl">
-          <h3 className="text-base font-semibold text-text-primary mb-3 flex items-center gap-2">
-            <Check className="w-4 h-4 text-brand-teal" />
+        <div className={cn(
+          "border-t border-primary/10 bg-gradient-to-r from-brand-teal/5 via-surface-primary to-brand-teal/5 backdrop-blur-sm rounded-b-2xl",
+          compact ? "p-2" : "p-4"
+        )}>
+          <h3 className={cn(
+            "font-semibold text-text-primary flex items-center gap-2",
+            compact ? "text-sm mb-2" : "text-base mb-3"
+          )}>
+            <Check className={compact ? "w-3 h-3 text-brand-teal" : "w-4 h-4 text-brand-teal"} />
             Selected Image
           </h3>
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className={cn(
+            "flex gap-3",
+            compact ? "flex-col" : "flex-col sm:flex-row gap-4"
+          )}>
             {/* Thumbnail */}
             <div className="flex-shrink-0">
               <img 
                 src={selectedImage.url} 
                 alt="Selected" 
-                className="w-16 h-16 object-cover rounded-lg border-2 border-brand-teal/30 shadow-lg shadow-brand-teal/10"
+                className={cn(
+                  "object-cover rounded-lg border-2 border-brand-teal/30 shadow-lg shadow-brand-teal/10",
+                  compact ? "w-12 h-12" : "w-16 h-16"
+                )}
               />
             </div>
             
             {/* Info & Actions */}
-            <div className="flex-1 space-y-3">
-              <p className="text-text-secondary text-sm font-medium">
+            <div className={cn("flex-1", compact ? "space-y-2" : "space-y-3")}>
+              <p className={cn(
+                "text-text-secondary font-medium",
+                compact ? "text-xs" : "text-sm"
+              )}>
                 {selectedImage.source === 'unsplash' 
                   ? `Photo by ${selectedImage.photographer} on Unsplash`
                   : 'Your uploaded image'
                 }
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className={compact ? "space-y-1" : "flex flex-col sm:flex-row gap-2"}>
                 <Button 
                   onClick={handleUseImage}
-                  className="h-10 bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-medium rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 transition-all duration-300 flex-1"
+                  className={cn(
+                    "bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-medium rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 transition-all duration-300",
+                    compact ? "h-8 w-full text-sm" : "h-10 flex-1"
+                  )}
                 >
                   Use This Image
                 </Button>
-                <Button 
-                  variant="outline"
-                  onClick={handleEditInCanva}
-                  className="h-10 border-2 border-brand-teal/30 bg-surface-primary/50 backdrop-blur-sm hover:bg-brand-teal/10 hover:border-brand-teal/50 text-text-primary font-medium rounded-lg transition-all duration-300 flex-1"
-                >
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  Edit in Canva
-                </Button>
+                {!compact && (
+                  <Button 
+                    variant="outline"
+                    onClick={handleEditInCanva}
+                    className="h-10 border-2 border-brand-teal/30 bg-surface-primary/50 backdrop-blur-sm hover:bg-brand-teal/10 hover:border-brand-teal/50 text-text-primary font-medium rounded-lg transition-all duration-300 flex-1"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Edit in Canva
+                  </Button>
+                )}
               </div>
             </div>
           </div>

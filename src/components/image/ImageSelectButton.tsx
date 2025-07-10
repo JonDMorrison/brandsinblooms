@@ -11,6 +11,7 @@ interface ImageSelectButtonProps {
   className?: string;
   buttonText?: string;
   mode?: "modal" | "inline";
+  compact?: boolean;
 }
 
 export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
@@ -19,7 +20,8 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
   contentContext,
   className,
   buttonText = "Select an Image",
-  mode = "modal"
+  mode = "modal",
+  compact = false
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -58,6 +60,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
           selectedImageUrl={selectedImageUrl}
           contentContext={contentContext}
           className="w-full"
+          compact={compact}
         />
       </div>
     );
