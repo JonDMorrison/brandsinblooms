@@ -102,7 +102,7 @@ export const PricingPlans = ({
           {/* Bloom Plan */}
           <Card className="relative group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 rounded-2xl overflow-hidden border-2 border-brand-teal-mint/30 bg-gradient-to-br from-white/80 to-brand-teal-mint/5 backdrop-blur-sm">
             {/* Most Popular Badge */}
-            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 z-10">
               <Badge className="bg-gradient-to-r from-brand-steel-blue to-brand-teal-mint text-white px-6 py-2 rounded-full shadow-2xl border border-white/30 backdrop-blur-sm flex items-center gap-2">
                 <Star className="h-4 w-4" />
                 Most Popular
