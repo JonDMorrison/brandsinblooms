@@ -8,7 +8,7 @@ interface PricingHeroProps {
 
 export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) => {
   return (
-    <section className="relative py-24 px-6 text-center overflow-hidden bg-gradient-to-br from-white via-brand-teal-mint/20 to-brand-steel-blue/15">
+    <section className="relative py-12 md:py-16 px-6 text-center overflow-hidden bg-gradient-to-br from-white via-brand-teal-mint/20 to-brand-steel-blue/15">
       {/* Bright Background Elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-brand-teal-mint/40 to-primary/30 rounded-full blur-3xl animate-pulse"></div>
@@ -22,12 +22,12 @@ export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) =>
       <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
       
       <div className="relative max-w-4xl mx-auto">
-        <div className="bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl p-12 shadow-2xl shadow-brand-teal-mint/10">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight bg-gradient-to-r from-brand-steel-blue via-text-primary to-brand-steel-blue bg-clip-text text-transparent">
+        <div className="bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl p-6 md:p-8 shadow-2xl shadow-brand-teal-mint/10">
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-4 leading-tight bg-gradient-to-r from-brand-steel-blue via-text-primary to-brand-steel-blue bg-clip-text text-transparent">
             Simple Pricing for Growing Garden Centers
           </h1>
           
-          <p className="text-xl md:text-2xl text-text-secondary mb-10 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg md:text-xl lg:text-2xl text-text-secondary mb-6 md:mb-8 max-w-3xl mx-auto leading-relaxed">
             Whether you're just getting started or managing a full retail team, we've got a plan to fit your season.
           </p>
           
@@ -35,7 +35,7 @@ export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) =>
             <div className="relative group">
               <Button 
                 onClick={onStartTrial}
-                className="bg-gradient-to-r from-brand-teal-mint via-brand-teal-mint to-brand-steel-blue hover:from-brand-steel-blue hover:to-brand-teal-mint text-white px-12 py-4 text-xl rounded-2xl shadow-2xl hover:shadow-brand-teal-mint/25 transition-all duration-300 hover:scale-105 border border-white/20"
+                className="bg-gradient-to-r from-brand-teal-mint via-brand-teal-mint to-brand-steel-blue hover:from-brand-steel-blue hover:to-brand-teal-mint text-white px-8 py-3 text-lg rounded-2xl shadow-2xl hover:shadow-brand-teal-mint/25 transition-all duration-300 hover:scale-105 border border-white/20"
               >
                 Start Free Trial
               </Button>
