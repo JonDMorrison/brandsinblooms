@@ -51,6 +51,10 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
   const [isDeleting, setIsDeleting] = useState(false);
   const isMobile = useIsMobile();
 
+  const getTaskImageUrl = (task: any) => {
+    return task.attachments?.[0]?.url || task.image_url || null;
+  };
+
   const PostIcon = getPostTypeIcon(task.post_type);
   const postLabel = getPostTypeLabel(task.post_type);
   const colorClass = getPostTypeColor(task.post_type);
@@ -271,9 +275,9 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
 
                 {/* Right column - Image (1/3 width) */}
                 <div className="md:col-span-1">
-                  {task.attachments?.[0]?.url && (
+                  {getTaskImageUrl(task) && (
                     <ImageEditOverlay
-                      imageUrl={task.attachments[0].url}
+                      imageUrl={getTaskImageUrl(task)}
                       onImageSelect={async (imageUrl, metadata) => {
                         // Update image and set status to review if approved
                         const shouldRequireReApproval = task.status === 'approved';
@@ -288,7 +292,8 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                               source: metadata?.source || 'unknown',
                               unsplash_id: metadata?.unsplash_id
                             }
-                          ]
+                          ],
+                          image_url: imageUrl // Also update legacy field for backwards compatibility
                         };
 
                         if (shouldRequireReApproval) {
