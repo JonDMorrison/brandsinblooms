@@ -253,9 +253,6 @@ export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
                             <Check className="w-4 h-4 text-white" />
                           </div>
                         </div>
-                        <div className="absolute bottom-1.5 left-1.5 bg-gradient-to-r from-black/80 to-transparent backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md font-medium">
-                          by {image.photographer}
-                        </div>
                       </div>
                     ))}
                   </div>
