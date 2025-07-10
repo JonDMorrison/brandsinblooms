@@ -16,25 +16,36 @@ export const AddOnsSection = () => {
   ];
 
   return (
-    <section className="py-12 px-6">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-2xl font-semibold text-center mb-12 text-garden-green-dark">
-          Add-Ons
-        </h2>
+    <section className="relative py-12 px-6 overflow-hidden">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-10 left-10 w-64 h-64 bg-gradient-to-br from-brand-steel-blue/10 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 right-10 w-80 h-80 bg-gradient-to-br from-brand-teal-mint/10 to-transparent rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="relative max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-brand-teal-mint via-brand-steel-blue to-brand-teal-mint bg-clip-text text-transparent">
+            Add-Ons
+          </h2>
+        </div>
         
         <div className="grid md:grid-cols-2 gap-6">
           {addOns.map((addOn, index) => (
-            <Card key={index} className="p-6 hover:shadow-lg transition-all duration-300 rounded-2xl">
-              <CardContent className="pt-2">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-semibold text-garden-green-dark">
+            <Card key={index} className="group relative hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 rounded-2xl overflow-hidden border border-white/20 bg-white/60 backdrop-blur-sm">
+              {/* Decorative background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-brand-teal-mint/5 to-brand-steel-blue/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              
+              <CardContent className="relative p-6 pt-6">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-bold text-text-primary bg-gradient-to-r from-brand-steel-blue to-brand-teal-mint bg-clip-text text-transparent">
                     {addOn.name}
                   </h3>
-                  <span className="text-xl font-bold text-garden-green">
+                  <span className="text-2xl font-bold bg-gradient-to-r from-brand-teal-mint to-brand-steel-blue bg-clip-text text-transparent bg-white/50 backdrop-blur-sm rounded-lg px-3 py-1 border border-white/30">
                     {addOn.price}
                   </span>
                 </div>
-                <p className="text-gray-600">{addOn.description}</p>
+                <p className="text-text-secondary leading-relaxed">{addOn.description}</p>
               </CardContent>
             </Card>
           ))}

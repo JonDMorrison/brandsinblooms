@@ -26,24 +26,38 @@ export const FAQSection = () => {
   ];
 
   return (
-    <section className="py-12 px-6 bg-white/60">
-      <div className="max-w-4xl mx-auto">
-        <h2 className="text-2xl font-semibold text-center mb-12 text-garden-green-dark">
-          Frequently Asked Questions
-        </h2>
+    <section className="relative py-12 px-6 overflow-hidden bg-gradient-to-br from-brand-steel-blue/5 via-surface-primary to-brand-teal-mint/10">
+      {/* Background decorative elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-br from-brand-teal-mint/5 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute bottom-20 right-20 w-72 h-72 bg-gradient-to-br from-brand-steel-blue/10 to-transparent rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="relative max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl font-bold bg-gradient-to-r from-brand-steel-blue via-brand-teal-mint to-brand-steel-blue bg-clip-text text-transparent">
+            Frequently Asked Questions
+          </h2>
+        </div>
         
-        <Accordion type="single" collapsible className="space-y-4">
-          {faqs.map((faq, index) => (
-            <AccordionItem key={index} value={`item-${index}`} className="border border-gray-200 rounded-xl px-6">
-              <AccordionTrigger className="text-left text-garden-green-dark hover:no-underline">
-                {faq.question}
-              </AccordionTrigger>
-              <AccordionContent className="text-gray-600 pb-4">
-                {faq.answer}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+        <div className="bg-white/40 backdrop-blur-sm border border-white/30 rounded-2xl p-8 shadow-2xl">
+          <Accordion type="single" collapsible className="space-y-4">
+            {faqs.map((faq, index) => (
+              <AccordionItem 
+                key={index} 
+                value={`item-${index}`} 
+                className="border border-white/30 rounded-xl bg-white/60 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 px-6"
+              >
+                <AccordionTrigger className="text-left text-text-primary hover:no-underline font-semibold bg-gradient-to-r from-brand-steel-blue to-text-primary bg-clip-text text-transparent">
+                  {faq.question}
+                </AccordionTrigger>
+                <AccordionContent className="text-text-secondary pb-4 leading-relaxed">
+                  {faq.answer}
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+        </div>
       </div>
     </section>
   );
