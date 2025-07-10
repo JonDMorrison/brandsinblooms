@@ -8,7 +8,7 @@ import { getUnsplashImage, extractImageKeyword, UnsplashImageResult } from '@/li
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-interface UnifiedImageSelectorProps {
+interface MediaSelectorProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
   selectedImageUrl?: string;
   contentContext?: string;
@@ -22,7 +22,7 @@ interface SelectedImageData {
   unsplash_id?: string;
 }
 
-export const UnifiedImageSelector: React.FC<UnifiedImageSelectorProps> = ({
+export const MediaSelector: React.FC<MediaSelectorProps> = ({
   onImageSelect,
   selectedImageUrl,
   contentContext,
