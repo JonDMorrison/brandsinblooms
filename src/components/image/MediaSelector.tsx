@@ -2,7 +2,8 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Upload, Check, ExternalLink } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Search, Upload, Check, ExternalLink, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getUnsplashImage, extractImageKeyword, UnsplashImageResult } from '@/lib/api/unsplash';
 import { toast } from 'sonner';
@@ -185,12 +186,32 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     return (
       <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
         <div className={compact ? "p-2 h-full" : "p-4 h-full"}>
-          <img 
-            src={finalizedImageUrl} 
-            alt="Selected image" 
-            className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => setFinalizedImageUrl(null)}
-          />
+          <div className="relative group">
+            <img 
+              src={finalizedImageUrl} 
+              alt="Selected image" 
+              className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => setFinalizedImageUrl(null)}
+            />
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div 
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
+                    onClick={() => setFinalizedImageUrl(null)}
+                  >
+                    <div className="bg-white/95 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full p-2.5 shadow-xl border border-gray-200/50 transition-all duration-200 hover:scale-110 hover:shadow-2xl backdrop-blur-sm">
+                      <Edit2 className="w-4 h-4" />
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Choose A New Image</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <p className={cn(
             "text-text-tertiary text-center mt-2",
             compact ? "text-xs" : "text-sm"
