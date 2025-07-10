@@ -19,7 +19,7 @@ export const PricingHero = ({ subscription, onStartTrial }: PricingHeroProps) =>
       </div>
 
       {/* Light overlay for depth */}
-      <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+      <div className="absolute inset-0 backdrop-blur-sm"></div>
       
       <div className="relative max-w-4xl mx-auto">
         <div className="bg-white/60 backdrop-blur-md border border-white/50 rounded-2xl p-6 md:p-8 shadow-2xl shadow-brand-teal-mint/10">
