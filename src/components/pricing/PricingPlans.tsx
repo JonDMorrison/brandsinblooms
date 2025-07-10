@@ -33,7 +33,6 @@ export const PricingPlans = ({
   const bloomFeatures = [
     "Everything in Sprout, plus:",
     "Multi-user access",
-    "Custom brand voice tuning",
     "Priority support",
     "Annual event reminders",
     "Post Directly to Social",
