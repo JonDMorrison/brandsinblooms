@@ -238,6 +238,7 @@ export const SocialMediaPostPreview = ({ content, postType, className, contentTa
           <div className="p-4">
             {contentTaskId ? (
               <ImageSelectButton
+                mode="inline"
                 onImageSelect={async (imageUrl, metadata) => {
                   console.log('Image updated in preview:', imageUrl, metadata);
                   // Handle image selection logic here
