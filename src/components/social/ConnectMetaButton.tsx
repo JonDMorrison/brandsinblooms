@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Facebook, Instagram } from 'lucide-react';
+import { Facebook, Instagram, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchOAuthConfig } from '@/lib/api/oauth';
 import { OAuthLoadingOverlay } from './OAuthLoadingOverlay';
 import { showConnectionSuccessToast } from './ConnectionSuccessToast';
 import { AgeVerificationModal } from './AgeVerificationModal';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
@@ -19,9 +20,31 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   const [unavailable, setUnavailable] = useState(false);
   const [showAgeModal, setShowAgeModal] = useState(false);
   const [ageError, setAgeError] = useState(false);
+  const [isMetaConnected, setIsMetaConnected] = useState(false);
   const { user } = useAuth();
 
-  // Check for success callback
+  // Check Meta connection status
+  const fetchMetaConnectionStatus = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('social_connections')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .in('platform', ['facebook', 'instagram']);
+
+      if (error) throw error;
+      
+      setIsMetaConnected((data && data.length > 0) || false);
+    } catch (error) {
+      console.error('Error fetching Meta connection status:', error);
+      setIsMetaConnected(false);
+    }
+  };
+
+  // Check for success callback and fetch connection status
   useEffect(() => {
     const successData = sessionStorage.getItem('social_connection_success');
     if (successData) {
@@ -37,11 +60,20 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
         console.error('Error processing success data:', error);
       }
     }
-  }, [onSuccess]);
+    
+    // Fetch initial connection status
+    fetchMetaConnectionStatus();
+  }, [onSuccess, user]);
 
   const handleConnect = async () => {
     if (!user) {
       toast.error('Please log in to connect your social media accounts');
+      return;
+    }
+
+    // If already connected, just show a message
+    if (isMetaConnected) {
+      toast.info('Meta accounts are already connected');
       return;
     }
 
@@ -118,6 +150,10 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       toast.error('Failed to initiate connection. Please try again.');
       setUnavailable(true);
       setLoading(false);
+      // Refresh connection status after OAuth attempt
+      setTimeout(() => {
+        fetchMetaConnectionStatus();
+      }, 1000);
     }
   };
 
@@ -160,8 +196,14 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
         <Button
           onClick={handleConnect} 
           disabled={loading || !user}
-          className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white px-8 w-full shadow-2xl hover:shadow-blue-500/25 backdrop-blur-sm border border-white/20 transition-all duration-500 hover:scale-105 group"
+          className={`relative overflow-hidden px-8 w-full shadow-2xl backdrop-blur-sm border border-white/20 transition-all duration-500 group ${
+            isMetaConnected 
+              ? 'bg-gradient-to-br from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-600 hover:via-green-600 hover:to-emerald-700 cursor-default opacity-90' 
+              : 'bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 hover:scale-105 hover:shadow-blue-500/25'
+          } text-white`}
           size="lg"
+          aria-label={isMetaConnected ? "Meta Connected" : "Connect Meta"}
+          aria-describedby={isMetaConnected ? "meta-connected-tooltip" : undefined}
         >
           {/* Glassmorphism overlay */}
           <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-lg transition-opacity duration-300 group-hover:bg-white/20"></div>
@@ -177,10 +219,29 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
             <span className="font-semibold text-white ml-2 transition-all duration-300 group-hover:text-white/90">
               {loading ? 'Connecting...' : 'Connect Meta'}
             </span>
+            
+            {/* Connected Checkmark */}
+            {isMetaConnected && (
+              <div 
+                className="ml-2 p-1 bg-white/20 rounded-full backdrop-blur-sm relative group"
+                title="Meta Connected"
+              >
+                <CheckCircle 
+                  className="h-4 w-4 text-white" 
+                  aria-label="Meta Connected"
+                />
+                {/* Simple hover tooltip */}
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                  Meta Connected
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Animated gradient overlay on hover */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"></div>
+          {!isMetaConnected && (
+            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"></div>
+          )}
         </Button>
       </div>
     </>

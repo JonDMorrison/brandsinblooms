@@ -189,7 +189,7 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                 </p>
                 
                 {/* Privacy Policy Notice */}
-                <div className="mb-8 p-4 bg-white/20 backdrop-blur-sm rounded-2xl border border-white/30 shadow-lg">
+                <div className="mb-8 p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-lg">
                   <p className="text-xs text-slate-500 text-center leading-relaxed">
                     By connecting, you agree to our <a 
                       href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
