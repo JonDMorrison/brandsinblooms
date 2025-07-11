@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchOAuthConfig } from '@/lib/api/oauth';
 import { OAuthLoadingOverlay } from './OAuthLoadingOverlay';
 import { showConnectionSuccessToast } from './ConnectionSuccessToast';
+import { AgeVerificationModal } from './AgeVerificationModal';
 
 interface ConnectMetaButtonProps {
   onSuccess: () => void;
@@ -16,6 +17,8 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting'>('preparing');
   const [unavailable, setUnavailable] = useState(false);
+  const [showAgeModal, setShowAgeModal] = useState(false);
+  const [ageError, setAgeError] = useState(false);
   const { user } = useAuth();
 
   // Check for success callback
@@ -42,6 +45,13 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       return;
     }
 
+    // Clear any previous age error and show age verification modal
+    setAgeError(false);
+    setShowAgeModal(true);
+  };
+
+  const handleAgeConfirm = async () => {
+    setShowAgeModal(false);
     setLoading(true);
     setLoadingStep('preparing');
     
@@ -111,6 +121,15 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     }
   };
 
+  const handleAgeDeny = () => {
+    setShowAgeModal(false);
+    setAgeError(true);
+  };
+
+  const handleAgeModalClose = () => {
+    setShowAgeModal(false);
+  };
+
   if (unavailable) {
     return (
       <div className="w-full p-4 rounded-lg bg-background/50 border border-border/50">
@@ -123,9 +142,22 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
   return (
     <>
+      <AgeVerificationModal
+        isOpen={showAgeModal}
+        onConfirm={handleAgeConfirm}
+        onDeny={handleAgeDeny}
+        onClose={handleAgeModalClose}
+      />
       <OAuthLoadingOverlay isVisible={loading} step={loadingStep} />
-      <div className="space-y-3">        
-        <Button 
+      <div className="space-y-3">
+        {ageError && (
+          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+            <p className="text-sm text-destructive text-center">
+              Sorry, you must be at least 13 years old to connect your Meta account.
+            </p>
+          </div>
+        )}
+        <Button
           onClick={handleConnect} 
           disabled={loading || !user}
           className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 text-white px-8 w-full shadow-2xl hover:shadow-blue-500/25 backdrop-blur-sm border border-white/20 transition-all duration-500 hover:scale-105 group"
