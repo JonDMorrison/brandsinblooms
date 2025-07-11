@@ -15,7 +15,7 @@ export const AgeAndTermsVerification: React.FC<AgeAndTermsVerificationProps> = (
 }) => {
   return (
     <div className={`space-y-4 ${className}`}>
-      <div className="flex items-start space-x-3 p-4 bg-background/50 backdrop-blur-sm rounded-lg border border-border/50">
+      <div className="flex items-start space-x-3 p-4 bg-background/50 backdrop-blur-sm rounded-lg">
         <Checkbox
           id="age-terms-verification"
           checked={isChecked}
