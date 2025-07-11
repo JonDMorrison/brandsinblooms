@@ -18,8 +18,8 @@ export const OAuthLoadingOverlay: React.FC<OAuthLoadingOverlayProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-background border border-border rounded-lg p-6 md:p-8 max-w-sm w-full mx-4 shadow-lg">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="!bg-white border border-gray-200 rounded-lg p-6 md:p-8 max-w-sm w-full mx-4 shadow-lg">
         <div className="text-center space-y-4">
           {/* Meta Branding */}
           <div className="flex justify-center items-center space-x-2">
@@ -38,8 +38,8 @@ export const OAuthLoadingOverlay: React.FC<OAuthLoadingOverlayProps> = ({
           
           {/* Step Message */}
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">Connecting to Meta</h3>
-            <p className="text-muted-foreground">{stepMessages[step]}</p>
+            <h3 className="font-semibold text-lg text-gray-900">Connecting to Meta</h3>
+            <p className="text-gray-600">{stepMessages[step]}</p>
           </div>
           
           {/* Progress Steps */}
@@ -48,7 +48,7 @@ export const OAuthLoadingOverlay: React.FC<OAuthLoadingOverlayProps> = ({
             <div className={`w-2 h-2 rounded-full ${step === 'redirecting' ? 'bg-primary' : 'bg-muted'}`} />
           </div>
           
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-gray-500">
             You'll be redirected to Meta to authorize the connection
           </p>
         </div>

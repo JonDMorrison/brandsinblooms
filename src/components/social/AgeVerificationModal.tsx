@@ -25,10 +25,10 @@ export const AgeVerificationModal: React.FC<AgeVerificationModalProps> = ({
 }) => {
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="sm:max-w-md bg-white dark:bg-white text-foreground dark:text-gray-900">
+      <AlertDialogContent className="sm:max-w-md !bg-white text-gray-900 border border-gray-200">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-center">Age Verification</AlertDialogTitle>
-          <AlertDialogDescription className="text-center text-base">
+          <AlertDialogTitle className="text-center text-gray-900">Age Verification</AlertDialogTitle>
+          <AlertDialogDescription className="text-center text-base text-gray-700">
             Are you 13 years old or older?
           </AlertDialogDescription>
         </AlertDialogHeader>
