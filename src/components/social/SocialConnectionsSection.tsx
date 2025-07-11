@@ -188,22 +188,6 @@ export const SocialConnectionsSection: React.FC<SocialConnectionsSectionProps> =
                   One click connects both your Facebook page and Instagram business account.
                 </p>
                 
-                {/* Privacy Policy Notice */}
-                <div className="mb-8 p-4 bg-white/20 backdrop-blur-sm rounded-2xl shadow-lg">
-                  <p className="text-xs text-slate-500 text-center leading-relaxed">
-                    By connecting, you agree to our <a 
-                      href="https://brandsinblooms.com/pages/bloomsuite-privacy" 
-                      className="text-primary hover:text-primary/80 underline font-medium transition-colors duration-200"
-                    >
-                      Privacy Policy
-                    </a> and <a 
-                      href="https://brandsinblooms.com/pages/terms-of-service" 
-                      className="text-primary hover:text-primary/80 underline font-medium transition-colors duration-200"
-                    >
-                      Terms of Service
-                    </a>.
-                  </p>
-                </div>
                 
                 <ConnectMetaButton onSuccess={handleConnectionSuccess} />
               </CardContent>

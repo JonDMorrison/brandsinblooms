@@ -7,7 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchOAuthConfig } from '@/lib/api/oauth';
 import { OAuthLoadingOverlay } from './OAuthLoadingOverlay';
 import { showConnectionSuccessToast } from './ConnectionSuccessToast';
-import { AgeVerificationModal } from './AgeVerificationModal';
+import { AgeAndTermsVerification } from './AgeAndTermsVerification';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ConnectMetaButtonProps {
@@ -18,8 +18,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState<'preparing' | 'redirecting'>('preparing');
   const [unavailable, setUnavailable] = useState(false);
-  const [showAgeModal, setShowAgeModal] = useState(false);
-  const [ageError, setAgeError] = useState(false);
+  const [isAgeAndTermsVerified, setIsAgeAndTermsVerified] = useState(false);
   const [isMetaConnected, setIsMetaConnected] = useState(false);
   const { user } = useAuth();
 
@@ -77,13 +76,17 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       return;
     }
 
-    // Clear any previous age error and show age verification modal
-    setAgeError(false);
-    setShowAgeModal(true);
+    // Check age and terms verification
+    if (!isAgeAndTermsVerified) {
+      toast.error('Please confirm you are 13+ and agree to our terms before connecting');
+      return;
+    }
+
+    // Proceed with OAuth flow
+    await initiateOAuthFlow();
   };
 
-  const handleAgeConfirm = async () => {
-    setShowAgeModal(false);
+  const initiateOAuthFlow = async () => {
     setLoading(true);
     setLoadingStep('preparing');
     
@@ -157,14 +160,6 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
     }
   };
 
-  const handleAgeDeny = () => {
-    setShowAgeModal(false);
-    setAgeError(true);
-  };
-
-  const handleAgeModalClose = () => {
-    setShowAgeModal(false);
-  };
 
   if (unavailable) {
     return (
@@ -178,27 +173,20 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
   return (
     <>
-      <AgeVerificationModal
-        isOpen={showAgeModal}
-        onConfirm={handleAgeConfirm}
-        onDeny={handleAgeDeny}
-        onClose={handleAgeModalClose}
-      />
       <OAuthLoadingOverlay isVisible={loading} step={loadingStep} />
-      <div className="space-y-3">
-        {ageError && (
-          <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-            <p className="text-sm text-destructive text-center">
-              Sorry, you must be at least 13 years old to connect your Meta account.
-            </p>
-          </div>
-        )}
+      <div className="space-y-4">
+        <AgeAndTermsVerification
+          isChecked={isAgeAndTermsVerified}
+          onCheckedChange={setIsAgeAndTermsVerified}
+        />
         <Button
           onClick={handleConnect} 
-          disabled={loading || !user}
+          disabled={loading || !user || !isAgeAndTermsVerified}
           className={`relative overflow-hidden px-8 w-full shadow-2xl backdrop-blur-sm border border-white/20 transition-all duration-500 group ${
             isMetaConnected 
               ? 'bg-gradient-to-br from-emerald-500 via-green-500 to-emerald-600 hover:from-emerald-600 hover:via-green-600 hover:to-emerald-700 cursor-default opacity-90' 
+              : !isAgeAndTermsVerified
+              ? 'bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600 cursor-not-allowed opacity-50'
               : 'bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 hover:scale-105 hover:shadow-blue-500/25'
           } text-white`}
           size="lg"
@@ -217,7 +205,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
               <Instagram className="h-4 w-4 text-white" />
             </div>
             <span className="font-semibold text-white ml-2 transition-all duration-300 group-hover:text-white/90">
-              {loading ? 'Connecting...' : 'Connect Meta'}
+              {loading ? 'Connecting...' : !isAgeAndTermsVerified ? 'Verify Age & Terms' : 'Connect Meta'}
             </span>
             
             {/* Connected Checkmark */}
