@@ -130,7 +130,7 @@ export const generateCampaignContent = async (
   weekNumber?: number,
   tenantId?: string
 ): Promise<ContentGenerationResult> => {
-  console.log('🎯 Starting campaign content generation:', {
+  console.log('🚀 OPTIMIZED: Starting parallel campaign content generation:', {
     campaignId,
     campaignTheme,
     userId,
@@ -156,7 +156,7 @@ export const generateCampaignContent = async (
       throw new Error(`Failed to check existing content: ${checkError.message}`);
     }
 
-    if (existingTasks && existingTasks.length > 0) {
+    if (existingTasks && existingTasks.length >= 5) {
       console.log('✅ Content already exists for campaign:', existingTasks.length, 'tasks');
       return {
         success: true,
@@ -165,130 +165,37 @@ export const generateCampaignContent = async (
       };
     }
 
-    // Define content types to generate - prioritize reliable ones first
-    const contentTypes = [
-      'facebook',
-      'instagram', 
-      'blog',
-      'newsletter',
-      'video' // Keep video last as it seems to have issues
-    ];
-
-    console.log('🔄 Generating content for types:', contentTypes);
-
-    const generatedTasks = [];
-    const errors = [];
-
-    // Generate content for each type with individual error handling
-    for (const contentType of contentTypes) {
-      try {
-        console.log(`🎨 Generating ${contentType} content...`);
-
-        // Create the content task with 'planned' status first
-        const taskData = {
-          campaign_id: campaignId,
-          user_id: userId,
-          tenant_id: tenantId,
-          post_type: contentType,
-          status: TASK_STATUS.PLANNED,
-          scheduled_date: new Date().toISOString().split('T')[0]
-        };
-
-        const { data: newTask, error: taskError } = await supabase
-          .from('content_tasks')
-          .insert(taskData)
-          .select()
-          .single();
-
-        if (taskError) {
-          console.error(`❌ Error creating ${contentType} task:`, taskError);
-          errors.push(`Failed to create ${contentType} task: ${taskError.message}`);
-          continue;
-        }
-
-        console.log(`✅ Created ${contentType} task:`, newTask.id);
-
-        // Generate content with timeout to prevent hanging
-        const contentPromise = supabase.functions.invoke('generate-content', {
-          body: {
-            postType: contentType,
-            campaignTitle: campaignTheme,
-            userId: userId,
-            weekDescription: campaignDescription,
-            enforceCompanyName: true
-          }
-        });
-
-        // Add timeout to prevent infinite waiting - newsletter needs more time
-        const timeoutDuration = contentType === 'newsletter' ? 60000 : 30000; // 60s for newsletter, 30s for others
-        const timeoutPromise = new Promise<SupabaseFunctionResponse>((_, reject) => 
-          setTimeout(() => reject(new Error(`${contentType} generation timeout`)), timeoutDuration)
-        );
-
-        const result = await Promise.race([
-          contentPromise,
-          timeoutPromise
-        ]) as SupabaseFunctionResponse;
-
-        if (result.error) {
-          console.error(`❌ Error generating ${contentType} content:`, result.error);
-          errors.push(`Failed to generate ${contentType} content: ${result.error.message}`);
-          continue;
-        }
-
-        if (!result.data?.content) {
-          console.error(`❌ No content generated for ${contentType}`);
-          errors.push(`No content generated for ${contentType}`);
-          continue;
-        }
-
-        // Update the task with the generated content and set status to 'review'
-        const { error: updateError } = await supabase
-          .from('content_tasks')
-          .update({ 
-            ai_output: result.data.content,
-            status: TASK_STATUS.REVIEW // Set to REVIEW so it stays in custom campaigns for approval
-          })
-          .eq('id', newTask.id);
-
-        if (updateError) {
-          console.error(`❌ Error updating ${contentType} task:`, updateError);
-          errors.push(`Failed to update ${contentType} task: ${updateError.message}`);
-          continue;
-        }
-
-        console.log(`✅ Generated and saved ${contentType} content`);
-        generatedTasks.push({ ...newTask, ai_output: result.data.content, status: TASK_STATUS.REVIEW });
-
-      } catch (error) {
-        console.error(`❌ Error in ${contentType} generation:`, error);
-        errors.push(`${contentType}: ${error.message}`);
-        
-        // Continue with other content types even if this one fails
-        continue;
+    console.log('🚀 OPTIMIZED: Using parallel generation via generate_campaign_content function');
+    
+    // Use the optimized parallel generation function instead of sequential
+    const { data: result, error } = await supabase.functions.invoke('generate_campaign_content', {
+      body: {
+        campaign_id: campaignId,
+        campaign_title: campaignTheme,
+        description: campaignDescription,
+        user_id: userId,
+        week_number: weekNumber,
+        tenant_id: tenantId
       }
-    }
-
-    console.log('🏁 Content generation completed:', {
-      successful: generatedTasks.length,
-      failed: errors.length,
-      errors
     });
-
-    // Return success if we generated at least some content
-    if (generatedTasks.length > 0) {
-      // Add optimistic toast feedback
-      toast.success(`✅ Content generated — ${generatedTasks.length} drafts ready for review`);
-      
-      return {
-        success: true,
-        message: `Generated ${generatedTasks.length}/${contentTypes.length} content pieces${errors.length > 0 ? `. Issues with: ${errors.length} items` : ''}`,
-        tasks: generatedTasks
-      };
-    } else {
-      throw new Error(`Failed to generate any content. Errors: ${errors.join(', ')}`);
+    
+    if (error) {
+      console.error('❌ Optimized campaign generation error:', error);
+      throw new Error(`Failed to generate campaign content: ${error.message}`);
     }
-
+    
+    if (!result.success) {
+      throw new Error(`Generation failed: ${result.message}`);
+    }
+    
+    console.log('✅ OPTIMIZED: Parallel generation completed successfully');
+    
+    return {
+      success: result.success,
+      message: result.message,
+      tasks: result.tasks || []
+    };
+    
   } catch (error) {
     console.error('❌ Campaign content generation failed:', error);
     throw error;

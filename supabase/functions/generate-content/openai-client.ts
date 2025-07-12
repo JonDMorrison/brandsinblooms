@@ -1,15 +1,58 @@
 
 import { validateContent } from './validation.ts';
 
-export async function generateContentWithValidation(prompt: string, openAIApiKey: string, contentType?: string, maxAttempts: number = 5) {
-  let attempts = 0;
-  let lastIssues: string[] = [];
+export async function generateContentWithValidation(prompt: string, openAIApiKey: string, contentType?: string, maxAttempts: number = 3) {
+  console.log(`🚀 OPTIMIZED: Starting content generation with max ${maxAttempts} attempts`);
   
-  while (attempts < maxAttempts) {
-    attempts++;
-    
-    // Build enhanced prompt with quality guidelines integrated directly
-    let qualityEnhancedPrompt = prompt;
+  // Create parallel validation attempts for faster processing
+  const validationPromises = [];
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    validationPromises.push(generateSingleAttempt(prompt, openAIApiKey, contentType, attempt));
+  }
+  
+  // Run attempts in parallel and return first valid result
+  const results = await Promise.allSettled(validationPromises);
+  
+  // Find first successful result
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value.isValid) {
+      console.log(`✅ OPTIMIZED: Found valid content on parallel attempt`);
+      return {
+        content: result.value.content,
+        attempts: 1, // Parallel processing
+        issues: []
+      };
+    }
+  }
+  
+  // If no valid result found, use the best available content
+  const bestResult = results
+    .filter(r => r.status === 'fulfilled')
+    .map(r => r.value)
+    .sort((a, b) => a.issues.length - b.issues.length)[0];
+  
+  if (bestResult) {
+    console.log(`⚠️ OPTIMIZED: Using best available content with issues:`, bestResult.issues);
+    const cleanedContent = attemptBasicCleanup(bestResult.content);
+    return {
+      content: cleanedContent,
+      attempts: maxAttempts,
+      issues: bestResult.issues
+    };
+  }
+  
+  // Fallback
+  return {
+    content: '',
+    attempts: maxAttempts,
+    issues: ['Failed to generate content after parallel attempts']
+  };
+}
+
+async function generateSingleAttempt(prompt: string, openAIApiKey: string, contentType?: string, attemptNumber: number) {
+  // Build enhanced prompt with quality guidelines integrated directly
+  let qualityEnhancedPrompt = prompt;
     
     // Add comprehensive quality guidelines to the prompt
     qualityEnhancedPrompt += `\n\n🎯 CONTENT QUALITY REQUIREMENTS (MANDATORY):
@@ -70,14 +113,11 @@ FACEBOOK SPECIFIC QUALITY RULES:
 QUALITY VALIDATION:
 Your content will be evaluated for natural tone, specific gardening value, engagement potential, and proper spacing.  Content that sounds robotic, uses corporate language, lacks specific gardening advice, or has incorrect sentence spacing will be rejected.`;
 
-    if (attempts > 1) {
-      qualityEnhancedPrompt += `\n\n⚠️ REGENERATION ATTEMPT ${attempts} - PREVIOUS ISSUES: ${lastIssues.join(', ')}
+    if (attemptNumber > 1) {
+      qualityEnhancedPrompt += `\n\n⚠️ PARALLEL ATTEMPT ${attemptNumber} - Focus on high quality from start
 
-CRITICAL FIXES NEEDED:
-The previous attempt had quality issues. You MUST address these specific problems:
-${lastIssues.map(issue => `- ${issue}`).join('\n')}
-
-Apply ALL quality guidelines above more strictly. Focus on natural, conversational gardening expertise.`;
+CRITICAL REQUIREMENTS:
+Apply ALL quality guidelines above strictly. Focus on natural, conversational gardening expertise with proper spacing.`;
     }
     
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -109,41 +149,16 @@ Apply ALL quality guidelines above more strictly. Focus on natural, conversation
     const data = await response.json();
     const content = data.choices[0].message.content;
     
-    console.log(`Generated content attempt ${attempts}:`, content.substring(0, 200));
+    console.log(`Generated content attempt ${attemptNumber}:`, content.substring(0, 200));
     
     // Validate the generated content
     const validation = validateContent(content, contentType);
     
-    if (validation.isValid) {
-      console.log(`Content validation passed on attempt ${attempts}`);
-      return {
-        content,
-        attempts,
-        issues: []
-      };
-    }
-    
-    lastIssues = validation.issues;
-    console.log(`Content validation failed on attempt ${attempts}:`, validation.issues);
-    
-    // If we've reached max attempts, return the best content we have with basic cleanup
-    if (attempts >= maxAttempts) {
-      console.log(`Max attempts reached, applying basic cleanup`);
-      const cleanedContent = attemptBasicCleanup(content);
-      return {
-        content: cleanedContent,
-        attempts,
-        issues: validation.issues
-      };
-    }
-  }
-  
-  // Fallback (should not reach here)
-  return {
-    content: '',
-    attempts: maxAttempts,
-    issues: ['Failed to generate content after maximum attempts']
-  };
+    return {
+      content,
+      isValid: validation.isValid,
+      issues: validation.issues
+    };
 }
 
 // Basic cleanup function to fix common issues

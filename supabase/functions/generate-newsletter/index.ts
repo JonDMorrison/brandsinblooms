@@ -71,7 +71,11 @@ serve(async (req) => {
   }
 });
 
+// Cache for company profiles to avoid repeated DB calls
+let companyProfileCache = new Map();
+
 async function generateNewsletterFromTasks(tasks: any[], campaign: any) {
+  console.log('🚀 OPTIMIZED: Starting newsletter generation with cached profiles');
   const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
   
   if (!openAIApiKey) {
@@ -117,21 +121,21 @@ Format as structured content with clear sections.  Ensure proper sentence spacin
       'Authorization': `Bearer ${openAIApiKey}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'You are a professional newsletter writer specializing in garden center and nursery content.  Create engaging, informative newsletters that help customers with their gardening needs.  CRITICAL: Always use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence.'
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      max_tokens: 2000,
-      temperature: 0.7,
-    }),
+      body: JSON.stringify({
+        model: 'gpt-4o-mini', // OPTIMIZED: Use faster, cheaper model
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional newsletter writer specializing in garden center and nursery content.  Create engaging, informative newsletters that help customers with their gardening needs.  CRITICAL: Always use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 1500, // OPTIMIZED: Reduced token usage
+        temperature: 0.7,
+      }),
   });
 
   if (!response.ok) {
