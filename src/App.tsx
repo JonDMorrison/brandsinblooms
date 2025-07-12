@@ -41,12 +41,11 @@ const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
 const SocialMediaIntegrationTest = lazy(() => import('./components/test/SocialMediaIntegrationTest').then(module => ({ default: module.SocialMediaIntegrationTest })));
 const OAuthDebugger = lazy(() => import('./components/test/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
 
-// Initialize image optimization when app loads
-React.useEffect(() => {
-  optimizeImageLoading();
-}, []);
-
 const App = () => {
+  // Initialize image optimization when app loads
+  React.useEffect(() => {
+    optimizeImageLoading();
+  }, []);
   return (
     <AuthProvider>
       <Router>
