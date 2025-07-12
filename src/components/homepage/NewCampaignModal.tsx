@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
   const [generatingContent, setGeneratingContent] = useState(false);
   const [contentGenerated, setContentGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const currentWeekNumber = getCurrentWeekNumber();
 
@@ -195,7 +196,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px] bg-white">
+      <DialogContent ref={modalRef} className="sm:max-w-[425px] bg-white">
         <DialogHeader>
           <DialogTitle className="text-garden-green-dark">Create New Campaign</DialogTitle>
         </DialogHeader>
@@ -244,11 +245,10 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
                 <SelectValue placeholder="Select a week for the campaign" />
               </SelectTrigger>
               <SelectContent 
-                className="z-[10001]"
+                container={modalRef.current}
                 side="bottom"
                 align="start"
                 sideOffset={4}
-                onCloseAutoFocus={(e) => e.preventDefault()}
               >
                 {generateWeekOptions().map((option) => (
                   <SelectItem key={option.value} value={option.value}>
