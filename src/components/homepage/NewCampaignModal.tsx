@@ -243,7 +243,13 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
               <SelectTrigger className="border-garden-green-light focus:border-garden-green">
                 <SelectValue placeholder="Select a week for the campaign" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent 
+                className="z-[10001]"
+                side="bottom"
+                align="start"
+                sideOffset={4}
+                onCloseAutoFocus={(e) => e.preventDefault()}
+              >
                 {generateWeekOptions().map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
