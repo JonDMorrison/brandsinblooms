@@ -1,17 +1,21 @@
 
 import { useState, useRef } from "react";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
+import { dateToWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { generateRequiredTasks } from "./RequiredTasksGenerator";
 
@@ -27,42 +31,13 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
-  const [selectedWeek, setSelectedWeek] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loading, setLoading] = useState(false);
   const [generatingContent, setGeneratingContent] = useState(false);
   const [contentGenerated, setContentGenerated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const currentWeekNumber = getCurrentWeekNumber();
-
-  // Generate week options (current week + next 12 weeks)
-  const generateWeekOptions = () => {
-    const options = [];
-    for (let i = 0; i < 13; i++) {
-      const weekNumber = ((currentWeekNumber + i - 1) % 52) + 1;
-      const isCurrentWeek = i === 0;
-      options.push({
-        value: weekNumber.toString(),
-        label: `Week ${weekNumber}${isCurrentWeek ? ' (Current Week)' : ''}`
-      });
-    }
-    return options;
-  };
-
-  const calculateStartDate = (weekNumber: number) => {
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    
-    // Calculate the start of the year
-    const startOfYear = new Date(currentYear, 0, 1);
-    
-    // Calculate the start date for the selected week
-    const daysToAdd = (weekNumber - 1) * 7;
-    const weekStartDate = new Date(startOfYear.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
-    
-    return weekStartDate.toISOString().split('T')[0];
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,8 +57,8 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       return;
     }
 
-    if (!selectedWeek) {
-      setError("Please select a week for the campaign");
+    if (!selectedDate) {
+      setError("Please select a start date for the campaign");
       return;
     }
 
@@ -95,8 +70,8 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
 
       const campaignPrompt = `Create a marketing campaign for "${title}" ${theme ? `with theme: ${theme}` : ''} ${description ? `- ${description}` : ''}. Generate engaging content that promotes this campaign effectively.`;
 
-      const weekNumber = parseInt(selectedWeek);
-      const startDate = calculateStartDate(weekNumber);
+      const weekNumber = dateToWeekNumber(selectedDate);
+      const startDate = selectedDate.toISOString().split('T')[0];
 
       // 🔒 SECURITY: Always set user_id, only set tenant_id if tenant exists
       const campaignData = {
@@ -163,7 +138,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       setTitle("");
       setDescription("");
       setTheme("");
-      setSelectedWeek("");
+      setSelectedDate(undefined);
       setError(null);
 
       // Close modal after short delay to show success state
@@ -187,7 +162,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       setTitle("");
       setDescription("");
       setTheme("");
-      setSelectedWeek("");
+      setSelectedDate(undefined);
       setError(null);
       setContentGenerated(false);
       onOpenChange(false);
@@ -237,26 +212,36 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
           </div>
 
           <div>
-            <Label htmlFor="week" className="text-garden-green-dark">
-              Schedule for Week *
+            <Label htmlFor="date" className="text-garden-green-dark">
+              Campaign Start Date *
             </Label>
-            <Select value={selectedWeek} onValueChange={setSelectedWeek} disabled={loading || generatingContent}>
-              <SelectTrigger className="border-garden-green-light focus:border-garden-green">
-                <SelectValue placeholder="Select a week for the campaign" />
-              </SelectTrigger>
-              <SelectContent 
-                container={modalRef.current}
-                side="bottom"
-                align="start"
-                sideOffset={4}
-              >
-                {generateWeekOptions().map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal border-garden-green-light focus:border-garden-green",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                  disabled={loading || generatingContent}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a start date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  disabled={(date) =>
+                    date < new Date() || date < new Date("1900-01-01")
+                  }
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
           </div>
           
           <div>
@@ -299,7 +284,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim() || !selectedWeek || loading || generatingContent}
+              disabled={!title.trim() || !selectedDate || loading || generatingContent}
               className="bg-garden-green hover:bg-garden-green-dark text-white"
             >
               {loading ? (
