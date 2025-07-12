@@ -109,14 +109,14 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
       // Call the onComplete callback with the data
       onComplete(formData);
       
-      toast.success("Setup complete! Welcome to BloomSuite!");
+      toast.success("Setup complete!  Welcome to BloomSuite!");
       
       // Navigate to the app - OnboardingGuard will now allow access
       navigate('/app');
       
     } catch (error) {
       console.error('Error completing onboarding:', error);
-      toast.error("Failed to complete setup. Please try again.");
+      toast.error("Failed to complete setup.  Please try again.");
     } finally {
       setIsSubmitting(false);
     }

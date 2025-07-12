@@ -105,7 +105,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
     // Check if current user is super admin
     if (!currentUser?.email || !isSuperAdmin(currentUser.email)) {
       console.error(`[EnhancedUserTable] Access denied: Current user ${currentUser?.email} is not a super admin`);
-      toast.error('Access denied. Only super administrators can delete users.');
+      toast.error('Access denied.  Only super administrators can delete users.');
       return;
     }
 
@@ -113,7 +113,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
 
     if (deletingUser) {
       console.log(`[EnhancedUserTable] Another deletion in progress, ignoring request`);
-      toast.warning('Another deletion is already in progress. Please wait.');
+      toast.warning('Another deletion is already in progress.  Please wait.');
       return;
     }
 
@@ -130,7 +130,7 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
         toast.success(`User ${userEmail} has been successfully deleted.`);
         console.log(`[EnhancedUserTable] Successfully deleted user: ${userEmail}`);
       } else {
-        toast.error(`Failed to delete user ${userEmail}. Please check the console for details.`);
+        toast.error(`Failed to delete user ${userEmail}.  Please check the console for details.`);
         console.error(`[EnhancedUserTable] Delete operation returned false for user: ${userEmail}`);
       }
     } catch (error) {
@@ -139,9 +139,9 @@ export const EnhancedUserTable = ({ users, onDeleteUser }: EnhancedUserTableProp
       // Provide specific error messages based on error type
       if (error instanceof Error) {
         if (error.message.includes('Access denied')) {
-          toast.error('Access denied. Only super administrators can delete users.');
+          toast.error('Access denied.  Only super administrators can delete users.');
         } else if (error.message.includes('Network')) {
-          toast.error('Network error. Please check your connection and try again.');
+          toast.error('Network error.  Please check your connection and try again.');
         } else {
           toast.error(`Failed to delete user: ${error.message}`);
         }

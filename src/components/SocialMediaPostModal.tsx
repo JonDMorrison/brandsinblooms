@@ -47,7 +47,7 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
     // Open platform
     window.open(config.url, '_blank');
     
-    toast.success(`Content copied! Create a new post on ${config.name} and paste the content.`);
+    toast.success(`Content copied!  Create a new post on ${config.name} and paste the content.`);
     onClose();
   };
 

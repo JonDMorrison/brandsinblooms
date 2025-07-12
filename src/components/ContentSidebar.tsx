@@ -54,7 +54,7 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
         console.error('Error saving content:', error);
         toast({
           title: "Error",
-          description: "Failed to save content. Please try again.",
+          description: "Failed to save content.  Please try again.",
           variant: "destructive",
         });
       } else {
@@ -69,7 +69,7 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
       console.error('Error saving content:', error);
       toast({
         title: "Error",
-        description: "Failed to save content. Please try again.",
+        description: "Failed to save content.  Please try again.",
         variant: "destructive",
       });
     } finally {

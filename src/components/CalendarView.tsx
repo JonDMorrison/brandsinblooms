@@ -86,7 +86,7 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
       toast({
         variant: "destructive",
         title: "Error completing tasks.",
-        description: "Failed to complete selected tasks. Please try again.",
+        description: "Failed to complete selected tasks.  Please try again.",
       })
     } finally {
       setBulkCompleteLoading(false);
@@ -123,7 +123,7 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
       toast({
         variant: "destructive",
         title: "Error deleting tasks.",
-        description: "Failed to delete selected tasks. Please try again.",
+        description: "Failed to delete selected tasks.  Please try again.",
       })
     } finally {
       setBulkDeleteLoading(false);

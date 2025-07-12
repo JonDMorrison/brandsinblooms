@@ -76,7 +76,7 @@ export const AdminSettings = () => {
           reader.readAsDataURL(file);
         });
       } else {
-        toast.error('Unsupported file type. Please upload CSV, Excel, or PDF files.');
+        toast.error('Unsupported file type.  Please upload CSV, Excel, or PDF files.');
         setUploading(false);
         return;
       }

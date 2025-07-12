@@ -41,7 +41,7 @@ export const DeleteAccountSection = () => {
 
       if (error) {
         console.error('Delete account error:', error);
-        toast.error('Failed to delete account. Please try again or contact support.');
+        toast.error('Failed to delete account.  Please try again or contact support.');
         return;
       }
 
@@ -51,7 +51,7 @@ export const DeleteAccountSection = () => {
       await signOut();
     } catch (error) {
       console.error('Unexpected error:', error);
-      toast.error('An unexpected error occurred. Please contact support.');
+      toast.error('An unexpected error occurred.  Please contact support.');
     } finally {
       setIsLoading(false);
       setIsModalOpen(false);
@@ -71,7 +71,7 @@ export const DeleteAccountSection = () => {
         <div className="space-y-3">
           <h3 className="font-semibold text-red-800">Delete Account</h3>
           <p className="text-red-700 text-sm">
-            Permanently delete your BloomSuite account and all associated data. This action cannot be undone after 30 days.
+            Permanently delete your BloomSuite account and all associated data.  This action cannot be undone after 30 days.
           </p>
           <ul className="text-red-600 text-sm space-y-1 ml-4 list-disc list-inside">
             <li>All your content and campaigns will be deleted</li>
@@ -84,7 +84,7 @@ export const DeleteAccountSection = () => {
         {hasActiveSubscription && (
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <p className="text-yellow-800 text-sm font-medium">
-              You have an active subscription. Please cancel your subscription first before deleting your account.
+              You have an active subscription.  Please cancel your subscription first before deleting your account.
             </p>
           </div>
         )}

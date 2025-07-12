@@ -141,12 +141,12 @@ export const BulkActionsToolbar = ({
                       )}
 
                       <div className="mt-3 p-2 bg-red-50 rounded text-red-800 text-sm">
-                        <strong>Warning:</strong> This will permanently delete all their data including campaigns, content, and subscriptions. This action cannot be undone.
+                        <strong>Warning:</strong> This will permanently delete all their data including campaigns, content, and subscriptions.  This action cannot be undone.
                       </div>
 
                       {duplicateCount > 0 && (
                         <div className="mt-2 p-2 bg-gray-50 rounded text-gray-800 text-sm">
-                          <strong>Note:</strong> {duplicateCount} of these users have duplicate accounts. Consider using the Duplicate Management section to merge accounts instead.
+                          <strong>Note:</strong> {duplicateCount} of these users have duplicate accounts.  Consider using the Duplicate Management section to merge accounts instead.
                         </div>
                       )}
                     </AlertDialogDescription>

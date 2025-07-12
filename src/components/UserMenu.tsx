@@ -252,7 +252,7 @@ export const UserMenu = () => {
                 <li>• Trigger re-onboarding process</li>
               </ul>
               <p className="mt-3 text-sm font-medium text-orange-600">
-                This action cannot be undone. Only use this for testing purposes.
+                This action cannot be undone.  Only use this for testing purposes.
               </p>
             </AlertDialogDescription>
           </AlertDialogHeader>

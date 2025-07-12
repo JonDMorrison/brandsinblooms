@@ -75,7 +75,7 @@ export const EditableBusinessName = ({
       setIsOpen(false);
     } catch (error) {
       console.error('Error saving business name:', error);
-      toast.error('Failed to update business name. Please try again.');
+      toast.error('Failed to update business name.  Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -110,7 +110,7 @@ export const EditableBusinessName = ({
         <DialogHeader>
           <DialogTitle>Edit Business Name</DialogTitle>
           <DialogDescription>
-            Update your business name. This will be displayed throughout the app and used in AI-generated content.
+            Update your business name.  This will be displayed throughout the app and used in AI-generated content.
           </DialogDescription>
         </DialogHeader>
         

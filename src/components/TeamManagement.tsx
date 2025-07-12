@@ -101,7 +101,7 @@ export const TeamManagement = () => {
   };
 
   const handleUpgradeTeam = () => {
-    toast.info('Payment integration coming soon! This will allow unlimited team members.');
+    toast.info('Payment integration coming soon!  This will allow unlimited team members.');
   };
 
   const filteredMembers = teamMembers.filter(member =>
@@ -221,7 +221,7 @@ export const TeamManagement = () => {
                 {teamMembers.length === 0 && (
                   <div className="text-center py-8 text-gray-500">
                     <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No team members yet. Invite your first team member above!</p>
+                    <p>No team members yet.  Invite your first team member above!</p>
                   </div>
                 )}
 
