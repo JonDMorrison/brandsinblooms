@@ -18,7 +18,7 @@ serve(async (req) => {
   try {
     const { aboutBusiness, toneSamples, annualEvents } = await req.json();
 
-    const prompt = `Based on the following onboarding information, generate a comprehensive company profile for a garden center. Respond with a JSON object containing the following fields:
+    const prompt = `Based on the following onboarding information, generate a comprehensive company profile for a garden center.  Respond with a JSON object containing the following fields:
 
 Onboarding Data:
 - About Business: ${aboutBusiness}
@@ -38,6 +38,9 @@ Generate a JSON response with these exact fields:
 - specializations: Areas of expertise mentioned or inferred
 - location_info: Location and community context if mentioned
 
+**CRITICAL TEXT FORMATTING REQUIREMENT:** 
+Use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence throughout ALL fields.  This applies to every sentence in every field of the JSON response.
+
 Return only valid JSON, no additional text.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -51,7 +54,7 @@ Return only valid JSON, no additional text.`;
         messages: [
           { 
             role: 'system', 
-            content: 'You are an expert marketing consultant specializing in garden centers. Generate detailed, professional company profiles based on onboarding information. Always respond with valid JSON only, no markdown formatting or code blocks.' 
+            content: 'You are an expert marketing consultant specializing in garden centers.  Generate detailed, professional company profiles based on onboarding information.  Always respond with valid JSON only, no markdown formatting or code blocks.  CRITICAL: Use exactly two spaces after every sentence ending (period, question mark, exclamation mark) in all text fields.' 
           },
           { role: 'user', content: prompt }
         ],

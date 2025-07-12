@@ -71,6 +71,10 @@ export function validateContent(content: string, contentType?: string): {
     issues.push('Content lacks specific gardening advice - needs plant expertise');
   }
   
+  // Check for proper sentence spacing (two spaces after sentence endings)
+  const sentenceSpacingIssues = validateSentenceSpacing(content);
+  issues.push(...sentenceSpacingIssues);
+  
   // StoryBrand framework validation for content structure
   const storyBrandValidation = validateStoryBrandElements(content);
   issues.push(...storyBrandValidation.issues);
@@ -187,4 +191,26 @@ function validateContentType(content: string, contentType: string): {
   }
   
   return { issues };
+}
+
+function validateSentenceSpacing(content: string): string[] {
+  const issues: string[] = [];
+  
+  // Check for single spaces after sentence endings followed by capital letters
+  const singleSpacePattern = /([.!?])\s([A-Z])/g;
+  const singleSpaceMatches = content.match(singleSpacePattern);
+  
+  if (singleSpaceMatches && singleSpaceMatches.length > 0) {
+    issues.push(`Incorrect sentence spacing found - needs exactly two spaces after sentence endings (found ${singleSpaceMatches.length} instances with single space)`);
+  }
+  
+  // Check for three or more spaces after sentence endings  
+  const multipleSpacePattern = /([.!?])\s{3,}([A-Z])/g;
+  const multipleSpaceMatches = content.match(multipleSpacePattern);
+  
+  if (multipleSpaceMatches && multipleSpaceMatches.length > 0) {
+    issues.push(`Excessive spacing found - needs exactly two spaces after sentence endings (found ${multipleSpaceMatches.length} instances with 3+ spaces)`);
+  }
+  
+  return issues;
 }

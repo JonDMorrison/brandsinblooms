@@ -107,8 +107,9 @@ Please create a cohesive newsletter that:
 4. Maintains a friendly, expert tone
 5. Includes calls-to-action where appropriate
 6. Ends with contact information
+7. **CRITICAL: Uses exactly two spaces after every sentence ending (period, question mark, exclamation mark) throughout the entire newsletter**
 
-Format as structured content with clear sections.`;
+Format as structured content with clear sections.  Ensure proper sentence spacing throughout.`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -121,7 +122,7 @@ Format as structured content with clear sections.`;
       messages: [
         {
           role: 'system',
-          content: 'You are a professional newsletter writer specializing in garden center and nursery content. Create engaging, informative newsletters that help customers with their gardening needs.'
+          content: 'You are a professional newsletter writer specializing in garden center and nursery content.  Create engaging, informative newsletters that help customers with their gardening needs.  CRITICAL: Always use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence.'
         },
         {
           role: 'user',

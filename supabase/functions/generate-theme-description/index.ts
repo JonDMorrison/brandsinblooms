@@ -46,7 +46,7 @@ REGIONAL CONSIDERATIONS:
         messages: [
           { 
             role: 'system', 
-            content: `You are a marketing content strategist for garden centers with deep knowledge of regional gardening differences across various climate zones. Create a brief, focused content description (2-3 sentences max) that explains what this week's marketing content will cover. The description should:
+            content: `You are a marketing content strategist for garden centers with deep knowledge of regional gardening differences across various climate zones.  Create a brief, focused content description (2-3 sentences max) that explains what this week's marketing content will cover.  The description should:
             - Be specific and actionable
             - Focus on customer benefits
             - Mention seasonal relevance when appropriate and consider regional variations
@@ -59,6 +59,7 @@ REGIONAL CONSIDERATIONS:
             - Use visually suggestive words that help readers picture scenarios
             - Sound conversational like a local expert
             - Avoid generic openings and cliché phrases
+            - **CRITICAL: Use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence**
             
             Keep it concise and compelling - this will guide all content creation for the week including social media, newsletters, and videos.`
           },
@@ -68,7 +69,7 @@ REGIONAL CONSIDERATIONS:
 
 ${regionalContext}
 
-Create a description that can guide region-specific content creation, considering how this theme would be relevant across different geographic locations and climate zones. Use engaging, visually suggestive language that sparks curiosity and sounds conversational like a local garden center expert speaking to their community.`
+Create a description that can guide region-specific content creation, considering how this theme would be relevant across different geographic locations and climate zones.  Use engaging, visually suggestive language that sparks curiosity and sounds conversational like a local garden center expert speaking to their community.  Ensure exactly two spaces after every sentence ending.`
           }
         ],
         max_tokens: 150,

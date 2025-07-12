@@ -104,11 +104,11 @@ ABSOLUTE PROHIBITIONS:
 `;
     }
 
-    const prompt = `Create natural teaching content about "${campaignTitle}" for a knowledgeable garden center expert. This should sound like someone explaining gardening advice directly - NO greetings, NO introductions, just straight into the valuable information. ${companyContext}
+    const prompt = `Create natural teaching content about "${campaignTitle}" for a knowledgeable garden center expert.  This should sound like someone explaining gardening advice directly - NO greetings, NO introductions, just straight into the valuable information.  ${companyContext}
 
 DIRECT TEACHING CONTENT (200-250 words):
 
-Start immediately with the most important gardening information about ${campaignTitle}. NO greetings like "Hey there" or "Hello gardeners" - jump straight into what gardeners need to know about this specific holiday/seasonal topic.
+Start immediately with the most important gardening information about ${campaignTitle}.  NO greetings like "Hey there" or "Hello gardeners" - jump straight into what gardeners need to know about this specific holiday/seasonal topic.
 
 Structure naturally:
 - Open with the most critical timing or opportunity about ${campaignTitle}
@@ -117,11 +117,11 @@ Structure naturally:
 - Include helpful warnings about common mistakes people make
 - End with confidence-building encouragement about their success
 
-Make this sound completely natural - no artificial structure, no production language, no cues. Just pure conversational teaching about ${campaignTitle} and how it relates to gardening success. The entire content should focus on this specific holiday theme and provide genuine value to gardeners.
+Make this sound completely natural - no artificial structure, no production language, no cues.  Just pure conversational teaching about ${campaignTitle} and how it relates to gardening success.  The entire content should focus on this specific holiday theme and provide genuine value to gardeners.
 
-Sound like a trusted local expert sharing valuable knowledge about this specific holiday gardening opportunity. Keep it conversational, helpful, and focused on practical advice people can immediately use for ${campaignTitle}.
+Sound like a trusted local expert sharing valuable knowledge about this specific holiday gardening opportunity.  Keep it conversational, helpful, and focused on practical advice people can immediately use for ${campaignTitle}.
 
-CRITICAL: Start immediately with gardening information. No "Welcome", no "Hey there", no greetings of any kind. Jump straight into the valuable content.`;
+CRITICAL: Start immediately with gardening information.  No "Welcome", no "Hey there", no greetings of any kind.  Jump straight into the valuable content.  Use exactly two spaces after every sentence ending throughout the entire script.`;
 
     console.log('Generating natural teaching content without greetings or production cues');
 
@@ -134,7 +134,7 @@ CRITICAL: Start immediately with gardening information. No "Welcome", no "Hey th
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: `You are a professional content writer specializing in natural, conversational teaching content for garden centers. Create authentic teaching content that sounds like a knowledgeable garden center expert explaining gardening advice directly to customers.
+          { role: 'system', content: `You are a professional content writer specializing in natural, conversational teaching content for garden centers.  Create authentic teaching content that sounds like a knowledgeable garden center expert explaining gardening advice directly to customers.
 
 ABSOLUTE RULES YOU MUST NEVER BREAK:
 - NEVER start with any greeting ("Hey there", "Hello", "Hi gardeners", etc.)
@@ -145,6 +145,7 @@ ABSOLUTE RULES YOU MUST NEVER BREAK:
 - NEVER use structured segments, scene divisions, or artificial formatting
 - NEVER use bullet points, numbered lists, or dashes for organization
 - NEVER use emojis anywhere
+- **CRITICAL: Use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence throughout the entire script**
 
 WHAT YOU MUST DO:
 - Start immediately with valuable gardening information
@@ -155,7 +156,8 @@ WHAT YOU MUST DO:
 - Write about 200-250 words for natural speaking
 - Make it sound authentic and conversational throughout
 - Keep everything focused on the holiday gardening topic provided
-- Jump straight into the most important information` },
+- Jump straight into the most important information
+- Ensure proper sentence spacing with exactly two spaces after every sentence ending` },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,

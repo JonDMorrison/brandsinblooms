@@ -21,6 +21,7 @@ WRITING STYLE GUIDELINES:
 - Sound like a knowledgeable garden center expert talking to customers
 - ABSOLUTELY NO emojis anywhere in the content
 - NO corporate buzzwords ("leverage", "optimize", "maximize", "seamless", "synergy", "utilize")
+- **CRITICAL: Follow proper sentence spacing - use EXACTLY TWO SPACES after every sentence ending (period, question mark, exclamation mark) before the next sentence begins**
 
 CONTENT STRUCTURE REQUIREMENTS:
 - Keep sentences under 20 words on average
@@ -28,6 +29,7 @@ CONTENT STRUCTURE REQUIREMENTS:
 - Use concrete, actionable advice rather than vague statements
 - Include specific plant varieties, care techniques, and seasonal timing
 - Address real gardening challenges customers face
+- **MANDATORY: Every sentence must end with exactly two spaces before the next sentence starts**
 
 FORBIDDEN LANGUAGE PATTERNS:
 - Never use "hello fellow gardeners", "dear gardeners", "hey gardeners"
@@ -43,6 +45,9 @@ STORYTELLING APPROACH:
 - Provide clear, actionable steps they can take
 - Paint a vivid picture of their garden success
 
+SPACING COMPLIANCE CHECK:
+Before finalizing content, verify that EVERY sentence ending is followed by exactly two spaces.  This applies to all periods, question marks, and exclamation marks throughout the entire text.
+
 ${contentType?.toLowerCase() === 'instagram' ? `
 INSTAGRAM SPECIFIC QUALITY RULES:
 - 60-120 words maximum (strictly enforced)
@@ -50,7 +55,8 @@ INSTAGRAM SPECIFIC QUALITY RULES:
 - Include 2-3 specific actionable gardening tips
 - End with a natural call-to-action to visit the garden center
 - Include 6-8 relevant hashtags
-- Structure with line breaks for easy mobile reading` : ''}
+- Structure with line breaks for easy mobile reading
+- **CRITICAL: Maintain two-space sentence spacing throughout post and hashtags**` : ''}
 
 ${contentType?.toLowerCase() === 'facebook' ? `
 FACEBOOK SPECIFIC QUALITY RULES:
@@ -58,11 +64,11 @@ FACEBOOK SPECIFIC QUALITY RULES:
 - Write in a community-focused, conversation-starting tone
 - Include a question to encourage comments and engagement
 - Share practical gardening knowledge people can use immediately
-- Use storytelling to connect emotionally with gardeners` : ''}
+- Use storytelling to connect emotionally with gardeners
+- **CRITICAL: Maintain two-space sentence spacing throughout entire post**` : ''}
 
 QUALITY VALIDATION:
-Your content will be evaluated for natural tone, specific gardening value, and engagement potential.
-Content that sounds robotic, uses corporate language, or lacks specific gardening advice will be rejected.`;
+Your content will be evaluated for natural tone, specific gardening value, engagement potential, and proper spacing.  Content that sounds robotic, uses corporate language, lacks specific gardening advice, or has incorrect sentence spacing will be rejected.`;
 
     if (attempts > 1) {
       qualityEnhancedPrompt += `\n\n⚠️ REGENERATION ATTEMPT ${attempts} - PREVIOUS ISSUES: ${lastIssues.join(', ')}
@@ -86,7 +92,7 @@ Apply ALL quality guidelines above more strictly. Focus on natural, conversation
         messages: [
           {
             role: 'system',
-            content: 'You are a certified StoryBrand Guide and expert garden center marketing specialist. You create engaging, high-quality content that sounds natural and provides genuine gardening value. You follow quality guidelines strictly and never use emojis or corporate buzzwords.'
+            content: 'You are a certified StoryBrand Guide and expert garden center marketing specialist. You create engaging, high-quality content that sounds natural and provides genuine gardening value. You follow quality guidelines strictly and never use emojis or corporate buzzwords. CRITICAL: You always use exactly two spaces after every sentence ending (period, question mark, exclamation mark) before starting the next sentence.'
           },
           {
             role: 'user',
@@ -155,6 +161,9 @@ function attemptBasicCleanup(content: string): string {
   
   // Remove any emojis that might have slipped through
   cleaned = cleaned.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+  
+  // Fix sentence spacing - ensure exactly two spaces after sentence endings
+  cleaned = cleaned.replace(/([.!?])\s+([A-Z])/g, '$1  $2');
   
   return cleaned.trim();
 }
