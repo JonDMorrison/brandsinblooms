@@ -45,23 +45,22 @@ serve(async (req) => {
     const businessName = companyProfile?.company_name || 'Your Garden Center';
     const businessContext = companyProfile?.company_overview || 'A local garden center helping customers grow beautiful gardens';
 
-    console.log('📝 Generating content for all 5 required types:', REQUIRED_CONTENT_TYPES);
+    console.log('📝 Generating content for all 5 required types in parallel:', REQUIRED_CONTENT_TYPES);
 
-    const generatedTasks = [];
+    // Define content prompts
+    const contentPrompts = {
+      instagram: `Create an engaging Instagram post about ${campaign_title} for ${businessName}. Include relevant hashtags and a call-to-action. Keep it concise and visually appealing. Make it feel authentic and personal. Focus on gardening advice and tips.`,
+      facebook: `Write a Facebook post about ${campaign_title} for ${businessName}. Make it conversational and community-focused. Include tips or advice that would be valuable to garden center customers. Share practical gardening knowledge.`,
+      blog: `Write a comprehensive blog post about ${campaign_title} for ${businessName}. Include an engaging title, introduction, main content with helpful tips, and a conclusion. Make it SEO-friendly and informative for garden center customers. Focus on detailed gardening advice.`,
+      video: `Create a 90-second video script about ${campaign_title} for ${businessName}. Include scene descriptions, dialogue, and key points to cover. Make it engaging and educational for garden center customers. Focus on one clear teaching point about ${campaign_title}.`,
+      newsletter: `Create a structured newsletter about ${campaign_title} for ${businessName}. Include multiple sections with gardening tips, seasonal advice, and practical information. Make it valuable for garden center customers with actionable insights.`
+    };
 
-    // Generate content for each of the 5 required types
-    for (const contentType of REQUIRED_CONTENT_TYPES) {
+    // Function to generate content for a single content type
+    const generateContentForType = async (contentType: string) => {
       try {
         console.log(`📝 Generating ${contentType} content...`);
         
-        const contentPrompts = {
-          instagram: `Create an engaging Instagram post about ${campaign_title} for ${businessName}. Include relevant hashtags and a call-to-action. Keep it concise and visually appealing. Make it feel authentic and personal. Focus on gardening advice and tips.`,
-          facebook: `Write a Facebook post about ${campaign_title} for ${businessName}. Make it conversational and community-focused. Include tips or advice that would be valuable to garden center customers. Share practical gardening knowledge.`,
-          blog: `Write a comprehensive blog post about ${campaign_title} for ${businessName}. Include an engaging title, introduction, main content with helpful tips, and a conclusion. Make it SEO-friendly and informative for garden center customers. Focus on detailed gardening advice.`,
-          video: `Create a 90-second video script about ${campaign_title} for ${businessName}. Include scene descriptions, dialogue, and key points to cover. Make it engaging and educational for garden center customers. Focus on one clear teaching point about ${campaign_title}.`,
-          newsletter: `Create a structured newsletter about ${campaign_title} for ${businessName}. Include multiple sections with gardening tips, seasonal advice, and practical information. Make it valuable for garden center customers with actionable insights.`
-        };
-
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -71,10 +70,11 @@ serve(async (req) => {
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             temperature: 0.7,
+            max_tokens: contentType === 'blog' ? 2000 : 1000, // Optimize token usage
             messages: [
               {
                 role: 'system',
-                content: `You are a professional content creator for garden centers. Create engaging, helpful content that reflects the business context: ${businessContext}. Current focus: ${campaign_title}. ${description ? `Additional context: ${description}` : ''} Always focus on practical gardening advice and tips.`
+                content: `You are a professional content creator for garden centers. Create engaging, helpful content. Business: ${businessName}. Focus: ${campaign_title}. ${description ? `Context: ${description}` : ''} Focus on practical gardening advice.`
               },
               {
                 role: 'user',
@@ -93,8 +93,38 @@ serve(async (req) => {
         
         console.log(`✅ Generated ${contentType} content (${content.length} chars)`);
 
-        // Create content task in database
-        const taskData = {
+        return {
+          contentType,
+          content,
+          success: true
+        };
+        
+      } catch (error) {
+        console.error(`❌ Error generating ${contentType} content:`, error);
+        return {
+          contentType,
+          error: error.message,
+          success: false
+        };
+      }
+    };
+
+    // Generate all content in parallel
+    const startTime = Date.now();
+    const contentResults = await Promise.allSettled(
+      REQUIRED_CONTENT_TYPES.map(contentType => generateContentForType(contentType))
+    );
+    const generationTime = Date.now() - startTime;
+    console.log(`🚀 All content generation completed in ${generationTime}ms`);
+
+    // Process results and prepare database inserts
+    const tasksToInsert = [];
+    const failedTasks = [];
+
+    for (const result of contentResults) {
+      if (result.status === 'fulfilled' && result.value.success) {
+        const { contentType, content } = result.value;
+        tasksToInsert.push({
           campaign_id,
           post_type: contentType,
           ai_output: content,
@@ -104,30 +134,57 @@ serve(async (req) => {
           tenant_id,
           created_by_user_id: user_id,
           notes: `Generated for ${campaign_title} campaign`
-        };
-
-        const { data: task, error: taskError } = await supabase
-          .from('content_tasks')
-          .insert(taskData)
-          .select()
-          .single();
-
-        if (taskError) {
-          console.error(`❌ Error creating ${contentType} task:`, taskError);
-          throw new Error(`Failed to save ${contentType} content: ${taskError.message}`);
-        }
-
-        console.log(`✅ Created ${contentType} task with ID:`, task.id);
-        generatedTasks.push(task);
-        
-      } catch (error) {
-        console.error(`❌ Error generating ${contentType} content:`, error);
-        // Continue with other content types even if one fails
-        generatedTasks.push({
-          post_type: contentType,
-          error: error.message,
+        });
+      } else {
+        const errorInfo = result.status === 'fulfilled' ? result.value : { contentType: 'unknown', error: result.reason };
+        failedTasks.push({
+          post_type: errorInfo.contentType,
+          error: errorInfo.error,
           status: 'failed'
         });
+      }
+    }
+
+    // Batch insert all successful tasks
+    let generatedTasks = [...failedTasks];
+    if (tasksToInsert.length > 0) {
+      console.log(`💾 Batch inserting ${tasksToInsert.length} tasks...`);
+      const { data: tasks, error: batchError } = await supabase
+        .from('content_tasks')
+        .insert(tasksToInsert)
+        .select();
+
+      if (batchError) {
+        console.error('❌ Batch insert error:', batchError);
+        // Fallback to individual inserts
+        for (const taskData of tasksToInsert) {
+          try {
+            const { data: task, error: taskError } = await supabase
+              .from('content_tasks')
+              .insert(taskData)
+              .select()
+              .single();
+            
+            if (taskError) {
+              failedTasks.push({
+                post_type: taskData.post_type,
+                error: taskError.message,
+                status: 'failed'
+              });
+            } else {
+              generatedTasks.push(task);
+            }
+          } catch (error) {
+            failedTasks.push({
+              post_type: taskData.post_type,
+              error: error.message,
+              status: 'failed'
+            });
+          }
+        }
+      } else {
+        generatedTasks.push(...tasks);
+        console.log(`✅ Successfully created ${tasks.length} tasks`);
       }
     }
 
