@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   User, 
@@ -47,6 +47,8 @@ export const UserMenu = () => {
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -109,106 +111,128 @@ export const UserMenu = () => {
   const handleNavigation = (path: string) => {
     navigate(path);
   };
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button 
-            variant="ghost" 
-            className="relative h-10 w-10 rounded-full bg-primary hover:bg-primary/90 transition-all duration-200 shadow-lg border-2 border-background"
-          >
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-semibold">
-                {getUserInitials()}
-              </AvatarFallback>
-            </Avatar>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-60" align="end">
-          <div className="flex items-center justify-start gap-2 p-2">
-            <div className="flex flex-col space-y-1 leading-none">
-              <p className="font-medium text-sm">{user?.email}</p>
+      <div className="relative" ref={dropdownRef}>
+        <Button 
+          variant="ghost" 
+          className="relative h-10 w-10 rounded-full bg-primary hover:bg-primary/90 transition-all duration-200 shadow-lg border-2 border-background"
+          onClick={() => {
+            console.log('Toggle dropdown, current state:', isDropdownOpen);
+            setIsDropdownOpen(!isDropdownOpen);
+          }}
+        >
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-secondary text-secondary-foreground text-sm font-semibold">
+              {getUserInitials()}
+            </AvatarFallback>
+          </Avatar>
+        </Button>
+        
+        {isDropdownOpen && (
+          <div className="absolute right-0 top-12 w-60 z-[200] bg-white text-black border border-gray-300 shadow-xl rounded-md p-2">
+            <div className="flex items-center justify-start gap-2 p-2">
+              <div className="flex flex-col space-y-1 leading-none">
+                <p className="font-medium text-sm">{user?.email}</p>
+                {isAdmin && (
+                  <p className="text-xs text-gray-600">Master Admin</p>
+                )}
+              </div>
+            </div>
+            <hr className="my-1" />
+            
+            {/* Navigation Section */}
+            <div className="py-1">
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/')}>
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                Dashboard
+              </button>
+              
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/calendar')}>
+                <Calendar className="mr-2 h-4 w-4" />
+                Calendar
+              </button>
+              
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/social')}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Content Planner
+              </button>
+              
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/social-media')}>
+                <TrendingUp className="mr-2 h-4 w-4" />
+                Analytics & Scheduling
+              </button>
+              
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/content-tasks')}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Content Tasks
+              </button>
+              
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/profile')}>
+                <Building2 className="mr-2 h-4 w-4" />
+                Company Profile
+              </button>
+            </div>
+            
+            <hr className="my-1" />
+            
+            {/* Account Section */}
+            <div className="py-1">
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/account')}>
+                <User className="mr-2 h-4 w-4" />
+                Account Settings
+              </button>
+              
+              <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/billing')}>
+                <CreditCard className="mr-2 h-4 w-4" />
+                Billing
+              </button>
+              
               {isAdmin && (
-                <p className="text-xs text-muted-foreground">Master Admin</p>
+                <button className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center" onClick={() => handleNavigation('/admin')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Admin Dashboard
+                </button>
+              )}
+              
+              {isAdmin && (
+                <>
+                  <hr className="my-1" />
+                  <button 
+                    className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center text-orange-600"
+                    onClick={() => setShowResetDialog(true)}
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Reset for Testing
+                  </button>
+                </>
               )}
             </div>
+            
+            <hr className="my-1" />
+            <button 
+              className="w-full text-left px-2 py-1.5 text-sm hover:bg-gray-100 rounded flex items-center text-red-600 font-medium"
+              onClick={handleSignOut}
+              disabled={isSigningOut}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              {isSigningOut ? 'Signing out...' : 'Sign out'}
+            </button>
           </div>
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => handleNavigation('/')}>
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            Dashboard
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleNavigation('/calendar')}>
-            <Calendar className="mr-2 h-4 w-4" />
-            Calendar
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleNavigation('/social')}>
-            <Share2 className="mr-2 h-4 w-4" />
-            Content Planner
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleNavigation('/social-media')}>
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Analytics & Scheduling
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleNavigation('/content-tasks')}>
-            <ClipboardList className="mr-2 h-4 w-4" />
-            Content Tasks
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleNavigation('/profile')}>
-            <Building2 className="mr-2 h-4 w-4" />
-            Company Profile
-          </DropdownMenuItem>
-          
-          <DropdownMenuSeparator />
-          
-          <DropdownMenuItem onClick={() => handleNavigation('/account')}>
-            <User className="mr-2 h-4 w-4" />
-            Account Settings
-          </DropdownMenuItem>
-          
-          <DropdownMenuItem onClick={() => handleNavigation('/billing')}>
-            <CreditCard className="mr-2 h-4 w-4" />
-            Billing
-          </DropdownMenuItem>
-          
-          {isAdmin && (
-            <DropdownMenuItem onClick={() => handleNavigation('/admin')}>
-              <Settings className="mr-2 h-4 w-4" />
-              Admin Dashboard
-            </DropdownMenuItem>
-          )}
-          
-          {isAdmin && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-orange-600 focus:text-orange-600"
-                onClick={() => setShowResetDialog(true)}
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                Reset for Testing
-              </DropdownMenuItem>
-            </>
-          )}
-          
-          <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            className="text-red-600 focus:text-red-600 font-medium"
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            {isSigningOut ? 'Signing out...' : 'Sign out'}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        )}
+      </div>
 
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <AlertDialogContent>
