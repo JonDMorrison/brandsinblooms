@@ -1,7 +1,7 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { format } from "date-fns";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,6 +28,7 @@ interface NewCampaignDialogProps {
 export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignDialogProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
@@ -182,9 +183,12 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] bg-white">
+      <DialogContent ref={dialogRef} className="sm:max-w-[600px] bg-white">
         <DialogHeader>
           <DialogTitle className="text-garden-green-dark">Create New Campaign</DialogTitle>
+          <DialogDescription className="text-gray-600">
+            Create a new marketing campaign with automated content generation.
+          </DialogDescription>
         </DialogHeader>
         
         {error && (
@@ -240,7 +244,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
                   {selectedDate ? format(selectedDate, "PPP") : <span>Pick a start date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0" align="start" container={dialogRef.current}>
                 <Calendar
                   mode="single"
                   selected={selectedDate}
