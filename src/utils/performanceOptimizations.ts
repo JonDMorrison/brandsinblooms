@@ -71,3 +71,75 @@ export const measurePerformance = (name: string, fn: () => void | Promise<void>)
   }
   return fn();
 };
+
+// Request deduplication for API calls
+class RequestDeduplicator {
+  private pendingRequests = new Map<string, Promise<any>>();
+
+  async dedupe<T>(key: string, requestFn: () => Promise<T>): Promise<T> {
+    if (this.pendingRequests.has(key)) {
+      return this.pendingRequests.get(key)!;
+    }
+
+    const promise = requestFn().finally(() => {
+      this.pendingRequests.delete(key);
+    });
+
+    this.pendingRequests.set(key, promise);
+    return promise;
+  }
+
+  clear() {
+    this.pendingRequests.clear();
+  }
+}
+
+export const apiDeduplicator = new RequestDeduplicator();
+
+// Cache for frequently accessed data
+class MemoryCache {
+  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+
+  set(key: string, data: any, ttlMs: number = 300000) { // 5 min default
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl: ttlMs
+    });
+  }
+
+  get(key: string): any | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+
+    if (Date.now() - entry.timestamp > entry.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.data;
+  }
+
+  delete(key: string) {
+    this.cache.delete(key);
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+
+  // Clean up expired entries
+  cleanup() {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
+        this.cache.delete(key);
+      }
+    }
+  }
+}
+
+export const memoryCache = new MemoryCache();
+
+// Auto cleanup every 5 minutes
+setInterval(() => memoryCache.cleanup(), 300000);

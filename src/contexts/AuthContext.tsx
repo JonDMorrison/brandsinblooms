@@ -88,13 +88,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const value = {
+  const value = React.useMemo(() => ({
     user,
     session,
     loading,
     isAuthenticated: !!user,
     signOut,
-  };
+  }), [user, session, loading]);
 
   console.log('🎯 AuthProvider: Current state - user:', user?.email || 'none', 'loading:', loading);
 

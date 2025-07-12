@@ -213,7 +213,7 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
   const currentCampaign = data?.currentCampaign || null;
   const drafts = filteredData.drafts || [];
 
-  const contextValue = {
+  const contextValue = React.useMemo(() => ({
     data: filteredData,
     loading,
     error,
@@ -242,7 +242,13 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
     openTimePopover,
     timePopoverTask,
     setTimePopoverTask
-  };
+  }), [
+    filteredData, loading, error, refetch, isDragging, startDragging, stopDragging,
+    isDockOpen, openDock, closeDock, toggleDock, draftOrder, setDraftOrder, getOrderedDrafts,
+    currentCampaign, drafts, activeDraft, setActiveDraft, updateDraftContent,
+    composerMode, setComposerMode, scheduleDraftCallback, handleClickToPost,
+    openTimePopover, timePopoverTask, setTimePopoverTask
+  ]);
 
   return (
     <DashboardContext.Provider value={contextValue}>

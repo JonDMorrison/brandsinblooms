@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
+import { memoryCache, apiDeduplicator } from '@/utils/performanceOptimizations';
 
 export const useDashboardData = () => {
   const { user } = useAuth();
@@ -13,21 +14,31 @@ export const useDashboardData = () => {
     queryFn: async () => {
       if (!user) throw new Error('User not authenticated');
 
-      // Fetch current campaign
-      const campaignQuery = supabase
-        .from('campaigns')
-        .select('id, title, start_date, week_number, user_id, tenant_id, created_by_user_id')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (tenant?.id) {
-        campaignQuery.eq('tenant_id', tenant.id);
-      } else {
-        campaignQuery.eq('user_id', user.id);
+      const cacheKey = `dashboard-${user.id}-${tenant?.id || 'no-tenant'}`;
+      
+      // Check cache first
+      const cached = memoryCache.get(cacheKey);
+      if (cached) {
+        return cached;
       }
 
-      const { data: campaigns } = await campaignQuery;
-      const currentCampaign = campaigns?.[0] || null;
+      // Use deduplication for API calls
+      return apiDeduplicator.dedupe(cacheKey, async () => {
+        // Fetch current campaign
+        const campaignQuery = supabase
+          .from('campaigns')
+          .select('id, title, start_date, week_number, user_id, tenant_id, created_by_user_id')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (tenant?.id) {
+          campaignQuery.eq('tenant_id', tenant.id);
+        } else {
+          campaignQuery.eq('user_id', user.id);
+        }
+
+        const { data: campaigns } = await campaignQuery;
+        const currentCampaign = campaigns?.[0] || null;
 
       // Fetch tasks - ensure proper user filtering
       const taskQuery = supabase
@@ -125,15 +136,21 @@ export const useDashboardData = () => {
         return acc;
       }, {} as Record<string, any[]>);
 
-      return {
-        currentCampaign,
-        tasks: allTasks,
-        drafts,
-        scheduledTasks,
-        scheduledByDate,
-        scheduledPosts: scheduledPosts || [],
-        socialConnections: connections || []
-      };
+        const result = {
+          currentCampaign,
+          tasks: allTasks,
+          drafts,
+          scheduledTasks,
+          scheduledByDate,
+          scheduledPosts: scheduledPosts || [],
+          socialConnections: connections || []
+        };
+
+        // Cache the result for 2 minutes
+        memoryCache.set(cacheKey, result, 120000);
+        
+        return result;
+      });
     },
     enabled: !!user,
     staleTime: 30000,
