@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { EnhancedComposerTray } from '@/components/publish/EnhancedComposerTray';
 import { DirectSocialPublisher } from '@/components/publish/DirectSocialPublisher';
 import { ModernPublishDashboard } from '@/components/publish/ModernPublishDashboard';
@@ -20,8 +19,9 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, BarChart3, Zap, Grid, Send, Clock } from 'lucide-react';
-import { fetchSmartImage } from '@/services/unsplashService';
+import { optimizedImageService } from '@/services/optimizedImageService';
 import { ImageAssetManager } from '@/lib/imageAssetManager';
+import { debounce } from '@/utils/performanceOptimizations';
 
 interface PublishData {
   content: GeneratedContent[];
@@ -69,63 +69,58 @@ const PublishPage = () => {
   const [metricsRefresh, setMetricsRefresh] = useState(0);
   const [testMode, setTestMode] = useState(false);
 
-  // Function to fetch images for multiple content items
-  const fetchImagesForContent = async (content: GeneratedContent[]): Promise<GeneratedContent[]> => {
-    const updatedContent = [...content];
-    
-    // Set loading states for all content
-    const initialLoadingStates: Record<string, boolean> = {};
-    content.forEach(item => {
-      initialLoadingStates[item.id] = true;
-    });
-    setImageLoadingStates(initialLoadingStates);
+  // Optimized function to fetch images in background
+  const fetchImagesInBackground = useCallback(
+    debounce(async (content: GeneratedContent[]) => {
+      const requests = content
+        .filter(item => item.caption && !item.mediaUrl)
+        .map(item => ({ keyword: item.caption, context: 'garden center social media' }));
 
-    // Fetch images for each content item in parallel
-    const imagePromises = content.map(async (item, index) => {
-      if (item.caption) {
-        try {
-          const image = await fetchSmartImage(item.caption, 'garden center social media');
-          if (image) {
-            updatedContent[index] = { ...item, mediaUrl: image.url };
+      if (requests.length === 0) return;
+
+      try {
+        const images = await optimizedImageService.batchFetchImages(requests);
+        
+        // Update content with fetched images in the background
+        const contentWithImages = content.map((item) => {
+          if (item.caption && !item.mediaUrl) {
+            const imageIndex = requests.findIndex(req => req.keyword === item.caption);
+            const image = imageIndex !== -1 ? images[imageIndex] : null;
             
-            // Create image asset record for tracking
-            await ImageAssetManager.createUnsplashAsset(user?.id || '', item.id, {
-              url: image.url,
-              thumb: image.thumb,
-              alt: image.alt,
-              photographer: image.photographer,
-              unsplash_id: image.unsplash_id
-            });
+            if (image) {
+              // Create asset record in background - don't await
+              ImageAssetManager.createUnsplashAsset(user?.id || '', item.id, {
+                url: image.url,
+                thumb: image.thumb,
+                alt: image.alt,
+                photographer: image.photographer,
+                unsplash_id: image.unsplash_id
+              }).catch(console.warn);
+              
+              return { ...item, mediaUrl: image.url };
+            }
           }
-        } catch (error) {
-          console.error(`Error fetching image for content ${item.id}:`, error);
-        }
+          return item;
+        });
+
+        // Update publish data if there are changes
+        setPublishData(prev => prev ? {
+          ...prev,
+          content: contentWithImages
+        } : null);
+        
+      } catch (error) {
+        console.warn('Background image fetching failed:', error);
       }
-      
-      // Update individual loading state
-      setImageLoadingStates(prev => ({ ...prev, [item.id]: false }));
-      return updatedContent[index];
-    });
+    }, 500),
+    [user?.id]
+  );
 
-    await Promise.allSettled(imagePromises);
-    
-    // Clear all loading states
-    setImageLoadingStates({});
-    
-    return updatedContent;
-  };
-
-  useEffect(() => {
-    if (user && !isLoading && dashboardData) {
-      initializePublishData();
-    }
-  }, [user, tenant, dashboardData, isLoading]);
-
-  const initializePublishData = async () => {
+  // Optimized initialization function
+  const initializePublishData = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Use data from the dashboard hook for better performance
       if (!dashboardData) {
         console.log('No dashboard data available yet');
         return;
@@ -143,7 +138,7 @@ const PublishPage = () => {
         ['facebook', 'instagram'].includes(task.post_type)
       ) || [];
 
-      // Transform to GeneratedContent format and fetch images
+      // Transform to GeneratedContent format WITHOUT fetching images immediately
       const generatedContent: GeneratedContent[] = publishableTasks.map(task => ({
         id: task.id,
         status: task.status.toUpperCase() as 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED' | 'APPROVED' | 'REVIEW',
@@ -154,11 +149,6 @@ const PublishPage = () => {
         createdAt: task.created_at
       }));
 
-      console.log('Generated content:', generatedContent);
-
-      // Fetch images for content that doesn't have them
-      const contentWithImages = await fetchImagesForContent(generatedContent);
-
       const socialConnections: SocialConnection[] = (dashboardData.socialConnections || []).map(conn => ({
         id: conn.id,
         platform: conn.platform,
@@ -166,17 +156,23 @@ const PublishPage = () => {
         platformAccountName: conn.platform_account_name || ''
       }));
 
+      // Set data immediately without waiting for images
       setPublishData({
-        content: contentWithImages,
+        content: generatedContent,
         scheduledPosts: dashboardData.scheduledPosts || [],
         socialConnections
       });
 
-      console.log('Final publish data:', {
-        contentCount: contentWithImages.length,
+      console.log('Initial publish data set:', {
+        contentCount: generatedContent.length,
         connectionsCount: socialConnections.length,
         scheduledCount: dashboardData.scheduledPosts?.length || 0
       });
+
+      // Fetch images in background after initial render
+      setTimeout(() => {
+        fetchImagesInBackground(generatedContent);
+      }, 100);
 
     } catch (error) {
       console.error('Error initializing publish data:', error);
@@ -184,7 +180,13 @@ const PublishPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dashboardData, fetchImagesInBackground]);
+
+  useEffect(() => {
+    if (user && !isLoading && dashboardData) {
+      initializePublishData();
+    }
+  }, [user, tenant, dashboardData, isLoading, initializePublishData]);
 
   const handleContentSelect = (content: GeneratedContent) => {
     setSelectedContent(content);
@@ -200,7 +202,6 @@ const PublishPage = () => {
     try {
       console.log('📅 Scheduling post:', scheduleData);
       
-      // Call our new publish-task endpoint with publishAt
       const { data, error } = await supabase.functions.invoke('publish-task', {
         body: {
           taskId: scheduleData.contentId,
@@ -262,24 +263,16 @@ const PublishPage = () => {
     try {
       console.log('🚀 Publishing now:', publishDataPayload, { testMode });
       
-      // If in test mode, simulate the publish
       if (testMode) {
         console.log('🧪 TEST MODE: Simulating publish...');
-        
-        // Simulate processing time
         await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Mock successful response
         toast.success(`✅ TEST: Successfully simulated publishing to ${publishDataPayload.platforms.length} platform(s)!`);
         showSuccessToast('published');
         triggerCardPulse(publishDataPayload.contentId);
-        
-        // Refresh data
         setMetricsRefresh(prev => prev + 1);
         return;
       }
       
-      // Call our new publish-task endpoint
       const { data, error } = await supabase.functions.invoke('publish-task', {
         body: {
           taskId: publishDataPayload.contentId,
@@ -311,7 +304,6 @@ const PublishPage = () => {
         toast.error(data?.message || 'Publishing failed');
       }
       
-      // Refresh data
       await refetch();
       await initializePublishData();
       setMetricsRefresh(prev => prev + 1);
@@ -339,13 +331,11 @@ const PublishPage = () => {
 
   const handleOptimalTimeSelect = (time: string) => {
     console.log('Selected optimal time:', time);
-    // This could auto-fill the scheduling time in the composer
     toast.success(`Optimal time ${time} selected`);
   };
 
   const handleAutomationUpdate = (rules: any[]) => {
     console.log('Automation rules updated:', rules);
-    // Apply automation rules to content
   };
 
   const handleQuickPublish = async (content: GeneratedContent) => {
@@ -367,7 +357,7 @@ const PublishPage = () => {
   };
 
   if (loading || isLoading) {
-    return null; // Let LazyLoadWrapper handle the loading state
+    return null;
   }
 
   return (
@@ -378,12 +368,10 @@ const PublishPage = () => {
           <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
           <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2"></div>
           
-          {/* Background Send Icon */}
           <div className="absolute top-4 right-8 opacity-20">
             <Send className="w-32 h-32 text-slate-300" />
           </div>
           
-          {/* Subtle Overlay */}
           <div className="absolute inset-0 bg-black/5"></div>
           
           <div className="relative z-10 flex items-center justify-between">
@@ -408,7 +396,6 @@ const PublishPage = () => {
                       {publishData.socialConnections.length} connections
                     </span>
                   </div>
-                  
                 </div>
               )}
             </div>
@@ -432,7 +419,6 @@ const PublishPage = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
           <div className="p-4 sm:p-6">
             <TabsContent value="publisher" className="space-y-6 mt-6">
-              
               <div className={`flex flex-col lg:flex-row gap-6 min-h-[calc(100vh-20rem)] transition-all duration-300 ${
                 testMode ? 'bg-amber-50/30 rounded-xl border border-amber-200/50' : ''
               }`}>

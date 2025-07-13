@@ -139,7 +139,48 @@ class MemoryCache {
   }
 }
 
+// Enhanced image cache with deduplication
+class ImageCache {
+  private cache = new Map<string, Promise<any>>();
+  private results = new Map<string, any>();
+
+  async getOrFetch(key: string, fetchFn: () => Promise<any>, ttlMs: number = 600000): Promise<any> {
+    // Check if we have a cached result
+    const cached = this.results.get(key);
+    if (cached && Date.now() - cached.timestamp < ttlMs) {
+      return cached.data;
+    }
+
+    // Check if there's an ongoing request
+    if (this.cache.has(key)) {
+      return this.cache.get(key);
+    }
+
+    // Start new request
+    const promise = fetchFn().then(result => {
+      // Cache the result
+      this.results.set(key, { data: result, timestamp: Date.now() });
+      // Remove from pending cache
+      this.cache.delete(key);
+      return result;
+    }).catch(error => {
+      // Remove from pending cache on error
+      this.cache.delete(key);
+      throw error;
+    });
+
+    this.cache.set(key, promise);
+    return promise;
+  }
+
+  clear() {
+    this.cache.clear();
+    this.results.clear();
+  }
+}
+
 export const memoryCache = new MemoryCache();
+export const imageCache = new ImageCache();
 
 // Auto cleanup every 5 minutes
 setInterval(() => memoryCache.cleanup(), 300000);
