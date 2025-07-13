@@ -194,6 +194,8 @@ export const SmartTimeRibbon = () => {
         onSchedule={handleSchedule}
         targetDate={targetDate}
         bestTimes={getBestTimesForPlatform('facebook')}
+        contentType="social_post"
+        platform="facebook"
       />
     </>
   );

@@ -1,12 +1,14 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Clock, Sparkles, Calendar as CalendarIcon } from 'lucide-react';
+import { Clock, Sparkles, Calendar as CalendarIcon, Brain, TrendingUp } from 'lucide-react';
 import { format } from 'date-fns';
+import { useAIScheduling } from '@/hooks/useAIScheduling';
+import { Badge } from '@/components/ui/badge';
 
 interface TimePopoverProps {
   isOpen: boolean;
@@ -14,6 +16,8 @@ interface TimePopoverProps {
   onSchedule: (date: Date, time: 'now' | 'best' | string) => void;
   targetDate: Date;
   bestTimes: string[];
+  contentType?: string;
+  platform?: string;
 }
 
 export const TimePopover = ({ 
@@ -21,10 +25,33 @@ export const TimePopover = ({
   onClose, 
   onSchedule, 
   targetDate,
-  bestTimes = ['12:00', '15:00', '18:00']
+  bestTimes = ['12:00', '15:00', '18:00'],
+  contentType = 'social_post',
+  platform = 'facebook'
 }: TimePopoverProps) => {
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [customTime, setCustomTime] = useState<string>('12:00');
+  const [aiRecommendations, setAiRecommendations] = useState<any[]>([]);
+  const { generateAIRecommendations, isGenerating } = useAIScheduling();
+
+  useEffect(() => {
+    if (isOpen) {
+      loadAIRecommendations();
+    }
+  }, [isOpen, contentType, platform]);
+
+  const loadAIRecommendations = async () => {
+    try {
+      const recommendations = await generateAIRecommendations({
+        contentType,
+        platform,
+        urgency: 'medium'
+      });
+      setAiRecommendations(recommendations.slice(0, 2));
+    } catch (error) {
+      console.error('Failed to load AI recommendations:', error);
+    }
+  };
 
   const handleScheduleNow = () => {
     onSchedule(new Date(), 'now');
@@ -41,6 +68,13 @@ export const TimePopover = ({
     const scheduledDate = new Date(targetDate);
     scheduledDate.setHours(hours, minutes, 0, 0);
     onSchedule(scheduledDate, customTime);
+    onClose();
+  };
+
+  const handleScheduleAI = (aiRecommendation: any) => {
+    const recommendedDate = new Date(aiRecommendation.datetime);
+    const timeString = format(recommendedDate, 'HH:mm');
+    onSchedule(recommendedDate, timeString);
     onClose();
   };
 
@@ -66,13 +100,48 @@ export const TimePopover = ({
             Post Now
           </Button>
 
+          {/* AI Recommendations */}
+          {aiRecommendations.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Brain className="w-4 h-4" />
+                AI Recommended Times
+              </div>
+              {aiRecommendations.map((recommendation, index) => (
+                <Button 
+                  key={index}
+                  variant="outline" 
+                  className="w-full justify-start border-purple-200 text-purple-700 hover:bg-purple-50 p-3 h-auto"
+                  onClick={() => handleScheduleAI(recommendation)}
+                >
+                  <div className="flex items-center gap-2 w-full">
+                    <Sparkles className="w-4 h-4 text-purple-500 flex-shrink-0" />
+                    <div className="text-left flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">
+                          {format(new Date(recommendation.datetime), 'MMM d, h:mm a')}
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {Math.round(recommendation.confidence * 100)}%
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {recommendation.reasoning}
+                      </div>
+                    </div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          )}
+
           {/* Best Time */}
           <Button
             onClick={handleScheduleBest}
             variant="outline"
             className="w-full justify-start border-[#68BEB9] text-[#68BEB9] hover:bg-[#68BEB9]/10"
           >
-            <Sparkles className="w-4 h-4 mr-2" />
+            <TrendingUp className="w-4 h-4 mr-2" />
             Best Time ({bestTimes[0]})
           </Button>
 
