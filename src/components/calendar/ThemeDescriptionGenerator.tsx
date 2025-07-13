@@ -19,7 +19,6 @@ export const generateThemeDescription = async (
   onLoadingChange(true);
   
   try {
-    console.log('Generating region-aware theme description for:', theme);
     
     const { data, error } = await supabase.functions.invoke('generate-theme-description', {
       body: { 

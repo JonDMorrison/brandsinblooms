@@ -64,7 +64,6 @@ export const EnhancedCalendarTaskItem = ({
   };
 
   const handleLongPressStart = () => {
-    console.log('Long press detected, enabling drag for task:', task.id);
     setIsDragReady(true);
     onLongPress(task);
     if (onDragStart) {
@@ -74,7 +73,6 @@ export const EnhancedCalendarTaskItem = ({
 
   const handleClick = () => {
     if (!isDragReady) {
-      console.log('Quick click detected, opening modal for task:', task.id);
       onTaskClick(task);
     }
   };
@@ -86,7 +84,6 @@ export const EnhancedCalendarTaskItem = ({
   });
 
   const handleDragStart = (e: React.DragEvent) => {
-    console.log('Drag start event triggered for task:', task.id);
     e.dataTransfer.setData('text/plain', task.id);
     e.dataTransfer.effectAllowed = 'move';
     
@@ -111,7 +108,6 @@ export const EnhancedCalendarTaskItem = ({
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
-    console.log('Drag end event triggered for task:', task.id);
     setIsDragReady(false);
     if (onDragEnd) {
       onDragEnd();

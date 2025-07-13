@@ -1,3 +1,4 @@
+import React from 'react';
 import { cn } from "@/lib/utils";
 import { CalendarDayHeader } from "./CalendarDayHeader";
 import { CalendarDayContent } from "./CalendarDayContent";
@@ -46,7 +47,7 @@ interface CalendarDayCellProps {
   onDragEnd?: () => void;
 }
 
-export const CalendarDayCell = ({
+export const CalendarDayCell = React.memo(({
   date,
   campaigns,
   tasks = [],
@@ -66,8 +67,14 @@ export const CalendarDayCell = ({
   onDragStart,
   onDragEnd,
 }: CalendarDayCellProps) => {
-  const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-  const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
+  const isWeekend = React.useMemo(() => {
+    const day = date.getDay();
+    return day === 0 || day === 6;
+  }, [date]);
+  
+  const isPastDate = React.useMemo(() => {
+    return date < new Date(new Date().setHours(0, 0, 0, 0));
+  }, [date]);
 
   return (
     <CalendarDropZone
@@ -123,4 +130,4 @@ export const CalendarDayCell = ({
       </div>
     </CalendarDropZone>
   );
-};
+});

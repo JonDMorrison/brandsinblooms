@@ -181,7 +181,6 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
     setError(null);
     
     try {
-      console.log('🚀 Starting campaign backfill process...');
       
       let themes;
       let usingFallback = false;
@@ -189,11 +188,8 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
       // Try the edge function first if online
       if (isOnline && retryCount < 2) {
         try {
-          console.log('Attempting edge function generation...');
           themes = await tryEdgeFunctionGeneration();
-          console.log('✅ Edge function generation successful');
         } catch (edgeError) {
-          console.log('❌ Edge function failed, using fallback themes:', edgeError);
           const appError = handleError(edgeError, 'campaign generation');
           
           // No toast notifications for connection issues per new requirements
@@ -201,7 +197,6 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
           usingFallback = true;
         }
       } else {
-        console.log('Using fallback themes (offline or too many retries)');
         themes = generateFallbackThemes();
         usingFallback = true;
       }
@@ -209,7 +204,6 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
       // Save themes to database
       const savedCount = await saveCampaignsToDatabase(themes);
       
-      console.log(`✅ Successfully saved ${savedCount} campaigns`);
       setCompleted(true);
       
       // Call the completion callback after a short delay

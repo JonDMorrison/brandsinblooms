@@ -21,7 +21,7 @@ interface CalendarGridProps {
   onDragEnd?: () => void;
 }
 
-export const CalendarGrid = ({
+export const CalendarGrid = React.memo(({
   campaigns,
   tasks,
   currentDate,
@@ -38,7 +38,7 @@ export const CalendarGrid = ({
   onDragStart,
   onDragEnd
 }: CalendarGridProps) => {
-  const generateDays = () => {
+  const generateDays = React.useMemo(() => {
     if (viewMode === 'week') {
       const start = startOfWeek(currentDate, { weekStartsOn: 1 });
       return Array.from({ length: 7 }, (_, i) => addDays(start, i));
@@ -50,7 +50,7 @@ export const CalendarGrid = ({
       
       return Array.from({ length: 42 }, (_, i) => addDays(calendarStart, i));
     }
-  };
+  }, [currentDate, viewMode]);
 
   // Create a map of date strings to campaigns for efficient lookup
   const campaignsByDate = React.useMemo(() => {
@@ -58,7 +58,6 @@ export const CalendarGrid = ({
     
     campaigns.forEach(campaign => {
       if (!campaign.start_date) {
-        console.log('CalendarGrid: Campaign missing start_date:', campaign);
         return;
       }
       
@@ -108,11 +107,11 @@ export const CalendarGrid = ({
     return map;
   }, [tasks]);
 
-  const days = generateDays();
+  const days = generateDays;
   const gridCols = viewMode === 'week' ? 'grid-cols-7' : 'grid-cols-7';
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
 
-  console.log('CalendarGrid: Rendering with', campaigns.length, 'campaigns and', tasks.length, 'tasks');
+  
 
   return (
     <div className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
@@ -139,7 +138,7 @@ export const CalendarGrid = ({
           const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
           const isToday = date.toDateString() === new Date().toDateString();
 
-          console.log(`CalendarGrid: Date ${dateKey} has ${dayCampaigns.length} campaigns and ${dayTasks.length} tasks`);
+          
 
           return (
             <CalendarDayCell
@@ -165,4 +164,4 @@ export const CalendarGrid = ({
       </div>
     </div>
   );
-};
+});

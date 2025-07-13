@@ -59,7 +59,7 @@ export const CalendarDayContent = ({
   const totalItems = campaigns.length + tasks.length;
   const hasMoreItems = totalItems > totalItemsShown;
 
-  console.log(`CalendarDayContent: Rendering ${campaigns.length} campaigns and ${tasks.length} tasks`);
+  
 
   return (
     <div className="space-y-1.5">

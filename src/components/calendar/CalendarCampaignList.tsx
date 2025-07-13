@@ -26,7 +26,7 @@ export const CalendarCampaignList = ({
   onCampaignClick,
 }: CalendarCampaignListProps) => {
   // Campaigns are now pre-filtered by CalendarGrid, so no need for deduplication
-  console.log(`CalendarCampaignList: Displaying ${campaigns.length} campaigns`);
+  
 
   const isCampaignSelected = (campaign: Campaign) => {
     return selectedCampaigns.some(c => c.id === campaign.id);
@@ -34,7 +34,6 @@ export const CalendarCampaignList = ({
 
   const handleCampaignClick = (campaign: Campaign, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('CalendarCampaignList: Campaign click handler called for campaign:', campaign.id);
     if (onCampaignClick) {
       onCampaignClick(campaign);
     }

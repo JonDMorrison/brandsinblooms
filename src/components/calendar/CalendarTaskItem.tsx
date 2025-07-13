@@ -65,12 +65,10 @@ export const CalendarTaskItem = ({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log('CalendarTaskItem: Task click handler called for task:', task.id);
     onTaskClick(task, e.ctrlKey || e.metaKey);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    console.log('CalendarTaskItem: Drag start initiated for task:', task.id);
     
     if (!selectionMode) {
       e.preventDefault();
@@ -105,7 +103,6 @@ export const CalendarTaskItem = ({
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
-    console.log('CalendarTaskItem: Drag ended for task:', task.id);
     onDragEnd();
   };
 

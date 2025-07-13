@@ -82,13 +82,10 @@ export const CalendarDropZone = ({
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('CalendarDropZone: Drop event triggered on date:', format(date, 'yyyy-MM-dd'));
-    
     setIsHoveredDrop(false);
     
     if (onDrop) {
       const taskId = e.dataTransfer.getData('text/plain');
-      console.log('CalendarDropZone: Executing drop for task ID:', taskId, 'to date:', format(date, 'yyyy-MM-dd'));
       onDrop(date);
     }
   };

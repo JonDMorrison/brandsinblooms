@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { CalendarHeader } from './calendar/CalendarHeader';
 import { useToast } from "@/components/ui/use-toast"
@@ -9,7 +9,7 @@ import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ContentViewerDialog } from './content/ContentViewerDialog';
 import { CampaignDetailsModal } from './calendar/CampaignDetailsModal';
 
-export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
+export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
   campaigns: any[];
   tasks: any[];
   onDataUpdate: () => void;
@@ -28,26 +28,26 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
   // Use the drag and drop hook with proper handlers
   const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(onDataUpdate);
 
-  // Navigation functions
-  const goToPrevious = () => {
+  // Navigation functions - memoized for performance
+  const goToPrevious = useCallback(() => {
     if (viewMode === 'month') {
       setCurrentDate(prev => subMonths(prev, 1));
     } else {
       setCurrentDate(prev => subWeeks(prev, 1));
     }
-  };
+  }, [viewMode]);
 
-  const goToNext = () => {
+  const goToNext = useCallback(() => {
     if (viewMode === 'month') {
       setCurrentDate(prev => addMonths(prev, 1));
     } else {
       setCurrentDate(prev => addWeeks(prev, 1));
     }
-  };
+  }, [viewMode]);
 
-  const goToToday = () => {
+  const goToToday = useCallback(() => {
     setCurrentDate(new Date());
-  };
+  }, []);
 
   // Task selection and bulk operations
   const toggleTaskSelection = (taskId: string) => {
@@ -148,9 +148,9 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
     // Date modal functionality to be implemented
   };
 
-  const isTaskSelected = (task: any) => {
+  const isTaskSelected = useCallback((task: any) => {
     return selectedTasks.includes(task.id);
-  };
+  }, [selectedTasks]);
 
 
   return (
@@ -221,4 +221,4 @@ export const CalendarView = ({ campaigns, tasks, onDataUpdate }: {
       )}
     </div>
   );
-};
+});
