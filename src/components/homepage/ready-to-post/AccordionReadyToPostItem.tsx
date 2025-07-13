@@ -15,6 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SafeHtml } from "@/components/ui/safe-html";
+import { useRouteState } from "@/hooks/useRouteState";
 
 interface AccordionReadyToPostItemProps {
   task: any;
@@ -48,8 +49,20 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
   isSelected = false,
   onSelect
 }) => {
-  const [isOpen, setIsOpen] = useState(isFirst);
+  const { getState, updateState } = useRouteState();
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Use persistent state for accordion, falling back to isFirst for new items
+  const accordionState = getState().readyToPostExpanded || {};
+  const isOpen = accordionState[task.id] !== undefined ? accordionState[task.id] : isFirst;
+  
+  const setIsOpen = (open: boolean) => {
+    const currentState = getState().readyToPostExpanded || {};
+    updateState('readyToPostExpanded', {
+      ...currentState,
+      [task.id]: open
+    });
+  };
   const isMobile = useIsMobile();
 
   const getTaskImageUrl = (task: any) => {

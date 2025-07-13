@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { useRouteState } from "@/hooks/useRouteState";
 
 interface CustomContentSectionProps {
   userCreatedCampaigns: any[];
@@ -39,7 +40,10 @@ export const CustomContentSection = ({
     campaignId: null,
     campaignTitle: ''
   });
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  
+  // Use route state for persistent collapsed state
+  const { getState, updateState } = useRouteState();
+  const isCollapsed = getState().customContentCollapsed || false;
 
   // Update campaigns when prop changes
   React.useEffect(() => {
@@ -258,7 +262,7 @@ export const CustomContentSection = ({
   return (
     <>
       <div className={cn('space-y-8', className)}>
-        <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)}>
+        <Collapsible open={!isCollapsed} onOpenChange={(open) => updateState('customContentCollapsed', !open)}>
           {/* Modern Gradient Header Section */}
           <CollapsibleTrigger asChild>
             <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8 cursor-pointer hover:shadow-3xl transition-shadow duration-300">

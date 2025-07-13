@@ -39,6 +39,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useProFeatures } from "@/hooks/useProFeatures";
+import { useRouteState } from "@/hooks/useRouteState";
 
 interface SidebarItem {
   title: string;
@@ -52,9 +53,13 @@ const AppSidebar: React.FC = () => {
   const { isPro } = useProFeatures();
   const location = useLocation();
   const { state } = useSidebar();
+  const { getState, updateState } = useRouteState();
   
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
+  
+  // Get persistent group states
+  const groupStates = getState().sidebarGroupStates || {};
 
   const sidebarItems: SidebarItem[] = [
     {
@@ -117,6 +122,24 @@ const AppSidebar: React.FC = () => {
   ];
 
   const isActive = (path: string) => currentPath === path;
+  
+  // Helper to determine if a group should be open
+  const isGroupOpen = (item: SidebarItem) => {
+    // Check if group was manually opened/closed (user preference)
+    if (groupStates[item.title] !== undefined) {
+      return groupStates[item.title];
+    }
+    // Default: open if contains active route
+    return item.items?.some(subItem => isActive(subItem.url)) || false;
+  };
+  
+  // Helper to update group state
+  const setGroupOpen = (groupTitle: string, open: boolean) => {
+    updateState('sidebarGroupStates', {
+      ...groupStates,
+      [groupTitle]: open
+    });
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r">
@@ -139,17 +162,21 @@ const AppSidebar: React.FC = () => {
             <SidebarMenu>
               {sidebarItems.map((item) =>
                 item.items ? (
-                  <Collapsible key={item.title} defaultOpen={item.items.some(subItem => isActive(subItem.url))}>
+                  <Collapsible 
+                    key={item.title} 
+                    open={isGroupOpen(item)}
+                    onOpenChange={(open) => setGroupOpen(item.title, open)}
+                  >
                     <SidebarMenuItem>
                        <CollapsibleTrigger asChild>
-                         <SidebarMenuButton className="group" asChild>
-                           <NavLink to={item.url}>
-                             <item.icon className="h-4 w-4" />
-                             {!isCollapsed && <span>{item.title}</span>}
-                             {!isCollapsed && <ChevronDown className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
-                           </NavLink>
-                         </SidebarMenuButton>
-                       </CollapsibleTrigger>
+                          <SidebarMenuButton className="group" asChild>
+                            <NavLink to={item.url}>
+                              <item.icon className="h-4 w-4" />
+                              {!isCollapsed && <span>{item.title}</span>}
+                              {!isCollapsed && <ChevronDown className="ml-auto h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180" />}
+                            </NavLink>
+                          </SidebarMenuButton>
+                        </CollapsibleTrigger>
                       {!isCollapsed && (
                         <CollapsibleContent>
                           <SidebarMenuSub>
