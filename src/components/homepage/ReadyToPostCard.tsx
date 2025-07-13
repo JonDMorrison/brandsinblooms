@@ -253,7 +253,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
                 <Send className="w-5 h-5" />
                 Open Publish Portal
               </Button>
-              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300"></div>
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-teal-500/20 rounded-2xl blur-xl group-hover:blur-lg transition-all duration-300 pointer-events-none"></div>
             </div>
           )}
         </div>
