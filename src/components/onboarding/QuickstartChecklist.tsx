@@ -198,9 +198,9 @@ export const QuickstartChecklist: React.FC<QuickstartChecklistProps> = ({
                   {step.icon}
                 </div>
               </div>
-              <div className="w-full min-w-0">
-                <div className="font-bold text-base bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent break-words hyphens-auto leading-tight">{step.title}</div>
-                <div className="text-sm text-slate-600 mt-1 break-words hyphens-auto leading-tight">{step.description}</div>
+              <div className="w-full min-w-0 overflow-hidden">
+                <div className="font-bold text-base bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent break-words hyphens-auto leading-tight overflow-wrap-anywhere">{step.title}</div>
+                <div className="text-sm text-slate-600 mt-1 break-words hyphens-auto leading-tight overflow-wrap-anywhere">{step.description}</div>
               </div>
             </Button>
           ))}
