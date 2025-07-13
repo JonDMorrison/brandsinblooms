@@ -213,55 +213,51 @@ const Auth = () => {
       {/* Glass morphism overlay */}
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[0.5px]"></div>
 
-      <div className="relative z-10 w-full max-w-md">
-        {/* Premium Header */}
-        <div className="text-center mb-10">
+      <div className="relative z-10 w-full max-w-xl mx-auto">
+        {/* Simplified Header */}
+        <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-6">
-            {/* Enhanced logo treatment */}
-            <div className="relative">
-              <div className="glass-coin-enhanced p-4 mr-4">
-                <Sprout className="h-10 w-10 text-brand-teal-600 animate-float" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-mint-500 rounded-full animate-pulse"></div>
+            <div className="glass-coin-enhanced p-4 mr-4">
+              <Sprout className="h-10 w-10 text-brand-teal-600" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-brand-navy-700 to-brand-teal-600 bg-clip-text text-transparent">
-                BloomSuite
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-brand-navy-700 to-brand-teal-600 bg-clip-text text-transparent">
+                Social Media Manager
               </h1>
               <div className="h-1 w-16 bg-gradient-to-r from-brand-teal-500 to-mint-500 rounded-full mt-1 mx-auto"></div>
             </div>
           </div>
-          <h2 className="text-xl font-semibold text-brand-navy-700 mb-2">
-            Where Gardens Grow Smart
-          </h2>
-          <p className="text-brand-navy-500 text-base leading-relaxed max-w-sm mx-auto">
-            Transform your garden center with AI-powered content that blooms into business growth
+          <p className="text-brand-navy-600 text-lg font-medium mb-2">
+            Social Media Management for Garden Businesses
+          </p>
+          <p className="text-brand-navy-500 leading-relaxed max-w-md mx-auto">
+            Grow your garden center's online presence with AI-powered content
           </p>
         </div>
 
         <Card className="shadow-2xl border border-white/30 bg-white/90 backdrop-blur-xl rounded-3xl p-8 transition-all duration-500 hover:shadow-[0_25px_50px_-12px_rgba(104,190,185,0.25)] hover:border-brand-teal-200/50 hover:bg-white/95">
-          <CardHeader className="text-center pb-8">
-            <CardTitle className="text-2xl font-bold text-brand-navy-700 mb-3">
-              Welcome to Your Garden
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-2xl font-bold text-brand-navy-700 mb-2">
+              Get Started
             </CardTitle>
-            <p className="text-brand-navy-500 leading-relaxed">
-              Where every great garden begins with a single step
+            <p className="text-brand-navy-500">
+              Sign in to your account or create a new one
             </p>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-8 bg-gradient-to-r from-brand-navy-50 to-brand-teal-50 h-14 p-1.5 rounded-2xl border border-brand-teal-200/30 shadow-inner">
+              <TabsList className="grid w-full grid-cols-2 mb-6 bg-gradient-to-r from-brand-navy-50 to-brand-teal-50 h-14 p-1.5 rounded-2xl border border-brand-teal-200/30 shadow-inner">
                 <TabsTrigger 
                   value="signin" 
                   className="h-11 font-semibold text-base data-[state=active]:bg-white data-[state=active]:text-brand-navy-700 data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-200/50 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-navy-600"
                 >
-                  Welcome Back
+                  Sign In
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
                   className="h-11 font-semibold text-base data-[state=active]:bg-white data-[state=active]:text-brand-navy-700 data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-200/50 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-navy-600"
                 >
-                  Join the Garden
+                  Create Account
                 </TabsTrigger>
               </TabsList>
 
@@ -276,7 +272,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder="you@gardencompany.com"
+                      placeholder="your@email.com"
                       className="h-14 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                     />
                   </div>
@@ -318,12 +314,12 @@ const Auth = () => {
                     {loading ? (
                       <>
                         <Loader2 className="w-5 h-5 mr-3 animate-spin" />
-                        Welcoming you back...
+                        Signing in...
                       </>
                     ) : (
                       <>
                         <Unlock className="w-5 h-5 mr-3" />
-                        Enter Your Garden
+                        Sign In
                       </>
                     )}
                   </Button>
@@ -380,7 +376,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      placeholder="you@gardencompany.com"
+                      placeholder="your@email.com"
                       className="h-14 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                     />
                   </div>
@@ -418,12 +414,12 @@ const Auth = () => {
                     {loading ? (
                       <>
                         <Loader2 className="w-5 h-5 mr-3 animate-spin" />
-                        Planting your garden...
+                        Creating account...
                       </>
                     ) : (
                       <>
                         <CheckCircle className="w-5 h-5 mr-3" />
-                        Plant Your Garden
+                        Create Account
                       </>
                     )}
                   </Button>
@@ -451,23 +447,24 @@ const Auth = () => {
                       <path fill="#F0F4F0" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                     </svg>
-                    Join with Google
+                    Sign Up with Google
                   </Button>
                 </form>
               </TabsContent>
             </Tabs>
 
             {error && (
-              <Alert className="mt-8 border-red-200/70 bg-red-50/80 rounded-2xl backdrop-blur-sm">
-                <AlertDescription className="text-red-700 font-medium text-center">
+              <Alert className="mt-6 border-destructive/20 bg-destructive/5 text-destructive rounded-xl">
+                <AlertDescription className="font-medium text-center">
                   {error}
                 </AlertDescription>
               </Alert>
             )}
 
             {message && (
-              <Alert className="mt-8 border-mint-200/70 bg-mint-50/80 rounded-2xl backdrop-blur-sm">
-                <AlertDescription className="text-mint-700 font-medium text-center">
+              <Alert className="mt-6 border-brand-teal-300/40 bg-brand-teal-50/70 text-brand-teal-700 rounded-xl">
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription className="font-medium text-center">
                   {message}
                 </AlertDescription>
               </Alert>
