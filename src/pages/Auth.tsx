@@ -225,12 +225,6 @@ const Auth = () => {
               <div className="h-1 w-16 bg-gradient-to-r from-brand-teal-500 to-mint-500 rounded-full mt-1 mx-auto"></div>
             </div>
           </div>
-          <p className="text-brand-navy-600 text-lg font-medium mb-2">
-            Social Media Management for Garden Businesses
-          </p>
-          <p className="text-brand-navy-500 leading-relaxed max-w-md mx-auto">
-            Grow your garden center's online presence with AI-powered content
-          </p>
         </div>
 
         <Card className="shadow-2xl border border-white/30 bg-white/90 backdrop-blur-xl rounded-3xl p-8 transition-all duration-500 hover:shadow-[0_25px_50px_-12px_rgba(104,190,185,0.25)] hover:border-brand-teal-200/50 hover:bg-white/95">
