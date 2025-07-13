@@ -227,7 +227,7 @@ const Auth = () => {
           </div>
         </div>
 
-        <Card className="shadow-2xl border border-white/30 bg-white/90 backdrop-blur-xl rounded-3xl p-8 transition-all duration-500 hover:shadow-[0_25px_50px_-12px_rgba(104,190,185,0.25)] hover:border-brand-teal-200/50 hover:bg-white/95">
+        <Card className="max-w-lg shadow-2xl border border-white/30 bg-white/90 backdrop-blur-xl rounded-3xl p-8 transition-all duration-500 hover:shadow-[0_25px_50px_-12px_rgba(104,190,185,0.25)] hover:border-brand-teal-200/50 hover:bg-white/95">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-2xl font-bold text-brand-navy-700 mb-2">
               Get Started
