@@ -240,30 +240,18 @@ export const detectThemeFromContent = (theme: any): ThemeIconMapping | null => {
   return null;
 };
 
-// Get deterministic icon from seasonal pool using theme ID hash
-export const getSeasonalIcon = (themeId: string, season?: keyof typeof SEASONAL_ICON_POOLS): ThemeIconMapping => {
+// Get random icon from seasonal pool
+export const getRandomSeasonalIcon = (season?: keyof typeof SEASONAL_ICON_POOLS): ThemeIconMapping => {
   const currentSeason = season || getCurrentSeason();
   const pool = SEASONAL_ICON_POOLS[currentSeason];
-  
-  // Create a simple hash from theme ID for consistent selection
-  let hash = 0;
-  for (let i = 0; i < themeId.length; i++) {
-    const char = themeId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  
-  const index = Math.abs(hash) % pool.length;
-  return pool[index];
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  return pool[randomIndex];
 };
 
 // Enhanced icon resolver for focus themes
 export const getFocusThemeIcon = (theme: any): ThemeIconMapping => {
-  // Ensure we have a stable theme identifier
-  const themeId = theme.id || theme.title || 'default';
-  
   // First try exact theme ID mapping
-  const themeMapping = THEME_ICON_MAPPINGS[themeId];
+  const themeMapping = THEME_ICON_MAPPINGS[theme.id];
   if (themeMapping) {
     return themeMapping;
   }
@@ -278,14 +266,14 @@ export const getFocusThemeIcon = (theme: any): ThemeIconMapping => {
   if (theme.category) {
     const categoryBase = CATEGORY_ICON_MAPPINGS[theme.category];
     if (categoryBase) {
-      // For plant_care category, use deterministic seasonal icons
+      // For plant_care category, use seasonal icons for variety
       if (theme.category === 'plant_care') {
-        return getSeasonalIcon(themeId);
+        return getRandomSeasonalIcon();
       }
       return categoryBase;
     }
   }
 
-  // Final fallback: deterministic seasonal icon based on theme ID
-  return getSeasonalIcon(themeId);
+  // Final fallback: seasonal icon based on current time
+  return getRandomSeasonalIcon();
 };

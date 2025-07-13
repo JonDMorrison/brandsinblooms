@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Play, Calendar, Sparkles, ChevronDown, ChevronUp, Eye, ChevronLeft, ChevronRight, Clock, Sprout } from "lucide-react";
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState } from "react";
 import { Campaign } from "@/types/content";
 import { getCurrentWeekNumber, getDateForWeek } from "@/utils/dateUtils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -24,7 +24,7 @@ interface WeeklyThemeCarouselProps {
   onCampaignCreated: () => void;
 }
 
-const WeeklyThemeCarouselComponent = ({ 
+export const WeeklyThemeCarousel = ({ 
   currentCampaign, 
   tasks, 
   onTaskUpdate, 
@@ -48,12 +48,6 @@ const WeeklyThemeCarouselComponent = ({
   // Use the 5 weekly themes directly (no complex merging)
   const allThemes = themes;
   const currentTheme = allThemes[currentIndex];
-  
-  // Memoized theme icon to prevent recalculation and flickering
-  const currentThemeIcon = useMemo(() => {
-    if (!currentTheme) return null;
-    return getFocusThemeIcon(currentTheme);
-  }, [currentTheme?.id, currentTheme?.title, currentTheme?.category]);
   
   // Improved content detection logic
   const getThemeContentTasks = (theme?: WeeklyTheme) => {
@@ -106,13 +100,13 @@ const WeeklyThemeCarouselComponent = ({
     generatingTheme
   });
 
-  const handlePrevious = useCallback(() => {
+  const handlePrevious = () => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : 4)); // Always 5 themes (0-4)
-  }, []);
+  };
 
-  const handleNext = useCallback(() => {
+  const handleNext = () => {
     setCurrentIndex((prev) => (prev < 4 ? prev + 1 : 0)); // Always 5 themes (0-4)
-  }, []);
+  };
 
   const createCampaignFromTheme = async (theme: WeeklyTheme) => {
     console.log('🏗️ Creating campaign from theme:', theme);
@@ -424,10 +418,11 @@ const WeeklyThemeCarouselComponent = ({
                           {/* Premium Glass Icon Medallion */}
                           <div className="relative w-20 h-20 mx-auto mb-6">
                             <div className="glass-coin-enhanced w-20 h-20 flex items-center justify-center group cursor-pointer animate-float">
-                               {(() => {
-                                 const IconComponent = (currentThemeIcon && typeof currentThemeIcon === 'object' && 'icon' in currentThemeIcon) ? currentThemeIcon.icon : Sprout;
-                                 return <IconComponent className="w-10 h-10 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
-                               })()}
+                              {(() => {
+                                const iconMap = getFocusThemeIcon(currentTheme.category);
+                                const IconComponent = (iconMap && typeof iconMap === 'object' && 'icon' in iconMap) ? iconMap.icon : Sprout;
+                                return <IconComponent className="w-10 h-10 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
+                              })()}
                               <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300" />
                               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-60" />
                             </div>
@@ -539,6 +534,3 @@ const WeeklyThemeCarouselComponent = ({
     </>
   );
 };
-
-// Memoized export to prevent unnecessary re-renders
-export const WeeklyThemeCarousel = memo(WeeklyThemeCarouselComponent);
