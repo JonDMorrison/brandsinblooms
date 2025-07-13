@@ -2,7 +2,6 @@
 import React from 'react';
 import { DevSocialPage } from '@/components/social/DevSocialPage';
 import { SocialErrorBoundary } from '@/components/social/SocialErrorBoundary';
-import { SidebarLayout } from '@/components/SidebarLayout';
 
 const DevSocialPageWrapper = () => {
   console.log('🚀 DevSocialPageWrapper: Component rendering');
@@ -10,8 +9,7 @@ const DevSocialPageWrapper = () => {
   
   try {
     return (
-      <SidebarLayout>
-        <SocialErrorBoundary>
+      <SocialErrorBoundary>
           <div className="min-h-screen bg-gray-50">
             {/* Dev Mode indicator in top right */}
             <div className="fixed top-4 right-6 z-50">
@@ -24,8 +22,7 @@ const DevSocialPageWrapper = () => {
               <DevSocialPage />
             </div>
           </div>
-        </SocialErrorBoundary>
-      </SidebarLayout>
+      </SocialErrorBoundary>
     );
   } catch (error) {
     console.error('🚨 DevSocialPageWrapper: Error rendering:', error);

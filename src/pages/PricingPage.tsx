@@ -10,7 +10,6 @@ import { PricingToggle } from "@/components/pricing/PricingToggle";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
 import { FAQSection } from "@/components/pricing/FAQSection";
 import { FinalCTA } from "@/components/pricing/FinalCTA";
-import { SidebarLayout } from "@/components/SidebarLayout";
 import { LandingPageHeader } from "@/components/landing/LandingPageHeader";
 
 const PricingPage = () => {
@@ -159,7 +158,7 @@ const PricingPage = () => {
   );
 
   if (user) {
-    return <SidebarLayout>{pricingContent}</SidebarLayout>;
+    return pricingContent;
   }
 
   return (

@@ -11,6 +11,8 @@ import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { ContentGenerationProvider } from './contexts/ContentGenerationContext';
 import { LazyLoadWrapper } from './components/LazyLoadWrapper';
 import { optimizeImageLoading } from './utils/performanceOptimizations';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { AuthenticatedLayout } from './components/layouts/AuthenticatedLayout';
 
 // Immediate loading for critical components
 import { SmartRootRoute } from './components/SmartRootRoute';
@@ -51,19 +53,22 @@ const App = () => {
       <Router>
         <SubscriptionProvider>
           <ContentGenerationProvider>
-            <Routes>
-              {/* Critical routes - no lazy loading */}
-              <Route path="/" element={<SmartRootRoute />} />
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/dashboard" element={<Navigate to="/" replace />} />
-              <Route path="/social" element={<Navigate to="/social-accounts" replace />} />
-              
-              {/* Lazy loaded routes */}
-              <Route path="/new-dashboard" element={
-                <LazyLoadWrapper>
-                  <NewDashboard />
-                </LazyLoadWrapper>
-              } />
+            <SidebarProvider>
+              <Routes>
+                {/* Critical routes - no lazy loading */}
+                <Route path="/" element={<SmartRootRoute />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/dashboard" element={<Navigate to="/" replace />} />
+                <Route path="/social" element={<Navigate to="/social-accounts" replace />} />
+                
+                {/* Authenticated routes with shared layout */}
+                <Route path="/new-dashboard" element={
+                  <AuthenticatedLayout>
+                    <LazyLoadWrapper>
+                      <NewDashboard />
+                    </LazyLoadWrapper>
+                  </AuthenticatedLayout>
+                } />
               <Route path="/auth/callback" element={
                 <LazyLoadWrapper>
                   <AuthCallbackPage />
@@ -86,79 +91,109 @@ const App = () => {
                 </LazyLoadWrapper>
               } />
               <Route path="/account" element={
-                <LazyLoadWrapper>
-                  <AccountSettings />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <AccountSettings />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/profile" element={
-                <LazyLoadWrapper>
-                  <CompanyProfile />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CompanyProfile />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/company-profile" element={
-                <LazyLoadWrapper>
-                  <CompanyProfile />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CompanyProfile />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/social-accounts" element={
-                <LazyLoadWrapper>
-                  <SocialAccounts />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <SocialAccounts />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/billing" element={
-                <LazyLoadWrapper>
-                  <BillingPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <BillingPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/calendar" element={
-                <LazyLoadWrapper>
-                  <CalendarPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CalendarPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/team" element={
-                <LazyLoadWrapper>
-                  <TeamPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <TeamPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/content-import" element={
-                <LazyLoadWrapper>
-                  <ContentImportPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <ContentImportPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/review-queue" element={
-                <LazyLoadWrapper>
-                  <ReviewQueuePage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <ReviewQueuePage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/dev-social" element={
-                <LazyLoadWrapper>
-                  <DevSocialPageWrapper />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <DevSocialPageWrapper />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/publish" element={
-                <LazyLoadWrapper>
-                  <PublishPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <PublishPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/success" element={
-                <LazyLoadWrapper>
-                  <SuccessPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <SuccessPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/integrations" element={
-                <LazyLoadWrapper>
-                  <IntegrationsPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <IntegrationsPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/integrations/zapier" element={
-                <LazyLoadWrapper>
-                  <ZapierPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <ZapierPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/automation" element={
-                <LazyLoadWrapper>
-                  <AutomationPage />
-                </LazyLoadWrapper>
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <AutomationPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
               } />
               <Route path="/test/social-integration" element={
                 <LazyLoadWrapper>
@@ -174,7 +209,8 @@ const App = () => {
                   </div>
                 </LazyLoadWrapper>
               } />
-            </Routes>
+              </Routes>
+            </SidebarProvider>
           </ContentGenerationProvider>
         </SubscriptionProvider>
         

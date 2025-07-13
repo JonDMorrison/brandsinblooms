@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { SidebarLayout } from '@/components/SidebarLayout';
 import { EnhancedComposerTray } from '@/components/publish/EnhancedComposerTray';
 import { DirectSocialPublisher } from '@/components/publish/DirectSocialPublisher';
 import { ModernPublishDashboard } from '@/components/publish/ModernPublishDashboard';
@@ -369,19 +368,16 @@ const PublishPage = () => {
 
   if (loading || isLoading) {
     return (
-      <SidebarLayout>
-        <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
-            <p className="text-gray-600">Loading publish portal...</p>
-          </div>
+      <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
+          <p className="text-gray-600">Loading publish portal...</p>
         </div>
-      </SidebarLayout>
+      </div>
     );
   }
 
   return (
-    <SidebarLayout>
       <div className="min-h-screen bg-[#F9FAFB]">
         {/* Modern SaaS Gradient Header */}
         <div className="relative px-4 sm:px-6 py-8 bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border-b border-white/30 overflow-hidden">
@@ -541,7 +537,6 @@ const PublishPage = () => {
           <PublishMetrics refreshTrigger={metricsRefresh} />
         </div>
       </div>
-    </SidebarLayout>
   );
 };
 

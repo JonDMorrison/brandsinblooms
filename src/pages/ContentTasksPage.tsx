@@ -1,12 +1,10 @@
 
 import React from 'react';
-import { SidebarLayout } from '@/components/SidebarLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const ContentTasksPage = () => {
   return (
-    <SidebarLayout>
-      <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6">
         <Card>
           <CardHeader>
             <CardTitle>Content Tasks</CardTitle>
@@ -17,8 +15,7 @@ const ContentTasksPage = () => {
             </p>
           </CardContent>
         </Card>
-      </div>
-    </SidebarLayout>
+    </div>
   );
 };
 

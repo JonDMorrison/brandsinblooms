@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { SidebarLayout } from '@/components/SidebarLayout';
 import { DashboardProvider, useDashboardContext } from '@/contexts/DashboardContext';
 import { ProtectedPageWrapper } from '@/components/ProtectedPageWrapper';
 import { FocusCarousel } from '@/components/focus/FocusCarousel';
@@ -84,11 +83,9 @@ const NewDashboardContent = () => {
 const NewDashboard = () => {
   return (
     <ProtectedPageWrapper>
-      <SidebarLayout>
-        <DashboardProvider>
+      <DashboardProvider>
           <NewDashboardContent />
-        </DashboardProvider>
-      </SidebarLayout>
+      </DashboardProvider>
     </ProtectedPageWrapper>
   );
 };
