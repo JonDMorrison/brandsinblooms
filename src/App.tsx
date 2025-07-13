@@ -9,10 +9,12 @@ import {
 import { AuthProvider } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { ContentGenerationProvider } from './contexts/ContentGenerationContext';
+import { LoadingProvider } from './contexts/LoadingContext';
 import { LazyLoadWrapper } from './components/LazyLoadWrapper';
 import { optimizeImageLoading } from './utils/performanceOptimizations';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AuthenticatedLayout } from './components/layouts/AuthenticatedLayout';
+import { GlobalLoadingOverlay } from './components/loading/GlobalLoadingOverlay';
 
 // Immediate loading for critical components
 import { SmartRootRoute } from './components/SmartRootRoute';
@@ -50,11 +52,13 @@ const App = () => {
   }, []);
   return (
     <AuthProvider>
-      <Router>
-        <SubscriptionProvider>
-          <ContentGenerationProvider>
-            <SidebarProvider>
-              <Routes>
+      <LoadingProvider>
+        <Router>
+          <SubscriptionProvider>
+            <ContentGenerationProvider>
+              <SidebarProvider>
+                <GlobalLoadingOverlay />
+                <Routes>
                 {/* Critical routes - no lazy loading */}
                 <Route path="/" element={<SmartRootRoute />} />
                 <Route path="/auth" element={<Auth />} />
@@ -209,13 +213,14 @@ const App = () => {
                   </div>
                 </LazyLoadWrapper>
               } />
-              </Routes>
-            </SidebarProvider>
-          </ContentGenerationProvider>
-        </SubscriptionProvider>
-        
-        <Toaster />
-      </Router>
+                </Routes>
+              </SidebarProvider>
+            </ContentGenerationProvider>
+          </SubscriptionProvider>
+          
+          <Toaster />
+        </Router>
+      </LoadingProvider>
     </AuthProvider>
   );
 };

@@ -1,9 +1,9 @@
 
 import { ReactNode, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLoading } from "@/contexts/LoadingContext";
 
 interface OnboardingGuardProps {
   children: ReactNode;
@@ -12,6 +12,7 @@ interface OnboardingGuardProps {
 export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const { user, loading: authLoading } = useAuth();
   const { isCompleted, isLoading: onboardingLoading, error: onboardingError } = useOnboardingStatus();
+  const { setLoading, clearLoading } = useLoading();
   const [timeoutReached, setTimeoutReached] = useState(false);
   const [hasCheckedOnce, setHasCheckedOnce] = useState(false);
 
@@ -37,26 +38,22 @@ export const OnboardingGuard = ({ children }: OnboardingGuardProps) => {
   const shouldShowLoading = authLoading || 
     (user && onboardingLoading && !timeoutReached && !hasCheckedOnce && !onboardingError);
 
-  // Show loading while checking auth or onboarding status (with timeout)
+  // Manage onboarding loading state in global context
+  useEffect(() => {
+    if (shouldShowLoading) {
+      setLoading('onboarding', {
+        isLoading: true,
+        message: timeoutReached ? 'Loading is taking longer than expected...' : 'Checking your setup...',
+        priority: 'onboarding'
+      });
+    } else {
+      clearLoading('onboarding');
+    }
+  }, [shouldShowLoading, timeoutReached, setLoading, clearLoading]);
+
+  // Don't render anything while loading - let GlobalLoadingOverlay handle it
   if (shouldShowLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-green-600" />
-          <p className="text-green-600 font-medium">
-            {timeoutReached ? 'Loading is taking longer than expected...' : 'Checking your setup...'}
-          </p>
-          {timeoutReached && (
-            <button 
-              onClick={() => window.location.reload()} 
-              className="mt-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            >
-              Refresh Page
-            </button>
-          )}
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // If no user, let the ProtectedRoute handle the redirect

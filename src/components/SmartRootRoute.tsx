@@ -1,20 +1,34 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLoading } from '@/contexts/LoadingContext';
 import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
 import { Homepage } from '@/components/Homepage';
 import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout';
 import { OnboardingGuard } from '@/components/OnboardingGuard';
 import { HomepageErrorBoundary } from '@/components/homepage/HomepageErrorBoundary';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
-import { UnifiedLoadingState } from '@/components/loading/UnifiedLoadingState';
 
 export const SmartRootRoute = () => {
   const { user, loading } = useAuth();
+  const { setLoading, clearLoading } = useLoading();
 
-  // Show loading while checking auth state
+  // Manage auth loading state in the global loading context
+  useEffect(() => {
+    if (loading) {
+      setLoading('auth', {
+        isLoading: true,
+        message: 'Checking authentication...',
+        priority: 'auth'
+      });
+    } else {
+      clearLoading('auth');
+    }
+  }, [loading, setLoading, clearLoading]);
+
+  // Don't render anything while loading - let GlobalLoadingOverlay handle it
   if (loading) {
-    return <UnifiedLoadingState text="Checking authentication..." />;
+    return null;
   }
 
   // Show dashboard for authenticated users, comprehensive landing page for guests
