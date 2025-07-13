@@ -10,10 +10,11 @@ import { useSeasonalHolidays } from "@/hooks/useSeasonalHolidays";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Calendar, Clock, Sparkles, Leaf, ChevronDown } from "lucide-react";
+import { Calendar, Clock, Sparkles, Leaf, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface SeasonalHolidaysCardProps {
   onContentGenerated?: () => void;
@@ -40,6 +41,7 @@ export const SeasonalHolidaysCard = ({
     holidayId: null,
     holidayName: ''
   });
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   // Get the holidays to display based on the current limit
   const displayedHolidays = React.useMemo(() => {
@@ -238,70 +240,83 @@ export const SeasonalHolidaysCard = ({
 
   return (
     <>
-      <div className={cn('space-y-8', className)}>
+      <Collapsible open={!isCollapsed} onOpenChange={(open) => setIsCollapsed(!open)} className={cn('space-y-8', className)}>
         {/* Modern Gradient Header Section */}
-        <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8">
-          {/* Decorative Background Pattern */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
-            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-3xl"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
-              <Calendar className="w-64 h-64 text-emerald-400" />
-            </div>
-          </div>
-          
-          {/* Header Content */}
-          <div className="relative z-10 flex items-start justify-between text-left">
-            <div className="flex flex-col gap-3 text-left">
-              <div className="inline-flex items-center gap-3 mb-2">
-                <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg">
-                  <Calendar className="w-8 h-8 text-white" />
-                </div>
-                <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Seasonal Marketing Opportunities</HeadlineLarge>
+        <CollapsibleTrigger asChild>
+          <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8 cursor-pointer hover:shadow-3xl transition-shadow duration-200">
+            {/* Decorative Background Pattern */}
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 rounded-full blur-3xl"></div>
+              <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-emerald-500/10 to-blue-500/10 rounded-full blur-3xl"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
+                <Calendar className="w-64 h-64 text-emerald-400" />
               </div>
-              <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed text-left">
-                Upcoming holidays and seasonal events for your marketing calendar
-              </BodyMedium>
+            </div>
+            
+            {/* Header Content */}
+            <div className="relative z-10 flex items-start justify-between text-left">
+              <div className="flex flex-col gap-3 text-left">
+                <div className="inline-flex items-center gap-3 mb-2">
+                  <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl shadow-lg">
+                    <Calendar className="w-8 h-8 text-white" />
+                  </div>
+                  <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Seasonal Marketing Opportunities</HeadlineLarge>
+                </div>
+                <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed text-left">
+                  Upcoming holidays and seasonal events for your marketing calendar
+                </BodyMedium>
+              </div>
+              
+              {/* Collapsible Chevron Icon */}
+              <div className="relative z-10 ml-4 p-2 rounded-full hover:bg-white/20 transition-colors duration-200">
+                {isCollapsed ? (
+                  <ChevronDown className="w-6 h-6 text-slate-600 transition-transform duration-200" />
+                ) : (
+                  <ChevronUp className="w-6 h-6 text-slate-600 transition-transform duration-200" />
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </CollapsibleTrigger>
 
-        {/* Holiday Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {displayedHolidays.map((holiday, index) => (
-            <div 
-              key={holiday.id}
-              className="transform transition-all duration-300 hover:scale-[1.02]"
-              style={{ 
-                animationDelay: `${index * 100}ms`,
-                animation: 'fadeInUp 0.6s ease-out forwards'
-              }}
-            >
-              <HolidayItem
-                holiday={holiday}
-                onGenerateContent={handleGenerateContent}
-                onViewContent={handleViewContent}
-                isGenerating={generatingHolidays.has(holiday.id)}
-                contentState={holidayContentState[holiday.id]}
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Load More Button */}
-        {hasMoreHolidays && (
-          <div className="flex justify-start pt-4">
-            <Button
-              onClick={handleLoadMore}
-              variant="outline"
-              className="flex items-center gap-2 px-6 py-3 text-sm font-medium border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 transition-colors"
-            >
-              <ChevronDown className="w-4 h-4" />
-              Load More ({remainingCount} remaining)
-            </Button>
+        <CollapsibleContent className="space-y-8 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+          {/* Holiday Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {displayedHolidays.map((holiday, index) => (
+              <div 
+                key={holiday.id}
+                className="transform transition-all duration-300 hover:scale-[1.02]"
+                style={{ 
+                  animationDelay: `${index * 100}ms`,
+                  animation: 'fadeInUp 0.6s ease-out forwards'
+                }}
+              >
+                <HolidayItem
+                  holiday={holiday}
+                  onGenerateContent={handleGenerateContent}
+                  onViewContent={handleViewContent}
+                  isGenerating={generatingHolidays.has(holiday.id)}
+                  contentState={holidayContentState[holiday.id]}
+                />
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+
+          {/* Load More Button */}
+          {hasMoreHolidays && (
+            <div className="flex justify-start pt-4">
+              <Button
+                onClick={handleLoadMore}
+                variant="outline"
+                className="flex items-center gap-2 px-6 py-3 text-sm font-medium border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 transition-colors"
+              >
+                <ChevronDown className="w-4 h-4" />
+                Load More ({remainingCount} remaining)
+              </Button>
+            </div>
+          )}
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* Holiday Content Viewer Modal */}
       {contentViewerState.isOpen && contentViewerState.holidayId && (
