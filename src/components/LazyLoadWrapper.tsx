@@ -37,20 +37,18 @@ export const LazyLoadWrapper: React.FC<LazyLoadWrapperProps> = ({
     </div>
   );
 
-  // Register page loading when this lazy wrapper is active
+  // Register loading state on mount, clear on unmount
   useEffect(() => {
-    if (!isAnyLoading) {
-      setLoading(loadingId, {
-        isLoading: true,
-        message: loadingText || "Loading...",
-        priority: 'page'
-      });
-    }
+    setLoading(loadingId, {
+      isLoading: true,
+      message: loadingText || "Loading...",
+      priority: 'page'
+    });
 
     return () => {
       clearLoading(loadingId);
     };
-  }, [loadingId, loadingText, isAnyLoading, setLoading, clearLoading]);
+  }, [loadingId, loadingText, setLoading, clearLoading]);
 
   return (
     <div className={className}>
