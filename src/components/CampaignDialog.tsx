@@ -92,7 +92,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
             );
           });
         } catch (error) {
-          console.error('Error generating theme description:', error);
+          // Error generating theme description
           // Use fallback description if generation fails
           themeDescription = `This week's content will focus on promoting ${title.toLowerCase()} and helping customers understand the value and benefits. All materials will emphasize practical information, seasonal timing, and how our garden center can support their gardening goals.`;
         }
@@ -125,7 +125,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       
       onCampaignCreated?.();
     } catch (error: any) {
-      console.error('Error creating event:', error);
+      // Error creating event
       toast({
         title: "Error",
         description: error.message || "Failed to create event",

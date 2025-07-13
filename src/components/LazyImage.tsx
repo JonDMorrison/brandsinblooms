@@ -59,7 +59,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
           onImageLoad?.(url);
         })
         .catch((error) => {
-          console.warn('Failed to load image:', error);
+          // Failed to load image
           setImageUrl(fallbackSrc || null);
           onImageLoad?.(fallbackSrc || null);
         })

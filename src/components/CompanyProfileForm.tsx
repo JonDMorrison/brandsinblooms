@@ -64,7 +64,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       const hasAlreadyTriedAutoPopulate = localStorage.getItem(autoPopulateKey);
       
       if (hasAlreadyTriedAutoPopulate) {
-        console.log('Auto-populate already attempted for this user');
+        // Auto-populate already attempted for this user
         return;
       }
 
@@ -88,7 +88,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       
       if (!onboardingData) {
         // No onboarding data exists - leave fields blank for new users
-        console.log('No onboarding data found - leaving fields blank for new user');
+        // No onboarding data found - leaving fields blank for new user
         setIsAutoPopulating(false);
         return;
       }
@@ -97,7 +97,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       
       // Only proceed if we have meaningful onboarding data (not just sample data)
       if (parsedOnboardingData.aboutBusiness && parsedOnboardingData.aboutBusiness.trim()) {
-        console.log('Auto-populating company profile from onboarding data...');
+        // Auto-populating company profile from onboarding data
         
         const { data, error } = await supabase.functions.invoke('generate-company-profile', {
           body: {
@@ -108,16 +108,16 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
         });
 
         if (error) {
-          console.error('Error generating profile:', error);
+          // Error generating profile
         } else if (data.profileData) {
           setFormData(data.profileData);
           toast.success('Company profile auto-populated based on your onboarding responses!');
         }
       } else {
-        console.log('No meaningful onboarding data found - skipping auto-populate');
+        // No meaningful onboarding data found - skipping auto-populate
       }
     } catch (error) {
-      console.error('Error in handleAutoPopulate:', error);
+      // Error in handleAutoPopulate
     } finally {
       setIsAutoPopulating(false);
     }
@@ -159,7 +159,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       }
 
       if (result.error) {
-        console.error('Error saving profile:', result.error);
+        // Error saving profile
         toast.error('Failed to save company profile');
         return;
       }
@@ -174,7 +174,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
             parsedData.aboutBusiness = `${formData.company_name} has been serving the community with quality gardening products and expert advice.`;
             localStorage.setItem(onboardingKey, JSON.stringify(parsedData));
           } catch (error) {
-            console.error('Error updating localStorage:', error);
+            // Error updating localStorage
           }
         }
       }
@@ -182,7 +182,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
       toast.success('Company profile saved successfully');
       onProfileUpdate(result.data);
     } catch (error) {
-      console.error('Error in handleSave:', error);
+      // Error in handleSave
       toast.error('An unexpected error occurred');
     } finally {
       setIsSaving(false);

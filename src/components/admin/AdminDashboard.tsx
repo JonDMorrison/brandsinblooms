@@ -12,8 +12,8 @@ export const AdminDashboard = () => {
   const { users: detailedUsers, loading: usersLoading, deleteUser } = useAdminUsers();
   const [searchTerm, setSearchTerm] = useState("");
 
-  console.log("Admin Dashboard - Metrics:", metrics);
-  console.log("Admin Dashboard - Users count:", detailedUsers.length);
+  // Admin Dashboard - Metrics
+  // Admin Dashboard - Users count
 
   // Filter users based on search term
   const filteredUsers = detailedUsers.filter(user => 

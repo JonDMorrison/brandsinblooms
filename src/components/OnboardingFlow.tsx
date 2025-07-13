@@ -95,7 +95,7 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
     setIsSubmitting(true);
     
     try {
-      console.log('Completing onboarding with manual data:', formData);
+      // Completing onboarding with manual data
       
       // Save onboarding response to database
       await saveOnboardingResponse(formData, user.id);
@@ -115,7 +115,7 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
       navigate('/app');
       
     } catch (error) {
-      console.error('Error completing onboarding:', error);
+      // Error completing onboarding
       toast.error("Failed to complete setup.  Please try again.");
     } finally {
       setIsSubmitting(false);

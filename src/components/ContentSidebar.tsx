@@ -51,7 +51,7 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
         .eq('id', task.id);
 
       if (error) {
-        console.error('Error saving content:', error);
+        // Error saving content
         toast({
           title: "Error",
           description: "Failed to save content.  Please try again.",
@@ -66,7 +66,7 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
         if (onTaskUpdate) onTaskUpdate();
       }
     } catch (error) {
-      console.error('Error saving content:', error);
+      // Error saving content
       toast({
         title: "Error",
         description: "Failed to save content.  Please try again.",
@@ -89,7 +89,7 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
   };
 
   const handleContentApproved = (contentId: string) => {
-    console.log('Content approved with ID:', contentId);
+    // Content approved with ID
     if (onTaskUpdate) onTaskUpdate();
   };
 
@@ -175,7 +175,7 @@ export const ContentSidebar = ({ task, isOpen, onClose, onTaskUpdate, initialEdi
                 <h3 className="font-medium text-lg mb-4">Add or Change Image</h3>
                 <ImageSelectButton 
                   onImageSelect={async (imageUrl, metadata) => {
-                    console.log('Image selected in sidebar:', imageUrl);
+                    // Image selected in sidebar
                     // The component handles database updates internally for tasks
                   }}
                   contentContext={task?.ai_output}

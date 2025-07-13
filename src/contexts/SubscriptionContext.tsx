@@ -77,7 +77,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         if (!isMounted) return;
 
         if (userError || !userData?.tenant_id) {
-          console.log('User not assigned to a tenant yet');
+          // User not assigned to a tenant yet
           setTenantLoading(false);
           return;
         }
@@ -118,7 +118,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     if (!user) return null;
 
     try {
-      console.log('Creating default subscription for user:', user.id, 'tenant:', tenant?.id || 'none');
+      // Creating default subscription for user
       
       // For test accounts, create PRO subscription instead of trial
       if (isTestUser) {
@@ -143,7 +143,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           return null;
         }
 
-        console.log('Created PRO subscription for test account:', data);
+        // Created PRO subscription for test account
         return data;
       }
 
@@ -169,7 +169,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         return null;
       }
 
-      console.log('Created new 7-day trial subscription:', data);
+      // Created new 7-day trial subscription
       return data;
     } catch (error) {
       console.error('Error in createDefaultSubscription:', error);
@@ -229,7 +229,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      console.log('Fetching subscription for user:', user.id, 'tenant:', tenant?.id || 'none');
+      // Fetching subscription for user
       
       // Ensure test accounts have PRO access
       if (isTestUser) {
@@ -255,13 +255,13 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       let data = null;
       
       if (allSubscriptions && allSubscriptions.length > 1) {
-        console.warn(`Found ${allSubscriptions.length} subscriptions for user ${user.id}, using most recent`);
+        // Found multiple subscriptions for user, using most recent
         data = allSubscriptions[0]; // Use the most recent one
         
         // Clean up duplicates by keeping only the most recent one
         const duplicateIds = allSubscriptions.slice(1).map(sub => sub.id);
         if (duplicateIds.length > 0) {
-          console.log('Cleaning up duplicate subscriptions:', duplicateIds);
+          // Cleaning up duplicate subscriptions
           await supabase
             .from('subscriptions')
             .delete()
@@ -272,7 +272,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
 
       if (data) {
-        console.log('Found existing subscription:', data.plan, 'for user:', user.id);
+        // Found existing subscription
         setSubscription(data);
         
         // Check if trial has expired and update if needed (skip for privileged users)
@@ -283,7 +283,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           await updateSubscriptionPlan('expired', data.billing_interval);
         }
       } else {
-        console.log('No subscription found, creating default subscription');
+        // No subscription found, creating default subscription
         // Create a default subscription if none exists
         const newSubscription = await createDefaultSubscription();
         if (newSubscription) {
@@ -309,7 +309,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         return;
       }
 
-      console.log('Stripe subscription check result:', data);
+      // Stripe subscription check result
       
       // If Stripe returns subscription data, refresh our local state
       if (data && (data.subscribed || data.plan)) {
@@ -336,7 +336,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const checkAccess = (requiredPlan: SubscriptionPlan): boolean => {
     // Privileged access: super admins and test accounts have access to everything
     if (hasPrivilegedAccess) {
-      console.log('Privileged access granted to:', user?.email);
+      // Privileged access granted
       return true;
     }
 
@@ -357,21 +357,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const isTrialExpired = subscription?.plan === 'expired' && !hasPrivilegedAccess;
 
   const trialDaysLeft = (() => {
-    console.log('SubscriptionContext: Calculating trialDaysLeft', {
-      subscription: subscription,
-      plan: subscription?.plan,
-      endDate: subscription?.end_date,
-      hasPrivilegedAccess
-    });
+    // Calculating trial days left
     
     // Privileged access: show as if they have unlimited time
     if (hasPrivilegedAccess) {
-      console.log('SubscriptionContext: Privileged access, showing unlimited trial');
+      // Privileged access, showing unlimited trial
       return 999; // Show a high number for privileged users
     }
     
     if (!subscription || subscription.plan !== 'free_trial') {
-      console.log('SubscriptionContext: Not a free trial, returning 0 days');
+      // Not a free trial, returning 0 days
       return 0;
     }
     
@@ -381,13 +376,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     const daysLeft = Math.max(0, diffDays);
-    console.log('SubscriptionContext: Trial days calculation', {
-      endDate: endDate.toISOString(),
-      now: now.toISOString(),
-      diffTime,
-      diffDays,
-      daysLeft
-    });
+    // Trial days calculation completed
     
     return daysLeft;
   })();
@@ -435,13 +424,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     refreshSubscription
   };
 
-  console.log('SubscriptionContext: Providing context value', {
-    subscription: subscription?.plan,
-    loading,
-    isTrialExpired,
-    trialDaysLeft,
-    hasPrivilegedAccess
-  });
+  // Providing subscription context value
 
   return (
     <SubscriptionContext.Provider value={value}>

@@ -144,8 +144,7 @@ const HomepageContent = () => {
   let currentCampaign = campaigns.find(c => c.week_number === weekNumber);
   
   if (!currentCampaign && campaigns.length > 0) {
-    console.log(`Homepage: No campaign found for current week ${weekNumber}, available weeks:`, 
-      campaigns.map(c => c.week_number));
+    // No campaign found for current week
   }
 
   return (
