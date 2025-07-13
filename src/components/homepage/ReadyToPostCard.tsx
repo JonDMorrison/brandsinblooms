@@ -13,6 +13,7 @@ import { SocialConnectionStatus } from "@/components/social/SocialConnectionStat
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
+import { useNavigate } from "react-router-dom";
 
 interface ReadyToPostCardProps {
   tasks: any[];
@@ -22,6 +23,7 @@ interface ReadyToPostCardProps {
 export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const navigate = useNavigate();
   const [readyTasks, setReadyTasks] = useState<ContentTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<any>(null);
@@ -245,7 +247,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
           {readyTasks.length > 0 && (
             <div className="relative group">
               <Button 
-                onClick={() => window.location.href = '/publish'}
+                onClick={() => navigate('/publish')}
                 className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
               >
                 <Send className="w-5 h-5" />
