@@ -8,6 +8,7 @@ import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useContentGeneration } from "@/contexts/ContentGenerationContext";
 import { ContentViewer } from "@/components/content/ContentViewer";
+import { useNavigate } from "react-router-dom";
 
 interface WeeklyThemeSectionProps {
   currentCampaign: Campaign | undefined;
@@ -22,6 +23,7 @@ export const WeeklyThemeSection = ({
   onTaskUpdate, 
   onCampaignCreated 
 }: WeeklyThemeSectionProps) => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(true);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const { generateContent, isGeneratingForCampaign } = useContentGeneration();
@@ -193,7 +195,7 @@ export const WeeklyThemeSection = ({
                               Review
                             </Button>
                             <Button 
-                              onClick={() => window.location.href = '/publish'}
+                              onClick={() => navigate('/publish')}
                               size="sm"
                             >
                               <Sparkles className="w-4 h-4 mr-2" />

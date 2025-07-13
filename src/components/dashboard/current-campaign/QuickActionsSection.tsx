@@ -4,6 +4,7 @@ import { HeadlineLarge } from "@/components/ui/typography";
 import { Sparkles } from "lucide-react";
 import { QuickActionItem } from "./QuickActionItem";
 import { useQuickActions } from "./useQuickActions";
+import { useNavigate } from "react-router-dom";
 
 interface QuickActionsSectionProps {
   onNewCampaignClick: () => void;
@@ -16,10 +17,11 @@ export const QuickActionsSection = ({
   onAddEventClick,
   onViewCalendar
 }: QuickActionsSectionProps) => {
+  const navigate = useNavigate();
   const actionItems = useQuickActions({
     onNewCampaignClick,
     onAddEventClick,
-    onViewCalendar
+    onViewCalendar: () => navigate('/calendar')
   });
 
   return (

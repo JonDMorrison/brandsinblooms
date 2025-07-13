@@ -284,7 +284,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
               </p>
               <div className="relative group inline-block">
                 <Button 
-                  onClick={() => window.location.href = '/'}
+                  onClick={() => navigate('/')}
                   className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105"
                 >
                   Generate Content
@@ -326,7 +326,7 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
                 <p className="text-gray-600 text-sm">
                   Showing 10 of {readyTasks.length} ready pieces • 
                   <button 
-                    onClick={() => window.location.href = '/publish'}
+                    onClick={() => navigate('/publish')}
                     className="text-brand-navy hover:underline ml-1 font-medium"
                   >
                     View all in Publish Portal

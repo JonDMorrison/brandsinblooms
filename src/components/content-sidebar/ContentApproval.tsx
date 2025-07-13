@@ -5,6 +5,7 @@ import { CheckCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 
 interface ContentApprovalProps {
   task: any;
@@ -13,6 +14,7 @@ interface ContentApprovalProps {
 }
 
 export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApprovalProps) => {
+  const navigate = useNavigate();
   const [isApproving, setIsApproving] = useState(false);
 
   const handleApprove = async () => {
@@ -100,7 +102,7 @@ export const ContentApproval = ({ task, onTaskUpdate, onClose }: ContentApproval
               This content is ready for publishing.
             </p>
             <Button 
-              onClick={() => window.location.href = '/publish'}
+              onClick={() => navigate('/publish')}
               className="bg-blue-600 hover:bg-blue-700 text-white text-sm"
               size="sm"
             >
