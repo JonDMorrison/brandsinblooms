@@ -160,13 +160,13 @@ const App = () => {
                   </LazyLoadWrapper>
                 </AuthenticatedLayout>
               } />
-              <Route path="/publish" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <PublishPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
+                <Route path="/publish" element={
+                  <AuthenticatedLayout>
+                    <LazyLoadWrapper loadingText="Loading publish portal...">
+                      <PublishPage />
+                    </LazyLoadWrapper>
+                  </AuthenticatedLayout>
+                } />
               <Route path="/success" element={
                 <AuthenticatedLayout>
                   <LazyLoadWrapper>

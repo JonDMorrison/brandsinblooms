@@ -367,14 +367,7 @@ const PublishPage = () => {
   };
 
   if (loading || isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full"></div>
-          <p className="text-gray-600">Loading publish portal...</p>
-        </div>
-      </div>
-    );
+    return null; // Let LazyLoadWrapper handle the loading state
   }
 
   return (
