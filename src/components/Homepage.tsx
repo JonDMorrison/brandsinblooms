@@ -14,12 +14,12 @@ import { SeasonalHolidaysCard } from "@/components/dashboard/seasonal-holidays/S
 import { CustomContentSection } from "@/components/dashboard/custom-content/CustomContentSection";
 import { ReadyToPostCard } from "./homepage/ReadyToPostCard";
 import { WeeklyContentUpdater } from "@/components/dashboard/current-campaign/WeeklyContentUpdater";
-import { ContentProvider, useContent } from "@/contexts/ContentContext";
+import { useGlobalContentData } from "@/hooks/useGlobalContentData";
 
 const HomepageContent = () => {
   const { user } = useAuth();
   const { tenant, loading: tenantLoading } = useTenant();
-  const { campaigns, tasks, userCreatedCampaigns, loading, error, refreshData } = useContent();
+  const { campaigns, tasks, userCreatedCampaigns, loading, error, refreshData, isCached, isRefreshing } = useGlobalContentData();
   const [showQuickstart, setShowQuickstart] = useState(false);
   const { setLoading, clearLoading } = useLoading();
 
@@ -96,7 +96,7 @@ const HomepageContent = () => {
       return;
     }
     
-    if (loading) {
+    if (loading && !isCached) {
       setLoading('homepage', {
         isLoading: true,
         message: 'Loading your campaigns and content...',
@@ -136,7 +136,7 @@ const HomepageContent = () => {
     );
   }
 
-  if (loading) {
+  if (loading && !isCached) {
     return null;
   }
 
@@ -218,9 +218,5 @@ const HomepageContent = () => {
 };
 
 export const Homepage = () => {
-  return (
-    <ContentProvider>
-      <HomepageContent />
-    </ContentProvider>
-  );
+  return <HomepageContent />;
 };

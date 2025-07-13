@@ -10,6 +10,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { SubscriptionProvider } from './contexts/SubscriptionContext';
 import { ContentGenerationProvider } from './contexts/ContentGenerationContext';
 import { LoadingProvider } from './contexts/LoadingContext';
+import { GlobalDataProvider } from './contexts/GlobalDataContext';
 import { LazyLoadWrapper } from './components/LazyLoadWrapper';
 import { optimizeImageLoading } from './utils/performanceOptimizations';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -53,10 +54,11 @@ const App = () => {
   return (
     <AuthProvider>
       <LoadingProvider>
-        <Router>
-          <SubscriptionProvider>
-            <ContentGenerationProvider>
-              <SidebarProvider>
+        <GlobalDataProvider>
+          <Router>
+            <SubscriptionProvider>
+              <ContentGenerationProvider>
+                <SidebarProvider>
                 <GlobalLoadingOverlay />
                 <Routes>
                 {/* Critical routes - no lazy loading */}
@@ -214,12 +216,13 @@ const App = () => {
                 </LazyLoadWrapper>
               } />
                 </Routes>
-              </SidebarProvider>
-            </ContentGenerationProvider>
-          </SubscriptionProvider>
-          
-          <Toaster />
-        </Router>
+                </SidebarProvider>
+              </ContentGenerationProvider>
+            </SubscriptionProvider>
+            
+            <Toaster />
+          </Router>
+        </GlobalDataProvider>
       </LoadingProvider>
     </AuthProvider>
   );

@@ -8,11 +8,11 @@ import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCalendarData } from "@/hooks/useCalendarData";
+import { useGlobalCalendarData } from "@/hooks/useGlobalCalendarData";
 
 const CalendarPage = () => {
   const { user } = useAuth();
-  const { campaigns, tasks, loading, error, stats, refetch } = useCalendarData();
+  const { campaigns, tasks, loading, error, stats, refetch, isCached, isRefreshing } = useGlobalCalendarData();
   
   // Local state for UI
   const [showBackfill, setShowBackfill] = useState(false);
@@ -53,7 +53,7 @@ const CalendarPage = () => {
     );
   }
 
-  if (loading) {
+  if (loading && !isCached) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50/30 flex items-center justify-center">
         <Card className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden p-8">
@@ -121,11 +121,17 @@ const CalendarPage = () => {
                   <Calendar className="w-8 h-8 text-white" />
                 </div>
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent flex items-center gap-3">
                 Campaign Calendar
+                {isRefreshing && (
+                  <div className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded-full flex items-center gap-1">
+                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    Syncing
+                  </div>
+                )}
               </h1>
               <p className="text-lg text-slate-600 max-w-2xl leading-relaxed">
-                Plan, schedule, and track your marketing campaigns
+                Plan, schedule, and track your marketing campaigns {isCached && <span className="text-sm text-green-600">(Cached)</span>}
               </p>
             </div>
             

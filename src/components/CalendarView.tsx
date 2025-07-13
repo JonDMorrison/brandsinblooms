@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { CalendarHeader } from './calendar/CalendarHeader';
 import { useToast } from "@/components/ui/use-toast"
@@ -8,17 +8,29 @@ import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ContentViewerDialog } from './content/ContentViewerDialog';
 import { CampaignDetailsModal } from './calendar/CampaignDetailsModal';
+import { useRouteState } from '@/hooks/useRouteState';
 
 export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
   campaigns: any[];
   tasks: any[];
   onDataUpdate: () => void;
 }) => {
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  // Route state management for persistence between page navigations
+  const { saveState, getState, updateState } = useRouteState({
+    selectedTasks: [],
+    viewMode: 'month',
+    currentDate: new Date().toISOString()
+  });
+
+  // Initialize state from saved route state
+  const savedState = getState();
+  const [selectedTasks, setSelectedTasks] = useState<string[]>(savedState.selectedTasks || []);
   const [bulkCompleteLoading, setBulkCompleteLoading] = useState(false);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [viewMode, setViewMode] = useState<'month' | 'week'>(savedState.viewMode || 'month');
+  const [currentDate, setCurrentDate] = useState<Date>(
+    savedState.currentDate ? new Date(savedState.currentDate) : new Date()
+  );
   const { toast } = useToast();
   const [selectedTaskForModal, setSelectedTaskForModal] = useState<any>(null);
   const [selectedCampaignForModal, setSelectedCampaignForModal] = useState<any>(null);
@@ -28,33 +40,48 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
   // Use the drag and drop hook with proper handlers
   const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(onDataUpdate);
 
-  // Navigation functions - memoized for performance
+  // Navigation functions - memoized for performance with state persistence
   const goToPrevious = useCallback(() => {
-    if (viewMode === 'month') {
-      setCurrentDate(prev => subMonths(prev, 1));
-    } else {
-      setCurrentDate(prev => subWeeks(prev, 1));
-    }
-  }, [viewMode]);
+    const newDate = viewMode === 'month' 
+      ? subMonths(currentDate, 1)
+      : subWeeks(currentDate, 1);
+    
+    setCurrentDate(newDate);
+    updateState('currentDate', newDate.toISOString());
+  }, [viewMode, currentDate, updateState]);
 
   const goToNext = useCallback(() => {
-    if (viewMode === 'month') {
-      setCurrentDate(prev => addMonths(prev, 1));
-    } else {
-      setCurrentDate(prev => addWeeks(prev, 1));
-    }
-  }, [viewMode]);
+    const newDate = viewMode === 'month' 
+      ? addMonths(currentDate, 1)
+      : addWeeks(currentDate, 1);
+    
+    setCurrentDate(newDate);
+    updateState('currentDate', newDate.toISOString());
+  }, [viewMode, currentDate, updateState]);
 
   const goToToday = useCallback(() => {
-    setCurrentDate(new Date());
-  }, []);
+    const today = new Date();
+    setCurrentDate(today);
+    updateState('currentDate', today.toISOString());
+  }, [updateState]);
 
-  // Task selection and bulk operations
-  const toggleTaskSelection = (taskId: string) => {
-    setSelectedTasks((prev) =>
-      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
-    );
-  };
+  // Save view mode changes to route state
+  const handleViewModeChange = useCallback((newViewMode: 'month' | 'week') => {
+    setViewMode(newViewMode);
+    updateState('viewMode', newViewMode);
+  }, [updateState]);
+
+  // Task selection and bulk operations with state persistence
+  const toggleTaskSelection = useCallback((taskId: string) => {
+    setSelectedTasks((prev) => {
+      const newSelection = prev.includes(taskId) 
+        ? prev.filter((id) => id !== taskId) 
+        : [...prev, taskId];
+      
+      updateState('selectedTasks', newSelection);
+      return newSelection;
+    });
+  }, [updateState]);
 
   const handleBulkComplete = async () => {
     if (selectedTasks.length === 0) {
@@ -164,7 +191,7 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
         onPrevious={goToPrevious}
         onNext={goToNext}
         onToday={goToToday}
-        onViewModeChange={setViewMode}
+        onViewModeChange={handleViewModeChange}
         onBulkComplete={handleBulkComplete}
         onBulkDelete={handleBulkDelete}
       />
