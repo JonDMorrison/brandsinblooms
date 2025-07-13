@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signInWithCleanup, signUpWithCleanup } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -217,12 +218,14 @@ const Auth = () => {
         {/* Simplified Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-6">
-            <div className="glass-coin-enhanced p-4 mr-4">
-              <Sprout className="h-10 w-10 text-brand-teal-600" />
-            </div>
+            <img 
+              src={bloomSuiteLogo} 
+              alt="BloomSuite Logo" 
+              className="h-16 w-auto mr-4"
+            />
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-brand-navy-700 to-brand-teal-600 bg-clip-text text-transparent">
-                Social Media Manager
+                BloomSuite
               </h1>
               <div className="h-1 w-16 bg-gradient-to-r from-brand-teal-500 to-mint-500 rounded-full mt-1 mx-auto"></div>
             </div>
