@@ -24,11 +24,8 @@ export const LazyLoadWrapper: React.FC<LazyLoadWrapperProps> = ({
   className = "",
   loadingText
 }) => {
-  const { setLoading, clearLoading, isAnyLoading } = useLoading();
-  const loadingId = useId();
-
-  // Custom fallback that integrates with global loading
-  const globalFallback = (
+  // Simple fallback without global loading integration
+  const simpleFallback = fallback || (
     <div className="flex items-center justify-center min-h-[200px] w-full">
       <div className="flex flex-col items-center gap-2">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -37,22 +34,9 @@ export const LazyLoadWrapper: React.FC<LazyLoadWrapperProps> = ({
     </div>
   );
 
-  // Register loading state on mount, clear on unmount
-  useEffect(() => {
-    setLoading(loadingId, {
-      isLoading: true,
-      message: loadingText || "Loading...",
-      priority: 'page'
-    });
-
-    return () => {
-      clearLoading(loadingId);
-    };
-  }, [loadingId, loadingText, setLoading, clearLoading]);
-
   return (
     <div className={className}>
-      <Suspense fallback={fallback || globalFallback}>
+      <Suspense fallback={simpleFallback}>
         {children}
       </Suspense>
     </div>

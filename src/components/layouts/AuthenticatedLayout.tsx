@@ -24,9 +24,9 @@ export const AuthenticatedLayout = ({ children }: AuthenticatedLayoutProps) => {
       
       <AppSidebar />
       <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col">
-        {/* Trial Banner - constrained to main content width */}
+        {/* Trial Banner */}
         <TrialBanner />
-        <div className="flex-1 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex-1 w-full h-full px-4">
           {children}
         </div>
       </main>
