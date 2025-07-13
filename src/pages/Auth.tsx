@@ -249,7 +249,7 @@ const Auth = () => {
               <TabsList className="grid w-full grid-cols-2 mb-6 bg-gradient-to-r from-brand-navy-50 to-brand-teal-50 h-14 p-1.5 rounded-2xl border border-brand-teal-200/30 shadow-inner">
                 <TabsTrigger 
                   value="signin" 
-                  className="h-11 font-semibold text-base data-[state=active]:bg-white data-[state=active]:text-brand-navy-700 data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-200/50 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-navy-600"
+                  className="h-11 font-semibold text-base data-[state=active]:bg-brand-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-600 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-teal-600"
                 >
                   Sign In
                 </TabsTrigger>
