@@ -214,7 +214,7 @@ const Auth = () => {
       {/* Glass morphism overlay */}
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[0.5px]"></div>
 
-      <div className="relative z-10 w-full max-w-xl">
+      <div className="relative z-10 w-full max-w-2xl">
         {/* Simplified Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-6">
