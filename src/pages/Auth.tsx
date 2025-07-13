@@ -190,7 +190,7 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-navy-50 via-brand-teal-50 to-sand-50 flex items-center justify-center p-4 md:p-6 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-brand-navy-50 via-brand-teal-50 to-sand-50 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Sophisticated Background Mesh */}
       <div className="absolute inset-0">
         {/* Primary mesh gradients */}
@@ -214,7 +214,7 @@ const Auth = () => {
       {/* Glass morphism overlay */}
       <div className="absolute inset-0 bg-white/5 backdrop-blur-[0.5px]"></div>
 
-      <div className="relative z-10 w-full max-w-xl mx-auto">
+      <div className="relative z-10 w-full max-w-xl">
         {/* Simplified Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-6">
