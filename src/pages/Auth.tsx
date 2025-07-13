@@ -218,11 +218,6 @@ const Auth = () => {
         {/* Simplified Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-6">
-            <img 
-              src={bloomSuiteLogo} 
-              alt="BloomSuite Logo" 
-              className="h-16 w-auto mr-4"
-            />
             <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-brand-navy-700 to-brand-teal-600 bg-clip-text text-transparent">
                 BloomSuite
