@@ -6,6 +6,7 @@ import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { ImageCarousel } from '@/components/ui/image-carousel';
 import { processNewsletterContent, convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
 import { MagazineNewsletterDisplay } from '@/components/content-sidebar/MagazineNewsletterDisplay';
+import { SafeHtml } from '@/components/ui/safe-html';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -392,9 +393,9 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
 
           {/* Article Content - Now with proper markdown parsing and text wrapping */}
           <div className="space-y-4">
-            <div 
+            <SafeHtml 
+              content={contentWithoutHeadline}
               className="prose prose-sm max-w-none text-gray-700 [&>*]:text-justify"
-              dangerouslySetInnerHTML={{ __html: contentWithoutHeadline }}
             />
           </div>
           

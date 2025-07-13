@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { normalizeTask } from "@/utils/normalizeTask";
 import { formatNewsletterContent, addNewsletterSections } from "@/utils/newsletterFormatter";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface TaskContentProps {
   task: any;
@@ -122,7 +123,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
       return (
         <div className="space-y-3">
           <div className="prose prose-lg max-w-none">
-            <div dangerouslySetInnerHTML={{ __html: formattedContent }} />
+            <SafeHtml content={formattedContent} />
           </div>
           <div className="flex justify-end">
             <Button

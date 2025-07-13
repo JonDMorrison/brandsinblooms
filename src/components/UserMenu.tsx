@@ -53,11 +53,11 @@ export const UserMenu = () => {
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
-      console.log('🚪 UserMenu: Starting sign out process...');
+      // Sign out process started
       await signOutCompletely();
       toast.success('Successfully signed out');
     } catch (error) {
-      console.error('Sign out error:', error);
+      // Sign out error handled
       toast.error('Error signing out');
     } finally {
       setIsSigningOut(false);
@@ -69,19 +69,19 @@ export const UserMenu = () => {
     
     setIsResetting(true);
     try {
-      console.log('🔄 Starting Master Admin account reset...');
+      // Starting account reset
       
       const { data, error } = await supabase.rpc('reset_master_admin_account', {
         target_user_id: user.id
       });
 
       if (error) {
-        console.error('❌ Reset error:', error);
+        // Reset error handled
         toast.error(`Reset failed: ${error.message}`);
         return;
       }
 
-      console.log('✅ Account reset successful');
+      // Account reset successful
       toast.success('Account reset successfully! Redirecting to onboarding...');
       
       // Refresh the onboarding status to trigger re-onboarding
@@ -93,7 +93,7 @@ export const UserMenu = () => {
       }, 1000);
       
     } catch (error: any) {
-      console.error('❌ Unexpected reset error:', error);
+      // Unexpected reset error
       toast.error(`Reset failed: ${error.message}`);
     } finally {
       setIsResetting(false);
@@ -130,7 +130,7 @@ export const UserMenu = () => {
           variant="ghost" 
           className="relative h-10 w-10 rounded-full bg-primary hover:bg-primary/90 transition-all duration-200 shadow-lg border-2 border-background"
           onClick={() => {
-            console.log('Toggle dropdown, current state:', isDropdownOpen);
+            // Toggle dropdown
             setIsDropdownOpen(!isDropdownOpen);
           }}
         >

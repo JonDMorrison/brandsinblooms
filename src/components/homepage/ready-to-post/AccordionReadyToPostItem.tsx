@@ -14,6 +14,7 @@ import { EnhancedPostNowButton } from "./EnhancedPostNowButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface AccordionReadyToPostItemProps {
   task: any;
@@ -219,9 +220,9 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                   {/* Content Preview */}
                   {cleanContent && (
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <div 
+                      <SafeHtml 
+                        content={task.ai_output}
                         className={`text-gray-700 line-clamp-4 ${isMobile ? 'text-sm' : 'text-base'}`}
-                        dangerouslySetInnerHTML={{ __html: task.ai_output }}
                       />
                     </div>
                   )}

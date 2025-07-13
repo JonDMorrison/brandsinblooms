@@ -10,6 +10,7 @@ import { ThemeDisplay } from "../calendar/ThemeDisplay";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { useAuth } from "@/contexts/AuthContext";
 import { DevPreviewBadge } from "@/components/ui/dev-preview-badge";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface CampaignCardProps {
   campaign: any;
@@ -279,9 +280,9 @@ export const CampaignCard = ({
                   <div className="mb-3">
                     {hasTask ? (
                       hasContent ? (
-                        <div 
+                        <SafeHtml 
+                          content={task.ai_output}
                           className="text-sm text-gray-700 line-clamp-3 font-medium leading-relaxed prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: task.ai_output }}
                         />
                       ) : (
                         <div className="flex items-center justify-center gap-3 py-4">

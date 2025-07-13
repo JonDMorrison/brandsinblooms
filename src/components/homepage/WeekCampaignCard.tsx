@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeDisplay } from "../calendar/ThemeDisplay";
 import { ApproveButton } from "@/components/ui/approve-button";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface WeekCampaignCardProps {
   currentCampaign: any;
@@ -241,9 +242,9 @@ export const WeekCampaignCard = ({
                     <div className="mb-3">
                       {hasTask ? (
                         hasContent ? (
-                          <div 
+                          <SafeHtml 
+                            content={task.ai_output}
                             className="text-sm text-gray-700 line-clamp-3 font-medium leading-relaxed prose prose-sm max-w-none"
-                            dangerouslySetInnerHTML={{ __html: task.ai_output }}
                           />
                         ) : (
                           <div className="flex items-center justify-center gap-3 py-4">

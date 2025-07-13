@@ -3,6 +3,7 @@ import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { extractBlogMetadata, cleanContentForDisplay } from "@/utils/contentUtils";
 import { formatNewsletterContent, addNewsletterSections } from "@/utils/newsletterFormatter";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface TaskItemContentProps {
   task: any;
@@ -35,7 +36,7 @@ export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: Tas
               {(() => {
                 const enhancedContent = addNewsletterSections(cleanContent);
                 const formattedContent = formatNewsletterContent(enhancedContent);
-                return <div dangerouslySetInnerHTML={{ __html: formattedContent }} />;
+                return <SafeHtml content={formattedContent} />;
               })()}
             </div>
           </div>
