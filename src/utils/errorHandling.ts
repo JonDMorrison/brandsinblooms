@@ -26,21 +26,17 @@ export const handleError = (error: any, context: string): AppError => {
     isNetworkError: isNetworkError(error)
   };
 
-  // Provide more specific error messages for common issues
+  // Only show toasts for critical errors that require user action
   if (appError.message.includes('OpenAI API key not configured')) {
-    toast.error('OpenAI API key is not configured. Please contact support.');
-  } else if (appError.message.includes('Unsplash API key not configured')) {
-    // Removed toast, this should be silent per the new requirements
-    console.warn('Unsplash API key not configured - image generation unavailable');
-  } else if (appError.isNetworkError) {
-    // Removed toast for network errors
-    console.warn(`Network connection issue in ${context}`);
-  } else if (appError.message.includes('Content generation failed')) {
-    toast.error('Content generation failed. Please try again or contact support.');
-  } else {
-    // Only show generic error for truly unexpected issues
-    toast.error('An unexpected error occurred');
+    toast.error('AI service unavailable. Please contact support.');
+  } else if (appError.code === 'UNAUTHORIZED' || appError.message.includes('Authentication')) {
+    toast.error('Please sign in again to continue.');
+  } else if (appError.code === 'PAYMENT_REQUIRED' || appError.message.includes('subscription')) {
+    toast.error('Subscription required. Please check your billing.');
+  } else if (appError.message.includes('Content generation failed') && context.includes('critical')) {
+    toast.error('Content generation failed. Please try again.');
   }
+  // Silently handle: network errors, API configuration issues, validation errors, non-critical failures
 
   return appError;
 };

@@ -11,20 +11,21 @@ interface SuccessFeedbackProps {
 }
 
 export const showSuccessToast = (action: 'scheduled' | 'published', timestamp?: string) => {
-  const message = action === 'scheduled' 
-    ? `✓ Scheduled for ${timestamp || 'later'}`
-    : '✓ Published successfully';
+  // Only show toast for scheduling - users can see publish status in UI
+  if (action === 'scheduled') {
+    const message = `✓ Scheduled for ${timestamp || 'later'}`;
     
-  toast.success(message, {
-    duration: 3000,
-    position: 'bottom-left',
-    icon: <Clock className="w-4 h-4" />,
-    style: {
-      background: '#22C55E',
-      color: 'white',
-      border: 'none',
-    },
-  });
+    toast.success(message, {
+      duration: 2000,
+      icon: <Clock className="w-4 h-4" />,
+      style: {
+        background: '#22C55E',
+        color: 'white',
+        border: 'none',
+      },
+    });
+  }
+  // Remove publish success toast - redundant with UI feedback
 };
 
 export const triggerCardPulse = (contentId: string) => {

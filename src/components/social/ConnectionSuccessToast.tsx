@@ -15,15 +15,7 @@ export const showConnectionSuccessToast = (data: ConnectionSuccessData) => {
     instagram: <Instagram className="w-4 h-4 text-purple-600" />
   };
 
-  // Add confetti element to DOM temporarily
-  const confettiContainer = document.createElement('div');
-  document.body.appendChild(confettiContainer);
-  
-  // Simple confetti effect
-  setTimeout(() => {
-    document.body.removeChild(confettiContainer);
-  }, 3000);
-
+  // Keep this toast as it's a major user action that deserves confirmation
   toast.success(
     <div className="flex items-start gap-3">
       <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -47,7 +39,7 @@ export const showConnectionSuccessToast = (data: ConnectionSuccessData) => {
       </div>
     </div>,
     {
-      duration: 6000,
+      duration: 4000,
       className: 'bg-green-50 border-green-200',
     }
   );

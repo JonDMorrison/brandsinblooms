@@ -33,11 +33,11 @@ export const useRealtimePublishUpdates = (onUpdate?: (update: PublishUpdate) => 
           
           setUpdates(prev => [...prev, update]);
           
-          if (update.status === 'PUBLISHED') {
-            toast.success('Content published successfully! 🎉');
-          } else if (update.status === 'ERROR') {
+          // Only show error toasts for critical publishing failures
+          if (update.status === 'ERROR') {
             toast.error(`Publishing failed: ${update.error_message}`);
           }
+          // Remove success toast - users can see status in the UI
           
           if (onUpdate) {
             onUpdate(update);
