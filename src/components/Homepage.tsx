@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { HomepageErrorBoundary } from "./homepage/HomepageErrorBoundary";
-import { UnifiedLoadingState } from "@/components/loading/UnifiedLoadingState";
+import { useLoading } from "@/contexts/LoadingContext";
 import { Campaign } from "@/types/content";
 
 // Import the 5 main sections
@@ -21,6 +21,7 @@ const HomepageContent = () => {
   const { tenant, loading: tenantLoading } = useTenant();
   const { campaigns, tasks, userCreatedCampaigns, loading, error, refreshData } = useContent();
   const [showQuickstart, setShowQuickstart] = useState(false);
+  const { setLoading, clearLoading } = useLoading();
 
   const handleTaskUpdate = () => {
     refreshData();
@@ -66,22 +67,51 @@ const HomepageContent = () => {
     }
   };
 
-  // Handle early returns with proper loading states
-  if (!user || tenantLoading) {
-    return (
-      <UnifiedLoadingState 
-        text={!user ? 'Please log in to access your campaigns' : 'Setting up your workspace...'}
-      />
-    );
-  }
+  // Manage loading states in global context
+  useEffect(() => {
+    if (!user) {
+      setLoading('homepage', {
+        isLoading: true,
+        message: 'Please log in to access your campaigns',
+        priority: 'page'
+      });
+      return;
+    }
+    
+    if (tenantLoading) {
+      setLoading('homepage', {
+        isLoading: true,
+        message: 'Setting up your workspace...',
+        priority: 'page'
+      });
+      return;
+    }
+    
+    if (!tenant) {
+      setLoading('homepage', {
+        isLoading: true,
+        message: 'Setting up your workspace... Please contact support if this continues.',
+        priority: 'page'
+      });
+      return;
+    }
+    
+    if (loading) {
+      setLoading('homepage', {
+        isLoading: true,
+        message: 'Loading your campaigns and content...',
+        priority: 'page'
+      });
+      return;
+    }
+    
+    // Clear loading when everything is ready
+    clearLoading('homepage');
+  }, [user, tenantLoading, tenant, loading, setLoading, clearLoading]);
 
-  // Show tenant assignment message if user has no tenant
-  if (!tenant) {
-    return (
-      <UnifiedLoadingState 
-        text="Setting up your workspace... Please contact support if this continues."
-      />
-    );
+  // Handle early returns - let GlobalLoadingOverlay handle the display
+  if (!user || tenantLoading || !tenant) {
+    return null;
   }
 
   // Show error state
@@ -107,11 +137,7 @@ const HomepageContent = () => {
   }
 
   if (loading) {
-    return (
-      <UnifiedLoadingState 
-        text="Loading your campaigns and content..."
-      />
-    );
+    return null;
   }
 
   const weekNumber = getCurrentWeekNumber();

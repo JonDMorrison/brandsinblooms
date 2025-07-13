@@ -7,11 +7,12 @@ import { UserMenu } from "@/components/UserMenu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { SidebarLayout } from "@/components/SidebarLayout";
 import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
-import { UnifiedLoadingState } from "@/components/loading/UnifiedLoadingState";
+import { useLoading } from "@/contexts/LoadingContext";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const isMobile = useIsMobile();
+  const { setLoading, clearLoading } = useLoading();
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
     toneSamples: "",
@@ -82,9 +83,22 @@ const Index = () => {
     window.dispatchEvent(new CustomEvent('campaignCreated'));
   };
 
-  // Show loading state while auth is loading
+  // Manage auth loading state in global context
+  useEffect(() => {
+    if (loading) {
+      setLoading('auth', {
+        isLoading: true,
+        message: 'Loading dashboard...',
+        priority: 'auth'
+      });
+    } else {
+      clearLoading('auth');
+    }
+  }, [loading, setLoading, clearLoading]);
+
+  // Show loading state while auth is loading - let GlobalLoadingOverlay handle display
   if (loading) {
-    return <UnifiedLoadingState text="Loading dashboard..." />;
+    return null;
   }
 
   if (!user) {
