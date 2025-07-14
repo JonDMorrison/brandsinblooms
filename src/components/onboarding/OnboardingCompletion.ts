@@ -48,50 +48,32 @@ export const useOnboardingCompletion = () => {
         throw saveError;
       }
       
-      // STEP 2: Create company profile and generate content (complex operation)
-      console.log('🔧 Step 2: Creating company profile and generating content...');
+      // STEP 2: Start company profile and content generation in background
+      console.log('🔧 Step 2: Starting company profile and content generation in background...');
       
-      // Add timeout for company profile creation
-      const profileCreationPromise = createCompanyProfileFromOnboarding(finalData, userId);
-      const profileTimeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile creation timeout - this is taking longer than expected')), 30000); // 30 second timeout
-      });
-      
-      try {
-        await Promise.race([profileCreationPromise, profileTimeoutPromise]);
-        console.log('✅ Company profile creation completed successfully');
-      } catch (profileError) {
-        console.error('❌ Failed to create company profile:', profileError);
-        
-        // Show specific error message based on the error
-        let errorMessage = "Failed to complete setup. ";
-        if (profileError.message.includes('Profile creation timeout')) {
-          errorMessage = "Setup is taking longer than expected. Your account is ready but content generation is still in progress. You can continue and check back later.";
+      // Start background process without waiting for completion
+      createCompanyProfileFromOnboarding(finalData, userId)
+        .then(() => {
+          console.log('✅ Background company profile creation completed successfully');
+          toast.success("🎉 Your content library is ready! All posts have been generated.");
+        })
+        .catch((profileError) => {
+          console.error('❌ Background company profile creation failed:', profileError);
           
-          // Don't throw error for timeout - allow user to proceed
-          toast.info(errorMessage, { duration: 10000 });
-        } else if (profileError.message.includes('tenant')) {
-          errorMessage += "There was an issue setting up your workspace. Please try again.";
-          toast.error(errorMessage);
-          throw profileError;
-        } else if (profileError.message.includes('Profile generation')) {
-          errorMessage += "AI profile generation failed. Please try again or contact support.";
-          toast.error(errorMessage);
-          throw profileError;
-        } else if (profileError.message.includes('Campaign creation')) {
-          errorMessage += "Content planning failed. Please try again.";
-          toast.error(errorMessage);
-          throw profileError;
-        } else if (profileError.message.includes('Failed to create tenant')) {
-          errorMessage += "Workspace creation failed. Please check your internet connection and try again.";
-          toast.error(errorMessage);
-          throw profileError;
-        } else {
-          errorMessage += "Please try again or contact support if the problem persists.";
-          toast.error(errorMessage);
-          throw profileError;
-        }
-      }
+          // Show specific error message based on the error
+          let errorMessage = "Content generation encountered an issue. ";
+          if (profileError.message.includes('tenant')) {
+            errorMessage += "There was an issue setting up your workspace.";
+          } else if (profileError.message.includes('Profile generation')) {
+            errorMessage += "AI profile generation failed.";
+          } else if (profileError.message.includes('Campaign creation')) {
+            errorMessage += "Content planning failed.";
+          } else {
+            errorMessage += "Some content may not be available.";
+          }
+          
+          toast.error(errorMessage + " You can retry from the dashboard.");
+        });
       
       // Store the onboarding data in localStorage as backup
       localStorage.setItem(`garden-center-onboarding-${userId}`, JSON.stringify(finalData));
@@ -102,11 +84,11 @@ export const useOnboardingCompletion = () => {
       // Call the onComplete callback with the data
       onComplete(finalData);
       
-      toast.success("🎉 Setup complete! Your first week's content is ready to review!");
+      toast.success("🎉 Profile created! Your dashboard is ready - content is generating in the background.");
       
-      console.log('🎯 Onboarding completed successfully, navigating to dashboard...');
+      console.log('🎯 Onboarding profile step completed, navigating to dashboard...');
       
-      // FIX: Navigate to '/' instead of '/app' - this was the critical bug
+      // Navigate immediately to dashboard - content will load progressively
       setTimeout(() => {
         navigate('/', { replace: true });
       }, 200);

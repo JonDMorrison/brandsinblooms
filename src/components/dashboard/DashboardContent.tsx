@@ -20,6 +20,8 @@ import { QuickPublishModal } from "./QuickPublishModal";
 import { TASK_STATUS } from "@/constants/taskStatus";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { ProgressiveDashboardShell } from "./ProgressiveDashboardShell";
+import { ProgressiveLoadingCard } from "./ProgressiveLoadingCard";
 
 interface DashboardContentProps {
   onboardingData: any;
@@ -42,6 +44,7 @@ export const DashboardContent = ({
   const [showQuickstartChecklist, setShowQuickstartChecklist] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [isContentGenerating, setIsContentGenerating] = useState(false);
   
   // Get approved tasks for the Ready to Publish section
   const approvedTasks = tasks?.filter(task => task.status === TASK_STATUS.APPROVED) || [];
@@ -258,6 +261,60 @@ export const DashboardContent = ({
     };
   }, []);
 
+  // Set up real-time subscriptions for progressive loading
+  useEffect(() => {
+    if (!user || !tenant) return;
+
+    // Check if we're in a state where content might still be generating
+    const checkContentGenerationStatus = () => {
+      const hasMinimalContent = tasks.length >= 10 && activeCampaign;
+      setIsContentGenerating(!hasMinimalContent);
+    };
+
+    checkContentGenerationStatus();
+
+    // Set up real-time subscription for campaigns
+    const campaignChannel = supabase
+      .channel('dashboard-campaign-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'campaigns',
+          filter: tenant?.id ? `tenant_id=eq.${tenant.id}` : `user_id=eq.${user.id}`
+        },
+        () => {
+          console.log('📡 Real-time: New campaign created');
+          fetchCampaignData();
+        }
+      )
+      .subscribe();
+
+    // Set up real-time subscription for content tasks
+    const taskChannel = supabase
+      .channel('dashboard-task-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'content_tasks',
+          filter: tenant?.id ? `tenant_id=eq.${tenant.id}` : `user_id=eq.${user.id}`
+        },
+        () => {
+          console.log('📡 Real-time: New content task created');
+          fetchCampaignData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(campaignChannel);
+      supabase.removeChannel(taskChannel);
+    };
+  }, [user, tenant, tasks.length, activeCampaign]);
+
   const handleTaskUpdate = () => {
     console.log('DashboardContent: Task update triggered, refetching campaign data');
     fetchCampaignData();
@@ -398,8 +455,9 @@ export const DashboardContent = ({
 
   return (
     <ContentGenerationProvider>
-      <div className="w-full overflow-x-hidden bg-gray-50">
-        <div className="space-y-4 p-4 md:p-6 w-full">
+      <ProgressiveDashboardShell>
+        <div className="w-full overflow-x-hidden bg-gray-50">
+          <div className="space-y-4 p-4 md:p-6 w-full">
           {/* Quickstart Checklist - only show after social connection */}
           {showQuickstartChecklist && (
             <QuickstartChecklist
@@ -434,22 +492,58 @@ export const DashboardContent = ({
             tasksCount={tasks.length}
           />
 
-          {/* Unified Dashboard Grid */}
-          <UnifiedDashboardGrid
-            activeCampaign={activeCampaign}
-            userCreatedCampaigns={userCreatedCampaigns}
-            tasks={tasks}
-            onTaskUpdate={handleTaskUpdate}
-            onCampaignCreated={fetchCampaignData}
-            onCampaignUpdate={fetchCampaignData}
-            onCreateCampaign={onCampaignCreated}
-          />
+          {/* Unified Dashboard Grid with Progressive Loading */}
+          {!isContentGenerating || activeCampaign || tasks.length > 0 ? (
+            <UnifiedDashboardGrid
+              activeCampaign={activeCampaign}
+              userCreatedCampaigns={userCreatedCampaigns}
+              tasks={tasks}
+              onTaskUpdate={handleTaskUpdate}
+              onCampaignCreated={fetchCampaignData}
+              onCampaignUpdate={fetchCampaignData}
+              onCreateCampaign={onCampaignCreated}
+            />
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 w-full">
+              <div className="xl:col-span-8 space-y-6">
+                <ProgressiveLoadingCard
+                  title="Weekly Content Campaign"
+                  description="Your personalized weekly content themes are being created"
+                  expectedContent="Custom weekly gardening themes, seasonal tips, and targeted content for your audience"
+                  isLoading={true}
+                />
+                
+                <ProgressiveLoadingCard
+                  title="Ready to Publish Posts"
+                  description="Individual social media posts are being generated"
+                  expectedContent="7 posts per week covering gardening tips, seasonal advice, and business promotions"
+                  isLoading={true}
+                />
+              </div>
+              
+              <div className="xl:col-span-4 space-y-6">
+                <ProgressiveLoadingCard
+                  title="Quick Actions"
+                  description="Setting up your content creation tools"
+                  expectedContent="Quick campaign creation, event planning, and content generation tools"
+                  isLoading={false}
+                />
+                
+                <ProgressiveLoadingCard
+                  title="Seasonal Holidays"
+                  description="Loading relevant seasonal content opportunities"
+                  expectedContent="Holiday-specific content suggestions and marketing opportunities"
+                  isLoading={true}
+                />
+              </div>
+            </div>
+          )}
 
-          {/* Empty state hint */}
-          {tasks.length === 0 && !activeCampaign && (
+          {/* Empty state hint - only show if not generating and no content */}
+          {!isContentGenerating && tasks.length === 0 && !activeCampaign && (
             <div className="text-center py-8 text-gray-500">
-              <h3 className="text-lg font-medium mb-2">Need inspiration?</h3>
-              <p className="text-sm">Generate your first posts ↑ to see them here.</p>
+              <h3 className="text-lg font-medium mb-2">Ready to create content?</h3>
+              <p className="text-sm">Use the Quick Actions above to generate your first posts.</p>
             </div>
           )}
         </div>
@@ -472,7 +566,8 @@ export const DashboardContent = ({
           socialConnections={[]} // TODO: Pass real social connections
           onPublish={handlePublish}
         />
-      </div>
+        </div>
+      </ProgressiveDashboardShell>
     </ContentGenerationProvider>
   );
 };
