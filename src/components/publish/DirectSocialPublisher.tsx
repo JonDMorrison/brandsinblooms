@@ -25,7 +25,7 @@ import {
   Shield,
   ShieldCheck
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -180,6 +180,7 @@ export const DirectSocialPublisher = ({
   onScheduleSuccess 
 }: DirectSocialPublisherProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [connections, setConnections] = useState<SocialConnection[]>([]);
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -224,7 +225,11 @@ export const DirectSocialPublisher = ({
       }
     } catch (error) {
       console.error('Error loading connections:', error);
-      toast.error('Failed to load social media connections');
+      toast({
+        title: "Error",
+        description: "Failed to load social media connections",
+        variant: "destructive",
+      });
     }
   };
 
@@ -238,7 +243,11 @@ export const DirectSocialPublisher = ({
 
   const handlePublishNow = async () => {
     if (!selectedContent || selectedPlatforms.length === 0) {
-      toast.error('Please select at least one platform');
+      toast({
+        title: "Error",
+        description: "Please select at least one platform",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -267,20 +276,38 @@ export const DirectSocialPublisher = ({
         const totalCount = data.results?.length || 0;
         
         if (successCount === totalCount) {
-          toast.success(`Successfully published to ${totalCount} platform(s)!`);
+          toast({
+            title: "Success!",
+            description: `Successfully published to ${totalCount} platform(s)!`,
+          });
         } else if (successCount > 0) {
-          toast.success(`Published to ${successCount}/${totalCount} platforms`);
+          toast({
+            title: "Partial Success",
+            description: `Published to ${successCount}/${totalCount} platforms`,
+          });
         } else {
-          toast.error('Publishing failed on all platforms');
+          toast({
+            title: "Error",
+            description: "Publishing failed on all platforms",
+            variant: "destructive",
+          });
         }
         
         onPublishSuccess?.();
       } else {
-        toast.error(data?.message || 'Publishing failed');
+        toast({
+          title: "Error",
+          description: data?.message || 'Publishing failed',
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
       console.error('Publishing error:', error);
-      toast.error(error.message || 'Failed to publish content');
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to publish content',
+        variant: "destructive",
+      });
     } finally {
       setIsPublishing(false);
     }
@@ -298,14 +325,21 @@ export const DirectSocialPublisher = ({
 
       if (error) throw error;
 
-      toast.success('Content approved and ready to publish!');
+      toast({
+        title: "Success!",
+        description: "Content approved and ready to publish!",
+      });
       
       // Trigger refresh
       window.dispatchEvent(new CustomEvent('draft-updated'));
       
     } catch (error) {
       console.error('Error approving content:', error);
-      toast.error('Failed to approve content');
+      toast({
+        title: "Error",
+        description: "Failed to approve content",
+        variant: "destructive",
+      });
     } finally {
       setIsApproving(false);
     }
@@ -313,7 +347,11 @@ export const DirectSocialPublisher = ({
 
   const handleSchedulePost = async () => {
     if (!selectedContent || selectedPlatforms.length === 0) {
-      toast.error('Please select at least one platform');
+      toast({
+        title: "Error",
+        description: "Please select at least one platform",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -349,18 +387,33 @@ export const DirectSocialPublisher = ({
         const formattedTime = format(publishAt, 'MMM d, h:mm a');
         
         if (successCount > 0) {
-          toast.success(`Scheduled for ${formattedTime}!`);
+          toast({
+            title: "Success!",
+            description: `Scheduled for ${formattedTime}!`,
+          });
           setShowScheduleDialog(false);
           onScheduleSuccess?.();
         } else {
-          toast.error('Scheduling failed on all platforms');
+          toast({
+            title: "Error",
+            description: "Scheduling failed on all platforms",
+            variant: "destructive",
+          });
         }
       } else {
-        toast.error(data?.message || 'Scheduling failed');
+        toast({
+          title: "Error",
+          description: data?.message || 'Scheduling failed',
+          variant: "destructive",
+        });
       }
     } catch (error: any) {
       console.error('Scheduling error:', error);
-      toast.error(error.message || 'Failed to schedule content');
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to schedule content',
+        variant: "destructive",
+      });
     } finally {
       setIsScheduling(false);
     }
