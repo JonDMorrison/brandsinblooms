@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { cleanupDuplicateCampaigns, generateMeaningfulTheme } from '@/utils/campaignCleanup';
 import { generateCampaignContent, ContentGenerationResult } from '@/components/homepage/ContentGenerationServices';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { TASK_STATUS } from '@/constants/taskStatus';
 
 export const WeeklyContentUpdater = () => {
@@ -162,9 +162,7 @@ export const WeeklyContentUpdater = () => {
       try {
         console.log('🎯 Auto-generating content for campaign:', campaign.theme);
         
-        const toastId = toast.loading('Setting up your weekly content...', { 
-          duration: 15000 // Increased timeout
-        });
+        const toastId = toast.loading('Setting up your weekly content...');
 
         // Add timeout wrapper for the entire generation process
         const generationPromise = generateCampaignContent(
@@ -184,24 +182,18 @@ export const WeeklyContentUpdater = () => {
 
         if (result.success && mountedRef.current) {
           console.log('✅ Auto-generated content successfully');
-          toast.success(`Your weekly content is ready! Generated ${result.tasks?.length || 0} pieces.`, { 
-            id: toastId 
-          });
+          toast.success(`Your weekly content is ready! Generated ${result.tasks?.length || 0} pieces.`);
           
           // Trigger a refresh of dashboard data to show new content
           window.dispatchEvent(new CustomEvent('refreshDashboard'));
         } else if (mountedRef.current) {
           console.error('❌ Auto-generation failed:', result.message);
-          toast.error('Content generation had some issues, but partial content may be available.', {
-            id: toastId
-          });
+          toast.error('Content generation had some issues, but partial content may be available.');
         }
       } catch (error) {
         console.error('❌ Error auto-generating content:', error);
         if (mountedRef.current) {
-          toast.error('Content generation timed out. Please try manually generating content.', {
-            duration: 8000
-          });
+          toast.error('Content generation timed out. Please try manually generating content.');
         }
       }
     };
