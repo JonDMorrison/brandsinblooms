@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { ContentTask } from "@/types/content";
 
 export const useReviewQueue = (onTaskUpdate?: () => void) => {

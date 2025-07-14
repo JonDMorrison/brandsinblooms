@@ -7,7 +7,7 @@ import { PlusCircle, Calendar, BarChart3, CalendarPlus, Sparkles } from "lucide-
 import { useState } from "react";
 import { AddEventDialog } from "./AddEventDialog";
 import { NewCampaignModal } from "./NewCampaignModal";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 interface QuickActionsGridProps {
   onCampaignCreated: () => void;

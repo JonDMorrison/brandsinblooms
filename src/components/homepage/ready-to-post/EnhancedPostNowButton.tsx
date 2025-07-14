@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Facebook, Instagram, Send, Loader2, AlertTriangle, RefreshCw, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 import { SmartPostComposer } from '@/components/social/SmartPostComposer';
 

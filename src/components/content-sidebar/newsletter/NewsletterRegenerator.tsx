@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { useAuth } from '@/contexts/AuthContext';
 interface NewsletterRegeneratorProps {
   contentTaskId?: string;

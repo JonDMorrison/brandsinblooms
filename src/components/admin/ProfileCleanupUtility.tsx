@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 
 export const ProfileCleanupUtility = () => {

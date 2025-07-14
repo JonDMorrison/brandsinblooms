@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Instagram, Facebook, Mail, BookOpen, Video, FileText, Copy, Edit, Save, X, ExternalLink } from "lucide-react";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";
 import { postToFacebook, postToInstagram } from "@/utils/socialMediaUtils";
 

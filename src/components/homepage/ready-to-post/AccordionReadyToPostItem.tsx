@@ -13,7 +13,7 @@ import { formatDistanceToNow } from "date-fns";
 import { EnhancedPostNowButton } from "./EnhancedPostNowButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { SafeHtml } from "@/components/ui/safe-html";
 
 interface AccordionReadyToPostItemProps {

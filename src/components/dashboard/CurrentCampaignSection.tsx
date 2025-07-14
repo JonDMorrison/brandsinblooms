@@ -8,7 +8,7 @@ import { generateCampaignContent } from "@/components/homepage/ContentGeneration
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { useState } from "react";
 import { WeeklyContentBanner } from "./current-campaign/WeeklyContentBanner";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
@@ -81,7 +81,7 @@ export const CurrentCampaignSection = ({
         return;
       }
 
-      toast.loading('Generating fresh content...', { id: 'refresh-content' });
+      toast.loading('Generating fresh content...');
 
       // Generate new content
       const result = await generateCampaignContent(
@@ -94,14 +94,14 @@ export const CurrentCampaignSection = ({
       );
 
       if (result.success) {
-        toast.success(`Generated ${result.tasks?.length || 0} fresh content pieces!`, { id: 'refresh-content' });
+        toast.success(`Generated ${result.tasks?.length || 0} fresh content pieces!`);
         onTaskUpdate(); // Refresh the task list
       } else {
-        toast.error(`Failed to refresh content: ${result.message}`, { id: 'refresh-content' });
+        toast.error(`Failed to refresh content: ${result.message}`);
       }
     } catch (error) {
       console.error('Error refreshing content:', error);
-      toast.error('Failed to refresh content', { id: 'refresh-content' });
+      toast.error('Failed to refresh content');
     } finally {
       setRefreshing(false);
     }

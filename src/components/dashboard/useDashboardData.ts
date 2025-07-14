@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { CACHE_KEYS } from "@/constants/cache";
 import { getCachedData, setCachedData } from "@/utils/cache";
 import { handleError, logError, isNetworkError } from "@/utils/errorHandling";

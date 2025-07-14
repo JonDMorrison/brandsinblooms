@@ -5,7 +5,7 @@ import { MagazineContentDisplay } from "./MagazineContentDisplay";
 import { SocialMediaPostPreview } from "./SocialMediaPostPreview";
 import { generatePersonalizedContent } from "@/components/homepage/ContentGenerationServices";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { normalizeTask } from "@/utils/normalizeTask";
 import { formatNewsletterContent, addNewsletterSections } from "@/utils/newsletterFormatter";
 import { SafeHtml } from "@/components/ui/safe-html";
@@ -46,7 +46,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
 
     setRegenerating(true);
     try {
-      toast.loading('Regenerating content...', { id: 'regenerate' });
+      toast.loading('Regenerating content...');
       
       // Use holiday name for holiday content or campaign title for regular content
       const contentTitle = normalizedTask.holiday_id ? 
@@ -76,11 +76,11 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
         throw error;
       }
 
-      toast.success('Content regenerated successfully!', { id: 'regenerate' });
+      toast.success('Content regenerated successfully!');
       onRetryGeneration(); // Trigger refresh
     } catch (error) {
       console.error('Error regenerating content:', error);
-      toast.error('Failed to regenerate content', { id: 'regenerate' });
+      toast.error('Failed to regenerate content');
     } finally {
       setRegenerating(false);
     }

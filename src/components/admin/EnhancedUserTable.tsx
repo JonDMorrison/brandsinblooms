@@ -24,7 +24,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { isSuperAdmin } from "@/utils/adminUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBulkUserOperations } from "@/hooks/useBulkUserOperations";

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, Copy, MoreHorizontal, Image as ImageIcon, Star } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { useIsMobile } from '@/hooks/use-mobile';
 

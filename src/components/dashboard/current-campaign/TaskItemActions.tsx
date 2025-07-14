@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Copy, Edit, ExternalLink, Trash2, Save, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";
 import { handleCopy } from "@/components/content/ContentViewerUtils";
 import { ApproveButton } from "@/components/ui/approve-button";

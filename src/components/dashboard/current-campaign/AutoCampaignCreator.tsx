@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import type { Campaign } from "@/types";
 
 interface AutoCampaignCreatorProps {

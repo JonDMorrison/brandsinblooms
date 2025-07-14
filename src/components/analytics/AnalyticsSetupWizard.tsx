@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { Settings, Mail, RefreshCw, CheckCircle } from "lucide-react";
 
 interface AnalyticsSettings {

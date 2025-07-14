@@ -8,7 +8,7 @@ import { ReviewQueueError } from "./ReviewQueueError";
 import { ReviewQueueEmpty } from "./ReviewQueueEmpty";
 import { useReviewQueue } from "./useReviewQueue";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { useState } from "react";
 import { ContentTask, ReviewQueueProps } from "@/types/content";
 

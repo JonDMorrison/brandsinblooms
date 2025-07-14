@@ -7,7 +7,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { useState } from "react";
 
 interface NoCampaignStateCardProps {
@@ -28,7 +28,7 @@ export const NoCampaignStateCard = ({ onCreateCampaign }: NoCampaignStateCardPro
 
     setCreating(true);
     try {
-      toast.loading('Creating your weekly campaign...', { id: 'create-campaign' });
+      toast.loading('Creating your weekly campaign...');
 
       // Generate theme using the edge function
       const { data: themeData, error: themeError } = await supabase.functions.invoke('generate-weekly-themes', {
@@ -40,13 +40,13 @@ export const NoCampaignStateCard = ({ onCreateCampaign }: NoCampaignStateCardPro
 
       if (themeError) {
         console.error('Error generating theme:', themeError);
-        toast.error('Failed to generate campaign theme', { id: 'create-campaign' });
+        toast.error('Failed to generate campaign theme');
         return;
       }
 
       const theme = themeData?.themes?.[0];
       if (!theme) {
-        toast.error('No theme generated', { id: 'create-campaign' });
+        toast.error('No theme generated');
         return;
       }
 
@@ -76,11 +76,11 @@ export const NoCampaignStateCard = ({ onCreateCampaign }: NoCampaignStateCardPro
 
       if (campaignError) {
         console.error('Error creating campaign:', campaignError);
-        toast.error('Failed to create campaign', { id: 'create-campaign' });
+        toast.error('Failed to create campaign');
         return;
       }
 
-      toast.success('Campaign created! Now generating content...', { id: 'create-campaign' });
+      toast.success('Campaign created! Now generating content...');
 
       // Generate content for the campaign
       const result = await generateCampaignContent(
@@ -93,15 +93,15 @@ export const NoCampaignStateCard = ({ onCreateCampaign }: NoCampaignStateCardPro
       );
 
       if (result.success) {
-        toast.success('Campaign created with content successfully!', { id: 'create-campaign' });
+        toast.success('Campaign created with content successfully!');
         window.location.reload(); // Refresh to show new campaign
       } else {
-        toast.warning('Campaign created, but content generation had issues', { id: 'create-campaign' });
+        toast.warning('Campaign created, but content generation had issues');
       }
 
     } catch (error) {
       console.error('Error creating weekly campaign:', error);
-      toast.error('Failed to create campaign', { id: 'create-campaign' });
+      toast.error('Failed to create campaign');
     } finally {
       setCreating(false);
     }

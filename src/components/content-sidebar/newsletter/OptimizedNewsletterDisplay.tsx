@@ -7,7 +7,7 @@ import { NewsletterRegenerator } from './NewsletterRegenerator';
 import { NewsletterContentBlock } from './NewsletterContentBlock';
 import { useNewsletterImages } from './useNewsletterImages';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import {
   calculateReadingTime,
   extractTitleFromContent,

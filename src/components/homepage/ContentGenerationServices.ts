@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { memoryCache, apiDeduplicator } from '@/utils/performanceOptimizations';
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { TASK_STATUS, type TaskStatus } from "@/constants/taskStatus";
 
 export interface ContentGenerationResult {

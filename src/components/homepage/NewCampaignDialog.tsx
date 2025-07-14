@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { dateToWeekNumber } from "@/utils/dateUtils";
 import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
@@ -100,7 +100,7 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
       
       // Now automatically generate content for the campaign
       setGeneratingContent(true);
-      toast.loading('Generating content for your campaign...', { id: 'content-generation' });
+      toast.loading('Generating content for your campaign...');
 
       try {
         console.log('NewCampaignDialog: Starting content generation for campaign ID:', data.id);
@@ -128,14 +128,14 @@ export const NewCampaignDialog = ({ open, onOpenChange, onCreate }: NewCampaignD
         if (result.success) {
           console.log('NewCampaignDialog: Content generated successfully');
           setContentGenerated(true);
-          toast.success(`Campaign created with ${result.tasks?.length || 5} content pieces!`, { id: 'content-generation' });
+          toast.success(`Campaign created with ${result.tasks?.length || 5} content pieces!`);
         } else {
           console.warn('NewCampaignDialog: Content generation had issues:', result.message);
-          toast.warning(`Campaign created, but content generation had issues: ${result.message}`, { id: 'content-generation' });
+          toast.warning(`Campaign created, but content generation had issues: ${result.message}`);
         }
       } catch (contentError) {
         console.error('NewCampaignDialog: Content generation failed:', contentError);
-        toast.error('Campaign created, but content generation failed. You can generate content manually.', { id: 'content-generation' });
+        toast.error('Campaign created, but content generation failed. You can generate content manually.');
       }
 
       // Reset form

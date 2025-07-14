@@ -8,7 +8,7 @@ import { ThemeDisplay } from "./ThemeDisplay";
 import { ThemeEditor } from "./ThemeEditor";
 import { CampaignContentSection } from "./CampaignContentSection";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 interface Campaign {
   id: number;

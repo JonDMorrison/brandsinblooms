@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, X } from 'lucide-react';
 import { useCanvaAuth } from '@/hooks/useCanvaAuth';
 import { useUserRole } from '@/hooks/useUserRole';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 
 interface CanvaEditorProps {
@@ -223,7 +223,7 @@ export const CanvaEditor: React.FC<CanvaEditorProps> = ({
       // Update UI immediately
       onDesignComplete(newImageUrl);
       
-      toast.success('Canva design saved and updated', { duration: 3000 });
+      toast.success('Canva design saved and updated');
       onClose();
 
     } catch (error) {

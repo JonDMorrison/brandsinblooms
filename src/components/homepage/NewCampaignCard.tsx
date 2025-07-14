@@ -7,7 +7,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Sparkles, Eye, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { EditableTheme } from "@/components/calendar/EditableTheme";
 import { supabase } from "@/integrations/supabase/client";
 import { ContentViewer } from "@/components/content/ContentViewer";

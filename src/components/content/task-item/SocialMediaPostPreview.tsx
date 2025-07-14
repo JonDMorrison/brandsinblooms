@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MediaSelector } from '@/components/image/MediaSelector';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface SocialMediaPostPreviewProps {
   content: string;

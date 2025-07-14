@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cleanupDuplicateCampaigns } from '@/utils/campaignCleanup';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { Trash2, RefreshCw } from 'lucide-react';
 
 export const CampaignCleanupButton = () => {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ContentTaskItem } from '@/components/content/ContentTaskItem';
 import { FileText, Sparkles } from 'lucide-react';

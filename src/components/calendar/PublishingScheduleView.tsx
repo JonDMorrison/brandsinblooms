@@ -8,7 +8,7 @@ import { format, startOfWeek, endOfWeek, eachDayOfInterval, isToday } from "date
 import { supabase } from "@/integrations/supabase/client";
 import { ContentTaskItem } from "@/components/content/ContentTaskItem";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 interface ContentTask {
   id: string;

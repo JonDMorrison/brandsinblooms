@@ -7,7 +7,7 @@ import { Upload, FileText, CheckCircle, Database, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from 'xlsx';
 

@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle, Clock, AlertCircle, Edit, Copy, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { ContentSidebar } from "@/components/ContentSidebar";
 
 interface ContentReviewDialogProps {

@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { NewCampaignDialog } from "./NewCampaignDialog";
 import { ContentReviewDialog } from "./ContentReviewDialog";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 interface NextStepBannerProps {
   campaignsCount: number;
@@ -82,9 +82,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
         setShowNewCampaignDialog(true);
         break;
       case "generate-content":
-        toast.info("💡 Go to your campaigns below and click 'Generate Content' to create your marketing materials!", {
-          duration: 4000
-        });
+        toast.info("💡 Go to your campaigns below and click 'Generate Content' to create your marketing materials!");
         break;
       case "review-content":
         setShowContentReviewDialog(true);
@@ -97,7 +95,7 @@ export const NextStepBanner = ({ campaignsCount, tasksCount, completedTasksCount
   const handleCampaignCreate = (newCampaign: any) => {
     setShowNewCampaignDialog(false);
     onCampaignCreated();
-    toast.success("🎉 Campaign created! Ready to generate amazing content.", { duration: 3000 });
+    toast.success("🎉 Campaign created! Ready to generate amazing content.");
   };
 
   return (

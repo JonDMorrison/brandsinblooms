@@ -15,7 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { useState } from "react";
 
 interface AdminUserData {

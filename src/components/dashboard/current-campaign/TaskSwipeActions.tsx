@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Edit, Copy, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 
 // Conditional imports for swipeable list

@@ -4,7 +4,7 @@ import { EnhancedAppleButton } from "@/components/ui/enhanced-apple-button";
 import { Badge } from "@/components/ui/badge";
 import { Copy, Trash2, Edit, Eye } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, Calendar, CheckCircle, ArrowRight } from "lucide-react";
 import { generateRequiredTasks } from "@/components/homepage/TaskManagementUtils";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 interface ContentGenerationControlProps {
   campaigns: any[];
@@ -40,9 +40,7 @@ export const ContentGenerationControl = ({
     setIsGenerating(true);
     try {
       await generateRequiredTasks(currentCampaign.id, campaigns, userId, onTaskUpdate);
-      toast.success("🎉 Amazing! Your content is ready to review and customize.", {
-        duration: 4000
-      });
+      toast.success("🎉 Amazing! Your content is ready to review and customize.");
     } catch (error) {
       console.error('Error generating content:', error);
       toast.error("Failed to generate content. Please try again.");

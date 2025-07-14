@@ -5,7 +5,7 @@ import { Edit, MoreHorizontal, Copy, Trash2, Save, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { PostToSocialButton } from "@/components/social/PostToSocialButton";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";
 
 interface TaskActionsProps {

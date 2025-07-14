@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { Settings, Upload, FileText, Database, Trash2 } from "lucide-react";
 import * as XLSX from 'xlsx';
 import type { Database as DatabaseType } from '@/integrations/supabase/types';

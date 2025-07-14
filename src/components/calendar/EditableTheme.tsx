@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Edit2, Save, X, Lightbulb, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { ThemeDisplay } from "./ThemeDisplay";
 
 interface EditableThemeProps {

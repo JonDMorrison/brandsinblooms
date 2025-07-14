@@ -19,7 +19,7 @@ import { ReadyToPublishSection } from "./ReadyToPublishSection";
 import { QuickPublishModal } from "./QuickPublishModal";
 import { TASK_STATUS } from "@/constants/taskStatus";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { ProgressiveDashboardShell } from "./ProgressiveDashboardShell";
 import { ProgressiveLoadingCard } from "./ProgressiveLoadingCard";
 

@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { WebsiteAnalysisLoader } from "./onboarding/WebsiteAnalysisLoader";
