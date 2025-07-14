@@ -2,11 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Facebook, Instagram, CheckCircle } from 'lucide-react';
-import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchOAuthConfig } from '@/lib/api/oauth';
 import { OAuthLoadingOverlay } from './OAuthLoadingOverlay';
-import { showConnectionSuccessToast } from './ConnectionSuccessToast';
 import { AgeAndTermsVerification } from './AgeAndTermsVerification';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -50,8 +48,6 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       try {
         const data = JSON.parse(successData);
         if (Date.now() - data.timestamp < 30000) {
-          // Show enhanced success toast
-          showConnectionSuccessToast(data);
           onSuccess();
         }
         sessionStorage.removeItem('social_connection_success');
@@ -66,19 +62,19 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
 
   const handleConnect = async () => {
     if (!user) {
-      toast.error('Please log in to connect your social media accounts');
+      
       return;
     }
 
     // If already connected, just show a message
     if (isMetaConnected) {
-      toast.info('Meta accounts are already connected');
+      
       return;
     }
 
     // Check age and terms verification
     if (!isAgeAndTermsVerified) {
-      toast.error('Please confirm you are 13+ and agree to our terms before connecting');
+      
       return;
     }
 
@@ -150,7 +146,7 @@ export const ConnectMetaButton: React.FC<ConnectMetaButtonProps> = ({ onSuccess 
       
     } catch (error) {
       console.error('OAuth initiation error:', error);
-      toast.error('Failed to initiate connection. Please try again.');
+      
       setUnavailable(true);
       setLoading(false);
       // Refresh connection status after OAuth attempt

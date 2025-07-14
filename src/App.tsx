@@ -20,7 +20,7 @@ import { GlobalLoadingOverlay } from './components/loading/GlobalLoadingOverlay'
 // Immediate loading for critical components
 import { SmartRootRoute } from './components/SmartRootRoute';
 import Auth from "./pages/Auth";
-import { Toaster } from './components/ui/sonner';
+
 
 // Lazy load non-critical components for better initial performance
 const NewDashboard = lazy(() => import('./pages/NewDashboard'));
@@ -220,7 +220,7 @@ const App = () => {
               </ContentGenerationProvider>
             </SubscriptionProvider>
             
-            <Toaster />
+            
           </Router>
         </GlobalDataProvider>
       </LoadingProvider>

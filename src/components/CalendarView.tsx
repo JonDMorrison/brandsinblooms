@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { CalendarHeader } from './calendar/CalendarHeader';
-import { useToast } from "@/components/ui/use-toast"
+
 import { supabase } from '@/integrations/supabase/client';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
@@ -31,7 +31,7 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
   const [currentDate, setCurrentDate] = useState<Date>(
     savedState.currentDate ? new Date(savedState.currentDate) : new Date()
   );
-  const { toast } = useToast();
+  
   const [selectedTaskForModal, setSelectedTaskForModal] = useState<any>(null);
   const [selectedCampaignForModal, setSelectedCampaignForModal] = useState<any>(null);
   const [contentModalOpen, setContentModalOpen] = useState(false);
@@ -85,10 +85,6 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
 
   const handleBulkComplete = async () => {
     if (selectedTasks.length === 0) {
-      toast({
-        title: "No tasks selected.",
-        description: "Please select tasks to complete.",
-      })
       return;
     }
 
@@ -103,18 +99,9 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
         if (error) throw error;
       }));
 
-      toast({
-        title: "Tasks completed.",
-        description: `${selectedTasks.length} tasks have been marked as complete.`,
-      })
       setSelectedTasks([]);
       onDataUpdate();
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error completing tasks.",
-        description: "Failed to complete selected tasks.  Please try again.",
-      })
     } finally {
       setBulkCompleteLoading(false);
     }
@@ -122,10 +109,6 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
 
   const handleBulkDelete = async () => {
     if (selectedTasks.length === 0) {
-      toast({
-        title: "No tasks selected.",
-        description: "Please select tasks to delete.",
-      })
       return;
     }
 
@@ -140,18 +123,9 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
         if (error) throw error;
       }));
 
-      toast({
-        title: "Tasks deleted.",
-        description: `${selectedTasks.length} tasks have been deleted.`,
-      })
       setSelectedTasks([]);
       onDataUpdate();
     } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error deleting tasks.",
-        description: "Failed to delete selected tasks.  Please try again.",
-      })
     } finally {
       setBulkDeleteLoading(false);
     }

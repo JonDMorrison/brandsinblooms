@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink, Facebook, Instagram } from "lucide-react";
-import { toast } from "sonner";
+
 
 interface SocialMediaPostModalProps {
   isOpen: boolean;
@@ -37,7 +37,7 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
 
   const handleCopyContent = () => {
     navigator.clipboard.writeText(editedContent);
-    toast.success('Content copied to clipboard!');
+    
   };
 
   const handlePostToPlatform = () => {
@@ -47,7 +47,7 @@ export const SocialMediaPostModal = ({ isOpen, onClose, platform, content }: Soc
     // Open platform
     window.open(config.url, '_blank');
     
-    toast.success(`Content copied!  Create a new post on ${config.name} and paste the content.`);
+    
     onClose();
   };
 

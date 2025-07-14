@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { CompanyProfileForm } from './CompanyProfileForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+
 
 export const CompanyProfilePage = () => {
   const { user } = useAuth();
@@ -25,14 +25,14 @@ export const CompanyProfilePage = () => {
 
         if (error && error.code !== 'PGRST116') {
           console.error('Error fetching profile:', error);
-          toast.error('Failed to load company profile');
+          
           return;
         }
 
         setProfile(data || null);
       } catch (error) {
         console.error('Error in fetchProfile:', error);
-        toast.error('An unexpected error occurred');
+        
       } finally {
         setIsLoading(false);
       }
@@ -48,7 +48,7 @@ export const CompanyProfilePage = () => {
   const handleProfileUpdate = (updatedProfile) => {
     setProfile(updatedProfile);
     setIsEditing(false);
-    toast.success('Profile updated successfully');
+    
   };
 
   if (isLoading) {

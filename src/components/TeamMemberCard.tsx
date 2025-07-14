@@ -7,7 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Trash2, Mail, RefreshCw, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+
 import { format } from "date-fns";
 
 interface TeamMemberCardProps {
@@ -30,15 +30,15 @@ export const TeamMemberCard = ({ member, isOwner = false, onMemberUpdate }: Team
 
       if (error) {
         console.error('Error removing member:', error);
-        toast.error('Failed to remove team member');
+        
         return;
       }
 
-      toast.success(`Removed ${member.email} from team`);
+      
       onMemberUpdate();
     } catch (error) {
       console.error('Error in handleRemoveMember:', error);
-      toast.error('An unexpected error occurred');
+      
     } finally {
       setIsRemoving(false);
     }
@@ -48,10 +48,10 @@ export const TeamMemberCard = ({ member, isOwner = false, onMemberUpdate }: Team
     setIsResending(true);
     try {
       // In a real app, this would send another email
-      toast.success(`Invitation resent to ${member.email}`);
+      
     } catch (error) {
       console.error('Error resending invitation:', error);
-      toast.error('Failed to resend invitation');
+      
     } finally {
       setIsResending(false);
     }

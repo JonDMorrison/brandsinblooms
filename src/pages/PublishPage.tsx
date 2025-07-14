@@ -10,12 +10,12 @@ import { WorkflowAutomation } from '@/components/publish/WorkflowAutomation';
 import { PublishDebugger } from '@/components/publish/PublishDebugger';
 import { PublishMetrics } from '@/components/publish/PublishMetrics';
 
-import { showSuccessToast, triggerCardPulse } from '@/components/publish/SuccessFeedback';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Calendar, BarChart3, Zap, Grid, Send, Clock } from 'lucide-react';
@@ -176,7 +176,7 @@ const PublishPage = () => {
 
     } catch (error) {
       console.error('Error initializing publish data:', error);
-      toast.error('Failed to load publish data');
+      
     } finally {
       setLoading(false);
     }
@@ -212,7 +212,7 @@ const PublishPage = () => {
 
       if (error) {
         console.error('Schedule error:', error);
-        toast.error(`Scheduling failed: ${error.message}`);
+        
         return;
       }
 
@@ -229,18 +229,8 @@ const PublishPage = () => {
           hour12: true
         });
         
-        if (successCount === totalCount) {
-          toast.success(`Successfully scheduled for ${formattedTime}!`);
-        } else if (successCount > 0) {
-          toast.success(`Scheduled ${successCount}/${totalCount} platforms for ${formattedTime}`);
-        } else {
-          toast.error('Scheduling failed on all platforms');
-        }
-        
-        showSuccessToast('scheduled', formattedTime);
-        triggerCardPulse(scheduleData.contentId);
       } else {
-        toast.error(data?.message || 'Scheduling failed');
+        
       }
       
       // Refresh data
@@ -250,7 +240,7 @@ const PublishPage = () => {
       
     } catch (error) {
       console.error('Error scheduling post:', error);
-      toast.error('Failed to schedule post - please try again');
+      
     }
   };
 
@@ -266,9 +256,6 @@ const PublishPage = () => {
       if (testMode) {
         console.log('🧪 TEST MODE: Simulating publish...');
         await new Promise(resolve => setTimeout(resolve, 1500));
-        toast.success(`✅ TEST: Successfully simulated publishing to ${publishDataPayload.platforms.length} platform(s)!`);
-        showSuccessToast('published');
-        triggerCardPulse(publishDataPayload.contentId);
         setMetricsRefresh(prev => prev + 1);
         return;
       }
@@ -282,7 +269,7 @@ const PublishPage = () => {
 
       if (error) {
         console.error('Publish error:', error);
-        toast.error(`Publishing failed: ${error.message}`);
+        
         return;
       }
 
@@ -290,18 +277,8 @@ const PublishPage = () => {
         const successCount = data.results?.filter((r: any) => r.success).length || 0;
         const totalCount = data.results?.length || 0;
         
-        if (successCount === totalCount) {
-          toast.success(`Successfully published to all ${totalCount} platform(s)!`);
-        } else if (successCount > 0) {
-          toast.success(`Published to ${successCount}/${totalCount} platforms`);
-        } else {
-          toast.error('Publishing failed on all platforms');
-        }
-        
-        showSuccessToast('published');
-        triggerCardPulse(publishDataPayload.contentId);
       } else {
-        toast.error(data?.message || 'Publishing failed');
+        
       }
       
       await refetch();
@@ -310,13 +287,13 @@ const PublishPage = () => {
       
     } catch (error) {
       console.error('Error publishing post:', error);
-      toast.error('Failed to publish post - please try again');
+      
     }
   };
 
   const handleReschedule = (postId: string, newDate: Date) => {
     console.log('Reschedule post:', postId, 'to:', newDate);
-    toast.success(`Post rescheduled to ${newDate.toLocaleDateString()}`);
+    
   };
 
   const handleAnalyticsView = (postId: string) => {
@@ -326,12 +303,12 @@ const PublishPage = () => {
 
   const handleBulkAction = (postIds: string[], action: string) => {
     console.log('Bulk action:', action, 'for posts:', postIds);
-    toast.success(`${action} applied to ${postIds.length} posts`);
+    
   };
 
   const handleOptimalTimeSelect = (time: string) => {
     console.log('Selected optimal time:', time);
-    toast.success(`Optimal time ${time} selected`);
+    
   };
 
   const handleAutomationUpdate = (rules: any[]) => {

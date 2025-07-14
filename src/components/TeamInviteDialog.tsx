@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
 
 interface TeamInviteDialogProps {
   team: any;
@@ -25,14 +25,14 @@ export const TeamInviteDialog = ({ team, teamMembers, onInviteSuccess }: TeamInv
 
   const handleInviteMember = async () => {
     if (!inviteEmail.trim() || !team) {
-      toast.error('Please enter a valid email address');
+      
       return;
     }
 
     const currentMemberCount = teamMembers.filter(m => m.status === 'active' || m.status === 'pending').length + 1;
 
     if (currentMemberCount >= team.max_members && !team.is_paid) {
-      toast.error(`You've reached the ${team.max_members} member limit. Upgrade to add more members.`);
+      
       return;
     }
 
@@ -50,18 +50,18 @@ export const TeamInviteDialog = ({ team, teamMembers, onInviteSuccess }: TeamInv
 
       if (error) {
         console.error('Error inviting member:', error);
-        toast.error('Failed to invite team member');
+        
         return;
       }
 
-      toast.success(`Invitation sent to ${inviteEmail}`);
+      
       setInviteEmail("");
       setInviteRole("member");
       setOpen(false);
       onInviteSuccess();
     } catch (error) {
       console.error('Error in handleInviteMember:', error);
-      toast.error('An unexpected error occurred');
+      
     } finally {
       setIsInviting(false);
     }

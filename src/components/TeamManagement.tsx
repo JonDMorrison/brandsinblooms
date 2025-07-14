@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Users, Search, TrendingUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
 import { TeamInviteDialog } from "./TeamInviteDialog";
 import { TeamSettingsDialog } from "./TeamSettingsDialog";
 import { TeamMemberCard } from "./TeamMemberCard";
@@ -56,7 +56,7 @@ export const TeamManagement = () => {
 
       if (teamError && teamError.code !== 'PGRST116') {
         console.error('Error fetching team:', teamError);
-        toast.error('Failed to load team data');
+        
         return;
       }
 
@@ -70,7 +70,7 @@ export const TeamManagement = () => {
 
         if (createError) {
           console.error('Error creating team:', createError);
-          toast.error('Failed to create team');
+          
           return;
         }
         setTeam(newTeam);
@@ -87,21 +87,21 @@ export const TeamManagement = () => {
 
       if (membersError) {
         console.error('Error fetching team members:', membersError);
-        toast.error('Failed to load team members');
+        
         return;
       }
 
       setTeamMembers(membersData || []);
     } catch (error) {
       console.error('Error in fetchTeamData:', error);
-      toast.error('An unexpected error occurred');
+      
     } finally {
       setLoading(false);
     }
   };
 
   const handleUpgradeTeam = () => {
-    toast.info('Payment integration coming soon!  This will allow unlimited team members.');
+    
   };
 
   const filteredMembers = teamMembers.filter(member =>

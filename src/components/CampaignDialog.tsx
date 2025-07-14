@@ -11,7 +11,7 @@ import { CalendarIcon, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+
 import { generateThemeDescription } from "./calendar/ThemeDescriptionGenerator";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
@@ -27,7 +27,7 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
   const [prompt, setPrompt] = useState("");
   const [eventDate, setEventDate] = useState<Date>();
   const [selectedWeek, setSelectedWeek] = useState<string>("");
-  const { toast } = useToast();
+  
 
   const currentWeekNumber = getCurrentWeekNumber();
 
@@ -63,11 +63,6 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
     e.preventDefault();
     
     if (!title.trim() || !eventDate || !selectedWeek) {
-      toast({
-        title: "Missing fields",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -111,10 +106,6 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
 
       if (error) throw error;
 
-      toast({
-        title: "Event added",
-        description: "Your new event has been created and promotional materials will be generated",
-      });
 
       // Reset form
       setTitle("");
@@ -126,11 +117,6 @@ export const CampaignDialog = ({ onCampaignCreated, trigger }: CampaignDialogPro
       onCampaignCreated?.();
     } catch (error: any) {
       // Error creating event
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create event",
-        variant: "destructive",
-      });
     } finally {
       setLoading(false);
     }

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { createCompanyProfileFromOnboarding, saveOnboardingResponse } from "./onboarding/CompanyProfileCreator";
@@ -63,7 +63,6 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
   const handleNext = () => {
     const currentField = steps[currentStep - 1].field as keyof typeof formData;
     if (!formData[currentField].trim()) {
-      toast.error("Please fill in this field before continuing");
       return;
     }
     
@@ -82,13 +81,13 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
 
   const handleSubmit = async () => {
     if (!user) {
-      toast.error("Please log in to continue");
+      
       return;
     }
 
     const currentField = steps[currentStep - 1].field as keyof typeof formData;
     if (!formData[currentField].trim()) {
-      toast.error("Please fill in this field before continuing");
+      
       return;
     }
 
@@ -109,14 +108,14 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
       // Call the onComplete callback with the data
       onComplete(formData);
       
-      toast.success("Setup complete!  Welcome to BloomSuite!");
+      
       
       // Navigate to the app - OnboardingGuard will now allow access
       navigate('/app');
       
     } catch (error) {
       // Error completing onboarding
-      toast.error("Failed to complete setup.  Please try again.");
+      
     } finally {
       setIsSubmitting(false);
     }

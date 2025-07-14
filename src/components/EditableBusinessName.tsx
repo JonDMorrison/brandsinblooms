@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
 import { isSuperAdmin } from "@/utils/adminUtils";
 
 interface EditableBusinessNameProps {
@@ -71,11 +71,11 @@ export const EditableBusinessName = ({
         }
       }
 
-      toast.success('Business name updated successfully!');
+      
       setIsOpen(false);
     } catch (error) {
       console.error('Error saving business name:', error);
-      toast.error('Failed to update business name.  Please try again.');
+      
     } finally {
       setIsSaving(false);
     }

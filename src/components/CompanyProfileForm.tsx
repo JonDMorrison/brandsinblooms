@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
 import { CompanyProfileFormFields } from "./company-profile/CompanyProfileFormFields";
 import { CompanyProfileLoadingState } from "./company-profile/CompanyProfileLoadingState";
 import { CompanyProfileFormActions } from "./company-profile/CompanyProfileFormActions";
@@ -111,7 +111,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
           // Error generating profile
         } else if (data.profileData) {
           setFormData(data.profileData);
-          toast.success('Company profile auto-populated based on your onboarding responses!');
+          
         }
       } else {
         // No meaningful onboarding data found - skipping auto-populate
@@ -160,7 +160,7 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
 
       if (result.error) {
         // Error saving profile
-        toast.error('Failed to save company profile');
+        
         return;
       }
 
@@ -179,11 +179,11 @@ export const CompanyProfileForm = ({ profile, isEditing, onToggleEdit, onProfile
         }
       }
 
-      toast.success('Company profile saved successfully');
+      
       onProfileUpdate(result.data);
     } catch (error) {
       // Error in handleSave
-      toast.error('An unexpected error occurred');
+      
     } finally {
       setIsSaving(false);
     }

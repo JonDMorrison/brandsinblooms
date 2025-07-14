@@ -6,9 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Facebook, Instagram, MapPin, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
 import { fetchOAuthConfig } from "@/lib/api/oauth";
-import { showConnectionSuccessToast } from "../social/ConnectionSuccessToast";
 import { MetaConnectionSuccess } from "../social/MetaConnectionSuccess";
 
 interface SocialConnection {
@@ -40,7 +38,7 @@ export const SocialConnectionManager = () => {
         const data = JSON.parse(successData);
         // Only refresh if it's recent (within 30 seconds)
         if (Date.now() - data.timestamp < 30000) {
-          showConnectionSuccessToast(data);
+          
           fetchConnections(); // Refresh connections
         }
         sessionStorage.removeItem('social_connection_success');
@@ -110,7 +108,7 @@ export const SocialConnectionManager = () => {
       window.location.href = authUrl.toString();
     } catch (error) {
       console.error(`Failed to connect ${platformId}:`, error);
-      toast.error(`Failed to connect ${platformId}. Please try again.`);
+      
       setConnecting(null);
     }
   };
@@ -124,7 +122,7 @@ export const SocialConnectionManager = () => {
     
     const authUrl = `https://accounts.google.com/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&response_type=code&access_type=offline`;
     
-    toast.success('Google Business connection successful!');
+    
     setConnecting(null);
   };
 
