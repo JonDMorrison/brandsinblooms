@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { toast } from 'sonner';
+
 import { FocusCard } from './FocusCard';
 import { FocusFilterSheet } from './FocusFilterSheet';
 import { useFocusThemes } from '@/hooks/useFocusThemes';
@@ -60,7 +60,7 @@ export const FocusCarousel = ({ onTaskUpdate }: FocusCarouselProps) => {
 
   const handleGenerate = async (themeId: string) => {
     if (!user) {
-      toast.error('Please log in to generate content');
+      
       return;
     }
 
@@ -96,15 +96,6 @@ export const FocusCarousel = ({ onTaskUpdate }: FocusCarouselProps) => {
         
         // Step 4: Show success toast
         const taskCount = result.tasks?.length || 5;
-        toast.success(`Added ${taskCount} drafts • Open Draft Tray`, {
-          duration: 5000,
-          action: {
-            label: 'View Drafts',
-            onClick: () => {
-              if (onTaskUpdate) onTaskUpdate();
-            }
-          }
-        });
 
         // Step 5: Refresh the dashboard to show new drafts
         if (onTaskUpdate) {
@@ -118,11 +109,11 @@ export const FocusCarousel = ({ onTaskUpdate }: FocusCarouselProps) => {
         }
       } else {
         console.error('❌ Content generation failed:', result);
-        toast.error(`Failed to generate content: ${result.message || 'Unknown error'}`);
+        
       }
     } catch (error) {
       console.error('❌ Error in handleGenerate:', error);
-      toast.error(`Failed to generate content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
     } finally {
       setGeneratingTheme(null);
     }
@@ -130,7 +121,7 @@ export const FocusCarousel = ({ onTaskUpdate }: FocusCarouselProps) => {
 
   const handleSkip = async (themeId: string) => {
     await skipTheme(themeId);
-    toast.success('Theme skipped • Won\'t show again for one year');
+    
     
     // Move to next theme or stay on current if it was the last one
     if (themes.length > 1) {
