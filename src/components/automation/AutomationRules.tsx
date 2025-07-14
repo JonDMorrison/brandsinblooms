@@ -21,7 +21,7 @@ import {
   Pause,
   Trash2
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface AutomationRule {
   id: string;
@@ -43,6 +43,7 @@ interface AutomationRule {
 
 export const AutomationRules = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -62,7 +63,11 @@ export const AutomationRules = () => {
       setRules([]);
     } catch (error) {
       console.error('Error fetching automation rules:', error);
-      toast.error('Failed to load automation rules');
+      toast({
+        title: "Error",
+        description: "Failed to load automation rules",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -72,12 +77,19 @@ export const AutomationRules = () => {
     e.preventDefault();
 
     if (!ruleName || !triggerType || !actionType) {
-      toast.error('Please fill in all required fields');
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
     // TODO: Replace with actual database call once migration is applied
-    toast.info('Automation rules will be available once database setup is complete');
+    toast({
+      title: "Coming Soon",
+      description: "Automation rules will be available once database setup is complete",
+    });
     setRuleName('');
     setRuleDescription('');
     setTriggerType('');
@@ -117,12 +129,18 @@ export const AutomationRules = () => {
 
   const handleToggleRule = async (ruleId: string, isActive: boolean) => {
     // TODO: Replace with actual database call once migration is applied
-    toast.info('Automation rules will be available once database setup is complete');
+    toast({
+      title: "Coming Soon",
+      description: "Automation rules will be available once database setup is complete",
+    });
   };
 
   const handleDeleteRule = async (ruleId: string) => {
     // TODO: Replace with actual database call once migration is applied
-    toast.info('Automation rules will be available once database setup is complete');
+    toast({
+      title: "Coming Soon",
+      description: "Automation rules will be available once database setup is complete",
+    });
   };
 
   const getTriggerIcon = (type: string) => {
