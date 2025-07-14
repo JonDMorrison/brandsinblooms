@@ -18,17 +18,17 @@ export const useOnboardingStatus = () => {
       return;
     }
 
+    console.log('🔍 useOnboardingStatus: Checking status for user:', user.id);
+    
     try {
-      console.log('🔍 useOnboardingStatus: Checking status for user:', user.id);
-      
-      // Add timeout to database query with reduced time
+      // Increased timeout for better reliability
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database query timeout')), 3000); // Reduced from 5000 to 3000
+        setTimeout(() => reject(new Error('Database query timeout')), 8000);
       });
 
       const queryPromise = supabase
         .from('company_profiles')
-        .select('id, first_content_generated, onboarding_completed_at')
+        .select('id, first_content_generated, onboarding_completed_at, company_name')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -40,19 +40,25 @@ export const useOnboardingStatus = () => {
       if (dbError && dbError.code !== 'PGRST116') {
         console.error('❌ useOnboardingStatus: Database error:', dbError);
         setError(dbError.message);
-        // On database error, assume not completed to be safe
         setIsCompleted(false);
+      } else if (!profile) {
+        // No profile found - definitely not completed
+        console.log('📝 useOnboardingStatus: No profile found');
+        setIsCompleted(false);
+        setError(null);
       } else {
-        // Enhanced completion check - consider multiple completion indicators
-        const completed = !!(profile && (
+        // If profile exists with any completion indicator, consider it complete
+        const completed = !!(
           profile.first_content_generated || 
-          profile.onboarding_completed_at
-        ));
+          profile.onboarding_completed_at ||
+          profile.company_name // Having a company name is also a strong indicator
+        );
         
         console.log('✅ useOnboardingStatus: Status check complete', {
           hasProfile: !!profile,
           hasGeneratedContent: !!profile?.first_content_generated,
           hasCompletedAt: !!profile?.onboarding_completed_at,
+          hasCompanyName: !!profile?.company_name,
           completed
         });
         
@@ -63,13 +69,31 @@ export const useOnboardingStatus = () => {
       console.error('❌ useOnboardingStatus: Error in checkOnboardingStatus:', error);
       
       if (error.message === 'Database query timeout') {
-        setError('Connection timeout - please try refreshing');
+        // On timeout, try a fallback check - if profile exists at all, assume complete
+        console.log('⏰ useOnboardingStatus: Timeout, trying fallback check...');
+        try {
+          const { data: fallbackProfile } = await supabase
+            .from('company_profiles')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (fallbackProfile) {
+            console.log('✅ useOnboardingStatus: Fallback found profile, assuming complete');
+            setIsCompleted(true);
+            setError(null);
+          } else {
+            setError('Connection timeout - please try refreshing');
+            setIsCompleted(false);
+          }
+        } catch (fallbackError) {
+          setError('Connection timeout - please try refreshing');
+          setIsCompleted(false);
+        }
       } else {
         setError(error.message || 'Failed to check onboarding status');
+        setIsCompleted(false);
       }
-      
-      // On timeout or error, assume not completed to be safe
-      setIsCompleted(false);
     } finally {
       setIsLoading(false);
     }
