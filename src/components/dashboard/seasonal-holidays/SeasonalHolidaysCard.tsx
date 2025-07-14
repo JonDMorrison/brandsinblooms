@@ -11,7 +11,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Calendar, Clock, Sparkles, Leaf, ChevronDown, ChevronUp } from "lucide-react";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -124,9 +124,7 @@ export const SeasonalHolidaysCard = ({
       // Make sure error is shown to user - the hook should have already shown toast
       // but we'll add a fallback just in case
       if (!error?.message?.includes('toast already shown')) {
-        toast.error(`Failed to generate content for ${holiday.holiday_name}`, {
-          description: error?.message || 'An unknown error occurred'
-        });
+        toast.error(`Failed to generate content for ${holiday.holiday_name}`);
       }
     } finally {
       console.log(`CARD: Clearing generating state for: ${holidayId}`);
