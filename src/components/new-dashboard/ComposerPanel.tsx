@@ -8,7 +8,7 @@ import { Edit, Save, CheckCircle, Loader2, Instagram, Facebook, Mail, BookOpen, 
 import { format } from 'date-fns';
 import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+
 import { supabase } from '@/integrations/supabase/client';
 import { Draggable, Droppable } from 'react-beautiful-dnd';
 import { useDashboardContext } from '@/contexts/DashboardContext';
@@ -102,11 +102,11 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
       if (error) throw error;
 
-      toast.success('Draft saved');
+      
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
       console.error('Error saving draft:', error);
-      toast.error('Failed to save draft');
+      
     } finally {
       setSaving(false);
     }
@@ -116,7 +116,7 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
     if (!selectedDraft || !editContent.trim()) return;
     
     if (!canApprove) {
-      toast.error(isInstagram ? 'Instagram posts require an image' : 'Please select an image or choose to post without one');
+      
       return;
     }
 
@@ -142,12 +142,12 @@ export const ComposerPanel = ({ selectedDraft, socialConnections = [], onTaskUpd
 
       if (error) throw error;
 
-      toast.success('Content approved successfully! You can now schedule it in the Smart-Time Ribbon.');
+      
       if (onApproved) onApproved(selectedDraft.id);
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
       console.error('Error approving draft:', error);
-      toast.error('Failed to approve draft');
+      
     } finally {
       setApproving(false);
     }
