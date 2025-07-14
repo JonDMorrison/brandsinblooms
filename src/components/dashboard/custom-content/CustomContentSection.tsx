@@ -274,7 +274,7 @@ export const CustomContentSection = ({
               {/* Header Content */}
               <div className="relative z-10 flex items-center justify-between">
                 <div className="flex flex-col gap-3">
-                  <div className="inline-flex items-center gap-3 mb-2">
+                  <div className="inline-flex items-center gap-3 mb-4">
                     <div className="p-3 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl shadow-lg">
                       <Plus className="w-8 h-8 text-white" />
                     </div>
