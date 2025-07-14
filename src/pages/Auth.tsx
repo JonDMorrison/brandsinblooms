@@ -191,7 +191,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-lg border">
+        <Card className="w-full max-w-md mx-auto shadow-lg border">
           <CardHeader className="text-center pb-6">
             <CardTitle className="text-2xl font-semibold mb-2">
               Welcome
