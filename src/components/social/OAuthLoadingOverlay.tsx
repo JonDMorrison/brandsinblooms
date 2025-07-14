@@ -19,7 +19,7 @@ export const OAuthLoadingOverlay: React.FC<OAuthLoadingOverlayProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="!bg-white border border-gray-200 rounded-lg p-6 md:p-8 max-w-sm w-full mx-4 shadow-lg">
+      <div className="bg-card border rounded-lg p-6 md:p-8 max-w-sm w-full mx-4 shadow-lg">
         <div className="text-center space-y-4">
           {/* Meta Branding */}
           <div className="flex justify-center items-center space-x-2">
