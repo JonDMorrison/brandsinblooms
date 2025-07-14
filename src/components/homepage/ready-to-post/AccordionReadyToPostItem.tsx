@@ -11,6 +11,7 @@ import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { getStatusColor } from "../homepageUtils";
 import { formatDistanceToNow } from "date-fns";
 import { EnhancedPostNowButton } from "./EnhancedPostNowButton";
+import { PostToSocialButton } from "@/components/social/PostToSocialButton";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 // Removed sonner import - using global toast replacement
@@ -214,9 +215,9 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
           <div className="px-4 pb-4 border-t border-gray-100">
             <div className="pt-4">
               {/* Improved layout with proper proportions */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {/* Left column - Text content (3/4 width) */}
-                <div className="md:col-span-3 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Left column - Text content (2/3 width) */}
+                <div className="md:col-span-2 space-y-3">
                   {/* Content Preview */}
                   {cleanContent && (
                     <div className="bg-gray-50 rounded-lg p-3">
@@ -251,31 +252,11 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                       View Full Content
                     </Button>
 
-                    {!batchMode && (
-                      <>
-                        {facebookConnection && (
-                          <EnhancedPostNowButton
-                            task={task}
-                            platform="facebook"
-                            onSuccess={onTaskUpdate}
-                            socialConnections={socialConnections}
-                          />
-                        )}
-                        {instagramConnection && (
-                          <EnhancedPostNowButton
-                            task={task}
-                            platform="instagram"
-                            onSuccess={onTaskUpdate}
-                            socialConnections={socialConnections}
-                          />
-                        )}
-                      </>
-                    )}
                   </div>
                 </div>
 
-                {/* Right column - Image (1/4 width) */}
-                <div className="md:col-span-1">
+                {/* Right column - Image + Post Button (1/3 width) */}
+                <div className="md:col-span-1 space-y-3">
                   {getTaskImageUrl(task) && (
                     <ImageEditOverlay
                       imageUrl={getTaskImageUrl(task)}
@@ -323,6 +304,16 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                       }}
                       contentContext={task.ai_output}
                       className="h-40 w-full rounded-lg overflow-hidden aspect-[4/3] object-cover"
+                    />
+                  )}
+                  
+                  {/* Post to Social Button */}
+                  {!batchMode && (facebookConnection || instagramConnection) && (
+                    <PostToSocialButton
+                      task={task}
+                      onSuccess={onTaskUpdate}
+                      size="sm"
+                      className="w-full"
                     />
                   )}
                 </div>
