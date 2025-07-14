@@ -234,7 +234,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
 
                                       try {
                                         const { supabase } = await import('@/integrations/supabase/client');
-                                        const { toast } = await import('sonner');
                                         
                                         const { error } = await supabase
                                           .from('content_tasks')
@@ -243,8 +242,6 @@ export const DraftTray = ({ tasks = [], selectedDraft, onSelectDraft, justApprov
 
                                         if (error) throw error;
 
-                                        toast.success('Image updated! Content moved to review for re-approval.');
-                                        
                                         // Trigger refresh
                                         window.dispatchEvent(new CustomEvent('draft-updated'));
                                       } catch (error) {
