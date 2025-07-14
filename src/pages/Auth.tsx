@@ -9,7 +9,7 @@ import { Loader2, Eye, EyeOff, Sprout, CheckCircle, Unlock } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signInWithCleanup, signUpWithCleanup } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+
 import bloomSuiteLogo from "@/assets/bloomsuite-logo.png";
 
 const Auth = () => {
@@ -77,13 +77,13 @@ const Auth = () => {
       if (error) {
         console.error('❌ Auth: Sign in error:', error);
         setError(error.message);
-        toast.error(`Sign in failed: ${error.message}`);
+        
         return;
       }
 
       if (data.user) {
         console.log('✅ Auth: Sign in successful for user:', data.user.id);
-        toast.success('Welcome back!');
+        
         
         // Check onboarding status and redirect appropriately
         setTimeout(() => {
@@ -93,7 +93,7 @@ const Auth = () => {
     } catch (error: any) {
       console.error('❌ Auth: Unexpected sign in error:', error);
       setError('An unexpected error occurred. Please try again.');
-      toast.error('Sign in failed. Please try again.');
+      
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ const Auth = () => {
       if (error) {
         console.error('❌ Auth: Sign up error:', error);
         setError(error.message);
-        toast.error(`Sign up failed: ${error.message}`);
+        
         return;
       }
 
@@ -128,18 +128,18 @@ const Auth = () => {
         
         if (data.user.email_confirmed_at) {
           console.log('📧 Auth: Email already confirmed, new user needs onboarding');
-          toast.success('Account created! Let\'s set up your business profile.');
+          
           navigate('/onboarding', { replace: true });
         } else {
           console.log('📧 Auth: Email confirmation required');
           setMessage("Please check your email for a confirmation link, then return to sign in.");
-          toast.success("Please check your email for a confirmation link.");
+          
         }
       }
     } catch (error: any) {
       console.error('❌ Auth: Unexpected sign up error:', error);
       setError('An unexpected error occurred. Please try again.');
-      toast.error('Sign up failed. Please try again.');
+      
     } finally {
       setLoading(false);
     }
@@ -162,12 +162,12 @@ const Auth = () => {
       if (error) {
         console.error('❌ Auth: Google auth error:', error);
         setError(error.message);
-        toast.error(`Google sign in failed: ${error.message}`);
+        
       }
     } catch (error: any) {
       console.error('❌ Auth: Unexpected Google auth error:', error);
       setError('Google sign in failed. Please try again.');
-      toast.error('Google sign in failed. Please try again.');
+      
       setLoading(false);
     }
   };
