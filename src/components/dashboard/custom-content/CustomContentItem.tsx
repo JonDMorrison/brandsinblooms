@@ -70,8 +70,8 @@ export const CustomContentItem = ({
     <Card className={`mb-4 hover:shadow-md transition-all duration-300 h-full flex flex-col ${
       isAnimatingOut ? 'animate-[fadeOut_0.5s_ease-out_forwards,scaleDown_0.5s_ease-out_forwards]' : ''
     }`}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between mb-2">
           <CardTitle className="flex items-center gap-2">
             <Plus className="w-5 h-5 text-blue-500" />
             {campaign.title}
