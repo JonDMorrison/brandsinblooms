@@ -211,8 +211,6 @@ const Auth = () => {
         <div className="absolute bottom-1/3 left-1/2 w-8 h-8 bg-brand-teal-500/15 rounded-full blur-md"></div>
       </div>
 
-      {/* Glass morphism overlay */}
-      <div className="absolute inset-0 bg-white/5 backdrop-blur-[0.5px]"></div>
 
       <div className="relative z-10 w-full max-w-2xl">
         {/* Simplified Header */}
