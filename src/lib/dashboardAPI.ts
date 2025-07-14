@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { isBloomEligible } from './subscriptionHelpers';
 import { areConnectionsValid } from './socialHelpers';
 
@@ -36,7 +35,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      toast.error('Authentication required');
+      console.error('Authentication required');
       return null;
     }
 
@@ -49,7 +48,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     if (taskError || !task) {
       console.error('Failed to fetch task:', taskError);
-      toast.error('Task not found or access denied');
+      console.error('Task not found or access denied');
       return null;
     }
 
@@ -57,7 +56,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
     const hasAccess = task.user_id === user.id || task.created_by_user_id === user.id;
     if (!hasAccess) {
       console.error('User does not have access to this task');
-      toast.error('Access denied to this task');
+      console.error('Access denied to this task');
       return null;
     }
 
@@ -74,7 +73,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
     if (contentError) {
       console.error('Failed to create generated content:', contentError);
-      toast.error('Failed to prepare content for scheduling');
+      console.error('Failed to prepare content for scheduling');
       return null;
     }
 
@@ -112,7 +111,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
         .delete()
         .eq('id', generatedContent.id);
       
-      toast.error(`Failed to schedule post: ${scheduleError.message}`);
+      console.error(`Failed to schedule post: ${scheduleError.message}`);
       return null;
     }
 
@@ -141,7 +140,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
         .delete()
         .eq('id', generatedContent.id);
       
-      toast.error('Failed to update task status');
+      console.error('Failed to update task status');
       return null;
     }
 
@@ -153,7 +152,7 @@ export const scheduleDraft = async (params: ScheduleDraftParams): Promise<Schedu
 
   } catch (error) {
     console.error('Schedule draft error:', error);
-    toast.error(`Failed to schedule post: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error(`Failed to schedule post: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return null;
   }
 };
