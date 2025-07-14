@@ -4,7 +4,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { TASK_STATUS, type TaskStatus } from '@/constants/taskStatus';
 import { useSmartTime } from '@/hooks/useSmartTime';
 import { scheduleDraft } from '@/lib/dashboardAPI';
-import { toast } from 'sonner';
+
 import { format } from 'date-fns';
 
 interface DashboardContextType {
@@ -115,12 +115,12 @@ export const DashboardProvider = ({ children }: DashboardProviderProps) => {
       });
       
       if (result) {
-        toast.success(`Scheduled for ${format(new Date(bestDateTime), 'MMM d, yyyy \'at\' h:mm a')}`);
+        
         refetch();
       }
     } catch (error) {
       console.error('Error in handleClickToPost:', error);
-      toast.error('Failed to schedule post');
+      
     }
   }, [getBestSlot, refetch]);
 
