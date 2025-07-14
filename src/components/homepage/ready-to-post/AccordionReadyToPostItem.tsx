@@ -213,24 +213,24 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
         <CollapsibleContent>
           <div className="px-4 pb-4 border-t border-gray-100">
             <div className="pt-4">
-              {/* Grid layout with improved spacing */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-                {/* Left column - Text content (3/5 width) */}
-                <div className="md:col-span-3 space-y-4">
+              {/* Improved layout with proper proportions */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* Left column - Text content (3/4 width) */}
+                <div className="md:col-span-3 space-y-3">
                   {/* Content Preview */}
                   {cleanContent && (
-                    <div className="bg-gray-50 rounded-lg p-3 overflow-hidden">
+                    <div className="bg-gray-50 rounded-lg p-3">
                       <SafeHtml 
                         content={task.ai_output}
-                        className={`text-gray-700 line-clamp-4 break-words overflow-hidden ${isMobile ? 'text-sm' : 'text-base'}`}
+                        className={`text-gray-700 line-clamp-3 ${isMobile ? 'text-sm' : 'text-sm'} leading-relaxed`}
                       />
                     </div>
                   )}
 
                   {/* Error Message */}
                   {task.last_posting_error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 overflow-hidden">
-                      <p className="text-sm text-red-600 break-words">{task.last_posting_error}</p>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-sm text-red-600">{task.last_posting_error}</p>
                       {task.posting_attempts > 0 && (
                         <p className="text-xs text-red-500 mt-1">
                           Failed {task.posting_attempts} time{task.posting_attempts !== 1 ? 's' : ''}
@@ -240,7 +240,7 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                   )}
 
                   {/* Actions */}
-                  <div className="flex items-center gap-3 pt-2">
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -252,7 +252,7 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                     </Button>
 
                     {!batchMode && (
-                      <div className="flex gap-2">
+                      <>
                         {facebookConnection && (
                           <EnhancedPostNowButton
                             task={task}
@@ -269,13 +269,13 @@ export const AccordionReadyToPostItem: React.FC<AccordionReadyToPostItemProps> =
                             socialConnections={socialConnections}
                           />
                         )}
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
 
-                {/* Right column - Image (2/5 width) */}
-                <div className="md:col-span-2">
+                {/* Right column - Image (1/4 width) */}
+                <div className="md:col-span-1">
                   {getTaskImageUrl(task) && (
                     <ImageEditOverlay
                       imageUrl={getTaskImageUrl(task)}
