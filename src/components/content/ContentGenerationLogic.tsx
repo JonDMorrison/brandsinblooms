@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { showToast } from "@/utils/toastUtils";
 import { generateContentInParallel } from "./ParallelContentGenerator";
 
 export const useContentGeneration = () => {
@@ -41,26 +41,26 @@ export const useContentGeneration = () => {
 
             if (createError) {
               console.error(`❌ Error creating ${type} task:`, createError);
-              toast.error(`Failed to create ${type} task: ${createError.message}`);
+              showToast.error(`Failed to create ${type} task: ${createError.message}`);
             } else {
               console.log(`✅ Created new ${type} task:`, newTask.id);
               tasksNeedingContent.push(newTask);
             }
           } catch (error) {
             console.error(`❌ Error creating ${type} task:`, error);
-            toast.error(`Failed to create ${type} task`);
+            showToast.error(`Failed to create ${type} task`);
           }
         }
       }
 
       if (tasksNeedingContent.length === 0) {
         console.log('✅ All tasks already have content');
-        toast.success('All content is already generated!');
+        showToast.success('All content is already generated!');
         return true;
       }
 
       // Show progress toast
-      toast.info(`Generating content for ${tasksNeedingContent.length} tasks...`);
+      showToast.info(`Generating content for ${tasksNeedingContent.length} tasks...`);
 
       // Use parallel generation for much faster content creation
       const result = await generateContentInParallel(
@@ -71,16 +71,16 @@ export const useContentGeneration = () => {
       );
       
       if (result.success) {
-        toast.success(`Successfully generated ${result.generatedCount} content pieces! ${result.failedTypes.length > 0 ? `${result.failedTypes.length} failed.` : ''}`);
+        showToast.success(`Successfully generated ${result.generatedCount} content pieces! ${result.failedTypes.length > 0 ? `${result.failedTypes.length} failed.` : ''}`);
       } else {
-        toast.error(`Content generation failed. Please try again.`);
+        showToast.error(`Content generation failed. Please try again.`);
       }
       
       return result.success;
     } catch (error) {
       console.error('❌ Error in autoGenerateAllContent:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast.error(`Failed to generate content: ${errorMessage}`);
+      showToast.error(`Failed to generate content: ${errorMessage}`);
       return false;
     }
   };
@@ -97,7 +97,7 @@ export const useContentGeneration = () => {
 
       if (error) {
         console.error('❌ Error fetching tasks:', error);
-        toast.error(`Failed to fetch tasks: ${error.message}`);
+        showToast.error(`Failed to fetch tasks: ${error.message}`);
         throw error;
       }
 
@@ -107,7 +107,7 @@ export const useContentGeneration = () => {
     } catch (error) {
       console.error('❌ Error in generateMissingContent:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast.error(`Failed to generate missing content: ${errorMessage}`);
+      showToast.error(`Failed to generate missing content: ${errorMessage}`);
       return false;
     }
   };

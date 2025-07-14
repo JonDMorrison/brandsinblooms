@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { showToast } from "@/utils/toastUtils";
 import { 
   generatePersonalizedContent, 
   generateNewsletterContent, 
@@ -35,13 +35,13 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
 
   if (balanceError) {
     console.error('❌ Error checking token balance:', balanceError);
-    toast.error('Failed to check token balance');
+    showToast.error('Failed to check token balance');
     return { success: false, generatedCount: 0, failedTypes: [], tokenCost: 0 };
   }
 
   const balance = tokenBalance && tokenBalance.length > 0 ? tokenBalance[0] : null;
   if (!balance) {
-    toast.error('Unable to verify token balance');
+    showToast.error('Unable to verify token balance');
     return { success: false, generatedCount: 0, failedTypes: [], tokenCost: 0 };
   }
 
@@ -61,7 +61,7 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
     );
     
     if (!proceed) {
-      toast.info('Content generation cancelled');
+      showToast.info('Content generation cancelled');
       return { success: false, generatedCount: 0, failedTypes: [], tokenCost: 0 };
     }
   }
@@ -171,9 +171,9 @@ export const generateContentPack = async (options: BulkGenerationOptions): Promi
       ? `🎉 Generated ${generatedCount} pieces of strategic content! Check the review queue.`
       : `⚠️ Generated ${generatedCount}/${contentTypes.length} pieces of content. ${failedTypes.length} failed.`;
     
-    toast.success(message);
+    showToast.success(message);
   } else {
-    toast.error('Failed to generate any content. Please try again.');
+    showToast.error('Failed to generate any content. Please try again.');
   }
 
   return {

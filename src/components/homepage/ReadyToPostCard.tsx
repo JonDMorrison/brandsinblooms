@@ -10,7 +10,7 @@ import { ContentTask } from "@/types/content";
 import { AccordionReadyToPostItem } from "./ready-to-post/AccordionReadyToPostItem";
 import { ContentViewerDialog } from "@/components/content/ContentViewerDialog";
 import { SocialConnectionStatus } from "@/components/social/SocialConnectionStatus";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { HeadlineLarge, BodyMedium } from "@/components/ui/typography";
 import { useNavigate } from "react-router-dom";
@@ -33,6 +33,8 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
   // Check if user is developer
   const isDeveloper = user?.email === 'jon@getclear.ca';
 
+  const { toast } = useToast();
+  
   const fetchSocialConnections = async () => {
     if (!user) return;
 
@@ -55,7 +57,10 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
   const handleConnectPlatform = (platform: string) => {
     // For now, show a message about setting up OAuth
-    toast.info(`To connect ${platform}, please set up OAuth credentials in your project settings.`);
+    toast({
+      title: "Setup Required",
+      description: `To connect ${platform}, please set up OAuth credentials in your project settings.`,
+    });
   };
 
   const fetchReadyTasks = async () => {
@@ -175,7 +180,11 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
       }
       
       if (platforms.length === 0) {
-        toast.error('Unsupported post type for quick publish');
+        toast({
+          title: "Error",
+          description: 'Unsupported post type for quick publish',
+          variant: "destructive",
+        });
         return;
       }
 
@@ -189,7 +198,11 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
 
       if (error) {
         console.error('Quick publish error:', error);
-        toast.error(`Publishing failed: ${error.message}`);
+        toast({
+          title: "Error",
+          description: `Publishing failed: ${error.message}`,
+          variant: "destructive",
+        });
         return;
       }
 
@@ -198,14 +211,28 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
         const totalCount = data.results?.length || 0;
         
         if (successCount === totalCount) {
-          toast.success(`✅ Successfully published to ${task.post_type}!`);
+          toast({
+            title: "Success",
+            description: `✅ Successfully published to ${task.post_type}!`,
+          });
         } else if (successCount > 0) {
-          toast.success(`Published to ${successCount}/${totalCount} platforms`);
+          toast({
+            title: "Partial Success",
+            description: `Published to ${successCount}/${totalCount} platforms`,
+          });
         } else {
-          toast.error('Publishing failed');
+          toast({
+            title: "Error",
+            description: 'Publishing failed',
+            variant: "destructive",
+          });
         }
       } else {
-        toast.error(data?.message || 'Publishing failed');
+        toast({
+          title: "Error",
+          description: data?.message || 'Publishing failed',
+          variant: "destructive",
+        });
       }
       
       // Refresh the ready tasks
@@ -214,7 +241,11 @@ export const ReadyToPostCard = ({ tasks, onTaskUpdate }: ReadyToPostCardProps) =
       
     } catch (error) {
       console.error('Error in quick publish:', error);
-      toast.error('Failed to publish - please try again');
+      toast({
+        title: "Error",
+        description: 'Failed to publish - please try again',
+        variant: "destructive",
+      });
     }
   };
 

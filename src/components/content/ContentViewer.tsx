@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { toast } from "sonner";
+import { showToast } from "@/utils/toastUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";

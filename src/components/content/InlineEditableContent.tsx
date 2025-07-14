@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { showToast } from "@/utils/toastUtils";
 import { TaskActions } from './task-item/TaskActions';
 import { SocialMediaPostPreview } from './task-item/SocialMediaPostPreview';
 import { MagazineContentDisplay } from './task-item/MagazineContentDisplay';

@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Copy, ExternalLink, Edit } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { getPostTypeIcon, getPostTypeColor } from "./postTypeUtils";
 import { stripHtmlAndFormat } from "./contentUtils";
 
@@ -13,10 +13,15 @@ interface ReadyToPostItemProps {
 }
 
 export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps) => {
+  const { toast } = useToast();
+  
   const handleCopyContent = (content: string, postType: string) => {
     const cleanContent = stripHtmlAndFormat(content);
     navigator.clipboard.writeText(cleanContent);
-    toast.success(`${postType} content copied to clipboard`);
+    toast({
+      title: "Success",
+      description: `${postType} content copied to clipboard`,
+    });
   };
   
   const handleEdit = (e: React.MouseEvent) => {
@@ -76,7 +81,10 @@ export const ReadyToPostItem = ({ task, onClick, onEdit }: ReadyToPostItemProps)
             variant="ghost"
             onClick={(e) => {
               e.stopPropagation();
-              toast.info('Post publishing integration coming soon');
+              toast({
+                title: "Coming Soon",
+                description: 'Post publishing integration coming soon',
+              });
             }}
             className="h-7 w-7 p-0"
           >

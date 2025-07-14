@@ -5,7 +5,7 @@ import { RefreshCw, AlertCircle } from "lucide-react";
 import { generateCampaignContent } from "@/components/homepage/ContentGenerationServices";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { toast } from "sonner";
+import { showToast } from "@/utils/toastUtils";
 
 interface ManualContentGeneratorProps {
   campaign: any;
