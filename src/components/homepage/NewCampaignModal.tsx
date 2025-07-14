@@ -16,7 +16,7 @@ import { dateToWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { generateRequiredTasks } from "./RequiredTasksGenerator";
 
 interface NewCampaignModalProps {
@@ -28,6 +28,7 @@ interface NewCampaignModalProps {
 export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewCampaignModalProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
@@ -108,7 +109,10 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       
       // Now automatically generate content for the campaign
       setGeneratingContent(true);
-      toast.loading('Generating content for your campaign...', { id: 'content-generation' });
+       toast({
+         title: "Generating content for your campaign...",
+         description: "Please wait while we create your promotional content",
+       });
 
       try {
         console.log('🔒 SECURITY: Starting content generation with proper user isolation');
@@ -124,14 +128,25 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
         if (result.success) {
           console.log('✅ NewCampaignModal: Content generated successfully with user isolation');
           setContentGenerated(true);
-          toast.success(`Campaign created with ${result.tasks?.length || 5} content pieces!`, { id: 'content-generation' });
+          toast({
+            title: "Success!",
+            description: `Campaign created with ${result.tasks?.length || 5} content pieces!`,
+          });
         } else {
           console.warn('⚠️ NewCampaignModal: Content generation had issues:', result.message);
-          toast.warning(`Campaign created, but content generation had issues: ${result.message}`, { id: 'content-generation' });
+          toast({
+            title: "Warning",
+            description: `Campaign created, but content generation had issues: ${result.message}`,
+            variant: "destructive",
+          });
         }
       } catch (contentError) {
         console.error('❌ NewCampaignModal: Content generation failed:', contentError);
-        toast.error('Campaign created, but content generation failed. You can generate content manually.', { id: 'content-generation' });
+        toast({
+          title: "Error",
+          description: "Campaign created, but content generation failed. You can generate content manually.",
+          variant: "destructive",
+        });
       }
 
       // Reset form
@@ -151,7 +166,11 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
     } catch (error: any) {
       console.error('❌ NewCampaignModal: Error creating campaign:', error);
       setError(error.message || 'Failed to create campaign');
-      toast.error(error.message || 'Failed to create campaign');
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to create campaign',
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
