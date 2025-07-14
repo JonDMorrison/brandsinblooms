@@ -110,45 +110,43 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
       {/* Analysis Loading */}
       <WebsiteAnalysisLoader isAnalyzing={isAnalyzing} />
       
-      <div className="flex items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
-        <div className="w-full max-w-lg">
-          {/* Simple step indicator */}
-          <div className="text-center mb-4">
-            <p className="text-sm text-muted-foreground">Step {currentStep} of 2</p>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-              <div 
-                className="bg-garden-green h-2 rounded-full transition-all duration-300 ease-in-out"
-                style={{ width: `${(currentStep / 2) * 100}%` }}
-              />
-            </div>
+      <div className="min-h-screen flex items-center justify-center bg-garden-background p-4">
+        {/* Simple step indicator */}
+        <div className="text-center mb-4 w-full max-w-lg">
+          <p className="text-sm text-muted-foreground">Step {currentStep} of 2</p>
+          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div 
+              className="bg-garden-green h-2 rounded-full transition-all duration-300 ease-in-out"
+              style={{ width: `${(currentStep / 2) * 100}%` }}
+            />
           </div>
-
-          {/* Main content - Hide when analyzing or completing */}
-          {!isAnalyzing && !isCompletingOnboarding && (
-            <>
-              {currentStep === 1 ? (
-                <UrlInputStep
-                  websiteUrl={websiteUrl}
-                  setWebsiteUrl={setWebsiteUrl}
-                  onAnalyze={handleAnalyze}
-                  onManualEntry={handleManualEntry}
-                  isAnalyzing={isAnalyzing}
-                  analysisError={analysisError}
-                  onResetAnalysis={resetAnalysis}
-                />
-              ) : (
-                <DataReviewStep
-                  extractedData={extractedData}
-                  updateExtractedData={updateExtractedData}
-                  onBack={handleBack}
-                  onComplete={handleComplete}
-                  isCompleting={isCompletingOnboarding}
-                  isAnalyzing={isAnalyzing}
-                />
-              )}
-            </>
-          )}
         </div>
+
+        {/* Main content - Hide when analyzing or completing */}
+        {!isAnalyzing && !isCompletingOnboarding && (
+          <div className="w-full max-w-lg mx-auto mt-6">
+            {currentStep === 1 ? (
+              <UrlInputStep
+                websiteUrl={websiteUrl}
+                setWebsiteUrl={setWebsiteUrl}
+                onAnalyze={handleAnalyze}
+                onManualEntry={handleManualEntry}
+                isAnalyzing={isAnalyzing}
+                analysisError={analysisError}
+                onResetAnalysis={resetAnalysis}
+              />
+            ) : (
+              <DataReviewStep
+                extractedData={extractedData}
+                updateExtractedData={updateExtractedData}
+                onBack={handleBack}
+                onComplete={handleComplete}
+                isCompleting={isCompletingOnboarding}
+                isAnalyzing={isAnalyzing}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

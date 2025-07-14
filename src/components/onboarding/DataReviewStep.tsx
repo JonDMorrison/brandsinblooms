@@ -37,7 +37,7 @@ export const DataReviewStep = ({
   }
 
   return (
-    <Card className="border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
+    <Card className="w-full max-w-lg mx-auto border-brand-green/30 bg-white/95 backdrop-blur-sm rounded-2xl">
       <CardHeader className="text-center pb-6">
         <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle className="h-8 w-8 text-brand-green" />

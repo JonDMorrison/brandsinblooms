@@ -127,8 +127,8 @@ export const OnboardingFlow = ({ onComplete, onBack }: OnboardingFlowProps) => {
   return (
     <div className="min-h-screen bg-garden-background">
       <LandingPageHeader onLogin={() => navigate('/auth')} />
-      <div className="flex items-center justify-center p-4" style={{ minHeight: 'calc(100vh - 80px)' }}>
-        <div className="w-full max-w-2xl">
+      <div className="min-h-screen flex items-center justify-center bg-garden-background p-4">
+        <div className="w-full max-w-2xl mx-auto">
           {/* Progress indicator */}
           <div className="mb-8">
             <div className="flex justify-between items-center mb-2">
