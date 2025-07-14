@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Sparkles, Loader2, CheckCircle, AlertTriangle, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { handleError } from "@/utils/errorHandling";
 import { getDateForWeek } from "@/utils/dateUtils";
@@ -173,7 +173,7 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
 
   const handleBackfillCampaigns = async () => {
     if (!user) {
-      toast.error('Please log in to continue');
+      
       return;
     }
 
@@ -215,7 +215,7 @@ export const BackfillCampaigns = ({ currentCampaignCount, onBackfillComplete }: 
       console.error('Error in backfill process:', error);
       const errorMessage = error.message || 'Failed to complete operation';
       setError(errorMessage);
-      toast.error(errorMessage);
+      
     } finally {
       setLoading(false);
     }
