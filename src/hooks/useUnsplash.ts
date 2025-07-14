@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ImageAttachment } from '@/lib/contentTypes';
+import { extractImageSummary } from '@/utils/imageContentSummary';
 
 interface UnsplashImage {
   id: string;
@@ -21,10 +22,13 @@ export const useUnsplash = () => {
     setLoading(true);
     setError(null);
     
+    // Create concise image summary from the query
+    const imageQuery = extractImageSummary(query);
+    
     try {
       const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
         body: { 
-          query,
+          query: imageQuery,
           maxImages: count,
           orientation: 'squarish',
           orderBy: 'relevant', // Use relevant instead of popular for better quality

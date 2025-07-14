@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { extractImageSummary } from "@/utils/imageContentSummary";
 
 export interface UnsplashImageResult {
   url: string;
@@ -54,21 +55,5 @@ export async function getUnsplashImage(query: string): Promise<UnsplashImageResu
  * @returns Extracted keyword for image search
  */
 export function extractImageKeyword(content: string): string {
-  // Remove hashtags and special characters
-  const cleanContent = content
-    .replace(/#\w+/g, '') // Remove hashtags
-    .replace(/[@#$%^&*(),.?":{}|<>]/g, ' ') // Remove special chars
-    .trim();
-  
-  // Extract meaningful keywords (first 2-3 words, excluding common words)
-  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should'];
-  
-  const words = cleanContent
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(word => word.length > 3 && !commonWords.includes(word))
-    .slice(0, 3); // Take first 3 meaningful words
-  
-  // Return extracted keywords or empty string (let caller handle fallback)
-  return words.join(' ');
+  return extractImageSummary(content);
 }

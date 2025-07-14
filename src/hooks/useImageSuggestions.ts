@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { getRelevantFallbacks, formatFallbackImages } from '@/services/gardenCenterFallbacks';
+import { extractImageSummary } from '@/utils/imageContentSummary';
 
 interface ImageSuggestion {
   id: string;
@@ -101,51 +102,11 @@ const isSpecificFlower = (keywords: string[]): boolean => {
   );
 };
 
-// Build smart search query based on content analysis with improved handling for specific flowers
+// Build smart search query using the new image summary system
 const buildSmartQuery = (keywords: string[], postType: string, campaignTitle?: string): string => {
-  console.log('[IMAGE_HOOK] Building query with keywords:', keywords, 'type:', postType);
-
-  if (!keywords || keywords.length === 0) {
-    const fallback = campaignTitle || 'garden center plants';
-    console.log('[IMAGE_HOOK] No keywords, using fallback:', fallback);
-    return fallback;
-  }
-
-  // Remove duplicates and build primary query from unique keywords
-  const uniqueKeywords = [...new Set(keywords.map(k => k.toLowerCase()))];
-  let query = uniqueKeywords.slice(0, 2).join(' ');
-  const primaryKeyword = uniqueKeywords[0];
-
-  // Check if we have specific flower names - if so, use them directly without extra context
-  if (isSpecificFlower(uniqueKeywords)) {
-    console.log('[IMAGE_HOOK] Using specific flower query without extra context:', query);
-    return query;
-  }
-
-  // Check if we already have garden-related context
-  const hasGardenContext = query.includes('garden') || query.includes('plant') || 
-                          query.includes('flower') || query.includes('nursery') ||
-                          query.includes('bloom') || query.includes('botanical');
-
-  if (!hasGardenContext) {
-    // Add minimal context based on primary keyword themes
-    if (/outdoor|patio|landscape/.test(primaryKeyword)) {
-      query += ' outdoor garden';
-    } else if (/tool|equipment/.test(primaryKeyword)) {
-      query += ' garden tools';
-    } else {
-      // Add minimal garden context to ensure relevance
-      query += ' garden';
-    }
-  }
-
-  // Remove any duplicate words from final query
-  const words = query.split(' ');
-  const uniqueWords = [...new Set(words)];
-  const finalQuery = uniqueWords.join(' ');
-
-  console.log('[IMAGE_HOOK] Final optimized query:', finalQuery);
-  return finalQuery;
+  // Use the new image summary system instead of complex keyword logic
+  const content = keywords.join(' ') + (campaignTitle ? ` ${campaignTitle}` : '');
+  return extractImageSummary(content);
 };
 
 export const useImageSuggestions = (contentTaskId?: string, postType?: string) => {

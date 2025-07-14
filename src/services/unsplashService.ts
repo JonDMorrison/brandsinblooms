@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { extractImageSummary } from "@/utils/imageContentSummary";
 
 export interface UnsplashImage {
   url: string;
@@ -11,9 +12,9 @@ export interface UnsplashImage {
 
 export async function fetchSmartImage(keyword: string, context = '', useRawKeyword = false): Promise<UnsplashImage | null> {
   try {
-    // Use keyword as-is if useRawKeyword is true, otherwise enhance with garden context
+    // Use keyword as-is if useRawKeyword is true, otherwise create concise summary
     const query = useRawKeyword ? keyword.trim() : 
-      `${keyword} ${context}`.trim() || 'garden center nursery plants';
+      extractImageSummary(keyword) || 'garden';
     
     console.log(`[UNSPLASH] Fetching smart image for: "${query}"`);
     
