@@ -9,7 +9,7 @@ import { useScheduledPosts } from '@/hooks/useScheduledPosts';
 import { ScheduledContentModal } from './ScheduledContentModal';
 import { ScheduledContentPill } from './ScheduledContentPill';
 import { scheduleDraft } from '@/lib/dashboardAPI';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { useQueryClient } from '@tanstack/react-query';
 
 interface SmartTimeRibbonProps {

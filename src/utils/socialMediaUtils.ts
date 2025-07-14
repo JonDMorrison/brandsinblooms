@@ -1,5 +1,5 @@
 
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 // These functions are now deprecated in favor of the SocialMediaPostModal
 // They're kept for backward compatibility but should not be used directly

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar, Clock, Zap, TrendingUp } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface SchedulingPreference {
   id: string;

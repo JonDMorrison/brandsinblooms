@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Search, Upload, Check, ExternalLink, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getUnsplashImage, extractImageKeyword, UnsplashImageResult } from '@/lib/api/unsplash';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 
 interface MediaSelectorProps {

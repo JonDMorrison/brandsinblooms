@@ -9,7 +9,7 @@ import { InstagramPostPreview } from './InstagramPostPreview';
 import { ImageSelectButton } from '@/components/image';
 import { ImageAttachment } from '@/lib/contentTypes';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface ScheduledContentModalProps {
   isOpen: boolean;

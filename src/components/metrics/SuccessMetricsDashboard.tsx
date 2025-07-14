@@ -15,7 +15,7 @@ import {
   Users,
   Calendar
 } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface UserMetrics {
   totalContentGenerated: number;

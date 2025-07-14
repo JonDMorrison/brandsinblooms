@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, Copy, Heart, Shuffle, Info, Star } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { CanvaButton } from '@/components/canva/CanvaButton';

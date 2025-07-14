@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Loader2, Image as ImageIcon, Palette, Check, Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { CanvaEditor } from '@/components/canva/CanvaEditor';
 import { extractKeywords } from '@/utils/imageKeywords';
 import { getEnhancedTopicForPostType } from '@/utils/dynamicImageSearch';

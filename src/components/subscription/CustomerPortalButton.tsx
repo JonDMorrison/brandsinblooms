@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CreditCard, ExternalLink } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 interface CustomerPortalButtonProps {
   variant?: 'default' | 'outline' | 'ghost';

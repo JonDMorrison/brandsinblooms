@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { TokenBalance, TokenUsage } from '@/types/tokens';
 import { TOKEN_CONSTANTS } from '@/constants/tokens';
 import { handleError, logError } from '@/utils/errorHandling';

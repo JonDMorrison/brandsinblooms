@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Slider } from '@/components/ui/slider';
 import { Crop, RotateCw, Filter, Scissors, Download, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface ImageEditorProps {
   isOpen: boolean;

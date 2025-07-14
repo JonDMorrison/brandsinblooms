@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Bold, Italic, Link, Crop, Image, Settings, MousePointer, X, Upload, AlertCircle, Scissors, Filter, RotateCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { ImageEditor } from './ImageEditor';
 import { ImageAssetManager } from '@/lib/imageAssetManager';
 import { useAuth } from '@/contexts/AuthContext';

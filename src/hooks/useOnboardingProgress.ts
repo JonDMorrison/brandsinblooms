@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 const ONBOARDING_STORAGE_KEY = 'garden-center-onboarding-progress';
 

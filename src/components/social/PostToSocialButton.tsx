@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Facebook, Instagram, Send, Loader2, CheckCircle, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 
 interface PostToSocialButtonProps {

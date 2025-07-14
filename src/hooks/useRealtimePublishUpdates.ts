@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface PublishUpdate {
   id: string;

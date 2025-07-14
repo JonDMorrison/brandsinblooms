@@ -1,5 +1,5 @@
 import React from 'react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { Button } from '@/components/ui/button';
 import { CheckCircle, AlertCircle, Info, XCircle, Undo2 } from 'lucide-react';
 

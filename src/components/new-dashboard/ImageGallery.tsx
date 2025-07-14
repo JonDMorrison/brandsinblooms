@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import styles from './ImageGallery.module.css';
 import { extractKeywords } from '@/utils/imageKeywords';
 import { ImageGalleryHeader } from './ImageGalleryHeader';

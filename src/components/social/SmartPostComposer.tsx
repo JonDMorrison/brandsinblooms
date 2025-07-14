@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Facebook, Instagram, AlertCircle, Image, Hash, Eye, Sparkles, X } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { supabase } from '@/integrations/supabase/client';
 import { ContentOptimizer } from './ContentOptimizer';
 import { ImageSelectButton } from '@/components/image';

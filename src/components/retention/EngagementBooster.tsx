@@ -14,7 +14,7 @@ import {
   Zap,
   Target
 } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface EngagementTip {
   id: string;

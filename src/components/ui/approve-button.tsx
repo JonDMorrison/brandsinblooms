@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle, Loader2, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 interface ApproveButtonProps {
   taskId?: string;

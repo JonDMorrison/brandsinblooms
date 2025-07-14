@@ -5,7 +5,7 @@ import { generateStructuredNewsletter } from '@/components/homepage/StructuredNe
 import { MagazineNewsletterDisplay } from '@/components/content-sidebar/MagazineNewsletterDisplay';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 export const NewsletterGenerationTest = () => {
   const { user } = useAuth();

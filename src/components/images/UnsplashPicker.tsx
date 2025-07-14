@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Search, ExternalLink, Download, Check, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { extractDynamicQuery } from '@/utils/dynamicImageSearch';
 
 interface UnsplashImage {

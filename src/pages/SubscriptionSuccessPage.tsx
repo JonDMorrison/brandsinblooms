@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, Crown, ArrowRight } from "lucide-react";
 import { useSubscription } from "@/contexts/SubscriptionContext";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 const SubscriptionSuccessPage = () => {
   const navigate = useNavigate();

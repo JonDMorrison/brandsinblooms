@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { Sparkles, RefreshCw } from "lucide-react";
 
 interface SmartTheme {

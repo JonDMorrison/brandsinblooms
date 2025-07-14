@@ -8,7 +8,7 @@ import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { AlertCircle, Wifi, Facebook, Instagram } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface SocialConnectionsSectionProps {
   connections: any[];

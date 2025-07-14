@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from './useTenant';
 import { generateHolidayContent } from '@/components/homepage/HolidayGenerationService';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 import { filterExpiredHolidays, hasExpiredHolidays } from '@/utils/dateUtils';
 
 interface Holiday {

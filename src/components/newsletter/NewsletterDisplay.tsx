@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface NewsletterDisplayProps {
   task: any;

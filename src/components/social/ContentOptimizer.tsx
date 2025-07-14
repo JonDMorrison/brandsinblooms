@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { Sparkles, TrendingUp, Hash, Image, Target } from 'lucide-react';
-import { toast } from 'sonner';
+// Removed sonner import - using global toast replacement
 
 interface OptimizationSuggestion {
   type: 'hashtags' | 'timing' | 'content' | 'image';

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { getFallbackThemes } from "@/utils/fallbackThemes";
 import { useNetworkStatus } from "@/hooks/useNetworkStatus";
 import { handleError } from "@/utils/errorHandling";
