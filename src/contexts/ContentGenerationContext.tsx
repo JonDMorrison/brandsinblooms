@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useCallback } from 'react';
 import { generateCampaignContent } from '@/components/homepage/ContentGenerationServices';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
-import { toast } from 'sonner';
+
 
 interface ContentGenerationContextType {
   generateContent: (campaignId: string, theme: string, description: string, weekNumber: number) => Promise<boolean>;
@@ -37,7 +37,7 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
     weekNumber: number
   ): Promise<boolean> => {
     if (!user) {
-      toast.error('Authentication required');
+      
       return false;
     }
 
@@ -49,7 +49,7 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
     setGeneratingCampaigns(prev => new Set(prev).add(campaignId));
     
     try {
-      toast.loading('Generating your marketing content...', { id: 'generate-content' });
+      
 
       const result = await generateCampaignContent(
         campaignId,
@@ -61,15 +61,15 @@ export const ContentGenerationProvider = ({ children }: ContentGenerationProvide
       );
 
       if (result.success) {
-        toast.success(`Generated ${result.tasks?.length || 0} pieces of content!`, { id: 'generate-content' });
+        
         return true;
       } else {
-        toast.error(`Failed to generate content: ${result.message}`, { id: 'generate-content' });
+        
         return false;
       }
     } catch (error) {
       console.error('Error generating content:', error);
-      toast.error('Failed to generate content', { id: 'generate-content' });
+      
       return false;
     } finally {
       setGeneratingCampaigns(prev => {
