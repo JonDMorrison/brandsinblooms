@@ -25,7 +25,7 @@ export const CompleteLandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="w-full min-h-screen bg-white">
       <LandingPageHeader onLogin={handleLogin} />
       <HeroSection onGetStarted={handleGetStarted} />
       <HowItWorksSection />
