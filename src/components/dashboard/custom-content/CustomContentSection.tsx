@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { generateRequiredTasks } from "@/components/homepage/RequiredTasksGenerator";
 import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
