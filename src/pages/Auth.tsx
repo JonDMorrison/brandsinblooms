@@ -190,7 +190,7 @@ const Auth = () => {
   }
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-brand-navy-50 via-brand-teal-50 to-sand-50 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="h-screen w-full bg-gradient-to-br from-brand-navy-50 via-brand-teal-50 to-brand-teal-100 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Sophisticated Background Mesh */}
       <div className="absolute inset-0">
         {/* Primary mesh gradients */}
