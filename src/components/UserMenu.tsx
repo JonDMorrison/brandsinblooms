@@ -38,7 +38,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase, signOutCompletely } from "@/integrations/supabase/client";
 import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { isSuperAdmin } from "@/utils/adminUtils";
-import { toast } from "sonner";
+
 
 export const UserMenu = () => {
   const { user } = useAuth();
@@ -55,10 +55,10 @@ export const UserMenu = () => {
     try {
       // Sign out process started
       await signOutCompletely();
-      toast.success('Successfully signed out');
+      
     } catch (error) {
       // Sign out error handled
-      toast.error('Error signing out');
+      
     } finally {
       setIsSigningOut(false);
     }
@@ -77,12 +77,11 @@ export const UserMenu = () => {
 
       if (error) {
         // Reset error handled
-        toast.error(`Reset failed: ${error.message}`);
         return;
       }
 
       // Account reset successful
-      toast.success('Account reset successfully! Redirecting to onboarding...');
+      
       
       // Refresh the onboarding status to trigger re-onboarding
       await refreshStatus();
@@ -94,7 +93,7 @@ export const UserMenu = () => {
       
     } catch (error: any) {
       // Unexpected reset error
-      toast.error(`Reset failed: ${error.message}`);
+      
     } finally {
       setIsResetting(false);
       setShowResetDialog(false);
