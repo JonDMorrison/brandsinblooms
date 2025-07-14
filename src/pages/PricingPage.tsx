@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useSubscription } from "@/contexts/SubscriptionContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+
 import { PricingHero } from "@/components/pricing/PricingHero";
 import { PricingToggle } from "@/components/pricing/PricingToggle";
 import { PricingPlans } from "@/components/pricing/PricingPlans";
@@ -65,11 +65,11 @@ const PricingPage = () => {
         
         // More specific error handling
         if (error.message?.includes('Failed to send a request') || error.message?.includes('network')) {
-          toast.error('Network error. Please check your connection and try again.');
+          
         } else if (error.message?.includes('authentication') || error.message?.includes('unauthorized')) {
-          toast.error('Authentication error. Please try logging out and back in.');
+          
         } else {
-          toast.error(`Payment error: ${error.message}`);
+          
         }
         return;
       }
@@ -77,7 +77,7 @@ const PricingPage = () => {
       if (data?.error) {
         console.error('=== FUNCTION RETURNED ERROR ===');
         console.error('Function error:', data.error);
-        toast.error(`Error: ${data.error}`);
+        
         return;
       }
 
@@ -89,7 +89,7 @@ const PricingPage = () => {
       } else {
         console.error('=== NO CHECKOUT URL ===');
         console.error('Response data:', data);
-        toast.error('No checkout URL received. Please try again.');
+        
       }
     } catch (error) {
       console.error('=== UNEXPECTED ERROR ===');
@@ -98,9 +98,9 @@ const PricingPage = () => {
       if (error instanceof Error) {
         console.error('Error message:', error.message);
         console.error('Error stack:', error.stack);
-        toast.error(`Unexpected error: ${error.message}`);
+        
       } else {
-        toast.error('An unexpected error occurred. Please try again.');
+        
       }
     } finally {
       console.log('=== CHECKOUT DEBUG END ===');
@@ -115,11 +115,11 @@ const PricingPage = () => {
     const checkout = urlParams.get('checkout');
     
     if (checkout === 'success') {
-      toast.success('Payment successful! Your subscription is now active.');
+      
       window.history.replaceState({}, document.title, window.location.pathname);
       navigate('/');
     } else if (checkout === 'cancelled') {
-      toast.error('Checkout was cancelled.');
+      
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [navigate]);
