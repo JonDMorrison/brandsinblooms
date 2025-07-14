@@ -36,12 +36,13 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     length: content.length,
     hasBlocks: content.includes('blocks:'),
     hasTitleStructure: content.includes('- title:'),
+    hasNewsletterMd: content.includes('newsletter_md:'),
     preview: content.substring(0, 200),
-    contentType: 'Holiday Newsletter Debug'
+    contentType: 'Newsletter Content Debug'
   });
 
-  // Check if content is YAML structured
-  const isYAMLStructured = content.includes('blocks:') && content.includes('- title:');
+  // Check if content is YAML structured - look for newsletter_md: or blocks:
+  const isYAMLStructured = content.includes('newsletter_md:') || (content.includes('blocks:') && content.includes('- title:'));
   
   if (isYAMLStructured) {
     console.log('📋 Detected YAML structured newsletter');
