@@ -166,11 +166,6 @@ const parseSimpleYAML = (content: string) => {
     console.log('📥 Parsing YAML content, length:', content.length);
     console.log('📥 Content preview:', content.substring(0, 500));
     
-    // First, let's see if we can find where blocks section actually starts
-    const blocksIndex = content.indexOf('blocks:');
-    const metaIndex = content.indexOf('meta:');
-    console.log('🔍 Sections found at:', { blocksIndex, metaIndex });
-    
     const lines = content.split('\n');
     const result: any = {
       blocks: [],
@@ -178,10 +173,11 @@ const parseSimpleYAML = (content: string) => {
       newsletter_md: ''
     };
     
-    let currentSection = '';
     let inNewsletterMd = false;
     let currentBlock: any = {};
     let inBlocks = false;
+    let newsletterMdStarted = false;
+    let currentSection = '';
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -192,43 +188,41 @@ const parseSimpleYAML = (content: string) => {
         continue;
       }
       
-      // Look for main sections (at root level - no indentation)
-      if (line.length > 0 && !line.startsWith(' ') && !line.startsWith('\t')) {
-        // Root level section detected
-        if (trimmed === 'newsletter_md: |' || trimmed.startsWith('newsletter_md:')) {
-          console.log('🔍 Found newsletter_md section at line', i);
-          inNewsletterMd = true;
-          inBlocks = false;
-          currentSection = 'newsletter_md';
-          continue;
+      // Detect newsletter_md section start
+      if (trimmed === 'newsletter_md: |' || trimmed.startsWith('newsletter_md:')) {
+        console.log('🔍 Found newsletter_md section at line', i + 1);
+        inNewsletterMd = true;
+        newsletterMdStarted = true;
+        inBlocks = false;
+        continue;
+      }
+      
+      // Detect other root-level sections that end newsletter_md
+      if (line.length > 0 && !line.startsWith(' ') && !line.startsWith('\t') && 
+          (trimmed === 'blocks:' || trimmed === 'meta:')) {
+        if (inNewsletterMd) {
+          console.log('🛑 Stopping newsletter_md collection at line', i + 1, 'due to section:', trimmed);
+          inNewsletterMd = false;
         }
         
         if (trimmed === 'blocks:') {
-          console.log('🔍 Found blocks section at line', i, 'content:', trimmed);
-          inNewsletterMd = false;
+          console.log('🔍 Found blocks section at line', i + 1);
           inBlocks = true;
-          currentSection = 'blocks';
           continue;
         }
         
         if (trimmed === 'meta:') {
-          console.log('🔍 Found meta section at line', i);
-          inNewsletterMd = false;
+          console.log('🔍 Found meta section at line', i + 1);
           inBlocks = false;
           currentSection = 'meta';
           continue;
         }
-        
-        // Any other root-level section stops newsletter_md collection
-        if (inNewsletterMd && trimmed !== 'newsletter_md: |' && !trimmed.startsWith('newsletter_md:')) {
-          console.log('🛑 Stopping newsletter_md collection at line', i, 'due to root section:', trimmed);
-          inNewsletterMd = false;
-        }
       }
       
-      if (inNewsletterMd) {
-        // For newsletter_md content, preserve the line structure but remove extra indentation
-        const contentLine = line.replace(/^  /, ''); // Remove 2-space YAML indentation
+      // Collect newsletter_md content (everything indented after newsletter_md: |)
+      if (inNewsletterMd && newsletterMdStarted) {
+        // Remove exactly 2 spaces of YAML indentation if present
+        const contentLine = line.startsWith('  ') ? line.substring(2) : line;
         result.newsletter_md += contentLine + '\n';
         continue;
       }
