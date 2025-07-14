@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
+
 import { useNavigate } from "react-router-dom";
 import { isSuperAdmin } from "@/utils/adminUtils";
 import { isTestAccount, ensureTestAccountHasProAccess } from "@/utils/testAccountUtils";
@@ -208,17 +208,12 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
       if (error) {
         console.error('Error updating subscription:', error);
-        toast.error('Failed to update subscription');
         return;
       }
 
       setSubscription(data);
-      if (plan !== 'expired') {
-        toast.success(`Successfully upgraded to ${plan} plan!`);
-      }
     } catch (error) {
       console.error('Error in updateSubscriptionPlan:', error);
-      toast.error('An unexpected error occurred');
     }
   };
 
@@ -248,7 +243,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
       if (countError) {
         console.error('Error fetching subscription:', countError);
-        toast.error('Failed to load subscription information');
+        
         return;
       }
 
@@ -292,7 +287,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
     } catch (error) {
       console.error('Error in fetchSubscription:', error);
-      toast.error('An unexpected error occurred');
+      
     } finally {
       setLoading(false);
     }
@@ -330,7 +325,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     await checkStripeSubscription();
     
     // Show success message after refresh
-    toast.success('Subscription status updated');
+    
   };
 
   const checkAccess = (requiredPlan: SubscriptionPlan): boolean => {
@@ -395,7 +390,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       const currentPath = window.location.pathname;
       if (currentPath !== '/pricing' && currentPath !== '/auth' && !currentPath.startsWith('/subscription')) {
         navigate('/pricing');
-        toast.error('Your free trial has ended. Choose a plan to continue accessing premium features.');
+        
       }
     }
   }, [subscription, navigate, hasPrivilegedAccess]);
