@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { toast } from 'sonner';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { SocialConnectionsSection } from './SocialConnectionsSection';
@@ -38,7 +38,7 @@ export const SocialPlannerPage = () => {
           const debug = JSON.parse(debugInfo);
           console.log('🐛 OAuth Debug Info:', debug);
           // Only show debug toast in development
-          toast.info(`OAuth Debug: ${debug.step} at ${debug.timestamp}`, { duration: 5000 });
+          
         } catch (error) {
           console.error('Error parsing debug info:', error);
         }
@@ -51,7 +51,7 @@ export const SocialPlannerPage = () => {
         const { message, timestamp } = JSON.parse(successData);
         // Only show if less than 30 seconds old
         if (Date.now() - timestamp < 30000) {
-          toast.success(message, { duration: 8000 });
+          
         }
         sessionStorage.removeItem('social_connection_success');
       } catch (error) {
@@ -122,7 +122,7 @@ export const SocialPlannerPage = () => {
     } catch (error) {
       console.error('Error loading data:', error);
       setError('Failed to load social media data. Please try refreshing the page.');
-      toast.error('Failed to load social media data');
+      
     } finally {
       setLoading(false);
     }
@@ -130,13 +130,13 @@ export const SocialPlannerPage = () => {
 
   const handleConnectionSuccess = () => {
     loadData();
-    toast.success('Successfully connected to Meta platform!');
+    
   };
 
   const handlePostCreated = () => {
     loadData();
     setIsNewPostModalOpen(false);
-    toast.success('Post created successfully!');
+    
   };
 
   if (!user) {
