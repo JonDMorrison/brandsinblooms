@@ -9,7 +9,7 @@ interface HeroSectionProps {
 
 export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
   return (
-    <section className="py-32 px-6 text-center relative overflow-hidden hero-section">
+    <section className="w-full py-32 text-center relative overflow-hidden hero-section">
       {/* Enhanced background with nature-inspired gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#E9F5EC] via-white to-[#E9F5EC] opacity-90" />
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#47B881]/5 to-transparent" />
@@ -19,7 +19,7 @@ export const HeroSection = ({ onGetStarted }: HeroSectionProps) => {
         <Leaf className="w-96 h-96 text-[#47B881]" />
       </div>
       
-      <div className="max-w-5xl mx-auto relative z-10 apple-section-spacing">
+      <div className="max-w-5xl mx-auto px-6 relative z-10 apple-section-spacing">
         {/* Hero Icon with enhanced styling */}
         <div className="flex justify-center mb-12">
           <LandingPageIcon 
