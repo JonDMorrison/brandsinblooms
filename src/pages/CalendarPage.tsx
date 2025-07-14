@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CalendarPlus, PlusCircle, Calendar } from "lucide-react";
 import { AddEventDialog } from "@/components/homepage/AddEventDialog";
 import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
-import { toast } from "sonner";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useGlobalCalendarData } from "@/hooks/useGlobalCalendarData";
 
@@ -26,13 +26,11 @@ const CalendarPage = () => {
   const handleEventCreated = () => {
     setShowAddEventDialog(false);
     refetch();
-    toast.success('🎉 Event added successfully! Your marketing content will be tailored for this event.');
   };
 
   const handleCampaignCreated = () => {
     setShowNewCampaignModal(false);
     refetch();
-    toast.success('🚀 Campaign created! Ready to generate amazing content for your audience.');
   };
 
   const handleBackfillComplete = () => {
