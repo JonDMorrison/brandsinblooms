@@ -2,11 +2,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders, handleCorsPrelight, corsJsonResponse } from '../_shared/cors.ts';
 
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -16,9 +12,9 @@ const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const REQUIRED_CONTENT_TYPES = ['instagram', 'facebook', 'blog', 'video', 'newsletter'];
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  // Handle CORS preflight requests
+  const corsResponse = handleCorsPrelight(req);
+  if (corsResponse) return corsResponse;
 
   try {
     const { campaign_id, campaign_title, description, user_id, week_number, tenant_id } = await req.json();
@@ -193,23 +189,18 @@ serve(async (req) => {
     const successfulTasks = generatedTasks.filter(task => !task.error);
     const failedTasks = generatedTasks.filter(task => task.error);
 
-    return new Response(JSON.stringify({
+    return corsJsonResponse({
       success: failedTasks.length < REQUIRED_CONTENT_TYPES.length, // Success if at least some content was generated
       tasks: generatedTasks,
       message: `Generated ${successfulTasks.length}/${REQUIRED_CONTENT_TYPES.length} content pieces${failedTasks.length > 0 ? `. Failed: ${failedTasks.map(t => t.post_type).join(', ')}` : ''}`
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('❌ Error in generate_campaign_content:', error);
-    return new Response(JSON.stringify({
+    return corsJsonResponse({
       success: false,
       error: error.message,
       tasks: []
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    }, { status: 500 });
   }
 });
