@@ -15,7 +15,7 @@ import { generateCampaignContent } from "@/components/homepage/ContentGeneration
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface WeeklyThemeCarouselProps {
   currentCampaign: Campaign | undefined;
@@ -32,6 +32,7 @@ export const WeeklyThemeCarousel = ({
 }: WeeklyThemeCarouselProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(true);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [reviewingCampaignId, setReviewingCampaignId] = useState<string | null>(null);
@@ -142,7 +143,11 @@ export const WeeklyThemeCarousel = ({
 
   const handleGenerateContent = async (theme?: WeeklyTheme) => {
     if (!user) {
-      toast.error('Please log in to generate content');
+      toast({
+        title: "Error",
+        description: "Please log in to generate content",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -201,14 +206,9 @@ export const WeeklyThemeCarousel = ({
         console.log('✅ Content generation successful:', result);
         
         const taskCount = result.tasks?.length || 5;
-        toast.success(`Generated ${taskCount} pieces of content!`, {
-          duration: 5000,
-          action: {
-            label: 'View Content',
-            onClick: () => {
-              onTaskUpdate();
-            }
-          }
+        toast({
+          title: "Success!",
+          description: `Generated ${taskCount} pieces of content!`,
         });
 
         // Refresh data
@@ -221,11 +221,19 @@ export const WeeklyThemeCarousel = ({
         }
       } else {
         console.error('❌ Content generation failed:', result);
-        toast.error(`Failed to generate content: ${result.message || 'Unknown error'}`);
+        toast({
+          title: "Error",
+          description: `Failed to generate content: ${result.message || 'Unknown error'}`,
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('❌ Error in handleGenerateContent:', error);
-      toast.error(`Failed to generate content: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast({
+        title: "Error",
+        description: `Failed to generate content: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        variant: "destructive",
+      });
     } finally {
       setGeneratingTheme(null);
     }
@@ -263,7 +271,11 @@ export const WeeklyThemeCarousel = ({
     
     if (themeTasks.length === 0) {
       console.error('No tasks with content available for current theme:', currentTheme?.title);
-      toast.error('No content available to review for this theme');
+      toast({
+        title: "Error",
+        description: "No content available to review for this theme",
+        variant: "destructive",
+      });
       return;
     }
     
