@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// Removed sonner import - using global toast replacement
 
 interface ExtractedData {
   businessName: string;
