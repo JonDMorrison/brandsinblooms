@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle, AlertCircle, Facebook, Instagram, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+
 
 export const AuthCallbackPage = () => {
   // ──────────────────────────────────────────────
@@ -58,7 +58,7 @@ export const AuthCallbackPage = () => {
         console.error('OAuth error:', error, errorDescription);
         setStatus('error');
         setMessage(`Authorization failed: ${errorDescription || error}`);
-        toast.error(`Connection failed: ${errorDescription || error}`);
+        
         setTimeout(() => navigate('/social-accounts'), 3000);
         return;
       }
@@ -68,7 +68,7 @@ export const AuthCallbackPage = () => {
         console.error('Missing required parameters:', { code: !!code, state: !!state });
         setStatus('error');
         setMessage('Missing authorization code or state parameter');
-        toast.error('Invalid authorization response');
+        
         setTimeout(() => navigate('/social-accounts'), 3000);
         return;
       }
@@ -81,7 +81,7 @@ export const AuthCallbackPage = () => {
         console.warn('OAuth code already processed');
         setStatus('error');
         setMessage('This authorization has already been processed');
-        toast.error('Authorization already processed - please try connecting again');
+        
         setTimeout(() => navigate('/social-accounts'), 2000);
         return;
       }
@@ -101,7 +101,7 @@ export const AuthCallbackPage = () => {
         console.error('State mismatch and no authenticated user');
         setStatus('error');
         setMessage('Security verification failed - please try connecting again');
-        toast.error('Connection failed - please try again');
+        
         setTimeout(() => navigate('/social-accounts'), 3000);
         return;
       }
@@ -121,7 +121,7 @@ export const AuthCallbackPage = () => {
         console.error('No authenticated user');
         setStatus('error');
         setMessage('You must be logged in to connect social media accounts');
-        toast.error('Please log in first');
+        
         setTimeout(() => navigate('/auth'), 3000);
         return;
       }
@@ -197,7 +197,6 @@ export const AuthCallbackPage = () => {
         }
         
         setMessage(errorMessage);
-        toast.error(errorMessage);
         setTimeout(() => navigate('/social-accounts'), 5000);
       }
     };
@@ -220,7 +219,7 @@ export const AuthCallbackPage = () => {
         console.error('❌ Uncaught callback error:', error);
         setStatus('error');
         setMessage('An unexpected error occurred');
-        toast.error('Connection failed unexpectedly');
+        
         setTimeout(() => navigate('/social-accounts'), 3000);
       });
     } else {
