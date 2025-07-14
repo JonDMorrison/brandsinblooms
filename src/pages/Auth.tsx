@@ -225,9 +225,9 @@ const Auth = () => {
           </div>
         </div>
 
-        <Card className="max-w-lg shadow-2xl border border-white/30 bg-white/90 backdrop-blur-xl rounded-3xl p-8 transition-all duration-500 hover:shadow-[0_25px_50px_-12px_rgba(104,190,185,0.25)] hover:border-brand-teal-200/50 hover:bg-white/95">
-          <CardHeader className="text-center pb-6">
-            <CardTitle className="text-2xl font-bold text-brand-navy-700 mb-2">
+        <Card className="max-w-lg shadow-2xl border border-white/30 bg-white/90 backdrop-blur-xl rounded-3xl p-6 transition-all duration-500 hover:shadow-[0_25px_50px_-12px_rgba(104,190,185,0.25)] hover:border-brand-teal-200/50 hover:bg-white/95">
+          <CardHeader className="text-center pb-4">
+            <CardTitle className="text-2xl font-bold text-brand-navy-700 mb-1">
               Get Started
             </CardTitle>
             <p className="text-brand-navy-500">
@@ -236,25 +236,25 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6 bg-gradient-to-r from-brand-navy-50 to-brand-teal-50 h-14 p-1.5 rounded-2xl border border-brand-teal-200/30 shadow-inner">
+              <TabsList className="grid w-full grid-cols-2 mb-4 bg-gradient-to-r from-brand-navy-50 to-brand-teal-50 h-12 p-1.5 rounded-2xl border border-brand-teal-200/30 shadow-inner">
                 <TabsTrigger 
                   value="signin" 
-                  className="h-11 font-semibold text-base data-[state=active]:bg-brand-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-600 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-teal-600"
+                  className="h-9 font-semibold text-base data-[state=active]:bg-brand-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-600 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-teal-600"
                 >
                   Sign In
                 </TabsTrigger>
                 <TabsTrigger 
                   value="signup"
-                  className="h-11 font-semibold text-base data-[state=active]:bg-white data-[state=active]:text-brand-navy-700 data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-200/50 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-navy-600"
+                  className="h-9 font-semibold text-base data-[state=active]:bg-white data-[state=active]:text-brand-navy-700 data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-200/50 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-navy-600"
                 >
                   Create Account
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-6">
+                <form onSubmit={handleSignIn} className="space-y-4">
                   
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <Label htmlFor="signin-email" className="text-brand-navy-700 font-semibold text-sm">Email Address</Label>
                     <Input
                       id="signin-email"
@@ -263,11 +263,11 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-14 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
+                      className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                     />
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <Label htmlFor="signin-password" className="text-brand-navy-700 font-semibold text-sm">Password</Label>
                     <div className="relative">
                       <Input
@@ -277,13 +277,13 @@ const Auth = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="Enter your password"
-                        className="h-14 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 pr-14 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
+                        className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 pr-14 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-2 top-2 h-10 w-10 text-brand-navy-400 hover:text-brand-teal-600 hover:bg-brand-teal-50/80 rounded-xl transition-all duration-200"
+                        className="absolute right-2 top-1 h-10 w-10 text-brand-navy-400 hover:text-brand-teal-600 hover:bg-brand-teal-50/80 rounded-xl transition-all duration-200"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -298,7 +298,7 @@ const Auth = () => {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-14 bg-gradient-to-r from-brand-teal-600 to-brand-teal-500 hover:from-brand-teal-700 hover:to-brand-teal-600 text-white font-semibold transition-all duration-300 hover:shadow-xl rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] hover:shadow-brand-teal-500/25"
+                    className="w-full h-12 bg-gradient-to-r from-brand-teal-600 to-brand-teal-500 hover:from-brand-teal-700 hover:to-brand-teal-600 text-white font-semibold transition-all duration-300 hover:shadow-xl rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] hover:shadow-brand-teal-500/25"
                     disabled={loading}
                   >
                     {loading ? (
@@ -315,7 +315,7 @@ const Auth = () => {
                   </Button>
 
                   
-                  <div className="relative my-8">
+                  <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t border-brand-teal-200/50" />
                     </div>
@@ -328,7 +328,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-14 border-2 border-brand-teal-200/50 hover:bg-brand-teal-50/50 hover:border-brand-teal-300 transition-all duration-300 rounded-2xl text-brand-navy-700 font-semibold shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
+                    className="w-full h-12 border-2 border-brand-teal-200/50 hover:bg-brand-teal-50/50 hover:border-brand-teal-300 transition-all duration-300 rounded-2xl text-brand-navy-700 font-semibold shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -343,9 +343,9 @@ const Auth = () => {
               </TabsContent>
 
               <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-6">
+                <form onSubmit={handleSignUp} className="space-y-4">
                   
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <Label htmlFor="signup-name" className="text-brand-navy-700 font-semibold text-sm">Full Name</Label>
                     <Input
                       id="signup-name"
@@ -354,11 +354,11 @@ const Auth = () => {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       placeholder="Your full name"
-                      className="h-14 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
+                      className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                     />
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <Label htmlFor="signup-email" className="text-brand-navy-700 font-semibold text-sm">Email Address</Label>
                     <Input
                       id="signup-email"
@@ -367,11 +367,11 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-14 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
+                      className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                     />
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <Label htmlFor="signup-password" className="text-brand-navy-700 font-semibold text-sm">Create Password</Label>
                     <div className="relative">
                       <Input
@@ -380,25 +380,25 @@ const Auth = () => {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        placeholder="Choose a strong password (min 8 chars)"
-                        minLength={8}
-                        className="h-14 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 pr-14 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
+                        placeholder="Minimum 8 characters"
+                        className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 pr-14 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-2 top-2 h-10 w-10 text-brand-navy-400 hover:text-brand-teal-600 hover:bg-brand-teal-50/80 rounded-xl transition-all duration-200"
+                        className="absolute right-2 top-1 h-10 w-10 text-brand-navy-400 hover:text-brand-teal-600 hover:bg-brand-teal-50/80 rounded-xl transition-all duration-200"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
+                    <p className="text-xs text-brand-navy-500">Password must be at least 8 characters long</p>
                   </div>
 
                   <Button 
                     type="submit" 
-                    className="w-full h-14 bg-gradient-to-r from-mint-600 to-brand-teal-600 hover:from-mint-700 hover:to-brand-teal-700 text-white font-semibold transition-all duration-300 hover:shadow-xl rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] hover:shadow-mint-500/25"
+                    className="w-full h-12 bg-gradient-to-r from-mint-600 to-brand-teal-600 hover:from-mint-700 hover:to-brand-teal-700 text-white font-semibold transition-all duration-300 hover:shadow-xl rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] hover:shadow-mint-500/25"
                     disabled={loading}
                   >
                     {loading ? (
@@ -408,14 +408,14 @@ const Auth = () => {
                       </>
                     ) : (
                       <>
-                        <CheckCircle className="w-5 h-5 mr-3" />
-                        Create Account
+                        <Sprout className="w-5 h-5 mr-3" />
+                        Create Your Account
                       </>
                     )}
                   </Button>
 
                   
-                  <div className="relative my-8">
+                  <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t border-brand-teal-200/50" />
                     </div>
@@ -428,7 +428,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-14 border-2 border-brand-teal-200/50 hover:bg-brand-teal-50/50 hover:border-brand-teal-300 transition-all duration-300 rounded-2xl text-brand-navy-700 font-semibold shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
+                    className="w-full h-12 border-2 border-brand-teal-200/50 hover:bg-brand-teal-50/50 hover:border-brand-teal-300 transition-all duration-300 rounded-2xl text-brand-navy-700 font-semibold shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -444,19 +444,15 @@ const Auth = () => {
             </Tabs>
 
             {error && (
-              <Alert className="mt-6 border-destructive/20 bg-destructive/5 text-destructive rounded-xl">
-                <AlertDescription className="font-medium text-center">
-                  {error}
-                </AlertDescription>
+              <Alert className="mt-4 border-red-300 bg-red-50/80 backdrop-blur-sm">
+                <AlertDescription className="text-red-700 text-sm font-medium">{error}</AlertDescription>
               </Alert>
             )}
 
             {message && (
-              <Alert className="mt-6 border-brand-teal-300/40 bg-brand-teal-50/70 text-brand-teal-700 rounded-xl">
-                <CheckCircle className="h-4 w-4" />
-                <AlertDescription className="font-medium text-center">
-                  {message}
-                </AlertDescription>
+              <Alert className="mt-4 border-green-300 bg-green-50/80 backdrop-blur-sm">
+                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                <AlertDescription className="text-green-700 text-sm font-medium">{message}</AlertDescription>
               </Alert>
             )}
           </CardContent>
