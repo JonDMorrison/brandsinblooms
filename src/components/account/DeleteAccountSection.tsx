@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertTriangle, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -22,12 +22,12 @@ export const DeleteAccountSection = () => {
 
   const handleDeleteAccount = async () => {
     if (confirmText !== 'DELETE') {
-      toast.error('Please type DELETE to confirm');
+      
       return;
     }
 
     if (!user) {
-      toast.error('User not authenticated');
+      
       return;
     }
 
@@ -41,17 +41,17 @@ export const DeleteAccountSection = () => {
 
       if (error) {
         console.error('Delete account error:', error);
-        toast.error('Failed to delete account.  Please try again or contact support.');
+        
         return;
       }
 
-      toast.success('Account scheduled for deletion - check your email for details');
+      
       
       // Sign out the user
       await signOut();
     } catch (error) {
       console.error('Unexpected error:', error);
-      toast.error('An unexpected error occurred.  Please contact support.');
+      
     } finally {
       setIsLoading(false);
       setIsModalOpen(false);
