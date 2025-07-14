@@ -18,7 +18,7 @@ import {
   TestTube,
   Settings
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface ZapierWebhook {
   id: string;
@@ -32,6 +32,7 @@ interface ZapierWebhook {
 
 export const ZapierIntegration = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [webhooks, setWebhooks] = useState<ZapierWebhook[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState<string | null>(null);
@@ -49,7 +50,11 @@ export const ZapierIntegration = () => {
       setWebhooks([]);
     } catch (error) {
       console.error('Error fetching Zapier webhooks:', error);
-      toast.error('Failed to load webhooks');
+      toast({
+        title: "Error",
+        description: "Failed to load webhooks",
+        variant: "destructive",
+      });
     }
   };
 
@@ -57,20 +62,31 @@ export const ZapierIntegration = () => {
     e.preventDefault();
 
     if (!webhookName || !webhookUrl) {
-      toast.error('Please fill in all required fields');
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
       return;
     }
 
     try {
       // TODO: Replace with actual database call once migration is applied
-      toast.info('Zapier integration will be available once database setup is complete');
+      toast({
+        title: "Coming Soon",
+        description: "Zapier integration will be available once database setup is complete",
+      });
       setWebhookName('');
       setWebhookUrl('');
       setWebhookDescription('');
       setIsCreating(false);
     } catch (error) {
       console.error('Error creating webhook:', error);
-      toast.error('Failed to create webhook');
+      toast({
+        title: "Error",
+        description: "Failed to create webhook",
+        variant: "destructive",
+      });
     }
   };
 
@@ -99,10 +115,17 @@ export const ZapierIntegration = () => {
         body: JSON.stringify(testPayload),
       });
 
-      toast.success('Test webhook sent! Check your Zap history to confirm it was received.');
+      toast({
+        title: "Success!",
+        description: "Test webhook sent! Check your Zap history to confirm it was received.",
+      });
     } catch (error) {
       console.error('Error testing webhook:', error);
-      toast.error('Failed to test webhook. Please check the URL and try again.');
+      toast({
+        title: "Error",
+        description: "Failed to test webhook. Please check the URL and try again.",
+        variant: "destructive",
+      });
     } finally {
       setTestingWebhook(null);
     }
@@ -110,12 +133,18 @@ export const ZapierIntegration = () => {
 
   const handleDeleteWebhook = async (webhookId: string) => {
     // TODO: Replace with actual database call once migration is applied
-    toast.info('Zapier integration will be available once database setup is complete');
+    toast({
+      title: "Coming Soon",
+      description: "Zapier integration will be available once database setup is complete",
+    });
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+    toast({
+      title: "Success!",
+      description: "Copied to clipboard",
+    });
   };
 
   useEffect(() => {
