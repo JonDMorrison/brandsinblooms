@@ -134,14 +134,7 @@ export const useWebsiteAnalysis = () => {
         
         setExtractedData(data.extractedData);
         
-        // Show success message with extraction method
-        const methodText = data.extractionMethod === 'firecrawl' ? 
-          'Website analyzed successfully using advanced extraction!' : 
-          'Website analyzed successfully!';
-        
-        setTimeout(() => {
-          toast.success(methodText);
-        }, 1000);
+        // Website analyzed successfully - removing toast to prevent ReferenceError
         return true;
       } else {
         console.warn('7. No extracted data received');
