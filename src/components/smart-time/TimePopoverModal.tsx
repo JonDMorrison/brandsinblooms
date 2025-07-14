@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { useSmartTime } from '@/hooks/useSmartTime';
 import { scheduleDraft } from '@/lib/dashboardAPI';
-import { toast } from 'sonner';
+
 import { Button } from '@/components/ui/button';
 
 interface TimePopoverModalProps {
@@ -69,13 +69,13 @@ export const TimePopoverModal = ({
       });
       
       if (result) {
-        toast.success(`Scheduled for ${format(new Date(publishAt), 'MMM d, yyyy \'at\' h:mm a')}`);
+        
         if (onScheduled) onScheduled();
         onClose();
       }
     } catch (error) {
       console.error('Error scheduling:', error);
-      toast.error('Failed to schedule post');
+      
     } finally {
       setIsScheduling(false);
     }
