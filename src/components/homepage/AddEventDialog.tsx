@@ -13,7 +13,7 @@ import { useTenant } from "@/hooks/useTenant";
 import { getCurrentWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2, Calendar as CalendarIcon, CheckCircle } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { generateCampaignContent } from "./ContentGenerationServices";
@@ -27,6 +27,7 @@ interface AddEventDialogProps {
 export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventDialogProps) => {
   const { user } = useAuth();
   const { tenant } = useTenant();
+  const { toast } = useToast();
   const [eventName, setEventName] = useState("");
   const [eventDescription, setEventDescription] = useState("");
   const [eventDate, setEventDate] = useState("");
@@ -109,7 +110,10 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
 
       // Now automatically generate content for the event using the working service
       setGeneratingContent(true);
-      toast.loading('Generating content for your event...', { id: 'content-generation' });
+       toast({
+         title: "Generating content for your event...",
+         description: "Please wait while we create your promotional content",
+       });
 
       try {
         console.log('🔒 SECURITY: Starting content generation with proper user isolation');
@@ -126,14 +130,25 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
         if (result.success) {
           console.log('✅ AddEventDialog: Content generated successfully with user isolation');
           setContentGenerated(true);
-          toast.success(`Event created with ${result.tasks?.length || 5} content pieces!`, { id: 'content-generation' });
+          toast({
+            title: "Success!",
+            description: `Event created with ${result.tasks?.length || 5} content pieces!`,
+          });
         } else {
           console.warn('⚠️ AddEventDialog: Content generation had issues:', result.message);
-          toast.warning(`Event created, but content generation had issues: ${result.message}`, { id: 'content-generation' });
+          toast({
+            title: "Warning",
+            description: `Event created, but content generation had issues: ${result.message}`,
+            variant: "destructive",
+          });
         }
       } catch (contentError) {
         console.error('❌ AddEventDialog: Content generation failed:', contentError);
-        toast.error('Event created, but content generation failed. You can generate content manually.', { id: 'content-generation' });
+        toast({
+          title: "Error",
+          description: "Event created, but content generation failed. You can generate content manually.",
+          variant: "destructive",
+        });
       }
 
       // Reset form
@@ -157,7 +172,11 @@ export const AddEventDialog = ({ open, onOpenChange, onEventCreated }: AddEventD
     } catch (error: any) {
       console.error('❌ AddEventDialog: Error creating event:', error);
       setError(error.message || 'Failed to create event');
-      toast.error(error.message || 'Failed to create event');
+      toast({
+        title: "Error",
+        description: error.message || 'Failed to create event',
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
