@@ -190,63 +190,24 @@ const Auth = () => {
   }
 
   return (
-    <div className="h-screen w-full bg-gradient-to-br from-brand-navy-50 via-brand-teal-50 to-sand-50 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Sophisticated Background Mesh */}
-      <div className="absolute inset-0">
-        {/* Primary mesh gradients */}
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-brand-navy-100/30 via-transparent to-brand-teal-100/30"></div>
-        
-        {/* Animated botanical elements */}
-        <div className="absolute top-20 left-16 w-32 h-32 bg-brand-teal-200/20 rounded-full blur-2xl animate-pulse"></div>
-        <div className="absolute top-40 right-24 w-24 h-24 bg-brand-navy-200/20 rounded-full blur-xl animate-float"></div>
-        <div className="absolute bottom-32 left-24 w-40 h-40 bg-brand-teal-300/15 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 right-20 w-28 h-28 bg-brand-navy-300/15 rounded-full blur-2xl animate-pulse"></div>
-        
-        {/* Geometric accent patterns */}
-        <div className="absolute top-1/3 left-1/4 w-16 h-16 bg-brand-teal-400/10 rounded-full blur-xl"></div>
-        <div className="absolute top-1/4 right-1/3 w-20 h-20 bg-brand-navy-400/10 rounded-full blur-xl"></div>
-        
-        {/* Subtle garden-themed shapes */}
-        <div className="absolute top-1/2 right-1/2 w-6 h-6 bg-mint-400/20 rounded-full blur-sm transform rotate-45"></div>
-        <div className="absolute bottom-1/3 left-1/2 w-8 h-8 bg-brand-teal-500/15 rounded-full blur-md"></div>
-      </div>
-
-
-      <div className="relative z-10 w-full max-w-2xl">
-        {/* Simplified Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-6">
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-brand-navy-700 to-brand-teal-600 bg-clip-text text-transparent">
-                BloomSuite
-              </h1>
-              <div className="h-1 w-16 bg-gradient-to-r from-brand-teal-500 to-mint-500 rounded-full mt-1 mx-auto"></div>
-            </div>
-          </div>
-        </div>
-
-        <Card className="max-w-lg shadow-2xl border border-white/30 bg-white/90 backdrop-blur-xl rounded-3xl p-6 transition-all duration-500 hover:shadow-[0_25px_50px_-12px_rgba(104,190,185,0.25)] hover:border-brand-teal-200/50 hover:bg-white/95">
-          <CardHeader className="text-center pb-4">
-            <CardTitle className="text-2xl font-bold text-brand-navy-700 mb-1">
-              Get Started
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="mx-auto shadow-lg border">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="text-2xl font-semibold mb-2">
+              Welcome
             </CardTitle>
-            <p className="text-brand-navy-500">
+            <CardDescription>
               Sign in to your account or create a new one
-            </p>
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-4 bg-gradient-to-r from-brand-navy-50 to-brand-teal-50 h-12 p-1.5 rounded-2xl border border-brand-teal-200/30 shadow-inner">
-                <TabsTrigger 
-                  value="signin" 
-                  className="h-9 font-semibold text-base data-[state=active]:bg-brand-teal-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-600 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-teal-600"
-                >
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="signin">
                   Sign In
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="signup"
-                  className="h-9 font-semibold text-base data-[state=active]:bg-white data-[state=active]:text-brand-navy-700 data-[state=active]:shadow-lg data-[state=active]:border data-[state=active]:border-brand-teal-200/50 data-[state=inactive]:text-brand-navy-500 data-[state=inactive]:bg-transparent transition-all duration-300 rounded-xl hover:text-brand-navy-600"
-                >
+                <TabsTrigger value="signup">
                   Create Account
                 </TabsTrigger>
               </TabsList>
@@ -255,7 +216,7 @@ const Auth = () => {
                 <form onSubmit={handleSignIn} className="space-y-4">
                   
                   <div className="space-y-2">
-                    <Label htmlFor="signin-email" className="text-brand-navy-700 font-semibold text-sm">Email Address</Label>
+                    <Label htmlFor="signin-email">Email</Label>
                     <Input
                       id="signin-email"
                       type="email"
@@ -263,12 +224,11 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signin-password" className="text-brand-navy-700 font-semibold text-sm">Password</Label>
+                    <Label htmlFor="signin-password">Password</Label>
                     <div className="relative">
                       <Input
                         id="signin-password"
@@ -277,20 +237,20 @@ const Auth = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="Enter your password"
-                        className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 pr-14 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
+                        className="pr-10"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-2 top-1 h-10 w-10 text-brand-navy-400 hover:text-brand-teal-600 hover:bg-brand-teal-50/80 rounded-xl transition-all duration-200"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
                     <div className="text-right">
-                      <a href="#" className="text-sm text-brand-teal-600 hover:text-brand-teal-700 transition-colors duration-200 font-medium hover:underline">
+                      <a href="#" className="text-sm text-muted-foreground hover:text-primary">
                         Forgot Password?
                       </a>
                     </div>
@@ -298,29 +258,25 @@ const Auth = () => {
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-gradient-to-r from-brand-teal-600 to-brand-teal-500 hover:from-brand-teal-700 hover:to-brand-teal-600 text-white font-semibold transition-all duration-300 hover:shadow-xl rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] hover:shadow-brand-teal-500/25"
+                    className="w-full"
                     disabled={loading}
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Signing in...
                       </>
                     ) : (
-                      <>
-                        <Unlock className="w-5 h-5 mr-3" />
-                        Sign In
-                      </>
+                      "Sign In"
                     )}
                   </Button>
 
-                  
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-brand-teal-200/50" />
+                      <span className="w-full border-t" />
                     </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="bg-white px-6 text-brand-navy-500 font-medium">or continue with</span>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">or continue with</span>
                     </div>
                   </div>
 
@@ -328,7 +284,7 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-2 border-brand-teal-200/50 hover:bg-brand-teal-50/50 hover:border-brand-teal-300 transition-all duration-300 rounded-2xl text-brand-navy-700 font-semibold shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
+                    className="w-full"
                     disabled={loading}
                   >
                     <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -344,9 +300,9 @@ const Auth = () => {
 
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
-                  
+                   
                   <div className="space-y-2">
-                    <Label htmlFor="signup-name" className="text-brand-navy-700 font-semibold text-sm">Full Name</Label>
+                    <Label htmlFor="signup-name">Full Name</Label>
                     <Input
                       id="signup-name"
                       type="text"
@@ -354,12 +310,11 @@ const Auth = () => {
                       onChange={(e) => setFullName(e.target.value)}
                       required
                       placeholder="Your full name"
-                      className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signup-email" className="text-brand-navy-700 font-semibold text-sm">Email Address</Label>
+                    <Label htmlFor="signup-email">Email</Label>
                     <Input
                       id="signup-email"
                       type="email"
@@ -367,12 +322,11 @@ const Auth = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                       placeholder="your@email.com"
-                      className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="signup-password" className="text-brand-navy-700 font-semibold text-sm">Create Password</Label>
+                    <Label htmlFor="signup-password">Password</Label>
                     <div className="relative">
                       <Input
                         id="signup-password"
@@ -381,46 +335,42 @@ const Auth = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         required
                         placeholder="Minimum 8 characters"
-                        className="h-12 border-2 border-brand-teal-200/40 focus:border-brand-teal-500 focus:ring-2 focus:ring-brand-teal-200/50 pr-14 transition-all duration-300 rounded-2xl text-brand-navy-700 bg-white/80 backdrop-blur-sm placeholder:text-brand-navy-400 hover:border-brand-teal-300/60"
+                        className="pr-10"
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="absolute right-2 top-1 h-10 w-10 text-brand-navy-400 hover:text-brand-teal-600 hover:bg-brand-teal-50/80 rounded-xl transition-all duration-200"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </Button>
                     </div>
-                    <p className="text-xs text-brand-navy-500">Password must be at least 8 characters long</p>
+                    <p className="text-xs text-muted-foreground">Password must be at least 8 characters long</p>
                   </div>
 
                   <Button 
                     type="submit" 
-                    className="w-full h-12 bg-gradient-to-r from-mint-600 to-brand-teal-600 hover:from-mint-700 hover:to-brand-teal-700 text-white font-semibold transition-all duration-300 hover:shadow-xl rounded-2xl shadow-lg hover:scale-[1.02] active:scale-[0.98] hover:shadow-mint-500/25"
+                    className="w-full"
                     disabled={loading}
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="w-5 h-5 mr-3 animate-spin" />
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Creating account...
                       </>
                     ) : (
-                      <>
-                        <Sprout className="w-5 h-5 mr-3" />
-                        Create Your Account
-                      </>
+                      "Create Account"
                     )}
                   </Button>
 
-                  
                   <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-brand-teal-200/50" />
+                      <span className="w-full border-t" />
                     </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="bg-white px-6 text-brand-navy-500 font-medium">or continue with</span>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">or continue with</span>
                     </div>
                   </div>
 
@@ -428,10 +378,10 @@ const Auth = () => {
                     type="button"
                     variant="outline"
                     onClick={handleGoogleAuth}
-                    className="w-full h-12 border-2 border-brand-teal-200/50 hover:bg-brand-teal-50/50 hover:border-brand-teal-300 transition-all duration-300 rounded-2xl text-brand-navy-700 font-semibold shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98] backdrop-blur-sm"
+                    className="w-full"
                     disabled={loading}
                   >
-                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                       <path fill="#F0F4F0" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -444,15 +394,15 @@ const Auth = () => {
             </Tabs>
 
             {error && (
-              <Alert className="mt-4 border-red-300 bg-red-50/80 backdrop-blur-sm">
-                <AlertDescription className="text-red-700 text-sm font-medium">{error}</AlertDescription>
+              <Alert variant="destructive" className="mt-4">
+                <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
             {message && (
-              <Alert className="mt-4 border-green-300 bg-green-50/80 backdrop-blur-sm">
-                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                <AlertDescription className="text-green-700 text-sm font-medium">{message}</AlertDescription>
+              <Alert className="mt-4">
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>{message}</AlertDescription>
               </Alert>
             )}
           </CardContent>
