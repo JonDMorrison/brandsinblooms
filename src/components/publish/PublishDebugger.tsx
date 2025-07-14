@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface PublishDebuggerProps {
   isVisible: boolean;
@@ -35,6 +35,7 @@ interface DebugLog {
 
 export const PublishDebugger = ({ isVisible, onClose }: PublishDebuggerProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [logs, setLogs] = useState<DebugLog[]>([]);
   const [isRunning, setIsRunning] = useState(false);
 
@@ -176,10 +177,17 @@ export const PublishDebugger = ({ isVisible, onClose }: PublishDebuggerProps) =>
       await testPublishAPI();
       
       addLog('success', 'connection', 'Diagnostics complete!');
-      toast.success('Diagnostics completed successfully');
+      toast({
+        title: "Success!",
+        description: "Diagnostics completed successfully",
+      });
     } catch (error) {
       addLog('error', 'connection', 'Diagnostics failed', error);
-      toast.error('Diagnostics failed');
+      toast({
+        title: "Error",
+        description: "Diagnostics failed",
+        variant: "destructive",
+      });
     } finally {
       setIsRunning(false);
     }
