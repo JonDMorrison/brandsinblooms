@@ -21,7 +21,7 @@ import {
   Facebook,
   Instagram
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useToast } from '@/hooks/use-toast';
 
 interface Integration {
   id: string;
@@ -50,6 +50,7 @@ interface UserIntegration {
 
 export const IntegrationHub = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [userIntegrations, setUserIntegrations] = useState<UserIntegration[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('marketplace');
@@ -149,7 +150,11 @@ export const IntegrationHub = () => {
       setUserIntegrations([]);
     } catch (error) {
       console.error('Error fetching integrations:', error);
-      toast.error('Failed to load integrations');
+      toast({
+        title: "Error",
+        description: "Failed to load integrations",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -161,13 +166,19 @@ export const IntegrationHub = () => {
       window.location.href = integration.setupUrl;
     } else {
       // Generic connection flow
-      toast.info(`${integration.name} integration coming soon!`);
+      toast({
+        title: "Coming Soon",
+        description: `${integration.name} integration coming soon!`,
+      });
     }
   };
 
   const handleDisconnectIntegration = async (integrationId: string) => {
     // TODO: Replace with actual database call once migration is applied
-    toast.info('Integrations will be available once database setup is complete');
+    toast({
+      title: "Coming Soon",
+      description: "Integrations will be available once database setup is complete",
+    });
   };
 
   const getConnectionStatus = (providerId: string) => {
