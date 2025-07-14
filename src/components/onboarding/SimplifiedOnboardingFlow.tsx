@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+
 import { UrlInputStep } from './UrlInputStep';
 import { DataReviewStep } from './DataReviewStep';
 import { OnboardingSuccessIndicator } from './OnboardingSuccessIndicator';
@@ -53,7 +53,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
 
   const handleComplete = async () => {
     if (!user) {
-      toast.error("Please log in to continue");
+      
       return;
     }
 
