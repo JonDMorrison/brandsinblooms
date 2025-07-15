@@ -297,7 +297,7 @@ export const CustomContentSection = ({
             </div>
           </CollapsibleTrigger>
 
-          <CollapsibleContent className="space-y-6">
+          <CollapsibleContent className="space-y-6 mt-8">
             {/* Campaign Cards Grid or Empty State */}
             {shouldShowEmptyState ? (
               <div className="text-center py-12 px-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
