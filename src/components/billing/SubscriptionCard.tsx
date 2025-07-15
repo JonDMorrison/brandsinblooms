@@ -162,21 +162,37 @@ export const SubscriptionCard = () => {
         <div className="mb-8">
           {isTrialPlan && (
             <div className={`p-4 rounded-xl ${isTrialExpired ? 'bg-red-50 border border-red-200' : 'bg-white border border-gray-200'} dark:bg-gray-900/50 dark:border-gray-700`}>
-              <div className={`flex items-center gap-2 ${isTrialExpired ? 'text-red-800' : 'text-gray-800 dark:text-gray-200'}`}>
-                <Calendar className="h-4 w-4" />
-                <span className="font-medium">
-                  {isTrialExpired ? 'Trial Expired' : `${trialDaysLeft} days left in trial`}
-                </span>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className={`flex items-center gap-2 ${isTrialExpired ? 'text-red-800' : 'text-gray-800 dark:text-gray-200'}`}>
+                    <Calendar className="h-4 w-4" />
+                    <span className="font-medium">
+                      {isTrialExpired ? 'Trial Expired' : `${trialDaysLeft} days left in trial`}
+                    </span>
+                  </div>
+                  {!isTrialExpired && (
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      Your trial ends on {endDate.toLocaleDateString('en-US', { 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                    </p>
+                  )}
+                </div>
+                {!isTrialExpired && (
+                  <div className="ml-4">
+                    <Button 
+                      onClick={() => handleUpgrade('bloom')}
+                      disabled={upgradeLoading}
+                      className={`bg-gradient-to-r ${planInfo.gradient} hover:opacity-90 text-white border-0 shadow-lg`}
+                      size="sm"
+                    >
+                      {upgradeLoading ? 'Processing...' : 'Upgrade Plan'}
+                    </Button>
+                  </div>
+                )}
               </div>
-              {!isTrialExpired && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  Your trial ends on {endDate.toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    day: 'numeric', 
-                    year: 'numeric' 
-                  })}
-                </p>
-              )}
             </div>
           )}
 
@@ -211,13 +227,13 @@ export const SubscriptionCard = () => {
           </div>
           
           <div className="flex space-x-3">
-            {(isTrialPlan || isTrialExpired || isExpired) && (
+            {(isTrialExpired || isExpired) && (
               <Button 
                 onClick={() => handleUpgrade('bloom')}
                 disabled={upgradeLoading}
                 className={`bg-gradient-to-r ${planInfo.gradient} hover:opacity-90 text-white border-0 shadow-lg`}
               >
-                {upgradeLoading ? 'Processing...' : isExpired ? 'Reactivate' : 'Upgrade Plan'}
+                {upgradeLoading ? 'Processing...' : 'Reactivate'}
               </Button>
             )}
             {!isTrialPlan && !isTrialExpired && !isExpired && (
