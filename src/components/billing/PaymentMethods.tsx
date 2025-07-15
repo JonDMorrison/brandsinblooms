@@ -1,14 +1,37 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CreditCard, Plus, Shield, CheckCircle, Lock } from 'lucide-react';
+import { CreditCard, Plus, Shield, CheckCircle, Lock, ExternalLink } from 'lucide-react';
 import { CustomerPortalButton } from '@/components/subscription/CustomerPortalButton';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { supabase } from '@/integrations/supabase/client';
+// Removed sonner import - using global toast replacement
 
 export const PaymentMethods = () => {
   const { subscription } = useSubscription();
+  const [loading, setLoading] = useState(false);
   const isTrialOrExpired = !subscription || subscription.plan === 'free_trial' || subscription.plan === 'expired';
+
+  const handleAddPaymentMethod = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+      
+      if (error) throw error;
+      
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      } else {
+        throw new Error('No portal URL received');
+      }
+    } catch (error) {
+      console.error('Error accessing payment methods:', error);
+      toast.error('Failed to access payment methods. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -43,9 +66,15 @@ export const PaymentMethods = () => {
                   : "Add a payment method to reactivate your subscription"
                 }
               </p>
-              <Button size="sm" className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:opacity-90">
+              <Button 
+                size="sm" 
+                onClick={handleAddPaymentMethod}
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:opacity-90"
+              >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Payment Method
+                {loading ? 'Loading...' : 'Add Payment Method'}
+                <ExternalLink className="h-3 w-3 ml-1" />
               </Button>
             </div>
           ) : (
