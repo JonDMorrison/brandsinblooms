@@ -7,6 +7,8 @@ import { ImageCarousel } from '@/components/ui/image-carousel';
 import { processNewsletterContent, convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
 import { MagazineNewsletterDisplay } from '@/components/content-sidebar/MagazineNewsletterDisplay';
 import { SafeHtml } from '@/components/ui/safe-html';
+import { ImageEditOverlay } from '@/components/image/ImageEditOverlay';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -83,6 +85,33 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
   // Use the smart image suggestions hook
   const { images, loading: loadingImage, fetchNewImages, query } = useImageSuggestions(contentTaskId, postType);
 
+  // Handle image selection from MediaSelector
+  const handleImageSelect = async (imageUrl: string, metadata?: any) => {
+    if (!contentTaskId) {
+      console.warn('No content task ID available for image update');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('content_tasks')
+        .update({
+          image_url: imageUrl,
+          image_metadata: metadata || {},
+          image_source: 'user_selected'
+        })
+        .eq('id', contentTaskId);
+
+      if (error) {
+        console.error('Error updating image:', error);
+      } else {
+        console.log('Image updated successfully:', imageUrl);
+      }
+    } catch (error) {
+      console.error('Error updating content task image:', error);
+    }
+  };
+
   // Debug logging
   useEffect(() => {
     console.log('[MAGAZINE_DISPLAY] Props received:', {
@@ -128,17 +157,11 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
       const featuredImage = images[0];
       return (
         <div className={containerClasses}>
-          <img
-            src={featuredImage.thumb_url}
-            alt={featuredImage.alt}
-            className="w-full h-full object-cover rounded-lg"
-            onError={(e) => {
-              console.error('Featured image failed to load:', featuredImage.thumb_url);
-              e.currentTarget.style.display = 'none';
-            }}
-            onLoad={() => {
-              console.log('Featured image loaded successfully:', featuredImage.thumb_url);
-            }}
+          <ImageEditOverlay
+            imageUrl={featuredImage.thumb_url}
+            onImageSelect={handleImageSelect}
+            contentContext={content}
+            className="w-full h-full rounded-lg"
           />
         </div>
       );
