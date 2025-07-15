@@ -17,8 +17,6 @@ export const BillingDashboard = () => {
         </div>
       </div>
 
-      {/* Analytics Section */}
-      <UsageAnalytics />
 
       {/* History Section */}
       <BillingHistory />
