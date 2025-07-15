@@ -119,7 +119,7 @@ const AppSidebar: React.FC = () => {
   const isActive = (path: string) => currentPath === path;
 
   return (
-    <Sidebar collapsible="icon" className="border-r">
+    <Sidebar collapsible="icon" className="sidebar border-r">
       <SidebarHeader className="flex flex-row items-center justify-between p-4">
         <NavLink to="/" className="font-semibold flex items-center gap-2">
           <img 
