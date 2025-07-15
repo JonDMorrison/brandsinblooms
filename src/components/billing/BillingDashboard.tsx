@@ -6,21 +6,21 @@ import { BillingHistory } from './BillingHistory';
 
 export const BillingDashboard = () => {
   return (
-    <div className="space-y-8">
-      {/* Top Row - Subscription Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
+    <div className="space-y-8 max-w-7xl mx-auto">
+      {/* Hero Section - Subscription Status */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        <div className="xl:col-span-2">
           <SubscriptionCard />
         </div>
-        <div>
+        <div className="space-y-6">
           <PaymentMethods />
         </div>
       </div>
 
-      {/* Middle Row - Usage Analytics */}
+      {/* Analytics Section */}
       <UsageAnalytics />
 
-      {/* Bottom Row - Billing History */}
+      {/* History Section */}
       <BillingHistory />
     </div>
   );

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { EnhancedAppleCard } from '@/components/ui/enhanced-apple-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar, Crown, Zap, Users } from 'lucide-react';
+import { Calendar, Crown, Zap, Users, Sparkles, Clock, CheckCircle } from 'lucide-react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { CustomerPortalButton } from '@/components/subscription/CustomerPortalButton';
 
@@ -11,37 +11,47 @@ const getPlanInfo = (plan: string) => {
     case 'free_trial':
       return {
         name: 'Free Trial',
-        color: 'bg-blue-100 text-blue-800',
-        icon: Calendar,
-        features: ['Full access', '200 posts/month', 'All features']
+        gradient: 'from-blue-500 to-indigo-600',
+        bgClass: 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20',
+        icon: Sparkles,
+        features: ['Full access', '200 posts/month', 'All features', '14-day trial'],
+        badge: 'Trial Active'
       };
     case 'sprout':
       return {
         name: 'Sprout',
-        color: 'bg-green-100 text-green-800',
+        gradient: 'from-green-500 to-emerald-600',
+        bgClass: 'bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20',
         icon: Zap,
-        features: ['Unlimited posts', '10 connections', 'Priority support']
+        features: ['Unlimited posts', '10 connections', 'Priority support', 'Advanced analytics'],
+        badge: 'Active Plan'
       };
     case 'bloom':
       return {
         name: 'Bloom',
-        color: 'bg-purple-100 text-purple-800',
+        gradient: 'from-purple-500 to-pink-600',
+        bgClass: 'bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20',
         icon: Crown,
-        features: ['Everything in Sprout', 'Team features', 'Advanced analytics']
+        features: ['Everything in Sprout', 'Team features', 'Advanced analytics', 'Custom branding'],
+        badge: 'Premium Plan'
       };
     case 'expired':
       return {
         name: 'Expired',
-        color: 'bg-red-100 text-red-800',
+        gradient: 'from-red-400 to-red-600',
+        bgClass: 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/20 dark:to-red-900/20',
         icon: Calendar,
-        features: ['Limited access', 'Upgrade to continue']
+        features: ['Limited access', 'Upgrade to continue'],
+        badge: 'Expired'
       };
     default:
       return {
         name: 'Free',
-        color: 'bg-gray-100 text-gray-800',
-        icon: Calendar,
-        features: ['Basic features', 'Limited access']
+        gradient: 'from-gray-400 to-gray-600',
+        bgClass: 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-950/20 dark:to-gray-900/20',
+        icon: Users,
+        features: ['Basic features', 'Limited access'],
+        badge: 'Free'
       };
   }
 };
@@ -51,30 +61,30 @@ export const SubscriptionCard = () => {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Plan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-muted rounded w-1/3"></div>
-            <div className="h-20 bg-muted rounded"></div>
+      <EnhancedAppleCard variant="elevated" className="animate-pulse">
+        <div className="p-8">
+          <div className="h-8 bg-surface-secondary rounded-lg w-3/4 mb-4"></div>
+          <div className="h-4 bg-surface-secondary rounded w-1/2 mb-6"></div>
+          <div className="space-y-3">
+            <div className="h-4 bg-surface-secondary rounded w-full"></div>
+            <div className="h-4 bg-surface-secondary rounded w-2/3"></div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </EnhancedAppleCard>
     );
   }
 
   if (!subscription) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Current Plan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">No subscription found</p>
-        </CardContent>
-      </Card>
+      <EnhancedAppleCard variant="elevated" surface="secondary">
+        <div className="p-8 text-center">
+          <div className="w-16 h-16 bg-surface-tertiary rounded-full flex items-center justify-center mx-auto mb-4">
+            <Users className="h-8 w-8 text-text-secondary" />
+          </div>
+          <h3 className="text-xl font-semibold text-text-primary mb-2">No subscription found</h3>
+          <p className="text-text-secondary">Unable to load subscription information</p>
+        </div>
+      </EnhancedAppleCard>
     );
   }
 
@@ -82,26 +92,52 @@ export const SubscriptionCard = () => {
   const PlanIcon = planInfo.icon;
   const endDate = new Date(subscription.end_date);
   const isTrialPlan = subscription.plan === 'free_trial';
+  const isExpired = subscription.plan === 'expired';
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <PlanIcon className="h-5 w-5" />
-            Current Plan
-          </CardTitle>
-          <Badge className={planInfo.color}>
-            {planInfo.name}
-          </Badge>
+    <EnhancedAppleCard 
+      variant="elevated" 
+      hoverEffect="medium"
+      className={`relative overflow-hidden ${planInfo.bgClass} border-2 ${isExpired ? 'border-red-200' : 'border-transparent'}`}
+    >
+      {/* Gradient Background Accent */}
+      <div className={`absolute top-0 right-0 w-40 h-40 bg-gradient-to-br ${planInfo.gradient} opacity-10 rounded-full -mr-20 -mt-20`}></div>
+      
+      <div className="relative p-8">
+        {/* Header Section */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
+            <div className={`p-3 rounded-xl bg-gradient-to-br ${planInfo.gradient} text-white shadow-lg`}>
+              <PlanIcon className="h-8 w-8" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-text-primary">{planInfo.name}</h2>
+              <div className="flex items-center space-x-3 mt-2">
+                <Badge variant={isExpired ? "destructive" : "default"} className="text-xs font-medium">
+                  {planInfo.badge}
+                </Badge>
+                {isTrialPlan && !isTrialExpired && (
+                  <div className="flex items-center text-sm text-text-secondary">
+                    <Clock className="h-4 w-4 mr-1" />
+                    {trialDaysLeft} days left
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {!isExpired && !isTrialExpired && (
+            <div className={`px-4 py-2 rounded-full bg-gradient-to-r ${planInfo.gradient} text-white text-sm font-medium shadow-lg`}>
+              Active
+            </div>
+          )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Plan Status */}
-        <div className="space-y-3">
+
+        {/* Status Section */}
+        <div className="mb-8">
           {isTrialPlan && (
-            <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-              <div className="flex items-center gap-2 text-blue-800">
+            <div className={`p-4 rounded-xl ${isTrialExpired ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'} dark:bg-blue-950/20`}>
+              <div className={`flex items-center gap-2 ${isTrialExpired ? 'text-red-800' : 'text-blue-800'}`}>
                 <Calendar className="h-4 w-4" />
                 <span className="font-medium">
                   {isTrialExpired ? 'Trial Expired' : `${trialDaysLeft} days left in trial`}
@@ -109,53 +145,75 @@ export const SubscriptionCard = () => {
               </div>
               {!isTrialExpired && (
                 <p className="text-sm text-blue-600 mt-1">
-                  Your trial ends on {endDate.toLocaleDateString()}
+                  Your trial ends on {endDate.toLocaleDateString('en-US', { 
+                    month: 'long', 
+                    day: 'numeric', 
+                    year: 'numeric' 
+                  })}
                 </p>
               )}
             </div>
           )}
 
-          {!isTrialPlan && (
-            <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+          {!isTrialPlan && !isExpired && (
+            <div className="p-4 rounded-xl bg-green-50 border border-green-200 dark:bg-green-950/20">
               <div className="flex items-center gap-2 text-green-800">
-                <Users className="h-4 w-4" />
+                <CheckCircle className="h-4 w-4" />
                 <span className="font-medium">Active Subscription</span>
               </div>
               <p className="text-sm text-green-600 mt-1">
-                Billed {subscription.billing_interval || 'monthly'} • Next billing: {endDate.toLocaleDateString()}
+                Billed {subscription.billing_interval || 'monthly'} • Next billing: {endDate.toLocaleDateString('en-US', { 
+                  month: 'long', 
+                  day: 'numeric', 
+                  year: 'numeric' 
+                })}
               </p>
             </div>
           )}
         </div>
 
-        {/* Plan Features */}
-        <div>
-          <h4 className="font-medium mb-3">Plan includes:</h4>
-          <ul className="space-y-2">
+        {/* Features Grid */}
+        <div className="mb-8">
+          <h4 className="font-semibold text-text-primary mb-4 flex items-center">
+            <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
+            Plan includes:
+          </h4>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {planInfo.features.map((feature, index) => (
-              <li key={index} className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full" />
-                {feature}
-              </li>
+              <div key={index} className="flex items-center p-3 bg-surface-secondary/50 rounded-lg transition-colors hover:bg-surface-secondary">
+                <CheckCircle className="h-4 w-4 mr-3 text-green-500 flex-shrink-0" />
+                <span className="text-sm text-text-primary font-medium">{feature}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex gap-3 pt-4">
-          {(isTrialPlan || isTrialExpired) && (
-            <Button className="flex-1">
-              Upgrade Plan
-            </Button>
-          )}
-          {!isTrialPlan && !isTrialExpired && (
-            <CustomerPortalButton 
-              variant="outline" 
-              className="flex-1"
-            />
-          )}
+        {/* Action Section */}
+        <div className="flex items-center justify-between pt-6 border-t border-border-subtle">
+          <div className="flex items-center text-sm text-text-secondary">
+            <Calendar className="h-4 w-4 mr-2" />
+            <span className="font-medium">
+              {isTrialPlan ? 'Trial ends' : 'Next billing'}: {endDate.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </span>
+          </div>
+          
+          <div className="flex space-x-3">
+            {(isTrialPlan || isTrialExpired || isExpired) && (
+              <Button 
+                className={`bg-gradient-to-r ${planInfo.gradient} hover:opacity-90 text-white border-0 shadow-lg`}
+              >
+                {isExpired ? 'Reactivate' : 'Upgrade Plan'}
+              </Button>
+            )}
+            {!isTrialPlan && !isTrialExpired && !isExpired && (
+              <CustomerPortalButton variant="outline" />
+            )}
+          </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </EnhancedAppleCard>
   );
 };
