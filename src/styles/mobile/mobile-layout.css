@@ -158,7 +158,8 @@
     }
 
     /* Hide tab navigation on mobile */
-    [data-radix-tabs-list] {
+    [data-radix-tabs-list],
+    .grid-cols-6 {
       display: none !important;
     }
   }
