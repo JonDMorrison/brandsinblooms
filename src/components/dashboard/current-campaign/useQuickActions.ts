@@ -1,16 +1,18 @@
 
-import { PlusCircle, Calendar, CalendarPlus } from "lucide-react";
+import { PlusCircle, Calendar, CalendarPlus, Sparkles } from "lucide-react";
 
 interface UseQuickActionsProps {
   onNewCampaignClick: () => void;
   onAddEventClick: () => void;
   onViewCalendar: () => void;
+  onGenerateThemes?: () => void;
 }
 
 export const useQuickActions = ({
   onNewCampaignClick,
   onAddEventClick,
-  onViewCalendar
+  onViewCalendar,
+  onGenerateThemes
 }: UseQuickActionsProps) => {
   return [
     {
@@ -48,6 +50,18 @@ export const useQuickActions = ({
       borderColor: 'border-gray-200 hover:border-purple-300',
       onClick: onViewCalendar,
       ariaLabel: 'View content calendar'
-    }
+    },
+    ...(onGenerateThemes ? [{
+      id: 'generate-themes',
+      icon: Sparkles,
+      title: 'Generate Weekly Themes',
+      description: 'AI-powered seasonal content themes',
+      benefit: 'Fresh ideas for your garden center',
+      color: 'text-purple-600',
+      bgColor: 'bg-white hover:bg-purple-50',
+      borderColor: 'border-gray-200 hover:border-purple-300',
+      onClick: onGenerateThemes,
+      ariaLabel: 'Generate AI-powered weekly themes'
+    }] : [])
   ];
 };
