@@ -404,26 +404,20 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
           </h1>
         )}
 
-        {/* Article Content with Floating Featured Image */}
-        <div className="relative">
-          {/* Floating Featured Image - Top Right */}
-          <div className="w-1/3 float-right ml-6 mb-4">
-            {renderFeaturedImage(
-              "bg-gradient-to-br from-slate-100 to-gray-100 rounded-lg border border-slate-200 p-2 h-48",
-              "Featured image"
-            )}
-          </div>
+        {/* Featured Image Above Content */}
+        <div className="mb-6">
+          {renderFeaturedImage(
+            "bg-gradient-to-br from-slate-100 to-gray-100 rounded-lg border border-slate-200 p-2 h-64 w-full",
+            "Featured image"
+          )}
+        </div>
 
-          {/* Article Content - Now with proper markdown parsing and text wrapping */}
-          <div className="space-y-4">
-            <SafeHtml 
-              content={contentWithoutHeadline}
-              className="prose prose-sm max-w-none text-gray-700 [&>*]:text-justify"
-            />
-          </div>
-          
-          {/* Clear float */}
-          <div className="clear-both"></div>
+        {/* Article Content */}
+        <div className="space-y-4">
+          <SafeHtml 
+            content={contentWithoutHeadline}
+            className="prose prose-sm max-w-none text-gray-700"
+          />
         </div>
 
         {/* Thumbnail Alternatives Section */}
