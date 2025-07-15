@@ -437,7 +437,7 @@ export const WeeklyThemeCarousel = ({
                                   return <IconComponent className="w-10 h-10 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
                                 })()}
                                 <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-60" />
+                                <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-60" />
                               </div>
                               
                               {/* Progress Ring for Generation State */}
