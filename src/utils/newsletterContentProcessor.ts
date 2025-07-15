@@ -273,6 +273,14 @@ const parseSimpleYAML = (content: string) => {
     
     result.newsletter_md = filterUnwantedSections(result.newsletter_md.trim());
     
+    // If we have blocks but no newsletter_md, generate a simple header
+    if (result.blocks.length > 0 && !result.newsletter_md) {
+      const theme = result.meta.theme || 'Newsletter Update';
+      const weekFocus = result.meta.week_focus || 'Latest Updates';
+      result.newsletter_md = `# ${theme}\n\n${weekFocus}`;
+      console.log('📝 Generated fallback newsletter_md for blocks-only content');
+    }
+    
     console.log('✅ YAML parsing result:', {
       hasNewsletterMd: !!result.newsletter_md,
       newsletterMdLength: result.newsletter_md.length,
@@ -281,7 +289,11 @@ const parseSimpleYAML = (content: string) => {
       firstBlockTitle: result.blocks[0]?.title
     });
     
-    return result.blocks.length > 0 || result.newsletter_md ? result : null;
+    // Consider parsing successful if we have either blocks OR newsletter content
+    const isSuccessful = result.blocks.length > 0 || (result.newsletter_md && result.newsletter_md.trim().length > 0);
+    console.log('🎯 Parsing success check:', { isSuccessful, hasBlocks: result.blocks.length > 0, hasContent: !!result.newsletter_md });
+    
+    return isSuccessful ? result : null;
   } catch (error) {
     console.error('❌ Error parsing YAML:', error);
     return null;
