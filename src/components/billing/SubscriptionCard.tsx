@@ -197,21 +197,6 @@ export const SubscriptionCard = () => {
           )}
         </div>
 
-        {/* Features Grid */}
-        <div className="mb-8">
-          <h4 className="font-semibold text-text-primary mb-4 flex items-center">
-            <CheckCircle className="h-5 w-5 mr-2 text-green-500" />
-            Plan includes:
-          </h4>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {planInfo.features.map((feature, index) => (
-              <div key={index} className="flex items-center p-3 bg-surface-secondary/50 rounded-lg transition-colors hover:bg-surface-secondary">
-                <CheckCircle className="h-4 w-4 mr-3 text-green-500 flex-shrink-0" />
-                <span className="text-sm text-text-primary font-medium">{feature}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Action Section */}
         <div className="flex items-center justify-between pt-6 border-t border-border-subtle">
