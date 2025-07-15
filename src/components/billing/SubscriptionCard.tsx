@@ -14,7 +14,7 @@ const getPlanInfo = (plan: string) => {
       return {
         name: 'Free Trial',
         gradient: 'from-blue-500 to-indigo-600',
-        bgClass: 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20',
+        bgClass: 'bg-white dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700',
         icon: Sparkles,
         features: ['Full access', '200 posts/month', 'All features', '14-day trial'],
         badge: 'Trial Active'
@@ -161,15 +161,15 @@ export const SubscriptionCard = () => {
         {/* Status Section */}
         <div className="mb-8">
           {isTrialPlan && (
-            <div className={`p-4 rounded-xl ${isTrialExpired ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'} dark:bg-blue-950/20`}>
-              <div className={`flex items-center gap-2 ${isTrialExpired ? 'text-red-800' : 'text-blue-800'}`}>
+            <div className={`p-4 rounded-xl ${isTrialExpired ? 'bg-red-50 border border-red-200' : 'bg-white border border-gray-200'} dark:bg-gray-900/50 dark:border-gray-700`}>
+              <div className={`flex items-center gap-2 ${isTrialExpired ? 'text-red-800' : 'text-gray-800 dark:text-gray-200'}`}>
                 <Calendar className="h-4 w-4" />
                 <span className="font-medium">
                   {isTrialExpired ? 'Trial Expired' : `${trialDaysLeft} days left in trial`}
                 </span>
               </div>
               {!isTrialExpired && (
-                <p className="text-sm text-blue-600 mt-1">
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                   Your trial ends on {endDate.toLocaleDateString('en-US', { 
                     month: 'long', 
                     day: 'numeric', 
