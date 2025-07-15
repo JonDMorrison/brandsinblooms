@@ -407,7 +407,7 @@ export const WeeklyThemeCarousel = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute left-4 top-1/2 -translate-y-1/2 z-20 px-3 py-2 text-gray-700 hover:bg-gray-50 backdrop-blur-sm lg:left-2 focus-visible:ring-2 focus-visible:ring-gray-300"
+                      className="absolute -left-8 top-1/2 -translate-y-1/2 z-20 px-3 py-2 text-gray-700 hover:bg-gray-50 backdrop-blur-sm lg:-left-12 focus-visible:ring-2 focus-visible:ring-gray-300"
                       onClick={handlePrevious}
                       aria-label="Previous theme"
                     >
