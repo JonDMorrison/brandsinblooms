@@ -18,50 +18,53 @@ export const SmartThemeSelector = () => {
 
   return (
     <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-blue-50">
-      <CardHeader className="pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-purple-600" />
-          </div>
-          <div>
-            <HeadlineLarge className="text-gray-800">
-              Weekly Theme Generator
-            </HeadlineLarge>
-            <BodyMedium className="text-gray-600 text-sm">
-              AI-powered seasonal content themes
-            </BodyMedium>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Calendar className="w-4 h-4" />
-            <span>Current week themes available</span>
+      <CardContent className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 items-center">
+          {/* Left Column - Enhanced Icon */}
+          <div className="flex justify-center md:justify-start">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 flex items-center justify-center shadow-lg">
+                <Sparkles className="w-8 h-8 text-purple-600 animate-pulse" />
+              </div>
+              <div className="absolute inset-0 rounded-full bg-purple-600/10 animate-ping"></div>
+            </div>
           </div>
           
-          <Button 
-            onClick={handleGenerateThemes}
-            disabled={loading}
-            className="w-full"
-            variant="outline"
-          >
-            {loading ? (
-              <>
-                <Sparkles className="w-4 h-4 mr-2 animate-spin" />
-                Generating Themes...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                Generate Weekly Themes
-              </>
-            )}
-          </Button>
-          
-          <BodyMedium className="text-gray-500 text-xs text-center">
-            Generate seasonal content themes for your garden center
-          </BodyMedium>
+          {/* Right Column - Content */}
+          <div className="space-y-3 text-center md:text-left">
+            <div>
+              <HeadlineLarge className="text-gray-800 mb-1">
+                Weekly Theme Generator
+              </HeadlineLarge>
+              <BodyMedium className="text-gray-600">
+                AI-powered seasonal content themes for your garden center
+              </BodyMedium>
+            </div>
+            
+            <div className="flex items-center gap-2 text-sm text-gray-600 justify-center md:justify-start">
+              <Calendar className="w-4 h-4" />
+              <span>Current week themes available</span>
+            </div>
+            
+            <Button 
+              onClick={handleGenerateThemes}
+              disabled={loading}
+              className="w-full md:w-auto"
+              variant="outline"
+            >
+              {loading ? (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2 animate-spin" />
+                  Generating Themes...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Weekly Themes
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
