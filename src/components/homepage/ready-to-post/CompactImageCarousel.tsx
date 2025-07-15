@@ -3,9 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Download, Copy, MoreHorizontal, Image as ImageIcon, Star } from 'lucide-react';
-// Removed sonner import - using global toast replacement
+import { toast } from '@/hooks/use-toast';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { downloadUnsplashImage, copyAttributionToClipboard } from '@/services/unsplashDownloadService';
 
 interface CompactImageCarouselProps {
   task: any;
@@ -38,30 +39,61 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
     }
   }, [task?.id, images.length, loading, hasAutoFetched]);
 
-  const handleDownload = (imageUrl: string, photographer: string, event: React.MouseEvent) => {
+  const handleDownload = async (image: any, event: React.MouseEvent) => {
     event.stopPropagation();
     if (usingPlaceholders) {
-      toast.info('These are sample images - add your Unsplash API key for downloads');
+      toast({
+        title: "Sample images only",
+        description: "Add your Unsplash API key for high-res downloads",
+      });
       return;
     }
     
-    const link = document.createElement('a');
-    link.href = imageUrl;
-    link.download = `${task?.post_type}-${photographer}.jpg`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success('Image download started');
+    const result = await downloadUnsplashImage({
+      imageUrl: image.download_url,
+      photographer: image.photographer,
+      photographerUsername: image.photographer_username,
+      photographerUrl: image.photographer_url,
+      unsplashId: image.unsplash_id || 'unknown',
+      downloadLocation: image.download_location,
+      quality: 'full'
+    });
+    
+    if (result.success) {
+      toast({ 
+        title: "Image downloaded", 
+        description: `Downloaded high-resolution image: ${result.filename}` 
+      });
+    } else {
+      toast({ 
+        title: "Download failed", 
+        description: result.error,
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleCopyCredit = (photographer: string, event: React.MouseEvent) => {
+  const handleCopyCredit = async (image: any, event: React.MouseEvent) => {
     event.stopPropagation();
-    const credit = usingPlaceholders 
-      ? `Sample image credit: ${photographer}`
-      : `Photo by ${photographer} on Unsplash`;
-    navigator.clipboard.writeText(credit);
-    toast.success('Credit copied to clipboard');
+    
+    if (usingPlaceholders) {
+      const credit = `Sample image credit: ${image.photographer}`;
+      navigator.clipboard.writeText(credit);
+      toast({ title: "Attribution copied", description: "Sample credit copied to clipboard" });
+      return;
+    }
+    
+    const success = await copyAttributionToClipboard(
+      image.photographer, 
+      image.photographer_url, 
+      'facebook'
+    );
+    
+    if (success) {
+      toast({ title: "Attribution copied", description: "Photographer credit copied to clipboard" });
+    } else {
+      toast({ title: "Copy failed", description: "Failed to copy attribution", variant: "destructive" });
+    }
   };
 
   const handleImageError = (imageId: string) => {
@@ -160,7 +192,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
                 size="sm"
                 variant="secondary"
                 className="h-5 w-5 p-0"
-                onClick={(e) => handleDownload(featuredImage.download_url, featuredImage.photographer, e)}
+                onClick={(e) => handleDownload(featuredImage, e)}
               >
                 <Download className="w-2 h-2" />
               </Button>
@@ -168,7 +200,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
                 size="sm"
                 variant="secondary"
                 className="h-5 w-5 p-0"
-                onClick={(e) => handleCopyCredit(featuredImage.photographer, e)}
+                onClick={(e) => handleCopyCredit(featuredImage, e)}
               >
                 <Copy className="w-2 h-2" />
               </Button>
@@ -204,7 +236,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
                   size="sm"
                   variant="secondary"
                   className="h-4 w-4 p-0"
-                  onClick={(e) => handleDownload(image.download_url, image.photographer, e)}
+                  onClick={(e) => handleDownload(image, e)}
                 >
                   <Download className="w-2 h-2" />
                 </Button>
@@ -212,7 +244,7 @@ export const CompactImageCarousel = ({ task, campaignTheme, onShowAll }: Compact
                   size="sm"
                   variant="secondary"
                   className="h-4 w-4 p-0"
-                  onClick={(e) => handleCopyCredit(image.photographer, e)}
+                  onClick={(e) => handleCopyCredit(image, e)}
                 >
                   <Copy className="w-2 h-2" />
                 </Button>

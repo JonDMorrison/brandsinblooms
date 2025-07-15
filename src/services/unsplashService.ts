@@ -7,7 +7,17 @@ export interface UnsplashImage {
   thumb: string;
   alt: string;
   photographer?: string;
+  photographer_url?: string;
+  photographer_username?: string;
   unsplash_id?: string;
+  download_location?: string;
+  urls?: {
+    raw?: string;
+    full?: string;
+    regular?: string;
+    small?: string;
+    thumb?: string;
+  };
 }
 
 export async function fetchSmartImage(keyword: string, context = '', useRawKeyword = false): Promise<UnsplashImage | null> {
@@ -37,7 +47,17 @@ export async function fetchSmartImage(keyword: string, context = '', useRawKeywo
       thumb: data.urls.thumb || data.urls.small,
       alt: data.alt_description || keyword,
       photographer: data.user?.name,
-      unsplash_id: data.id
+      photographer_url: data.user?.links?.html,
+      photographer_username: data.user?.username,
+      unsplash_id: data.id,
+      download_location: data.links?.download_location,
+      urls: {
+        raw: data.urls.raw,
+        full: data.urls.full,
+        regular: data.urls.regular,
+        small: data.urls.small,
+        thumb: data.urls.thumb,
+      }
     };
   } catch (error) {
     console.error('[UNSPLASH] Exception in fetchSmartImage:', error);

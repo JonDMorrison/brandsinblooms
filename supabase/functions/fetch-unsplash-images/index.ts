@@ -156,14 +156,24 @@ serve(async (req) => {
       console.log(`[UNSPLASH] Stored ${imageSuggestions.length} validated image suggestions for task ${contentTaskId}`);
     }
 
-    // Return enhanced, validated images
+    // Return enhanced, validated images with comprehensive attribution
     const formattedImages = validImages.map((image: any) => ({
       id: image.id,
+      urls: {
+        raw: image.urls.raw,
+        full: image.urls.full,
+        regular: image.urls.regular,
+        small: image.urls.small,
+        thumb: image.urls.thumb,
+      },
       thumb_url: image.urls.thumb,
       download_url: image.urls.full,
       alt: image.alt_description || `${query} image`,
       photographer: image.user.name,
+      photographer_username: image.user.username,
+      photographer_url: image.user.links.html,
       unsplash_id: image.id,
+      download_location: image.links.download_location,
     }));
 
     console.log(`[UNSPLASH] ===== END ENHANCED FETCH DEBUG =====`);

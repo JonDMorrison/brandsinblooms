@@ -64,10 +64,12 @@ serve(async (req) => {
 
     console.log(`[UNSPLASH] Found image: ${image.id} by ${image.user.name}`);
 
-    // Return the single best image
+    // Return comprehensive image data with all sizes and attribution
     const result = {
       id: image.id,
       urls: {
+        raw: image.urls.raw,
+        full: image.urls.full, 
         regular: image.urls.regular,
         small: image.urls.small,
         thumb: image.urls.thumb,
@@ -75,6 +77,13 @@ serve(async (req) => {
       alt_description: image.alt_description,
       user: {
         name: image.user.name,
+        username: image.user.username,
+        links: {
+          html: image.user.links.html
+        }
+      },
+      links: {
+        download_location: image.links.download_location
       }
     };
 
