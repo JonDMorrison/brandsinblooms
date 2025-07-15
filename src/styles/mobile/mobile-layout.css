@@ -156,6 +156,11 @@
       gap: 1.5rem !important;
       flex-direction: column !important;
     }
+
+    /* Hide tab navigation on mobile */
+    [data-radix-tabs-list] {
+      display: none !important;
+    }
   }
 
   /* Tablet and desktop optimizations */
