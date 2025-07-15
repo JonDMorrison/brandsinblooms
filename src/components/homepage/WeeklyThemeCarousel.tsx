@@ -429,12 +429,12 @@ export const WeeklyThemeCarousel = ({
                         <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-center">
                           {/* Left Column - Premium Glass Icon Medallion */}
                           <div className="flex justify-center md:justify-start">
-                            <div className="relative w-20 h-20">
-                              <div className="glass-coin-enhanced w-20 h-20 flex items-center justify-center group cursor-pointer animate-float">
+                            <div className="relative w-40 h-40">
+                              <div className="glass-coin-enhanced w-40 h-40 flex items-center justify-center group cursor-pointer animate-float">
                                 {(() => {
                                   const iconMap = getFocusThemeIcon(currentTheme.category);
                                   const IconComponent = (iconMap && typeof iconMap === 'object' && 'icon' in iconMap) ? iconMap.icon : Sprout;
-                                  return <IconComponent className="w-10 h-10 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
+                                  return <IconComponent className="w-20 h-20 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
                                 })()}
                                 <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300" />
                                 <div className="absolute -inset-4 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-60" />
@@ -442,25 +442,25 @@ export const WeeklyThemeCarousel = ({
                               
                               {/* Progress Ring for Generation State */}
                               {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) && (
-                                <svg className="absolute inset-0 w-20 h-20 progress-ring" aria-hidden="true">
+                                <svg className="absolute inset-0 w-40 h-40 progress-ring" aria-hidden="true">
                                   <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="35"
+                                    cx="80"
+                                    cy="80"
+                                    r="70"
                                     stroke="currentColor"
                                     strokeWidth="3"
                                     fill="none"
                                     className="text-teal-200 dark:text-teal-800"
                                   />
                                   <circle
-                                    cx="40"
-                                    cy="40"
-                                    r="35"
+                                    cx="80"
+                                    cy="80"
+                                    r="70"
                                     stroke="currentColor"
                                     strokeWidth="3"
                                     fill="none"
-                                    strokeDasharray="220"
-                                    strokeDashoffset="220"
+                                    strokeDasharray="440"
+                                    strokeDashoffset="440"
                                     className="text-teal-500 dark:text-teal-400"
                                     style={{ 
                                       animation: 'progress-fill 2s ease-in-out infinite',
