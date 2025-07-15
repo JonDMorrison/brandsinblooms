@@ -426,64 +426,68 @@ export const WeeklyThemeCarousel = ({
                     {/* Current Theme Card */}
                     <div className="mx-4 lg:mx-8 lg:col-span-2">
                       {currentTheme && (
-                        <div className="flex flex-col items-center text-center">
-                          {/* Premium Glass Icon Medallion */}
-                          <div className="relative w-20 h-20 mx-auto mb-6">
-                            <div className="glass-coin-enhanced w-20 h-20 flex items-center justify-center group cursor-pointer animate-float">
-                              {(() => {
-                                const iconMap = getFocusThemeIcon(currentTheme.category);
-                                const IconComponent = (iconMap && typeof iconMap === 'object' && 'icon' in iconMap) ? iconMap.icon : Sprout;
-                                return <IconComponent className="w-10 h-10 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
-                              })()}
-                              <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300" />
-                              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-60" />
+                        <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 md:gap-8 items-center">
+                          {/* Left Column - Premium Glass Icon Medallion */}
+                          <div className="flex justify-center md:justify-start">
+                            <div className="relative w-20 h-20">
+                              <div className="glass-coin-enhanced w-20 h-20 flex items-center justify-center group cursor-pointer animate-float">
+                                {(() => {
+                                  const iconMap = getFocusThemeIcon(currentTheme.category);
+                                  const IconComponent = (iconMap && typeof iconMap === 'object' && 'icon' in iconMap) ? iconMap.icon : Sprout;
+                                  return <IconComponent className="w-10 h-10 text-white drop-shadow-xl group-hover:scale-125 transition-all duration-300" />;
+                                })()}
+                                <div className="absolute inset-0 bg-gradient-to-br from-white/30 via-transparent to-white/10 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300" />
+                                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-transparent via-white/5 to-transparent opacity-60" />
+                              </div>
+                              
+                              {/* Progress Ring for Generation State */}
+                              {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) && (
+                                <svg className="absolute inset-0 w-20 h-20 progress-ring" aria-hidden="true">
+                                  <circle
+                                    cx="40"
+                                    cy="40"
+                                    r="35"
+                                    stroke="currentColor"
+                                    strokeWidth="3"
+                                    fill="none"
+                                    className="text-teal-200 dark:text-teal-800"
+                                  />
+                                  <circle
+                                    cx="40"
+                                    cy="40"
+                                    r="35"
+                                    stroke="currentColor"
+                                    strokeWidth="3"
+                                    fill="none"
+                                    strokeDasharray="220"
+                                    strokeDashoffset="220"
+                                    className="text-teal-500 dark:text-teal-400"
+                                    style={{ 
+                                      animation: 'progress-fill 2s ease-in-out infinite',
+                                    }}
+                                  />
+                                </svg>
+                              )}
+                              <span className="sr-only">
+                                {generatingTheme === currentTheme.id ? 'Generating content...' : 'Theme icon'}
+                              </span>
                             </div>
-                            
-                            {/* Progress Ring for Generation State */}
-                            {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) && (
-                              <svg className="absolute inset-0 w-20 h-20 progress-ring" aria-hidden="true">
-                                <circle
-                                  cx="40"
-                                  cy="40"
-                                  r="35"
-                                  stroke="currentColor"
-                                  strokeWidth="3"
-                                  fill="none"
-                                  className="text-teal-200 dark:text-teal-800"
-                                />
-                                <circle
-                                  cx="40"
-                                  cy="40"
-                                  r="35"
-                                  stroke="currentColor"
-                                  strokeWidth="3"
-                                  fill="none"
-                                  strokeDasharray="220"
-                                  strokeDashoffset="220"
-                                  className="text-teal-500 dark:text-teal-400"
-                                  style={{ 
-                                    animation: 'progress-fill 2s ease-in-out infinite',
-                                  }}
-                                />
-                              </svg>
-                            )}
-                            <span className="sr-only">
-                              {generatingTheme === currentTheme.id ? 'Generating content...' : 'Theme icon'}
-                            </span>
                           </div>
 
-                          {/* Theme Title */}
-                          <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100 mb-3 max-w-lg">
-                            {currentTheme.title}
-                          </h3>
-                          
-                          {/* Theme Description */}
-                          <p className="text-base text-slate-600 dark:text-slate-400 mb-8 leading-relaxed max-w-lg">
-                            {currentTheme.description}
-                          </p>
+                          {/* Right Column - Content */}
+                          <div className="space-y-4 text-center md:text-left">
+                            {/* Theme Title */}
+                            <h3 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
+                              {currentTheme.title}
+                            </h3>
+                            
+                            {/* Theme Description */}
+                            <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">
+                              {currentTheme.description}
+                            </p>
 
-                          {/* Premium CTA Button */}
-                          <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md justify-center items-center">
+                            {/* Premium CTA Button */}
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start items-center">
                             {(generatingTheme === currentTheme.id || (currentTheme.isCurrentWeek && isGenerating)) ? (
                               <div className="premium-gradient border border-indigo-200 dark:border-indigo-800 rounded-2xl px-6 py-4 w-full">
                                 <div className="flex items-center justify-center gap-3 text-indigo-700 dark:text-indigo-300">
@@ -516,7 +520,8 @@ export const WeeklyThemeCarousel = ({
                                   </Button>
                                 )}
                               </>
-                            )}
+                             )}
+                            </div>
                           </div>
                         </div>
                       )}
