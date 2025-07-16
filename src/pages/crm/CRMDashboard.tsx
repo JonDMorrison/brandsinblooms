@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Target, TrendingUp, MessageSquare, AlertCircle } from 'lucide-react';
+import { Users, Mail, Target, TrendingUp, MessageSquare, AlertCircle, BarChart3, Eye, MousePointerClick, UserMinus, Smartphone, CheckCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 
@@ -13,8 +13,26 @@ const CRMDashboard = () => {
     smsOptInRate: 0
   });
 
+  const [campaignStats, setCampaignStats] = useState({
+    email: {
+      totalSent: 0,
+      campaignCount: 0,
+      avgOpenRate: 0,
+      avgClickRate: 0,
+      totalUnsubscribes: 0
+    },
+    sms: {
+      totalSent: 0,
+      campaignCount: 0,
+      deliveryRate: 0,
+      clickRate: 0,
+      totalOptOuts: 0
+    }
+  });
+
   useEffect(() => {
     fetchCustomerStats();
+    fetchCampaignStats();
   }, []);
 
   const fetchCustomerStats = async () => {
@@ -36,6 +54,90 @@ const CRMDashboard = () => {
       });
     } catch (error) {
       console.error('Error fetching customer stats:', error);
+    }
+  };
+
+  const fetchCampaignStats = async () => {
+    try {
+      // Get 30 days ago
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoString = thirtyDaysAgo.toISOString();
+
+      // Fetch email campaigns
+      const { data: emailCampaigns, error: emailError } = await supabase
+        .from('crm_campaigns')
+        .select('metrics')
+        .not('sent_at', 'is', null)
+        .gte('sent_at', thirtyDaysAgoString);
+
+      if (emailError) throw emailError;
+
+      // Fetch SMS campaigns
+      const { data: smsCampaigns, error: smsError } = await supabase
+        .from('crm_sms_campaigns')
+        .select('metrics')
+        .not('sent_at', 'is', null)
+        .gte('sent_at', thirtyDaysAgoString);
+
+      if (smsError) throw smsError;
+
+      // Calculate email stats
+      let emailTotalSent = 0;
+      let emailTotalOpens = 0;
+      let emailTotalClicks = 0;
+      let emailTotalUnsubscribes = 0;
+
+      emailCampaigns?.forEach(campaign => {
+        if (campaign.metrics && typeof campaign.metrics === 'object') {
+          const metrics = campaign.metrics as any;
+          emailTotalSent += metrics.sent || 0;
+          emailTotalOpens += metrics.opens || 0;
+          emailTotalClicks += metrics.clicks || 0;
+          emailTotalUnsubscribes += metrics.unsubscribes || 0;
+        }
+      });
+
+      const emailAvgOpenRate = emailTotalSent > 0 ? (emailTotalOpens / emailTotalSent) * 100 : 0;
+      const emailAvgClickRate = emailTotalSent > 0 ? (emailTotalClicks / emailTotalSent) * 100 : 0;
+
+      // Calculate SMS stats
+      let smsTotalSent = 0;
+      let smsTotalDelivered = 0;
+      let smsTotalClicks = 0;
+      let smsTotalOptOuts = 0;
+
+      smsCampaigns?.forEach(campaign => {
+        if (campaign.metrics && typeof campaign.metrics === 'object') {
+          const metrics = campaign.metrics as any;
+          smsTotalSent += metrics.messages_sent || 0;
+          smsTotalDelivered += metrics.delivered || 0;
+          smsTotalClicks += metrics.clicks || 0;
+          smsTotalOptOuts += metrics.opt_outs || 0;
+        }
+      });
+
+      const smsDeliveryRate = smsTotalSent > 0 ? (smsTotalDelivered / smsTotalSent) * 100 : 0;
+      const smsClickRate = smsTotalSent > 0 ? (smsTotalClicks / smsTotalSent) * 100 : 0;
+
+      setCampaignStats({
+        email: {
+          totalSent: emailTotalSent,
+          campaignCount: emailCampaigns?.length || 0,
+          avgOpenRate: emailAvgOpenRate,
+          avgClickRate: emailAvgClickRate,
+          totalUnsubscribes: emailTotalUnsubscribes
+        },
+        sms: {
+          totalSent: smsTotalSent,
+          campaignCount: smsCampaigns?.length || 0,
+          deliveryRate: smsDeliveryRate,
+          clickRate: smsClickRate,
+          totalOptOuts: smsTotalOptOuts
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching campaign stats:', error);
     }
   };
 
@@ -135,9 +237,9 @@ const CRMDashboard = () => {
               <Mail className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{campaignStats.email.campaignCount}</div>
               <p className="text-xs text-muted-foreground">
-                Send your first campaign
+                {campaignStats.email.campaignCount > 0 ? `${campaignStats.email.totalSent} emails sent` : 'Send your first campaign'}
               </p>
             </CardContent>
           </Card>
@@ -148,13 +250,142 @@ const CRMDashboard = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0%</div>
+              <div className="text-2xl font-bold">
+                {campaignStats.email.totalSent > 0 ? `${campaignStats.email.avgOpenRate.toFixed(1)}%` : '0%'}
+              </div>
               <p className="text-xs text-muted-foreground">
-                No campaigns sent yet
+                {campaignStats.email.totalSent > 0 ? 'Average across campaigns' : 'No campaigns sent yet'}
               </p>
             </CardContent>
           </Card>
         </div>
+
+        {/* Performance Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <BarChart3 className="h-5 w-5 mr-2" />
+              Performance Summary (Last 30 Days)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* Email Campaign Performance */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Mail className="h-5 w-5 mr-2 text-blue-600" />
+                    Email Campaigns
+                  </h3>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/crm/campaigns">View Details</Link>
+                  </Button>
+                </div>
+                
+                {campaignStats.email.campaignCount > 0 ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-primary">
+                        {campaignStats.email.totalSent}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Emails Sent</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {campaignStats.email.campaignCount} campaigns
+                      </div>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {campaignStats.email.avgOpenRate.toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-muted-foreground">Avg Open Rate</div>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-purple-600">
+                        {campaignStats.email.avgClickRate.toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-muted-foreground">Avg Click Rate</div>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {campaignStats.email.totalUnsubscribes}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Unsubscribes</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Mail className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">📈 No email campaigns sent yet</p>
+                    <p className="mb-4">Create your first campaign to see performance metrics</p>
+                    <Button asChild>
+                      <Link to="/crm/campaigns/new">
+                        <Mail className="h-4 w-4 mr-2" />
+                        Create Email Campaign
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* SMS Campaign Performance */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Smartphone className="h-5 w-5 mr-2 text-green-600" />
+                    SMS Campaigns
+                  </h3>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="/crm/sms-campaigns">View Details</Link>
+                  </Button>
+                </div>
+                
+                {campaignStats.sms.campaignCount > 0 ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-primary">
+                        {campaignStats.sms.totalSent}
+                      </div>
+                      <div className="text-sm text-muted-foreground">SMS Sent</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {campaignStats.sms.campaignCount} campaigns
+                      </div>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {campaignStats.sms.deliveryRate.toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-muted-foreground">Delivery Rate</div>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-blue-600">
+                        {campaignStats.sms.clickRate.toFixed(1)}%
+                      </div>
+                      <div className="text-sm text-muted-foreground">Click Rate</div>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-lg text-center">
+                      <div className="text-2xl font-bold text-orange-600">
+                        {campaignStats.sms.totalOptOuts}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Opt-outs</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">💬 SMS delivery success rate: Ready to start</p>
+                    <p className="mb-4">Send your first SMS campaign to track delivery metrics</p>
+                    <Button asChild>
+                      <Link to="/crm/sms-campaigns/new">
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Create SMS Campaign
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Getting Started Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
