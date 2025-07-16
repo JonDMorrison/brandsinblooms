@@ -10,27 +10,37 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { 
   Plus, 
   Target, 
   Users,
   Filter,
-  Calendar,
+  Calendar as CalendarIcon,
   Sparkles,
   Edit,
   Trash2,
   RefreshCw,
-  Settings
+  Settings,
+  ShoppingCart,
+  Mail,
+  MessageSquare,
+  TrendingUp,
+  Eye,
+  X,
+  Globe
 } from 'lucide-react';
 
 interface SegmentCondition {
   field: string;
   operator: string;
-  value: string | string[];
+  value: string | string[] | Date;
   logic?: 'AND' | 'OR';
 }
 
@@ -44,6 +54,15 @@ interface Segment {
   created_at: string;
 }
 
+interface CustomerPreview {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  persona: string;
+  tags: string[];
+}
+
 const CRMSegments = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -52,6 +71,9 @@ const CRMSegments = () => {
   const [showSegmentForm, setShowSegmentForm] = useState(false);
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [liveCount, setLiveCount] = useState<number>(0);
+  const [customerPreview, setCustomerPreview] = useState<CustomerPreview[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -151,6 +173,7 @@ const CRMSegments = () => {
     }
   };
 
+  // Enhanced segment count calculation with all new filter types
   const calculateSegmentCount = async (conditions: SegmentCondition[]) => {
     try {
       const { data: userData } = await supabase
@@ -166,7 +189,7 @@ const CRMSegments = () => {
         .select('id', { count: 'exact', head: true })
         .eq('tenant_id', userData.tenant_id);
 
-      // Apply conditions
+      // Apply conditions with enhanced support
       conditions.forEach(condition => {
         switch (condition.field) {
           case 'persona':
@@ -180,6 +203,8 @@ const CRMSegments = () => {
               query = query.gte('lifetime_value', parseFloat(condition.value as string));
             } else if (condition.operator === 'less_than') {
               query = query.lte('lifetime_value', parseFloat(condition.value as string));
+            } else if (condition.operator === 'equals') {
+              query = query.eq('lifetime_value', parseFloat(condition.value as string));
             }
             break;
           case 'email':
@@ -187,10 +212,24 @@ const CRMSegments = () => {
               query = query.ilike('email', `%${condition.value}%`);
             }
             break;
-            case 'tags':
+          case 'tags':
             if (condition.operator === 'includes') {
               const tagValue = Array.isArray(condition.value) ? condition.value : [condition.value];
               query = query.contains('tags', tagValue);
+            }
+            break;
+          case 'created_at':
+            if (condition.operator === 'after') {
+              query = query.gte('created_at', (condition.value as Date).toISOString());
+            } else if (condition.operator === 'before') {
+              query = query.lte('created_at', (condition.value as Date).toISOString());
+            }
+            break;
+          case 'last_purchase_date':
+            if (condition.operator === 'after') {
+              query = query.gte('last_purchase_date', (condition.value as Date).toISOString().split('T')[0]);
+            } else if (condition.operator === 'before') {
+              query = query.lte('last_purchase_date', (condition.value as Date).toISOString().split('T')[0]);
             }
             break;
         }
@@ -205,6 +244,103 @@ const CRMSegments = () => {
       return 0;
     }
   };
+
+  // Load customer preview for segment
+  const loadCustomerPreview = async (conditions: SegmentCondition[]) => {
+    if (conditions.length === 0) {
+      setCustomerPreview([]);
+      return;
+    }
+
+    setPreviewLoading(true);
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user?.id)
+        .single();
+
+      if (!userData?.tenant_id) return;
+
+      let query = supabase
+        .from('crm_customers')
+        .select('id, first_name, last_name, email, persona, tags')
+        .eq('tenant_id', userData.tenant_id)
+        .limit(5);
+
+      // Apply same conditions as count
+      conditions.forEach(condition => {
+        switch (condition.field) {
+          case 'persona':
+            query = query.eq('persona', condition.value as string);
+            break;
+          case 'sms_opt_in':
+            query = query.eq('sms_opt_in', condition.value === 'true');
+            break;
+          case 'lifetime_value':
+            if (condition.operator === 'greater_than') {
+              query = query.gte('lifetime_value', parseFloat(condition.value as string));
+            } else if (condition.operator === 'less_than') {
+              query = query.lte('lifetime_value', parseFloat(condition.value as string));
+            } else if (condition.operator === 'equals') {
+              query = query.eq('lifetime_value', parseFloat(condition.value as string));
+            }
+            break;
+          case 'email':
+            if (condition.operator === 'contains') {
+              query = query.ilike('email', `%${condition.value}%`);
+            }
+            break;
+          case 'tags':
+            if (condition.operator === 'includes') {
+              const tagValue = Array.isArray(condition.value) ? condition.value : [condition.value];
+              query = query.contains('tags', tagValue);
+            }
+            break;
+          case 'created_at':
+            if (condition.operator === 'after') {
+              query = query.gte('created_at', (condition.value as Date).toISOString());
+            } else if (condition.operator === 'before') {
+              query = query.lte('created_at', (condition.value as Date).toISOString());
+            }
+            break;
+          case 'last_purchase_date':
+            if (condition.operator === 'after') {
+              query = query.gte('last_purchase_date', (condition.value as Date).toISOString().split('T')[0]);
+            } else if (condition.operator === 'before') {
+              query = query.lte('last_purchase_date', (condition.value as Date).toISOString().split('T')[0]);
+            }
+            break;
+        }
+      });
+
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      setCustomerPreview(data || []);
+    } catch (error) {
+      console.error('Error loading customer preview:', error);
+      setCustomerPreview([]);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // Update live count and preview when conditions change
+  useEffect(() => {
+    const updatePreview = async () => {
+      if (formData.conditions.length > 0) {
+        const count = await calculateSegmentCount(formData.conditions);
+        setLiveCount(count);
+        await loadCustomerPreview(formData.conditions);
+      } else {
+        setLiveCount(0);
+        setCustomerPreview([]);
+      }
+    };
+
+    updatePreview();
+  }, [formData.conditions]);
 
   const saveSegment = async () => {
     if (!formData.name.trim()) {
@@ -484,12 +620,49 @@ const CRMSegments = () => {
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="persona">Persona</SelectItem>
-                              <SelectItem value="tags">Tags</SelectItem>
-                              <SelectItem value="sms_opt_in">SMS Opt-In</SelectItem>
-                              <SelectItem value="lifetime_value">Lifetime Value</SelectItem>
-                              <SelectItem value="email">Email</SelectItem>
+                           <SelectContent>
+                              <SelectItem value="persona">
+                                <div className="flex items-center gap-2">
+                                  <Users className="h-3 w-3" />
+                                  Persona
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="tags">
+                                <div className="flex items-center gap-2">
+                                  <Filter className="h-3 w-3" />
+                                  Customer Tags
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="created_at">
+                                <div className="flex items-center gap-2">
+                                  <CalendarIcon className="h-3 w-3" />
+                                  Joined Date
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="last_purchase_date">
+                                <div className="flex items-center gap-2">
+                                  <ShoppingCart className="h-3 w-3" />
+                                  Last Purchase
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="lifetime_value">
+                                <div className="flex items-center gap-2">
+                                  <TrendingUp className="h-3 w-3" />
+                                  Lifetime Value
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="sms_opt_in">
+                                <div className="flex items-center gap-2">
+                                  <MessageSquare className="h-3 w-3" />
+                                  SMS Opt-In
+                                </div>
+                              </SelectItem>
+                              <SelectItem value="email">
+                                <div className="flex items-center gap-2">
+                                  <Mail className="h-3 w-3" />
+                                  Email Contains
+                                </div>
+                              </SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -503,26 +676,33 @@ const CRMSegments = () => {
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
-                              {condition.field === 'persona' && (
-                                <SelectItem value="equals">is</SelectItem>
-                              )}
-                              {condition.field === 'tags' && (
-                                <SelectItem value="includes">includes</SelectItem>
-                              )}
-                              {condition.field === 'sms_opt_in' && (
-                                <SelectItem value="equals">is</SelectItem>
-                              )}
-                              {condition.field === 'lifetime_value' && (
-                                <>
-                                  <SelectItem value="greater_than">greater than</SelectItem>
-                                  <SelectItem value="less_than">less than</SelectItem>
-                                </>
-                              )}
-                              {condition.field === 'email' && (
-                                <SelectItem value="contains">contains</SelectItem>
-                              )}
-                            </SelectContent>
+                             <SelectContent>
+                               {condition.field === 'persona' && (
+                                 <SelectItem value="equals">is</SelectItem>
+                               )}
+                               {condition.field === 'tags' && (
+                                 <SelectItem value="includes">includes</SelectItem>
+                               )}
+                               {condition.field === 'sms_opt_in' && (
+                                 <SelectItem value="equals">is</SelectItem>
+                               )}
+                               {(condition.field === 'created_at' || condition.field === 'last_purchase_date') && (
+                                 <>
+                                   <SelectItem value="after">after</SelectItem>
+                                   <SelectItem value="before">before</SelectItem>
+                                 </>
+                               )}
+                               {condition.field === 'lifetime_value' && (
+                                 <>
+                                   <SelectItem value="greater_than">greater than</SelectItem>
+                                   <SelectItem value="less_than">less than</SelectItem>
+                                   <SelectItem value="equals">equals</SelectItem>
+                                 </>
+                               )}
+                               {condition.field === 'email' && (
+                                 <SelectItem value="contains">contains</SelectItem>
+                               )}
+                             </SelectContent>
                           </Select>
                         </div>
                         
@@ -560,6 +740,52 @@ const CRMSegments = () => {
                             </Select>
                           )}
                           
+                          {condition.field === 'tags' && (
+                            <Select
+                              value={condition.value as string}
+                              onValueChange={(value) => updateCondition(index, { value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select tag" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableTags.map(tag => (
+                                  <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+
+                          {(condition.field === 'created_at' || condition.field === 'last_purchase_date') && (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal",
+                                    !condition.value && "text-muted-foreground"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {condition.value instanceof Date ? (
+                                    format(condition.value, "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0">
+                                <Calendar
+                                  mode="single"
+                                  selected={condition.value instanceof Date ? condition.value : undefined}
+                                  onSelect={(date) => updateCondition(index, { value: date || new Date() })}
+                                  initialFocus
+                                  className="pointer-events-auto"
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          )}
+
                           {(condition.field === 'lifetime_value' || condition.field === 'email') && (
                             <Input
                               value={condition.value as string}
@@ -582,9 +808,102 @@ const CRMSegments = () => {
                       </Button>
                     </div>
                   ))}
-                </div>
+                 </div>
 
-                <div className="flex justify-end gap-3">
+                 {/* Live Segment Preview */}
+                 {formData.conditions.length > 0 && (
+                   <div className="space-y-4">
+                     <div className="flex items-center gap-2">
+                       <Eye className="h-4 w-4 text-primary" />
+                       <Label className="text-base font-semibold">Live Preview</Label>
+                     </div>
+                     
+                     <Card className="bg-garden-green/5 border-garden-green/20">
+                       <CardContent className="p-4">
+                         <div className="flex items-center justify-between mb-4">
+                           <div>
+                             <h3 className="font-semibold text-garden-green">
+                               {liveCount} customers match this segment
+                             </h3>
+                             <p className="text-sm text-muted-foreground">
+                               {formData.auto_update ? 
+                                 "Automatically includes future customers who match these conditions" :
+                                 "Static segment - will not update automatically"
+                               }
+                             </p>
+                           </div>
+                           <Badge variant="outline" className="bg-background">
+                             <Target className="h-3 w-3 mr-1" />
+                             {liveCount} matches
+                           </Badge>
+                         </div>
+
+                         {/* Customer Preview Cards */}
+                         {customerPreview.length > 0 && (
+                           <div className="space-y-3">
+                             <Label className="text-sm font-medium text-muted-foreground">
+                               Sample customers (first 5):
+                             </Label>
+                             <div className="space-y-2">
+                               {customerPreview.map((customer) => (
+                                 <div key={customer.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                                   <div className="flex items-center gap-3">
+                                     <div className="w-8 h-8 rounded-full bg-garden-green/10 flex items-center justify-center">
+                                       <Users className="h-4 w-4 text-garden-green" />
+                                     </div>
+                                     <div>
+                                       <div className="font-medium text-sm">
+                                         {customer.first_name} {customer.last_name}
+                                       </div>
+                                       <div className="text-xs text-muted-foreground">
+                                         {customer.email}
+                                       </div>
+                                     </div>
+                                   </div>
+                                   <div className="flex items-center gap-2">
+                                     <Badge variant="secondary" className="text-xs">
+                                       {customer.persona}
+                                     </Badge>
+                                     {customer.tags && customer.tags.length > 0 && (
+                                       <div className="flex gap-1">
+                                         {customer.tags.slice(0, 2).map((tag, idx) => (
+                                           <Badge key={idx} variant="outline" className="text-xs">
+                                             {tag}
+                                           </Badge>
+                                         ))}
+                                         {customer.tags.length > 2 && (
+                                           <Badge variant="outline" className="text-xs">
+                                             +{customer.tags.length - 2}
+                                           </Badge>
+                                         )}
+                                       </div>
+                                     )}
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
+                           </div>
+                         )}
+
+                         {previewLoading && (
+                           <div className="flex items-center justify-center py-4">
+                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-garden-green"></div>
+                             <span className="ml-2 text-sm text-muted-foreground">Loading preview...</span>
+                           </div>
+                         )}
+
+                         {customerPreview.length === 0 && !previewLoading && (
+                           <div className="text-center py-6 text-muted-foreground">
+                             <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                             <p className="text-sm">No customers match these conditions yet</p>
+                           </div>
+                         )}
+                       </CardContent>
+                     </Card>
+                   </div>
+                 )}
+
+                 <div className="flex justify-end gap-3">
                   <Button variant="outline" onClick={() => setShowSegmentForm(false)}>
                     Cancel
                   </Button>
