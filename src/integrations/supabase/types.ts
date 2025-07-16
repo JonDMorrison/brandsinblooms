@@ -493,6 +493,45 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_automation_logs: {
+        Row: {
+          automation_id: string
+          created_at: string | null
+          customer_id: string
+          error_message: string | null
+          id: string
+          message_type: string
+          sent_at: string | null
+          status: string
+          step_index: number
+          updated_at: string | null
+        }
+        Insert: {
+          automation_id: string
+          created_at?: string | null
+          customer_id: string
+          error_message?: string | null
+          id?: string
+          message_type: string
+          sent_at?: string | null
+          status?: string
+          step_index: number
+          updated_at?: string | null
+        }
+        Update: {
+          automation_id?: string
+          created_at?: string | null
+          customer_id?: string
+          error_message?: string | null
+          id?: string
+          message_type?: string
+          sent_at?: string | null
+          status?: string
+          step_index?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       crm_automations: {
         Row: {
           created_at: string | null
