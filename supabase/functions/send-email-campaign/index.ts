@@ -48,7 +48,7 @@ serve(async (req) => {
 
     console.log(`Starting email campaign send for campaign: ${campaignId}`);
 
-    // Get campaign details including sender configuration
+    // Get campaign details with company profile for sender configuration
     const { data: campaign, error: campaignError } = await supabase
       .from('crm_campaigns')
       .select(`
@@ -70,6 +70,18 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
+    }
+
+    // Get company profile for sender configuration
+    const { data: companyProfile, error: profileError } = await supabase
+      .from('company_profiles')
+      .select('email_auth_status, custom_sender_email, company_name')
+      .eq('user_id', campaign.user_id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching company profile:', profileError);
+      // Continue with fallback sender if profile not found
     }
 
     if (!campaign.segment_id) {
@@ -118,10 +130,42 @@ serve(async (req) => {
       );
     }
 
-    // Determine sender email and display name based on campaign configuration
-    const senderEmail = campaign.actual_sender_email || 'noreply@bloomsuite.email';
-    const senderDisplayName = campaign.sender_display_name || 'BloomSuite';
+    // Dynamically determine sender configuration based on domain verification
+    const isVerified = companyProfile?.email_auth_status === 'verified' && companyProfile?.custom_sender_email;
+    const companyName = companyProfile?.company_name || 'Your Garden Center';
+    
+    let senderEmail: string;
+    let senderDisplayName: string;
+    let deliveryMethod: string;
+    let usesVerifiedDomain: boolean;
+
+    if (isVerified) {
+      // Use verified custom domain
+      senderEmail = companyProfile.custom_sender_email;
+      senderDisplayName = companyName;
+      deliveryMethod = 'custom_domain';
+      usesVerifiedDomain = true;
+      console.log(`Using verified domain: ${senderEmail}`);
+    } else {
+      // Fallback to shared sender
+      senderEmail = 'noreply@bloomsuite.email';
+      senderDisplayName = `${companyName} via BloomSuite`;
+      deliveryMethod = 'shared_sender';
+      usesVerifiedDomain = false;
+      console.log(`Using shared sender fallback for: ${companyName}`);
+    }
+
     const fromAddress = `${senderDisplayName} <${senderEmail}>`;
+    
+    // Update campaign with sender configuration
+    await supabase
+      .from('crm_campaigns')
+      .update({
+        delivery_method: deliveryMethod,
+        sender_display_name: senderDisplayName,
+        actual_sender_email: senderEmail
+      })
+      .eq('id', campaignId);
 
     console.log(`Found ${customers.length} customers with valid emails`);
 
@@ -151,16 +195,54 @@ serve(async (req) => {
           emailSubject = emailSubject.replace(/\{firstName\}/g, customer.first_name);
         }
 
-        const emailResponse = await resend.emails.send({
+        // Prepare email payload
+        const emailPayload: any = {
           from: fromAddress,
           to: [customer.email],
           subject: emailSubject,
           html: emailContent,
-        });
+        };
 
-        if (emailResponse.id) {
+        // Add reply-to if custom sender is available
+        if (isVerified && companyProfile?.custom_sender_email) {
+          emailPayload.reply_to = companyProfile.custom_sender_email;
+        }
+
+        let emailResponse;
+        let fallbackUsed = false;
+
+        try {
+          // Attempt to send with configured sender
+          emailResponse = await resend.emails.send(emailPayload);
+        } catch (senderError: any) {
+          // If custom domain fails due to DNS issues, fallback to shared sender
+          if (isVerified && senderError.message?.includes('DNS')) {
+            console.warn(`DNS error with custom domain for ${customer.email}, falling back to shared sender`);
+            
+            emailPayload.from = `${companyName} via BloomSuite <noreply@bloomsuite.email>`;
+            fallbackUsed = true;
+            
+            try {
+              emailResponse = await resend.emails.send(emailPayload);
+            } catch (fallbackError) {
+              throw fallbackError;
+            }
+          } else {
+            throw senderError;
+          }
+        }
+
+        if (emailResponse?.id) {
           emailsSent++;
-          console.log(`Email sent successfully to ${customer.email}, ID: ${emailResponse.id}`);
+          const logMessage = fallbackUsed 
+            ? `Email sent with fallback sender to ${customer.email}, ID: ${emailResponse.id}`
+            : `Email sent successfully to ${customer.email}, ID: ${emailResponse.id}`;
+          console.log(logMessage);
+          
+          // Log delivery method used
+          if (fallbackUsed) {
+            console.log(`Campaign ${campaignId}: Fallback sender used due to DNS issues`);
+          }
         } else {
           failed++;
           console.error(`Failed to send email to ${customer.email}`);
@@ -169,9 +251,14 @@ serve(async (req) => {
         // Small delay to avoid rate limiting
         await new Promise(resolve => setTimeout(resolve, 100));
 
-      } catch (error) {
+      } catch (error: any) {
         failed++;
         console.error(`Error sending email to customer ${customer.id}:`, error);
+        
+        // Log specific error details for debugging
+        if (error.message?.includes('DNS')) {
+          console.error(`DNS configuration issue detected for campaign ${campaignId}`);
+        }
       }
     }
 
