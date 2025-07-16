@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, Plus, Search, Calendar, Users, Send } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { MessageSquare, Plus, Search, Eye, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -139,67 +139,68 @@ export default function CRMSMSCampaigns() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-6">
-          {filteredCampaigns.map((campaign) => (
-            <Card key={campaign.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-xl">{campaign.name}</CardTitle>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      {campaign.crm_segments && (
-                        <div className="flex items-center">
-                          <Users className="h-4 w-4 mr-1" />
-                          {campaign.crm_segments.name}
-                        </div>
-                      )}
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        Created {format(new Date(campaign.created_at), "MMM d, yyyy")}
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Campaign Name</TableHead>
+                  <TableHead>Segment</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Message Preview</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>SMS Sent</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredCampaigns.map((campaign) => (
+                  <TableRow key={campaign.id}>
+                    <TableCell className="font-medium">{campaign.name}</TableCell>
+                    <TableCell>
+                      {campaign.crm_segments?.name || "No segment"}
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(campaign.status)}
+                    </TableCell>
+                    <TableCell className="max-w-xs">
+                      <p className="truncate">
+                        {campaign.message.length > 100 
+                          ? `${campaign.message.substring(0, 100)}...` 
+                          : campaign.message}
+                      </p>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {campaign.sent_at 
+                        ? `Sent ${format(new Date(campaign.sent_at), "MMM d, yyyy")}`
+                        : campaign.scheduled_at 
+                        ? `Scheduled ${format(new Date(campaign.scheduled_at), "MMM d, yyyy")}`
+                        : `Created ${format(new Date(campaign.created_at), "MMM d, yyyy")}`
+                      }
+                    </TableCell>
+                    <TableCell>
+                      {campaign.metrics?.messages_sent || 0}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center space-x-2">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/crm/sms-campaigns/${campaign.id}`}>
+                            <Eye className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/crm/sms-campaigns/new?duplicate=${campaign.id}`}>
+                            <Copy className="h-4 w-4" />
+                          </Link>
+                        </Button>
                       </div>
-                    </div>
-                  </div>
-                  {getStatusBadge(campaign.status)}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Message Preview</label>
-                    <div className="mt-1 p-3 bg-muted rounded-lg">
-                      <p className="text-sm">{campaign.message}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      {campaign.scheduled_at && (
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-1" />
-                          Scheduled: {format(new Date(campaign.scheduled_at), "MMM d, yyyy 'at' h:mm a")}
-                        </div>
-                      )}
-                      {campaign.sent_at && (
-                        <div className="flex items-center">
-                          <Send className="h-4 w-4 mr-1" />
-                          Sent: {format(new Date(campaign.sent_at), "MMM d, yyyy 'at' h:mm a")}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {campaign.metrics && (
-                      <div className="flex items-center space-x-4 text-sm">
-                        <span>Sent: {campaign.metrics.messages_sent || 0}</span>
-                        <span>Delivered: {campaign.metrics.delivered || 0}</span>
-                        <span>Failed: {campaign.metrics.failed || 0}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
