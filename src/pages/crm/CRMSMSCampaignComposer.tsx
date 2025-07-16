@@ -36,6 +36,9 @@ export default function CRMSMSCampaignComposer() {
   const [showAiDialog, setShowAiDialog] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [smsEligibleCount, setSmsEligibleCount] = useState(0);
+  const [smsGenerating, setSmsGenerating] = useState(false);
+  const [showSmsAiDialog, setShowSmsAiDialog] = useState(false);
+  const [smsTopic, setSmsTopic] = useState("");
   
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -138,6 +141,45 @@ export default function CRMSMSCampaignComposer() {
       });
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const generateSmsWithAI = async () => {
+    if (!smsTopic.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter what this SMS is about",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSmsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-sms", {
+        body: { topic: smsTopic },
+      });
+
+      if (error) throw error;
+
+      if (data?.message) {
+        setMessage(data.message);
+        setShowSmsAiDialog(false);
+        setSmsTopic("");
+        toast({
+          title: "Success",
+          description: "SMS message generated successfully",
+        });
+      }
+    } catch (error) {
+      console.error("Error generating SMS:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate SMS message",
+        variant: "destructive",
+      });
+    } finally {
+      setSmsGenerating(false);
     }
   };
 
@@ -381,6 +423,19 @@ export default function CRMSMSCampaignComposer() {
                 </span>
               </div>
             </div>
+
+            {/* AI SMS Generation Button */}
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowSmsAiDialog(true)}
+                className="flex items-center space-x-2"
+              >
+                <span>✍️</span>
+                <span>Generate SMS with AI</span>
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -492,6 +547,38 @@ export default function CRMSMSCampaignComposer() {
               </Button>
               <Button onClick={generateAIContent} disabled={generating}>
                 {generating ? "Generating..." : "Generate Content"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* SMS AI Generation Dialog */}
+      <Dialog open={showSmsAiDialog} onOpenChange={setShowSmsAiDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Generate SMS with AI</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="smsTopic">What's this text about?</Label>
+              <Input
+                id="smsTopic"
+                value={smsTopic}
+                onChange={(e) => setSmsTopic(e.target.value)}
+                placeholder="e.g., sale, care tip, event..."
+                className="mt-1"
+              />
+              <p className="text-sm text-muted-foreground mt-2">
+                AI will create a short, engaging SMS message with emoji and call-to-action
+              </p>
+            </div>
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowSmsAiDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={generateSmsWithAI} disabled={smsGenerating}>
+                {smsGenerating ? "Generating..." : "Generate SMS"}
               </Button>
             </div>
           </div>
