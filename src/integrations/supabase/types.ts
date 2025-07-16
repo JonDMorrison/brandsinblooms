@@ -493,6 +493,45 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_automations: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          tenant_id: string | null
+          trigger_conditions: Json | null
+          trigger_type: string
+          updated_at: string | null
+          user_id: string | null
+          workflow_steps: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          tenant_id?: string | null
+          trigger_conditions?: Json | null
+          trigger_type: string
+          updated_at?: string | null
+          user_id?: string | null
+          workflow_steps?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          tenant_id?: string | null
+          trigger_conditions?: Json | null
+          trigger_type?: string
+          updated_at?: string | null
+          user_id?: string | null
+          workflow_steps?: Json | null
+        }
+        Relationships: []
+      }
       crm_campaigns: {
         Row: {
           content: string | null
