@@ -644,12 +644,16 @@ export type Database = {
           last_name: string | null
           last_purchase_date: string | null
           lifetime_value: number | null
+          order_history: Json | null
           persona: string | null
           phone: string | null
+          pos_source: string | null
+          product_tags: string[] | null
           sms_opt_in: boolean | null
           sms_opt_in_at: string | null
           tags: string[] | null
           tenant_id: string | null
+          total_spent: number | null
           updated_at: string | null
           user_id: string | null
         }
@@ -662,12 +666,16 @@ export type Database = {
           last_name?: string | null
           last_purchase_date?: string | null
           lifetime_value?: number | null
+          order_history?: Json | null
           persona?: string | null
           phone?: string | null
+          pos_source?: string | null
+          product_tags?: string[] | null
           sms_opt_in?: boolean | null
           sms_opt_in_at?: string | null
           tags?: string[] | null
           tenant_id?: string | null
+          total_spent?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -680,12 +688,16 @@ export type Database = {
           last_name?: string | null
           last_purchase_date?: string | null
           lifetime_value?: number | null
+          order_history?: Json | null
           persona?: string | null
           phone?: string | null
+          pos_source?: string | null
+          product_tags?: string[] | null
           sms_opt_in?: boolean | null
           sms_opt_in_at?: string | null
           tags?: string[] | null
           tenant_id?: string | null
+          total_spent?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -1232,6 +1244,51 @@ export type Database = {
           },
         ]
       }
+      integration_logs: {
+        Row: {
+          created_at: string
+          customers_imported: number | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          orders_imported: number | null
+          pos_source: string
+          status: string
+          sync_date: string
+          tenant_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customers_imported?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          orders_imported?: number | null
+          pos_source: string
+          status?: string
+          sync_date?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customers_imported?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          orders_imported?: number | null
+          pos_source?: string
+          status?: string
+          sync_date?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       master_campaign_templates: {
         Row: {
           content_ideas: string | null
@@ -1324,6 +1381,217 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      pos_connections: {
+        Row: {
+          created_at: string
+          credentials_encrypted: string | null
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          name: string
+          platform: string
+          settings: Json
+          sync_error: string | null
+          sync_status: string | null
+          tenant_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credentials_encrypted?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          name: string
+          platform: string
+          settings?: Json
+          sync_error?: string | null
+          sync_status?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credentials_encrypted?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          name?: string
+          platform?: string
+          settings?: Json
+          sync_error?: string | null
+          sync_status?: string | null
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      pos_customers: {
+        Row: {
+          address: Json | null
+          created_at: string
+          email: string | null
+          external_id: string
+          id: string
+          name: string | null
+          phone: string | null
+          pos_connection_id: string
+          pos_source: string
+          raw_data: Json | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          address?: Json | null
+          created_at?: string
+          email?: string | null
+          external_id: string
+          id?: string
+          name?: string | null
+          phone?: string | null
+          pos_connection_id: string
+          pos_source: string
+          raw_data?: Json | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          address?: Json | null
+          created_at?: string
+          email?: string | null
+          external_id?: string
+          id?: string
+          name?: string | null
+          phone?: string | null
+          pos_connection_id?: string
+          pos_source?: string
+          raw_data?: Json | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_customers_pos_connection_id_fkey"
+            columns: ["pos_connection_id"]
+            isOneToOne: false
+            referencedRelation: "pos_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_orders: {
+        Row: {
+          created_at: string
+          currency: string | null
+          external_customer_id: string | null
+          external_id: string
+          id: string
+          items: Json
+          order_date: string
+          pos_connection_id: string
+          pos_customer_id: string | null
+          raw_data: Json | null
+          status: string | null
+          total_amount: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string | null
+          external_customer_id?: string | null
+          external_id: string
+          id?: string
+          items?: Json
+          order_date: string
+          pos_connection_id: string
+          pos_customer_id?: string | null
+          raw_data?: Json | null
+          status?: string | null
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string | null
+          external_customer_id?: string | null
+          external_id?: string
+          id?: string
+          items?: Json
+          order_date?: string
+          pos_connection_id?: string
+          pos_customer_id?: string | null
+          raw_data?: Json | null
+          status?: string | null
+          total_amount?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_orders_pos_connection_id_fkey"
+            columns: ["pos_connection_id"]
+            isOneToOne: false
+            referencedRelation: "pos_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pos_orders_pos_customer_id_fkey"
+            columns: ["pos_customer_id"]
+            isOneToOne: false
+            referencedRelation: "pos_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pos_sync_logs: {
+        Row: {
+          completed_at: string | null
+          customers_synced: number | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          orders_synced: number | null
+          pos_connection_id: string
+          started_at: string
+          status: string
+          sync_type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          customers_synced?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          orders_synced?: number | null
+          pos_connection_id: string
+          started_at?: string
+          status?: string
+          sync_type: string
+        }
+        Update: {
+          completed_at?: string | null
+          customers_synced?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          orders_synced?: number | null
+          pos_connection_id?: string
+          started_at?: string
+          status?: string
+          sync_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pos_sync_logs_pos_connection_id_fkey"
+            columns: ["pos_connection_id"]
+            isOneToOne: false
+            referencedRelation: "pos_connections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       post_metrics: {
         Row: {
