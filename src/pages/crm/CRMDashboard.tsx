@@ -203,6 +203,12 @@ const CRMDashboard = () => {
             customerCount={customerStats.total}
             segmentCount={segmentCount}
             campaignCount={totalCampaigns}
+            onStepComplete={() => {
+              // Refresh data when a step is completed
+              fetchCustomerStats();
+              fetchSegmentCount();
+              fetchCampaignStats();
+            }}
           />
 
           {/* Empty State or Welcome */}

@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Users, Target, Mail, BarChart3, CheckCircle, Plus, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { QuickStartModal } from './QuickStartModal';
 
 interface QuickStartStepperProps {
   customerCount: number;
   segmentCount: number;
   campaignCount: number;
+  onStepComplete: () => void;
 }
 
 interface StepProps {
@@ -70,8 +72,10 @@ const Step: React.FC<StepProps> = ({ icon: Icon, title, description, isComplete,
 export const QuickStartStepper: React.FC<QuickStartStepperProps> = ({
   customerCount,
   segmentCount,
-  campaignCount
+  campaignCount,
+  onStepComplete
 }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const steps = [
     {
       icon: Users,
@@ -107,46 +111,69 @@ export const QuickStartStepper: React.FC<QuickStartStepperProps> = ({
   const activeStepIndex = currentStep === -1 ? steps.length - 1 : currentStep;
 
   return (
-    <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
-      <CardHeader>
-        <CardTitle className="flex items-center text-green-800">
-          🌱 Quick Start Guide
-        </CardTitle>
-        <p className="text-green-700">
-          Get your CRM up and running in 4 simple steps
-        </p>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col lg:flex-row justify-between items-center space-y-8 lg:space-y-0 lg:space-x-4">
-          {steps.map((step, index) => (
-            <Step
-              key={index}
-              icon={step.icon}
-              title={step.title}
-              description={step.description}
-              isComplete={step.isComplete}
-              isActive={index === activeStepIndex}
-              action={index === activeStepIndex ? step.action : undefined}
-            />
-          ))}
-        </div>
-        
-        {/* Progress indicator */}
-        <div className="mt-6 flex items-center justify-center space-x-2">
-          {steps.map((step, index) => (
-            <div 
-              key={index}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                step.isComplete 
-                  ? 'w-8 bg-green-500' 
-                  : index === activeStepIndex 
-                  ? 'w-6 bg-primary' 
-                  : 'w-2 bg-muted'
-              }`}
-            />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+    <>
+      <Card 
+        className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 cursor-pointer hover:shadow-md transition-shadow"
+        onClick={() => setIsModalOpen(true)}
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between text-green-800">
+            🌱 Quick Start Guide
+            <Button variant="ghost" size="sm" className="text-green-700 hover:text-green-800">
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </CardTitle>
+          <p className="text-green-700">
+            Get your CRM up and running in 4 simple steps
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col lg:flex-row justify-between items-center space-y-8 lg:space-y-0 lg:space-x-4">
+            {steps.map((step, index) => (
+              <Step
+                key={index}
+                icon={step.icon}
+                title={step.title}
+                description={step.description}
+                isComplete={step.isComplete}
+                isActive={index === activeStepIndex}
+                action={index === activeStepIndex ? step.action : undefined}
+              />
+            ))}
+          </div>
+          
+          {/* Progress indicator */}
+          <div className="mt-6 flex items-center justify-center space-x-2">
+            {steps.map((step, index) => (
+              <div 
+                key={index}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  step.isComplete 
+                    ? 'w-8 bg-green-500' 
+                    : index === activeStepIndex 
+                    ? 'w-6 bg-primary' 
+                    : 'w-2 bg-muted'
+                }`}
+              />
+            ))}
+          </div>
+          
+          <div className="mt-4 text-center">
+            <p className="text-sm text-green-600 font-medium">
+              Click anywhere to open the setup wizard
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <QuickStartModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        customerCount={customerCount}
+        segmentCount={segmentCount}
+        campaignCount={campaignCount}
+        onStepComplete={onStepComplete}
+      />
+    </>
   );
 };
