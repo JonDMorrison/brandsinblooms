@@ -8,6 +8,15 @@ interface Subscription {
   max_posts_per_month: number;
   max_connections: number;
   end_date: string;
+  crm_enabled?: boolean;
+  sms_enabled?: boolean;
+  contacts_limit?: number;
+  email_quota?: number;
+  sms_quota?: number;
+  email_usage?: number;
+  sms_usage?: number;
+  email_overage_price?: number;
+  sms_overage_price?: number;
 }
 
 export const useSubscription = () => {
@@ -25,7 +34,7 @@ export const useSubscription = () => {
       try {
         const { data, error } = await supabase
           .from('subscriptions')
-          .select('plan, max_posts_per_month, max_connections, end_date, created_at')
+          .select('plan, max_posts_per_month, max_connections, end_date, created_at, crm_enabled, sms_enabled, contacts_limit, email_quota, sms_quota, email_usage, sms_usage, email_overage_price, sms_overage_price')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false });
 

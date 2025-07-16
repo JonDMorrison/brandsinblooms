@@ -1613,14 +1613,23 @@ export type Database = {
           billing_interval:
             | Database["public"]["Enums"]["billing_interval"]
             | null
+          contacts_limit: number | null
           created_at: string
+          crm_enabled: boolean | null
           deleted_at: string | null
+          email_overage_price: number | null
+          email_quota: number | null
+          email_usage: number | null
           end_date: string
           id: string
           max_connections: number | null
           max_posts_per_month: number | null
           overage_token_price: number | null
           plan: Database["public"]["Enums"]["subscription_plan"]
+          sms_enabled: boolean | null
+          sms_overage_price: number | null
+          sms_quota: number | null
+          sms_usage: number | null
           start_date: string
           stripe_subscription_item_id: string | null
           updated_at: string
@@ -1631,14 +1640,23 @@ export type Database = {
           billing_interval?:
             | Database["public"]["Enums"]["billing_interval"]
             | null
+          contacts_limit?: number | null
           created_at?: string
+          crm_enabled?: boolean | null
           deleted_at?: string | null
+          email_overage_price?: number | null
+          email_quota?: number | null
+          email_usage?: number | null
           end_date: string
           id?: string
           max_connections?: number | null
           max_posts_per_month?: number | null
           overage_token_price?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
+          sms_enabled?: boolean | null
+          sms_overage_price?: number | null
+          sms_quota?: number | null
+          sms_usage?: number | null
           start_date?: string
           stripe_subscription_item_id?: string | null
           updated_at?: string
@@ -1649,14 +1667,23 @@ export type Database = {
           billing_interval?:
             | Database["public"]["Enums"]["billing_interval"]
             | null
+          contacts_limit?: number | null
           created_at?: string
+          crm_enabled?: boolean | null
           deleted_at?: string | null
+          email_overage_price?: number | null
+          email_quota?: number | null
+          email_usage?: number | null
           end_date?: string
           id?: string
           max_connections?: number | null
           max_posts_per_month?: number | null
           overage_token_price?: number | null
           plan?: Database["public"]["Enums"]["subscription_plan"]
+          sms_enabled?: boolean | null
+          sms_overage_price?: number | null
+          sms_quota?: number | null
+          sms_usage?: number | null
           start_date?: string
           stripe_subscription_item_id?: string | null
           updated_at?: string

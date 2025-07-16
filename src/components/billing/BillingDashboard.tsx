@@ -3,6 +3,7 @@ import { SubscriptionCard } from './SubscriptionCard';
 import { UsageAnalytics } from './UsageAnalytics';
 import { PaymentMethods } from './PaymentMethods';
 import { BillingHistory } from './BillingHistory';
+import { AddOnSection } from './AddOnSection';
 
 export const BillingDashboard = () => {
   return (
@@ -17,6 +18,8 @@ export const BillingDashboard = () => {
         </div>
       </div>
 
+      {/* Add-Ons Section */}
+      <AddOnSection />
 
       {/* History Section */}
       <BillingHistory />

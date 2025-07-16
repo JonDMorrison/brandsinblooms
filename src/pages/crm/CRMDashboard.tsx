@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Mail, Target, TrendingUp, MessageSquare, AlertCircle, BarChart3, Eye, MousePointerClick, UserMinus, Smartphone, CheckCircle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Users, Mail, Target, TrendingUp, MessageSquare, AlertCircle, BarChart3, Eye, MousePointerClick, UserMinus, Smartphone, CheckCircle, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Link } from 'react-router-dom';
 
 const CRMDashboard = () => {
+  const { subscription } = useSubscription();
   const [customerStats, setCustomerStats] = useState({
     total: 0,
     smsOptedIn: 0,
@@ -259,6 +262,79 @@ const CRMDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Usage Tracking */}
+        {(subscription?.crm_enabled || subscription?.sms_enabled) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Usage</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Track your email and SMS quota usage this month
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {subscription?.crm_enabled && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Mail className="h-4 w-4 text-blue-600" />
+                        <span className="font-medium">Emails Used</span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {subscription.email_usage || 0} / {subscription.email_quota || 1000}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100} 
+                      className="h-3"
+                      indicatorClassName={
+                        ((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100 > 80 
+                          ? "bg-orange-500" 
+                          : "bg-blue-500"
+                      }
+                    />
+                    {((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100 > 80 && (
+                      <div className="flex items-center space-x-2 text-orange-600 text-sm">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>You're nearing your email limit. Add more messages or upgrade your plan.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {subscription?.sms_enabled && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <MessageSquare className="h-4 w-4 text-green-600" />
+                        <span className="font-medium">SMS Sent</span>
+                      </div>
+                      <span className="text-sm font-medium">
+                        {subscription.sms_usage || 0} / {subscription.sms_quota || 250}
+                      </span>
+                    </div>
+                    <Progress 
+                      value={((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100} 
+                      className="h-3"
+                      indicatorClassName={
+                        ((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100 > 80 
+                          ? "bg-orange-500" 
+                          : "bg-green-500"
+                      }
+                    />
+                    {((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100 > 80 && (
+                      <div className="flex items-center space-x-2 text-orange-600 text-sm">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>You're nearing your SMS limit. Add more messages or upgrade your plan.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Performance Summary */}
         <Card>
