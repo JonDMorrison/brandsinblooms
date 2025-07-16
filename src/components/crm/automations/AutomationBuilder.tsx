@@ -173,8 +173,9 @@ export function AutomationBuilder({ automation, segments, onClose, onSave }: Aut
                 <SelectContent>
                   <SelectItem value="signup">New Customer Signup</SelectItem>
                   <SelectItem value="tag_added">Tag Added to Customer</SelectItem>
-                  <SelectItem value="seasonal">Seasonal Campaign</SelectItem>
-                  <SelectItem value="purchase">After Purchase</SelectItem>
+                   <SelectItem value="seasonal">Seasonal Campaign</SelectItem>
+                   <SelectItem value="purchase">After Purchase</SelectItem>
+                   <SelectItem value="persona_assigned">Persona Assigned</SelectItem>
                 </SelectContent>
               </Select>
             </div>

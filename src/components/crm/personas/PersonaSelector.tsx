@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PersonaLibrary } from "./PersonaLibrary";
-import { User, Edit3 } from "lucide-react";
+import { PersonaTooltip } from "./PersonaTooltip";
+import { User, Edit3, HelpCircle } from "lucide-react";
 
 interface Persona {
   id: string;

@@ -107,6 +107,11 @@ const AppSidebar: React.FC = () => {
           icon: Target,
         },
         {
+          title: "Persona Analytics",
+          url: "/crm/personas/analytics",
+          icon: BarChart3,
+        },
+        {
           title: "Campaigns",
           url: "/crm/campaigns",
           icon: Mail,

@@ -54,6 +54,7 @@ const CRMSMSCampaignComposer = lazy(() => import("./pages/crm/CRMSMSCampaignComp
 const CRMSMSCampaignDetail = lazy(() => import("./pages/crm/CRMSMSCampaignDetail"));
 const Automations = lazy(() => import("./pages/crm/Automations"));
 const CRMAutomationBuilder = lazy(() => import("./pages/crm/CRMAutomationBuilder"));
+const PersonaAnalytics = lazy(() => import("./pages/crm/PersonaAnalytics"));
 const POSIntegrations = lazy(() => import("./pages/crm/POSIntegrations"));
 const CustomerProfile = lazy(() => import("./pages/crm/CustomerProfile"));
 const CampaignDetails = lazy(() => import("./pages/crm/CampaignDetails"));
@@ -295,13 +296,20 @@ const App = () => {
                   </LazyLoadWrapper>
                 </AuthenticatedLayout>
               } />
-              <Route path="/crm/automations/new" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMAutomationBuilder />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
+               <Route path="/crm/automations/new" element={
+                 <AuthenticatedLayout>
+                   <LazyLoadWrapper>
+                     <CRMAutomationBuilder />
+                   </LazyLoadWrapper>
+                 </AuthenticatedLayout>
+               } />
+               <Route path="/crm/personas/analytics" element={
+                 <AuthenticatedLayout>
+                   <LazyLoadWrapper>
+                     <PersonaAnalytics />
+                   </LazyLoadWrapper>
+                 </AuthenticatedLayout>
+               } />
               <Route path="/crm/settings/integrations" element={
                 <AuthenticatedLayout>
                   <LazyLoadWrapper>

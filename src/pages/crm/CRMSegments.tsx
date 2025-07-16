@@ -14,6 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import ConditionBuilder from '@/components/crm/segments/ConditionBuilder';
+import { PersonaSegmentTemplates } from '@/components/crm/segments/PersonaSegmentTemplates';
 import { 
   Plus, 
   Target, 
@@ -65,6 +66,7 @@ const CRMSegments = () => {
   const [liveCount, setLiveCount] = useState<number>(0);
   const [customerPreview, setCustomerPreview] = useState<CustomerPreview[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [showPersonaTemplates, setShowPersonaTemplates] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -74,19 +76,22 @@ const CRMSegments = () => {
     conditions: [] as SegmentCondition[]
   });
 
+  const [personas, setPersonas] = useState<any[]>([]);
+  const [selectedPersona, setSelectedPersona] = useState<string>('');
+
   const prebuiltSegments = [
     {
       name: "New Garden Enthusiasts",
-      description: "Customers who joined in the last 30 days with 'Newbie' persona",
+      description: "Customers who joined in the last 30 days",
       count: 0,
-      conditions: "Persona = Newbie AND Created Date < 30 days",
+      conditions: "Created Date < 30 days",
       color: "bg-blue-100 text-blue-800"
     },
     {
-      name: "High Value Regulars",
-      description: "Regular customers with lifetime value over $500",
+      name: "High Value Customers",
+      description: "Customers with lifetime value over $500",
       count: 0,
-      conditions: "Persona = Regular AND Lifetime Value > $500",
+      conditions: "Lifetime Value > $500",
       color: "bg-purple-100 text-purple-800"
     }
   ];
@@ -95,8 +100,23 @@ const CRMSegments = () => {
     if (user) {
       loadSegments();
       loadAvailableTags();
+      loadPersonas();
     }
   }, [user]);
+
+  const loadPersonas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('personas')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setPersonas(data || []);
+    } catch (error) {
+      console.error('Error loading personas:', error);
+    }
+  };
 
   const loadSegments = async () => {
     try {
@@ -186,6 +206,9 @@ const CRMSegments = () => {
           case 'persona':
             query = query.eq('persona', condition.value as string);
             break;
+          case 'persona_id':
+            query = query.eq('persona_id', condition.value as string);
+            break;
           case 'sms_opt_in':
             query = query.eq('sms_opt_in', condition.value === 'true');
             break;
@@ -264,6 +287,9 @@ const CRMSegments = () => {
         switch (condition.field) {
           case 'persona':
             query = query.eq('persona', condition.value as string);
+            break;
+          case 'persona_id':
+            query = query.eq('persona_id', condition.value as string);
             break;
           case 'sms_opt_in':
             query = query.eq('sms_opt_in', condition.value === 'true');
@@ -492,6 +518,23 @@ const CRMSegments = () => {
       ...prev,
       conditions: prev.conditions.filter((_, i) => i !== index)
     }));
+  };
+
+  const handlePersonaSelect = (persona: any) => {
+    setFormData({
+      name: `${persona.name} Customers`,
+      description: `Customers who match the ${persona.name} persona profile`,
+      auto_update: true,
+      conditions: [
+        {
+          field: 'persona_id',
+          operator: 'equals',
+          value: persona.id,
+          logic: 'AND' as const
+        }
+      ]
+    });
+    setShowSegmentForm(true);
   };
 
   return (

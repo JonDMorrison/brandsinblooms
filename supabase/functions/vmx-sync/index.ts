@@ -149,7 +149,7 @@ serve(async (req) => {
       for (const customer of normalizedData.customers) {
         if (!customer.email) continue // Skip rows without email
         
-        const { error } = await supabase
+        const { data: insertedCustomer, error } = await supabase
           .from('crm_customers')
           .upsert({
             email: customer.email,
@@ -162,8 +162,23 @@ serve(async (req) => {
           }, {
             onConflict: 'email,user_id'
           })
+          .select()
 
-        if (!error) customersImported++
+        if (!error) {
+          customersImported++
+          
+          // Trigger persona auto-assignment for new customers
+          if (insertedCustomer && insertedCustomer.length > 0) {
+            try {
+              await supabase.functions.invoke('persona-auto-assignment', {
+                body: { customer_id: insertedCustomer[0].id }
+              })
+            } catch (personaError) {
+              console.log('Persona auto-assignment failed:', personaError)
+              // Don't fail the sync if persona assignment fails
+            }
+          }
+        }
       }
 
       // Import orders
