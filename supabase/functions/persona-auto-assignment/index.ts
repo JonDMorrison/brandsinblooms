@@ -139,7 +139,9 @@ serve(async (req) => {
         .from('crm_customers')
         .update({ 
           persona_id: bestMatch.persona_id,
-          persona: personas.find(p => p.id === bestMatch.persona_id)?.name || null
+          persona: personas.find(p => p.id === bestMatch.persona_id)?.name || null,
+          persona_confidence_score: bestMatch.confidence / 100,
+          persona_assignment_method: 'pos_auto'
         })
         .eq('id', customer_id)
         .eq('user_id', user.id)

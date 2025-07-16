@@ -646,6 +646,8 @@ export type Database = {
           lifetime_value: number | null
           order_history: Json | null
           persona: string | null
+          persona_assignment_method: string | null
+          persona_confidence_score: number | null
           persona_id: string | null
           phone: string | null
           pos_source: string | null
@@ -669,6 +671,8 @@ export type Database = {
           lifetime_value?: number | null
           order_history?: Json | null
           persona?: string | null
+          persona_assignment_method?: string | null
+          persona_confidence_score?: number | null
           persona_id?: string | null
           phone?: string | null
           pos_source?: string | null
@@ -692,6 +696,8 @@ export type Database = {
           lifetime_value?: number | null
           order_history?: Json | null
           persona?: string | null
+          persona_assignment_method?: string | null
+          persona_confidence_score?: number | null
           persona_id?: string | null
           phone?: string | null
           pos_source?: string | null

@@ -21,7 +21,8 @@ import {
   Tag,
   Target,
   User,
-  Edit
+  Edit,
+  Sparkles
 } from 'lucide-react';
 
 interface Customer {
@@ -36,6 +37,8 @@ interface Customer {
   tags: string[];
   persona: string;
   persona_id: string;
+  persona_confidence_score?: number;
+  persona_assignment_method?: string;
   sms_opt_in: boolean;
   created_at: string;
   order_history: any[];
@@ -63,6 +66,7 @@ const CustomerProfile = () => {
   const [personaData, setPersonaData] = useState<PersonaData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
+  const [autoAssigning, setAutoAssigning] = useState(false);
 
   useEffect(() => {
     if (user && id) {
@@ -141,6 +145,61 @@ const CustomerProfile = () => {
     }
   };
 
+  const handleAutoAssignPersona = async () => {
+    if (!customer || !user) return;
+
+    setAutoAssigning(true);
+    try {
+      // Get tenant_id from users table
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+
+      const { data, error } = await supabase.functions.invoke('persona-auto-assignment', {
+        body: {
+          customer_id: customer.id,
+          order_history: customer.order_history || [],
+          tenant_id: userData?.tenant_id
+        }
+      });
+
+      if (error) {
+        console.error('Error auto-assigning persona:', error);
+        toast({
+          title: "Error",
+          description: "Failed to auto-assign persona",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data.success && data.persona) {
+        toast({
+          title: "Persona Assigned",
+          description: `Auto-assigned: ${data.persona.name} 🌿`,
+        });
+        // Reload customer data to show the new persona
+        loadCustomer();
+      } else {
+        toast({
+          title: "No Match Found",
+          description: "No suitable persona match found based on purchase history",
+        });
+      }
+    } catch (error) {
+      console.error('Error auto-assigning persona:', error);
+      toast({
+        title: "Error",
+        description: "Failed to auto-assign persona",
+        variant: "destructive",
+      });
+    } finally {
+      setAutoAssigning(false);
+    }
+  };
+
   const handleCreateSegmentFromPersona = () => {
     if (personaData) {
       navigate(`/crm/segments?persona=${personaData.id}&name=${encodeURIComponent(personaData.name)}`);
@@ -209,6 +268,8 @@ const CustomerProfile = () => {
               <PersonaSummaryCard 
                 persona={personaData}
                 onAssignClick={() => setIsPersonaModalOpen(true)}
+                confidenceScore={customer?.persona_confidence_score}
+                assignmentMethod={customer?.persona_assignment_method}
               />
             ) : (
               <PersonaSummaryCard 
@@ -335,6 +396,15 @@ const CustomerProfile = () => {
                 <Button variant="outline" className="w-full">
                   <Calendar className="h-4 w-4 mr-2" />
                   Schedule Follow-up
+                </Button>
+                <Button 
+                  onClick={handleAutoAssignPersona}
+                  className="w-full"
+                  variant="secondary"
+                  disabled={autoAssigning}
+                >
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {autoAssigning ? 'Auto-Assigning...' : 'Auto-Assign Persona'}
                 </Button>
                 <Button variant="outline" className="w-full">
                   <Tag className="h-4 w-4 mr-2" />

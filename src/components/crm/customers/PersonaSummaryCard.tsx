@@ -20,9 +20,11 @@ interface PersonaSummaryCardProps {
   persona?: Persona;
   onAssignClick: () => void;
   loading?: boolean;
+  confidenceScore?: number;
+  assignmentMethod?: string;
 }
 
-export const PersonaSummaryCard = ({ persona, onAssignClick, loading }: PersonaSummaryCardProps) => {
+export const PersonaSummaryCard = ({ persona, onAssignClick, loading, confidenceScore, assignmentMethod }: PersonaSummaryCardProps) => {
   if (!persona) {
     return (
       <Card className="border-dashed">
@@ -47,22 +49,35 @@ export const PersonaSummaryCard = ({ persona, onAssignClick, loading }: PersonaS
           <CardTitle className="flex items-center gap-2">
             <span className="text-2xl">{persona.icon}</span>
             <div>
-              <span className="text-lg">{persona.name}</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Info className="h-4 w-4 text-muted-foreground ml-2 inline" />
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p>This persona helps tailor messaging based on the customer's gardening interests and experience level.</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </CardTitle>
-          <Button variant="outline" size="sm" onClick={onAssignClick} disabled={loading}>
-            Change
-          </Button>
+            <span className="text-lg">{persona.name}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Info className="h-4 w-4 text-muted-foreground ml-2 inline" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <p>This persona helps tailor messaging based on the customer's gardening interests and experience level.</p>
+                  {assignmentMethod === 'pos_auto' && (
+                    <p className="mt-1 text-xs">Auto-assigned via POS purchase pattern</p>
+                  )}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            {assignmentMethod === 'pos_auto' && (
+              <Badge variant="outline" className="ml-2 text-xs">
+                Auto-assigned
+              </Badge>
+            )}
+            {confidenceScore && confidenceScore < 1.0 && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {Math.round(confidenceScore * 100)}% confidence
+              </Badge>
+            )}
+          </div>
+        </CardTitle>
+        <Button variant="outline" size="sm" onClick={onAssignClick} disabled={loading}>
+          Change
+        </Button>
         </div>
       </CardHeader>
 
