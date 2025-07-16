@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { format } from 'date-fns';
 import { 
   Plus, 
   Mail, 
@@ -13,11 +19,89 @@ import {
   MousePointerClick,
   UserMinus,
   Sparkles,
-  Clock
+  Clock,
+  Copy,
+  MoreHorizontal
 } from 'lucide-react';
 
+interface Campaign {
+  id: string;
+  name: string;
+  subject_line: string;
+  status: string;
+  scheduled_at: string | null;
+  sent_at: string | null;
+  created_at: string;
+  segment_id: string;
+  metrics: any;
+  crm_segments?: {
+    name: string;
+  };
+}
+
 const CRMCampaigns = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('all');
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadCampaigns();
+    }
+  }, [user]);
+
+  const loadCampaigns = async () => {
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user?.id)
+        .single();
+
+      if (userData?.tenant_id) {
+        const { data, error } = await supabase
+          .from('crm_campaigns')
+          .select(`
+            *,
+            crm_segments(name)
+          `)
+          .eq('tenant_id', userData.tenant_id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setCampaigns(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading campaigns:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load campaigns",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredCampaigns = campaigns.filter(campaign => {
+    if (activeTab === 'all') return true;
+    return campaign.status === activeTab;
+  });
+
+  const getStatusBadge = (status: string) => {
+    const variants = {
+      draft: 'secondary',
+      scheduled: 'default',
+      sent: 'outline'
+    } as const;
+    
+    return <Badge variant={variants[status as keyof typeof variants] || 'secondary'}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </Badge>;
+  };
 
   const campaignTemplates = [
     {
@@ -63,7 +147,7 @@ const CRMCampaigns = () => {
               Send targeted emails to nurture your garden center customers
             </p>
           </div>
-          <Button>
+          <Button onClick={() => navigate('/crm/campaigns/new')}>
             <Plus className="h-4 w-4 mr-2" />
             Create Campaign
           </Button>
@@ -173,24 +257,94 @@ const CRMCampaigns = () => {
               </TabsList>
               
               <TabsContent value={activeTab} className="mt-6">
-                {/* Empty State */}
-                <div className="text-center py-12">
-                  <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No campaigns yet</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Create your first email campaign using our garden center templates
-                  </p>
-                  <div className="flex justify-center gap-2">
-                    <Button variant="outline">
-                      <Sparkles className="h-4 w-4 mr-2" />
-                      Browse Templates
-                    </Button>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Campaign
-                    </Button>
+                {loading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-muted-foreground mt-2">Loading campaigns...</p>
                   </div>
-                </div>
+                ) : filteredCampaigns.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">
+                      {activeTab === 'all' ? 'No campaigns yet' : `No ${activeTab} campaigns`}
+                    </h3>
+                    <p className="text-muted-foreground mb-4">
+                      Create your first email campaign using our garden center templates
+                    </p>
+                    <div className="flex justify-center gap-2">
+                      <Button variant="outline">
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Browse Templates
+                      </Button>
+                      <Button onClick={() => navigate('/crm/campaigns/new')}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Campaign
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Campaign</TableHead>
+                        <TableHead>Segment</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Scheduled</TableHead>
+                        <TableHead>Sent</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCampaigns.map((campaign) => (
+                        <TableRow key={campaign.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{campaign.name}</div>
+                              <div className="text-sm text-muted-foreground">{campaign.subject_line}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {campaign.crm_segments?.name || 'No segment'}
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(campaign.status)}
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(campaign.created_at), 'MMM d, yyyy')}
+                          </TableCell>
+                          <TableCell>
+                            {campaign.scheduled_at ? (
+                              format(new Date(campaign.scheduled_at), 'MMM d, h:mm a')
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {campaign.sent_at ? (
+                              format(new Date(campaign.sent_at), 'MMM d, h:mm a')
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center gap-1 justify-end">
+                              <Button variant="ghost" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

@@ -47,6 +47,7 @@ const CRMDashboard = lazy(() => import("./pages/crm/CRMDashboard"));
 const CRMCustomers = lazy(() => import("./pages/crm/CRMCustomers"));
 const CRMSegments = lazy(() => import("./pages/crm/CRMSegments"));
 const CRMCampaigns = lazy(() => import("./pages/crm/CRMCampaigns"));
+const CRMCampaignComposer = lazy(() => import("./pages/crm/CRMCampaignComposer"));
 
 // Lazy load test components
 const SocialMediaIntegrationTest = lazy(() => import('./components/test/SocialMediaIntegrationTest').then(module => ({ default: module.SocialMediaIntegrationTest })));
@@ -232,6 +233,13 @@ const App = () => {
                 <AuthenticatedLayout>
                   <LazyLoadWrapper>
                     <CRMCampaigns />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm/campaigns/new" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CRMCampaignComposer />
                   </LazyLoadWrapper>
                 </AuthenticatedLayout>
               } />
