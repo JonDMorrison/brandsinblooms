@@ -285,19 +285,38 @@ const CRMDashboard = () => {
                         {subscription.email_usage || 0} / {subscription.email_quota || 1000}
                       </span>
                     </div>
-                    <Progress 
+                     <Progress 
                       value={((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100} 
                       className="h-3"
                       indicatorClassName={
-                        ((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100 > 80 
-                          ? "bg-orange-500" 
-                          : "bg-blue-500"
+                        ((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100 >= 90
+                          ? "bg-red-500" 
+                          : ((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100 >= 70
+                          ? "bg-yellow-500"
+                          : "bg-green-500"
                       }
                     />
-                    {((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100 > 80 && (
-                      <div className="flex items-center space-x-2 text-orange-600 text-sm">
-                        <AlertTriangle className="h-4 w-4" />
-                        <span>You're nearing your email limit. Add more messages or upgrade your plan.</span>
+                     {((subscription.email_usage || 0) / (subscription.email_quota || 1000)) * 100 >= 90 && (
+                      <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                        <div className="flex items-center space-x-2 text-red-700 mb-3">
+                          <AlertTriangle className="h-5 w-5" />
+                          <span className="font-medium">
+                            {(subscription.email_usage || 0) >= (subscription.email_quota || 1000) 
+                              ? "You've reached your monthly email limit" 
+                              : "You're close to your monthly email limit"}
+                          </span>
+                        </div>
+                        <p className="text-red-600 text-sm mb-3">
+                          {(subscription.email_usage || 0) >= (subscription.email_quota || 1000)
+                            ? "Please upgrade to continue sending emails."
+                            : "You've connected with hundreds of gardeners this month! Upgrade your quota or pause sending."}
+                        </p>
+                        <div className="flex space-x-3">
+                          <Button size="sm" asChild>
+                            <Link to="/settings/billing">Upgrade Plan</Link>
+                          </Button>
+                          <Button variant="outline" size="sm">Contact Support</Button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -314,19 +333,38 @@ const CRMDashboard = () => {
                         {subscription.sms_usage || 0} / {subscription.sms_quota || 250}
                       </span>
                     </div>
-                    <Progress 
+                     <Progress 
                       value={((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100} 
                       className="h-3"
                       indicatorClassName={
-                        ((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100 > 80 
-                          ? "bg-orange-500" 
+                        ((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100 >= 90
+                          ? "bg-red-500" 
+                          : ((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100 >= 70
+                          ? "bg-yellow-500"
                           : "bg-green-500"
                       }
                     />
-                    {((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100 > 80 && (
-                      <div className="flex items-center space-x-2 text-orange-600 text-sm">
-                        <AlertTriangle className="h-4 w-4" />
-                        <span>You're nearing your SMS limit. Add more messages or upgrade your plan.</span>
+                     {((subscription.sms_usage || 0) / (subscription.sms_quota || 250)) * 100 >= 90 && (
+                      <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+                        <div className="flex items-center space-x-2 text-red-700 mb-3">
+                          <AlertTriangle className="h-5 w-5" />
+                          <span className="font-medium">
+                            {(subscription.sms_usage || 0) >= (subscription.sms_quota || 250) 
+                              ? "You've reached your monthly SMS limit" 
+                              : "You're close to your monthly SMS limit"}
+                          </span>
+                        </div>
+                        <p className="text-red-600 text-sm mb-3">
+                          {(subscription.sms_usage || 0) >= (subscription.sms_quota || 250)
+                            ? "Please upgrade to continue sending SMS messages."
+                            : "You've reached out to so many customers this month! Upgrade your quota or pause sending."}
+                        </p>
+                        <div className="flex space-x-3">
+                          <Button size="sm" asChild>
+                            <Link to="/settings/billing">Upgrade Plan</Link>
+                          </Button>
+                          <Button variant="outline" size="sm">Contact Support</Button>
+                        </div>
                       </div>
                     )}
                   </div>
