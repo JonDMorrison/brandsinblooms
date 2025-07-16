@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Edit2, Save, Mail, MessageSquare, Package, Calendar, DollarSign, Tags, User } from "lucide-react";
-import { PersonaSelector } from "@/components/crm/personas/PersonaSelector";
+import { PersonaModal } from "@/components/crm/personas/PersonaModal";
+import { PersonaSummaryCard } from "@/components/crm/customers/PersonaSummaryCard";
 
 interface Customer {
   id: string;
@@ -45,6 +46,7 @@ const CustomerProfile = () => {
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editedCustomer, setEditedCustomer] = useState<Partial<Customer>>({});
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
 
   const { data: customer, isLoading } = useQuery({
     queryKey: ['customer', id],
@@ -307,13 +309,10 @@ const CustomerProfile = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <PersonaSelector
-                value={customer.persona_id}
-                onChange={(personaId) => {
-                  updateCustomerMutation.mutate({ persona_id: personaId });
-                }}
-                customerId={customer.id}
-                showFullCard={true}
+              <PersonaSummaryCard
+                persona={customer.personas}
+                onAssignClick={() => setIsPersonaModalOpen(true)}
+                loading={updateCustomerMutation.isPending}
               />
             </CardContent>
           </Card>
@@ -351,6 +350,18 @@ const CustomerProfile = () => {
           </Card>
         </div>
       </div>
+
+      {/* Persona Modal */}
+      <PersonaModal
+        isOpen={isPersonaModalOpen}
+        onClose={() => {
+          setIsPersonaModalOpen(false);
+          queryClient.invalidateQueries({ queryKey: ['customer', id] });
+        }}
+        customerId={customer.id}
+        currentPersonaId={customer.persona_id}
+        mode="assign"
+      />
     </div>
   );
 };

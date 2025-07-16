@@ -15,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import ConditionBuilder from '@/components/crm/segments/ConditionBuilder';
 import { PersonaSegmentTemplates } from '@/components/crm/segments/PersonaSegmentTemplates';
+import { PersonaModal } from '@/components/crm/personas/PersonaModal';
 import { 
   Plus, 
   Target, 
@@ -67,6 +68,7 @@ const CRMSegments = () => {
   const [customerPreview, setCustomerPreview] = useState<CustomerPreview[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showPersonaTemplates, setShowPersonaTemplates] = useState(false);
+  const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -550,176 +552,184 @@ const CRMSegments = () => {
               Create targeted customer groups for personalized campaigns
             </p>
           </div>
-          <Dialog open={showSegmentForm} onOpenChange={setShowSegmentForm}>
-            <DialogTrigger asChild>
-              <Button onClick={() => {
-                setEditingSegment(null);
-                setFormData({
-                  name: '',
-                  description: '',
-                  auto_update: true,
-                  conditions: []
-                });
-              }}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create New Segment
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingSegment ? 'Edit Segment' : 'Create New Segment'}
-                </DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Segment Name</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="e.g., High Value Spring Shoppers"
-                    />
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsPersonaModalOpen(true)}
+            >
+              Start with Persona
+            </Button>
+            <Dialog open={showSegmentForm} onOpenChange={setShowSegmentForm}>
+              <DialogTrigger asChild>
+                <Button onClick={() => {
+                  setEditingSegment(null);
+                  setFormData({
+                    name: '',
+                    description: '',
+                    auto_update: true,
+                    conditions: []
+                  });
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create New Segment
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingSegment ? 'Edit Segment' : 'Create New Segment'}
+                  </DialogTitle>
+                </DialogHeader>
+                
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Segment Name</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="e.g., High Value Spring Shoppers"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description (optional)</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Describe what this segment represents..."
+                        rows={2}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="auto_update"
+                        checked={formData.auto_update}
+                        onCheckedChange={(checked) => 
+                          setFormData(prev => ({ ...prev, auto_update: checked as boolean }))
+                        }
+                      />
+                      <Label htmlFor="auto_update">Auto-Update (recommended)</Label>
+                    </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="description">Description (optional)</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Describe what this segment represents..."
-                      rows={2}
-                    />
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="auto_update"
-                      checked={formData.auto_update}
-                      onCheckedChange={(checked) => 
-                        setFormData(prev => ({ ...prev, auto_update: checked as boolean }))
-                      }
-                    />
-                    <Label htmlFor="auto_update">Auto-Update (recommended)</Label>
-                  </div>
-                </div>
 
-                {/* Enhanced Rule Builder */}
-                <ConditionBuilder
-                  conditions={formData.conditions}
-                  availableTags={availableTags}
-                  onAddCondition={addCondition}
-                  onUpdateCondition={updateCondition}
-                  onRemoveCondition={removeCondition}
-                />
+                  {/* Enhanced Rule Builder */}
+                  <ConditionBuilder
+                    conditions={formData.conditions}
+                    availableTags={availableTags}
+                    onAddCondition={addCondition}
+                    onUpdateCondition={updateCondition}
+                    onRemoveCondition={removeCondition}
+                  />
 
-                 {/* Live Segment Preview */}
-                 {formData.conditions.length > 0 && (
-                   <div className="space-y-4">
-                     <div className="flex items-center gap-2">
-                       <Eye className="h-4 w-4 text-primary" />
-                       <Label className="text-base font-semibold">Live Preview</Label>
-                     </div>
-                     
-                     <Card className="bg-garden-green/5 border-garden-green/20">
-                       <CardContent className="p-4">
-                         <div className="flex items-center justify-between mb-4">
-                           <div>
-                             <h3 className="font-semibold text-garden-green">
-                               {liveCount} customers match this segment
-                             </h3>
-                             <p className="text-sm text-muted-foreground">
-                               {formData.auto_update ? 
-                                 "Automatically includes future customers who match these conditions" :
-                                 "Static segment - will not update automatically"
-                               }
-                             </p>
-                           </div>
-                           <Badge variant="outline" className="bg-background">
-                             <Target className="h-3 w-3 mr-1" />
-                             {liveCount} matches
-                           </Badge>
-                         </div>
-
-                         {/* Customer Preview Cards */}
-                         {customerPreview.length > 0 && (
-                           <div className="space-y-3">
-                             <Label className="text-sm font-medium text-muted-foreground">
-                               Sample customers (first 5):
-                             </Label>
-                             <div className="space-y-2">
-                               {customerPreview.map((customer) => (
-                                 <div key={customer.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
-                                   <div className="flex items-center gap-3">
-                                     <div className="w-8 h-8 rounded-full bg-garden-green/10 flex items-center justify-center">
-                                       <Users className="h-4 w-4 text-garden-green" />
-                                     </div>
-                                     <div>
-                                       <div className="font-medium text-sm">
-                                         {customer.first_name} {customer.last_name}
-                                       </div>
-                                       <div className="text-xs text-muted-foreground">
-                                         {customer.email}
-                                       </div>
-                                     </div>
-                                   </div>
-                                   <div className="flex items-center gap-2">
-                                     <Badge variant="secondary" className="text-xs">
-                                       {customer.persona}
-                                     </Badge>
-                                     {customer.tags && customer.tags.length > 0 && (
-                                       <div className="flex gap-1">
-                                         {customer.tags.slice(0, 2).map((tag, idx) => (
-                                           <Badge key={idx} variant="outline" className="text-xs">
-                                             {tag}
-                                           </Badge>
-                                         ))}
-                                         {customer.tags.length > 2 && (
-                                           <Badge variant="outline" className="text-xs">
-                                             +{customer.tags.length - 2}
-                                           </Badge>
-                                         )}
-                                       </div>
-                                     )}
-                                   </div>
-                                 </div>
-                               ))}
+                   {/* Live Segment Preview */}
+                   {formData.conditions.length > 0 && (
+                     <div className="space-y-4">
+                       <div className="flex items-center gap-2">
+                         <Eye className="h-4 w-4 text-primary" />
+                         <Label className="text-base font-semibold">Live Preview</Label>
+                       </div>
+                       
+                       <Card className="bg-garden-green/5 border-garden-green/20">
+                         <CardContent className="p-4">
+                           <div className="flex items-center justify-between mb-4">
+                             <div>
+                               <h3 className="font-semibold text-garden-green">
+                                 {liveCount} customers match this segment
+                               </h3>
+                               <p className="text-sm text-muted-foreground">
+                                 {formData.auto_update ? 
+                                   "Automatically includes future customers who match these conditions" :
+                                   "Static segment - will not update automatically"
+                                 }
+                               </p>
                              </div>
+                             <Badge variant="outline" className="bg-background">
+                               <Target className="h-3 w-3 mr-1" />
+                               {liveCount} matches
+                             </Badge>
                            </div>
-                         )}
 
-                         {previewLoading && (
-                           <div className="flex items-center justify-center py-4">
-                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-garden-green"></div>
-                             <span className="ml-2 text-sm text-muted-foreground">Loading preview...</span>
-                           </div>
-                         )}
+                           {/* Customer Preview Cards */}
+                           {customerPreview.length > 0 && (
+                             <div className="space-y-3">
+                               <Label className="text-sm font-medium text-muted-foreground">
+                                 Sample customers (first 5):
+                               </Label>
+                               <div className="space-y-2">
+                                 {customerPreview.map((customer) => (
+                                   <div key={customer.id} className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                                     <div className="flex items-center gap-3">
+                                       <div className="w-8 h-8 rounded-full bg-garden-green/10 flex items-center justify-center">
+                                         <Users className="h-4 w-4 text-garden-green" />
+                                       </div>
+                                       <div>
+                                         <div className="font-medium text-sm">
+                                           {customer.first_name} {customer.last_name}
+                                         </div>
+                                         <div className="text-xs text-muted-foreground">
+                                           {customer.email}
+                                         </div>
+                                       </div>
+                                     </div>
+                                     <div className="flex items-center gap-2">
+                                       <Badge variant="secondary" className="text-xs">
+                                         {customer.persona}
+                                       </Badge>
+                                       {customer.tags && customer.tags.length > 0 && (
+                                         <div className="flex gap-1">
+                                           {customer.tags.slice(0, 2).map((tag, idx) => (
+                                             <Badge key={idx} variant="outline" className="text-xs">
+                                               {tag}
+                                             </Badge>
+                                           ))}
+                                           {customer.tags.length > 2 && (
+                                             <Badge variant="outline" className="text-xs">
+                                               +{customer.tags.length - 2}
+                                             </Badge>
+                                           )}
+                                         </div>
+                                       )}
+                                     </div>
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           )}
 
-                         {customerPreview.length === 0 && !previewLoading && (
-                           <div className="text-center py-6 text-muted-foreground">
-                             <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                             <p className="text-sm">No customers match these conditions yet</p>
-                           </div>
-                         )}
-                       </CardContent>
-                     </Card>
-                   </div>
-                 )}
+                           {previewLoading && (
+                             <div className="flex items-center justify-center py-4">
+                               <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-garden-green"></div>
+                               <span className="ml-2 text-sm text-muted-foreground">Loading preview...</span>
+                             </div>
+                           )}
 
-                 <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={() => setShowSegmentForm(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={saveSegment}>
-                    {editingSegment ? 'Update' : 'Create'} Segment
-                  </Button>
+                           {customerPreview.length === 0 && !previewLoading && (
+                             <div className="text-center py-6 text-muted-foreground">
+                               <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                               <p className="text-sm">No customers match these conditions yet</p>
+                             </div>
+                           )}
+                         </CardContent>
+                       </Card>
+                     </div>
+                   )}
+
+                   <div className="flex justify-end gap-3">
+                    <Button variant="outline" onClick={() => setShowSegmentForm(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={saveSegment}>
+                      {editingSegment ? 'Update' : 'Create'} Segment
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* Custom Segments Table */}
@@ -854,6 +864,37 @@ const CRMSegments = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Persona Modal */}
+        <PersonaModal
+          isOpen={isPersonaModalOpen}
+          onClose={() => setIsPersonaModalOpen(false)}
+          mode="select"
+          title="Start with Persona"
+          onPersonaSelect={(persona) => {
+            // Create segment based on selected persona
+            setFormData({
+              name: `${persona.name} Customers`,
+              description: `Customers who match the "${persona.name}" persona profile`,
+              auto_update: true,
+              conditions: [
+                {
+                  field: 'persona_id',
+                  operator: 'equals',
+                  value: persona.id,
+                  logic: 'AND' as const
+                }
+              ]
+            });
+            setShowSegmentForm(true);
+            setIsPersonaModalOpen(false);
+            
+            toast({
+              title: "Persona Selected",
+              description: `Creating segment for ${persona.name} customers...`,
+            });
+          }}
+        />
       </div>
     </SubscriptionGate>
   );
