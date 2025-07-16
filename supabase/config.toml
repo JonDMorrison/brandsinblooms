@@ -47,3 +47,11 @@ verify_jwt = false
 access-control-allow-origin = "*"
 access-control-allow-methods = "GET, POST, OPTIONS"
 access-control-allow-headers = "authorization, x-client-info, apikey, content-type"
+
+[functions.generate-segment-insights]
+verify_jwt = true
+
+[functions.generate-segment-insights.headers]
+access-control-allow-origin = "*"
+access-control-allow-methods = "GET, POST, OPTIONS"
+access-control-allow-headers = "authorization, x-client-info, apikey, content-type"
