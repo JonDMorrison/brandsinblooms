@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { 
   Plus, 
   Search, 
@@ -46,6 +47,7 @@ type Customer = {
 };
 
 const CRMCustomers = () => {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [personaFilter, setPersonaFilter] = useState<string>('all');
   const [smsOptInFilter, setSmsOptInFilter] = useState<string>('all');
@@ -314,7 +316,7 @@ const CRMCustomers = () => {
                       <TableRow 
                         key={customer.id} 
                         className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => openCustomerProfile(customer)}
+                        onClick={() => navigate(`/crm/customers/${customer.id}`)}
                       >
                         <TableCell className="font-medium">
                           {customer.first_name || customer.last_name 

@@ -865,6 +865,45 @@ export type Database = {
           },
         ]
       }
+      customer_timeline: {
+        Row: {
+          activity_type: string
+          campaign_id: string | null
+          campaign_name: string | null
+          created_at: string | null
+          customer_id: string
+          id: string
+          metadata: Json | null
+          product_name: string | null
+          purchase_amount: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          activity_type: string
+          campaign_id?: string | null
+          campaign_name?: string | null
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          metadata?: Json | null
+          product_name?: string | null
+          purchase_amount?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          activity_type?: string
+          campaign_id?: string | null
+          campaign_name?: string | null
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          metadata?: Json | null
+          product_name?: string | null
+          purchase_amount?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       deletion_requests: {
         Row: {
           cancellation_requested_at: string | null
@@ -1246,13 +1285,17 @@ export type Database = {
       }
       integration_logs: {
         Row: {
+          can_retry: boolean | null
           created_at: string
           customers_imported: number | null
           error_message: string | null
           id: string
+          last_retry_at: string | null
           metadata: Json | null
           orders_imported: number | null
           pos_source: string
+          retry_count: number | null
+          rollback_available: boolean | null
           status: string
           sync_date: string
           tenant_id: string | null
@@ -1260,13 +1303,17 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          can_retry?: boolean | null
           created_at?: string
           customers_imported?: number | null
           error_message?: string | null
           id?: string
+          last_retry_at?: string | null
           metadata?: Json | null
           orders_imported?: number | null
           pos_source: string
+          retry_count?: number | null
+          rollback_available?: boolean | null
           status?: string
           sync_date?: string
           tenant_id?: string | null
@@ -1274,13 +1321,17 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          can_retry?: boolean | null
           created_at?: string
           customers_imported?: number | null
           error_message?: string | null
           id?: string
+          last_retry_at?: string | null
           metadata?: Json | null
           orders_imported?: number | null
           pos_source?: string
+          retry_count?: number | null
+          rollback_available?: boolean | null
           status?: string
           sync_date?: string
           tenant_id?: string | null

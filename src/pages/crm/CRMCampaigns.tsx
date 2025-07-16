@@ -297,7 +297,11 @@ const CRMCampaigns = () => {
                     </TableHeader>
                     <TableBody>
                       {filteredCampaigns.map((campaign) => (
-                        <TableRow key={campaign.id}>
+                      <TableRow 
+                        key={campaign.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/crm/campaigns/${campaign.id}`)}
+                      >
                           <TableCell>
                             <div>
                               <div className="font-medium">{campaign.name}</div>

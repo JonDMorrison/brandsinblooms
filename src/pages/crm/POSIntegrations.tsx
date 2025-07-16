@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, Store, RefreshCw, Download, Clock } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { POSConnectionForm } from '@/components/crm/pos/POSConnectionForm';
@@ -14,9 +14,10 @@ const POSIntegrations = () => {
   const [selectedPOS, setSelectedPOS] = useState<string>('');
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch POS connections
-  const { data: connections, refetch: refetchConnections } = useQuery({
+  const { data: connections } = useQuery({
     queryKey: ['pos-connections'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -29,7 +30,7 @@ const POSIntegrations = () => {
     }
   });
 
-  // Fetch integration logs
+  // Fetch integration logs  
   const { data: logs } = useQuery({
     queryKey: ['integration-logs'],
     queryFn: async () => {
@@ -61,34 +62,35 @@ const POSIntegrations = () => {
     setShowConnectionForm(true);
   };
 
-  const handleSync = async (connectionId: string) => {
-    try {
+  const triggerManualSync = useMutation({
+    mutationFn: async (connectionId: string) => {
       const connection = connections?.find(c => c.id === connectionId);
-      if (!connection) return;
+      if (!connection) throw new Error('Connection not found');
 
-      // Trigger sync based on platform
-      const functionName = `${connection.platform}-sync`;
-      const { error } = await supabase.functions.invoke(functionName, {
-        body: { connection_id: connectionId }
+      const functionName = `${connection.platform.toLowerCase()}-sync`;
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: { connectionId }
       });
 
       if (error) throw error;
-
-      toast({
-        title: "Sync Started",
-        description: `Started syncing data from ${connection.name}`,
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pos-connections'] });
+      queryClient.invalidateQueries({ queryKey: ['integration-logs'] });
+      toast({ title: "Manual sync triggered successfully" });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Sync failed", 
+        description: error.message,
+        variant: "destructive" 
       });
+    },
+  });
 
-      // Refresh data
-      refetchConnections();
-    } catch (error) {
-      console.error('Sync error:', error);
-      toast({
-        title: "Sync Failed",
-        description: "Failed to start sync. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleSync = (connectionId: string) => {
+    triggerManualSync.mutate(connectionId);
   };
 
   const getStatusBadge = (status: string) => {
@@ -156,6 +158,7 @@ const POSIntegrations = () => {
           {selectedPOS === 'vmx' && (
             <div className="mt-4">
               <VMXUploader onSuccess={() => {
+                queryClient.invalidateQueries({ queryKey: ['integration-logs'] });
                 toast({
                   title: "Upload Successful",
                   description: "Your customer data has been imported successfully.",
@@ -203,10 +206,10 @@ const POSIntegrations = () => {
                       variant="outline" 
                       size="sm"
                       onClick={() => handleSync(connection.id)}
-                      disabled={connection.sync_status === 'syncing'}
+                      disabled={connection.sync_status === 'syncing' || triggerManualSync.isPending}
                     >
-                      <RefreshCw className={`h-4 w-4 mr-2 ${connection.sync_status === 'syncing' ? 'animate-spin' : ''}`} />
-                      {connection.sync_status === 'syncing' ? 'Syncing...' : 'Sync Now'}
+                      <RefreshCw className={`h-4 w-4 mr-2 ${(connection.sync_status === 'syncing' || triggerManualSync.isPending) ? 'animate-spin' : ''}`} />
+                      {connection.sync_status === 'syncing' || triggerManualSync.isPending ? 'Syncing...' : 'Sync Now'}
                     </Button>
                   </div>
                 </div>
@@ -259,7 +262,7 @@ const POSIntegrations = () => {
           onSuccess={() => {
             setShowConnectionForm(false);
             setSelectedPOS('');
-            refetchConnections();
+            queryClient.invalidateQueries({ queryKey: ['pos-connections'] });
             toast({
               title: "Connection Successful",
               description: `Successfully connected to ${selectedPOS.charAt(0).toUpperCase() + selectedPOS.slice(1)}`,
