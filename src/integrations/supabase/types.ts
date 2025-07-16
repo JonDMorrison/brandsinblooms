@@ -719,6 +719,62 @@ export type Database = {
           },
         ]
       }
+      crm_sms_campaigns: {
+        Row: {
+          created_at: string
+          id: string
+          image_url: string | null
+          message: string
+          metrics: Json | null
+          name: string
+          scheduled_at: string | null
+          segment_id: string | null
+          sent_at: string | null
+          status: string
+          tenant_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          message: string
+          metrics?: Json | null
+          name: string
+          scheduled_at?: string | null
+          segment_id?: string | null
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          message?: string
+          metrics?: Json | null
+          name?: string
+          scheduled_at?: string | null
+          segment_id?: string | null
+          sent_at?: string | null
+          status?: string
+          tenant_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_sms_campaigns_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "crm_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deletion_requests: {
         Row: {
           cancellation_requested_at: string | null
