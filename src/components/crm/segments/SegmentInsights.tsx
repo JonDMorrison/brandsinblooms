@@ -32,8 +32,29 @@ export function SegmentInsights({ segmentId }: SegmentInsightsProps) {
   const generateInsights = async () => {
     setIsGenerating(true);
     try {
+      // Get segment data first
+      const { data: segment } = await supabase
+        .from('crm_segments')
+        .select('*')
+        .eq('id', segmentId)
+        .single();
+
+      // Fetch personas data for enhanced insights
+      const { data: personas } = await supabase
+        .from('personas')
+        .select('*');
+
       const { data, error } = await supabase.functions.invoke('generate-segment-insights', {
-        body: { segment_id: segmentId }
+        body: { 
+          segmentId,
+          segmentData: {
+            name: segment?.name,
+            description: segment?.description,
+            conditions: segment?.conditions,
+            customer_count: segment?.customer_count
+          },
+          personas: personas || []
+        }
       });
 
       if (error) throw error;

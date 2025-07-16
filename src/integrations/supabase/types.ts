@@ -646,6 +646,7 @@ export type Database = {
           lifetime_value: number | null
           order_history: Json | null
           persona: string | null
+          persona_id: string | null
           phone: string | null
           pos_source: string | null
           product_tags: string[] | null
@@ -668,6 +669,7 @@ export type Database = {
           lifetime_value?: number | null
           order_history?: Json | null
           persona?: string | null
+          persona_id?: string | null
           phone?: string | null
           pos_source?: string | null
           product_tags?: string[] | null
@@ -690,6 +692,7 @@ export type Database = {
           lifetime_value?: number | null
           order_history?: Json | null
           persona?: string | null
+          persona_id?: string | null
           phone?: string | null
           pos_source?: string | null
           product_tags?: string[] | null
@@ -702,6 +705,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_customers_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_customers_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -1430,6 +1440,45 @@ export type Database = {
           id?: string
           tone_samples?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      personas: {
+        Row: {
+          buying_triggers: string[] | null
+          color_theme: string | null
+          created_at: string | null
+          description: string
+          icon: string | null
+          id: string
+          ideal_products: string[] | null
+          name: string
+          sample_phrases: string[] | null
+          tone: string
+        }
+        Insert: {
+          buying_triggers?: string[] | null
+          color_theme?: string | null
+          created_at?: string | null
+          description: string
+          icon?: string | null
+          id?: string
+          ideal_products?: string[] | null
+          name: string
+          sample_phrases?: string[] | null
+          tone: string
+        }
+        Update: {
+          buying_triggers?: string[] | null
+          color_theme?: string | null
+          created_at?: string | null
+          description?: string
+          icon?: string | null
+          id?: string
+          ideal_products?: string[] | null
+          name?: string
+          sample_phrases?: string[] | null
+          tone?: string
         }
         Relationships: []
       }

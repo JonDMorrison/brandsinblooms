@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Edit2, Save, Mail, MessageSquare, Package, Calendar, DollarSign, Tags } from "lucide-react";
+import { ArrowLeft, Edit2, Save, Mail, MessageSquare, Package, Calendar, DollarSign, Tags, User } from "lucide-react";
+import { PersonaSelector } from "@/components/crm/personas/PersonaSelector";
 
 interface Customer {
   id: string;
@@ -23,6 +24,7 @@ interface Customer {
   last_purchase_date: string | null;
   tags: string[] | null;
   sms_opt_in: boolean | null;
+  persona_id: string | null;
   created_at: string;
 }
 
@@ -49,12 +51,22 @@ const CustomerProfile = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('crm_customers')
-        .select('*')
+        .select(`
+          *,
+          personas!crm_customers_persona_id_fkey(
+            id,
+            name,
+            tone,
+            description,
+            icon,
+            color_theme
+          )
+        `)
         .eq('id', id)
         .single();
       
       if (error) throw error;
-      return data as Customer;
+      return data as Customer & { personas?: any };
     },
     enabled: !!id,
   });
@@ -283,6 +295,26 @@ const CustomerProfile = () => {
                   )}
                 </>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Persona Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Customer Persona
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PersonaSelector
+                value={customer.persona_id}
+                onChange={(personaId) => {
+                  updateCustomerMutation.mutate({ persona_id: personaId });
+                }}
+                customerId={customer.id}
+                showFullCard={true}
+              />
             </CardContent>
           </Card>
         </div>

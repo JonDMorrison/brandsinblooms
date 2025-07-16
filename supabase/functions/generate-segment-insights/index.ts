@@ -18,9 +18,10 @@ serve(async (req) => {
   }
 
   try {
-    const { segment_id } = await req.json();
+    const { segmentId, segment_id, segmentData, personas = [] } = await req.json();
     
-    if (!segment_id) {
+    const actualSegmentId = segmentId || segment_id;
+    if (!actualSegmentId) {
       throw new Error('Segment ID is required');
     }
 
@@ -41,7 +42,7 @@ serve(async (req) => {
     const { data: segment, error: segmentError } = await supabase
       .from('crm_segments')
       .select('*')
-      .eq('id', segment_id)
+      .eq('id', actualSegmentId)
       .single();
 
     if (segmentError || !segment) {
@@ -59,8 +60,8 @@ serve(async (req) => {
       throw new Error('Failed to fetch customers');
     }
 
-    // Prepare segment summary for AI analysis
-    const segmentSummary = {
+    // Use provided segment data or fetch from database
+    const segmentSummary = segmentData || {
       name: segment.name,
       description: segment.description,
       customer_count: segment.customer_count,
@@ -73,6 +74,17 @@ serve(async (req) => {
         last_purchase_date: c.last_purchase_date
       }))
     };
+
+    // Build persona context for enhanced insights
+    const personaContext = personas.length > 0 
+      ? `\n\nAvailable Customer Personas for reference:\n${personas.map(p => `
+- ${p.name}: ${p.description}
+  Tone: ${p.tone}
+  Buying Triggers: ${p.buying_triggers?.join(', ') || 'None'}
+  Sample Phrases: ${p.sample_phrases?.join(', ') || 'None'}
+  Ideal Products: ${p.ideal_products?.join(', ') || 'None'}
+`).join('')}\n\nUse these personas to inform your recommendations and tailor the content suggestions.`
+      : '';
 
     // Generate subject line suggestions
     const subjectLinesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -90,7 +102,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `Act as a garden center marketing strategist. Given this customer segment: ${JSON.stringify(segmentSummary)}, generate 3 subject lines for an email campaign they'll love. Return as a JSON array of strings.`
+            content: `Act as a garden center marketing strategist. Given this customer segment: ${JSON.stringify(segmentSummary)}${personaContext}, generate 3 subject lines for an email campaign they'll love. Use persona tone guidance if applicable. Return as a JSON array of strings.`
           }
         ],
         temperature: 0.7,
@@ -113,7 +125,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `Based on this segment profile: ${JSON.stringify(segmentSummary)}, what SMS tone would likely work best? Return 1-2 words (e.g., "friendly & urgent").`
+            content: `Based on this segment profile: ${JSON.stringify(segmentSummary)}${personaContext}, what SMS tone would likely work best? Consider persona communication styles if applicable. Return 1-2 words (e.g., "friendly & urgent").`
           }
         ],
         temperature: 0.5,
@@ -136,7 +148,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `Suggest 2 campaign ideas (email or SMS) for a garden center to engage this customer segment: ${JSON.stringify(segmentSummary)}. Focus on seasonal products or care tips. Return as a JSON array of campaign objects with title and description.`
+            content: `Suggest 2 campaign ideas (email or SMS) for a garden center to engage this customer segment: ${JSON.stringify(segmentSummary)}${personaContext}. Focus on seasonal products or care tips and align with persona interests if applicable. Return as a JSON array of campaign objects with title and description.`
           }
         ],
         temperature: 0.7,
