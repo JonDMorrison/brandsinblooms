@@ -195,6 +195,43 @@ serve(async (req) => {
           emailSubject = emailSubject.replace(/\{firstName\}/g, customer.first_name);
         }
 
+        // Generate unsubscribe token and link
+        const unsubscribeToken = btoa(`${customer.email}:${campaign.tenant_id}`);
+        const unsubscribeLink = `https://udldmkqwnxhdeztyqcau.supabase.co/functions/v1/handle-unsubscribe?email=${encodeURIComponent(customer.email)}&tenant_id=${campaign.tenant_id}&token=${unsubscribeToken}`;
+
+        // Replace merge tags in content
+        emailContent = emailContent.replace(/\{\{unsubscribe_link\}\}/g, unsubscribeLink);
+        emailContent = emailContent.replace(/\{\{company_name\}\}/g, companyName);
+        emailContent = emailContent.replace(/\{\{company_website\}\}/g, companyProfile?.email_domain || 'your website');
+        emailContent = emailContent.replace(/\{\{company_address\}\}/g, companyProfile?.location_info || 'Your Business Address');
+
+        // Check if unsubscribe link is missing and auto-append footer
+        if (!emailContent.includes(unsubscribeLink) && !emailContent.includes('{{unsubscribe_link}}')) {
+          const autoFooter = `
+            <div style="font-size:12px; color:#888; margin-top:40px; border-top:1px solid #eee; padding-top:20px;">
+              You're receiving this email from ${companyName} because you signed up for updates.<br>
+              To unsubscribe, <a href="${unsubscribeLink}" style="color:#888;">click here</a>.<br>
+              ${companyName} | ${companyProfile?.location_info || 'Your Business Address'}
+            </div>
+          `;
+          emailContent += autoFooter;
+          console.log(`Auto-appended compliance footer for campaign ${campaignId}`);
+        }
+
+        // Create or update subscription record
+        await supabase
+          .from('crm_subscriptions')
+          .upsert({
+            email: customer.email,
+            tenant_id: campaign.tenant_id,
+            user_id: campaign.user_id,
+            customer_id: customer.id,
+            opt_out: false,
+            source: 'campaign'
+          }, {
+            onConflict: 'email,tenant_id'
+          });
+
         // Prepare email payload
         const emailPayload: any = {
           from: fromAddress,

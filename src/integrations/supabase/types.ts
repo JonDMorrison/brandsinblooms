@@ -959,6 +959,45 @@ export type Database = {
           },
         ]
       }
+      crm_subscriptions: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          email: string
+          id: string
+          opt_out: boolean | null
+          opt_out_at: string | null
+          source: string | null
+          tenant_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          email: string
+          id?: string
+          opt_out?: boolean | null
+          opt_out_at?: string | null
+          source?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          email?: string
+          id?: string
+          opt_out?: boolean | null
+          opt_out_at?: string | null
+          source?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       customer_timeline: {
         Row: {
           activity_type: string

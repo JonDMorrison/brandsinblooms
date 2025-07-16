@@ -60,6 +60,7 @@ const CustomerProfile = lazy(() => import("./pages/crm/CustomerProfile"));
 const CampaignDetails = lazy(() => import("./pages/crm/CampaignDetails"));
 const SMSCampaignDetails = lazy(() => import("./pages/crm/SMSCampaignDetails"));
 const EmailDomainSetup = lazy(() => import("./pages/crm/EmailDomainSetup"));
+const UnsubscribePage = lazy(() => import("./pages/crm/UnsubscribePage"));
 
 // Lazy load test components
 const SocialMediaIntegrationTest = lazy(() => import('./components/test/SocialMediaIntegrationTest').then(module => ({ default: module.SocialMediaIntegrationTest })));
@@ -324,6 +325,11 @@ const App = () => {
                     <EmailDomainSetup />
                   </LazyLoadWrapper>
                 </AuthenticatedLayout>
+              } />
+              <Route path="/unsubscribe" element={
+                <LazyLoadWrapper>
+                  <UnsubscribePage />
+                </LazyLoadWrapper>
               } />
               <Route path="/test/social-integration" element={
                 <LazyLoadWrapper>
