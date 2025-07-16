@@ -493,6 +493,232 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_campaigns: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          id: string
+          metrics: Json | null
+          name: string
+          scheduled_at: string | null
+          segment_id: string | null
+          sent_at: string | null
+          status: string | null
+          subject_line: string | null
+          tenant_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          metrics?: Json | null
+          name: string
+          scheduled_at?: string | null
+          segment_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject_line?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          id?: string
+          metrics?: Json | null
+          name?: string
+          scheduled_at?: string | null
+          segment_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+          subject_line?: string | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_campaigns_segment_id_fkey"
+            columns: ["segment_id"]
+            isOneToOne: false
+            referencedRelation: "crm_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_campaigns_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_customers: {
+        Row: {
+          created_at: string | null
+          custom_fields: Json | null
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          last_purchase_date: string | null
+          lifetime_value: number | null
+          persona: string | null
+          phone: string | null
+          sms_opt_in: boolean | null
+          sms_opt_in_at: string | null
+          tags: string[] | null
+          tenant_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          custom_fields?: Json | null
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          last_purchase_date?: string | null
+          lifetime_value?: number | null
+          persona?: string | null
+          phone?: string | null
+          sms_opt_in?: boolean | null
+          sms_opt_in_at?: string | null
+          tags?: string[] | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          custom_fields?: Json | null
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          last_purchase_date?: string | null
+          lifetime_value?: number | null
+          persona?: string | null
+          phone?: string | null
+          sms_opt_in?: boolean | null
+          sms_opt_in_at?: string | null
+          tags?: string[] | null
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_customers_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_email_sends: {
+        Row: {
+          campaign_id: string | null
+          clicked_at: string | null
+          created_at: string | null
+          customer_id: string | null
+          email: string
+          id: string
+          opened_at: string | null
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          clicked_at?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          email: string
+          id?: string
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          clicked_at?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          email?: string
+          id?: string
+          opened_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_email_sends_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_email_sends_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_segments: {
+        Row: {
+          auto_update: boolean | null
+          conditions: Json | null
+          created_at: string | null
+          customer_count: number | null
+          description: string | null
+          id: string
+          name: string
+          tenant_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          auto_update?: boolean | null
+          conditions?: Json | null
+          created_at?: string | null
+          customer_count?: number | null
+          description?: string | null
+          id?: string
+          name: string
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          auto_update?: boolean | null
+          conditions?: Json | null
+          created_at?: string | null
+          customer_count?: number | null
+          description?: string | null
+          id?: string
+          name?: string
+          tenant_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_segments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deletion_requests: {
         Row: {
           cancellation_requested_at: string | null

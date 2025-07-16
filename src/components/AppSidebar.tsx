@@ -14,6 +14,10 @@ import {
   Settings,
   ChevronDown,
   LucideIcon,
+  UserCircle,
+  Target,
+  Mail,
+  BarChart3,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -82,6 +86,33 @@ const AppSidebar: React.FC = () => {
       url: "/social-accounts",
       icon: Send,
     },
+    ...(isPro ? [{
+      title: "CRM",
+      url: "/crm",
+      icon: UserCircle,
+      items: [
+        {
+          title: "Dashboard",
+          url: "/crm",
+          icon: BarChart3,
+        },
+        {
+          title: "Customers",
+          url: "/crm/customers",
+          icon: Users,
+        },
+        {
+          title: "Segments",
+          url: "/crm/segments",
+          icon: Target,
+        },
+        {
+          title: "Campaigns",
+          url: "/crm/campaigns",
+          icon: Mail,
+        },
+      ],
+    }] : []),
     {
       title: "Advanced",
       url: "/integrations",

@@ -42,6 +42,12 @@ const ZapierPage = lazy(() => import("./pages/ZapierPage"));
 const AutomationPage = lazy(() => import("./pages/AutomationPage"));
 const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
 
+// CRM Pages
+const CRMDashboard = lazy(() => import("./pages/crm/CRMDashboard"));
+const CRMCustomers = lazy(() => import("./pages/crm/CRMCustomers"));
+const CRMSegments = lazy(() => import("./pages/crm/CRMSegments"));
+const CRMCampaigns = lazy(() => import("./pages/crm/CRMCampaigns"));
+
 // Lazy load test components
 const SocialMediaIntegrationTest = lazy(() => import('./components/test/SocialMediaIntegrationTest').then(module => ({ default: module.SocialMediaIntegrationTest })));
 const OAuthDebugger = lazy(() => import('./components/test/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
@@ -198,6 +204,34 @@ const App = () => {
                 <AuthenticatedLayout>
                   <LazyLoadWrapper>
                     <AutomationPage />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CRMDashboard />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm/customers" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CRMCustomers />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm/segments" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CRMSegments />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm/campaigns" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CRMCampaigns />
                   </LazyLoadWrapper>
                 </AuthenticatedLayout>
               } />
