@@ -26,7 +26,8 @@ import {
   Clock,
   Users,
   Mail,
-  Loader2
+  Loader2,
+  Lightbulb
 } from 'lucide-react';
 
 interface Segment {
@@ -46,6 +47,12 @@ const CRMCampaignComposer = () => {
   const [showAIModal, setShowAIModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date>();
+  
+  // Subject line AI states
+  const [showSubjectSuggestions, setShowSubjectSuggestions] = useState(false);
+  const [subjectSuggestions, setSubjectSuggestions] = useState<string[]>([]);
+  const [subjectGenerating, setSubjectGenerating] = useState(false);
+  const [subjectTopic, setSubjectTopic] = useState('');
   
   // Form data
   const [formData, setFormData] = useState({
@@ -139,6 +146,51 @@ const CRMCampaignComposer = () => {
     } finally {
       setAiGenerating(false);
     }
+  };
+
+  const generateSubjectLines = async () => {
+    setSubjectGenerating(true);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke('generate-subject-lines', {
+        body: {
+          topic: subjectTopic || undefined,
+          content: formData.content || undefined
+        }
+      });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const { subjectLines } = response.data;
+      setSubjectSuggestions(subjectLines || []);
+      setShowSubjectSuggestions(true);
+      
+      toast({
+        title: "Success",
+        description: "Subject line suggestions generated!"
+      });
+    } catch (error) {
+      console.error('Error generating subject lines:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate subject line suggestions",
+        variant: "destructive"
+      });
+    } finally {
+      setSubjectGenerating(false);
+    }
+  };
+
+  const selectSubjectLine = (subjectLine: string) => {
+    setFormData(prev => ({ ...prev, subject_line: subjectLine }));
+    setShowSubjectSuggestions(false);
+    setSubjectTopic('');
+    toast({
+      title: "Subject line selected",
+      description: "Subject line has been updated"
+    });
   };
 
   const saveCampaign = async (status: 'draft' | 'scheduled' | 'sent' = 'draft') => {
@@ -271,12 +323,93 @@ const CRMCampaignComposer = () => {
                 
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject Line *</Label>
-                  <Input
-                    id="subject"
-                    value={formData.subject_line}
-                    onChange={(e) => setFormData(prev => ({ ...prev, subject_line: e.target.value }))}
-                    placeholder="e.g., 🌱 Get Your Garden Spring-Ready!"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="subject"
+                      value={formData.subject_line}
+                      onChange={(e) => setFormData(prev => ({ ...prev, subject_line: e.target.value }))}
+                      placeholder="e.g., 🌱 Get Your Garden Spring-Ready!"
+                      className="flex-1"
+                    />
+                    <Dialog open={showSubjectSuggestions} onOpenChange={setShowSubjectSuggestions}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="shrink-0">
+                          <Lightbulb className="h-4 w-4 mr-1" />
+                          ✨ Suggest
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Subject Line Suggestions</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="subject-topic">What's this email about? (optional)</Label>
+                            <Input
+                              id="subject-topic"
+                              value={subjectTopic}
+                              onChange={(e) => setSubjectTopic(e.target.value)}
+                              placeholder="e.g., Spring planting tips, summer watering guide..."
+                            />
+                            <p className="text-sm text-muted-foreground">
+                              Leave blank to use your email content for suggestions
+                            </p>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button 
+                              onClick={generateSubjectLines} 
+                              disabled={subjectGenerating}
+                              className="flex-1"
+                            >
+                              {subjectGenerating ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <Lightbulb className="h-4 w-4 mr-2" />
+                              )}
+                              Generate Suggestions
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowSubjectSuggestions(false)}>
+                              Cancel
+                            </Button>
+                          </div>
+
+                          {subjectSuggestions.length > 0 && (
+                            <div className="space-y-2">
+                              <Label>Select a suggestion:</Label>
+                              <div className="space-y-2">
+                                {subjectSuggestions.map((suggestion, index) => (
+                                  <div
+                                    key={index}
+                                    className="p-3 border border-muted rounded-lg hover:border-garden-green hover:bg-muted/50 cursor-pointer transition-colors"
+                                    onClick={() => selectSubjectLine(suggestion)}
+                                  >
+                                    <div className="font-medium">{suggestion}</div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {suggestion.length} characters
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                onClick={generateSubjectLines}
+                                disabled={subjectGenerating}
+                                className="w-full"
+                              >
+                                {subjectGenerating ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Lightbulb className="h-4 w-4 mr-2" />
+                                )}
+                                Regenerate Suggestions
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
                 
                 <div className="space-y-2">
