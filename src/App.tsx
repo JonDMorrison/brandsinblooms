@@ -59,6 +59,7 @@ const POSIntegrations = lazy(() => import("./pages/crm/POSIntegrations"));
 const CustomerProfile = lazy(() => import("./pages/crm/CustomerProfile"));
 const CampaignDetails = lazy(() => import("./pages/crm/CampaignDetails"));
 const SMSCampaignDetails = lazy(() => import("./pages/crm/SMSCampaignDetails"));
+const EmailDomainSetup = lazy(() => import("./pages/crm/EmailDomainSetup"));
 
 // Lazy load test components
 const SocialMediaIntegrationTest = lazy(() => import('./components/test/SocialMediaIntegrationTest').then(module => ({ default: module.SocialMediaIntegrationTest })));
@@ -314,6 +315,13 @@ const App = () => {
                 <AuthenticatedLayout>
                   <LazyLoadWrapper>
                     <POSIntegrations />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm/settings/email-auth" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <EmailDomainSetup />
                   </LazyLoadWrapper>
                 </AuthenticatedLayout>
               } />

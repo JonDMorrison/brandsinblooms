@@ -219,7 +219,12 @@ export type Database = {
           company_overview: string | null
           company_values: string | null
           created_at: string
+          custom_sender_email: string | null
           deleted_at: string | null
+          dns_records_verified: boolean | null
+          email_auth_setup_at: string | null
+          email_auth_status: string | null
+          email_domain: string | null
           feature_flags: Json | null
           first_content_generated: boolean | null
           first_welcome_dismissed: boolean | null
@@ -243,7 +248,12 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          custom_sender_email?: string | null
           deleted_at?: string | null
+          dns_records_verified?: boolean | null
+          email_auth_setup_at?: string | null
+          email_auth_status?: string | null
+          email_domain?: string | null
           feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
@@ -267,7 +277,12 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          custom_sender_email?: string | null
           deleted_at?: string | null
+          dns_records_verified?: boolean | null
+          email_auth_setup_at?: string | null
+          email_auth_status?: string | null
+          email_domain?: string | null
           feature_flags?: Json | null
           first_content_generated?: boolean | null
           first_welcome_dismissed?: boolean | null
