@@ -48,7 +48,7 @@ serve(async (req) => {
 
     console.log(`Starting email campaign send for campaign: ${campaignId}`);
 
-    // Get campaign details
+    // Get campaign details including sender configuration
     const { data: campaign, error: campaignError } = await supabase
       .from('crm_campaigns')
       .select(`
@@ -118,6 +118,11 @@ serve(async (req) => {
       );
     }
 
+    // Determine sender email and display name based on campaign configuration
+    const senderEmail = campaign.actual_sender_email || 'noreply@bloomsuite.email';
+    const senderDisplayName = campaign.sender_display_name || 'BloomSuite';
+    const fromAddress = `${senderDisplayName} <${senderEmail}>`;
+
     console.log(`Found ${customers.length} customers with valid emails`);
 
     // Update campaign status to sending
@@ -147,7 +152,7 @@ serve(async (req) => {
         }
 
         const emailResponse = await resend.emails.send({
-          from: "Garden Center <noreply@resend.dev>",
+          from: fromAddress,
           to: [customer.email],
           subject: emailSubject,
           html: emailContent,

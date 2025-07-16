@@ -39,6 +39,9 @@ import {
 } from 'lucide-react';
 import { EmailBlockEditor } from './email-blocks/EmailBlockEditor';
 import { EmailPreview } from './EmailPreview';
+import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
+import { SenderStatusIndicator } from '../campaigns/SenderStatusIndicator';
+import { SharedSenderConfirmationModal } from '../campaigns/SharedSenderConfirmationModal';
 
 interface Segment {
   id: string;
@@ -66,6 +69,7 @@ export const EmailCampaignComposer: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { senderConfig, loading: senderLoading } = useSenderConfiguration();
   const [searchParams] = useSearchParams();
   
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -74,6 +78,7 @@ export const EmailCampaignComposer: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [scheduledTime, setScheduledTime] = useState('09:00');
+  const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
   
   // Form data
   const [campaignData, setCampaignData] = useState<CampaignData>({
@@ -333,6 +338,17 @@ export const EmailCampaignComposer: React.FC = () => {
       return;
     }
 
+    // If sending now and using shared sender, show confirmation
+    if (sendNow && !senderConfig.isVerified) {
+      setShowSenderConfirmation(true);
+      return;
+    }
+
+    await executeCSend(sendNow);
+  };
+
+  const executeCSend = async (sendNow = false) => {
+
     setLoading(true);
     try {
       const { data: userData } = await supabase
@@ -359,7 +375,10 @@ export const EmailCampaignComposer: React.FC = () => {
         status: sendNow ? 'sent' : (scheduled_at ? 'scheduled' : 'draft'),
         scheduled_at,
         tenant_id: userData.tenant_id,
-        user_id: user?.id
+        user_id: user?.id,
+        delivery_method: senderConfig.deliveryMethod,
+        sender_display_name: senderConfig.displayName,
+        actual_sender_email: senderConfig.senderEmail
       };
 
       const { error } = await supabase
@@ -433,6 +452,24 @@ export const EmailCampaignComposer: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Sidebar - Campaign Settings */}
         <div className="lg:col-span-1 space-y-6">
+          {/* Sender Status */}
+          {!senderLoading && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5 text-blue-600" />
+                  Sender Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <SenderStatusIndicator 
+                  senderConfig={senderConfig} 
+                  showDetailedAlert={!senderConfig.isVerified}
+                />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -646,6 +683,19 @@ export const EmailCampaignComposer: React.FC = () => {
         onClose={() => setShowPreview(false)}
         subject={campaignData.subject_line}
         content={generateHTML()}
+      />
+
+      {/* Shared Sender Confirmation Modal */}
+      <SharedSenderConfirmationModal
+        isOpen={showSenderConfirmation}
+        onClose={() => setShowSenderConfirmation(false)}
+        onConfirm={() => {
+          setShowSenderConfirmation(false);
+          executeCSend(true);
+        }}
+        senderConfig={senderConfig}
+        campaignName={campaignData.name}
+        recipientCount={segments.find(s => s.id === campaignData.segment_id)?.customer_count || 0}
       />
     </div>
   );

@@ -588,13 +588,16 @@ export type Database = {
       }
       crm_campaigns: {
         Row: {
+          actual_sender_email: string | null
           content: string | null
           created_at: string | null
+          delivery_method: string | null
           id: string
           metrics: Json | null
           name: string
           scheduled_at: string | null
           segment_id: string | null
+          sender_display_name: string | null
           sent_at: string | null
           status: string | null
           subject_line: string | null
@@ -603,13 +606,16 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          actual_sender_email?: string | null
           content?: string | null
           created_at?: string | null
+          delivery_method?: string | null
           id?: string
           metrics?: Json | null
           name: string
           scheduled_at?: string | null
           segment_id?: string | null
+          sender_display_name?: string | null
           sent_at?: string | null
           status?: string | null
           subject_line?: string | null
@@ -618,13 +624,16 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          actual_sender_email?: string | null
           content?: string | null
           created_at?: string | null
+          delivery_method?: string | null
           id?: string
           metrics?: Json | null
           name?: string
           scheduled_at?: string | null
           segment_id?: string | null
+          sender_display_name?: string | null
           sent_at?: string | null
           status?: string | null
           subject_line?: string | null
