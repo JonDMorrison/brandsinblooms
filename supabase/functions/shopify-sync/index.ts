@@ -1,6 +1,131 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { ShopifyAdapter } from '../../../src/components/crm/pos/adapters/ShopifyAdapter.ts'
+
+// Shopify adapter implementation directly in edge function
+interface NormalizedCustomer {
+  name: string;
+  email: string;
+  phone?: string;
+  pos_source: string;
+  tags?: string[];
+  external_id?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+  };
+}
+
+interface NormalizedOrder {
+  order_id: string;
+  customer_email: string;
+  date: string;
+  total: number;
+  currency?: string;
+  items: Array<{
+    name: string;
+    category?: string;
+    quantity: number;
+    price?: number;
+  }>;
+  external_customer_id?: string;
+}
+
+interface NormalizedData {
+  customers: NormalizedCustomer[];
+  orders: NormalizedOrder[];
+}
+
+class ShopifyAdapter {
+  private baseUrl: string;
+  private accessToken: string;
+
+  constructor(shopDomain: string, accessToken: string) {
+    this.baseUrl = `https://${shopDomain}`;
+    this.accessToken = accessToken;
+  }
+
+  async fetchCustomers(): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/admin/api/2024-01/customers.json`, {
+      headers: {
+        'X-Shopify-Access-Token': this.accessToken,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Shopify API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.customers || [];
+  }
+
+  async fetchOrders(): Promise<any> {
+    const response = await fetch(`${this.baseUrl}/admin/api/2024-01/orders.json?status=any&limit=250`, {
+      headers: {
+        'X-Shopify-Access-Token': this.accessToken,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Shopify API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.orders || [];
+  }
+
+  adaptCustomers(rawCustomers: any[]): NormalizedCustomer[] {
+    return rawCustomers.map(customer => ({
+      name: `${customer.first_name || ''} ${customer.last_name || ''}`.trim(),
+      email: customer.email,
+      phone: customer.phone,
+      pos_source: 'shopify',
+      tags: customer.tags ? customer.tags.split(',').map((tag: string) => tag.trim()) : [],
+      external_id: customer.id.toString(),
+      address: customer.default_address ? {
+        street: `${customer.default_address.address1 || ''} ${customer.default_address.address2 || ''}`.trim(),
+        city: customer.default_address.city,
+        state: customer.default_address.province,
+        zip: customer.default_address.zip,
+        country: customer.default_address.country,
+      } : undefined,
+    }));
+  }
+
+  adaptOrders(rawOrders: any[]): NormalizedOrder[] {
+    return rawOrders.map(order => ({
+      order_id: order.id.toString(),
+      customer_email: order.email || order.customer?.email || '',
+      date: order.created_at,
+      total: parseFloat(order.total_price),
+      currency: order.currency,
+      external_customer_id: order.customer?.id?.toString(),
+      items: order.line_items.map((item: any) => ({
+        name: item.name,
+        category: item.product_type || 'Uncategorized',
+        quantity: item.quantity,
+        price: parseFloat(item.price),
+      })),
+    }));
+  }
+
+  async syncData(credentials: any): Promise<NormalizedData> {
+    const [rawCustomers, rawOrders] = await Promise.all([
+      this.fetchCustomers(),
+      this.fetchOrders()
+    ]);
+
+    return {
+      customers: this.adaptCustomers(rawCustomers),
+      orders: this.adaptOrders(rawOrders)
+    };
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
