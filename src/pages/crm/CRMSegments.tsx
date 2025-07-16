@@ -382,6 +382,10 @@ const CRMSegments = () => {
 
       const customerCount = await calculateSegmentCount(formData.conditions);
 
+      // Check if segment is based on persona
+      const personaCondition = formData.conditions.find(c => c.field === 'persona_id');
+      const personaId = personaCondition ? personaCondition.value as string : null;
+
       const segmentData = {
         name: formData.name,
         description: formData.description || null,
@@ -389,7 +393,8 @@ const CRMSegments = () => {
         customer_count: customerCount,
         auto_update: formData.auto_update,
         tenant_id: userData.tenant_id,
-        user_id: user?.id
+        user_id: user?.id,
+        persona_id: personaId
       };
 
       let error;
@@ -757,46 +762,56 @@ const CRMSegments = () => {
               </div>
             ) : (
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Customer Count</TableHead>
-                    <TableHead>Auto-Update</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Name</TableHead>
+                     <TableHead>Customer Count</TableHead>
+                     <TableHead>Type</TableHead>
+                     <TableHead>Auto-Update</TableHead>
+                     <TableHead>Created</TableHead>
+                     <TableHead className="text-right">Actions</TableHead>
+                   </TableRow>
+                 </TableHeader>
                 <TableBody>
-                  {segments.map((segment) => (
-                    <TableRow key={segment.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{segment.name}</div>
-                          {segment.description && (
-                            <div className="text-sm text-muted-foreground">{segment.description}</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{segment.customer_count}</span>
-                          {segment.auto_update && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => refreshSegmentCount(segment)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <RefreshCw className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={segment.auto_update ? "default" : "secondary"}>
-                          {segment.auto_update ? "Yes" : "No"}
-                        </Badge>
-                      </TableCell>
+                   {segments.map((segment) => (
+                     <TableRow key={segment.id}>
+                       <TableCell>
+                         <div>
+                           <div className="font-medium">{segment.name}</div>
+                           {segment.description && (
+                             <div className="text-sm text-muted-foreground">{segment.description}</div>
+                           )}
+                         </div>
+                       </TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-2">
+                           <span className="font-medium">{segment.customer_count}</span>
+                           {segment.auto_update && (
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => refreshSegmentCount(segment)}
+                               className="h-6 w-6 p-0"
+                             >
+                               <RefreshCw className="h-3 w-3" />
+                             </Button>
+                           )}
+                         </div>
+                       </TableCell>
+                       <TableCell>
+                         {(segment as any).persona_id ? (
+                           <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                             🎯 Persona-based
+                           </Badge>
+                         ) : (
+                           <Badge variant="secondary">Custom</Badge>
+                         )}
+                       </TableCell>
+                       <TableCell>
+                         <Badge variant={segment.auto_update ? "default" : "secondary"}>
+                           {segment.auto_update ? "Yes" : "No"}
+                         </Badge>
+                       </TableCell>
                       <TableCell>
                         {format(new Date(segment.created_at), 'MMM d, yyyy')}
                       </TableCell>

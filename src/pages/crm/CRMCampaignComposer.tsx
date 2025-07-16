@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { PersonaAISuggestionsModal } from '@/components/crm/personas/PersonaAISuggestionsModal';
 import { 
   ArrowLeft,
   Send,
@@ -27,13 +28,25 @@ import {
   Users,
   Mail,
   Loader2,
-  Lightbulb
+  Lightbulb,
+  HelpCircle,
+  Target
 } from 'lucide-react';
 
 interface Segment {
   id: string;
   name: string;
   customer_count: number;
+  persona_id?: string;
+}
+
+interface Persona {
+  id: string;
+  name: string;
+  tone: string;
+  description: string;
+  buying_triggers: string[];
+  sample_phrases: string[];
 }
 
 const CRMCampaignComposer = () => {
@@ -42,10 +55,13 @@ const CRMCampaignComposer = () => {
   const { toast } = useToast();
   
   const [segments, setSegments] = useState<Segment[]>([]);
+  const [personas, setPersonas] = useState<Persona[]>([]);
+  const [selectedSegmentPersona, setSelectedSegmentPersona] = useState<Persona | null>(null);
   const [loading, setLoading] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showPersonaSuggestions, setShowPersonaSuggestions] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   
   // Subject line AI states
@@ -68,6 +84,7 @@ const CRMCampaignComposer = () => {
   useEffect(() => {
     if (user) {
       loadSegments();
+      loadPersonas();
     }
   }, [user]);
 
@@ -82,7 +99,7 @@ const CRMCampaignComposer = () => {
       if (userData?.tenant_id) {
         const { data, error } = await supabase
           .from('crm_segments')
-          .select('id, name, customer_count')
+          .select('id, name, customer_count, persona_id')
           .eq('tenant_id', userData.tenant_id)
           .order('name');
 
@@ -99,6 +116,31 @@ const CRMCampaignComposer = () => {
     }
   };
 
+  const loadPersonas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('personas')
+        .select('*')
+        .order('name');
+
+      if (error) throw error;
+      setPersonas(data || []);
+    } catch (error) {
+      console.error('Error loading personas:', error);
+    }
+  };
+
+  // Update selected persona when segment changes
+  useEffect(() => {
+    const selectedSegment = segments.find(s => s.id === formData.segment_id);
+    if (selectedSegment?.persona_id) {
+      const persona = personas.find(p => p.id === selectedSegment.persona_id);
+      setSelectedSegmentPersona(persona || null);
+    } else {
+      setSelectedSegmentPersona(null);
+    }
+  }, [formData.segment_id, segments, personas]);
+
   const generateWithAI = async () => {
     if (!aiPrompt.trim()) {
       toast({
@@ -111,6 +153,22 @@ const CRMCampaignComposer = () => {
 
     setAiGenerating(true);
     try {
+      // Build enhanced prompt with persona context
+      let enhancedPrompt = aiPrompt;
+      
+      if (selectedSegmentPersona) {
+        enhancedPrompt = `
+Persona Context:
+Name: ${selectedSegmentPersona.name}
+Tone: ${selectedSegmentPersona.tone}
+Description: ${selectedSegmentPersona.description}
+Buying Triggers: ${selectedSegmentPersona.buying_triggers?.join(', ') || 'N/A'}
+Language Style: ${selectedSegmentPersona.sample_phrases?.[0] || 'Engaging and friendly'}
+
+Write a 75-word email using the persona's tone and style: ${aiPrompt}
+        `.trim();
+      }
+
       const response = await fetch('/functions/v1/generate-campaign-content', {
         method: 'POST',
         headers: {
@@ -118,8 +176,10 @@ const CRMCampaignComposer = () => {
           'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
         },
         body: JSON.stringify({
-          prompt: aiPrompt,
-          context: 'garden center email campaign'
+          prompt: enhancedPrompt,
+          context: selectedSegmentPersona ? 
+            `garden center email campaign for ${selectedSegmentPersona.name} persona` : 
+            'garden center email campaign'
         })
       });
 
@@ -444,13 +504,25 @@ const CRMCampaignComposer = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle>Email Content</CardTitle>
                   <div className="flex gap-2">
-                    <Dialog open={showAIModal} onOpenChange={setShowAIModal}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          Generate With AI
-                        </Button>
-                      </DialogTrigger>
+                     <Dialog open={showAIModal} onOpenChange={setShowAIModal}>
+                       <DialogTrigger asChild>
+                         <Button variant="outline" size="sm">
+                           <Sparkles className="h-4 w-4 mr-2" />
+                           Generate With AI
+                         </Button>
+                       </DialogTrigger>
+                     </Dialog>
+                     
+                     <Button 
+                       variant="outline" 
+                       size="sm"
+                       onClick={() => setShowPersonaSuggestions(true)}
+                     >
+                       <HelpCircle className="h-4 w-4 mr-2" />
+                       Need Help?
+                     </Button>
+                     
+                     <Dialog open={showAIModal} onOpenChange={setShowAIModal}>
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Generate Content with AI</DialogTitle>
@@ -638,8 +710,58 @@ const CRMCampaignComposer = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Persona Context Card */}
+            {selectedSegmentPersona && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Persona Context
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div>
+                    <div className="font-medium">{selectedSegmentPersona.name}</div>
+                    <div className="text-muted-foreground">{selectedSegmentPersona.description}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Writing Tone:</div>
+                    <div className="text-muted-foreground">{selectedSegmentPersona.tone}</div>
+                  </div>
+                  {selectedSegmentPersona.buying_triggers && selectedSegmentPersona.buying_triggers.length > 0 && (
+                    <div>
+                      <div className="font-medium">Key Triggers:</div>
+                      <div className="text-muted-foreground">
+                        {selectedSegmentPersona.buying_triggers.slice(0, 2).join(', ')}
+                        {selectedSegmentPersona.buying_triggers.length > 2 && '...'}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
+
+        {/* Persona AI Suggestions Modal */}
+        <PersonaAISuggestionsModal
+          isOpen={showPersonaSuggestions}
+          onClose={() => setShowPersonaSuggestions(false)}
+          type="email"
+          onPersonaSelect={(persona, theme) => {
+            if (theme) {
+              setFormData(prev => ({ 
+                ...prev, 
+                name: theme,
+                subject_line: `🌱 ${theme}`
+              }));
+            }
+            // Auto-populate AI prompt based on persona
+            setAiPrompt(`Write an email about ${theme || 'gardening tips'} for ${persona.name} customers who are ${persona.description.toLowerCase()}. Use a ${persona.tone} tone.`);
+            setShowAIModal(true);
+          }}
+        />
       </div>
     </SubscriptionGate>
   );

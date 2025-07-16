@@ -781,6 +781,7 @@ export type Database = {
           description: string | null
           id: string
           name: string
+          persona_id: string | null
           tenant_id: string | null
           updated_at: string | null
           user_id: string | null
@@ -793,6 +794,7 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
+          persona_id?: string | null
           tenant_id?: string | null
           updated_at?: string | null
           user_id?: string | null
@@ -805,11 +807,19 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
+          persona_id?: string | null
           tenant_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_segments_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_segments_tenant_id_fkey"
             columns: ["tenant_id"]
