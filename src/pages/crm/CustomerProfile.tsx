@@ -48,6 +48,7 @@ interface PersonaData {
   description: string;
   buying_triggers: string[];
   sample_phrases: string[];
+  ideal_products: string[];
   icon: string;
   color_theme: string;
 }
@@ -204,10 +205,14 @@ const CustomerProfile = () => {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Persona Summary */}
-            {personaData && (
+            {personaData ? (
               <PersonaSummaryCard 
                 persona={personaData}
-                onCreateSegment={handleCreateSegmentFromPersona}
+                onAssignClick={() => setIsPersonaModalOpen(true)}
+              />
+            ) : (
+              <PersonaSummaryCard 
+                onAssignClick={() => setIsPersonaModalOpen(true)}
               />
             )}
 
