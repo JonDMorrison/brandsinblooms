@@ -12,7 +12,7 @@ import { MessageSquare, Calendar as CalendarIcon, Clock, Send, Save, Sparkles, E
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 interface Segment {
@@ -39,13 +39,24 @@ export default function CRMSMSCampaignComposer() {
   
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const MAX_CHARS = 300;
   const remainingChars = MAX_CHARS - message.length;
 
+  // SMS Invite Template
+  const SMS_INVITE_TEMPLATE = "📲 Want plant tips and early deals via text? Reply YES to opt in! 🌱";
+
   useEffect(() => {
     fetchSegments();
-  }, []);
+    
+    // Check if this is an invite template request
+    const templateParam = searchParams.get('template');
+    if (templateParam === 'invite') {
+      setName("SMS Opt-in Invitation");
+      setMessage(SMS_INVITE_TEMPLATE);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (selectedSegment) {
@@ -323,6 +334,31 @@ export default function CRMSMSCampaignComposer() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Template Suggestion */}
+            {!message.trim() && (
+              <div className="bg-muted/50 p-4 rounded-lg border-2 border-dashed border-muted-foreground/20">
+                <div className="flex items-start space-x-3">
+                  <MessageSquare className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-medium text-sm mb-2">📲 SMS Invite Template</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Perfect for growing your SMS list with non-opted customers
+                    </p>
+                    <div className="bg-background p-3 rounded border text-sm mb-3">
+                      {SMS_INVITE_TEMPLATE}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMessage(SMS_INVITE_TEMPLATE)}
+                    >
+                      Use This Template
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
               <Label htmlFor="message">Message Content *</Label>
               <Textarea

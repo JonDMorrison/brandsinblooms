@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
@@ -38,6 +39,7 @@ type Customer = {
   last_purchase_date: string | null;
   lifetime_value: number | null;
   sms_opt_in: boolean | null;
+  sms_opt_in_at: string | null;
   custom_fields: any;
   created_at: string;
   updated_at: string;
@@ -439,13 +441,28 @@ const CRMCustomers = () => {
                     </Select>
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Switch 
-                      id="sms-opt-in"
-                      checked={selectedCustomer.sms_opt_in || false}
-                      onCheckedChange={(checked) => updateCustomer({ sms_opt_in: checked })}
-                    />
-                    <Label htmlFor="sms-opt-in">SMS Opt-in</Label>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <Switch 
+                          id="sms-opt-in"
+                          checked={selectedCustomer.sms_opt_in || false}
+                          onCheckedChange={(checked) => updateCustomer({ 
+                            sms_opt_in: checked,
+                            sms_opt_in_at: checked ? new Date().toISOString() : null
+                          })}
+                        />
+                        <Label htmlFor="sms-opt-in" className="font-medium">SMS Opt-in</Label>
+                      </div>
+                      <Badge variant={selectedCustomer.sms_opt_in ? "default" : "secondary"}>
+                        {selectedCustomer.sms_opt_in ? "✅ Yes" : "❌ No"}
+                      </Badge>
+                    </div>
+                    {selectedCustomer.sms_opt_in_at && (
+                      <p className="text-xs text-muted-foreground">
+                        Opted in: {format(new Date(selectedCustomer.sms_opt_in_at), "MMM d, yyyy 'at' h:mm a")}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -513,6 +530,12 @@ const CRMCustomers = () => {
                     <Mail className="h-4 w-4 mr-2" />
                     Send Test Email
                   </Button>
+                  {selectedCustomer.sms_opt_in && (
+                    <Button variant="outline" className="flex-1">
+                      <Phone className="h-4 w-4 mr-2" />
+                      Send SMS
+                    </Button>
+                  )}
                   <Button variant="outline" className="flex-1">
                     Add to Segment
                   </Button>

@@ -1,9 +1,46 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Mail, Target, TrendingUp } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Mail, Target, TrendingUp, MessageSquare, AlertCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Link } from 'react-router-dom';
 
 const CRMDashboard = () => {
+  const [customerStats, setCustomerStats] = useState({
+    total: 0,
+    smsOptedIn: 0,
+    smsOptInRate: 0
+  });
+
+  useEffect(() => {
+    fetchCustomerStats();
+  }, []);
+
+  const fetchCustomerStats = async () => {
+    try {
+      const { data: customers, error } = await supabase
+        .from('crm_customers')
+        .select('sms_opt_in');
+
+      if (error) throw error;
+
+      const total = customers?.length || 0;
+      const smsOptedIn = customers?.filter(c => c.sms_opt_in).length || 0;
+      const smsOptInRate = total > 0 ? (smsOptedIn / total) * 100 : 0;
+
+      setCustomerStats({
+        total,
+        smsOptedIn,
+        smsOptInRate
+      });
+    } catch (error) {
+      console.error('Error fetching customer stats:', error);
+    }
+  };
+
+  const showSMSNudge = customerStats.total > 0 && customerStats.smsOptInRate < 25;
+
   return (
     <SubscriptionGate 
       requiredPlan="bloom" 
@@ -19,6 +56,38 @@ const CRMDashboard = () => {
           </div>
         </div>
 
+        {/* SMS Opt-in Nudge */}
+        {showSMSNudge && (
+          <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950">
+            <CardContent className="p-6">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-100">
+                    🧑‍🌾 {Math.round(100 - customerStats.smsOptInRate)}% of your customers aren't opted in for SMS
+                  </h3>
+                  <p className="text-orange-700 dark:text-orange-200 mt-1">
+                    Send a signup message or add opt-in prompts to your forms to grow your SMS list.
+                  </p>
+                  <div className="mt-3 flex items-center space-x-3">
+                    <Button asChild size="sm">
+                      <Link to="/crm/sms-campaigns/new?template=invite">
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Create SMS Invite Campaign
+                      </Link>
+                    </Button>
+                    <span className="text-sm text-orange-600 dark:text-orange-300">
+                      {customerStats.smsOptedIn} of {customerStats.total} customers opted in
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <Card>
@@ -27,9 +96,22 @@ const CRMDashboard = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{customerStats.total}</div>
               <p className="text-xs text-muted-foreground">
-                +0% from last month
+                Active in your database
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">SMS Opt-ins</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{customerStats.smsOptedIn}</div>
+              <p className="text-xs text-muted-foreground">
+                {customerStats.smsOptInRate.toFixed(1)}% opt-in rate
               </p>
             </CardContent>
           </Card>
