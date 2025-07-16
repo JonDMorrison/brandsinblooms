@@ -48,6 +48,7 @@ const CRMCustomers = lazy(() => import("./pages/crm/CRMCustomers"));
 const CRMSegments = lazy(() => import("./pages/crm/CRMSegments"));
 const CRMCampaigns = lazy(() => import("./pages/crm/CRMCampaigns"));
 const CRMCampaignComposer = lazy(() => import("./pages/crm/CRMCampaignComposer"));
+const CRMCampaignDetail = lazy(() => import("./pages/crm/CRMCampaignDetail"));
 const CRMSMSCampaigns = lazy(() => import("./pages/crm/CRMSMSCampaigns"));
 const CRMSMSCampaignComposer = lazy(() => import("./pages/crm/CRMSMSCampaignComposer"));
 const CRMSMSCampaignDetail = lazy(() => import("./pages/crm/CRMSMSCampaignDetail"));
@@ -245,6 +246,13 @@ const App = () => {
                 <AuthenticatedLayout>
                   <LazyLoadWrapper>
                     <CRMCampaignComposer />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm/campaigns/:id" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CRMCampaignDetail />
                   </LazyLoadWrapper>
                 </AuthenticatedLayout>
               } />

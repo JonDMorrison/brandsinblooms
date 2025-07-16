@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -329,11 +329,15 @@ const CRMCampaigns = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center gap-1 justify-end">
-                              <Button variant="ghost" size="sm">
-                                <Eye className="h-4 w-4" />
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link to={`/crm/campaigns/${campaign.id}`}>
+                                  <Eye className="h-4 w-4" />
+                                </Link>
                               </Button>
-                              <Button variant="ghost" size="sm">
-                                <Copy className="h-4 w-4" />
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link to={`/crm/campaigns/new?duplicate=${campaign.id}`}>
+                                  <Copy className="h-4 w-4" />
+                                </Link>
                               </Button>
                               <Button variant="ghost" size="sm">
                                 <MoreHorizontal className="h-4 w-4" />

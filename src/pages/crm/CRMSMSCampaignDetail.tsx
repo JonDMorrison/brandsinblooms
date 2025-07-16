@@ -221,36 +221,39 @@ export default function CRMSMSCampaignDetail() {
             </div>
 
             {campaign.metrics && (
-              <div className="space-y-3">
-                <label className="text-sm font-medium text-muted-foreground">Delivery Metrics</label>
+              <div className="space-y-4">
+                <label className="text-sm font-medium text-muted-foreground">Performance Metrics</label>
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-primary">
+                  <div className="text-center p-4 bg-muted/50 rounded-lg">
+                    <div className="text-3xl font-bold text-primary">
                       {campaign.metrics.messages_sent || 0}
                     </div>
-                    <div className="text-sm text-muted-foreground">Messages Sent</div>
+                    <div className="text-sm text-muted-foreground">Total Recipients</div>
                   </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {getDeliveryRate(campaign.metrics)}
-                    </div>
-                    <div className="text-sm text-muted-foreground">Delivery Rate</div>
-                  </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
+                  <div className="text-center p-4 bg-muted/50 rounded-lg">
+                    <div className="text-3xl font-bold text-green-600">
                       {campaign.metrics.delivered || 0}
                     </div>
                     <div className="text-sm text-muted-foreground">Delivered</div>
+                    <div className="text-xs text-muted-foreground">
+                      {getDeliveryRate(campaign.metrics)} delivery rate
+                    </div>
                   </div>
-                  <div className="text-center p-3 bg-muted rounded-lg">
-                    <div className="text-2xl font-bold text-red-600">
+                  <div className="text-center p-4 bg-muted/50 rounded-lg">
+                    <div className="text-3xl font-bold text-red-600">
                       {campaign.metrics.failed || 0}
                     </div>
                     <div className="text-sm text-muted-foreground">Failed</div>
                   </div>
+                  <div className="text-center p-4 bg-muted/50 rounded-lg">
+                    <div className="text-3xl font-bold text-blue-600">
+                      {campaign.metrics.clicks || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Clicks</div>
+                  </div>
                 </div>
                 
-                <div className="text-center p-3 bg-muted rounded-lg">
+                <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <div className="text-2xl font-bold text-orange-600">
                     {campaign.metrics.opt_outs || 0}
                   </div>
