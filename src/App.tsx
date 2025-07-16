@@ -48,6 +48,8 @@ const CRMCustomers = lazy(() => import("./pages/crm/CRMCustomers"));
 const CRMSegments = lazy(() => import("./pages/crm/CRMSegments"));
 const CRMCampaigns = lazy(() => import("./pages/crm/CRMCampaigns"));
 const CRMCampaignComposer = lazy(() => import("./pages/crm/CRMCampaignComposer"));
+const CRMSMSCampaigns = lazy(() => import("./pages/crm/CRMSMSCampaigns"));
+const CRMSMSCampaignComposer = lazy(() => import("./pages/crm/CRMSMSCampaignComposer"));
 
 // Lazy load test components
 const SocialMediaIntegrationTest = lazy(() => import('./components/test/SocialMediaIntegrationTest').then(module => ({ default: module.SocialMediaIntegrationTest })));
@@ -240,6 +242,20 @@ const App = () => {
                 <AuthenticatedLayout>
                   <LazyLoadWrapper>
                     <CRMCampaignComposer />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm/sms-campaigns" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CRMSMSCampaigns />
+                  </LazyLoadWrapper>
+                </AuthenticatedLayout>
+              } />
+              <Route path="/crm/sms-campaigns/new" element={
+                <AuthenticatedLayout>
+                  <LazyLoadWrapper>
+                    <CRMSMSCampaignComposer />
                   </LazyLoadWrapper>
                 </AuthenticatedLayout>
               } />

@@ -15,29 +15,52 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, context } = await req.json();
+    const { prompt, context, type, maxLength } = await req.json();
 
     if (!openAIApiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    const systemPrompt = `You are an expert email marketing writer for garden centers and nurseries. 
-    You write engaging, helpful, and seasonal content that resonates with gardening enthusiasts of all levels.
-    
-    Your writing style is:
-    - Friendly and approachable, like talking to a neighbor
-    - Educational but not overwhelming
-    - Seasonal and timely
-    - Encouraging and inspiring
-    - Practical with actionable tips
-    
-    Always include:
-    - A warm, personal greeting
-    - Helpful gardening tips relevant to the season
-    - A call-to-action to visit the garden center
-    - A friendly closing
-    
-    Format the email content as plain text with line breaks for readability.`;
+    // Generate content based on type
+    let systemPrompt = "";
+    let maxTokens = 200;
+
+    if (type === "email") {
+      systemPrompt = `You are an expert email marketing writer for garden centers and nurseries. 
+      You write engaging, helpful, and seasonal content that resonates with gardening enthusiasts of all levels.
+      
+      Your writing style is:
+      - Friendly and approachable, like talking to a neighbor
+      - Educational but not overwhelming
+      - Seasonal and timely
+      - Encouraging and inspiring
+      - Practical with actionable tips
+      
+      Always include:
+      - A warm, personal greeting
+      - Helpful gardening tips relevant to the season
+      - A call-to-action to visit the garden center
+      - A friendly closing
+      
+      Format the email content as plain text with line breaks for readability.`;
+      maxTokens = 1000;
+    } else if (type === "sms") {
+      systemPrompt = `You are a marketing expert for garden centers and plant nurseries.
+      Create short, compelling SMS marketing messages for gardening enthusiasts.
+      Focus on promotions, new arrivals, seasonal tips, or events.
+      Keep it concise, friendly, and action-oriented.
+      Maximum ${maxLength || 250} characters including spaces.
+      Do NOT include "Reply STOP to unsubscribe" - this will be added automatically.
+      Use garden/plant emojis sparingly but effectively.`;
+      maxTokens = 100;
+    } else {
+      systemPrompt = `You are a marketing expert for garden centers and plant nurseries.
+      Create engaging social media content that speaks to gardening enthusiasts.
+      Focus on seasonal gardening tips, plant care advice, new arrivals, and promotions.
+      Keep the tone friendly, knowledgeable, and inspiring.
+      Use relevant emojis and include hashtags.`;
+      maxTokens = 300;
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -49,9 +72,9 @@ serve(async (req) => {
         model: 'gpt-4.1-2025-04-14',
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Write a ${context} email about: ${prompt}` }
+          { role: 'user', content: type === "sms" ? `Write an SMS message about: ${prompt}` : `Write a ${context || type} about: ${prompt}` }
         ],
-        max_tokens: 1000,
+        max_tokens: maxTokens,
         temperature: 0.7
       }),
     });
