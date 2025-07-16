@@ -778,6 +778,50 @@ export type Database = {
           },
         ]
       }
+      crm_persona_campaign_templates: {
+        Row: {
+          ai_prompt_context: string | null
+          campaign_type: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          persona_id: string | null
+          season: string | null
+          tags: string[] | null
+          title: string
+        }
+        Insert: {
+          ai_prompt_context?: string | null
+          campaign_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          persona_id?: string | null
+          season?: string | null
+          tags?: string[] | null
+          title: string
+        }
+        Update: {
+          ai_prompt_context?: string | null
+          campaign_type?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          persona_id?: string | null
+          season?: string | null
+          tags?: string[] | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_persona_campaign_templates_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_segments: {
         Row: {
           auto_update: boolean | null

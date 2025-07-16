@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PersonaAISuggestionsModal } from '@/components/crm/personas/PersonaAISuggestionsModal';
+import { CampaignSuggestions } from '@/components/crm/campaigns/CampaignSuggestions';
 import { 
   ArrowLeft,
   Send,
@@ -47,6 +48,20 @@ interface Persona {
   description: string;
   buying_triggers: string[];
   sample_phrases: string[];
+  icon: string;
+  color_theme: string;
+}
+
+interface CampaignTemplate {
+  id: string;
+  title: string;
+  description: string;
+  season: string;
+  tags: string[];
+  ai_prompt_context: string;
+  campaign_type: string;
+  persona_id: string;
+  created_at: string;
 }
 
 const CRMCampaignComposer = () => {
@@ -337,7 +352,39 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
     await saveCampaign('scheduled');
   };
 
+  // Function to handle campaign suggestion selection
+  const handleSuggestionSelect = (suggestion: CampaignTemplate) => {
+    // Pre-fill the form with suggestion data
+    setFormData(prev => ({
+      ...prev,
+      name: suggestion.title,
+      subject_line: `🌱 ${suggestion.title}`
+    }));
+    
+    // Set AI prompt from the suggestion
+    setAiPrompt(suggestion.ai_prompt_context);
+    setShowAIModal(true);
+    
+    toast({
+      title: "Campaign idea selected",
+      description: "AI prompt loaded! Click 'Generate Content' to create your campaign."
+    });
+  };
+
   const selectedSegment = segments.find(s => s.id === formData.segment_id);
+
+  // Check if the selected segment has a dominant persona (80%+ threshold)
+  const getDominantPersona = (): Persona | null => {
+    if (!selectedSegment?.persona_id || !selectedSegmentPersona) {
+      return null;
+    }
+    
+    // For now, we assume if a segment has a persona_id, it's the dominant one
+    // In a more complex implementation, you'd check the actual distribution
+    return selectedSegmentPersona;
+  };
+
+  const dominantPersona = getDominantPersona();
 
   return (
     <SubscriptionGate requiredPlan="bloom" feature="Email Campaigns">
@@ -594,6 +641,15 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Campaign Suggestions */}
+            {dominantPersona && (
+              <CampaignSuggestions
+                dominantPersona={dominantPersona}
+                campaignType="email"
+                onSuggestionSelect={handleSuggestionSelect}
+              />
+            )}
+
             {/* Segment Info */}
             {selectedSegment && (
               <Card>
