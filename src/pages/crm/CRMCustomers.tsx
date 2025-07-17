@@ -28,6 +28,7 @@ import {
   Edit,
   X
 } from 'lucide-react';
+import { CustomerImportModal } from '@/components/crm/CustomerImportModal';
 
 type Customer = {
   id: string;
@@ -186,10 +187,7 @@ const CRMCustomers = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline">
-              <Upload className="h-4 w-4 mr-2" />
-              Import CSV
-            </Button>
+            <CustomerImportModal />
             <Button>
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
@@ -286,10 +284,7 @@ const CRMCustomers = () => {
                   }
                 </p>
                 <div className="flex justify-center gap-2">
-                  <Button variant="outline">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import from CSV
-                  </Button>
+                  <CustomerImportModal />
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Customer
