@@ -3,13 +3,11 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Calendar, Sparkles, Eye, Plus, Trash2, Mail } from "lucide-react";
+import { Calendar, Sparkles, Eye, Plus, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import { useCRMAccess } from "@/hooks/useCRMAccess";
-import { CRMUpgradePrompt } from "@/components/crm/CRMUpgradePrompt";
 
 interface CustomContentItemProps {
   campaign: any;
@@ -30,7 +28,7 @@ export const CustomContentItem = ({
 }: CustomContentItemProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { hasCRMAccess } = useCRMAccess();
+  
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -45,21 +43,6 @@ export const CustomContentItem = ({
     onViewContent(campaign.id, campaign.title);
   };
 
-  const handleUseinCRM = () => {
-    const searchParams = new URLSearchParams({
-      source: 'custom_content',
-      campaign_id: campaign.id,
-      campaign_title: campaign.title,
-      campaign_description: campaign.description || '',
-      recommended_send_date: new Date().toISOString().split('T')[0]
-    });
-    navigate(`/crm/campaigns/new?${searchParams.toString()}`);
-    
-    toast({
-      title: "Content sent to CRM",
-      description: `"${campaign.title}" opened in campaign builder`
-    });
-  };
 
   const handleDeleteClick = async () => {
     setIsDeleting(true);
@@ -172,18 +155,6 @@ export const CustomContentItem = ({
                   <Eye className="w-4 h-4" />
                   Review
                 </Button>
-                {hasCRMAccess ? (
-                  <Button
-                    onClick={handleUseinCRM}
-                    size="sm"
-                    className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                  >
-                    <Mail className="w-4 h-4" />
-                    Use in CRM
-                  </Button>
-                ) : (
-                  <CRMUpgradePrompt variant="button" size="sm" />
-                )}
                 <Button
                   onClick={handleGenerateClick}
                   disabled={isGenerating}
