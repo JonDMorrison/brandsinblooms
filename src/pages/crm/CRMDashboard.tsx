@@ -194,17 +194,17 @@ const CRMDashboard = () => {
       <div className="min-h-screen bg-gradient-to-br from-green-50/30 to-emerald-50/30">
         <div className="container mx-auto p-6 space-y-8">
           {/* Header */}
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center space-x-3">
+          <div className="text-left space-y-4">
+            <div className="flex items-center justify-start space-x-3">
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl">
                 <Sparkles className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                  BloomSuite CRM
+                <h1 className="text-4xl font-bold text-black">
+                  CRM
                 </h1>
-                <p className="text-lg text-muted-foreground">
-                  Growing relationships, one customer at a time 🌱
+                <p className="text-lg text-black">
+                  Grow your community.
                 </p>
               </div>
             </div>
