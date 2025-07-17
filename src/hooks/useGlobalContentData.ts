@@ -9,6 +9,8 @@ export const useGlobalContentData = () => {
   const {
     campaigns,
     tasks,
+    systemTasks,
+    customTasks,
     userCreatedCampaigns,
     approvedTasks,
     loading,
@@ -25,6 +27,8 @@ export const useGlobalContentData = () => {
   return {
     campaigns,
     tasks,
+    systemTasks,
+    customTasks,
     userCreatedCampaigns,
     approvedTasks,
     loading,

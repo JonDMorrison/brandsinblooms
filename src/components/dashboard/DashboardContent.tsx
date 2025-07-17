@@ -208,6 +208,7 @@ export const DashboardContent = ({
           if (tenant?.id) {
             const belongsToTenant = task.campaigns && task.campaigns.tenant_id === tenant.id;
             const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
+            const isCustomCampaign = task.campaigns?.source === 'quick_action';
             
             if (!belongsToTenant) return false;
             if (!isDevelopment && isPreviewCampaign) return false;
@@ -216,6 +217,7 @@ export const DashboardContent = ({
           } else {
             const belongsToUser = task.campaigns && (task.campaigns.user_id === user.id || task.user_id === user.id);
             const isPreviewCampaign = task.campaigns?.title?.startsWith('PREVIEW');
+            const isCustomCampaign = task.campaigns?.source === 'quick_action';
             
             if (!belongsToUser) return false;
             if (!isDevelopment && isPreviewCampaign) return false;
@@ -497,7 +499,7 @@ export const DashboardContent = ({
             <UnifiedDashboardGrid
               activeCampaign={activeCampaign}
               userCreatedCampaigns={userCreatedCampaigns}
-              tasks={tasks}
+              tasks={tasks.filter(t => t.campaigns?.source !== 'quick_action')}
               onTaskUpdate={handleTaskUpdate}
               onCampaignCreated={fetchCampaignData}
               onCampaignUpdate={fetchCampaignData}

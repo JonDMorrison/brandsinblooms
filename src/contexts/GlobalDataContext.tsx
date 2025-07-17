@@ -8,6 +8,8 @@ import {
   securityFilterCampaigns, 
   securityFilterTasks,
   getCustomCampaigns,
+  getCustomCampaignTasks,
+  getSystemCampaignTasks,
   getApprovedTasks,
   deduplicateById,
   type FilterConfig 
@@ -21,6 +23,8 @@ interface CachedData {
   campaigns: Campaign[];
   tasks: any[];
   userCreatedCampaigns: Campaign[];
+  systemTasks: any[];
+  customTasks: any[];
   approvedTasks: any[];
   timestamp: number;
   isStale: boolean;
@@ -36,6 +40,8 @@ interface GlobalDataContextType {
   // Data
   campaigns: Campaign[];
   tasks: any[];
+  systemTasks: any[];
+  customTasks: any[];
   userCreatedCampaigns: Campaign[];
   approvedTasks: any[];
   
@@ -184,18 +190,25 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
           const securedTasks = securityFilterTasks(tasksData || [], filterConfig);
           const deduplicatedTasks = deduplicateById(securedTasks);
-          const approvedTasksList = getApprovedTasks(deduplicatedTasks, filterConfig);
           
           setLoadingStates(prev => ({ ...prev, tasks: false }));
-          return { tasks: deduplicatedTasks, approvedTasks: approvedTasksList };
+          return { 
+            tasks: deduplicatedTasks,
+            approvedTasks: getApprovedTasks(deduplicatedTasks, filterConfig)
+          };
         })()
       ]);
 
-      // Combine results
+      // Combine results and split tasks by campaign source
+      const systemTasksList = getSystemCampaignTasks(taskResult.tasks, campaignResult.campaigns, filterConfig);
+      const customTasksList = getCustomCampaignTasks(taskResult.tasks, campaignResult.campaigns, filterConfig);
+      
       const newCachedData: CachedData = {
         campaigns: campaignResult.campaigns,
         userCreatedCampaigns: campaignResult.userCreatedCampaigns,
         tasks: taskResult.tasks,
+        systemTasks: systemTasksList,
+        customTasks: customTasksList,
         approvedTasks: taskResult.approvedTasks,
         timestamp: Date.now(),
         isStale: false
@@ -296,6 +309,8 @@ export const GlobalDataProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Data
     campaigns: cachedData?.campaigns || [],
     tasks: cachedData?.tasks || [],
+    systemTasks: cachedData?.systemTasks || [],
+    customTasks: cachedData?.customTasks || [],
     userCreatedCampaigns: cachedData?.userCreatedCampaigns || [],
     approvedTasks: cachedData?.approvedTasks || [],
     

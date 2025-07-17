@@ -39,7 +39,8 @@ export const createContentTasksFilter = (supabase: any, config: FilterConfig) =>
       campaigns!inner (
         title,
         tenant_id,
-        user_id
+        user_id,
+        source
       ),
       holidays (
         holiday_name,
@@ -114,6 +115,54 @@ export const getCustomCampaigns = (campaigns: any[], config: FilterConfig) => {
   });
   
   return deduplicateById(customCampaigns);
+};
+
+/**
+ * Filters tasks to only include those from custom campaigns
+ */
+export const getCustomCampaignTasks = (tasks: any[], campaigns: any[], config: FilterConfig) => {
+  const customCampaignIds = new Set(campaigns
+    .filter(c => c.source === 'quick_action')
+    .map(c => c.id)
+  );
+  
+  const customTasks = tasks.filter(task => {
+    // Must be from a custom campaign
+    if (!customCampaignIds.has(task.campaign_id)) return false;
+    
+    // Apply ownership security check
+    if (config.tenantId) {
+      return task.campaigns?.tenant_id === config.tenantId || task.tenant_id === config.tenantId;
+    } else {
+      return task.campaigns?.user_id === config.userId || task.user_id === config.userId;
+    }
+  });
+  
+  return deduplicateById(customTasks);
+};
+
+/**
+ * Filters tasks to exclude those from custom campaigns (for system/weekly content)
+ */
+export const getSystemCampaignTasks = (tasks: any[], campaigns: any[], config: FilterConfig) => {
+  const customCampaignIds = new Set(campaigns
+    .filter(c => c.source === 'quick_action')
+    .map(c => c.id)
+  );
+  
+  const systemTasks = tasks.filter(task => {
+    // Exclude custom campaign tasks
+    if (customCampaignIds.has(task.campaign_id)) return false;
+    
+    // Apply ownership security check
+    if (config.tenantId) {
+      return task.campaigns?.tenant_id === config.tenantId || task.tenant_id === config.tenantId;
+    } else {
+      return task.campaigns?.user_id === config.userId || task.user_id === config.userId;
+    }
+  });
+  
+  return deduplicateById(systemTasks);
 };
 
 /**

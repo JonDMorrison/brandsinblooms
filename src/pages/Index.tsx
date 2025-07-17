@@ -117,11 +117,11 @@ const Index = () => {
           <div className="w-full h-full bg-garden-background">
             {/* Dashboard Content */}
             <div className="w-full h-full p-6">
-              <DashboardContent
-                onboardingData={onboardingData}
-                onBusinessNameChange={handleBusinessNameChange}
-                onCampaignCreated={handleCampaignCreated}
-              />
+          <DashboardContent 
+            onboardingData={onboardingData} 
+            onBusinessNameChange={handleBusinessNameChange}
+            onCampaignCreated={handleCampaignCreated}
+          />
             </div>
           </div>
         </SidebarLayout>
