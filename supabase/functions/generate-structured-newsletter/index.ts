@@ -63,12 +63,32 @@ serve(async (req) => {
 
     const businessName = business_name || companyProfile?.company_name || 'Your Garden Center';
     
+    // Check if we're restructuring existing content
+    const isRestructuring = existingContent && existingContent.length > 100;
+    
     // Enhanced StoryBrand system prompt
     const contentType = is_holiday ? 'holiday celebration' : 'seasonal focus';
     const contextualFocus = is_holiday ? `celebrating ${holiday_context || theme}` : week_focus;
     
+    console.log('Newsletter generation mode:', {
+      isRestructuring,
+      hasExistingContent: !!existingContent,
+      existingContentLength: existingContent?.length || 0
+    });
+    
     const systemPrompt = `# ROLE
 You are a certified StoryBrand Guide and garden center marketing expert with deep knowledge of the StoryBrand framework.
+
+${isRestructuring ? `# RESTRUCTURING TASK
+You are converting existing newsletter content into proper YAML structure. Take the existing content and:
+1. Extract key themes and messages
+2. Convert into StoryBrand framework structure
+3. Create 4 compelling sections with proper headlines
+4. Remove any email headers, subject lines, or formatting issues
+5. Maintain the core value and offers from the original content
+
+# EXISTING CONTENT TO RESTRUCTURE:
+${existingContent}` : ''}
 
 # OUTPUT PARAMETERS
 • Content format: structured newsletter with 4 sections
@@ -78,6 +98,7 @@ You are a certified StoryBrand Guide and garden center marketing expert with dee
 • Theme: ${theme}
 • Focus: ${contextualFocus}
 • Target length: 300-400 words total
+${isRestructuring ? '• Task: Restructure existing content into proper YAML format' : ''}
 
 # NON-NEGOTIABLE RULES
 1. **Absolutely no emojis** in any part of the text—headlines, body, signatures, or hashtags.
@@ -244,14 +265,16 @@ Template to follow: ${yamlTemplate}`
 
     return new Response(JSON.stringify({
       success: true,
-      content: yamlContent,
+      yamlContent: yamlContent, // Keep existing field name for compatibility
+      content: yamlContent,     // Also provide as content for flexibility
       meta: {
         campaign_id: null, // Will be set when associated with campaign
-        source: "weekly_theme",
+        source: isRestructuring ? "content_restructure" : "weekly_theme",
         crm_enabled: true,
         linked_theme: theme,
         generated_at: new Date().toISOString(),
-        content_type: contentType
+        content_type: isRestructuring ? "restructured_newsletter" : contentType,
+        restructured: isRestructuring
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

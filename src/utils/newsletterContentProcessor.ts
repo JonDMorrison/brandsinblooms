@@ -64,7 +64,22 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     }
   }
 
-  // Process as plain text newsletter
+  // Detect if this is unstructured newsletter content that needs regeneration
+  if (isUnstructuredNewsletter(content)) {
+    console.log('⚠️ Detected unstructured newsletter content - forcing regeneration');
+    return {
+      isStructured: false,
+      newsletter_md: '',
+      blocks: [],
+      meta: {
+        reading_time: calculateReadingTime(content),
+        theme: campaignTitle || 'Newsletter',
+        week_focus: 'Content Update - Needs Restructuring'
+      }
+    };
+  }
+
+  // Process as plain text newsletter (for truly minimal content)
   return {
     isStructured: false,
     newsletter_md: content,
@@ -328,4 +343,24 @@ const calculateReadingTime = (content: string): string => {
   const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
   const readingTime = Math.max(1, Math.ceil(wordCount / 200));
   return `${readingTime} min read`;
+};
+
+const isUnstructuredNewsletter = (content: string): boolean => {
+  if (!content) return false;
+  
+  // Check for email-style newsletter (raw email content)
+  const hasEmailFormat = content.includes('Subject:') && !content.includes('newsletter_md:');
+  
+  // Check for missing YAML structure in newsletter content that's substantial
+  const hasNoYAMLStructure = !content.includes('newsletter_md:') && 
+                            !content.includes('blocks:') && 
+                            !content.includes('- title:') &&
+                            content.length > 200; // Substantial content without structure
+  
+  // Check for content that looks like raw newsletter text
+  const looksLikeRawNewsletter = content.includes('Subject:') || 
+                                content.includes('Dear') ||
+                                (content.includes('garden') && content.length > 300 && !content.includes('##'));
+  
+  return hasEmailFormat || (hasNoYAMLStructure && looksLikeRawNewsletter);
 };

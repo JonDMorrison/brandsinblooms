@@ -12,14 +12,24 @@ export async function regenerateNewsletterContent(
       .select('company_name')
       .single();
 
+    console.log('🔄 Regenerating newsletter with existing content:', {
+      contentLength: existingContent.length,
+      campaignTitle,
+      contentPreview: existingContent.substring(0, 200)
+    });
+
     // Call the structured newsletter generation with existing content
     const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {
       body: {
-        businessName: profile?.company_name || 'Your Garden Center',
+        business_name: profile?.company_name || 'Your Garden Center',
         theme: campaignTitle,
-        focus: 'Restructure existing newsletter content into proper YAML format',
+        week_focus: `Restructure existing ${campaignTitle} content into proper YAML format`,
         existingContent: existingContent,
-        userId: (await supabase.auth.getUser()).data.user?.id
+        userId: (await supabase.auth.getUser()).data.user?.id,
+        promo_items: [],
+        tone_note: 'Restructure existing content',
+        is_holiday: false,
+        holiday_context: ''
       }
     });
 

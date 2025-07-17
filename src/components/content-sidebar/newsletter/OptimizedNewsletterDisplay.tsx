@@ -3,7 +3,7 @@ import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { processNewsletterContent, convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Clock, Mail } from 'lucide-react';
+import { Clock, Mail, FileText } from 'lucide-react';
 import { useCRMAccess } from '@/hooks/useCRMAccess';
 import { CRMUpgradePrompt } from '@/components/crm/CRMUpgradePrompt';
 import { useNavigate } from 'react-router-dom';
@@ -40,6 +40,7 @@ export const OptimizedNewsletterDisplay = ({
   const { toast } = useToast();
   const isPlaceholderContent = checkIsPlaceholderContent(content);
   const [selectedImages, setSelectedImages] = useState<Record<number, string>>({});
+  const [isRegenerating, setIsRegenerating] = useState(false);
   
   console.log('[NEWSLETTER] OptimizedNewsletterDisplay processing:', {
     hasContent: !!content,
@@ -51,6 +52,9 @@ export const OptimizedNewsletterDisplay = ({
 
   // Process the newsletter content
   const processedNewsletter = processNewsletterContent(content || '', campaignTitle);
+  
+  // Force regeneration for unstructured content
+  const needsRegeneration = isPlaceholderContent || !processedNewsletter.isStructured;
   
   // Use the specialized newsletter images hook for structured newsletters only
   console.log('[NEWSLETTER] Calling useNewsletterImages with:', {
@@ -173,17 +177,52 @@ export const OptimizedNewsletterDisplay = ({
   // Check if content is approved
   const isApproved = taskStatus === 'approved' || taskStatus === 'scheduled' || taskStatus === 'published';
 
-  // If content is placeholder or incomplete, show regeneration option
-  if (isPlaceholderContent) {
-    console.log('[NEWSLETTER] Showing regeneration component for placeholder content');
+  // If content needs regeneration, show regeneration interface
+  if (needsRegeneration) {
+    console.log('[NEWSLETTER] Showing regeneration component for unstructured content');
     return (
       <div className={`max-w-4xl mx-auto ${className || ''}`}>
-        <NewsletterRegenerator
-          contentTaskId={contentTaskId}
-          campaignTitle={campaignTitle || 'Roses Week'}
-          regenerating={false}
-          setRegenerating={() => {}}
-        />
+        <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-white rounded-xl border border-slate-200">
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full border border-amber-200">
+              <FileText className="w-4 h-4" />
+              <span className="text-sm font-medium">
+                {isRegenerating ? 'Converting Newsletter...' : 'Newsletter Needs Restructuring'}
+              </span>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-xl font-semibold text-slate-900">
+                {campaignTitle ? `${campaignTitle} Newsletter` : 'Newsletter Content'}
+              </h3>
+              <p className="text-slate-600 max-w-md mx-auto">
+                {isRegenerating 
+                  ? 'Converting unstructured content to proper newsletter format...'
+                  : 'This newsletter content needs to be converted to structured format for proper display.'
+                }
+              </p>
+            </div>
+            
+            <div className="pt-4">
+              <NewsletterRegenerator 
+                contentTaskId={contentTaskId}
+                campaignTitle={campaignTitle}
+                regenerating={isRegenerating}
+                setRegenerating={setIsRegenerating}
+              />
+            </div>
+            
+            {/* Show current content preview if available */}
+            {content && !isRegenerating && (
+              <div className="mt-6 p-4 bg-slate-50 rounded-lg border">
+                <h4 className="text-sm font-medium text-slate-700 mb-2">Current Content Preview:</h4>
+                <div className="text-xs text-slate-600 max-h-32 overflow-y-auto">
+                  {content.substring(0, 500)}...
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

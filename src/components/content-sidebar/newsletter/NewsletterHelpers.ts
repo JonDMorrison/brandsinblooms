@@ -142,35 +142,64 @@ export const checkIsPlaceholderContent = (content: string): boolean => {
     return true;
   }
   
-  // Only check for truly obvious placeholder patterns
+  // Enhanced detection for placeholder and unstructured content
   const placeholderPatterns = [
     /content will be generated/i,
     /placeholder/i,
-    /^Seasonal Gardening Focus - Week \d+$/i, // Only exact template format
-    /^This week's theme:$/i, // Only if it's just the header with no content
+    /^Seasonal Gardening Focus - Week \d+$/i,
+    /^This week's theme:$/i,
+    /^Subject:/i, // Email format newsletters are unstructured
+    /^Subject Line:/i, // Template format
   ];
   
   const hasPlaceholderPattern = placeholderPatterns.some(pattern => pattern.test(content));
   
-  // Only flag as too short if it's extremely minimal (less than 50 characters)
+  // Check if content is too short (less than 50 characters)
   const isTooShort = content.replace(/\s/g, '').length < 50;
   
-  // Only flag incomplete newsletters that are obviously just templates
-  const isObviousTemplate = content.includes('Subject Line:') && 
-    content.length < 100 && 
-    !content.includes('Dear') && 
-    !content.includes('garden') && 
-    !content.includes('plant');
+  // Detect unstructured newsletter content - key indicators
+  const isUnstructured = checkIsUnstructuredNewsletter(content);
   
-  console.log('Placeholder check (updated):', {
+  console.log('Enhanced placeholder check:', {
     hasPlaceholderPattern,
     isTooShort,
-    isObviousTemplate,
+    isUnstructured,
     contentLength: content.length,
-    isPlaceholder: hasPlaceholderPattern || isTooShort || isObviousTemplate
+    isPlaceholder: hasPlaceholderPattern || isTooShort || isUnstructured
   });
   
-  return hasPlaceholderPattern || isTooShort || isObviousTemplate;
+  return hasPlaceholderPattern || isTooShort || isUnstructured;
+};
+
+export const checkIsUnstructuredNewsletter = (content: string): boolean => {
+  if (!content) return false;
+  
+  // Check for email-style newsletter (raw email content)
+  const hasEmailFormat = content.includes('Subject:') && !content.includes('newsletter_md:');
+  
+  // Check for missing YAML structure in newsletter content
+  const hasNoYAMLStructure = !content.includes('newsletter_md:') && 
+                            !content.includes('blocks:') && 
+                            !content.includes('- title:') &&
+                            content.length > 100; // But has substantial content
+  
+  // Check for single-block text without proper structure
+  const isSingleBlock = !content.includes('\n\n') && 
+                       content.length > 200 && 
+                       !content.includes('##') && 
+                       !content.includes('**');
+  
+  const isUnstructured = hasEmailFormat || hasNoYAMLStructure || isSingleBlock;
+  
+  console.log('Unstructured newsletter check:', {
+    hasEmailFormat,
+    hasNoYAMLStructure,
+    isSingleBlock,
+    isUnstructured,
+    preview: content.substring(0, 100)
+  });
+  
+  return isUnstructured;
 };
 
 // Helper functions for enhanced content processing
