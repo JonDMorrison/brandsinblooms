@@ -96,7 +96,7 @@ export const QuickStartStepper: React.FC<QuickStartStepperProps> = ({
 
   return (
     <Card className="bg-background">
-      <CardContent className="p-6 space-y-6">
+      <CardContent className="p-6 space-y-6 bg-white">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-3 mb-1">
             <Rocket className="h-8 w-8" />
