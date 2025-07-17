@@ -96,6 +96,7 @@ export const HolidayItem = ({
           <HolidayGenerationSuccess
             contentCount={contentState.contentCount}
             holidayName={holiday.holiday_name}
+            holiday={holiday}
             onViewContent={handleViewClick}
           />
         ) : (

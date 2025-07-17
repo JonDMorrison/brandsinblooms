@@ -18,6 +18,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PersonaAISuggestionsModal } from '@/components/crm/personas/PersonaAISuggestionsModal';
 import { CampaignSuggestions } from '@/components/crm/campaigns/CampaignSuggestions';
+import { SmartCampaignSelector } from '@/components/crm/campaigns/SmartCampaignSelector';
 import { 
   ArrowLeft,
   Send,
@@ -418,15 +419,23 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
                 <CardTitle>Campaign Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Campaign Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="e.g., Spring Garden Prep Newsletter"
-                  />
-                </div>
+                <SmartCampaignSelector
+                  onCampaignSelect={(campaignData) => {
+                    setFormData(prev => ({
+                      ...prev,
+                      name: campaignData.name,
+                      subject_line: campaignData.subject_line,
+                      content: campaignData.content || prev.content
+                    }));
+                    
+                    // If AI prompt is provided, set it up for generation
+                    if (campaignData.ai_prompt) {
+                      setAiPrompt(campaignData.ai_prompt);
+                      setShowAIModal(true);
+                    }
+                  }}
+                  selectedPersona={selectedSegmentPersona}
+                />
                 
                 <div className="space-y-2">
                   <Label htmlFor="subject">Subject Line *</Label>
