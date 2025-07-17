@@ -125,7 +125,10 @@ const PersonaAnalytics = () => {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Persona Analytics</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Users className="h-8 w-8" />
+            Your Company Personas
+          </h1>
           <p className="text-muted-foreground">
             Track performance and engagement across customer personas
           </p>
