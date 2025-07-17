@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,14 +27,9 @@ import {
   Calendar,
   MoreHorizontal,
   Edit,
-  X,
-  ChevronDown,
-  ChevronUp,
-  TrendingUp,
-  Minus
+  X
 } from 'lucide-react';
 import { CustomerImportModal } from '@/components/crm/CustomerImportModal';
-import { HeadlineLarge, BodyMedium } from '@/components/ui/typography';
 
 type Customer = {
   id: string;
@@ -61,7 +56,7 @@ const CRMCustomers = () => {
   const [sortBy, setSortBy] = useState<string>('created_at');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isPersonasCollapsed, setIsPersonasCollapsed] = useState(false);
+  
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -77,30 +72,6 @@ const CRMCustomers = () => {
     { name: 'Vegetable Garden Veronica', count: 0, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
     { name: 'Wellness Whitney', count: 0, color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
   ];
-
-  // Calculate real growth data based on customer creation dates
-  const calculatePersonaGrowth = (customers: any[], personaName: string): number => {
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
-
-    const currentMonthCustomers = customers.filter(customer => 
-      customer.persona === personaName && 
-      new Date(customer.created_at) >= thirtyDaysAgo
-    ).length;
-
-    const previousMonthCustomers = customers.filter(customer => 
-      customer.persona === personaName && 
-      new Date(customer.created_at) >= sixtyDaysAgo && 
-      new Date(customer.created_at) < thirtyDaysAgo
-    ).length;
-
-    if (previousMonthCustomers === 0) {
-      return currentMonthCustomers > 0 ? 100 : 0; // Show 100% for new personas with customers
-    }
-
-    return Math.round(((currentMonthCustomers - previousMonthCustomers) / previousMonthCustomers) * 100 * 10) / 10;
-  };
 
   // Fetch customers
   const { data: customers = [], isLoading } = useQuery({
@@ -174,11 +145,6 @@ const CRMCustomers = () => {
     }
   });
 
-  // Calculate persona counts
-  const personaCounts = customerPersonas.map(persona => ({
-    ...persona,
-    count: customers.filter(c => c.persona === persona.name.toLowerCase()).length
-  }));
 
   const formatCurrency = (value: number | null) => {
     if (!value) return '$0.00';
@@ -231,92 +197,6 @@ const CRMCustomers = () => {
           </div>
         </div>
 
-        {/* Customer Personas Overview */}
-        <Collapsible open={!isPersonasCollapsed} onOpenChange={(open) => setIsPersonasCollapsed(!open)} className="space-y-8">
-          {/* Modern Gradient Header Section */}
-          <CollapsibleTrigger asChild>
-            <div className="relative bg-gradient-to-br from-slate-50 via-white to-gray-50/30 backdrop-blur-sm rounded-3xl border border-white/20 shadow-2xl overflow-hidden p-8 cursor-pointer hover:shadow-3xl transition-shadow duration-200">
-              {/* Decorative Background Pattern */}
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br from-violet-500/10 to-purple-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-gradient-to-br from-violet-500/10 to-indigo-500/10 rounded-full blur-3xl"></div>
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-5">
-                  <Users className="w-64 h-64 text-violet-400" />
-                </div>
-              </div>
-              
-              {/* Header Content */}
-              <div className="relative z-10 flex items-start justify-between text-left">
-                <div className="flex flex-col gap-3 text-left">
-                  <div className="inline-flex items-center gap-3 mb-2">
-                    <div className="p-3 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl shadow-lg">
-                      <Users className="w-8 h-8 text-white" />
-                    </div>
-                    <HeadlineLarge className="text-4xl font-bold bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600 bg-clip-text text-transparent text-left">Your Customer Personas</HeadlineLarge>
-                  </div>
-                  <BodyMedium className="text-lg text-slate-600 max-w-2xl leading-relaxed text-left">
-                    Track and understand your customer segments to personalize their gardening journey
-                  </BodyMedium>
-                </div>
-                
-                {/* Collapsible Chevron Icon */}
-                <div className="relative z-10 ml-4 p-2 rounded-full hover:bg-white/20 transition-colors duration-200">
-                  {isPersonasCollapsed ? (
-                    <ChevronDown className="w-6 h-6 text-slate-600 transition-transform duration-200" />
-                  ) : (
-                    <ChevronUp className="w-6 h-6 text-slate-600 transition-transform duration-200" />
-                  )}
-                </div>
-              </div>
-            </div>
-          </CollapsibleTrigger>
-
-          <CollapsibleContent className="space-y-8 data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
-            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4">
-              {personaCounts.map((persona, index) => (
-                <div 
-                  key={persona.name}
-                  className="transform transition-all duration-300 hover:scale-[1.02]"
-                  style={{ 
-                    animationDelay: `${index * 100}ms`,
-                    animation: 'fadeInUp 0.6s ease-out forwards'
-                  }}
-                >
-                  <Card className="h-full hover:shadow-lg transition-shadow duration-200">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">{persona.name}</p>
-                          <p className="text-2xl font-bold">{persona.count}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {(() => {
-                            const growth = calculatePersonaGrowth(customers, persona.name);
-                            return growth > 0 ? (
-                              <>
-                                <TrendingUp className="h-4 w-4 text-green-600" />
-                                <span className="text-sm font-medium text-green-600">
-                                  +{growth}%
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                <Minus className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm font-medium text-muted-foreground">
-                                  {growth}%
-                                </span>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
 
         {/* Customer Table */}
         <Card>
