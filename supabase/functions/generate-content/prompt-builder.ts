@@ -139,10 +139,28 @@ EXCELLENCE MARKERS:
 
     case 'blog':
       return `
-Blog Excellence → 400-600 words, comprehensive gardening guidance
+Blog Excellence → 400-600 words, structured markdown format
+
+MANDATORY STRUCTURE - Use exact markdown format:
+• Main headline with ## (H2) for the primary title
+• 3-4 clear sections each with ## (H2) subheadings
+• Each section 80-150 words focusing on specific actionable advice
+• NO H1 headers (#) - start with H2 (##) for main sections
+
+REQUIRED MARKDOWN FORMAT:
+## [Compelling Problem-Focused Section Title]
+[80-150 words of specific gardening advice with plant names and timing]
+
+## [Solution-Focused Section Title] 
+[80-150 words of actionable steps and techniques]
+
+## [Results/Benefits Section Title]
+[80-150 words of outcomes and success tips]
+
+## [Call-to-Action Section Title]
+[Final section with encouragement to visit ${companyName}]
 
 QUALITY STRUCTURE:
-• Title: Benefit-focused headline solving specific gardening problem
 • Character: Target gardener's seasonal goals and plant ambitions
 • Problem: Detailed gardening challenge + internal desire for success
 • Guide: ${companyName}'s local expertise with specific plant knowledge
@@ -151,10 +169,12 @@ QUALITY STRUCTURE:
 • CTA: Natural next step for local gardening support
 
 EXCELLENCE MARKERS:
-- Addresses specific regional gardening challenges
+- MUST use ## markdown headers for each main section
+- Each section addresses specific regional gardening challenges
 - Includes 2-3 plant varieties perfect for local conditions
 - Provides seasonal timing specific to regional climate
 - Sounds like comprehensive advice from local horticultural expert
+- Content is scannable with clear section breaks
 - Offers immediately actionable guidance for this season`;
 
     case 'newsletter':

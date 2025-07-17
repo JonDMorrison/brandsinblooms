@@ -76,6 +76,72 @@ export const parseNewsletterJson = (content: string): { subject: string; content
   return null;
 };
 
+// Helper function to add structure to plain text blog content
+const addBlogStructureToPlainText = (text: string): string => {
+  // Split content into paragraphs
+  const paragraphs = text.split('\n\n').filter(p => p.trim());
+  
+  if (paragraphs.length < 3) {
+    // Not enough content to structure, return as is
+    return text;
+  }
+  
+  // Try to identify logical sections based on content patterns
+  let structured = '';
+  
+  // If content looks like it has natural sections, add headers
+  if (paragraphs.length >= 4) {
+    // First paragraph might be intro
+    structured += `## ${extractTopicFromParagraph(paragraphs[0])}\n\n${paragraphs[0]}\n\n`;
+    
+    // Middle paragraphs become sections
+    for (let i = 1; i < paragraphs.length - 1; i++) {
+      structured += `## ${extractTopicFromParagraph(paragraphs[i])}\n\n${paragraphs[i]}\n\n`;
+    }
+    
+    // Last paragraph might be conclusion/CTA
+    structured += `## Next Steps\n\n${paragraphs[paragraphs.length - 1]}\n\n`;
+  } else {
+    // Fallback: just add a general structure
+    structured += `## Garden Care Insights\n\n${paragraphs[0]}\n\n`;
+    if (paragraphs[1]) {
+      structured += `## Expert Tips\n\n${paragraphs[1]}\n\n`;
+    }
+    if (paragraphs[2]) {
+      structured += `## Your Next Step\n\n${paragraphs[2]}\n\n`;
+    }
+  }
+  
+  return structured;
+};
+
+// Extract a topic from a paragraph for header generation
+const extractTopicFromParagraph = (paragraph: string): string => {
+  // Simple extraction based on first few words or key gardening terms
+  const words = paragraph.trim().split(' ').slice(0, 10);
+  const text = words.join(' ');
+  
+  // Look for gardening keywords to create relevant headers
+  if (text.toLowerCase().includes('plant') || text.toLowerCase().includes('grow')) {
+    return 'Planting & Growing Tips';
+  }
+  if (text.toLowerCase().includes('water') || text.toLowerCase().includes('drought')) {
+    return 'Watering & Care';
+  }
+  if (text.toLowerCase().includes('season') || text.toLowerCase().includes('summer') || text.toLowerCase().includes('winter')) {
+    return 'Seasonal Gardening';
+  }
+  if (text.toLowerCase().includes('problem') || text.toLowerCase().includes('pest') || text.toLowerCase().includes('disease')) {
+    return 'Problem Solutions';
+  }
+  if (text.toLowerCase().includes('tip') || text.toLowerCase().includes('advice')) {
+    return 'Expert Advice';
+  }
+  
+  // Fallback: create a generic header
+  return 'Garden Insights';
+};
+
 // Enhanced blog content formatting for the polished layout
 export const formatBlogContent = (text: string): string => {
   if (!text) return '';
@@ -87,6 +153,14 @@ export const formatBlogContent = (text: string): string => {
   // First, remove any existing H1 tags since the title will be displayed in the header
   // This prevents redundant titles from appearing in the content
   formatted = formatted.replace(/^#{1}\s+.*$/gm, '');
+  
+  // Check if content lacks proper markdown structure and try to add it
+  const hasMarkdownHeaders = /^#{2,6}\s+/.test(formatted);
+  
+  if (!hasMarkdownHeaders) {
+    // Try to detect and create structure for plain text content
+    formatted = addBlogStructureToPlainText(formatted);
+  }
   
   // Convert markdown headers to proper HTML with better styling (starting from H2)
   formatted = formatted
