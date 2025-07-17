@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -145,27 +144,15 @@ export const CustomContentItem = ({
                 {isGenerating ? 'Generating...' : 'Generate Content'}
               </Button>
             ) : (
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  onClick={handleViewClick}
-                  size="sm"
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Eye className="w-4 h-4" />
-                  Review
-                </Button>
-                <Button
-                  onClick={handleGenerateClick}
-                  disabled={isGenerating}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {isGenerating ? 'Regenerating...' : 'Regenerate'}
-                </Button>
-              </div>
+              <Button
+                onClick={handleViewClick}
+                size="sm"
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Review
+              </Button>
             )}
           </div>
 
