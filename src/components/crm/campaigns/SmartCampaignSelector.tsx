@@ -32,7 +32,7 @@ interface SmartCampaignSelectorProps {
     name: string;
     subject_line: string;
     content?: string;
-    source_type: 'weekly_theme' | 'seasonal_event' | 'custom_content' | 'new_idea';
+    source_type: 'weekly_theme' | 'seasonal_event' | 'custom_content' | 'newsletter_content' | 'new_idea';
     source_id?: string;
     ai_prompt?: string;
   }) => void;
@@ -86,6 +86,9 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
     const campaignId = searchParams.get('campaign_id');
     const campaignTitle = searchParams.get('campaign_title');
     const campaignDescription = searchParams.get('campaign_description');
+    const contentTaskId = searchParams.get('content_task_id');
+    const newsletterTitle = searchParams.get('newsletter_title');
+    const newsletterContent = searchParams.get('newsletter_content');
     
     if (source === 'seasonal_event' && holidayId && holidayName) {
       const holiday = allHolidays.find(h => h.id === holidayId);
@@ -98,6 +101,13 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
     } else if (source === 'custom_content' && campaignId && campaignTitle) {
       const customCampaign = { id: campaignId, title: campaignTitle, description: campaignDescription || '' };
       handleTypeSelection('custom_content', customCampaign);
+    } else if (source === 'newsletter_content' && contentTaskId && newsletterTitle) {
+      const newsletterData = { 
+        id: contentTaskId, 
+        title: newsletterTitle, 
+        content: newsletterContent || '' 
+      };
+      handleTypeSelection('newsletter_content', newsletterData);
     }
   }, [searchParams, allHolidays, userCreatedCampaigns]);
 
@@ -149,6 +159,22 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
           toast({
             title: "Custom content imported",
             description: "Content imported from your dashboard"
+          });
+        }
+        break;
+
+      case 'newsletter_content':
+        if (data) {
+          onCampaignSelect({
+            name: `${data.title} - Newsletter Campaign`,
+            subject_line: `📧 ${data.title}`,
+            content: data.content || '',
+            source_type: 'newsletter_content',
+            source_id: data.id
+          });
+          toast({
+            title: "Newsletter content imported",
+            description: "Content imported from approved newsletter"
           });
         }
         break;

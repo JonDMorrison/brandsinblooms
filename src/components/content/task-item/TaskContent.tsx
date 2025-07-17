@@ -149,6 +149,7 @@ export const TaskContent = ({ task, onRetryGeneration, retryingGeneration }: Tas
           postType={normalizedTask.post_type}
           contentTaskId={normalizedTask.id}
           campaignTitle={normalizedTask.campaigns?.theme || normalizedTask.campaigns?.title}
+          task={normalizedTask}
         />
         <div className="flex justify-end">
           <Button

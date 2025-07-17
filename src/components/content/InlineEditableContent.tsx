@@ -141,6 +141,7 @@ export const InlineEditableContent = ({ task, onTaskUpdate }: InlineEditableCont
         postType={task.post_type}
         contentTaskId={task.id}
         campaignTitle={task.campaigns?.theme || task.campaigns?.title}
+        task={task}
       />
     );
   };

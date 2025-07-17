@@ -7,13 +7,15 @@ interface MagazineNewsletterDisplayProps {
   className?: string;
   contentTaskId?: string;
   campaignTitle?: string;
+  taskStatus?: string;
 }
 
 export const MagazineNewsletterDisplay = ({ 
   content, 
   className,
   contentTaskId,
-  campaignTitle 
+  campaignTitle,
+  taskStatus 
 }: MagazineNewsletterDisplayProps) => {
   console.log('[NEWSLETTER] MagazineNewsletterDisplay delegating to OptimizedNewsletterDisplay');
   
@@ -23,6 +25,7 @@ export const MagazineNewsletterDisplay = ({
       className={className}
       contentTaskId={contentTaskId}
       campaignTitle={campaignTitle}
+      taskStatus={taskStatus}
     />
   );
 };

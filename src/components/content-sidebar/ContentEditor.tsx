@@ -55,7 +55,11 @@ export const ContentEditor = ({ content, onContentChange, task, isEditing = fals
               contentTaskId={task.id}
             />
           ) : isStructuredNewsletter ? (
-            <MagazineNewsletterDisplay content={content} />
+            <MagazineNewsletterDisplay 
+              content={content} 
+              contentTaskId={task?.id}
+              taskStatus={task?.status}
+            />
           ) : (task?.post_type === 'blog' || task?.post_type === 'newsletter') ? (
             <SafeHtml
               content={cleanContentForDisplay(content, task?.post_type)}

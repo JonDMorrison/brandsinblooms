@@ -16,6 +16,7 @@ interface MagazineContentDisplayProps {
   className?: string;
   contentTaskId?: string;
   campaignTitle?: string;
+  task?: any;
 }
 
 // Utility function to convert markdown to HTML
@@ -79,7 +80,7 @@ const removeHeadlineFromContent = (htmlContent: string): string => {
     .trim();
 };
 
-export const MagazineContentDisplay = ({ content, postType, className, contentTaskId, campaignTitle }: MagazineContentDisplayProps) => {
+export const MagazineContentDisplay = ({ content, postType, className, contentTaskId, campaignTitle, task }: MagazineContentDisplayProps) => {
   const [hasAttemptedFetch, setHasAttemptedFetch] = useState(false);
   
   // Use the smart image suggestions hook
@@ -294,6 +295,7 @@ export const MagazineContentDisplay = ({ content, postType, className, contentTa
         className={className}
         contentTaskId={contentTaskId}
         campaignTitle={campaignTitle}
+        taskStatus={task?.status}
       />
     );
   }

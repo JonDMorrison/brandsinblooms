@@ -2,7 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { parseNewsletterYAML } from '@/utils/newsletterUtils';
 import { processNewsletterContent, convertNewsletterMarkdownToHtml } from '@/utils/newsletterContentProcessor';
 import { Badge } from '@/components/ui/badge';
-import { Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Clock, Mail } from 'lucide-react';
+import { useCRMAccess } from '@/hooks/useCRMAccess';
+import { CRMUpgradePrompt } from '@/components/crm/CRMUpgradePrompt';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 import { NewsletterRegenerator } from './NewsletterRegenerator';
 import { NewsletterContentBlock } from './NewsletterContentBlock';
 import { useNewsletterImages } from './useNewsletterImages';
@@ -20,14 +25,19 @@ interface OptimizedNewsletterDisplayProps {
   className?: string;
   contentTaskId?: string;
   campaignTitle?: string;
+  taskStatus?: string;
 }
 
 export const OptimizedNewsletterDisplay = ({ 
   content, 
   className,
   contentTaskId,
-  campaignTitle 
+  campaignTitle,
+  taskStatus 
 }: OptimizedNewsletterDisplayProps) => {
+  const { hasCRMAccess } = useCRMAccess();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const isPlaceholderContent = checkIsPlaceholderContent(content);
   const [selectedImages, setSelectedImages] = useState<Record<number, string>>({});
   
@@ -122,16 +132,46 @@ export const OptimizedNewsletterDisplay = ({
           
         if (error) {
           console.error('Error saving selected image:', error);
-          toast.error('Failed to save image selection');
+          toast({
+            title: "Error",
+            description: "Failed to save image selection",
+            variant: "destructive"
+          });
         } else {
-          toast.success('Image updated successfully');
+          toast({
+            title: "Success",
+            description: "Image updated successfully"
+          });
         }
       } catch (error) {
         console.error('Error saving selected image:', error);
-        toast.error('Failed to save image selection');
+        toast({
+          title: "Error", 
+          description: "Failed to save image selection",
+          variant: "destructive"
+        });
       }
     }
   };
+
+  // Handle CRM campaign creation
+  const handleUseinCRM = () => {
+    const searchParams = new URLSearchParams({
+      source: 'newsletter_content',
+      content_task_id: contentTaskId || '',
+      newsletter_title: headline,
+      newsletter_content: content.substring(0, 500) + '...' // Preview
+    });
+    navigate(`/crm/campaigns/new?${searchParams.toString()}`);
+    
+    toast({
+      title: "Newsletter sent to CRM",
+      description: `"${headline}" opened in campaign builder`
+    });
+  };
+
+  // Check if content is approved
+  const isApproved = taskStatus === 'approved' || taskStatus === 'scheduled' || taskStatus === 'published';
 
   // If content is placeholder or incomplete, show regeneration option
   if (isPlaceholderContent) {
@@ -227,10 +267,30 @@ export const OptimizedNewsletterDisplay = ({
       )}
 
       {/* Footer */}
-      <div className="mt-16 pt-8 border-t border-gray-200 text-center">
-        <p className="text-gray-600">
-          Thanks for reading! 🌿
-        </p>
+      <div className="mt-16 pt-8 border-t border-gray-200">
+        <div className="flex items-center justify-between">
+          <p className="text-gray-600">
+            Thanks for reading! 🌿
+          </p>
+          
+          {/* Use in CRM Button - Only show for approved content */}
+          {isApproved && contentTaskId && (
+            <div className="flex items-center gap-3">
+              {hasCRMAccess ? (
+                <Button 
+                  onClick={handleUseinCRM}
+                  variant="outline"
+                  className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Use in CRM
+                </Button>
+              ) : (
+                <CRMUpgradePrompt variant="button" size="sm" />
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Enhanced Newsletter Styles */}

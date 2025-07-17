@@ -154,9 +154,10 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
   
   return (
     <div className="prose lg:prose-lg mx-auto">
-      <OptimizedNewsletterDisplay 
-        content={displayContent} 
-        contentTaskId={task.id}
+    <OptimizedNewsletterDisplay 
+      content={displayContent} 
+      contentTaskId={task.id}
+      taskStatus={task.status}
         campaignTitle={task.campaigns?.title}
       />
     </div>
