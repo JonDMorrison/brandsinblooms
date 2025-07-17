@@ -78,17 +78,28 @@ const CRMCustomers = () => {
     { name: 'Wellness Whitney', count: 0, color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
   ];
 
-  // Mock growth data for personas (in production, this would come from historical data)
-  const personaGrowthData: Record<string, number> = {
-    'Plant-Killer Pam': 12.5,
-    'Curb Appeal Ashley': -2.1,
-    'DIY Dana': 8.3,
-    'Patio Gardener Gail': 0,
-    'Pet-Friendly Hannah': 15.7,
-    'Pollinator Paula': 5.2,
-    'Sustainable Susie': 0,
-    'Vegetable Garden Veronica': 22.1,
-    'Wellness Whitney': -1.5,
+  // Calculate real growth data based on customer creation dates
+  const calculatePersonaGrowth = (customers: any[], personaName: string): number => {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const currentMonthCustomers = customers.filter(customer => 
+      customer.persona === personaName && 
+      new Date(customer.created_at) >= thirtyDaysAgo
+    ).length;
+
+    const previousMonthCustomers = customers.filter(customer => 
+      customer.persona === personaName && 
+      new Date(customer.created_at) >= sixtyDaysAgo && 
+      new Date(customer.created_at) < thirtyDaysAgo
+    ).length;
+
+    if (previousMonthCustomers === 0) {
+      return currentMonthCustomers > 0 ? 100 : 0; // Show 100% for new personas with customers
+    }
+
+    return Math.round(((currentMonthCustomers - previousMonthCustomers) / previousMonthCustomers) * 100 * 10) / 10;
   };
 
   // Fetch customers
@@ -279,21 +290,24 @@ const CRMCustomers = () => {
                           <p className="text-2xl font-bold">{persona.count}</p>
                         </div>
                         <div className="flex items-center gap-2">
-                          {personaGrowthData[persona.name] > 0 ? (
-                            <>
-                              <TrendingUp className="h-4 w-4 text-green-600" />
-                              <span className="text-sm font-medium text-green-600">
-                                +{personaGrowthData[persona.name]}%
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <Minus className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm font-medium text-muted-foreground">
-                                {personaGrowthData[persona.name]}%
-                              </span>
-                            </>
-                          )}
+                          {(() => {
+                            const growth = calculatePersonaGrowth(customers, persona.name);
+                            return growth > 0 ? (
+                              <>
+                                <TrendingUp className="h-4 w-4 text-green-600" />
+                                <span className="text-sm font-medium text-green-600">
+                                  +{growth}%
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Minus className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium text-muted-foreground">
+                                  {growth}%
+                                </span>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </CardContent>
