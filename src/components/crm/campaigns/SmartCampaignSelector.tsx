@@ -233,7 +233,6 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
             <SelectValue placeholder="Choose a campaign source..." />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="" disabled>Select campaign type...</SelectItem>
             <SelectItem value="weekly_theme">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-green-600" />
