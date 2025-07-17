@@ -29,6 +29,8 @@ interface QuickStartModalProps {
   segmentCount: number;
   campaignCount: number;
   onStepComplete: () => void;
+  isFirstTimeOnboarding?: boolean;
+  onOnboardingComplete?: () => void;
 }
 
 interface QuickAddCustomerForm {
@@ -47,13 +49,15 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
   customerCount,
   segmentCount,
   campaignCount,
-  onStepComplete
+  onStepComplete,
+  isFirstTimeOnboarding = false,
+  onOnboardingComplete
 }) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   
-  const [currentStep, setCurrentStep] = useState(0);
+  const [currentStep, setCurrentStep] = useState(isFirstTimeOnboarding ? -1 : 0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isAddingCustomer, setIsAddingCustomer] = useState(false);
   const [quickAddForm, setQuickAddForm] = useState<QuickAddCustomerForm>({
@@ -122,6 +126,9 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
     // Check if all steps are complete
     if (completedSteps === steps.length && !showSuccess) {
       setShowSuccess(true);
+      if (isFirstTimeOnboarding && onOnboardingComplete) {
+        onOnboardingComplete();
+      }
     }
   }, [completedSteps]);
 
@@ -256,15 +263,17 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
             </p>
             <div className="space-y-3">
               <Button onClick={handleClose} className="w-full" size="lg">
-                Go to CRM Dashboard
+                {isFirstTimeOnboarding ? 'Start Growing!' : 'Go to CRM Dashboard'}
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => setShowSuccess(false)}
-                className="w-full"
-              >
-                View Setup Again
-              </Button>
+              {!isFirstTimeOnboarding && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowSuccess(false)}
+                  className="w-full"
+                >
+                  View Setup Again
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>
@@ -356,6 +365,59 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
     );
   }
 
+  // Welcome screen for first-time users
+  if (currentStep === -1) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-lg">
+          <div className="text-center py-6">
+            <div className="flex justify-center mb-4">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                <Sparkles className="h-10 w-10 text-white" />
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-green-800 mb-3">
+              🌱 Welcome to BloomSuite CRM!
+            </h2>
+            <p className="text-muted-foreground mb-6 text-lg">
+              Transform how you connect with customers through intelligent segmentation, 
+              automated campaigns, and AI-powered content that grows your business.
+            </p>
+            <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 mb-6">
+              <h3 className="font-semibold text-green-800 mb-3">What you'll be able to do:</h3>
+              <div className="space-y-2 text-left">
+                <div className="flex items-center gap-3">
+                  <Users className="h-5 w-5 text-green-600" />
+                  <span className="text-green-700">Import and organize customer lists</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Target className="h-5 w-5 text-green-600" />
+                  <span className="text-green-700">Create smart segments by gardening experience</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-green-600" />
+                  <span className="text-green-700">Send personalized email & SMS campaigns</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Sparkles className="h-5 w-5 text-green-600" />
+                  <span className="text-green-700">Use AI to generate seasonal content</span>
+                </div>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setCurrentStep(0)} 
+              size="lg"
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+            >
+              Let's Get Started
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   // Main stepper modal
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -363,9 +425,11 @@ export const QuickStartModal: React.FC<QuickStartModalProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             🌱 Let's Get You Set Up!
-            <Button variant="ghost" size="sm" onClick={handleClose}>
-              <X className="h-4 w-4" />
-            </Button>
+            {!isFirstTimeOnboarding && (
+              <Button variant="ghost" size="sm" onClick={handleClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </DialogTitle>
           <p className="text-muted-foreground">
             Set this up once and unlock powerful marketing automation for your garden center.

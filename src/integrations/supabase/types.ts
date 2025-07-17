@@ -219,6 +219,7 @@ export type Database = {
           company_overview: string | null
           company_values: string | null
           created_at: string
+          crm_onboarding_completed_at: string | null
           custom_sender_email: string | null
           deleted_at: string | null
           dns_records_verified: boolean | null
@@ -248,6 +249,7 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          crm_onboarding_completed_at?: string | null
           custom_sender_email?: string | null
           deleted_at?: string | null
           dns_records_verified?: boolean | null
@@ -277,6 +279,7 @@ export type Database = {
           company_overview?: string | null
           company_values?: string | null
           created_at?: string
+          crm_onboarding_completed_at?: string | null
           custom_sender_email?: string | null
           deleted_at?: string | null
           dns_records_verified?: boolean | null

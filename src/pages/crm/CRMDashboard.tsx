@@ -11,9 +11,21 @@ import { HeroMetricsSection } from '@/components/crm/HeroMetricsSection';
 import { QuickStartStepper } from '@/components/crm/QuickStartStepper';
 import { EmptyStateSection } from '@/components/crm/EmptyStateSection';
 import { FeatureHighlightsCard } from '@/components/crm/FeatureHighlightsCard';
+import { QuickStartModal } from '@/components/crm/QuickStartModal';
+import { useCRMOnboardingStatus } from '@/hooks/useCRMOnboardingStatus';
 
 const CRMDashboard = () => {
   const { subscription } = useSubscription();
+  const { 
+    shouldShowOnboarding, 
+    customerCount: onboardingCustomerCount, 
+    segmentCount: onboardingSegmentCount,
+    campaignCount: onboardingCampaignCount,
+    markOnboardingComplete,
+    isLoading: onboardingLoading
+  } = useCRMOnboardingStatus();
+  
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   const [customerStats, setCustomerStats] = useState({
     total: 0,
     smsOptedIn: 0,
@@ -44,6 +56,13 @@ const CRMDashboard = () => {
     fetchCampaignStats();
     fetchSegmentCount();
   }, []);
+
+  // Auto-trigger onboarding modal for first-time users
+  useEffect(() => {
+    if (shouldShowOnboarding && !onboardingLoading) {
+      setShowOnboardingModal(true);
+    }
+  }, [shouldShowOnboarding, onboardingLoading]);
 
   const fetchCustomerStats = async () => {
     try {
@@ -208,6 +227,26 @@ const CRMDashboard = () => {
               fetchCustomerStats();
               fetchSegmentCount();
               fetchCampaignStats();
+            }}
+          />
+
+          {/* First-time onboarding modal */}
+          <QuickStartModal 
+            isOpen={showOnboardingModal}
+            onClose={() => setShowOnboardingModal(false)}
+            customerCount={onboardingCustomerCount}
+            segmentCount={onboardingSegmentCount}
+            campaignCount={onboardingCampaignCount}
+            onStepComplete={() => {
+              // Refresh data when a step is completed
+              fetchCustomerStats();
+              fetchSegmentCount();
+              fetchCampaignStats();
+            }}
+            isFirstTimeOnboarding={shouldShowOnboarding}
+            onOnboardingComplete={async () => {
+              await markOnboardingComplete();
+              setShowOnboardingModal(false);
             }}
           />
 
