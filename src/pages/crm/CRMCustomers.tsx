@@ -60,10 +60,15 @@ const CRMCustomers = () => {
   const queryClient = useQueryClient();
 
   const customerPersonas = [
-    { name: 'Newbie', count: 0, color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
-    { name: 'Struggler', count: 0, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
-    { name: 'Regular', count: 0, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-    { name: 'Expert', count: 0, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+    { name: 'Plant-Killer Pam', count: 0, color: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200' },
+    { name: 'Curb Appeal Ashley', count: 0, color: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200' },
+    { name: 'DIY Dana', count: 0, color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200' },
+    { name: 'Patio Gardener Gail', count: 0, color: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+    { name: 'Pet-Friendly Hannah', count: 0, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+    { name: 'Pollinator Paula', count: 0, color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' },
+    { name: 'Sustainable Susie', count: 0, color: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200' },
+    { name: 'Vegetable Garden Veronica', count: 0, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
+    { name: 'Wellness Whitney', count: 0, color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
   ];
 
   // Fetch customers
@@ -237,10 +242,15 @@ const CRMCustomers = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Personas</SelectItem>
-                    <SelectItem value="newbie">Newbie</SelectItem>
-                    <SelectItem value="struggler">Struggler</SelectItem>
-                    <SelectItem value="regular">Regular</SelectItem>
-                    <SelectItem value="expert">Expert</SelectItem>
+                    <SelectItem value="plant-killer pam">Plant-Killer Pam</SelectItem>
+                    <SelectItem value="curb appeal ashley">Curb Appeal Ashley</SelectItem>
+                    <SelectItem value="diy dana">DIY Dana</SelectItem>
+                    <SelectItem value="patio gardener gail">Patio Gardener Gail</SelectItem>
+                    <SelectItem value="pet-friendly hannah">Pet-Friendly Hannah</SelectItem>
+                    <SelectItem value="pollinator paula">Pollinator Paula</SelectItem>
+                    <SelectItem value="sustainable susie">Sustainable Susie</SelectItem>
+                    <SelectItem value="vegetable garden veronica">Vegetable Garden Veronica</SelectItem>
+                    <SelectItem value="wellness whitney">Wellness Whitney</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -430,10 +440,15 @@ const CRMCustomers = () => {
                         <SelectValue placeholder="Select persona..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="newbie">Newbie</SelectItem>
-                        <SelectItem value="struggler">Struggler</SelectItem>
-                        <SelectItem value="regular">Regular</SelectItem>
-                        <SelectItem value="expert">Expert</SelectItem>
+                        <SelectItem value="plant-killer pam">Plant-Killer Pam</SelectItem>
+                        <SelectItem value="curb appeal ashley">Curb Appeal Ashley</SelectItem>
+                        <SelectItem value="diy dana">DIY Dana</SelectItem>
+                        <SelectItem value="patio gardener gail">Patio Gardener Gail</SelectItem>
+                        <SelectItem value="pet-friendly hannah">Pet-Friendly Hannah</SelectItem>
+                        <SelectItem value="pollinator paula">Pollinator Paula</SelectItem>
+                        <SelectItem value="sustainable susie">Sustainable Susie</SelectItem>
+                        <SelectItem value="vegetable garden veronica">Vegetable Garden Veronica</SelectItem>
+                        <SelectItem value="wellness whitney">Wellness Whitney</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
