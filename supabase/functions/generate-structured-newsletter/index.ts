@@ -26,7 +26,8 @@ serve(async (req) => {
       tone_note = '',
       userId,
       is_holiday = false,
-      holiday_context = ''
+      holiday_context = '',
+      existingContent = null
     } = await req.json();
 
     console.log('Generating StoryBrand-enhanced 4-section newsletter:', { 
@@ -196,9 +197,25 @@ meta:
           { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
-            content: `Generate a 4-section StoryBrand newsletter for "${theme}" with focus "${contextualFocus}". Each section must follow the StoryBrand framework: position gardeners as heroes, identify their challenges, show garden center as trusted guide, provide actionable solutions, and paint success pictures. Use engaging, benefit-driven headlines. Write in flowing paragraphs only - absolutely no bullet points or numbered lists. NO week numbers or "weekly" language anywhere.${is_holiday ? ` Incorporate ${holiday_context || theme} themes naturally.` : ''}
+            content: existingContent ? 
+              `RESTRUCTURE this existing newsletter content into proper YAML format for "${theme}" with focus "${contextualFocus}":
 
-Template to follow: ${yamlTemplate}` 
+EXISTING CONTENT:
+---
+${existingContent}
+---
+
+Convert this into the structured YAML format while:
+- Maintaining all key messages, offers, and calls to action
+- Following StoryBrand framework for each section
+- Using engaging, benefit-driven headlines
+- Writing in flowing paragraphs only - no bullet points or lists
+- NO week numbers or "weekly" language anywhere
+
+Template to follow: ${yamlTemplate}` :
+              `Generate a 4-section StoryBrand newsletter for "${theme}" with focus "${contextualFocus}". Each section must follow the StoryBrand framework: position gardeners as heroes, identify their challenges, show garden center as trusted guide, provide actionable solutions, and paint success pictures. Use engaging, benefit-driven headlines. Write in flowing paragraphs only - absolutely no bullet points or numbered lists. NO week numbers or "weekly" language anywhere.${is_holiday ? ` Incorporate ${holiday_context || theme} themes naturally.` : ''}
+
+Template to follow: ${yamlTemplate}`
           }
         ]
       }),

@@ -29,21 +29,37 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
     }
     setRegenerating(true);
     try {
-      console.log('🔄 Regenerating newsletter content for task:', contentTaskId);
-      const {
-        data,
-        error
-      } = await supabase.functions.invoke('generate-structured-newsletter', {
+      console.log('🔄 Fetching existing content for task:', contentTaskId);
+      
+      // Get current content to restructure
+      const { data: currentTask, error: taskError } = await supabase
+        .from('content_tasks')
+        .select('ai_output')
+        .eq('id', contentTaskId)
+        .single();
+
+      if (taskError) {
+        console.error('❌ Error fetching current content:', taskError);
+        toast({
+          title: "Error",
+          description: "Failed to fetch current content",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('🔄 Regenerating newsletter with existing content restructuring...');
+      const { data, error } = await supabase.functions.invoke('generate-structured-newsletter', {
         body: {
           business_name: 'Homestead Nurseryland',
-          theme: campaignTitle || 'Roses Week',
-          week_focus: campaignTitle === 'Roses Week' ? 'Expert rose care tips, pruning techniques, disease prevention, feeding schedules, and seasonal maintenance to help your roses thrive all season long' : `Expert gardening advice for ${campaignTitle || 'seasonal care'}`,
-          promo_items: [],
-          tone_note: 'Professional yet friendly nursery tone with expert gardening advice',
+          theme: campaignTitle || 'Fall Transition Planning',
+          week_focus: `Restructure existing newsletter content into proper YAML format`,
+          existingContent: currentTask?.ai_output || '',
           userId: user.id,
           is_holiday: false
         }
       });
+      
       if (error) {
         console.error('❌ Newsletter regeneration error:', error);
         toast({
@@ -53,16 +69,19 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
         });
         return;
       }
+      
       if (data?.content) {
-        console.log('✅ Generated new newsletter content, updating task...');
+        console.log('✅ Generated restructured newsletter content, updating task...');
 
-        // Update the task with new content
-        const {
-          error: updateError
-        } = await supabase.from('content_tasks').update({
-          ai_output: data.content,
-          status: 'review'
-        }).eq('id', contentTaskId);
+        // Update the task with new structured content
+        const { error: updateError } = await supabase
+          .from('content_tasks')
+          .update({
+            ai_output: data.content,
+            status: 'review'
+          })
+          .eq('id', contentTaskId);
+          
         if (updateError) {
           console.error('❌ Error updating newsletter:', updateError);
           toast({
@@ -73,7 +92,7 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
         } else {
           toast({
             title: "Success",
-            description: "Newsletter regenerated successfully! Refreshing page...",
+            description: "Newsletter restructured successfully! Refreshing page...",
           });
           setTimeout(() => window.location.reload(), 1500);
         }
