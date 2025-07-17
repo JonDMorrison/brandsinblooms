@@ -39,6 +39,8 @@ import {
 } from 'lucide-react';
 import { EmailBlockEditor } from './email-blocks/EmailBlockEditor';
 import { EmailPreview } from './EmailPreview';
+import { CampaignPreview } from './CampaignPreview';
+import { TestEmailModal } from './TestEmailModal';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { SenderStatusIndicator } from '../campaigns/SenderStatusIndicator';
 import { SharedSenderConfirmationModal } from '../campaigns/SharedSenderConfirmationModal';
@@ -76,6 +78,7 @@ export const EmailCampaignComposer: React.FC = () => {
   const [blocks, setBlocks] = useState<EmailBlock[]>([]);
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showTestEmailModal, setShowTestEmailModal] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [scheduledTime, setScheduledTime] = useState('09:00');
   const [showSenderConfirmation, setShowSenderConfirmation] = useState(false);
@@ -438,6 +441,10 @@ export const EmailCampaignComposer: React.FC = () => {
             <Eye className="h-4 w-4 mr-2" />
             Preview
           </Button>
+          <Button variant="outline" onClick={() => setShowTestEmailModal(true)}>
+            <Send className="h-4 w-4 mr-2" />
+            Send Test
+          </Button>
           <Button variant="outline" onClick={() => saveCampaign(false)} disabled={loading}>
             <Save className="h-4 w-4 mr-2" />
             Save Draft
@@ -678,11 +685,35 @@ export const EmailCampaignComposer: React.FC = () => {
       </div>
 
       {/* Preview Modal */}
-      <EmailPreview
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        subject={campaignData.subject_line}
-        content={generateHTML()}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl h-[80vh] p-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle>Campaign Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            <CampaignPreview 
+              campaignData={campaignData}
+              senderConfig={senderConfig}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Test Email Modal */}
+      <TestEmailModal
+        isOpen={showTestEmailModal}
+        onClose={() => setShowTestEmailModal(false)}
+        campaignData={{
+          name: campaignData.name,
+          subject_line: campaignData.subject_line,
+          content: generateHTML()
+        }}
+        onTestSent={() => {
+          toast({
+            title: "Test Email Sent",
+            description: "Check your inbox for the test email",
+          });
+        }}
       />
 
       {/* Shared Sender Confirmation Modal */}
