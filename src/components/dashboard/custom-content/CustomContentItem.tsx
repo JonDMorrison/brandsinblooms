@@ -147,11 +147,11 @@ export const CustomContentItem = ({
               <Button
                 onClick={handleViewClick}
                 size="sm"
-                variant="outline"
+                variant="default"
                 className="flex items-center gap-2"
               >
                 <Eye className="w-4 h-4" />
-                Review
+                Review Content
               </Button>
             )}
           </div>

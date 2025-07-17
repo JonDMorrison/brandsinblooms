@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { AppleCard, AppleCardContent, AppleCardHeader } from "@/components/ui/apple-card";
-import { AppleButton } from "@/components/ui/apple-button";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { HeadlineLarge, BodyMedium, CaptionMedium } from "@/components/ui/typography";
 import { Eye, Sparkles, Leaf, CheckCircle } from "lucide-react";
@@ -85,13 +85,14 @@ export const ContentPreviewSection = ({ campaign, onTaskUpdate }: ContentPreview
                   </CaptionMedium>
                 </div>
               </div>
-              <AppleButton 
-                variant="primary"
+              <Button 
+                variant="default"
+                size="sm"
                 onClick={() => setShowContentViewer(true)}
               >
                 <Eye className="w-4 h-4 mr-2" />
                 Review Content
-              </AppleButton>
+              </Button>
             </div>
           </AppleCardHeader>
           

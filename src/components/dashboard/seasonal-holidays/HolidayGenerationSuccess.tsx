@@ -20,10 +20,10 @@ export const HolidayGenerationSuccess = ({
     <Button 
       onClick={onViewContent}
       size="sm"
-      variant="outline"
+      variant="default"
     >
       <Eye className="w-4 h-4 mr-2" />
-      Review
+      Review Content
     </Button>
   );
 };

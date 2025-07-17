@@ -74,10 +74,10 @@ export const CampaignContentSection = ({
           <Button
             size="sm"
             onClick={handleViewContent}
-            className="text-xs px-2 py-1 bg-blue-600 hover:bg-blue-700"
+            variant="default"
           >
-            <Eye className="w-3 h-3 mr-1" />
-            Review All
+            <Eye className="w-4 h-4 mr-2" />
+            Review Content
           </Button>
         </div>
       </div>
@@ -94,11 +94,11 @@ export const CampaignContentSection = ({
             <Button
               size="sm"
               onClick={handleReviewGeneratedContent}
-              variant="outline"
+              variant="default"
               className="w-full"
             >
-              <FileText className="w-3 h-3 mr-2" />
-              Review Generated Content Pack
+              <Eye className="w-4 h-4 mr-2" />
+              Review Content
             </Button>
           </div>
         </div>
