@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Users, Target, Heart, Mail, ChevronRight, Import } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Users, Target, Heart, Mail, ChevronRight, Import, Rocket } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface QuickStartStepperProps {
@@ -94,37 +95,42 @@ export const QuickStartStepper: React.FC<QuickStartStepperProps> = ({
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold text-foreground mb-1">Quick Start Guide</h2>
-        <p className="text-sm text-muted-foreground">Get your CRM up and running in 4 simple steps</p>
-      </div>
-      
-      <div className="space-y-1">
-        {steps.map((step, index) => (
-          <StepItem
-            key={index}
-            icon={step.icon}
-            title={step.title}
-            description={step.description}
-            action={step.action}
-            href={step.href}
-            isComplete={step.isComplete}
-          />
-        ))}
-      </div>
-      
-      <div className="bg-muted/30 rounded-lg p-6 text-center space-y-3">
-        <h3 className="font-medium text-foreground">You're Ready to Grow!</h3>
-        <p className="text-sm text-muted-foreground">
-          With your CRM set up, you can start building meaningful customer relationships
-        </p>
-        <Button asChild>
-          <Link to="/crm/campaigns/new">
-            Let's Get Started
-          </Link>
-        </Button>
-      </div>
-    </div>
+    <Card className="bg-background">
+      <CardContent className="p-6 space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3 mb-1">
+            <Rocket className="h-8 w-8" />
+            Quick Start Guide
+          </h1>
+          <p className="text-sm text-muted-foreground">Get your CRM up and running in 4 simple steps</p>
+        </div>
+        
+        <div className="space-y-1">
+          {steps.map((step, index) => (
+            <StepItem
+              key={index}
+              icon={step.icon}
+              title={step.title}
+              description={step.description}
+              action={step.action}
+              href={step.href}
+              isComplete={step.isComplete}
+            />
+          ))}
+        </div>
+        
+        <div className="bg-muted/30 rounded-lg p-6 text-center space-y-3">
+          <h3 className="font-medium text-foreground">You're Ready to Grow!</h3>
+          <p className="text-sm text-muted-foreground">
+            With your CRM set up, you can start building meaningful customer relationships
+          </p>
+          <Button asChild>
+            <Link to="/crm/campaigns/new">
+              Let's Get Started
+            </Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 };
