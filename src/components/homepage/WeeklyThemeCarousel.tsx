@@ -17,6 +17,8 @@ import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { useCRMAccess } from "@/hooks/useCRMAccess";
+import { CRMUpgradePrompt } from "@/components/crm/CRMUpgradePrompt";
 
 interface WeeklyThemeCarouselProps {
   currentCampaign: Campaign | undefined;
@@ -35,6 +37,7 @@ export const WeeklyThemeCarousel = ({
   const { tenant } = useTenant();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { hasCRMAccess } = useCRMAccess();
   const [isOpen, setIsOpen] = useState(true);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [reviewingCampaignId, setReviewingCampaignId] = useState<string | null>(null);
@@ -526,14 +529,18 @@ export const WeeklyThemeCarousel = ({
                                       Review Content
                                       <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
                                     </Button>
-                                    <Button 
-                                      onClick={() => handleUseinCRM(currentTheme)}
-                                      variant="outline"
-                                      className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 px-4 py-3 rounded-xl font-medium transition-all duration-200 sm:w-auto"
-                                    >
-                                      <Mail className="w-4 h-4 mr-2" />
-                                      Use in CRM
-                                    </Button>
+                                    {hasCRMAccess ? (
+                                      <Button 
+                                        onClick={() => handleUseinCRM(currentTheme)}
+                                        variant="outline"
+                                        className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 px-4 py-3 rounded-xl font-medium transition-all duration-200 sm:w-auto"
+                                      >
+                                        <Mail className="w-4 h-4 mr-2" />
+                                        Use in CRM
+                                      </Button>
+                                    ) : (
+                                      <CRMUpgradePrompt variant="button" size="sm" />
+                                    )}
                                   </div>
                                 ) : (
                                   <div className="flex flex-col sm:flex-row gap-3 w-full">
@@ -545,14 +552,18 @@ export const WeeklyThemeCarousel = ({
                                       Create This Week's Posts
                                       <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
                                     </Button>
-                                    <Button 
-                                      onClick={() => handleUseinCRM(currentTheme)}
-                                      variant="outline"
-                                      className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 px-4 py-3 rounded-xl font-medium transition-all duration-200 sm:w-auto"
-                                    >
-                                      <Mail className="w-4 h-4 mr-2" />
-                                      Use in CRM
-                                    </Button>
+                                    {hasCRMAccess ? (
+                                      <Button 
+                                        onClick={() => handleUseinCRM(currentTheme)}
+                                        variant="outline"
+                                        className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 px-4 py-3 rounded-xl font-medium transition-all duration-200 sm:w-auto"
+                                      >
+                                        <Mail className="w-4 h-4 mr-2" />
+                                        Use in CRM
+                                      </Button>
+                                    ) : (
+                                      <CRMUpgradePrompt variant="button" size="sm" />
+                                    )}
                                   </div>
                                 )}
                               </>

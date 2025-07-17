@@ -8,6 +8,8 @@ import { format } from "date-fns";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useCRMAccess } from "@/hooks/useCRMAccess";
+import { CRMUpgradePrompt } from "@/components/crm/CRMUpgradePrompt";
 
 interface CustomContentItemProps {
   campaign: any;
@@ -28,6 +30,7 @@ export const CustomContentItem = ({
 }: CustomContentItemProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { hasCRMAccess } = useCRMAccess();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isAnimatingOut, setIsAnimatingOut] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -169,14 +172,18 @@ export const CustomContentItem = ({
                   <Eye className="w-4 h-4" />
                   Review
                 </Button>
-                <Button
-                  onClick={handleUseinCRM}
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <Mail className="w-4 h-4" />
-                  Use in CRM
-                </Button>
+                {hasCRMAccess ? (
+                  <Button
+                    onClick={handleUseinCRM}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Use in CRM
+                  </Button>
+                ) : (
+                  <CRMUpgradePrompt variant="button" size="sm" />
+                )}
                 <Button
                   onClick={handleGenerateClick}
                   disabled={isGenerating}

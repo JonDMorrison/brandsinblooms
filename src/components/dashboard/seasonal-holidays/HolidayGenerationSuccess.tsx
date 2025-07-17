@@ -2,6 +2,8 @@
 import { Button } from "@/components/ui/button";
 import { Eye, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCRMAccess } from "@/hooks/useCRMAccess";
+import { CRMUpgradePrompt } from "@/components/crm/CRMUpgradePrompt";
 
 interface HolidayGenerationSuccessProps {
   contentCount: number;
@@ -17,6 +19,7 @@ export const HolidayGenerationSuccess = ({
   onViewContent 
 }: HolidayGenerationSuccessProps) => {
   const navigate = useNavigate();
+  const { hasCRMAccess } = useCRMAccess();
 
   const handleUseinCRM = () => {
     const searchParams = new URLSearchParams({
@@ -38,14 +41,18 @@ export const HolidayGenerationSuccess = ({
         <Eye className="w-4 h-4 mr-2" />
         Review
       </Button>
-      <Button 
-        onClick={handleUseinCRM}
-        size="sm"
-        className="bg-blue-600 hover:bg-blue-700 flex-1"
-      >
-        <Mail className="w-4 h-4 mr-2" />
-        Use in CRM
-      </Button>
+      {hasCRMAccess ? (
+        <Button 
+          onClick={handleUseinCRM}
+          size="sm"
+          className="bg-blue-600 hover:bg-blue-700 flex-1"
+        >
+          <Mail className="w-4 h-4 mr-2" />
+          Use in CRM
+        </Button>
+      ) : (
+        <CRMUpgradePrompt variant="button" size="sm" className="flex-1" />
+      )}
     </div>
   );
 };

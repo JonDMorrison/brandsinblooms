@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { CRMAccessGate } from '@/components/crm/CRMAccessGate';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -388,7 +389,8 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
   const dominantPersona = getDominantPersona();
 
   return (
-    <SubscriptionGate requiredPlan="bloom" feature="Email Campaigns">
+    <CRMAccessGate>
+      <SubscriptionGate requiredPlan="bloom" feature="Email Campaigns">
       <div className="container mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -829,6 +831,7 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
         />
       </div>
     </SubscriptionGate>
+    </CRMAccessGate>
   );
 };
 

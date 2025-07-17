@@ -6,12 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useWeeklyThemes } from '@/hooks/useWeeklyThemes';
 import { useSeasonalHolidays } from '@/hooks/useSeasonalHolidays';
 import { useGlobalContentData } from '@/hooks/useGlobalContentData';
 import { useSearchParams } from 'react-router-dom';
+import { useCRMAccess } from '@/hooks/useCRMAccess';
 import { 
   Calendar, 
   Sparkles, 
@@ -20,7 +22,9 @@ import {
   Star, 
   BookOpen,
   ArrowRight,
-  Loader2
+  Loader2,
+  Lock,
+  Crown
 } from 'lucide-react';
 
 interface SmartCampaignSelectorProps {
@@ -40,6 +44,7 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
   selectedPersona
 }) => {
   const { toast } = useToast();
+  const { hasCRMAccess } = useCRMAccess();
   const [searchParams] = useSearchParams();
   const [selectedType, setSelectedType] = useState<string>('');
   const [showNewIdeaModal, setShowNewIdeaModal] = useState(false);
@@ -228,6 +233,39 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
       day: 'numeric'
     });
   };
+
+  if (!hasCRMAccess) {
+    return (
+      <div className="space-y-2">
+        <Label className="text-base font-medium flex items-center gap-2">
+          <Lock className="h-4 w-4 text-orange-500" />
+          Smart Campaign Selector
+          <Badge variant="outline" className="text-xs border-orange-300 text-orange-700">
+            CRM Required
+          </Badge>
+        </Label>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="relative">
+                <Select disabled>
+                  <SelectTrigger className="h-12 bg-gray-50 border-gray-200">
+                    <SelectValue placeholder="Enable CRM to select campaign content" />
+                  </SelectTrigger>
+                </Select>
+                <div className="absolute inset-0 bg-gray-50/80 rounded-md flex items-center justify-center">
+                  <Crown className="h-5 w-5 text-orange-500" />
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <p>Upgrade to Sprout or Bloom plan to unlock CRM content selection and AI-powered campaign building</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
