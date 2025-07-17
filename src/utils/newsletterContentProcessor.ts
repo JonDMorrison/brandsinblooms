@@ -214,7 +214,7 @@ const parseSimpleYAML = (content: string) => {
       
       // Detect other root-level sections that end newsletter_md
       if (line.length > 0 && !line.startsWith(' ') && !line.startsWith('\t') && 
-          (trimmed === 'blocks:' || trimmed === 'meta:')) {
+          (trimmed === 'blocks:' || trimmed === 'meta:' || trimmed === 'extra_content_ideas:')) {
         if (inNewsletterMd) {
           console.log('🛑 Stopping newsletter_md collection at line', i + 1, 'due to section:', trimmed);
           inNewsletterMd = false;
@@ -231,6 +231,12 @@ const parseSimpleYAML = (content: string) => {
           inBlocks = false;
           currentSection = 'meta';
           continue;
+        }
+        
+        if (trimmed === 'extra_content_ideas:') {
+          console.log('🛑 Stopping block processing at extra_content_ideas section at line', i + 1);
+          inBlocks = false;
+          break; // Stop processing entirely when we hit extra content ideas
         }
       }
       
