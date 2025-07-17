@@ -227,7 +227,15 @@ Template to follow: ${yamlTemplate}`
 
     return new Response(JSON.stringify({
       success: true,
-      content: yamlContent
+      content: yamlContent,
+      meta: {
+        campaign_id: null, // Will be set when associated with campaign
+        source: "weekly_theme",
+        crm_enabled: true,
+        linked_theme: theme,
+        generated_at: new Date().toISOString(),
+        content_type: contentType
+      }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

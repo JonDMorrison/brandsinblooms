@@ -16,6 +16,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCRMAccess } from "@/hooks/useCRMAccess";
+import { NewsletterPreviewCard } from "./NewsletterPreviewCard";
+import { NewsletterFallbackCard } from "./NewsletterFallbackCard";
 
 interface WeeklyThemeCarouselProps {
   currentCampaign: Campaign | undefined;
@@ -33,6 +36,7 @@ export const WeeklyThemeCarousel = ({
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { toast } = useToast();
+  const { hasCRMAccess } = useCRMAccess();
   const [isOpen, setIsOpen] = useState(true);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [reviewingCampaignId, setReviewingCampaignId] = useState<string | null>(null);
@@ -50,7 +54,7 @@ export const WeeklyThemeCarousel = ({
   const allThemes = themes;
   const currentTheme = allThemes[currentIndex];
   
-  // Improved content detection logic
+  // Enhanced content detection logic with newsletter support
   const getThemeContentTasks = (theme?: WeeklyTheme) => {
     if (!theme) return [];
     
@@ -85,9 +89,32 @@ export const WeeklyThemeCarousel = ({
       return hasContent;
     });
   };
+
+  // Get newsletter content specifically for CRM users
+  const getThemeNewsletter = (theme?: WeeklyTheme) => {
+    if (!theme || !hasCRMAccess) return null;
+    
+    // If it's the current week theme and we have a current campaign, check those tasks
+    if (theme.isCurrentWeek && currentCampaign) {
+      return tasks.find(task => 
+        task.campaign_id === currentCampaign.id && 
+        task.post_type === 'newsletter' &&
+        task.ai_output && 
+        task.ai_output.trim().length > 0
+      );
+    }
+    
+    // For other themes, find newsletter tasks with content
+    return tasks.find(task => 
+      task.post_type === 'newsletter' &&
+      task.ai_output && 
+      task.ai_output.trim().length > 0
+    );
+  };
   
   const currentThemeContentTasks = getThemeContentTasks(currentTheme);
   const hasCurrentThemeContent = currentThemeContentTasks.length > 0;
+  const currentThemeNewsletter = getThemeNewsletter(currentTheme);
   
   console.log('📊 Button state debug:', {
     currentWeek,
@@ -528,6 +555,34 @@ export const WeeklyThemeCarousel = ({
                     </div>
 
                   </div>
+
+                  {/* Newsletter Section for CRM Users */}
+                  {hasCRMAccess && currentTheme && (
+                    <div className="border-t border-gray-200 pt-6">
+                      <div className="mb-4">
+                        <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                          <Mail className="w-5 h-5 text-teal-600" />
+                          Newsletter for {currentTheme.title}
+                        </h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          Create and manage newsletters for your CRM campaigns
+                        </p>
+                      </div>
+                      
+                      {currentThemeNewsletter ? (
+                        <NewsletterPreviewCard
+                          newsletter={currentThemeNewsletter}
+                          campaignTitle={currentTheme.title}
+                          onUpdate={onTaskUpdate}
+                        />
+                      ) : (
+                        <NewsletterFallbackCard
+                          themeTitle={currentTheme.title}
+                          themeId={currentTheme.id}
+                        />
+                      )}
+                    </div>
+                  )}
 
                 </div>
               )}

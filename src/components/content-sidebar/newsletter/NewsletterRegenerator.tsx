@@ -2,8 +2,8 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-// Removed sonner import - using global toast replacement
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 interface NewsletterRegeneratorProps {
   contentTaskId?: string;
   campaignTitle?: string;
@@ -16,12 +16,15 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
   regenerating,
   setRegenerating
 }) => {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const regenerateNewsletter = async () => {
     if (!user || !contentTaskId) {
-      toast.error('Unable to regenerate newsletter - missing required information');
+      toast({
+        title: "Error",
+        description: "Unable to regenerate newsletter - missing required information",
+        variant: "destructive",
+      });
       return;
     }
     setRegenerating(true);
@@ -43,7 +46,11 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
       });
       if (error) {
         console.error('❌ Newsletter regeneration error:', error);
-        toast.error('Failed to regenerate newsletter content');
+        toast({
+          title: "Error",
+          description: "Failed to regenerate newsletter content",
+          variant: "destructive",
+        });
         return;
       }
       if (data?.content) {
@@ -58,18 +65,33 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
         }).eq('id', contentTaskId);
         if (updateError) {
           console.error('❌ Error updating newsletter:', updateError);
-          toast.error('Failed to save regenerated newsletter');
+          toast({
+            title: "Error",
+            description: "Failed to save regenerated newsletter",
+            variant: "destructive",
+          });
         } else {
-          toast.success('Newsletter regenerated successfully! Refreshing page...');
+          toast({
+            title: "Success",
+            description: "Newsletter regenerated successfully! Refreshing page...",
+          });
           setTimeout(() => window.location.reload(), 1500);
         }
       } else {
         console.error('❌ No content returned from generation function');
-        toast.error('No content was generated');
+        toast({
+          title: "Error",
+          description: "No content was generated",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('❌ Newsletter regeneration failed:', error);
-      toast.error('Failed to regenerate newsletter');
+      toast({
+        title: "Error",
+        description: "Failed to regenerate newsletter",
+        variant: "destructive",
+      });
     } finally {
       setRegenerating(false);
     }
