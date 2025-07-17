@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Play, Calendar, Sparkles, ChevronDown, ChevronUp, Eye, ChevronLeft, ChevronRight, Clock, Sprout } from "lucide-react";
+import { Play, Calendar, Sparkles, ChevronDown, ChevronUp, Eye, ChevronLeft, ChevronRight, Clock, Sprout, Mail } from "lucide-react";
 import { useState } from "react";
 import { Campaign } from "@/types/content";
 import { getCurrentWeekNumber, getDateForWeek } from "@/utils/dateUtils";
@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 interface WeeklyThemeCarouselProps {
   currentCampaign: Campaign | undefined;
@@ -33,6 +34,7 @@ export const WeeklyThemeCarousel = ({
   const { user } = useAuth();
   const { tenant } = useTenant();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(true);
   const [showContentViewer, setShowContentViewer] = useState(false);
   const [reviewingCampaignId, setReviewingCampaignId] = useState<string | null>(null);
@@ -141,6 +143,20 @@ export const WeeklyThemeCarousel = ({
     return campaign;
   };
 
+  const handleUseinCRM = (theme: WeeklyTheme) => {
+    const searchParams = new URLSearchParams({
+      source: 'weekly_theme',
+      theme_id: theme.id,
+      theme_title: theme.title,
+      theme_description: theme.description
+    });
+    navigate(`/crm/campaigns/new?${searchParams.toString()}`);
+    
+    toast({
+      title: "Theme sent to CRM",
+      description: `"${theme.title}" opened in campaign builder`
+    });
+  };
   const handleGenerateContent = async (theme?: WeeklyTheme) => {
     if (!user) {
       toast({
@@ -501,23 +517,43 @@ export const WeeklyThemeCarousel = ({
                               <>
                                 {/* Main CTA Button - Fixed condition for current week with content */}
                                 {currentTheme.isCurrentWeek && hasCurrentThemeContent ? (
-                                  <Button 
-                                    onClick={handleViewContent}
-                                    className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-emerald-200"
-                                  >
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Review Content
-                                    <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
-                                  </Button>
+                                  <div className="flex flex-col sm:flex-row gap-3 w-full">
+                                    <Button 
+                                      onClick={handleViewContent}
+                                      className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex-1 focus-visible:ring-4 focus-visible:ring-emerald-200"
+                                    >
+                                      <Eye className="w-4 h-4 mr-2" />
+                                      Review Content
+                                      <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
+                                    </Button>
+                                    <Button 
+                                      onClick={() => handleUseinCRM(currentTheme)}
+                                      variant="outline"
+                                      className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 px-4 py-3 rounded-xl font-medium transition-all duration-200 sm:w-auto"
+                                    >
+                                      <Mail className="w-4 h-4 mr-2" />
+                                      Use in CRM
+                                    </Button>
+                                  </div>
                                 ) : (
-                                  <Button 
-                                    onClick={() => handleGenerateContent(currentTheme)}
-                                    className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full sm:w-auto focus-visible:ring-4 focus-visible:ring-teal-200"
-                                  >
-                                    <Play className="w-4 h-4 mr-2" />
-                                    Create This Week's Posts
-                                    <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
-                                  </Button>
+                                  <div className="flex flex-col sm:flex-row gap-3 w-full">
+                                    <Button 
+                                      onClick={() => handleGenerateContent(currentTheme)}
+                                      className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex-1 focus-visible:ring-4 focus-visible:ring-teal-200"
+                                    >
+                                      <Play className="w-4 h-4 mr-2" />
+                                      Create This Week's Posts
+                                      <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
+                                    </Button>
+                                    <Button 
+                                      onClick={() => handleUseinCRM(currentTheme)}
+                                      variant="outline"
+                                      className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 px-4 py-3 rounded-xl font-medium transition-all duration-200 sm:w-auto"
+                                    >
+                                      <Mail className="w-4 h-4 mr-2" />
+                                      Use in CRM
+                                    </Button>
+                                  </div>
                                 )}
                               </>
                              )}

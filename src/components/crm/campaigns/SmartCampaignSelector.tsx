@@ -75,12 +75,18 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
     const source = searchParams.get('source');
     const holidayId = searchParams.get('holiday_id');
     const holidayName = searchParams.get('holiday_name');
+    const themeId = searchParams.get('theme_id');
+    const themeTitle = searchParams.get('theme_title');
+    const themeDescription = searchParams.get('theme_description');
     
     if (source === 'seasonal_event' && holidayId && holidayName) {
       const holiday = allHolidays.find(h => h.id === holidayId);
       if (holiday) {
         handleTypeSelection('seasonal_event', holiday);
       }
+    } else if (source === 'weekly_theme' && themeId && themeTitle) {
+      const theme = { id: themeId, title: themeTitle, description: themeDescription || '' };
+      handleTypeSelection('weekly_theme', theme);
     }
   }, [searchParams, allHolidays]);
 
