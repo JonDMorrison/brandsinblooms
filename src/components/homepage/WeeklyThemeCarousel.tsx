@@ -58,6 +58,37 @@ export const WeeklyThemeCarousel = ({
   const getThemeContentTasks = (theme?: WeeklyTheme) => {
     if (!theme) return [];
     
+    console.log('🔍 getThemeContentTasks for theme:', {
+      themeTitle: theme.title,
+      themeCampaignId: theme.campaignId,
+      isCurrentWeek: theme.isCurrentWeek,
+      currentCampaignId: currentCampaign?.id
+    });
+    
+    // If the theme has a campaign ID, find tasks for that specific campaign
+    if (theme.campaignId) {
+      const campaignTasksWithContent = tasks.filter(task => 
+        task.campaign_id === theme.campaignId && 
+        task.ai_output && 
+        task.ai_output.trim().length > 0
+      );
+      
+      console.log('📝 Found content tasks for theme campaign:', {
+        themeTitle: theme.title,
+        campaignId: theme.campaignId,
+        tasksFound: campaignTasksWithContent.length,
+        taskDetails: campaignTasksWithContent.map(t => ({
+          id: t.id,
+          type: t.post_type,
+          hasContent: !!t.ai_output,
+          contentLength: t.ai_output?.length || 0,
+          status: t.status
+        }))
+      });
+      
+      return campaignTasksWithContent;
+    }
+    
     // If it's the current week theme and we have a current campaign, check those tasks
     if (theme.isCurrentWeek && currentCampaign) {
       const campaignTasksWithContent = tasks.filter(task => 
@@ -83,33 +114,62 @@ export const WeeklyThemeCarousel = ({
       return campaignTasksWithContent;
     }
     
-    // For other themes, find tasks with content that match the theme's week
-    return tasks.filter(task => {
-      const hasContent = task.ai_output && task.ai_output.trim().length > 0;
-      return hasContent;
-    });
+    // Fallback: return empty array instead of any random tasks
+    console.log('📝 No specific content tasks found for theme:', theme.title);
+    return [];
   };
 
   // Get newsletter content specifically for CRM users
   const getThemeNewsletter = (theme?: WeeklyTheme) => {
     if (!theme || !hasCRMAccess) return null;
     
+    console.log('🔍 getThemeNewsletter for theme:', {
+      themeTitle: theme.title,
+      themeCampaignId: theme.campaignId,
+      isCurrentWeek: theme.isCurrentWeek,
+      currentCampaignId: currentCampaign?.id
+    });
+    
+    // If the theme has a campaign ID, find newsletter tasks for that specific campaign
+    if (theme.campaignId) {
+      const newsletter = tasks.find(task => 
+        task.campaign_id === theme.campaignId && 
+        task.post_type === 'newsletter' &&
+        task.ai_output && 
+        task.ai_output.trim().length > 0
+      );
+      
+      console.log('📧 Found newsletter for theme campaign:', {
+        themeTitle: theme.title,
+        campaignId: theme.campaignId,
+        found: !!newsletter,
+        taskId: newsletter?.id
+      });
+      
+      return newsletter;
+    }
+    
     // If it's the current week theme and we have a current campaign, check those tasks
     if (theme.isCurrentWeek && currentCampaign) {
-      return tasks.find(task => 
+      const newsletter = tasks.find(task => 
         task.campaign_id === currentCampaign.id && 
         task.post_type === 'newsletter' &&
         task.ai_output && 
         task.ai_output.trim().length > 0
       );
+      
+      console.log('📧 Found newsletter for current campaign:', {
+        currentCampaignId: currentCampaign.id,
+        found: !!newsletter,
+        taskId: newsletter?.id
+      });
+      
+      return newsletter;
     }
     
-    // For other themes, find newsletter tasks with content
-    return tasks.find(task => 
-      task.post_type === 'newsletter' &&
-      task.ai_output && 
-      task.ai_output.trim().length > 0
-    );
+    // Fallback: return null instead of any random newsletter
+    console.log('📧 No specific newsletter found for theme:', theme.title);
+    return null;
   };
   
   const currentThemeContentTasks = getThemeContentTasks(currentTheme);
@@ -271,30 +331,8 @@ export const WeeklyThemeCarousel = ({
     console.log('Current campaign:', currentCampaign);
     console.log('All tasks:', tasks);
     
-    // Find tasks that match the current theme being viewed
-    let themeTasks = [];
-    
-    if (currentTheme?.isCurrentWeek && currentCampaign) {
-      // If viewing current week theme and we have a current campaign, use those tasks
-      themeTasks = tasks.filter(task => 
-        task.campaign_id === currentCampaign.id && 
-        task.ai_output && 
-        task.ai_output.trim().length > 0
-      );
-    } else if (currentTheme) {
-      // For other themes, find tasks with content (simplified for now)
-      // We'll need to enhance this logic once we have campaign data available
-      themeTasks = tasks.filter(task => {
-        const hasContent = task.ai_output && task.ai_output.trim().length > 0;
-        return hasContent;
-      });
-      
-      // If we have multiple campaigns worth of tasks, prefer the most recent ones
-      // This is a fallback until we have better campaign matching
-      if (themeTasks.length > 5) {
-        themeTasks = themeTasks.slice(-5); // Take the 5 most recent tasks
-      }
-    }
+    // Use the theme content tasks we already calculate
+    const themeTasks = currentThemeContentTasks;
     
     if (themeTasks.length === 0) {
       console.error('No tasks with content available for current theme:', currentTheme?.title);
@@ -306,8 +344,16 @@ export const WeeklyThemeCarousel = ({
       return;
     }
     
-    // Use the campaign from the theme-specific tasks or current campaign
-    const campaignId = themeTasks[0].campaign_id;
+    // Use the campaign from the theme or current campaign
+    let campaignId: string;
+    
+    if (currentTheme?.campaignId) {
+      campaignId = currentTheme.campaignId;
+    } else if (currentTheme?.isCurrentWeek && currentCampaign) {
+      campaignId = currentCampaign.id;
+    } else {
+      campaignId = themeTasks[0].campaign_id;
+    }
     
     console.log('Opening content viewer for theme:', currentTheme?.title, 'with campaignId:', campaignId);
     setReviewingCampaignId(campaignId);

@@ -15,6 +15,7 @@ export interface WeeklyTheme {
   weekNumber: number;
   label?: 'Past' | 'Current' | 'Future';
   isCurrentWeek: boolean;
+  campaignId?: string; // Add campaign ID for proper theme-to-content matching
 }
 
 // Helper function to determine category based on content
@@ -143,31 +144,58 @@ export const useWeeklyThemes = () => {
 
       console.log('🗓️ Fetching 5 weekly themes:', weekNumbers, 'Current week:', currentWeek);
 
-      const { data: masterThemes, error } = await supabase
-        .from('master_campaign_templates')
-        .select('*')
-        .in('week_number', weekNumbers)
-        .order('week_number');
+      // Fetch master themes and their corresponding campaigns
+      const [masterThemesResult, campaignsResult] = await Promise.all([
+        supabase
+          .from('master_campaign_templates')
+          .select('*')
+          .in('week_number', weekNumbers)
+          .order('week_number'),
+        supabase
+          .from('campaigns')
+          .select('id, title, week_number, user_id, tenant_id')
+          .eq('user_id', user.id)
+          .in('week_number', weekNumbers)
+          .order('created_at', { ascending: false })
+      ]);
 
-      if (error) {
-        console.error('Error fetching master themes:', error);
+      if (masterThemesResult.error) {
+        console.error('Error fetching master themes:', masterThemesResult.error);
         setThemes([]);
         setLoading(false);
         return;
       }
 
+      if (campaignsResult.error) {
+        console.error('Error fetching campaigns:', campaignsResult.error);
+      }
+
+      const masterThemes = masterThemesResult.data;
+      const campaigns = campaignsResult.data || [];
+
       console.log('📊 Fetched master themes:', masterThemes?.length || 0);
+      console.log('🎯 Fetched user campaigns:', campaigns?.length || 0);
 
       // Create themes array ensuring we have exactly 5 themes in chronological order
       const orderedThemes: WeeklyTheme[] = [];
       
       for (const weekNum of weekNumbers) {
         const dbTheme = masterThemes?.find(t => t.week_number === weekNum);
+        // Find matching campaign for this theme
+        const matchingCampaign = campaigns.find(c => 
+          c.week_number === weekNum && 
+          (dbTheme ? c.title === dbTheme.title : false)
+        );
+        
         if (dbTheme) {
-          orderedThemes.push(transformTheme(dbTheme, currentWeek));
+          const theme = transformTheme(dbTheme, currentWeek);
+          theme.campaignId = matchingCampaign?.id;
+          orderedThemes.push(theme);
         } else {
           // Create fallback theme if no master template exists
-          orderedThemes.push(createFallbackTheme(weekNum, currentWeek));
+          const theme = createFallbackTheme(weekNum, currentWeek);
+          theme.campaignId = matchingCampaign?.id;
+          orderedThemes.push(theme);
         }
       }
 
