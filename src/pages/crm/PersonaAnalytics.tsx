@@ -123,34 +123,6 @@ const PersonaAnalytics = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Users className="h-8 w-8" />
-            Your Company Personas
-          </h1>
-          <p className="text-muted-foreground">
-            Track performance and engagement across customer personas
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add A Persona
-          </Button>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Last 7 days</SelectItem>
-              <SelectItem value="30d">Last 30 days</SelectItem>
-              <SelectItem value="90d">Last 90 days</SelectItem>
-              <SelectItem value="1y">Last year</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
 
       {/* Customer Personas Overview */}
       <Collapsible open={!isPersonasCollapsed} onOpenChange={(open) => setIsPersonasCollapsed(!open)} className="space-y-8">
