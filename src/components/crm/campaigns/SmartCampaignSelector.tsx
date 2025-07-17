@@ -78,6 +78,9 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
     const themeId = searchParams.get('theme_id');
     const themeTitle = searchParams.get('theme_title');
     const themeDescription = searchParams.get('theme_description');
+    const campaignId = searchParams.get('campaign_id');
+    const campaignTitle = searchParams.get('campaign_title');
+    const campaignDescription = searchParams.get('campaign_description');
     
     if (source === 'seasonal_event' && holidayId && holidayName) {
       const holiday = allHolidays.find(h => h.id === holidayId);
@@ -87,8 +90,11 @@ export const SmartCampaignSelector: React.FC<SmartCampaignSelectorProps> = ({
     } else if (source === 'weekly_theme' && themeId && themeTitle) {
       const theme = { id: themeId, title: themeTitle, description: themeDescription || '' };
       handleTypeSelection('weekly_theme', theme);
+    } else if (source === 'custom_content' && campaignId && campaignTitle) {
+      const customCampaign = { id: campaignId, title: campaignTitle, description: campaignDescription || '' };
+      handleTypeSelection('custom_content', customCampaign);
     }
-  }, [searchParams, allHolidays]);
+  }, [searchParams, allHolidays, userCreatedCampaigns]);
 
   const handleTypeSelection = (type: string, data?: any) => {
     setSelectedType(type);
