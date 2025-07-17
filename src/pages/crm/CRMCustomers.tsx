@@ -29,7 +29,9 @@ import {
   Edit,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  TrendingUp,
+  Minus
 } from 'lucide-react';
 import { CustomerImportModal } from '@/components/crm/CustomerImportModal';
 import { HeadlineLarge, BodyMedium } from '@/components/ui/typography';
@@ -75,6 +77,19 @@ const CRMCustomers = () => {
     { name: 'Vegetable Garden Veronica', count: 0, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
     { name: 'Wellness Whitney', count: 0, color: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200' },
   ];
+
+  // Mock growth data for personas (in production, this would come from historical data)
+  const personaGrowthData: Record<string, number> = {
+    'Plant-Killer Pam': 12.5,
+    'Curb Appeal Ashley': -2.1,
+    'DIY Dana': 8.3,
+    'Patio Gardener Gail': 0,
+    'Pet-Friendly Hannah': 15.7,
+    'Pollinator Paula': 5.2,
+    'Sustainable Susie': 0,
+    'Vegetable Garden Veronica': 22.1,
+    'Wellness Whitney': -1.5,
+  };
 
   // Fetch customers
   const { data: customers = [], isLoading } = useQuery({
@@ -263,7 +278,23 @@ const CRMCustomers = () => {
                           <p className="text-sm font-medium text-muted-foreground">{persona.name}</p>
                           <p className="text-2xl font-bold">{persona.count}</p>
                         </div>
-                        <Badge className={persona.color}>{persona.name}</Badge>
+                        <div className="flex items-center gap-2">
+                          {personaGrowthData[persona.name] > 0 ? (
+                            <>
+                              <TrendingUp className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-600">
+                                +{personaGrowthData[persona.name]}%
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <Minus className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-muted-foreground">
+                                {personaGrowthData[persona.name]}%
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
