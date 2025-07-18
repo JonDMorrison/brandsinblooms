@@ -126,9 +126,9 @@ export const NewsletterRegenerator: React.FC<NewsletterRegeneratorProps> = ({
           console.log('✅ Newsletter successfully regenerated and saved');
           toast({
             title: "Success",
-            description: "Newsletter restructured successfully! Refreshing page...",
+            description: "Newsletter restructured successfully!",
           });
-          setTimeout(() => window.location.reload(), 1500);
+          // No page reload - let the component re-render with new content
         }
       } else {
         console.error('❌ No content returned from generation function. Response:', data);

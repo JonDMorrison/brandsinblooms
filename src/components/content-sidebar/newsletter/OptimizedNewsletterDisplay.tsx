@@ -53,8 +53,8 @@ export const OptimizedNewsletterDisplay = ({
   // Process the newsletter content
   const processedNewsletter = processNewsletterContent(content || '', campaignTitle);
   
-  // Force regeneration for unstructured content
-  const needsRegeneration = isPlaceholderContent || !processedNewsletter.isStructured;
+  // Only force regeneration for truly placeholder content
+  const needsRegeneration = isPlaceholderContent;
   
   // Use the specialized newsletter images hook for structured newsletters only
   console.log('[NEWSLETTER] Calling useNewsletterImages with:', {
@@ -67,7 +67,7 @@ export const OptimizedNewsletterDisplay = ({
   
   const { images, loadingImages, imageErrors } = useNewsletterImages(
     processedNewsletter.blocks,
-    isPlaceholderContent || !processedNewsletter.isStructured,
+    isPlaceholderContent,
     contentTaskId,
     campaignTitle
   );
@@ -245,14 +245,6 @@ export const OptimizedNewsletterDisplay = ({
           <Badge variant="outline">
             Newsletter
           </Badge>
-          {contentTaskId && (
-            <NewsletterRegenerator
-              contentTaskId={contentTaskId}
-              campaignTitle={campaignTitle}
-              regenerating={false}
-              setRegenerating={() => {}}
-            />
-          )}
         </div>
         
         <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">
