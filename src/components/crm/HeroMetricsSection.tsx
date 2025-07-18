@@ -1,6 +1,6 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
 import { Users, Target, Mail, MessageSquare, Eye, MousePointerClick, Smartphone, Calendar } from 'lucide-react';
 
 interface HeroMetricsSectionProps {
@@ -31,8 +31,6 @@ interface MetricCardProps {
   value: string | number;
   subtitle: string;
   trend?: number;
-  color?: string;
-  progress?: number;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ 
@@ -40,43 +38,35 @@ const MetricCard: React.FC<MetricCardProps> = ({
   title, 
   value, 
   subtitle, 
-  trend, 
-  color = "text-primary",
-  progress 
+  trend
 }) => (
-  <Card className="group hover:shadow-lg transition-all duration-300 border-border/50 bg-gradient-to-br from-background to-muted/20">
+  <Card className="hover:shadow-md transition-shadow duration-200 border border-gray-200">
     <CardContent className="p-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className={`p-2 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5`}>
-          <Icon className={`h-5 w-5 ${color}`} />
+      <div className="flex items-center justify-between mb-4">
+        <div className="p-2 rounded-lg bg-gray-50">
+          <Icon className="h-5 w-5 text-primary" />
         </div>
         {trend && (
-          <div className={`text-xs px-2 py-1 rounded-full ${trend > 0 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+          <div className={`text-xs px-2 py-1 rounded-full font-medium ${
+            trend > 0 
+              ? 'bg-green-50 text-green-700' 
+              : 'bg-red-50 text-red-700'
+          }`}>
             {trend > 0 ? '+' : ''}{trend}%
           </div>
         )}
       </div>
       
       <div className="space-y-1">
-        <div className="text-3xl font-bold tracking-tight text-foreground">
+        <div className="text-2xl font-bold text-gray-900">
           {value}
         </div>
-        <div className="text-sm font-medium text-muted-foreground">
+        <div className="text-sm font-medium text-gray-900">
           {title}
         </div>
-        <div className="text-xs text-muted-foreground">
+        <div className="text-xs text-gray-500">
           {subtitle}
         </div>
-        
-        {progress !== undefined && (
-          <div className="mt-3">
-            <Progress 
-              value={progress} 
-              className="h-2" 
-              indicatorClassName="bg-gradient-to-r from-primary to-primary/80"
-            />
-          </div>
-        )}
       </div>
     </CardContent>
   </Card>
@@ -96,72 +86,62 @@ export const HeroMetricsSection: React.FC<HeroMetricsSectionProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           icon={Users}
-          title="Total Customers"
-          value={customerStats.total}
-          subtitle={customerStats.total === 0 ? "Add your first customer" : "Growing your garden community"}
+          title="Total Contacts"
+          value={customerStats.total.toLocaleString()}
+          subtitle={customerStats.total === 0 ? "Import your first contacts" : "Active contacts in database"}
           trend={customerStats.total > 0 ? 12 : undefined}
-          color="text-emerald-600"
-          progress={Math.min((customerStats.total / 1000) * 100, 100)}
         />
         
         <MetricCard
           icon={Target}
-          title="Active Segments"
+          title="Segments"
           value={segmentCount}
-          subtitle={segmentCount === 0 ? "Create your first segment" : "Targeted customer groups"}
-          color="text-blue-600"
+          subtitle={segmentCount === 0 ? "Create targeted groups" : "Active customer segments"}
         />
         
         <MetricCard
           icon={Mail}
-          title="Campaigns Sent"
+          title="Campaigns"
           value={totalCampaigns}
-          subtitle={totalCampaigns === 0 ? "Launch your first campaign" : `${totalSent} messages delivered`}
-          color="text-purple-600"
+          subtitle={totalCampaigns === 0 ? "Send your first campaign" : `${totalSent.toLocaleString()} messages sent`}
         />
         
         <MetricCard
           icon={MessageSquare}
-          title="SMS Opt-In Rate"
+          title="SMS Opt-in Rate"
           value={`${customerStats.smsOptInRate.toFixed(1)}%`}
-          subtitle={`${customerStats.smsOptedIn} of ${customerStats.total} opted in`}
-          color="text-green-600"
-          progress={customerStats.smsOptInRate}
+          subtitle={`${customerStats.smsOptedIn} opted in for SMS`}
         />
       </div>
 
-      {/* Performance Snapshot Row */}
+      {/* Performance Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           icon={Eye}
-          title="Email Open Rate"
+          title="Avg Open Rate"
           value={campaignStats.email.totalSent > 0 ? `${campaignStats.email.avgOpenRate.toFixed(1)}%` : "0%"}
-          subtitle={campaignStats.email.totalSent > 0 ? "Average across campaigns" : "Send emails to see performance"}
-          color="text-blue-500"
+          subtitle="Email campaign performance"
         />
         
         <MetricCard
           icon={MousePointerClick}
-          title="Click Rate"
+          title="Avg Click Rate"
           value={campaignStats.email.totalSent > 0 ? `${campaignStats.email.avgClickRate.toFixed(1)}%` : "0%"}
-          subtitle={campaignStats.email.totalSent > 0 ? "Engagement with your content" : "Track click performance"}
-          color="text-indigo-500"
+          subtitle="Email engagement rate"
         />
         
         <MetricCard
           icon={Smartphone}
-          title="SMS Delivery Rate"
+          title="SMS Delivery"
           value={campaignStats.sms.totalSent > 0 ? `${campaignStats.sms.deliveryRate.toFixed(1)}%` : "0%"}
-          subtitle={campaignStats.sms.totalSent > 0 ? "Successfully delivered" : "Send SMS to track delivery"}
-          color="text-green-500"
+          subtitle="SMS delivery success rate"
         />
         
         <MetricCard
           icon={Calendar}
           title="Last Campaign"
-          value="3 days ago"
-          subtitle="Spring Plant Care Tips"
-          color="text-orange-500"
+          value={totalCampaigns > 0 ? "3 days ago" : "Never"}
+          subtitle={totalCampaigns > 0 ? "Most recent send" : "No campaigns sent"}
         />
       </div>
     </div>
