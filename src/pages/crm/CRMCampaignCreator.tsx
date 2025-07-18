@@ -199,6 +199,16 @@ const CRMCampaignCreator = () => {
     setEmailBuilderMode('advanced');
   };
 
+  const handleSavedTemplateSelect = (template: any) => {
+    // Load the saved template blocks into the campaign
+    setCampaignData(prev => ({
+      ...prev,
+      name: `${template.name} - Copy`,
+      subject_line: `${template.name} Email`
+    }));
+    setCurrentStep(2);
+  };
+
   const steps = [
     {
       id: 1,
@@ -314,10 +324,11 @@ const CRMCampaignCreator = () => {
         <div className="container mx-auto p-6">
           {currentStep === 1 && (
             <div className="max-w-4xl mx-auto space-y-6">
-              <SmartCampaignSelector
-                onTemplateSelect={handleTemplateSelect}
-                selectedTemplate={selectedTemplate}
-              />
+            <SmartCampaignSelector 
+              onTemplateSelect={handleTemplateSelect}
+              onSavedTemplateSelect={handleSavedTemplateSelect}
+              selectedTemplate={selectedTemplate}
+            />
               
               <div className="flex justify-between">
                 <Button variant="outline" onClick={() => navigate('/crm/campaigns')}>
