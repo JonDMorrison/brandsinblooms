@@ -112,6 +112,51 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_blocks: {
+        Row: {
+          block_type: string
+          campaign_id: string
+          content: Json
+          created_at: string
+          cta_text: string | null
+          cta_url: string | null
+          id: string
+          image_url: string | null
+          order_index: number
+          persona_tag: string | null
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          block_type: string
+          campaign_id: string
+          content?: Json
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string | null
+          id?: string
+          image_url?: string | null
+          order_index?: number
+          persona_tag?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          block_type?: string
+          campaign_id?: string
+          content?: Json
+          created_at?: string
+          cta_text?: string | null
+          cta_url?: string | null
+          id?: string
+          image_url?: string | null
+          order_index?: number
+          persona_tag?: string | null
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           created_at: string
