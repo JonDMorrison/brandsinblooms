@@ -1958,6 +1958,54 @@ export type Database = {
           },
         ]
       }
+      saved_campaign_templates: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_public: boolean | null
+          layout_json: Json
+          name: string
+          tags: string[] | null
+          tenant_id: string | null
+          thumbnail_url: string | null
+          updated_at: string
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          layout_json?: Json
+          name: string
+          tags?: string[] | null
+          tenant_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          layout_json?: Json
+          name?: string
+          tags?: string[] | null
+          tenant_id?: string | null
+          thumbnail_url?: string | null
+          updated_at?: string
+          usage_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       scheduled_posts: {
         Row: {
           content_id: string
