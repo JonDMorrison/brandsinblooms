@@ -238,8 +238,8 @@ const CRMCampaignBuilder = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="flex items-center justify-between px-6 py-4">
+      <div className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
+        <div className="flex items-center justify-between px-8 py-5">
           <div className="flex items-center gap-4">
             <h1 className="text-xl font-semibold">Email Campaign Builder</h1>
             {campaign && (
@@ -253,52 +253,66 @@ const CRMCampaignBuilder = () => {
             )}
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowContentSidebar(true)}
+              className="gap-2"
             >
-              <Plus className="w-4 h-4 mr-1" />
+              <Plus className="w-4 h-4" />
               Add Content
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowGlobalSettings(true)}
+              className="gap-2"
             >
-              <Palette className="w-4 h-4 mr-1" />
+              <Palette className="w-4 h-4" />
               Styling
             </Button>
-            <div className="flex items-center border rounded-md">
+            
+            {/* Preview Mode Toggle */}
+            <div className="flex items-center border rounded-lg overflow-hidden bg-background">
               <Button
                 variant={previewMode === 'desktop' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setPreviewMode('desktop')}
-                className="rounded-r-none"
+                className="rounded-none border-0 gap-2"
               >
                 <Monitor className="w-4 h-4" />
+                Desktop
               </Button>
               <Button
                 variant={previewMode === 'mobile' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setPreviewMode('mobile')}
-                className="rounded-l-none"
+                className="rounded-none border-0 gap-2"
               >
                 <Smartphone className="w-4 h-4" />
+                Mobile
               </Button>
             </div>
-            <Button size="sm">
-              <Save className="w-4 h-4 mr-1" />
-              Save & Continue
-            </Button>
+            
+            {/* CTA Actions */}
+            <div className="flex items-center gap-2 ml-4 border-l pl-4">
+              <Button variant="outline" size="sm">Send Test Email</Button>
+              <Button variant="outline" size="sm">
+                <Eye className="w-4 h-4 mr-2" />
+                Preview Full Email
+              </Button>
+              <Button size="sm" className="bg-primary hover:bg-primary/90">
+                Schedule Campaign
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
       <div className="flex">
         {/* Block Toolbar */}
-        <div className="w-16 border-r bg-card/30 p-2 space-y-2">
+        <div className="w-20 border-r bg-muted/20 p-3 space-y-3">
           <Button
             variant="ghost"
             size="sm"
@@ -358,8 +372,8 @@ const CRMCampaignBuilder = () => {
         {/* Main Editor */}
         <div className="flex-1 flex">
           {/* Canvas */}
-          <div className="flex-1 p-6">
-            <div className={`mx-auto bg-white shadow-lg ${
+          <div className="flex-1 p-8 bg-muted/10">
+            <div className={`mx-auto bg-white shadow-xl rounded-lg border ${
               previewMode === 'mobile' ? 'max-w-sm' : 'max-w-2xl'
             }`}>
               <DragDropContext onDragEnd={handleDragEnd}>
@@ -429,7 +443,7 @@ const CRMCampaignBuilder = () => {
 
           {/* Properties Panel */}
           {selectedBlockId && (
-            <div className="w-80 border-l bg-card/30 p-4">
+            <div className="w-80 border-l bg-background/60 backdrop-blur-sm p-6">
               <BlockEditor
                 block={blocks.find(b => b.id === selectedBlockId)!}
                 onUpdate={(updates) => updateBlock(selectedBlockId, updates)}
