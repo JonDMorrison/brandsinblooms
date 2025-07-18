@@ -948,6 +948,39 @@ export type Database = {
           },
         ]
       }
+      crm_personas: {
+        Row: {
+          created_at: string
+          id: string
+          is_custom: boolean
+          persona_description: string | null
+          persona_name: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_custom?: boolean
+          persona_description?: string | null
+          persona_name: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_custom?: boolean
+          persona_description?: string | null
+          persona_name?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       crm_segments: {
         Row: {
           auto_update: boolean | null
