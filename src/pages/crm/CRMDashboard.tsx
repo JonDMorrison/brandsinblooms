@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Users } from 'lucide-react';
 import { HeroMetricsSection } from '@/components/crm/HeroMetricsSection';
 import { QuickStartStepper } from '@/components/crm/QuickStartStepper';
 import { EmptyStateSection } from '@/components/crm/EmptyStateSection';
@@ -55,7 +56,10 @@ const CRMDashboard: React.FC = () => {
     <div className="py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Your CRM Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+          <Users className="h-8 w-8 text-primary" />
+          Your CRM Dashboard
+        </h1>
         <p className="text-gray-600">Monitor your campaigns and grow your customer base</p>
       </div>
 
