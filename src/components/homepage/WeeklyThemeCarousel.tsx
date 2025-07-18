@@ -653,33 +653,6 @@ export const WeeklyThemeCarousel = ({
 
                   </div>
 
-                  {/* Newsletter Section for CRM Users */}
-                  {hasCRMAccess && currentTheme && (
-                    <div className="border-t border-gray-200 pt-6">
-                      <div className="mb-4">
-                        <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                          <Mail className="w-5 h-5 text-teal-600" />
-                          Newsletter for {currentTheme.title}
-                        </h4>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
-                          Create and manage newsletters for your CRM campaigns
-                        </p>
-                      </div>
-                      
-                      {currentThemeNewsletter ? (
-                        <NewsletterPreviewCard
-                          newsletter={currentThemeNewsletter}
-                          campaignTitle={currentTheme.title}
-                          onUpdate={onTaskUpdate}
-                        />
-                      ) : (
-                        <NewsletterFallbackCard
-                          themeTitle={currentTheme.title}
-                          themeId={currentTheme.id}
-                        />
-                      )}
-                    </div>
-                  )}
 
                 </div>
               )}
