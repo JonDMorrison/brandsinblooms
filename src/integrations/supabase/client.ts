@@ -6,32 +6,76 @@ import type { Database } from './types';
 const SUPABASE_URL = "https://udldmkqwnxhdeztyqcau.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVkbGRta3F3bnhoZGV6dHlxY2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkwNTg0MzQsImV4cCI6MjA2NDYzNDQzNH0.1iO2-DRx5aX_WpEcDGv9aKHGy1rdDPOZaQC6Ke4MpRM";
 
-// Auth state cleanup utility
+// Enhanced auth state cleanup utility
 export const cleanupAuthState = () => {
-  console.log('🧹 Cleaning up auth state...');
+  console.log('🧹 Starting comprehensive auth state cleanup...');
   
-  // Remove standard auth tokens
-  localStorage.removeItem('supabase.auth.token');
-  
-  // Remove all Supabase auth keys from localStorage
-  Object.keys(localStorage).forEach((key) => {
-    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-      console.log(`Removing localStorage key: ${key}`);
+  try {
+    // Remove all possible auth-related keys from localStorage
+    const keysToRemove = [
+      'supabase.auth.token',
+      'sb-udldmkqwnxhdeztyqcau-auth-token',
+      'supabase.auth.refreshToken',
+      'supabase.auth.expiresAt'
+    ];
+    
+    keysToRemove.forEach(key => {
       localStorage.removeItem(key);
-    }
-  });
-  
-  // Remove from sessionStorage if in use
-  if (typeof sessionStorage !== 'undefined') {
-    Object.keys(sessionStorage).forEach((key) => {
-      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
-        console.log(`Removing sessionStorage key: ${key}`);
-        sessionStorage.removeItem(key);
+      console.log(`Removed localStorage key: ${key}`);
+    });
+    
+    // Remove all Supabase auth keys with pattern matching
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-udld') || key.includes('sb-auth')) {
+        console.log(`Pattern-matched removal of localStorage key: ${key}`);
+        localStorage.removeItem(key);
       }
     });
+    
+    // Remove from sessionStorage if in use
+    if (typeof sessionStorage !== 'undefined') {
+      Object.keys(sessionStorage).forEach((key) => {
+        if (key.startsWith('supabase.auth.') || key.includes('sb-udld') || key.includes('sb-auth')) {
+          console.log(`Removing sessionStorage key: ${key}`);
+          sessionStorage.removeItem(key);
+        }
+      });
+    }
+    
+    console.log('✅ Auth state cleanup complete');
+  } catch (error) {
+    console.error('❌ Error during auth cleanup:', error);
   }
+};
+
+// Force logout utility for emergency situations
+export const forceLogout = async () => {
+  console.log('🚨 Starting force logout sequence...');
   
-  console.log('✅ Auth state cleanup complete');
+  try {
+    // Step 1: Clean up all auth state first
+    cleanupAuthState();
+    
+    // Step 2: Clear any app-specific state
+    localStorage.removeItem('subscription-cache');
+    localStorage.removeItem('user-profile-cache');
+    
+    // Step 3: Attempt graceful signout (may fail in limbo state)
+    try {
+      await supabase.auth.signOut({ scope: 'global' });
+      console.log('✅ Graceful signout successful');
+    } catch (signOutError) {
+      console.warn('⚠️ Graceful signout failed (continuing anyway):', signOutError);
+    }
+    
+    // Step 4: Force page reload to completely reset state
+    console.log('🔄 Forcing page reload for clean state...');
+    window.location.href = '/auth';
+  } catch (error) {
+    console.error('❌ Force logout error:', error);
+    // Even if everything fails, try to redirect
+    window.location.href = '/auth';
+  }
 };
 
 // Import the supabase client like this:
@@ -47,7 +91,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
-// Enhanced auth helpers
+// Enhanced auth helpers with better error handling
 export const signOutCompletely = async () => {
   try {
     console.log('🚪 Starting complete sign out...');
@@ -66,8 +110,7 @@ export const signOutCompletely = async () => {
   } catch (error) {
     console.error('Complete sign out error:', error);
     // Force cleanup and redirect anyway
-    cleanupAuthState();
-    window.location.href = '/auth';
+    forceLogout();
   }
 };
 

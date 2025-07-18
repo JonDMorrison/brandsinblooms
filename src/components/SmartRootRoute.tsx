@@ -8,9 +8,10 @@ import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout';
 import { OnboardingGuard } from '@/components/OnboardingGuard';
 import { HomepageErrorBoundary } from '@/components/homepage/HomepageErrorBoundary';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
+import { EmergencyAuthReset } from '@/components/EmergencyAuthReset';
 
 export const SmartRootRoute = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, authError, isInLimboState } = useAuth();
   const { setLoading, clearLoading } = useLoading();
 
   // Manage auth loading state in the global loading context
@@ -26,23 +27,41 @@ export const SmartRootRoute = () => {
     }
   }, [loading, setLoading, clearLoading]);
 
+  // Log current state for debugging
+  useEffect(() => {
+    console.log('🏠 SmartRootRoute state:', {
+      hasUser: !!user,
+      loading,
+      authError,
+      isInLimboState,
+      currentPath: window.location.pathname
+    });
+  }, [user, loading, authError, isInLimboState]);
+
   // Don't render anything while loading - let GlobalLoadingOverlay handle it
   if (loading) {
     return null;
   }
 
   // Show dashboard for authenticated users, comprehensive landing page for guests
-  return user ? (
-    <ContentGenerationProvider>
-      <HomepageErrorBoundary>
-        <AuthenticatedLayout>
-          <OnboardingGuard>
-            <Homepage />
-          </OnboardingGuard>
-        </AuthenticatedLayout>
-      </HomepageErrorBoundary>
-    </ContentGenerationProvider>
-  ) : (
-    <CompleteLandingPage />
+  return (
+    <>
+      {user ? (
+        <ContentGenerationProvider>
+          <HomepageErrorBoundary>
+            <AuthenticatedLayout>
+              <OnboardingGuard>
+                <Homepage />
+              </OnboardingGuard>
+            </AuthenticatedLayout>
+          </HomepageErrorBoundary>
+        </ContentGenerationProvider>
+      ) : (
+        <CompleteLandingPage />
+      )}
+      
+      {/* Emergency Auth Reset Component - always available when there are issues */}
+      <EmergencyAuthReset />
+    </>
   );
 };

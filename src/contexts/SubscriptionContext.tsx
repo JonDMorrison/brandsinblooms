@@ -1,8 +1,6 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-
 import { useNavigate } from "react-router-dom";
 import { isSuperAdmin } from "@/utils/adminUtils";
 import { isTestAccount, ensureTestAccountHasProAccess } from "@/utils/testAccountUtils";
@@ -26,9 +24,12 @@ interface SubscriptionContextType {
   loading: boolean;
   isTrialExpired: boolean;
   trialDaysLeft: number;
+  subscriptionError: string | null;
+  lastCheckTime: Date | null;
   updateSubscription: (plan: SubscriptionPlan, billingInterval: BillingInterval) => Promise<void>;
   checkAccess: (requiredPlan: SubscriptionPlan) => boolean;
   refreshSubscription: () => Promise<void>;
+  clearSubscriptionError: () => void;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
@@ -42,83 +43,27 @@ export const useSubscription = () => {
 };
 
 export const SubscriptionProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, isInLimboState, forceReset } = useAuth();
   const navigate = useNavigate();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tenant, setTenant] = useState<any>(null);
-  const [tenantLoading, setTenantLoading] = useState(true);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
+  const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
 
   // Check if current user is a developer with super admin access OR a test account
   const isDeveloper = user?.email ? isSuperAdmin(user.email) : false;
   const isTestUser = user?.email ? isTestAccount(user.email) : false;
   const hasPrivilegedAccess = isDeveloper || isTestUser;
 
-  // Fetch tenant data directly in this component instead of using useTenant hook
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchTenant = async () => {
-      if (!user) {
-        if (isMounted) {
-          setTenantLoading(false);
-        }
-        return;
-      }
-
-      try {
-        // First get the user's tenant_id from the users table
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('tenant_id')
-          .eq('id', user.id)
-          .single();
-
-        if (!isMounted) return;
-
-        if (userError || !userData?.tenant_id) {
-          // User not assigned to a tenant yet
-          setTenantLoading(false);
-          return;
-        }
-
-        // Then fetch the tenant details
-        const { data: tenantData, error: tenantError } = await supabase
-          .from('tenants')
-          .select('*')
-          .eq('id', userData.tenant_id)
-          .single();
-
-        if (!isMounted) return;
-
-        if (tenantError) {
-          console.error('Error fetching tenant:', tenantError);
-        } else {
-          setTenant(tenantData);
-        }
-      } catch (error) {
-        if (isMounted) {
-          console.error('Error in fetchTenant:', error);
-        }
-      } finally {
-        if (isMounted) {
-          setTenantLoading(false);
-        }
-      }
-    };
-
-    fetchTenant();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user]);
+  const clearSubscriptionError = () => {
+    setSubscriptionError(null);
+  };
 
   const createDefaultSubscription = async () => {
     if (!user) return null;
 
     try {
-      // Creating default subscription for user
+      console.log('📝 Creating default subscription for user:', user.id);
       
       // For test accounts, create PRO subscription instead of trial
       if (isTestUser) {
@@ -139,15 +84,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
           .single();
 
         if (error) {
-          console.error('Error creating test account subscription:', error);
+          console.error('❌ Error creating test account subscription:', error);
+          setSubscriptionError(`Failed to create test subscription: ${error.message}`);
           return null;
         }
 
-        // Created PRO subscription for test account
+        console.log('✅ Created PRO subscription for test account');
         return data;
       }
 
-      // Regular trial subscription for non-test accounts - now 7 days instead of 14
+      // Regular trial subscription for non-test accounts - 7 days
       const startDate = new Date();
       const endDate = new Date();
       endDate.setDate(startDate.getDate() + 7); // 7-day trial
@@ -165,14 +111,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         .single();
 
       if (error) {
-        console.error('Error creating subscription:', error);
+        console.error('❌ Error creating subscription:', error);
+        setSubscriptionError(`Failed to create trial subscription: ${error.message}`);
         return null;
       }
 
-      // Created new 7-day trial subscription
+      console.log('✅ Created new 7-day trial subscription');
       return data;
     } catch (error) {
-      console.error('Error in createDefaultSubscription:', error);
+      console.error('❌ Error in createDefaultSubscription:', error);
+      setSubscriptionError(`Unexpected error creating subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
       return null;
     }
   };
@@ -207,13 +155,17 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         .single();
 
       if (error) {
-        console.error('Error updating subscription:', error);
+        console.error('❌ Error updating subscription:', error);
+        setSubscriptionError(`Failed to update subscription: ${error.message}`);
         return;
       }
 
       setSubscription(data);
+      setSubscriptionError(null);
+      console.log('✅ Subscription updated successfully');
     } catch (error) {
-      console.error('Error in updateSubscriptionPlan:', error);
+      console.error('❌ Error in updateSubscriptionPlan:', error);
+      setSubscriptionError(`Unexpected error updating subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -224,17 +176,15 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      // Fetching subscription for user
+      console.log('🔍 Fetching subscription for user:', user.id);
+      setSubscriptionError(null);
       
       // Ensure test accounts have PRO access
       if (isTestUser) {
         await ensureTestAccountHasProAccess(user.id, user.email!);
       }
 
-      // In tenant model, subscription is still tied to the user who created the tenant
-      // So we always query by user_id, not tenant_id
-      
-      // First check if there are multiple subscriptions for this user
+      // Fetch subscription from database
       const { data: allSubscriptions, error: countError } = await supabase
         .from('subscriptions')
         .select('*')
@@ -242,21 +192,21 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         .order('created_at', { ascending: false });
 
       if (countError) {
-        console.error('Error fetching subscription:', countError);
-        
+        console.error('❌ Error fetching subscription:', countError);
+        setSubscriptionError(`Database error: ${countError.message}`);
         return;
       }
 
       let data = null;
       
       if (allSubscriptions && allSubscriptions.length > 1) {
-        // Found multiple subscriptions for user, using most recent
+        console.log(`📊 Found ${allSubscriptions.length} subscriptions for user, using most recent`);
         data = allSubscriptions[0]; // Use the most recent one
         
         // Clean up duplicates by keeping only the most recent one
         const duplicateIds = allSubscriptions.slice(1).map(sub => sub.id);
         if (duplicateIds.length > 0) {
-          // Cleaning up duplicate subscriptions
+          console.log('🧹 Cleaning up duplicate subscriptions');
           await supabase
             .from('subscriptions')
             .delete()
@@ -267,7 +217,7 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
       }
 
       if (data) {
-        // Found existing subscription
+        console.log('✅ Found existing subscription:', { plan: data.plan, endDate: data.end_date });
         setSubscription(data);
         
         // Check if trial has expired and update if needed (skip for privileged users)
@@ -275,19 +225,21 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         const now = new Date();
         
         if (data.plan === 'free_trial' && now > endDate && !hasPrivilegedAccess) {
+          console.log('⚠️ Trial has expired, updating to expired status');
           await updateSubscriptionPlan('expired', data.billing_interval);
         }
       } else {
-        // No subscription found, creating default subscription
-        // Create a default subscription if none exists
+        console.log('❌ No subscription found, creating default subscription');
         const newSubscription = await createDefaultSubscription();
         if (newSubscription) {
           setSubscription(newSubscription);
         }
       }
-    } catch (error) {
-      console.error('Error in fetchSubscription:', error);
       
+      setLastCheckTime(new Date());
+    } catch (error) {
+      console.error('❌ Error in fetchSubscription:', error);
+      setSubscriptionError(`Failed to fetch subscription: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -297,21 +249,25 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     if (!user) return;
 
     try {
+      console.log('💳 Checking Stripe subscription status');
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
       if (error) {
-        console.error('Error checking Stripe subscription:', error);
+        console.error('❌ Error checking Stripe subscription:', error);
+        setSubscriptionError(`Stripe check failed: ${error.message}`);
         return;
       }
 
-      // Stripe subscription check result
+      console.log('💳 Stripe subscription check result:', data);
       
       // If Stripe returns subscription data, refresh our local state
       if (data && (data.subscribed || data.plan)) {
+        console.log('🔄 Stripe data found, refreshing local subscription');
         await fetchSubscription();
       }
     } catch (error) {
-      console.error('Error in checkStripeSubscription:', error);
+      console.error('❌ Error in checkStripeSubscription:', error);
+      setSubscriptionError(`Stripe verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -320,48 +276,54 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   };
 
   const refreshSubscription = async () => {
+    console.log('🔄 Refreshing subscription data');
     setLoading(true);
+    setSubscriptionError(null);
     await fetchSubscription();
     await checkStripeSubscription();
-    
-    // Show success message after refresh
-    
+    console.log('✅ Subscription refresh completed');
   };
 
   const checkAccess = (requiredPlan: SubscriptionPlan): boolean => {
     // Privileged access: super admins and test accounts have access to everything
     if (hasPrivilegedAccess) {
-      // Privileged access granted
+      console.log('🔓 Privileged access granted');
       return true;
     }
 
-    if (!subscription) return false;
+    if (!subscription) {
+      console.log('❌ No subscription found, access denied');
+      return false;
+    }
     
     // Give trial users full Bloom-level access
     const planHierarchy = {
       'expired': 0,
-      'free_trial': 3, // Now equivalent to Bloom level
+      'free_trial': 3, // Equivalent to Bloom level
       'sprout': 2,
       'bloom': 3
     };
 
-    return planHierarchy[subscription.plan] >= planHierarchy[requiredPlan];
+    const hasAccess = planHierarchy[subscription.plan] >= planHierarchy[requiredPlan];
+    console.log('🔍 Access check:', { 
+      userPlan: subscription.plan, 
+      requiredPlan, 
+      hasAccess 
+    });
+    
+    return hasAccess;
   };
 
   // Modified to account for privileged access
   const isTrialExpired = subscription?.plan === 'expired' && !hasPrivilegedAccess;
 
   const trialDaysLeft = (() => {
-    // Calculating trial days left
-    
     // Privileged access: show as if they have unlimited time
     if (hasPrivilegedAccess) {
-      // Privileged access, showing unlimited trial
       return 999; // Show a high number for privileged users
     }
     
     if (!subscription || subscription.plan !== 'free_trial') {
-      // Not a free trial, returning 0 days
       return 0;
     }
     
@@ -370,56 +332,78 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     const diffTime = endDate.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    const daysLeft = Math.max(0, diffDays);
-    // Trial days calculation completed
-    
-    return daysLeft;
+    return Math.max(0, diffDays);
   })();
 
   useEffect(() => {
-    if (user && !tenantLoading) {
+    if (user) {
       fetchSubscription();
       // Also check with Stripe on load
-      checkStripeSubscription();
+      setTimeout(() => {
+        checkStripeSubscription();
+      }, 1000); // Delay Stripe check to avoid overloading
     }
-  }, [user, tenant, tenantLoading]);
+  }, [user]);
 
   // Enhanced trial expiration handling - skip for privileged users
   useEffect(() => {
-    if (subscription && subscription.plan === 'expired' && !hasPrivilegedAccess) {
+    if (subscription && subscription.plan === 'expired' && !hasPrivilegedAccess && !isInLimboState) {
       const currentPath = window.location.pathname;
       if (currentPath !== '/pricing' && currentPath !== '/auth' && !currentPath.startsWith('/subscription')) {
+        console.log('⚠️ Trial expired, redirecting to pricing');
         navigate('/pricing');
-        
       }
     }
-  }, [subscription, navigate, hasPrivilegedAccess]);
+  }, [subscription, navigate, hasPrivilegedAccess, isInLimboState]);
+
+  // Handle limbo state detection
+  useEffect(() => {
+    if (isInLimboState && subscriptionError) {
+      console.log('🚨 Limbo state detected with subscription error, forcing reset');
+      // Give user option to force reset
+      setTimeout(() => {
+        if (window.confirm('Authentication error detected. Would you like to reset your session?')) {
+          forceReset();
+        }
+      }, 2000);
+    }
+  }, [isInLimboState, subscriptionError, forceReset]);
 
   // Auto-refresh subscription status periodically when user is active
   useEffect(() => {
     if (!user || !subscription) return;
 
     const interval = setInterval(() => {
-      // Only auto-refresh if user is on a trial or paid plan
-      if (subscription.plan === 'free_trial' || subscription.plan === 'sprout' || subscription.plan === 'bloom') {
+      // Only auto-refresh if user is on a trial or paid plan and no errors
+      if ((subscription.plan === 'free_trial' || subscription.plan === 'sprout' || subscription.plan === 'bloom') && !subscriptionError) {
         checkStripeSubscription();
       }
-    }, 60000); // Check every minute
+    }, 300000); // Check every 5 minutes instead of every minute
 
     return () => clearInterval(interval);
-  }, [user, subscription]);
+  }, [user, subscription, subscriptionError]);
 
   const value = {
     subscription,
     loading,
     isTrialExpired,
     trialDaysLeft,
+    subscriptionError,
+    lastCheckTime,
     updateSubscription,
     checkAccess,
-    refreshSubscription
+    refreshSubscription,
+    clearSubscriptionError
   };
 
-  // Providing subscription context value
+  console.log('🔍 SubscriptionProvider render:', { 
+    hasSubscription: !!subscription, 
+    loading, 
+    subscriptionError,
+    isInLimboState,
+    hasPrivilegedAccess,
+    lastCheckTime 
+  });
 
   return (
     <SubscriptionContext.Provider value={value}>
