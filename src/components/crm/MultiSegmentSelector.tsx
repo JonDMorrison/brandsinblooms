@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Users, Plus, X, Search } from 'lucide-react';
+import { Users, Plus, X, Search, Globe } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -36,10 +36,12 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateNew, setShowCreateNew] = useState(false);
   const [newSegmentName, setNewSegmentName] = useState('');
+  const [totalCustomers, setTotalCustomers] = useState(0);
 
   useEffect(() => {
     if (user) {
       loadSegments();
+      loadTotalCustomers();
     }
   }, [user]);
 
@@ -71,6 +73,31 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
       toast.error('Failed to load customer segments');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTotalCustomers = async () => {
+    if (!user) return;
+    
+    try {
+      // Get user's tenant_id
+      const { data: userData } = await supabase
+        .from('users')
+        .select('tenant_id')
+        .eq('id', user.id)
+        .single();
+
+      if (userData?.tenant_id) {
+        const { count, error } = await supabase
+          .from('crm_customers')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', userData.tenant_id);
+
+        if (error) throw error;
+        setTotalCustomers(count || 0);
+      }
+    } catch (error) {
+      console.error('Error loading total customers:', error);
     }
   };
 
@@ -113,12 +140,24 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
   };
 
   const toggleSegment = (segmentId: string) => {
-    if (selectedSegments.includes(segmentId)) {
-      onSegmentsChange(selectedSegments.filter(id => id !== segmentId));
-    } else if (selectedSegments.length < maxSelections) {
-      onSegmentsChange([...selectedSegments, segmentId]);
+    if (segmentId === 'all') {
+      // If selecting ALL, clear all other selections
+      if (selectedSegments.includes('all')) {
+        onSegmentsChange([]);
+      } else {
+        onSegmentsChange(['all']);
+      }
     } else {
-      toast.error(`You can select up to ${maxSelections} segments`);
+      // If selecting a specific segment, remove ALL if it's selected
+      const filteredSegments = selectedSegments.filter(id => id !== 'all');
+      
+      if (filteredSegments.includes(segmentId)) {
+        onSegmentsChange(filteredSegments.filter(id => id !== segmentId));
+      } else if (filteredSegments.length < maxSelections) {
+        onSegmentsChange([...filteredSegments, segmentId]);
+      } else {
+        toast.error(`You can select up to ${maxSelections} segments`);
+      }
     }
   };
 
@@ -135,9 +174,10 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
     selectedSegments.includes(segment.id)
   );
 
-  const totalCustomers = selectedSegmentDetails.reduce(
-    (sum, segment) => sum + segment.customer_count, 0
-  );
+  const isAllSelected = selectedSegments.includes('all');
+  const calculatedTotalCustomers = isAllSelected 
+    ? totalCustomers 
+    : selectedSegmentDetails.reduce((sum, segment) => sum + segment.customer_count, 0);
 
   if (loading) {
     return (
@@ -167,7 +207,7 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
           Customer Segments
           {selectedSegments.length > 0 && (
             <Badge variant="secondary">
-              {selectedSegments.length} selected
+              {isAllSelected ? 'All customers' : `${selectedSegments.length} selected`}
             </Badge>
           )}
         </CardTitle>
@@ -188,30 +228,46 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
         {selectedSegments.length > 0 && (
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Selected Segments</span>
+              <span className="font-medium">Selected Audience</span>
               <Badge variant="default">
-                {totalCustomers.toLocaleString()} total customers
+                {calculatedTotalCustomers.toLocaleString()} total customers
               </Badge>
             </div>
             <div className="flex flex-wrap gap-2">
-              {selectedSegmentDetails.map((segment) => (
-                <Badge 
-                  key={segment.id} 
-                  variant="secondary" 
-                  className="gap-1"
-                >
-                  {segment.name}
-                  <span className="text-xs">({segment.customer_count})</span>
+              {isAllSelected ? (
+                <Badge variant="default" className="gap-1 bg-gradient-to-r from-blue-500 to-purple-600">
+                  <Globe className="h-3 w-3" />
+                  All Customers
+                  <span className="text-xs">({totalCustomers})</span>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => removeSegment(segment.id)}
+                    onClick={() => removeSegment('all')}
                   >
                     <X className="h-3 w-3" />
                   </Button>
                 </Badge>
-              ))}
+              ) : (
+                selectedSegmentDetails.map((segment) => (
+                  <Badge 
+                    key={segment.id} 
+                    variant="secondary" 
+                    className="gap-1"
+                  >
+                    {segment.name}
+                    <span className="text-xs">({segment.customer_count})</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => removeSegment(segment.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -254,10 +310,46 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
 
           {/* Segments List */}
           <div className="space-y-2 max-h-64 overflow-y-auto">
-            {filteredSegments.length === 0 ? (
+            {/* ALL Segment - Always at the top */}
+            <div
+              className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                isAllSelected 
+                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300' 
+                  : 'hover:border-primary/50 hover:bg-muted/30'
+              }`}
+              onClick={() => toggleSegment('all')}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-blue-600" />
+                    <span className="font-medium text-blue-900">All Customers</span>
+                    {isAllSelected && (
+                      <Badge variant="default" className="text-xs bg-blue-600">
+                        Selected
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Target your entire customer base
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="font-medium text-blue-900">
+                    {totalCustomers.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    customers
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Regular Segments */}
+            {filteredSegments.length === 0 && segments.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No segments found</p>
+                <p>No custom segments found</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -270,7 +362,8 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
             ) : (
               filteredSegments.map((segment) => {
                 const isSelected = selectedSegments.includes(segment.id);
-                const canSelect = !isSelected && selectedSegments.length < maxSelections;
+                const canSelect = !isSelected && selectedSegments.length < maxSelections && !isAllSelected;
+                const isDisabled = isAllSelected && !isSelected;
                 
                 return (
                   <div
@@ -278,11 +371,13 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
                     className={`border rounded-lg p-3 cursor-pointer transition-all ${
                       isSelected 
                         ? 'bg-primary/10 border-primary' 
-                        : canSelect 
-                          ? 'hover:border-primary/50 hover:bg-muted/30' 
-                          : 'opacity-50 cursor-not-allowed'
+                        : isDisabled
+                          ? 'opacity-30 cursor-not-allowed bg-gray-50'
+                          : canSelect 
+                            ? 'hover:border-primary/50 hover:bg-muted/30' 
+                            : 'opacity-50 cursor-not-allowed'
                     }`}
-                    onClick={() => canSelect || isSelected ? toggleSegment(segment.id) : null}
+                    onClick={() => (canSelect || isSelected) && !isDisabled ? toggleSegment(segment.id) : null}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
@@ -316,12 +411,15 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
           </div>
         </div>
 
-        {/* Selection Limit Warning */}
-        {selectedSegments.length >= maxSelections && (
-          <div className="text-sm text-muted-foreground text-center p-2 bg-muted/30 rounded">
-            Maximum of {maxSelections} segments can be selected
-          </div>
-        )}
+        {/* Selection Info */}
+        <div className="text-sm text-muted-foreground text-center p-2 bg-muted/30 rounded">
+          {isAllSelected 
+            ? "Targeting all customers in your database"
+            : selectedSegments.length >= maxSelections 
+              ? `Maximum of ${maxSelections} segments can be selected`
+              : "Select 'All Customers' or up to 5 specific segments"
+          }
+        </div>
       </CardContent>
     </Card>
   );

@@ -22,7 +22,8 @@ import {
   Calendar,
   CheckCircle,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Globe
 } from 'lucide-react';
 
 // Import the email builder component
@@ -101,6 +102,11 @@ const CRMCampaignCreator = () => {
         throw new Error('No tenant found');
       }
 
+      // Handle segment ID - if "all" is selected, use null for segment_id
+      const segmentId = campaignData.segment_ids.includes('all') 
+        ? null 
+        : campaignData.segment_ids[0] || null;
+
       // Create the campaign
       const { data, error } = await supabase
         .from('crm_campaigns')
@@ -110,7 +116,7 @@ const CRMCampaignCreator = () => {
           content: campaignData.content,
           tenant_id: userData.tenant_id,
           user_id: user.id,
-          segment_id: campaignData.segment_ids[0] || null,
+          segment_id: segmentId,
           status: 'draft'
         })
         .select()
@@ -120,7 +126,12 @@ const CRMCampaignCreator = () => {
 
       setCreatedCampaignId(data.id);
       setCurrentStep(3); // Move to email builder step
-      toast.success('Campaign created successfully!');
+      
+      if (campaignData.segment_ids.includes('all')) {
+        toast.success('Campaign created successfully! Targeting all customers.');
+      } else {
+        toast.success('Campaign created successfully!');
+      }
 
     } catch (error) {
       console.error('Error creating campaign:', error);
@@ -159,6 +170,30 @@ const CRMCampaignCreator = () => {
 
   const canProceedToStep2 = selectedTemplate || campaignData.name;
   const canProceedToStep3 = campaignData.name && campaignData.subject_line && campaignData.segment_ids.length > 0;
+
+  // Helper function to get audience display info
+  const getAudienceInfo = () => {
+    if (campaignData.segment_ids.includes('all')) {
+      return {
+        type: 'all',
+        label: 'All Customers',
+        icon: Globe
+      };
+    } else if (campaignData.segment_ids.length === 1) {
+      return {
+        type: 'single',
+        label: '1 Segment Selected',
+        icon: null
+      };
+    } else if (campaignData.segment_ids.length > 1) {
+      return {
+        type: 'multiple',
+        label: `${campaignData.segment_ids.length} Segments Selected`,
+        icon: null
+      };
+    }
+    return null;
+  };
 
   return (
     <SubscriptionGate 
@@ -293,6 +328,21 @@ const CRMCampaignCreator = () => {
                           <span className="font-medium">Using Template</span>
                         </div>
                         <Badge variant="outline">{selectedTemplate.name}</Badge>
+                      </div>
+                    )}
+
+                    {/* Audience Preview */}
+                    {campaignData.segment_ids.length > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          {getAudienceInfo()?.icon && (
+                            <getAudienceInfo().icon className="h-4 w-4 text-blue-600" />
+                          )}
+                          <span className="font-medium text-blue-900">Target Audience</span>
+                        </div>
+                        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
+                          {getAudienceInfo()?.label}
+                        </Badge>
                       </div>
                     )}
                   </CardContent>
