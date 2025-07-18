@@ -14,7 +14,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus, Save, Eye, Smartphone, Monitor, GripVertical, 
   Trash2, Type, Image, MousePointer, Minus, Package, 
-  Sparkles, FileText, Palette
+  Sparkles, FileText, Palette, MessageSquare
 } from 'lucide-react';
 import { EmailBlock, GlobalSettings, BlockType } from '@/types/emailBuilder';
 import { EmailBlockRenderer } from '@/components/crm/EmailBlockRenderer';
@@ -24,7 +24,11 @@ import { GlobalSettingsPanel } from '@/components/crm/GlobalSettingsPanel';
 import { SaveTemplateModal } from '@/components/crm/SaveTemplateModal';
 import { reorderArray } from '@/utils/dragUtils';
 
-const CRMCampaignBuilder = () => {
+interface CRMCampaignBuilderProps {
+  onSwitchToSimple?: () => void;
+}
+
+const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimple }) => {
   const { campaignId } = useParams();
   const [searchParams] = useSearchParams();
   const { hasCRMAccess, loading: crmLoading } = useCRMAccess();
@@ -55,7 +59,6 @@ const CRMCampaignBuilder = () => {
   const [campaign, setCampaign] = useState<any>(null);
   const [autoSaving, setAutoSaving] = useState(false);
 
-  // Load campaign and blocks
   useEffect(() => {
     if (campaignId) {
       loadCampaign();
@@ -63,7 +66,6 @@ const CRMCampaignBuilder = () => {
     }
   }, [campaignId]);
 
-  // Auto-save blocks
   useEffect(() => {
     if (blocks.length > 0 && campaignId) {
       const timeoutId = setTimeout(() => {
@@ -222,6 +224,16 @@ const CRMCampaignBuilder = () => {
     `;
   };
 
+  const handleSwitchToSimple = () => {
+    if (blocks.length > 0) {
+      if (confirm('Switching to Simple mode will remove all blocks and convert to a plain text email. Continue?')) {
+        onSwitchToSimple?.();
+      }
+    } else {
+      onSwitchToSimple?.();
+    }
+  };
+
   if (crmLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -243,7 +255,7 @@ const CRMCampaignBuilder = () => {
       <div className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-40 shadow-sm">
         <div className="flex items-center justify-between px-8 py-5">
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold">Email Campaign Builder</h1>
+            <h1 className="text-xl font-semibold">Advanced Email Builder</h1>
             {campaign && (
               <Badge variant="outline">{campaign.name}</Badge>
             )}
@@ -256,6 +268,17 @@ const CRMCampaignBuilder = () => {
           </div>
           
           <div className="flex items-center gap-3">
+            {onSwitchToSimple && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSwitchToSimple}
+                className="gap-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Switch to Simple
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"

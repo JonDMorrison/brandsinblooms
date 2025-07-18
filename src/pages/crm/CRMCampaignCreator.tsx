@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
@@ -14,6 +13,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import SmartCampaignSelector from '@/components/crm/SmartCampaignSelector';
 import MultiSegmentSelector from '@/components/crm/MultiSegmentSelector';
+import { EmailBuilderModeSelector } from '@/components/crm/EmailBuilderModeSelector';
+import { CRMSimpleEmailBuilder } from '@/components/crm/CRMSimpleEmailBuilder';
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -54,12 +55,21 @@ const CRMCampaignCreator = () => {
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [createdCampaignId, setCreatedCampaignId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [emailBuilderMode, setEmailBuilderMode] = useState<'simple' | 'advanced' | null>(null);
 
   useEffect(() => {
     if (duplicateId) {
       loadCampaignForDuplication();
     }
   }, [duplicateId]);
+
+  // Load user's preferred email builder mode
+  useEffect(() => {
+    const savedMode = localStorage.getItem('email_builder_preferred_mode') as 'simple' | 'advanced' | null;
+    if (savedMode) {
+      setEmailBuilderMode(savedMode);
+    }
+  }, []);
 
   const loadCampaignForDuplication = async () => {
     if (!duplicateId) return;
@@ -148,6 +158,14 @@ const CRMCampaignCreator = () => {
       name: prev.name || template.name,
       subject_line: prev.subject_line || template.preview.subject
     }));
+  };
+
+  const handleEmailBuilderModeSelect = (mode: 'simple' | 'advanced') => {
+    setEmailBuilderMode(mode);
+  };
+
+  const handleSwitchToAdvanced = () => {
+    setEmailBuilderMode('advanced');
   };
 
   const steps = [
@@ -380,7 +398,18 @@ const CRMCampaignCreator = () => {
 
           {currentStep === 3 && createdCampaignId && (
             <div className="max-w-full">
-              <CRMCampaignBuilder />
+              {!emailBuilderMode ? (
+                <EmailBuilderModeSelector
+                  onModeSelect={handleEmailBuilderModeSelect}
+                  defaultMode={localStorage.getItem('email_builder_preferred_mode') as 'simple' | 'advanced' || undefined}
+                />
+              ) : emailBuilderMode === 'simple' ? (
+                <CRMSimpleEmailBuilder
+                  onSwitchToAdvanced={handleSwitchToAdvanced}
+                />
+              ) : (
+                <CRMCampaignBuilder />
+              )}
             </div>
           )}
         </div>
