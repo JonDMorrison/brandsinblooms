@@ -10,6 +10,7 @@ import { X, Plus, Users, Sparkles, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { CustomSegmentBuilder } from "./CustomSegmentBuilder";
+import { ConceptTooltip } from "./ConceptTooltip";
 import {
   Tooltip,
   TooltipContent,
@@ -202,7 +203,9 @@ export const SegmentSelectorModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-brand-teal" />
-            {title}
+            <ConceptTooltip type="segment">
+              {title}
+            </ConceptTooltip>
           </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>

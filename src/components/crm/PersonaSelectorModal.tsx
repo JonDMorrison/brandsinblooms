@@ -9,6 +9,8 @@ import { X, Plus, Users2, Sparkles } from "lucide-react";
 import { PersonaTag } from "./PersonaTag";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ConceptTooltip } from "./ConceptTooltip";
+import { PersonaVsSegmentExplainer } from "./PersonaVsSegmentExplainer";
 
 interface PersonaSelectorModalProps {
   open: boolean;
@@ -216,7 +218,9 @@ export const PersonaSelectorModal = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users2 className="h-5 w-5 text-purple-600" />
-            {title}
+            <ConceptTooltip type="persona">
+              {title}
+            </ConceptTooltip>
           </DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
@@ -371,6 +375,9 @@ export const PersonaSelectorModal = ({
               </div>
             </div>
           )}
+
+          {/* Persona vs Segment Explainer */}
+          <PersonaVsSegmentExplainer />
         </div>
 
         {/* Footer */}

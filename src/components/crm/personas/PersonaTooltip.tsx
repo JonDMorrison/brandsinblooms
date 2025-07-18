@@ -1,15 +1,22 @@
+
 import React from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { HelpCircle, Lightbulb, Target } from 'lucide-react';
+import { HelpCircle, Lightbulb, Target, Info } from 'lucide-react';
 
 interface PersonaTooltipProps {
   children: React.ReactNode;
-  type?: 'assignment' | 'benefits' | 'example';
+  type?: 'assignment' | 'benefits' | 'example' | 'definition';
 }
 
 export function PersonaTooltip({ children, type = 'assignment' }: PersonaTooltipProps) {
   const getTooltipContent = () => {
     switch (type) {
+      case 'definition':
+        return {
+          icon: <Info className="h-4 w-4" />,
+          title: "What are personas?",
+          content: "A persona is a fictional profile that represents the personality, goals, and struggles of a common customer type. Used to personalize your messaging."
+        };
       case 'assignment':
         return {
           icon: <Target className="h-4 w-4" />,

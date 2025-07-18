@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +5,7 @@ import { Users, Target, Heart, Mail, ChevronRight, Import, CheckCircle } from 'l
 import { Link } from 'react-router-dom';
 import { PersonaSelectorModal } from './PersonaSelectorModal';
 import { PersonaTag } from './PersonaTag';
+import { ConceptTooltip } from './ConceptTooltip';
 
 interface QuickStartStepperProps {
   customerCount: number;
@@ -170,16 +170,60 @@ export const QuickStartStepper: React.FC<QuickStartStepperProps> = ({
           <div className="space-y-2">
             {steps.map((step, index) => (
               <div key={index}>
-                <StepItem
-                  icon={step.icon}
-                  title={step.title}
-                  description={step.description}
-                  action={step.action}
-                  href={step.href}
-                  isComplete={step.isComplete}
-                  stepNumber={step.stepNumber}
-                  onClick={step.onClick}
-                />
+                <div className="flex items-center gap-4 py-4 px-4 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                      step.isComplete 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {step.isComplete ? <CheckCircle className="h-4 w-4" /> : step.stepNumber}
+                    </div>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-50">
+                      <step.icon className="h-5 w-5 text-gray-600" />
+                    </div>
+                    <div className="flex-1">
+                      {step.title === "Define Personas" ? (
+                        <ConceptTooltip type="persona">
+                          <h3 className="font-medium text-gray-900">{step.title}</h3>
+                        </ConceptTooltip>
+                      ) : (
+                        <h3 className="font-medium text-gray-900">{step.title}</h3>
+                      )}
+                      <p className="text-sm text-gray-600">{step.description}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    {step.action === 'import' && step.href && (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={step.href}>
+                          <Import className="h-4 w-4 mr-1" />
+                          Import
+                        </Link>
+                      </Button>
+                    )}
+                    {step.action === 'chevron' && step.href && (
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={step.href}>
+                          Get Started
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Link>
+                      </Button>
+                    )}
+                    {step.action === 'personas' && step.onClick && (
+                      <Button variant="outline" size="sm" onClick={step.onClick}>
+                        <Heart className="h-4 w-4 mr-1" />
+                        Select Personas
+                      </Button>
+                    )}
+                    {step.action === 'optional' && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                        Optional
+                      </span>
+                    )}
+                  </div>
+                </div>
                 
                 {/* Show selected personas under the Define Personas step */}
                 {step.action === 'personas' && selectedPersonas.length > 0 && (
