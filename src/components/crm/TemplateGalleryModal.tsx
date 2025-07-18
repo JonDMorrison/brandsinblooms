@@ -10,7 +10,9 @@ import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFoo
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EmailBlock } from '@/types/emailBuilder';
-import { Search, Eye, Download, Sparkles, Calendar, Gift, GraduationCap, Heart } from 'lucide-react';
+import { Search, Eye, Download, Sparkles, Calendar, Gift, GraduationCap, Heart, Settings } from 'lucide-react';
+import { TemplatePreviewModal } from './TemplatePreviewModal';
+import { TemplateManagementModal } from './TemplateManagementModal';
 
 interface SavedTemplate {
   id: string;
@@ -51,8 +53,12 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
   const [sortBy, setSortBy] = useState<'popular' | 'newest' | 'name'>('popular');
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<SavedTemplate | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showManagementModal, setShowManagementModal] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState<SavedTemplate | null>(null);
 
   const categories = ['seasonal', 'promotional', 'educational', 'welcome', 'holiday'];
+  const availableTags = Array.from(new Set(templates.flatMap(t => t.tags || [])));
 
   useEffect(() => {
     if (open) {
@@ -102,7 +108,8 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
         template.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
       
       const matchesCategory = selectedCategories.length === 0 ||
-        selectedCategories.includes(template.category.toLowerCase());
+        selectedCategories.includes(template.category.toLowerCase()) ||
+        template.tags?.some(tag => selectedCategories.includes(tag.toLowerCase()));
 
       return matchesSearch && matchesCategory;
     });
@@ -154,6 +161,11 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
     setShowConfirmDialog(true);
   };
 
+  const handlePreviewTemplate = (template: SavedTemplate) => {
+    setPreviewTemplate(template);
+    setShowPreviewModal(true);
+  };
+
   const TemplateCard: React.FC<{ template: SavedTemplate }> = ({ template }) => {
     const IconComponent = categoryIcons[template.category.toLowerCase() as keyof typeof categoryIcons] || Sparkles;
     
@@ -175,14 +187,25 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
               
               {/* Hover Actions */}
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <Button size="sm" variant="secondary" className="gap-2">
+                <Button 
+                  size="sm" 
+                  variant="secondary" 
+                  className="gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePreviewTemplate(template);
+                  }}
+                >
                   <Eye className="h-4 w-4" />
                   Preview
                 </Button>
                 <Button 
                   size="sm" 
                   className="gap-2"
-                  onClick={() => requestInsert(template)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestInsert(template);
+                  }}
                 >
                   <Download className="h-4 w-4" />
                   Insert
@@ -236,11 +259,22 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
     <>
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-6xl max-h-[90vh] p-0">
-          <DialogHeader className="p-6 pb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" />
-              Choose a Template
-            </DialogTitle>
+          <DialogHeader className="p-6 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5" />
+                Choose a Template
+              </DialogTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowManagementModal(true)}
+                className="gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                Manage Templates
+              </Button>
+            </div>
           </DialogHeader>
 
           <div className="flex flex-1 overflow-hidden">
@@ -257,10 +291,11 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
                 />
               </div>
 
-              {/* Category Filter */}
+              {/* Category & Tags Filter */}
               <div>
-                <h4 className="font-medium mb-3">Category</h4>
-                <div className="space-y-2">
+                <h4 className="font-medium mb-3">Category & Tags</h4>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {/* Categories */}
                   {categories.map(category => {
                     const IconComponent = categoryIcons[category as keyof typeof categoryIcons];
                     return (
@@ -280,6 +315,23 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
                       </div>
                     );
                   })}
+                  
+                  {/* Tags */}
+                  {availableTags.slice(0, 5).map(tag => (
+                    <div key={tag} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`tag-${tag}`}
+                        checked={selectedCategories.includes(tag.toLowerCase())}
+                        onCheckedChange={() => handleCategoryToggle(tag.toLowerCase())}
+                      />
+                      <label 
+                        htmlFor={`tag-${tag}`}
+                        className="text-sm flex items-center gap-2 cursor-pointer"
+                      >
+                        #{tag}
+                      </label>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -353,6 +405,21 @@ export const TemplateGalleryModal: React.FC<TemplateGalleryModalProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Template Preview Modal */}
+      <TemplatePreviewModal
+        open={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        template={previewTemplate}
+        onInsertTemplate={onInsertTemplate}
+      />
+
+      {/* Template Management Modal */}
+      <TemplateManagementModal
+        open={showManagementModal}
+        onClose={() => setShowManagementModal(false)}
+        onTemplateUpdated={loadTemplates}
+      />
     </>
   );
 };

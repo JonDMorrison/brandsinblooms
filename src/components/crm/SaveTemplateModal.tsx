@@ -8,6 +8,7 @@ import { EmailBlock } from '@/types/emailBuilder';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
+import { TemplateTagSelector } from './TemplateTagSelector';
 
 interface SaveTemplateModalProps {
   open: boolean;
@@ -24,6 +25,7 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
 }) => {
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -53,6 +55,7 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
           description: description.trim() || null,
           layout_json: blocks as any,
           category: 'email',
+          tags: selectedTags,
           user_id: user.id
         });
 
@@ -61,6 +64,7 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
       toast.success('Template saved successfully!');
       setTemplateName('');
       setDescription('');
+      setSelectedTags([]);
       onTemplateSaved?.();
       onClose();
     } catch (error) {
@@ -75,6 +79,7 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
     if (!saving) {
       setTemplateName('');
       setDescription('');
+      setSelectedTags([]);
       onClose();
     }
   };
@@ -114,6 +119,12 @@ export const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
               disabled={saving}
             />
           </div>
+          
+          <TemplateTagSelector
+            selectedTags={selectedTags}
+            onTagsChange={setSelectedTags}
+            disabled={saving}
+          />
           
           <div className="text-sm text-muted-foreground">
             This template will include {blocks.length} block{blocks.length !== 1 ? 's' : ''} and can be reused in future campaigns.

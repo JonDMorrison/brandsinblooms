@@ -35,9 +35,10 @@ interface NewsletterBlock {
 interface SavedTemplate {
   id: string;
   name: string;
-  description?: string;
+  description: string;
+  category: string;
   layout_json: EmailBlock[];
-  thumbnail_url?: string;
+  thumbnail_url: string;
   usage_count: number;
   tags: string[];
   created_at: string;
@@ -169,12 +170,13 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
         const templates = data.map(item => ({
           id: item.id,
           name: item.name,
-          description: item.description,
+          description: item.description || '',
+          category: item.category || 'general',
           layout_json: (typeof item.layout_json === 'string' 
             ? JSON.parse(item.layout_json) 
             : item.layout_json) as EmailBlock[],
-          thumbnail_url: item.thumbnail_url,
-          usage_count: item.usage_count,
+          thumbnail_url: item.thumbnail_url || '',
+          usage_count: item.usage_count || 0,
           tags: item.tags || [],
           created_at: item.created_at
         }));
