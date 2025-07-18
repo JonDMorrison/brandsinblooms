@@ -1,8 +1,7 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-// Removed sonner import - using global toast replacement
+import { toast } from '@/utils/toast';
 
 interface PublishFlowHook {
   approveDraft: (taskId: string) => Promise<string | null>;

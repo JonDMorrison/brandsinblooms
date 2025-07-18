@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-// Removed sonner import - using global toast replacement
+import { toast } from '@/utils/toast';
 
 interface Template {
   id: string;

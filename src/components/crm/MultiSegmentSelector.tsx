@@ -1,198 +1,138 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Users, Plus, X, Search, Globe } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { Search, Users, Target, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
 
 interface Segment {
   id: string;
   name: string;
   description?: string;
   customer_count: number;
-  conditions: any;
+  type: 'predefined' | 'custom';
+  persona_id?: string;
 }
 
 interface MultiSegmentSelectorProps {
-  selectedSegments: string[];
-  onSegmentsChange: (segmentIds: string[]) => void;
+  selectedSegments: Segment[];
+  onSegmentsChange: (segments: Segment[]) => void;
   maxSelections?: number;
 }
 
-const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
-  selectedSegments,
+export const MultiSegmentSelector = ({ 
+  selectedSegments, 
   onSegmentsChange,
-  maxSelections = 5
-}) => {
-  const { user } = useAuth();
-  const [segments, setSegments] = useState<Segment[]>([]);
-  const [loading, setLoading] = useState(true);
+  maxSelections = 5 
+}: MultiSegmentSelectorProps) => {
+  const [availableSegments, setAvailableSegments] = useState<Segment[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showCreateNew, setShowCreateNew] = useState(false);
-  const [newSegmentName, setNewSegmentName] = useState('');
-  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [filteredSegments, setFilteredSegments] = useState<Segment[]>([]);
 
-  useEffect(() => {
-    if (user) {
-      loadSegments();
-      loadTotalCustomers();
-    }
-  }, [user]);
-
-  const loadSegments = async () => {
-    if (!user) return;
-    
+  const fetchSegments = async () => {
     try {
       setLoading(true);
       
-      // Get user's tenant_id
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .single();
+      // Fetch predefined segments
+      const { data: predefinedSegments, error: predefinedError } = await supabase
+        .from('crm_segments')
+        .select('*')
+        .order('name');
 
-      if (userData?.tenant_id) {
-        const { data, error } = await supabase
-          .from('crm_segments')
-          .select('*')
-          .eq('tenant_id', userData.tenant_id)
-          .order('name');
+      if (predefinedError) throw predefinedError;
 
-        if (error) throw error;
-        setSegments(data || []);
-      }
+      // Fetch custom segments
+      const { data: customSegments, error: customError } = await supabase
+        .from('custom_segments')
+        .select('*')
+        .eq('is_active', true)
+        .order('name');
+
+      if (customError) throw customError;
+
+      const allSegments: Segment[] = [
+        ...(predefinedSegments || []).map(seg => ({
+          id: seg.id,
+          name: seg.name,
+          description: seg.description,
+          customer_count: seg.customer_count || 0,
+          type: 'predefined' as const,
+          persona_id: seg.persona_id
+        })),
+        ...(customSegments || []).map(seg => ({
+          id: seg.id,
+          name: seg.name,
+          description: undefined,
+          customer_count: seg.customer_count || 0,
+          type: 'custom' as const
+        }))
+      ];
+
+      setAvailableSegments(allSegments);
     } catch (error) {
-      console.error('Error loading segments:', error);
-      toast.error('Failed to load customer segments');
+      console.error('Error fetching segments:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadTotalCustomers = async () => {
-    if (!user) return;
-    
-    try {
-      // Get user's tenant_id
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .single();
+  useEffect(() => {
+    fetchSegments();
+  }, []);
 
-      if (userData?.tenant_id) {
-        const { count, error } = await supabase
-          .from('crm_customers')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', userData.tenant_id);
+  useEffect(() => {
+    let filtered = availableSegments;
 
-        if (error) throw error;
-        setTotalCustomers(count || 0);
-      }
-    } catch (error) {
-      console.error('Error loading total customers:', error);
+    if (searchTerm) {
+      filtered = filtered.filter(segment =>
+        segment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (segment.description && segment.description.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
     }
-  };
 
-  const createQuickSegment = async () => {
-    if (!newSegmentName.trim() || !user) return;
+    setFilteredSegments(filtered);
+  }, [availableSegments, searchTerm]);
 
-    try {
-      // Get user's tenant_id
-      const { data: userData } = await supabase
-        .from('users')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .single();
-
-      if (userData?.tenant_id) {
-        const { data, error } = await supabase
-          .from('crm_segments')
-          .insert({
-            name: newSegmentName.trim(),
-            description: 'Quick segment created during campaign setup',
-            tenant_id: userData.tenant_id,
-            user_id: user.id,
-            conditions: {},
-            customer_count: 0
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setSegments(prev => [...prev, data]);
-        setNewSegmentName('');
-        setShowCreateNew(false);
-        toast.success('Segment created successfully');
-      }
-    } catch (error) {
-      console.error('Error creating segment:', error);
-      toast.error('Failed to create segment');
-    }
-  };
-
-  const toggleSegment = (segmentId: string) => {
-    if (segmentId === 'all') {
-      // If selecting ALL, clear all other selections
-      if (selectedSegments.includes('all')) {
-        onSegmentsChange([]);
-      } else {
-        onSegmentsChange(['all']);
-      }
-    } else {
-      // If selecting a specific segment, remove ALL if it's selected
-      const filteredSegments = selectedSegments.filter(id => id !== 'all');
-      
-      if (filteredSegments.includes(segmentId)) {
-        onSegmentsChange(filteredSegments.filter(id => id !== segmentId));
-      } else if (filteredSegments.length < maxSelections) {
-        onSegmentsChange([...filteredSegments, segmentId]);
-      } else {
+  const handleSegmentToggle = (segment: Segment, checked: boolean) => {
+    if (checked) {
+      if (selectedSegments.length >= maxSelections) {
         toast.error(`You can select up to ${maxSelections} segments`);
+        return;
       }
+      onSegmentsChange([...selectedSegments, segment]);
+    } else {
+      onSegmentsChange(selectedSegments.filter(s => s.id !== segment.id));
     }
   };
 
   const removeSegment = (segmentId: string) => {
-    onSegmentsChange(selectedSegments.filter(id => id !== segmentId));
+    onSegmentsChange(selectedSegments.filter(s => s.id !== segmentId));
   };
 
-  const filteredSegments = segments.filter(segment =>
-    segment.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    segment.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const getTotalAudience = () => {
+    return selectedSegments.reduce((total, segment) => total + segment.customer_count, 0);
+  };
 
-  const selectedSegmentDetails = segments.filter(segment => 
-    selectedSegments.includes(segment.id)
-  );
-
-  const isAllSelected = selectedSegments.includes('all');
-  const calculatedTotalCustomers = isAllSelected 
-    ? totalCustomers 
-    : selectedSegmentDetails.reduce((sum, segment) => sum + segment.customer_count, 0);
+  const isSegmentSelected = (segmentId: string) => {
+    return selectedSegments.some(s => s.id === segmentId);
+  };
 
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Customer Segments
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded animate-pulse"></div>
-            ))}
+        <CardContent className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-12 bg-gray-200 rounded"></div>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -200,63 +140,29 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5" />
-          Customer Segments
-          {selectedSegments.length > 0 && (
-            <Badge variant="secondary">
-              {isAllSelected ? 'All customers' : `${selectedSegments.length} selected`}
-            </Badge>
-          )}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search segments..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-
-        {/* Selected Segments Summary */}
-        {selectedSegments.length > 0 && (
-          <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-medium">Selected Audience</span>
-              <Badge variant="default">
-                {calculatedTotalCustomers.toLocaleString()} total customers
-              </Badge>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {isAllSelected ? (
-                <Badge variant="default" className="gap-1 bg-gradient-to-r from-blue-500 to-purple-600">
-                  <Globe className="h-3 w-3" />
-                  All Customers
-                  <span className="text-xs">({totalCustomers})</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                    onClick={() => removeSegment('all')}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </Badge>
-              ) : (
-                selectedSegmentDetails.map((segment) => (
+    <div className="space-y-4">
+      {/* Selected Segments Summary */}
+      {selectedSegments.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Selected Audience ({selectedSegments.length}/{maxSelections})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {selectedSegments.map((segment) => (
                   <Badge 
                     key={segment.id} 
                     variant="secondary" 
-                    className="gap-1"
+                    className="flex items-center gap-1 pr-1"
                   >
-                    {segment.name}
-                    <span className="text-xs">({segment.customer_count})</span>
+                    <span>{segment.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({segment.customer_count.toLocaleString()})
+                    </span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -266,163 +172,101 @@ const MultiSegmentSelector: React.FC<MultiSegmentSelectorProps> = ({
                       <X className="h-3 w-3" />
                     </Button>
                   </Badge>
-                ))
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Available Segments */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <Label>Available Segments</Label>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowCreateNew(!showCreateNew)}
-              className="gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Create New
-            </Button>
-          </div>
-
-          {/* Quick Create */}
-          {showCreateNew && (
-            <div className="border rounded-lg p-3 mb-3 bg-muted/30">
-              <Label htmlFor="newSegmentName" className="text-sm">
-                Quick Create Segment
-              </Label>
-              <div className="flex gap-2 mt-2">
-                <Input
-                  id="newSegmentName"
-                  placeholder="Segment name..."
-                  value={newSegmentName}
-                  onChange={(e) => setNewSegmentName(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && createQuickSegment()}
-                />
-                <Button onClick={createQuickSegment} disabled={!newSegmentName.trim()}>
-                  Create
-                </Button>
+                ))}
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium">Total Audience Size:</span>
+                <span className="font-bold text-primary">
+                  {getTotalAudience().toLocaleString()} contacts
+                </span>
               </div>
             </div>
-          )}
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Segments List */}
-          <div className="space-y-2 max-h-64 overflow-y-auto">
-            {/* ALL Segment - Always at the top */}
-            <div
-              className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                isAllSelected 
-                  ? 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300' 
-                  : 'hover:border-primary/50 hover:bg-muted/30'
-              }`}
-              onClick={() => toggleSegment('all')}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-blue-900">All Customers</span>
-                    {isAllSelected && (
-                      <Badge variant="default" className="text-xs bg-blue-600">
-                        Selected
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Target your entire customer base
-                  </p>
-                </div>
-                <div className="text-right">
-                  <div className="font-medium text-blue-900">
-                    {totalCustomers.toLocaleString()}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    customers
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Regular Segments */}
-            {filteredSegments.length === 0 && segments.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p>No custom segments found</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => setShowCreateNew(true)}
+      {/* Segment Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Select Audience Segments
+          </CardTitle>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search segments..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {filteredSegments.map((segment) => {
+              const isSelected = isSegmentSelected(segment.id);
+              const isDisabled = !isSelected && selectedSegments.length >= maxSelections;
+              
+              return (
+                <div
+                  key={segment.id}
+                  className={`flex items-center space-x-3 p-3 rounded-lg border transition-colors ${
+                    isSelected 
+                      ? 'border-primary bg-primary/5' 
+                      : isDisabled 
+                        ? 'border-gray-200 bg-gray-50 opacity-50' 
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                  }`}
                 >
-                  Create your first segment
-                </Button>
-              </div>
-            ) : (
-              filteredSegments.map((segment) => {
-                const isSelected = selectedSegments.includes(segment.id);
-                const canSelect = !isSelected && selectedSegments.length < maxSelections && !isAllSelected;
-                const isDisabled = isAllSelected && !isSelected;
-                
-                return (
-                  <div
-                    key={segment.id}
-                    className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                      isSelected 
-                        ? 'bg-primary/10 border-primary' 
-                        : isDisabled
-                          ? 'opacity-30 cursor-not-allowed bg-gray-50'
-                          : canSelect 
-                            ? 'hover:border-primary/50 hover:bg-muted/30' 
-                            : 'opacity-50 cursor-not-allowed'
-                    }`}
-                    onClick={() => (canSelect || isSelected) && !isDisabled ? toggleSegment(segment.id) : null}
-                  >
+                  <Checkbox
+                    id={segment.id}
+                    checked={isSelected}
+                    disabled={isDisabled}
+                    onCheckedChange={(checked) => handleSegmentToggle(segment, checked as boolean)}
+                  />
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{segment.name}</span>
-                          {isSelected && (
-                            <Badge variant="default" className="text-xs">
-                              Selected
-                            </Badge>
-                          )}
-                        </div>
-                        {segment.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {segment.description}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium">
-                          {segment.customer_count.toLocaleString()}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          customers
-                        </div>
+                      <label 
+                        htmlFor={segment.id}
+                        className={`font-medium cursor-pointer ${isDisabled ? 'cursor-not-allowed' : ''}`}
+                      >
+                        {segment.name}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={segment.type === 'predefined' ? 'default' : 'outline'}
+                          className="text-xs"
+                        >
+                          {segment.type === 'predefined' ? 'Smart' : 'Custom'}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {segment.customer_count.toLocaleString()} contacts
+                        </span>
                       </div>
                     </div>
+                    {segment.description && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {segment.description}
+                      </p>
+                    )}
                   </div>
-                );
-              })
+                </div>
+              );
+            })}
+            
+            {filteredSegments.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p>No segments found matching your search</p>
+              </div>
             )}
           </div>
-        </div>
-
-        {/* Selection Info */}
-        <div className="text-sm text-muted-foreground text-center p-2 bg-muted/30 rounded">
-          {isAllSelected 
-            ? "Targeting all customers in your database"
-            : selectedSegments.length >= maxSelections 
-              ? `Maximum of ${maxSelections} segments can be selected`
-              : "Select 'All Customers' or up to 5 specific segments"
-          }
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
-
-export default MultiSegmentSelector;

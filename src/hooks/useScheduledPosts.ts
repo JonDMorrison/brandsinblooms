@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenant } from '@/hooks/useTenant';
 import { supabase } from '@/integrations/supabase/client';
-// Removed sonner import - using global toast replacement
+import { toast } from '@/utils/toast';
 
 interface ScheduledPost {
   id: string;
