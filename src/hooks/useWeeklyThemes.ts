@@ -181,16 +181,21 @@ export const useWeeklyThemes = () => {
       
       for (const weekNum of weekNumbers) {
         const dbTheme = masterThemes?.find(t => t.week_number === weekNum);
-        // Find matching campaign for this theme - improved matching logic
+        // Find matching campaign for this theme - enhanced matching logic
         const matchingCampaign = campaigns.find(c => {
           if (c.week_number !== weekNum) return false;
           
-          // If we have a master theme, match by title
-          if (dbTheme) {
-            return c.title === dbTheme.title;
+          // Primary match: exact title match
+          if (dbTheme && c.title === dbTheme.title) {
+            return true;
           }
           
-          // For fallback themes, accept any campaign for this week
+          // Secondary match: source focus_theme for week
+          if (dbTheme && c.title.includes(dbTheme.title.split(' ')[0])) {
+            return true;
+          }
+          
+          // Fallback: any campaign for this week number
           return true;
         });
         
@@ -221,8 +226,12 @@ export const useWeeklyThemes = () => {
     loadThemes();
   }, [user]);
 
-  const refreshThemes = useCallback(() => {
-    loadThemes();
+  const refreshThemes = useCallback(async (delayMs = 0) => {
+    if (delayMs > 0) {
+      console.log(`🔄 Refreshing themes with ${delayMs}ms delay...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+    await loadThemes();
   }, [user]);
 
   return {

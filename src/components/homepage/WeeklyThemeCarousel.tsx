@@ -54,7 +54,7 @@ export const WeeklyThemeCarousel = ({
   const allThemes = themes;
   const currentTheme = allThemes[currentIndex];
   
-  // Enhanced content detection logic with newsletter support
+  // Enhanced content detection logic with fallback matching
   const getThemeContentTasks = (theme?: WeeklyTheme) => {
     if (!theme) return [];
     
@@ -65,7 +65,7 @@ export const WeeklyThemeCarousel = ({
       currentCampaignId: currentCampaign?.id
     });
     
-    // If the theme has a campaign ID, find tasks for that specific campaign
+    // Primary: If the theme has a campaign ID, find tasks for that specific campaign
     if (theme.campaignId) {
       const campaignTasksWithContent = tasks.filter(task => 
         task.campaign_id === theme.campaignId && 
@@ -89,10 +89,7 @@ export const WeeklyThemeCarousel = ({
       return campaignTasksWithContent;
     }
     
-    // Fallback: Try to find tasks by checking campaign details via supabase
-    // For now, we'll keep the simpler approach without direct campaign access
-    
-    // If it's the current week theme and we have a current campaign, check those tasks
+    // Secondary: If it's the current week theme and we have a current campaign, check those tasks
     if (theme.isCurrentWeek && currentCampaign) {
       const campaignTasksWithContent = tasks.filter(task => 
         task.campaign_id === currentCampaign.id && 
@@ -100,26 +97,37 @@ export const WeeklyThemeCarousel = ({
         task.ai_output.trim().length > 0
       );
       
-      console.log('🔍 getThemeContentTasks for current week:', {
+      console.log('🔍 Found content tasks for current week theme:', {
         themeId: theme.id,
         currentCampaignId: currentCampaign.id,
         totalTasks: tasks.length,
-        campaignTasksFound: campaignTasksWithContent.length,
-        campaignTasksWithContent: campaignTasksWithContent.map(t => ({
-          id: t.id,
-          type: t.post_type,
-          hasContent: !!t.ai_output,
-          contentLength: t.ai_output?.length || 0,
-          status: t.status
-        }))
+        campaignTasksFound: campaignTasksWithContent.length
       });
       
       return campaignTasksWithContent;
     }
     
-    // Fallback: return empty array instead of any random tasks
-    console.log('📝 No specific content tasks found for theme:', theme.title);
-    return [];
+    // Fallback: Try to find tasks by matching theme title/week with campaign title
+    const fallbackTasks = tasks.filter(task => {
+      if (!task.ai_output || task.ai_output.trim().length === 0) return false;
+      
+      // Look for campaigns that match this theme's title (partial match)
+      const taskCampaign = tasks.find(t => t.campaign_id === task.campaign_id);
+      if (!taskCampaign) return false;
+      
+      // Check if this task's campaign could be for this theme
+      const titleWords = theme.title.toLowerCase().split(' ');
+      const campaignTitle = (task.campaign_title || '').toLowerCase();
+      
+      return titleWords.some(word => word.length > 3 && campaignTitle.includes(word));
+    });
+    
+    console.log('📝 Fallback content search for theme:', {
+      themeTitle: theme.title,
+      fallbackTasksFound: fallbackTasks.length
+    });
+    
+    return fallbackTasks;
   };
 
   // Get newsletter content specifically for CRM users
@@ -263,14 +271,24 @@ export const WeeklyThemeCarousel = ({
         );
         
         if (success) {
-          // Refresh tasks multiple times to ensure we catch the updates
+          console.log('✅ Content generation successful for current campaign');
+          
+          // Immediate refresh to catch quick updates
           onTaskUpdate();
+          onCampaignCreated();
+          
+          // Progressive refresh strategy for proper state synchronization
+          setTimeout(async () => {
+            console.log('🔄 Progressive refresh phase 1: refreshing tasks and themes');
+            onTaskUpdate();
+            if (refreshThemes) await refreshThemes(500); // 500ms delay for DB consistency
+          }, 1000);
+          
           setTimeout(() => {
-            console.log('🔄 First task and theme refresh after generation');
+            console.log('🔄 Progressive refresh phase 2: final sync');
             onTaskUpdate();
             onCampaignCreated();
-            refreshThemes && refreshThemes();
-          }, 2000);
+          }, 3000);
         }
         return;
       }
@@ -296,18 +314,28 @@ export const WeeklyThemeCarousel = ({
         const taskCount = result.tasks?.length || 5;
         toast({
           title: "Success!",
-          description: `Generated ${taskCount} pieces of content!`,
+          description: `Generated ${taskCount} pieces of content for ${targetTheme.title}!`,
         });
 
-        // Refresh data including themes to update campaign IDs
+        // Immediate data refresh
         onTaskUpdate();
         onCampaignCreated();
-        refreshThemes && refreshThemes();
         
-        // Move to next theme if available and this wasn't current week theme
-        if (!targetTheme.isCurrentWeek && currentIndex < 4) {
-          setCurrentIndex(currentIndex + 1);
-        }
+        // Progressive refresh strategy with proper timing for campaign-theme linking
+        setTimeout(async () => {
+          console.log('🔄 Progressive refresh: updating themes with campaign linkage');
+          onTaskUpdate();
+          if (refreshThemes) await refreshThemes(1000); // Allow DB time for consistency
+        }, 1500);
+        
+        setTimeout(() => {
+          console.log('🔄 Final refresh: ensuring state consistency');
+          onTaskUpdate();
+          onCampaignCreated();
+        }, 4000);
+        
+        // Stay on current theme after successful generation (don't auto-advance)
+        console.log('✅ Content generated - staying on current theme for review');
       } else {
         console.error('❌ Content generation failed:', result);
         toast({
