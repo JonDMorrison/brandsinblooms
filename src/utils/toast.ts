@@ -53,24 +53,23 @@ const createToast = (message: string, options: ToastOptions = {}) => {
   }, options.duration || 5000);
 };
 
-// Export as global toast object
-export const toast = {
-  success: (message: string, options?: ToastOptions) => 
-    createToast(message, { ...options, variant: 'success' }),
-  error: (message: string, options?: ToastOptions) => 
-    createToast(message, { ...options, variant: 'destructive' }),
-  info: (message: string, options?: ToastOptions) => 
-    createToast(message, { ...options, variant: 'default' }),
-  // Main toast function
-  (message: string, options?: ToastOptions) {
-    return createToast(message, options);
-  }
-} as {
-  success: (message: string, options?: ToastOptions) => void;
-  error: (message: string, options?: ToastOptions) => void;
-  info: (message: string, options?: ToastOptions) => void;
-  (message: string, options?: ToastOptions): void;
+// Create main toast function with methods
+const toastFunction = (message: string, options?: ToastOptions) => {
+  return createToast(message, options);
 };
+
+// Add methods to the function
+toastFunction.success = (message: string, options?: ToastOptions) => 
+  createToast(message, { ...options, variant: 'success' });
+
+toastFunction.error = (message: string, options?: ToastOptions) => 
+  createToast(message, { ...options, variant: 'destructive' });
+
+toastFunction.info = (message: string, options?: ToastOptions) => 
+  createToast(message, { ...options, variant: 'default' });
+
+// Export as toast
+export const toast = toastFunction;
 
 // Make toast available globally
 (window as any).toast = toast;

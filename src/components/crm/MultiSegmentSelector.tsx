@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Search, Users, Target, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/utils/toast';
 
 interface Segment {
   id: string;
@@ -24,7 +25,7 @@ interface MultiSegmentSelectorProps {
   maxSelections?: number;
 }
 
-export const MultiSegmentSelector = ({ 
+const MultiSegmentSelector = ({ 
   selectedSegments, 
   onSegmentsChange,
   maxSelections = 5 
@@ -270,3 +271,6 @@ export const MultiSegmentSelector = ({
     </div>
   );
 };
+
+export { MultiSegmentSelector };
+export default MultiSegmentSelector;

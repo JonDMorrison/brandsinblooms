@@ -30,11 +30,21 @@ import {
 // Import the email builder component
 import CRMCampaignBuilder from './CRMCampaignBuilder';
 
+interface Segment {
+  id: string;
+  name: string;
+  description?: string;
+  customer_count: number;
+  type: 'predefined' | 'custom';
+  persona_id?: string;
+}
+
 interface CampaignData {
   name: string;
   subject_line: string;
   content: string;
   segment_ids: string[];
+  segments: Segment[];
   template_id?: string;
   scheduled_at?: string;
 }
@@ -50,7 +60,8 @@ const CRMCampaignCreator = () => {
     name: '',
     subject_line: '',
     content: '',
-    segment_ids: []
+    segment_ids: [],
+    segments: []
   });
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [createdCampaignId, setCreatedCampaignId] = useState<string | null>(null);
@@ -118,7 +129,8 @@ const CRMCampaignCreator = () => {
         name: `Copy of ${data.name}`,
         subject_line: data.subject_line || '',
         content: data.content || '',
-        segment_ids: data.segment_id ? [data.segment_id] : []
+        segment_ids: data.segment_id ? [data.segment_id] : [],
+        segments: []
       });
     } catch (error) {
       console.error('Error loading campaign for duplication:', error);
@@ -412,10 +424,11 @@ const CRMCampaignCreator = () => {
 
                 {/* Customer Segments */}
                 <MultiSegmentSelector
-                  selectedSegments={campaignData.segment_ids}
+                  selectedSegments={campaignData.segments}
                   onSegmentsChange={(segments) => setCampaignData(prev => ({
                     ...prev,
-                    segment_ids: segments
+                    segments: segments,
+                    segment_ids: segments.map(s => s.id)
                   }))}
                   maxSelections={1}
                 />
