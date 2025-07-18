@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { cleanupDuplicateCampaigns, generateMeaningfulTheme } from '@/utils/campaignCleanup';
 import { generateCampaignContent, ContentGenerationResult } from '@/components/homepage/ContentGenerationServices';
+import { cleanupDuplicateContent } from '@/utils/contentCleanup';
 import "@/utils/globalToastReplace";
 import { TASK_STATUS } from '@/constants/taskStatus';
 
@@ -182,6 +183,15 @@ export const WeeklyContentUpdater = () => {
 
         if (result.success && mountedRef.current) {
           console.log('✅ Auto-generated content successfully');
+          
+          // Clean up any duplicates and fix content issues
+          try {
+            await cleanupDuplicateContent(campaign.title);
+            console.log('✅ Content cleanup completed');
+          } catch (cleanupError) {
+            console.warn('⚠️ Content cleanup failed:', cleanupError);
+          }
+          
           toast.success(`Your weekly content is ready! Generated ${result.tasks?.length || 0} pieces.`);
           
           // Trigger multiple refresh events to ensure UI updates

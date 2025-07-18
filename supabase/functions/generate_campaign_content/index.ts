@@ -43,13 +43,84 @@ serve(async (req) => {
 
     console.log('📝 Generating content for all 5 required types in parallel:', REQUIRED_CONTENT_TYPES);
 
-    // Define content prompts
+    // Check for existing content to prevent duplicates
+    const { data: existingTasks } = await supabase
+      .from('content_tasks')
+      .select('post_type')
+      .eq('campaign_id', campaign_id)
+      .in('post_type', REQUIRED_CONTENT_TYPES);
+
+    const existingTypes = existingTasks?.map(task => task.post_type) || [];
+    const typesToGenerate = REQUIRED_CONTENT_TYPES.filter(type => !existingTypes.includes(type));
+    
+    if (typesToGenerate.length === 0) {
+      console.log('⚠️ All content types already exist for this campaign');
+      return corsJsonResponse({
+        success: true,
+        tasks: [],
+        message: 'All content types already exist for this campaign'
+      });
+    }
+
+    console.log(`📝 Generating content for missing types: ${typesToGenerate.join(', ')}`);
+
+    // Define content prompts with strict no-emoji instructions
     const contentPrompts = {
-      instagram: `Create an engaging Instagram post about ${campaign_title} for ${businessName}. Include relevant hashtags and a call-to-action. Keep it concise and visually appealing. Make it feel authentic and personal. Focus on gardening advice and tips.`,
-      facebook: `Write a Facebook post about ${campaign_title} for ${businessName}. Make it conversational and community-focused. Include tips or advice that would be valuable to garden center customers. Share practical gardening knowledge.`,
-      blog: `Write a comprehensive blog post about ${campaign_title} for ${businessName}. Include an engaging title, introduction, main content with helpful tips, and a conclusion. Make it SEO-friendly and informative for garden center customers. Focus on detailed gardening advice.`,
-      video: `Create a 90-second video script about ${campaign_title} for ${businessName}. Include scene descriptions, dialogue, and key points to cover. Make it engaging and educational for garden center customers. Focus on one clear teaching point about ${campaign_title}.`,
-      newsletter: `Create a structured newsletter about ${campaign_title} for ${businessName}. Include multiple sections with gardening tips, seasonal advice, and practical information. Make it valuable for garden center customers with actionable insights.`
+      instagram: `Create an engaging Instagram post about ${campaign_title} for ${businessName}. Include relevant hashtags and a call-to-action. Keep it concise and visually appealing. Make it feel authentic and personal. Focus on gardening advice and tips. Do NOT use any emojis.`,
+      facebook: `Write a Facebook post about ${campaign_title} for ${businessName}. Make it conversational and community-focused. Include tips or advice that would be valuable to garden center customers. Share practical gardening knowledge. Do NOT use any emojis.`,
+      blog: `Write a comprehensive blog post about ${campaign_title} for ${businessName}. Include an engaging title, introduction, main content with helpful tips, and a conclusion. Make it SEO-friendly and informative for garden center customers. Focus on detailed gardening advice. Do NOT use any emojis.`,
+      video: `Create a clean 90-second video script about ${campaign_title} for ${businessName}. Write ONLY the spoken words - no scene descriptions, visual cues, or production notes. Make it engaging and educational for garden center customers. Focus on one clear teaching point about ${campaign_title}. Do NOT use any emojis.`,
+      newsletter: `Create a structured newsletter about ${campaign_title} for ${businessName}. Include multiple sections with gardening tips, seasonal advice, and practical information. Make it valuable for garden center customers with actionable insights. Do NOT use any emojis.`
+    };
+
+    // Function to validate and clean content
+    const validateAndCleanContent = (content: string, contentType: string) => {
+      let cleanedContent = content;
+      
+      // Strip emojis from all content
+      cleanedContent = cleanedContent.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
+      
+      // Clean video scripts of production formatting
+      if (contentType === 'video') {
+        cleanedContent = cleanedContent
+          // Remove scene headers and formatting
+          .replace(/\*\*\[Scene \d+:.*?\]\*\*/g, '')
+          .replace(/\[Scene \d+:.*?\]/g, '')
+          .replace(/\*\*\[.*?\]\*\*/g, '')
+          .replace(/\[.*?\]/g, '')
+          // Remove visual and audio cues
+          .replace(/\*Visual:.*?\*/g, '')
+          .replace(/\*Background Music:.*?\*/g, '')
+          .replace(/\*.*?music.*?\*/gi, '')
+          // Remove narrator and host labels
+          .replace(/\*\*Narrator \(Voiceover\):\*\*/g, '')
+          .replace(/Narrator \(Voiceover\):/g, '')
+          .replace(/\*\*Host:\*\*/g, '')
+          .replace(/Host:/g, '')
+          .replace(/\*\*Host \(.*?\):\*\*/g, '')
+          // Remove video title formatting
+          .replace(/\*\*Video Title:.*?\*\*/g, '')
+          .replace(/\*\*Title:.*?\*\*/g, '')
+          // Clean up separators and extra formatting
+          .replace(/---+/g, '')
+          .replace(/\*\*\[End.*?\]\*\*/g, '')
+          .replace(/\[End.*?\]/g, '')
+          // Clean up extra whitespace
+          .replace(/\n\s*\n\s*\n/g, '\n\n')
+          .trim();
+      }
+      
+      // Remove any remaining placeholders
+      cleanedContent = cleanedContent
+        .replace(/\[company\s*name\]/gi, businessName)
+        .replace(/\[garden\s*center\s*name\]/gi, businessName)
+        .replace(/\[business\s*name\]/gi, businessName)
+        .replace(/your\s*garden\s*center(?!\s+name)/gi, 'our garden center')
+        .replace(/\[region\]/gi, 'your area')
+        .replace(/\[location\]/gi, 'your area')
+        .replace(/\[garden\s*center\s*location\]/gi, 'your area');
+
+      return cleanedContent;
     };
 
     // Function to generate content for a single content type
@@ -57,6 +128,15 @@ serve(async (req) => {
       try {
         console.log(`📝 Generating ${contentType} content...`);
         
+        // Enhanced prompts to prevent emojis and video formatting
+        let systemPrompt = `You are a professional content creator for garden centers. Create engaging, helpful content. Business: ${businessName}. Focus: ${campaign_title}. ${description ? `Context: ${description}` : ''} 
+        
+        CRITICAL RULES:
+        - NEVER use emojis or emoticons
+        - Focus on practical gardening advice
+        - Write in a professional, friendly tone
+        - ${contentType === 'video' ? 'Write ONLY the script dialogue/narration without any scene descriptions, visual cues, or production notes. Just the spoken words.' : ''}`;
+
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -66,11 +146,11 @@ serve(async (req) => {
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             temperature: 0.7,
-            max_tokens: contentType === 'blog' ? 2000 : 1000, // Optimize token usage
+            max_tokens: contentType === 'blog' ? 2000 : 1000,
             messages: [
               {
                 role: 'system',
-                content: `You are a professional content creator for garden centers. Create engaging, helpful content. Business: ${businessName}. Focus: ${campaign_title}. ${description ? `Context: ${description}` : ''} Focus on practical gardening advice.`
+                content: systemPrompt
               },
               {
                 role: 'user',
@@ -85,7 +165,10 @@ serve(async (req) => {
         }
 
         const data = await response.json();
-        const content = data.choices[0].message.content;
+        let content = data.choices[0].message.content;
+        
+        // Validate and clean the content
+        content = validateAndCleanContent(content, contentType);
         
         console.log(`✅ Generated ${contentType} content (${content.length} chars)`);
 
@@ -105,13 +188,13 @@ serve(async (req) => {
       }
     };
 
-    // Generate all content in parallel
+    // Generate only missing content types in parallel
     const startTime = Date.now();
     const contentResults = await Promise.allSettled(
-      REQUIRED_CONTENT_TYPES.map(contentType => generateContentForType(contentType))
+      typesToGenerate.map(contentType => generateContentForType(contentType))
     );
     const generationTime = Date.now() - startTime;
-    console.log(`🚀 All content generation completed in ${generationTime}ms`);
+    console.log(`🚀 Content generation completed for ${typesToGenerate.length} types in ${generationTime}ms`);
 
     // Process results and prepare database inserts
     const tasksToInsert = [];
