@@ -676,12 +676,14 @@ export type Database = {
       crm_campaigns: {
         Row: {
           actual_sender_email: string | null
+          click_rate: number | null
           content: string | null
           created_at: string | null
           delivery_method: string | null
           id: string
           metrics: Json | null
           name: string
+          open_rate: number | null
           scheduled_at: string | null
           segment_id: string | null
           sender_display_name: string | null
@@ -689,17 +691,22 @@ export type Database = {
           status: string | null
           subject_line: string | null
           tenant_id: string | null
+          total_clicks: number | null
+          total_opens: number | null
+          total_sent: number | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           actual_sender_email?: string | null
+          click_rate?: number | null
           content?: string | null
           created_at?: string | null
           delivery_method?: string | null
           id?: string
           metrics?: Json | null
           name: string
+          open_rate?: number | null
           scheduled_at?: string | null
           segment_id?: string | null
           sender_display_name?: string | null
@@ -707,17 +714,22 @@ export type Database = {
           status?: string | null
           subject_line?: string | null
           tenant_id?: string | null
+          total_clicks?: number | null
+          total_opens?: number | null
+          total_sent?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           actual_sender_email?: string | null
+          click_rate?: number | null
           content?: string | null
           created_at?: string | null
           delivery_method?: string | null
           id?: string
           metrics?: Json | null
           name?: string
+          open_rate?: number | null
           scheduled_at?: string | null
           segment_id?: string | null
           sender_display_name?: string | null
@@ -725,6 +737,9 @@ export type Database = {
           status?: string | null
           subject_line?: string | null
           tenant_id?: string | null
+          total_clicks?: number | null
+          total_opens?: number | null
+          total_sent?: number | null
           updated_at?: string | null
           user_id?: string | null
         }
