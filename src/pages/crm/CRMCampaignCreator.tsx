@@ -335,9 +335,11 @@ const CRMCampaignCreator = () => {
                     {campaignData.segment_ids.length > 0 && (
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <div className="flex items-center gap-2 mb-2">
-                          {getAudienceInfo()?.icon && (
-                            <getAudienceInfo().icon className="h-4 w-4 text-blue-600" />
-                          )}
+                          {(() => {
+                            const audienceInfo = getAudienceInfo();
+                            const IconComponent = audienceInfo?.icon;
+                            return IconComponent ? <IconComponent className="h-4 w-4 text-blue-600" /> : null;
+                          })()}
                           <span className="font-medium text-blue-900">Target Audience</span>
                         </div>
                         <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">
