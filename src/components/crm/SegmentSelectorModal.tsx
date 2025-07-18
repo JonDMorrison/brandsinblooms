@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, Plus, Users, Sparkles, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { CustomSegmentBuilder } from "./CustomSegmentBuilder";
 import {
   Tooltip,
   TooltipContent,
@@ -110,11 +111,7 @@ export const SegmentSelectorModal = ({
 }: SegmentSelectorModalProps) => {
   const [selectedPredefined, setSelectedPredefined] = useState<string[]>(selectedSegmentIds);
   const [showCustomForm, setShowCustomForm] = useState(false);
-  const [customSegment, setCustomSegment] = useState({
-    name: "",
-    description: "",
-    conditions: {}
-  });
+  const [customSegments, setCustomSegments] = useState<any[]>([]);
   const [existingSegments, setExistingSegments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -147,25 +144,16 @@ export const SegmentSelectorModal = ({
     );
   };
 
-  const createCustomSegment = async () => {
-    if (!customSegment.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a segment name",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const createCustomSegment = async (segmentData: { name: string; filters: any[] }) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from("crm_segments")
+        .from("custom_segments")
         .insert({
-          name: customSegment.name,
-          description: customSegment.description,
-          conditions: customSegment.conditions,
-          auto_update: true
+          name: segmentData.name,
+          filters: segmentData.filters,
+          tenant_id: "temp", // Will be set by RLS
+          user_id: "temp" // Will be set by RLS
         })
         .select()
         .single();
@@ -173,16 +161,13 @@ export const SegmentSelectorModal = ({
       if (error) throw error;
 
       toast({
-        title: "Success",
+        title: "Success", 
         description: "Custom segment created successfully"
       });
 
       // Add to existing segments and select it
-      setExistingSegments(prev => [data, ...prev]);
+      setCustomSegments(prev => [data, ...prev]);
       setSelectedPredefined(prev => [...prev, data.id]);
-      
-      // Reset form
-      setCustomSegment({ name: "", description: "", conditions: {} });
       setShowCustomForm(false);
     } catch (error) {
       console.error("Error creating segment:", error);
@@ -208,7 +193,6 @@ export const SegmentSelectorModal = ({
 
   const handleClose = () => {
     setShowCustomForm(false);
-    setCustomSegment({ name: "", description: "", conditions: {} });
     onClose();
   };
 
@@ -311,56 +295,10 @@ export const SegmentSelectorModal = ({
               </Button>
             ) : (
               <div className="border rounded-lg p-4 bg-gray-50">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold">Create Custom Segment</h4>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowCustomForm(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="segment-name">Segment Name *</Label>
-                    <Input
-                      id="segment-name"
-                      value={customSegment.name}
-                      onChange={(e) => setCustomSegment(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="e.g., Local Garden Club Members"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="segment-description">Description</Label>
-                    <Textarea
-                      id="segment-description"
-                      value={customSegment.description}
-                      onChange={(e) => setCustomSegment(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Describe this customer segment..."
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={createCustomSegment}
-                      disabled={loading}
-                      className="bg-brand-teal hover:bg-brand-teal/90"
-                    >
-                      {loading ? "Creating..." : "Create Segment"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowCustomForm(false)}
-                      disabled={loading}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
+                <CustomSegmentBuilder
+                  onSave={createCustomSegment}
+                  onCancel={() => setShowCustomForm(false)}
+                />
               </div>
             )}
           </div>

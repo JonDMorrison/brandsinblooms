@@ -1100,6 +1100,42 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_segments: {
+        Row: {
+          created_at: string
+          customer_count: number | null
+          filters: Json
+          id: string
+          is_active: boolean | null
+          name: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_count?: number | null
+          filters?: Json
+          id?: string
+          is_active?: boolean | null
+          name: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_count?: number | null
+          filters?: Json
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       customer_timeline: {
         Row: {
           activity_type: string
@@ -2584,6 +2620,36 @@ export type Database = {
           email_sent_at?: string
           email_type?: string
           id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_segment_preferences: {
+        Row: {
+          created_at: string
+          custom_segments: Json
+          id: string
+          preferred_segments: Json
+          tenant_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          custom_segments?: Json
+          id?: string
+          preferred_segments?: Json
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          custom_segments?: Json
+          id?: string
+          preferred_segments?: Json
+          tenant_id?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
