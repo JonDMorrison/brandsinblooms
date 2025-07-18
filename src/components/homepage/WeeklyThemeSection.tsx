@@ -47,16 +47,14 @@ export const WeeklyThemeSection = ({
     console.log('🎯 Content generation result:', success);
     
     if (success) {
-      // Refresh tasks multiple times to ensure we catch the updates
+      // Refresh tasks and also trigger campaign/theme refresh
       onTaskUpdate();
+      onCampaignCreated(); // This will refresh themes and campaigns
       setTimeout(() => {
-        console.log('🔄 First task refresh after generation');
+        console.log('🔄 Task and theme refresh after generation');
         onTaskUpdate();
-      }, 1500);
-      setTimeout(() => {
-        console.log('🔄 Second task refresh after generation');
-        onTaskUpdate();
-      }, 3000);
+        onCampaignCreated();
+      }, 2000);
     }
   };
 

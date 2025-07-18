@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
@@ -181,11 +181,18 @@ export const useWeeklyThemes = () => {
       
       for (const weekNum of weekNumbers) {
         const dbTheme = masterThemes?.find(t => t.week_number === weekNum);
-        // Find matching campaign for this theme
-        const matchingCampaign = campaigns.find(c => 
-          c.week_number === weekNum && 
-          (dbTheme ? c.title === dbTheme.title : false)
-        );
+        // Find matching campaign for this theme - improved matching logic
+        const matchingCampaign = campaigns.find(c => {
+          if (c.week_number !== weekNum) return false;
+          
+          // If we have a master theme, match by title
+          if (dbTheme) {
+            return c.title === dbTheme.title;
+          }
+          
+          // For fallback themes, accept any campaign for this week
+          return true;
+        });
         
         if (dbTheme) {
           const theme = transformTheme(dbTheme, currentWeek);
@@ -214,8 +221,13 @@ export const useWeeklyThemes = () => {
     loadThemes();
   }, [user]);
 
+  const refreshThemes = useCallback(() => {
+    loadThemes();
+  }, [user]);
+
   return {
     themes,
-    loading
+    loading,
+    refreshThemes
   };
 };

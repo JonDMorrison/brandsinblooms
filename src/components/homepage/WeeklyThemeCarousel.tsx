@@ -44,7 +44,7 @@ export const WeeklyThemeCarousel = ({
   const [generatingTheme, setGeneratingTheme] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const { generateContent, isGeneratingForCampaign } = useContentGeneration();
-  const { themes, loading: themesLoading } = useWeeklyThemes();
+  const { themes, loading: themesLoading, refreshThemes } = useWeeklyThemes();
 
   const currentWeek = getCurrentWeekNumber();
   const campaignTasks = tasks.filter(task => task.campaign_id === currentCampaign?.id);
@@ -88,6 +88,9 @@ export const WeeklyThemeCarousel = ({
       
       return campaignTasksWithContent;
     }
+    
+    // Fallback: Try to find tasks by checking campaign details via supabase
+    // For now, we'll keep the simpler approach without direct campaign access
     
     // If it's the current week theme and we have a current campaign, check those tasks
     if (theme.isCurrentWeek && currentCampaign) {
@@ -263,13 +266,11 @@ export const WeeklyThemeCarousel = ({
           // Refresh tasks multiple times to ensure we catch the updates
           onTaskUpdate();
           setTimeout(() => {
-            console.log('🔄 First task refresh after generation');
+            console.log('🔄 First task and theme refresh after generation');
             onTaskUpdate();
-          }, 1500);
-          setTimeout(() => {
-            console.log('🔄 Second task refresh after generation');
-            onTaskUpdate();
-          }, 3000);
+            onCampaignCreated();
+            refreshThemes && refreshThemes();
+          }, 2000);
         }
         return;
       }
@@ -298,9 +299,10 @@ export const WeeklyThemeCarousel = ({
           description: `Generated ${taskCount} pieces of content!`,
         });
 
-        // Refresh data
+        // Refresh data including themes to update campaign IDs
         onTaskUpdate();
         onCampaignCreated();
+        refreshThemes && refreshThemes();
         
         // Move to next theme if available and this wasn't current week theme
         if (!targetTheme.isCurrentWeek && currentIndex < 4) {
