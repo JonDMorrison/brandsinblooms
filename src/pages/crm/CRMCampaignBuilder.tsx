@@ -32,6 +32,8 @@ import { BlockVersionModal } from '@/components/crm/BlockVersionModal';
 import { TemplateGalleryModal } from '@/components/crm/TemplateGalleryModal';
 import { BuilderEmptyState } from '@/components/crm/BuilderEmptyState';
 import { OnboardingTips } from '@/components/crm/OnboardingTips';
+import { BlockInlineToolbar } from '@/components/crm/BlockInlineToolbar';
+import { MobilePreviewFrame } from '@/components/crm/MobilePreviewFrame';
 import { useVersionHistory } from '@/hooks/useVersionHistory';
 import { reorderArray } from '@/utils/dragUtils';
 
@@ -229,8 +231,39 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     ));
   };
 
+  const duplicateBlock = (blockId: string) => {
+    const blockToDuplicate = blocks.find(block => block.id === blockId);
+    if (!blockToDuplicate) return;
+
+    const newBlock: EmailBlock = {
+      ...blockToDuplicate,
+      id: crypto.randomUUID(),
+      order_index: blockToDuplicate.order_index + 1
+    };
+
+    const newBlocks = [...blocks];
+    const insertIndex = blocks.findIndex(block => block.id === blockId) + 1;
+    newBlocks.splice(insertIndex, 0, newBlock);
+    
+    // Update order indices
+    const reorderedBlocks = newBlocks.map((block, index) => ({
+      ...block,
+      order_index: index
+    }));
+    
+    setBlocks(reorderedBlocks);
+    setSelectedBlockId(newBlock.id);
+  };
+
   const deleteBlock = (blockId: string) => {
-    setBlocks(prev => prev.filter(block => block.id !== blockId));
+    const confirmed = window.confirm('Are you sure you want to delete this block?');
+    if (!confirmed) return;
+    
+    setBlocks(prev => prev.filter(block => block.id !== blockId).map((block, index) => ({
+      ...block,
+      order_index: index
+    })));
+    
     if (selectedBlockId === blockId) {
       setSelectedBlockId(null);
     }
@@ -245,7 +278,13 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
       result.destination.index
     );
     
-    setBlocks(reorderedBlocks);
+    // Update order indices and save
+    const blocksWithOrder = reorderedBlocks.map((block, index) => ({
+      ...block,
+      order_index: index
+    }));
+    
+    setBlocks(blocksWithOrder);
   };
 
   const generateEmailHTML = () => {
@@ -420,7 +459,7 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
                 className="rounded-none border-0 gap-2"
               >
                 <Monitor className="w-4 h-4" />
-                Desktop
+                Desktop View
               </Button>
               <Button
                 variant={previewMode === 'mobile' ? 'default' : 'ghost'}
@@ -429,7 +468,7 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
                 className="rounded-none border-0 gap-2"
               >
                 <Smartphone className="w-4 h-4" />
-                Mobile
+                Mobile View
               </Button>
             </div>
             
@@ -511,13 +550,34 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
         <div className="flex-1 flex">
           {/* Canvas */}
           <div className="flex-1 p-8 bg-muted/10">
-            <div className={`mx-auto bg-white shadow-xl rounded-lg border ${
-              previewMode === 'mobile' ? 'max-w-sm' : 'max-w-2xl'
-            }`}>
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="email-blocks">
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef}>
+            {previewMode === 'mobile' ? (
+              <MobilePreviewFrame>
+                {blocks.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    <div className="text-4xl mb-4">📱</div>
+                    <h3 className="text-lg font-medium mb-2">Mobile Preview</h3>
+                    <p className="text-sm">Add blocks to see how your email looks on mobile</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0">
+                    {blocks.map((block) => (
+                      <div key={block.id} className="email-block">
+                        <EmailBlockRenderer 
+                          block={block} 
+                          globalSettings={globalSettings} 
+                          isPreview={true}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </MobilePreviewFrame>
+            ) : (
+              <div className={`mx-auto bg-white shadow-xl rounded-lg border max-w-2xl`}>
+                <DragDropContext onDragEnd={handleDragEnd}>
+                  <Droppable droppableId="email-blocks">
+                    {(provided) => (
+                      <div {...provided.droppableProps} ref={provided.innerRef}>
                        {blocks.length === 0 ? (
                          <div className="p-8">
                            <BuilderEmptyState
@@ -525,7 +585,7 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
                              onStartFromScratch={handleStartFromScratch}
                            />
                          </div>
-                      ) : (
+                       ) : (
                         blocks.map((block, index) => (
                           <Draggable
                             key={block.id}
@@ -536,61 +596,57 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
-                                className={`group relative ${
-                                  selectedBlockId === block.id ? 'ring-2 ring-primary' : ''
-                                } ${snapshot.isDragging ? 'opacity-75' : ''}`}
+                                className={`group relative transition-all duration-200 ${
+                                  selectedBlockId === block.id ? 'ring-2 ring-primary shadow-lg' : 'hover:shadow-md'
+                                } ${snapshot.isDragging ? 'opacity-75 shadow-2xl scale-105' : ''}`}
                                 onClick={() => setSelectedBlockId(block.id)}
                               >
-                                <div className="absolute -left-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <div
-                                    {...provided.dragHandleProps}
-                                    className="p-1 hover:bg-muted rounded cursor-grab"
-                                  >
+                                {/* Drag Handle */}
+                                <div 
+                                  {...provided.dragHandleProps}
+                                  className="absolute -left-8 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 cursor-grab active:cursor-grabbing z-20"
+                                  title="Drag to reorder"
+                                >
+                                  <div className="p-2 bg-background border rounded-md shadow-sm hover:bg-muted">
                                     <GripVertical className="w-4 h-4 text-muted-foreground" />
                                   </div>
                                 </div>
-                                 <div className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     className="h-6 w-6 p-0"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       setShowVersionHistory(true);
-                                     }}
-                                     title="Version History"
-                                   >
-                                     <Clock className="w-3 h-3" />
-                                   </Button>
-                                   <Button
-                                     variant="ghost"
-                                     size="sm"
-                                     className="h-6 w-6 p-0"
-                                     onClick={(e) => {
-                                       e.stopPropagation();
-                                       handleSaveBlock(block);
-                                     }}
-                                     title="Save Block"
-                                   >
-                                     <Archive className="w-3 h-3" />
-                                   </Button>
+
+                                {/* Hover Glow Effect */}
+                                <div className={`absolute inset-0 rounded-lg transition-all duration-200 pointer-events-none ${
+                                  selectedBlockId === block.id 
+                                    ? 'bg-primary/5 border-2 border-primary/20' 
+                                    : 'group-hover:bg-muted/30 group-hover:border group-hover:border-border/50'
+                                }`} />
+
+                                {/* Block Content */}
+                                <div className="relative">
+                                  <EmailBlockRenderer 
+                                    block={block} 
+                                    globalSettings={globalSettings} 
+                                    isPreview={false}
+                                  />
+                                </div>
+
+                                {/* Inline Toolbar */}
+                                <BlockInlineToolbar
+                                  onEdit={() => setSelectedBlockId(block.id)}
+                                  onDuplicate={() => duplicateBlock(block.id)}
+                                  onDelete={() => deleteBlock(block.id)}
+                                />
+
+                                {/* Version History Button */}
+                                {selectedBlockId === block.id && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteBlock(block.id);
-                                    }}
+                                    onClick={() => setShowVersionHistory(true)}
+                                    className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 p-0 bg-background/95 backdrop-blur-sm border"
+                                    title="View version history"
                                   >
-                                    <Trash2 className="w-3 h-3" />
+                                    <Clock className="w-3 h-3" />
                                   </Button>
-                                </div>
-                                <EmailBlockRenderer
-                                  block={block}
-                                  globalSettings={globalSettings}
-                                  isPreview={true}
-                                />
+                                )}
                               </div>
                             )}
                           </Draggable>
@@ -602,6 +658,7 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
                 </Droppable>
               </DragDropContext>
             </div>
+            )}
           </div>
 
           {/* Properties Panel */}
