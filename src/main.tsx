@@ -2,6 +2,7 @@
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext'
 import App from './App.tsx'
 import './index.css'
 import './utils/globalToastReplace'
@@ -19,7 +20,9 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <App />
+      <SubscriptionProvider>
+        <App />
+      </SubscriptionProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
