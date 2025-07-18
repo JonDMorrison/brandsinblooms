@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, persona, type } = await req.json();
+    const { prompt, persona, type, personas = [] } = await req.json();
 
     // Get OpenAI API key
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
@@ -27,7 +27,21 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get persona details if provided
+    // Format personas for prompt context
+    const formatPersonasForPrompt = (personas: any[]): string => {
+      if (!personas || personas.length === 0) {
+        return "general garden center customers interested in plants, gardening supplies, and outdoor living";
+      }
+      const personaNames = personas.map(p => p.persona_name || p.name);
+      if (personaNames.length === 1) return personaNames[0];
+      if (personaNames.length === 2) return `${personaNames[0]} and ${personaNames[1]}`;
+      const allButLast = personaNames.slice(0, -1).join(", ");
+      return `${allButLast}, and ${personaNames[personaNames.length - 1]}`;
+    };
+
+    const formattedPersonas = formatPersonasForPrompt(personas);
+
+    // Get persona details if provided (legacy support)
     let personaContext = '';
     if (persona) {
       const { data: personaData } = await supabase
@@ -46,11 +60,16 @@ serve(async (req) => {
       }
     }
 
+    // Add persona context for new personas array
+    const personaInsights = personas.length > 0 ? 
+      `\n\nAudience insights: This campaign is targeted toward the following customer personas: ${formattedPersonas}. Write with empathy and clarity to resonate with these profiles. Ensure relevance, tone, and examples match their goals and challenges.` : 
+      personaContext;
+
     // Create system prompt based on type
     const systemPrompt = type === 'email_block' 
       ? `You are an expert email marketing copywriter specializing in garden and plant content. 
          Create compelling, actionable email content blocks that drive engagement and conversions.
-         ${personaContext}
+         ${personaInsights}
          
          Return your response as JSON with these fields:
          - title: A compelling headline (max 60 characters)
@@ -59,7 +78,7 @@ serve(async (req) => {
          - cta_url: Suggested URL path (can be placeholder like "/shop/tools")
          
          Make it conversion-focused, seasonally appropriate, and valuable to garden enthusiasts.`
-      : `You are a helpful content generator. Create content based on the user's request.`;
+      : `You are a helpful content generator. Create content based on the user's request.${personaInsights}`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

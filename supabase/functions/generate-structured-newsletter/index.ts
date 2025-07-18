@@ -27,7 +27,8 @@ serve(async (req) => {
       userId,
       is_holiday = false,
       holiday_context = '',
-      existingContent = null
+      existingContent = null,
+      personas = []
     } = await req.json();
 
     console.log('Generating StoryBrand-enhanced 4-section newsletter:', { 
@@ -63,6 +64,20 @@ serve(async (req) => {
 
     const businessName = business_name || companyProfile?.company_name || 'Your Garden Center';
     
+    // Format personas for prompt context
+    const formatPersonasForPrompt = (personas: any[]): string => {
+      if (!personas || personas.length === 0) {
+        return "general garden center customers interested in plants, gardening supplies, and outdoor living";
+      }
+      const personaNames = personas.map(p => p.persona_name || p.name);
+      if (personaNames.length === 1) return personaNames[0];
+      if (personaNames.length === 2) return `${personaNames[0]} and ${personaNames[1]}`;
+      const allButLast = personaNames.slice(0, -1).join(", ");
+      return `${allButLast}, and ${personaNames[personaNames.length - 1]}`;
+    };
+
+    const formattedPersonas = formatPersonasForPrompt(personas);
+    
     // Check if we're restructuring existing content
     const isRestructuring = existingContent && existingContent.length > 100;
     
@@ -73,7 +88,9 @@ serve(async (req) => {
     console.log('Newsletter generation mode:', {
       isRestructuring,
       hasExistingContent: !!existingContent,
-      existingContentLength: existingContent?.length || 0
+      existingContentLength: existingContent?.length || 0,
+      personasCount: personas.length,
+      targetPersonas: formattedPersonas
     });
     
     const systemPrompt = `# ROLE
@@ -138,6 +155,9 @@ Warm, conversational, confident.  Use contractions; avoid jargon and filler.
 Concrete plant names and sensory garden details.  Vary sentence length for natural rhythm.  
 Sound like a knowledgeable local garden expert talking to familiar customers.  
 **CRITICAL: Maintain exactly two spaces after every sentence ending throughout all content.**
+
+# AUDIENCE INSIGHTS
+This campaign is targeted toward the following customer personas: ${formattedPersonas}. Write with empathy and clarity to resonate with these profiles. Ensure relevance, tone, and examples match their goals and challenges.
 
 Create a structured newsletter with exactly 4 sections using engaging, StoryBrand-driven headlines${is_holiday ? ` that celebrate ${holiday_context || theme}` : ''}.
 
