@@ -8,6 +8,7 @@ import AccountPage from "@/pages/AccountPage";
 import AdminPage from "@/pages/AdminPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import CRMCampaignCreator from '@/pages/crm/CRMCampaignCreator';
+import CRMAnalytics from '@/pages/crm/CRMAnalytics';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             
             {/* CRM Routes */}
             <Route path="/crm/campaigns/new" element={<CRMCampaignCreator />} />
+            <Route path="/crm/analytics" element={<CRMAnalytics />} />
             
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminPage />} />

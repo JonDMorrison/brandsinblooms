@@ -82,6 +82,23 @@ const handler = async (req: Request): Promise<Response> => {
                      req.headers.get('x-real-ip') || 
                      'unknown';
 
+    // Check for existing event to avoid duplicates (de-duplication by email + event_type per campaign)
+    const { data: existingEvent } = await supabase
+      .from('email_tracking_events')
+      .select('id')
+      .eq('campaign_id', campaignId)
+      .eq('customer_email', payload.data.to[0])
+      .eq('event_type', eventType)
+      .single();
+
+    if (existingEvent) {
+      console.log(`Duplicate ${eventType} event for campaign ${campaignId}, email ${payload.data.to[0]} - skipping`);
+      return new Response(JSON.stringify({ message: 'Duplicate event ignored' }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
     // Insert tracking event
     const trackingEvent: EmailTrackingEvent = {
       campaign_id: campaignId,
@@ -108,7 +125,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Successfully recorded ${eventType} event for campaign ${campaignId}`);
 
-    // The trigger will automatically update campaign metrics
+    // Update campaign metrics manually (since we have auto-update via trigger)
+    if (eventType === 'delivered') {
+      await supabase.rpc('increment_campaign_metric', {
+        p_campaign_id: campaignId,
+        p_metric: 'total_sent'
+      }).then(result => console.log('Updated total_sent:', result));
+    } else if (eventType === 'opened') {
+      await supabase.rpc('increment_campaign_metric', {
+        p_campaign_id: campaignId,
+        p_metric: 'total_opens'
+      }).then(result => console.log('Updated total_opens:', result));
+    } else if (eventType === 'clicked') {
+      await supabase.rpc('increment_campaign_metric', {
+        p_campaign_id: campaignId,
+        p_metric: 'total_clicks'
+      }).then(result => console.log('Updated total_clicks:', result));
+    }
     return new Response(JSON.stringify({ message: 'Event recorded successfully' }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
