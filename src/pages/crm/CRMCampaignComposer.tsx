@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CRMAccessGate } from '@/components/crm/CRMAccessGate';
 import { SubscriptionGate } from '@/components/SubscriptionGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +18,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { PersonaAISuggestionsModal } from '@/components/crm/personas/PersonaAISuggestionsModal';
+import { convertNewsletterToCRM } from '@/utils/newsletterToCrmConverter';
+import { NewsletterPreviewCard } from '@/components/crm/NewsletterPreviewCard';
+import { NewsletterRegenerateButton } from '@/components/crm/NewsletterRegenerateButton';
 import { CampaignSuggestions } from '@/components/crm/campaigns/CampaignSuggestions';
 import { SmartCampaignSelector } from '@/components/crm/campaigns/SmartCampaignSelector';
 import { 
@@ -70,6 +73,7 @@ const CRMCampaignComposer = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   
   const [segments, setSegments] = useState<Segment[]>([]);
   const [personas, setPersonas] = useState<Persona[]>([]);
@@ -86,6 +90,11 @@ const CRMCampaignComposer = () => {
   const [subjectSuggestions, setSubjectSuggestions] = useState<string[]>([]);
   const [subjectGenerating, setSubjectGenerating] = useState(false);
   const [subjectTopic, setSubjectTopic] = useState('');
+  
+  // Newsletter conversion states
+  const [isFromNewsletter, setIsFromNewsletter] = useState(false);
+  const [originalNewsletterContent, setOriginalNewsletterContent] = useState('');
+  const [processingNewsletter, setProcessingNewsletter] = useState(false);
   
   // Form data
   const [formData, setFormData] = useState({
@@ -104,6 +113,64 @@ const CRMCampaignComposer = () => {
       loadPersonas();
     }
   }, [user]);
+
+  // Process URL parameters for newsletter content
+  useEffect(() => {
+    const contentTaskId = searchParams.get('contentTaskId');
+    const title = searchParams.get('title');
+    const content = searchParams.get('content');
+    const type = searchParams.get('type');
+
+    if (contentTaskId && title && content && type === 'newsletter' && segments.length > 0) {
+      console.log('🔄 Detected newsletter parameters, converting to CRM campaign...');
+      processNewsletterParams(contentTaskId, title, content);
+    }
+  }, [searchParams, segments]);
+
+  const processNewsletterParams = async (contentTaskId: string, title: string, content: string) => {
+    setProcessingNewsletter(true);
+    try {
+      console.log('📧 Converting newsletter to CRM campaign...', { contentTaskId, title });
+      
+      const result = await convertNewsletterToCRM(contentTaskId, title, content);
+      
+      // Pre-populate form with converted content
+      setFormData(prev => ({
+        ...prev,
+        name: result.campaignName,
+        subject_line: result.subjectLine,
+        content: result.emailContent
+      }));
+      
+      setIsFromNewsletter(true);
+      setOriginalNewsletterContent(result.originalContent);
+      
+      // Auto-select suggested segment if available
+      if (result.suggestedSegment && segments.length > 0) {
+        const matchingSegment = segments.find(s => 
+          s.name.toLowerCase().includes(result.suggestedSegment!.toLowerCase())
+        );
+        if (matchingSegment) {
+          setFormData(prev => ({ ...prev, segment_id: matchingSegment.id }));
+        }
+      }
+      
+      toast({
+        title: "Newsletter Converted! 🎉",
+        description: "Your newsletter has been converted to an email campaign. Review and customize before sending."
+      });
+      
+    } catch (error) {
+      console.error('❌ Error converting newsletter:', error);
+      toast({
+        title: "Conversion Error",
+        description: "There was an issue converting your newsletter. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setProcessingNewsletter(false);
+    }
+  };
 
   const loadSegments = async () => {
     try {
@@ -401,11 +468,22 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
             <div>
               <h1 className="text-3xl font-bold text-foreground">Create Campaign</h1>
               <p className="text-muted-foreground">
-                Design and send targeted emails to your customers
+                {isFromNewsletter ? 'Newsletter converted to email campaign' : 'Design and send targeted emails to your customers'}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {isFromNewsletter && (
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                📧 From Newsletter
+              </Badge>
+            )}
+            {processingNewsletter && (
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Converting...
+              </Badge>
+            )}
             <Badge variant={formData.status === 'draft' ? 'secondary' : 'default'}>
               {formData.status === 'draft' ? 'Draft' : formData.status === 'scheduled' ? 'Scheduled' : 'Sent'}
             </Badge>
@@ -562,6 +640,11 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
                 <div className="flex items-center justify-between">
                   <CardTitle>Email Content</CardTitle>
                   <div className="flex gap-2">
+                    <NewsletterRegenerateButton
+                      originalContent={originalNewsletterContent}
+                      onContentGenerated={(newContent) => setFormData(prev => ({ ...prev, content: newContent }))}
+                      isFromNewsletter={isFromNewsletter}
+                    />
                      <Dialog open={showAIModal} onOpenChange={setShowAIModal}>
                        <DialogTrigger asChild>
                          <Button variant="outline" size="sm">
@@ -652,6 +735,12 @@ Write a 75-word email using the persona's tone and style: ${aiPrompt}
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Newsletter Preview */}
+            <NewsletterPreviewCard 
+              originalContent={originalNewsletterContent}
+              isFromNewsletter={isFromNewsletter}
+            />
+            
             {/* Campaign Suggestions */}
             {dominantPersona && (
               <CampaignSuggestions
