@@ -56,6 +56,7 @@ const CRMCampaignCreator = () => {
   const [createdCampaignId, setCreatedCampaignId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [emailBuilderMode, setEmailBuilderMode] = useState<'simple' | 'advanced' | null>(null);
+  const [autoSelectedMode, setAutoSelectedMode] = useState<'simple' | 'advanced' | null>(null);
 
   useEffect(() => {
     if (duplicateId) {
@@ -65,11 +66,41 @@ const CRMCampaignCreator = () => {
 
   // Load user's preferred email builder mode
   useEffect(() => {
-    const savedMode = localStorage.getItem('email_builder_preferred_mode') as 'simple' | 'advanced' | null;
-    if (savedMode) {
-      setEmailBuilderMode(savedMode);
-    }
+    checkForSavedPreference();
   }, []);
+
+  const checkForSavedPreference = async () => {
+    try {
+      if (user) {
+        // Try to load from database first
+        const { data: profile } = await supabase
+          .from('company_profiles')
+          .select('feature_flags')
+          .eq('user_id', user.id)
+          .single();
+        
+        const featureFlags = profile?.feature_flags as any;
+        const dbPreference = featureFlags?.email_builder_mode;
+        if (dbPreference && ['simple', 'advanced'].includes(dbPreference)) {
+          setAutoSelectedMode(dbPreference as 'simple' | 'advanced');
+          return;
+        }
+      }
+      
+      // Fallback to localStorage if no DB preference
+      const localPreference = localStorage.getItem('email_builder_preferred_mode') as 'simple' | 'advanced' | null;
+      if (localPreference && ['simple', 'advanced'].includes(localPreference)) {
+        setAutoSelectedMode(localPreference);
+      }
+    } catch (error) {
+      console.error('Error loading user preference:', error);
+      // Fallback to localStorage
+      const localPreference = localStorage.getItem('email_builder_preferred_mode') as 'simple' | 'advanced' | null;
+      if (localPreference && ['simple', 'advanced'].includes(localPreference)) {
+        setAutoSelectedMode(localPreference);
+      }
+    }
+  };
 
   const loadCampaignForDuplication = async () => {
     if (!duplicateId) return;
@@ -401,7 +432,7 @@ const CRMCampaignCreator = () => {
               {!emailBuilderMode ? (
                 <EmailBuilderModeSelector
                   onModeSelect={handleEmailBuilderModeSelect}
-                  defaultMode={localStorage.getItem('email_builder_preferred_mode') as 'simple' | 'advanced' || undefined}
+                  defaultMode={autoSelectedMode || undefined}
                 />
               ) : emailBuilderMode === 'simple' ? (
                 <CRMSimpleEmailBuilder
