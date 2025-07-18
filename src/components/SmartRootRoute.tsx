@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLoading } from '@/contexts/LoadingContext';
 import { CompleteLandingPage } from '@/components/landing/CompleteLandingPage';
 import { Homepage } from '@/components/Homepage';
-import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout';
+import { SidebarLayout } from '@/components/SidebarLayout';
 import { OnboardingGuard } from '@/components/OnboardingGuard';
 import { HomepageErrorBoundary } from '@/components/homepage/HomepageErrorBoundary';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
@@ -49,11 +49,11 @@ export const SmartRootRoute = () => {
       {user ? (
         <ContentGenerationProvider>
           <HomepageErrorBoundary>
-            <AuthenticatedLayout>
+            <SidebarLayout>
               <OnboardingGuard>
                 <Homepage />
               </OnboardingGuard>
-            </AuthenticatedLayout>
+            </SidebarLayout>
           </HomepageErrorBoundary>
         </ContentGenerationProvider>
       ) : (
