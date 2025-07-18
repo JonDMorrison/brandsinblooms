@@ -29,6 +29,7 @@ import { SmartContentBlocksSidebar } from '@/components/crm/SmartContentBlocksSi
 import { AutoSaveManager, useAutoSave } from '@/components/crm/AutoSaveManager';
 import { AutoSaveIndicator } from '@/components/crm/AutoSaveIndicator';
 import { BlockVersionModal } from '@/components/crm/BlockVersionModal';
+import { TemplateGalleryModal } from '@/components/crm/TemplateGalleryModal';
 import { useVersionHistory } from '@/hooks/useVersionHistory';
 import { reorderArray } from '@/utils/dragUtils';
 
@@ -69,9 +70,21 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [showSaveBlock, setShowSaveBlock] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [blockToSave, setBlockToSave] = useState<EmailBlock | null>(null);
   const [recentBlocks, setRecentBlocks] = useState<EmailBlock[]>([]);
   const [campaign, setCampaign] = useState<any>(null);
+
+  const insertTemplateBlocks = (templateBlocks: EmailBlock[], templateName: string) => {
+    const blocksWithIds = templateBlocks.map((block, index) => ({
+      ...block,
+      id: crypto.randomUUID(),
+      campaign_id: campaignId || '',
+      order_index: index
+    }));
+    setBlocks(blocksWithIds);
+    setSelectedBlockId(null);
+  };
 
   useEffect(() => {
     if (campaignId) {
@@ -302,16 +315,25 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
                 <MessageSquare className="w-4 h-4" />
                 Switch to Simple
               </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowBlockLibrary(true)}
-              className="gap-2"
-            >
-              <BookOpen className="w-4 h-4" />
-              📚 Insert From Library
-            </Button>
+             )}
+             <Button
+               variant="outline"
+               size="sm"
+               onClick={() => setShowTemplateGallery(true)}
+               className="gap-2"
+             >
+               <Sparkles className="w-4 h-4" />
+               Insert Template
+             </Button>
+             <Button
+               variant="outline"
+               size="sm"
+               onClick={() => setShowBlockLibrary(true)}
+               className="gap-2"
+             >
+               <BookOpen className="w-4 h-4" />
+               📚 Block Library
+             </Button>
             <Button
               variant="outline"
               size="sm"
@@ -658,6 +680,13 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
           }}
         />
       )}
+
+      {/* Template Gallery Modal */}
+      <TemplateGalleryModal
+        open={showTemplateGallery}
+        onClose={() => setShowTemplateGallery(false)}
+        onInsertTemplate={insertTemplateBlocks}
+      />
     </div>
   );
 };
