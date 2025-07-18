@@ -22,6 +22,7 @@ import { BlockEditor } from '@/components/crm/BlockEditor';
 import { ContentIntegrationSidebar } from '@/components/crm/ContentIntegrationSidebar';
 import { GlobalSettingsPanel } from '@/components/crm/GlobalSettingsPanel';
 import { SaveTemplateModal } from '@/components/crm/SaveTemplateModal';
+import { SmartContentBlocksSidebar } from '@/components/crm/SmartContentBlocksSidebar';
 import { reorderArray } from '@/utils/dragUtils';
 
 interface CRMCampaignBuilderProps {
@@ -54,6 +55,7 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [showContentSidebar, setShowContentSidebar] = useState(false);
+  const [showSmartBlocks, setShowSmartBlocks] = useState(false);
   const [showGlobalSettings, setShowGlobalSettings] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [campaign, setCampaign] = useState<any>(null);
@@ -282,6 +284,15 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowSmartBlocks(true)}
+              className="gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Smart Blocks
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowContentSidebar(true)}
               className="gap-2"
             >
@@ -419,7 +430,15 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
                         <div className="p-12 text-center text-muted-foreground">
                           <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
                           <h3 className="text-lg font-medium mb-2">Start Building Your Email</h3>
-                          <p>Add blocks from the toolbar or import content from your newsletters</p>
+                          <p className="mb-4">Add blocks from the toolbar, use Smart Blocks, or import content</p>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => setShowSmartBlocks(true)}
+                            className="gap-2"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            Browse Smart Blocks
+                          </Button>
                         </div>
                       ) : (
                         blocks.map((block, index) => (
@@ -488,6 +507,21 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
           )}
         </div>
       </div>
+
+      {/* Smart Content Blocks Sidebar */}
+      <SmartContentBlocksSidebar
+        open={showSmartBlocks}
+        onClose={() => setShowSmartBlocks(false)}
+        onAddBlocks={(newBlocks) => {
+          const blocksWithIds = newBlocks.map((block, index) => ({
+            ...block,
+            id: crypto.randomUUID(),
+            campaign_id: campaignId || '',
+            order_index: blocks.length + index
+          }));
+          setBlocks(prev => [...prev, ...blocksWithIds]);
+        }}
+      />
 
       {/* Content Integration Sidebar */}
       <ContentIntegrationSidebar
