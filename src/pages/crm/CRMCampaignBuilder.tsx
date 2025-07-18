@@ -21,6 +21,7 @@ import { EmailBlockRenderer } from '@/components/crm/EmailBlockRenderer';
 import { BlockEditor } from '@/components/crm/BlockEditor';
 import { ContentIntegrationSidebar } from '@/components/crm/ContentIntegrationSidebar';
 import { GlobalSettingsPanel } from '@/components/crm/GlobalSettingsPanel';
+import { SaveTemplateModal } from '@/components/crm/SaveTemplateModal';
 import { reorderArray } from '@/utils/dragUtils';
 
 const CRMCampaignBuilder = () => {
@@ -50,6 +51,7 @@ const CRMCampaignBuilder = () => {
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [showContentSidebar, setShowContentSidebar] = useState(false);
   const [showGlobalSettings, setShowGlobalSettings] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [campaign, setCampaign] = useState<any>(null);
   const [autoSaving, setAutoSaving] = useState(false);
 
@@ -266,6 +268,16 @@ const CRMCampaignBuilder = () => {
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setShowSaveTemplate(true)}
+              className="gap-2"
+              disabled={blocks.length === 0}
+            >
+              <Save className="w-4 h-4" />
+              Save as Template
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowGlobalSettings(true)}
               className="gap-2"
             >
@@ -471,6 +483,20 @@ const CRMCampaignBuilder = () => {
         onClose={() => setShowGlobalSettings(false)}
         settings={globalSettings}
         onUpdate={setGlobalSettings}
+      />
+
+      {/* Save Template Modal */}
+      <SaveTemplateModal
+        open={showSaveTemplate}
+        onClose={() => setShowSaveTemplate(false)}
+        blocks={blocks}
+        onTemplateSaved={() => {
+          // Refresh templates in sidebar if open
+          if (showContentSidebar) {
+            setShowContentSidebar(false);
+            setTimeout(() => setShowContentSidebar(true), 100);
+          }
+        }}
       />
     </div>
   );

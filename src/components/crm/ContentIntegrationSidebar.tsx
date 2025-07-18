@@ -10,7 +10,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmailBlock } from '@/types/emailBuilder';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, FileText, Sparkles, Bookmark, Calendar, Plus, Loader2, Image, ExternalLink, GripVertical } from 'lucide-react';
+import { Search, FileText, Sparkles, Bookmark, Calendar, Plus, Loader2, Image, ExternalLink, GripVertical, Edit3, Copy, Trash2, MoreVertical } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { TemplateManagementModal } from '@/components/crm/TemplateManagementModal';
 import { toast } from 'sonner';
 
 interface ContentIntegrationSidebarProps {
@@ -38,6 +40,7 @@ interface SavedTemplate {
   thumbnail_url?: string;
   usage_count: number;
   tags: string[];
+  created_at: string;
 }
 
 interface Persona {
@@ -67,6 +70,8 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
     content: false,
     templates: false
   });
+  const [selectedTemplate, setSelectedTemplate] = useState<SavedTemplate | null>(null);
+  const [templateAction, setTemplateAction] = useState<'rename' | 'duplicate' | 'delete' | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -170,7 +175,8 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
             : item.layout_json) as EmailBlock[],
           thumbnail_url: item.thumbnail_url,
           usage_count: item.usage_count,
-          tags: item.tags || []
+          tags: item.tags || [],
+          created_at: item.created_at
         }));
         setSavedTemplates(templates);
       }
@@ -307,6 +313,16 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
 
     toast.success('Template added to your email');
     onClose();
+  };
+
+  const handleTemplateAction = (template: SavedTemplate, action: 'rename' | 'duplicate' | 'delete') => {
+    setSelectedTemplate(template);
+    setTemplateAction(action);
+  };
+
+  const closeTemplateModal = () => {
+    setSelectedTemplate(null);
+    setTemplateAction(null);
   };
 
   const filteredContent = (items: any[]) => {
@@ -561,70 +577,123 @@ export const ContentIntegrationSidebar: React.FC<ContentIntegrationSidebarProps>
                 </div>
               ) : (
                 <div className="space-y-3 pr-4">
-                  {savedTemplates.map((template) => (
-                    <Card key={template.id} className="cursor-pointer hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-sm font-medium">{template.name}</CardTitle>
-                          <Badge variant="secondary" className="text-xs">
-                            Used {template.usage_count}x
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex gap-3">
-                          {template.thumbnail_url && (
-                            <div className="w-16 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
-                              <img
-                                src={template.thumbnail_url}
-                                alt="Template preview"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            {template.description && (
-                              <p className="text-sm text-muted-foreground mb-2">
-                                {template.description}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-1 mb-2">
-                              <span className="text-xs text-muted-foreground">
-                                {template.layout_json.length} blocks
-                              </span>
-                              {template.tags.map((tag, index) => (
-                                <Badge key={index} variant="outline" className="text-xs">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => addTemplate(template)}
-                              className="w-full"
-                            >
-                              <Plus className="w-4 h-4 mr-1" />
-                              Insert Template
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                   {savedTemplates.map((template) => (
+                     <Card key={template.id} className="group cursor-pointer hover:shadow-md transition-shadow">
+                       <CardHeader className="pb-2">
+                         <div className="flex items-center justify-between">
+                           <CardTitle className="text-sm font-medium">{template.name}</CardTitle>
+                           <div className="flex items-center gap-2">
+                             <Badge variant="secondary" className="text-xs">
+                               Used {template.usage_count}x
+                             </Badge>
+                             <DropdownMenu>
+                               <DropdownMenuTrigger asChild>
+                                 <Button 
+                                   variant="ghost" 
+                                   size="sm" 
+                                   className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                                   onClick={(e) => e.stopPropagation()}
+                                 >
+                                   <MoreVertical className="w-3 h-3" />
+                                 </Button>
+                               </DropdownMenuTrigger>
+                               <DropdownMenuContent align="end">
+                                 <DropdownMenuItem onClick={() => handleTemplateAction(template, 'rename')}>
+                                   <Edit3 className="w-4 h-4 mr-2" />
+                                   Rename
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem onClick={() => handleTemplateAction(template, 'duplicate')}>
+                                   <Copy className="w-4 h-4 mr-2" />
+                                   Duplicate
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem 
+                                   onClick={() => handleTemplateAction(template, 'delete')}
+                                   className="text-destructive"
+                                 >
+                                   <Trash2 className="w-4 h-4 mr-2" />
+                                   Delete
+                                 </DropdownMenuItem>
+                               </DropdownMenuContent>
+                             </DropdownMenu>
+                           </div>
+                         </div>
+                       </CardHeader>
+                       <CardContent>
+                         <div className="flex gap-3">
+                           {template.thumbnail_url && (
+                             <div className="w-16 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
+                               <img
+                                 src={template.thumbnail_url}
+                                 alt="Template preview"
+                                 className="w-full h-full object-cover"
+                               />
+                             </div>
+                           )}
+                           <div className="flex-1 min-w-0">
+                             {template.description && (
+                               <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                                 {template.description}
+                               </p>
+                             )}
+                             <div className="flex items-center gap-1 mb-2">
+                               <span className="text-xs text-muted-foreground">
+                                 {template.layout_json.length} block{template.layout_json.length !== 1 ? 's' : ''}
+                               </span>
+                               <span className="text-xs text-muted-foreground">•</span>
+                               <span className="text-xs text-muted-foreground">
+                                 {new Date(template.created_at).toLocaleDateString()}
+                               </span>
+                               {template.tags.slice(0, 2).map((tag, index) => (
+                                 <Badge key={index} variant="outline" className="text-xs">
+                                   {tag}
+                                 </Badge>
+                               ))}
+                             </div>
+                             <Button
+                               size="sm"
+                               onClick={() => addTemplate(template)}
+                               className="w-full"
+                             >
+                               <Plus className="w-4 h-4 mr-1" />
+                               Insert Template
+                             </Button>
+                           </div>
+                         </div>
+                       </CardContent>
+                     </Card>
+                   ))}
                   
-                  {savedTemplates.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Bookmark className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-sm">No saved templates yet</p>
-                      <p className="text-xs">Create and save layouts for quick reuse</p>
-                    </div>
-                  )}
+                   {savedTemplates.length === 0 && (
+                     <div className="text-center py-12 text-muted-foreground">
+                       <div className="w-16 h-16 mx-auto mb-4 bg-muted/50 rounded-lg flex items-center justify-center">
+                         💾
+                       </div>
+                       <h3 className="font-medium mb-2">You haven't saved any templates yet</h3>
+                       <p className="text-sm leading-relaxed max-w-sm mx-auto">
+                         After creating your first campaign, click "Save as Template" to reuse it later.
+                       </p>
+                     </div>
+                   )}
                 </div>
               )}
             </ScrollArea>
-          </TabsContent>
-        </Tabs>
-      </SheetContent>
-    </Sheet>
-  );
-};
+           </TabsContent>
+         </Tabs>
+       </SheetContent>
+
+       {/* Template Management Modal */}
+       {selectedTemplate && templateAction && (
+         <TemplateManagementModal
+           open={true}
+           onClose={closeTemplateModal}
+           template={selectedTemplate}
+           onTemplateUpdated={() => {
+             loadSavedTemplates();
+             closeTemplateModal();
+           }}
+           action={templateAction}
+         />
+       )}
+     </Sheet>
+   );
+ };
