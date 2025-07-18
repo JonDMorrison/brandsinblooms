@@ -100,6 +100,10 @@ const CampaignDetails = () => {
             </div>
           </div>
         </div>
+        <Button variant="outline" size="sm" onClick={() => navigate('/crm/analytics')}>
+          <TrendingUp className="w-4 h-4 mr-2" />
+          View All Analytics
+        </Button>
       </div>
 
       {/* Campaign Content */}

@@ -56,6 +56,7 @@ const CRMSMSCampaignDetail = lazy(() => import("./pages/crm/CRMSMSCampaignDetail
 const Automations = lazy(() => import("./pages/crm/Automations"));
 const CRMAutomationBuilder = lazy(() => import("./pages/crm/CRMAutomationBuilder"));
 const PersonaAnalytics = lazy(() => import("./pages/crm/PersonaAnalytics"));
+const CRMAnalytics = lazy(() => import("./pages/crm/CRMAnalytics"));
 const POSIntegrations = lazy(() => import("./pages/crm/POSIntegrations"));
 const CustomerProfile = lazy(() => import("./pages/crm/CustomerProfile"));
 const CampaignDetails = lazy(() => import("./pages/crm/CampaignDetails"));
@@ -317,6 +318,13 @@ const App = () => {
                  <AuthenticatedLayout>
                    <LazyLoadWrapper>
                      <PersonaAnalytics />
+                   </LazyLoadWrapper>
+                 </AuthenticatedLayout>
+               } />
+               <Route path="/crm/analytics" element={
+                 <AuthenticatedLayout>
+                   <LazyLoadWrapper>
+                     <CRMAnalytics />
                    </LazyLoadWrapper>
                  </AuthenticatedLayout>
                } />

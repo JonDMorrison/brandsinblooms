@@ -112,6 +112,11 @@ const AppSidebar: React.FC = () => {
           icon: BarChart3,
         },
         {
+          title: "Campaign Analytics",
+          url: "/crm/analytics",
+          icon: BarChart3,
+        },
+        {
           title: "Campaigns",
           url: "/crm/campaigns",
           icon: Mail,
