@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { EmailBlock, BlockType } from '@/types/emailBuilder';
+import { bloomsuiteDefaultBlocks, BloomSuiteBlock } from './BloomSuiteDefaultBlocks';
 import {
   Search,
   Plus,
@@ -62,24 +63,24 @@ export const SavedBlockLibraryDrawer: React.FC<SavedBlockLibraryDrawerProps> = (
   const loadBlocks = async () => {
     setLoading(true);
     try {
+      // Load user-saved blocks from database
       const { data, error } = await supabase
         .from('saved_blocks')
         .select('*')
+        .eq('is_bloomsuite_block', false)
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
 
-      const userBlocks = (data || []).filter(block => !block.is_bloomsuite_block).map(block => ({
-        ...block,
-        block_type: block.block_type as BlockType
-      }));
-      const defaultBlocks = (data || []).filter(block => block.is_bloomsuite_block).map(block => ({
+      const userBlocks = (data || []).map(block => ({
         ...block,
         block_type: block.block_type as BlockType
       }));
 
       setSavedBlocks(userBlocks);
-      setBloomsuiteBlocks(defaultBlocks);
+      
+      // Set static BloomSuite blocks
+      setBloomsuiteBlocks(bloomsuiteDefaultBlocks);
     } catch (error) {
       console.error('Error loading blocks:', error);
       toast.error('Failed to load saved blocks');
@@ -100,11 +101,13 @@ export const SavedBlockLibraryDrawer: React.FC<SavedBlockLibraryDrawerProps> = (
         source: 'library'
       };
 
-      // Update usage count
-      await supabase
-        .from('saved_blocks')
-        .update({ usage_count: savedBlock.usage_count + 1 })
-        .eq('id', savedBlock.id);
+      // Only update usage count for user-saved blocks (not BloomSuite defaults)
+      if (!savedBlock.is_bloomsuite_block) {
+        await supabase
+          .from('saved_blocks')
+          .update({ usage_count: savedBlock.usage_count + 1 })
+          .eq('id', savedBlock.id);
+      }
 
       onInsertBlock(newBlock);
       toast.success(`Inserted "${savedBlock.name}" block`);
