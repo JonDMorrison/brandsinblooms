@@ -68,7 +68,8 @@ export const OptimizedNewsletterDisplay = ({
   const { images, loadingImages, imageErrors } = useNewsletterImages(
     processedNewsletter.blocks,
     isPlaceholderContent || !processedNewsletter.isStructured,
-    contentTaskId
+    contentTaskId,
+    campaignTitle
   );
 
   // Extract main headline from processed content

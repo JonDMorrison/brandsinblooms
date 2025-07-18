@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { extractImageSummary } from '@/utils/imageContentSummary';
 
 interface NewsletterBlock {
   title: string;
@@ -17,10 +18,33 @@ interface ImageData {
   photographer?: string;
 }
 
+// Generate smart search query for a newsletter block
+const generateSmartSearchQuery = (block: NewsletterBlock, campaignTheme?: string): string => {
+  // Combine title and body for keyword extraction
+  const content = `${block.title} ${block.body}`;
+  
+  // Use extractImageSummary to get smart keywords
+  const smartKeywords = extractImageSummary(content);
+  
+  // Add campaign context if available
+  const searchQuery = campaignTheme 
+    ? `${smartKeywords} ${campaignTheme} garden center`
+    : `${smartKeywords} garden center`;
+    
+  console.log('[NEWSLETTER] Generated smart search query for block:', {
+    title: block.title.slice(0, 50),
+    smartKeywords,
+    finalQuery: searchQuery
+  });
+  
+  return searchQuery;
+};
+
 export const useNewsletterImages = (
   blocks: NewsletterBlock[],
   isPlaceholderContent: boolean,
-  contentTaskId?: string
+  contentTaskId?: string,
+  campaignTheme?: string
 ) => {
   const [images, setImages] = useState<Record<number, ImageData>>({});
   const [loadingImages, setLoadingImages] = useState(false);
@@ -34,7 +58,7 @@ export const useNewsletterImages = (
 
   // Memoize the blocks key to prevent unnecessary re-renders
   const blocksKey = useMemo(() => {
-    return blocks.map(b => b.image_prompt || '').join('|');
+    return blocks.map(b => `${b.title}-${b.body}`.slice(0, 100)).join('|');
   }, [blocks]);
 
   useEffect(() => {
@@ -66,9 +90,10 @@ export const useNewsletterImages = (
       return;
     }
     
-    const blocksWithPrompts = blocks.filter(b => b.image_prompt);
-    if (blocksWithPrompts.length === 0) {
-      console.log('[NEWSLETTER] No blocks with image prompts');
+    // Filter blocks that have content for smart keyword extraction
+    const blocksWithContent = blocks.filter(b => b.title || b.body);
+    if (blocksWithContent.length === 0) {
+      console.log('[NEWSLETTER] No blocks with content for image generation');
       return;
     }
     
@@ -78,20 +103,22 @@ export const useNewsletterImages = (
     
     setLoadingImages(true);
     setImageErrors({});
-    console.log('[NEWSLETTER] Starting optimized image fetch for', blocksWithPrompts.length, 'blocks with prompts');
+    console.log('[NEWSLETTER] Starting smart image fetch for', blocksWithContent.length, 'blocks with content');
     
     const fetchImages = async () => {
       try {
-        const imagePromises = blocksWithPrompts.map(async (block, arrayIndex) => {
+        const imagePromises = blocksWithContent.map(async (block, arrayIndex) => {
           // Find the original index in the blocks array
-          const originalIndex = blocks.findIndex(b => b.image_prompt === block.image_prompt);
+          const originalIndex = blocks.findIndex(b => b.title === block.title && b.body === block.body);
           
           try {
-            console.log('[NEWSLETTER] Fetching image for block', originalIndex, 'with prompt:', block.image_prompt);
+            // Generate smart search query for this block
+            const smartQuery = generateSmartSearchQuery(block, campaignTheme);
+            console.log('[NEWSLETTER] Fetching image for block', originalIndex, 'with smart query:', smartQuery);
             
             const { data, error } = await supabase.functions.invoke('fetch-unsplash-images', {
               body: { 
-                query: block.image_prompt,
+                query: smartQuery,
                 contentType: 'newsletter',
                 maxImages: 1,
                 orientation: 'landscape'
@@ -146,7 +173,7 @@ export const useNewsletterImages = (
     };
 
     fetchImages();
-  }, [blocksKey, isPlaceholderContent, contentTaskId]);
+  }, [blocksKey, isPlaceholderContent, contentTaskId, campaignTheme]);
 
   return {
     images,

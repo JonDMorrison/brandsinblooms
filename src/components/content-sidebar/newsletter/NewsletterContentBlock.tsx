@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { ImageSelectButton } from '@/components/image';
+import { extractImageSummary } from '@/utils/imageContentSummary';
 
 interface NewsletterBlock {
   title: string;
@@ -46,6 +47,9 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
 
   // Use selected image if available, otherwise fall back to auto-generated image
   const currentImageUrl = selectedImages?.[index] || images[index]?.url;
+  
+  // Generate smart search context for ImageSelectButton
+  const smartSearchContext = extractImageSummary(`${block.title} ${block.body}`);
   return (
     <div className="grid lg:grid-cols-2 gap-8 items-start">
       {/* Content */}
@@ -107,7 +111,7 @@ export const NewsletterContentBlock: React.FC<NewsletterContentBlockProps> = ({
         <ImageSelectButton
           onImageSelect={handleImageSelect}
           selectedImageUrl={currentImageUrl}
-          contentContext={`${block.title} ${block.body}`.slice(0, 200)}
+          contentContext={smartSearchContext}
           className="aspect-[4/3]"
           buttonText="Choose Block Image"
         />
