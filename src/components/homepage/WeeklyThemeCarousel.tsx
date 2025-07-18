@@ -42,6 +42,7 @@ export const WeeklyThemeCarousel = ({
   const [reviewingCampaignId, setReviewingCampaignId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(2); // Start with current week (middle)
   const [generatingTheme, setGeneratingTheme] = useState<string | null>(null);
+  const [recentlyGeneratedTheme, setRecentlyGeneratedTheme] = useState<string | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const { generateContent, isGeneratingForCampaign } = useContentGeneration();
   const { themes, loading: themesLoading, refreshThemes } = useWeeklyThemes();
@@ -289,6 +290,10 @@ export const WeeklyThemeCarousel = ({
             onTaskUpdate();
             onCampaignCreated();
           }, 3000);
+          
+          // Mark this theme as recently generated
+          setRecentlyGeneratedTheme(targetTheme.id);
+          setTimeout(() => setRecentlyGeneratedTheme(null), 10000);
         }
         return;
       }
@@ -334,8 +339,14 @@ export const WeeklyThemeCarousel = ({
           onCampaignCreated();
         }, 4000);
         
-        // Stay on current theme after successful generation (don't auto-advance)
+        // Mark this theme as recently generated and stay on it
+        setRecentlyGeneratedTheme(targetTheme.id);
         console.log('✅ Content generated - staying on current theme for review');
+        
+        // Clear the "recently generated" indicator after 10 seconds
+        setTimeout(() => {
+          setRecentlyGeneratedTheme(null);
+        }, 10000);
       } else {
         console.error('❌ Content generation failed:', result);
         toast({
@@ -602,26 +613,36 @@ export const WeeklyThemeCarousel = ({
                               </div>
                             ) : (
                               <>
-                                {/* Main CTA Button - Fixed condition for current week with content */}
-                                {currentTheme.isCurrentWeek && hasCurrentThemeContent ? (
-                                  <Button 
-                                    onClick={handleViewContent}
-                                    className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full focus-visible:ring-4 focus-visible:ring-emerald-200"
-                                  >
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Review Content
-                                    <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
-                                  </Button>
-                                ) : (
-                                  <Button 
-                                    onClick={() => handleGenerateContent(currentTheme)}
-                                    className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full focus-visible:ring-4 focus-visible:ring-teal-200"
-                                  >
-                                    <Play className="w-4 h-4 mr-2" />
-                                    Create This Week's Posts
-                                    <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
-                                  </Button>
-                                )}
+                                 {/* Main CTA Button - Show correct button based on content availability */}
+                                 {hasCurrentThemeContent ? (
+                                   <div className="space-y-2 w-full">
+                                     <Button 
+                                       onClick={handleViewContent}
+                                       className="cta-button group bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full focus-visible:ring-4 focus-visible:ring-emerald-200"
+                                     >
+                                       <Eye className="w-4 h-4 mr-2" />
+                                       Review Content
+                                       <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
+                                     </Button>
+                                     {recentlyGeneratedTheme === currentTheme.id && (
+                                       <div className="text-center">
+                                         <span className="inline-flex items-center gap-1 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
+                                           <Sparkles className="w-4 h-4" />
+                                           Content just created! Click above to review.
+                                         </span>
+                                       </div>
+                                     )}
+                                   </div>
+                                 ) : (
+                                   <Button 
+                                     onClick={() => handleGenerateContent(currentTheme)}
+                                     className="cta-button group bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 w-full focus-visible:ring-4 focus-visible:ring-teal-200"
+                                   >
+                                     <Play className="w-4 h-4 mr-2" />
+                                     Create This Week's Posts
+                                     <ChevronRight className="w-4 h-4 ml-2 cta-chevron" />
+                                   </Button>
+                                 )}
                               </>
                              )}
                             </div>
