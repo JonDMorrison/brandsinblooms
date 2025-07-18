@@ -30,6 +30,8 @@ import { AutoSaveManager, useAutoSave } from '@/components/crm/AutoSaveManager';
 import { AutoSaveIndicator } from '@/components/crm/AutoSaveIndicator';
 import { BlockVersionModal } from '@/components/crm/BlockVersionModal';
 import { TemplateGalleryModal } from '@/components/crm/TemplateGalleryModal';
+import { BuilderEmptyState } from '@/components/crm/BuilderEmptyState';
+import { OnboardingTips } from '@/components/crm/OnboardingTips';
 import { useVersionHistory } from '@/hooks/useVersionHistory';
 import { reorderArray } from '@/utils/dragUtils';
 
@@ -74,6 +76,7 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
   const [blockToSave, setBlockToSave] = useState<EmailBlock | null>(null);
   const [recentBlocks, setRecentBlocks] = useState<EmailBlock[]>([]);
   const [campaign, setCampaign] = useState<any>(null);
+  const [showOnboardingTips, setShowOnboardingTips] = useState(true);
 
   const insertTemplateBlocks = (templateBlocks: EmailBlock[], templateName: string) => {
     const blocksWithIds = templateBlocks.map((block, index) => ({
@@ -272,6 +275,32 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
     setBlockToSave(block);
     setShowSaveBlock(true);
   };
+
+  const handleStartFromScratch = () => {
+    addBlock('header');
+    setShowOnboardingTips(false);
+  };
+
+  const onboardingSteps = [
+    {
+      step: 1,
+      title: "Drag & Drop Content",
+      description: "Use the toolbar to add text, images, buttons, and more.",
+      highlightSelector: ".w-20.border-r" // Block toolbar
+    },
+    {
+      step: 2,
+      title: "Style Your Campaign", 
+      description: "Customize fonts, colors, and layout to match your brand.",
+      highlightSelector: "[title='Styling']" // Global settings button
+    },
+    {
+      step: 3,
+      title: "Preview & Send",
+      description: "View your campaign on mobile or desktop, then schedule or send.",
+      highlightSelector: ".flex.items-center.border.rounded-lg" // Preview controls
+    }
+  ];
 
   if (crmLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
@@ -489,20 +518,13 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
                 <Droppable droppableId="email-blocks">
                   {(provided) => (
                     <div {...provided.droppableProps} ref={provided.innerRef}>
-                      {blocks.length === 0 ? (
-                        <div className="p-12 text-center text-muted-foreground">
-                          <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <h3 className="text-lg font-medium mb-2">Start Building Your Email</h3>
-                          <p className="mb-4">Add blocks from the toolbar, use Smart Blocks, or import content</p>
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setShowSmartBlocks(true)}
-                            className="gap-2"
-                          >
-                            <Sparkles className="w-4 h-4" />
-                            Browse Smart Blocks
-                          </Button>
-                        </div>
+                       {blocks.length === 0 ? (
+                         <div className="p-8">
+                           <BuilderEmptyState
+                             onBrowseTemplates={() => setShowTemplateGallery(true)}
+                             onStartFromScratch={handleStartFromScratch}
+                           />
+                         </div>
                       ) : (
                         blocks.map((block, index) => (
                           <Draggable
@@ -687,6 +709,14 @@ const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchTo
         onClose={() => setShowTemplateGallery(false)}
         onInsertTemplate={insertTemplateBlocks}
       />
+
+      {/* Onboarding Tips */}
+      {showOnboardingTips && blocks.length === 0 && (
+        <OnboardingTips
+          steps={onboardingSteps}
+          onDismiss={() => setShowOnboardingTips(false)}
+        />
+      )}
     </div>
   );
 };
