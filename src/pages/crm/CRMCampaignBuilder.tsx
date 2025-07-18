@@ -15,7 +15,7 @@ import {
   Plus, Save, Eye, Smartphone, Monitor, GripVertical, 
   Trash2, Type, Image, MousePointer, Minus, Package, 
   Sparkles, FileText, Palette, MessageSquare, BookOpen,
-  MoreVertical
+  MoreVertical, Clock, Archive, RotateCcw
 } from 'lucide-react';
 import { EmailBlock, GlobalSettings, BlockType } from '@/types/emailBuilder';
 import { EmailBlockRenderer } from '@/components/crm/EmailBlockRenderer';
@@ -26,16 +26,21 @@ import { SaveTemplateModal } from '@/components/crm/SaveTemplateModal';
 import { SavedBlockLibraryDrawer } from '@/components/crm/SavedBlockLibraryDrawer';
 import { SaveBlockModal } from '@/components/crm/SaveBlockModal';
 import { SmartContentBlocksSidebar } from '@/components/crm/SmartContentBlocksSidebar';
+import { AutoSaveManager, useAutoSave } from '@/components/crm/AutoSaveManager';
+import { AutoSaveIndicator } from '@/components/crm/AutoSaveIndicator';
+import { BlockVersionModal } from '@/components/crm/BlockVersionModal';
+import { useVersionHistory } from '@/hooks/useVersionHistory';
 import { reorderArray } from '@/utils/dragUtils';
 
 interface CRMCampaignBuilderProps {
   onSwitchToSimple?: () => void;
 }
 
-const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimple }) => {
+const CRMCampaignBuilderInner: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimple }) => {
   const { campaignId } = useParams();
   const [searchParams] = useSearchParams();
   const { hasCRMAccess, loading: crmLoading } = useCRMAccess();
+  const { saveStatus, saveBlock: autoSaveBlock, forceSave, hasUnsavedChanges } = useAutoSave();
   
   const [blocks, setBlocks] = useState<EmailBlock[]>([]);
   const [globalSettings, setGlobalSettings] = useState<GlobalSettings>({
@@ -63,10 +68,10 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
   const [showGlobalSettings, setShowGlobalSettings] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [showSaveBlock, setShowSaveBlock] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [blockToSave, setBlockToSave] = useState<EmailBlock | null>(null);
   const [recentBlocks, setRecentBlocks] = useState<EmailBlock[]>([]);
   const [campaign, setCampaign] = useState<any>(null);
-  const [autoSaving, setAutoSaving] = useState(false);
 
   useEffect(() => {
     if (campaignId) {
@@ -75,14 +80,16 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
     }
   }, [campaignId]);
 
+  // Remove the old auto-save logic since we're using the new AutoSaveManager
   useEffect(() => {
-    if (blocks.length > 0 && campaignId) {
-      const timeoutId = setTimeout(() => {
-        saveBlocks();
-      }, 2000);
-      return () => clearTimeout(timeoutId);
+    // Trigger auto-save when blocks change
+    if (blocks.length > 0 && selectedBlockId) {
+      const selectedBlock = blocks.find(b => b.id === selectedBlockId);
+      if (selectedBlock) {
+        autoSaveBlock(selectedBlock);
+      }
     }
-  }, [blocks, campaignId]);
+  }, [blocks, selectedBlockId, autoSaveBlock]);
 
   const loadCampaign = async () => {
     if (!campaignId) return;
@@ -123,36 +130,14 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
     })) || []);
   };
 
-  const saveBlocks = async () => {
-    if (!campaignId || blocks.length === 0) return;
-    
-    setAutoSaving(true);
-    
-    try {
-      // Delete existing blocks
-      await supabase
-        .from('campaign_blocks')
-        .delete()
-        .eq('campaign_id', campaignId);
-      
-      // Insert new blocks
-      const blocksToInsert = blocks.map((block, index) => ({
-        ...block,
-        campaign_id: campaignId,
-        order_index: index
-      }));
-      
-      const { error } = await supabase
-        .from('campaign_blocks')
-        .insert(blocksToInsert);
-      
-      if (error) throw error;
-      
-    } catch (error) {
-      console.error('Error saving blocks:', error);
-      toast.error('Failed to save changes');
-    } finally {
-      setAutoSaving(false);
+  // Manual save function for force save
+  const manualSave = () => {
+    if (selectedBlockId) {
+      const selectedBlock = blocks.find(b => b.id === selectedBlockId);
+      if (selectedBlock) {
+        forceSave(selectedBlock);
+        toast.success('Changes saved manually');
+      }
     }
   };
 
@@ -300,12 +285,10 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
             {campaign && (
               <Badge variant="outline">{campaign.name}</Badge>
             )}
-            {autoSaving && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                Auto-saving...
-              </div>
-            )}
+            <AutoSaveIndicator 
+              status={saveStatus} 
+              onRetry={() => manualSave()}
+            />
           </div>
           
           <div className="flex items-center gap-3">
@@ -347,16 +330,26 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
               <Plus className="w-4 h-4" />
               Add Content
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowSaveTemplate(true)}
-              className="gap-2"
-              disabled={blocks.length === 0}
-            >
-              <Save className="w-4 h-4" />
-              Save as Template
-            </Button>
+             <Button
+               variant="outline"
+               size="sm"
+               onClick={manualSave}
+               className="gap-2"
+               disabled={!selectedBlockId}
+             >
+               <Save className="w-4 h-4" />
+               Manual Save
+             </Button>
+             <Button
+               variant="outline"
+               size="sm"
+               onClick={() => setShowSaveTemplate(true)}
+               className="gap-2"
+               disabled={blocks.length === 0}
+             >
+               <Archive className="w-4 h-4" />
+               Save as Template
+             </Button>
             <Button
               variant="outline"
               size="sm"
@@ -512,19 +505,31 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
                                     <GripVertical className="w-4 h-4 text-muted-foreground" />
                                   </div>
                                 </div>
-                                <div className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSaveBlock(block);
-                                    }}
-                                    title="Save Block"
-                                  >
-                                    <MoreVertical className="w-3 h-3" />
-                                  </Button>
+                                 <div className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     className="h-6 w-6 p-0"
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       setShowVersionHistory(true);
+                                     }}
+                                     title="Version History"
+                                   >
+                                     <Clock className="w-3 h-3" />
+                                   </Button>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     className="h-6 w-6 p-0"
+                                     onClick={(e) => {
+                                       e.stopPropagation();
+                                       handleSaveBlock(block);
+                                     }}
+                                     title="Save Block"
+                                   >
+                                     <Archive className="w-3 h-3" />
+                                   </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -639,7 +644,36 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
           }
         }}
       />
+
+      {/* Version History Modal */}
+      {showVersionHistory && selectedBlockId && (
+        <BlockVersionModal
+          open={showVersionHistory}
+          onClose={() => setShowVersionHistory(false)}
+          blockId={selectedBlockId}
+          campaignId={campaignId || ''}
+          onRestore={(content, blockType) => {
+            updateBlock(selectedBlockId, { content, block_type: blockType as BlockType });
+            toast.success('Version restored successfully');
+          }}
+        />
+      )}
     </div>
+  );
+};
+
+// Main wrapper component with AutoSaveManager
+const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = (props) => {
+  const { campaignId } = useParams();
+  
+  if (!campaignId) {
+    return <div className="flex items-center justify-center h-64">Invalid campaign ID</div>;
+  }
+  
+  return (
+    <AutoSaveManager campaignId={campaignId}>
+      <CRMCampaignBuilderInner {...props} />
+    </AutoSaveManager>
   );
 };
 

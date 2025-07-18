@@ -112,6 +112,45 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_block_versions: {
+        Row: {
+          block_id: string
+          campaign_id: string
+          created_at: string
+          id: string
+          snapshot_json: Json
+        }
+        Insert: {
+          block_id: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+          snapshot_json: Json
+        }
+        Update: {
+          block_id?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          snapshot_json?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_block_versions_block_id_fkey"
+            columns: ["block_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_blocks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_block_versions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_blocks: {
         Row: {
           block_type: string
