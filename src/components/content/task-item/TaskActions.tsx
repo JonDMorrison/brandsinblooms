@@ -5,6 +5,7 @@ import { Edit, MoreHorizontal, Copy, Trash2, Save, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ApproveButton } from "@/components/ui/approve-button";
 import { PostToSocialButton } from "@/components/social/PostToSocialButton";
+import { PostToCRMButton } from "@/components/crm/PostToCRMButton";
 // Removed sonner import - using global toast replacement
 import { supabase } from "@/integrations/supabase/client";
 
@@ -138,6 +139,15 @@ export const TaskActions = ({
         <PostToSocialButton
           task={task}
           onSuccess={onTaskUpdate}
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 text-xs"
+        />
+      )}
+
+      {!isEditing && isApproved && task.post_type === 'newsletter' && (
+        <PostToCRMButton
+          task={task}
           variant="ghost"
           size="sm"
           className="h-8 px-2 text-xs"
