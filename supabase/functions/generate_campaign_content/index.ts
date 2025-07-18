@@ -187,12 +187,12 @@ serve(async (req) => {
     console.log('✅ Content generation completed for all types');
 
     const successfulTasks = generatedTasks.filter(task => !task.error);
-    const failedTasks = generatedTasks.filter(task => task.error);
+    const finalFailedTasks = generatedTasks.filter(task => task.error);
 
     return corsJsonResponse({
-      success: failedTasks.length < REQUIRED_CONTENT_TYPES.length, // Success if at least some content was generated
+      success: finalFailedTasks.length < REQUIRED_CONTENT_TYPES.length, // Success if at least some content was generated
       tasks: generatedTasks,
-      message: `Generated ${successfulTasks.length}/${REQUIRED_CONTENT_TYPES.length} content pieces${failedTasks.length > 0 ? `. Failed: ${failedTasks.map(t => t.post_type).join(', ')}` : ''}`
+      message: `Generated ${successfulTasks.length}/${REQUIRED_CONTENT_TYPES.length} content pieces${finalFailedTasks.length > 0 ? `. Failed: ${finalFailedTasks.map(t => t.post_type).join(', ')}` : ''}`
     });
 
   } catch (error) {

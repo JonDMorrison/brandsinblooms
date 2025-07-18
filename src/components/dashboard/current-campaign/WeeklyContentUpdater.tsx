@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getCurrentWeekNumber } from '@/utils/dateUtils';
 import { cleanupDuplicateCampaigns, generateMeaningfulTheme } from '@/utils/campaignCleanup';
 import { generateCampaignContent, ContentGenerationResult } from '@/components/homepage/ContentGenerationServices';
-// Removed sonner import - using global toast replacement
+import "@/utils/globalToastReplace";
 import { TASK_STATUS } from '@/constants/taskStatus';
 
 export const WeeklyContentUpdater = () => {
@@ -184,11 +184,17 @@ export const WeeklyContentUpdater = () => {
           console.log('✅ Auto-generated content successfully');
           toast.success(`Your weekly content is ready! Generated ${result.tasks?.length || 0} pieces.`);
           
-          // Trigger a refresh of dashboard data to show new content
+          // Trigger multiple refresh events to ensure UI updates
           window.dispatchEvent(new CustomEvent('refreshDashboard'));
+          window.dispatchEvent(new CustomEvent('contentGenerated', { 
+            detail: { campaignId: campaign.id, tasksCount: result.tasks?.length || 0 }
+          }));
         } else if (mountedRef.current) {
           console.error('❌ Auto-generation failed:', result.message);
           toast.error('Content generation had some issues, but partial content may be available.');
+          
+          // Still trigger refresh to show any partial content
+          window.dispatchEvent(new CustomEvent('refreshDashboard'));
         }
       } catch (error) {
         console.error('❌ Error auto-generating content:', error);
