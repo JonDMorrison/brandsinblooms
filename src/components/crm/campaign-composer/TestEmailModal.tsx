@@ -14,6 +14,7 @@ interface TestEmailModalProps {
     name: string;
     subject_line: string;
     content: string;
+    id?: string; // Optional campaign ID for tracking
   };
   onTestSent?: () => void;
 }
@@ -75,7 +76,8 @@ export const TestEmailModal: React.FC<TestEmailModalProps> = ({
             email: email.trim(),
             subject: campaignData.subject_line || 'Test Email',
             content: campaignData.content,
-            testName: testName
+            testName: testName,
+            campaignId: campaignData.id // Include campaign ID for webhook tracking
           }
         });
 

@@ -59,6 +59,7 @@ interface EmailBlock {
 }
 
 interface CampaignData {
+  id?: string; // Optional campaign ID for tracking
   name: string;
   subject_line: string;
   segment_id: string;
@@ -704,6 +705,7 @@ export const EmailCampaignComposer: React.FC = () => {
         isOpen={showTestEmailModal}
         onClose={() => setShowTestEmailModal(false)}
         campaignData={{
+          id: campaignData.id, // Pass campaign ID for webhook tracking
           name: campaignData.name,
           subject_line: campaignData.subject_line,
           content: generateHTML()

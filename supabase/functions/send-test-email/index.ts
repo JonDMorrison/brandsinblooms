@@ -13,6 +13,7 @@ interface TestEmailRequest {
   subject?: string;
   content?: string;
   testName?: string;
+  campaignId?: string; // Add campaign ID for test emails
   // Legacy support for domain verification
   senderEmail?: string;
   testRecipient?: string;
@@ -96,7 +97,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Handle campaign test email request
-    const { email, subject, content, testName = 'Test User' } = requestData;
+    const { email, subject, content, testName = 'Test User', campaignId } = requestData;
 
     if (!email || !content) {
       return new Response(
@@ -151,16 +152,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     const finalContent = testHeader + processedContent;
 
+    // Prepare headers with optional campaign tracking
+    const emailHeaders: Record<string, string> = {
+      'X-Campaign-Type': 'test',
+      'X-BloomSuite-Test': 'true'
+    };
+
+    // Add campaign ID for test emails if provided
+    if (campaignId) {
+      emailHeaders['X-Campaign-ID'] = campaignId;
+    }
+
     // Send test email
     const emailResponse = await resend.emails.send({
       from: 'BloomSuite Test <noreply@bloomsuite.email>',
       to: [email],
       subject: `[TEST] ${subject || 'Email Campaign Preview'}`,
       html: finalContent,
-      headers: {
-        'X-Campaign-Type': 'test',
-        'X-BloomSuite-Test': 'true'
-      }
+      headers: emailHeaders,
+      tags: campaignId ? [`campaign:${campaignId}`, 'type:test'] : ['type:test']
     });
 
     if (emailResponse.id) {

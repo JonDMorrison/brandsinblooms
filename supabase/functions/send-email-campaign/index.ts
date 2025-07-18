@@ -232,12 +232,22 @@ serve(async (req) => {
             onConflict: 'email,tenant_id'
           });
 
-        // Prepare email payload
+        // Prepare email payload with campaign tracking
         const emailPayload: any = {
           from: fromAddress,
           to: [customer.email],
           subject: emailSubject,
           html: emailContent,
+          headers: {
+            'X-Campaign-ID': campaignId, // Critical for webhook tracking
+            'X-Campaign-Type': 'bulk',
+            'X-Tenant-ID': campaign.tenant_id
+          },
+          tags: [
+            `campaign:${campaignId}`,
+            'type:bulk',
+            `tenant:${campaign.tenant_id}`
+          ]
         };
 
         // Add reply-to if custom sender is available

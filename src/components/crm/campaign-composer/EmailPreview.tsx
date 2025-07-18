@@ -18,13 +18,15 @@ interface EmailPreviewProps {
   onClose: () => void;
   subject: string;
   content: string;
+  campaignId?: string; // Optional campaign ID for tracking
 }
 
 export const EmailPreview: React.FC<EmailPreviewProps> = ({
   isOpen,
   onClose,
   subject,
-  content
+  content,
+  campaignId
 }) => {
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<'desktop' | 'mobile'>('desktop');
@@ -45,9 +47,10 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
     try {
       const { error } = await supabase.functions.invoke('send-test-email', {
         body: {
-          to: testEmail,
+          email: testEmail,
           subject: subject || 'Test Email Campaign',
-          html: content
+          content: content,
+          campaignId: campaignId // Include campaign ID for webhook tracking
         }
       });
 
