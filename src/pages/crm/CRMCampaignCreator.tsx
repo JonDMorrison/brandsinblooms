@@ -436,6 +436,8 @@ const CRMCampaignCreator = () => {
                 />
               ) : emailBuilderMode === 'simple' ? (
                 <CRMSimpleEmailBuilder
+                  campaignId={createdCampaignId}
+                  selectedSegments={campaignData.segment_ids}
                   onSwitchToAdvanced={handleSwitchToAdvanced}
                 />
               ) : (
