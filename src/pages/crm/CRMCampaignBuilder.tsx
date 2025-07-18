@@ -14,7 +14,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus, Save, Eye, Smartphone, Monitor, GripVertical, 
   Trash2, Type, Image, MousePointer, Minus, Package, 
-  Sparkles, FileText, Palette, MessageSquare
+  Sparkles, FileText, Palette, MessageSquare, BookOpen,
+  MoreVertical
 } from 'lucide-react';
 import { EmailBlock, GlobalSettings, BlockType } from '@/types/emailBuilder';
 import { EmailBlockRenderer } from '@/components/crm/EmailBlockRenderer';
@@ -22,6 +23,8 @@ import { BlockEditor } from '@/components/crm/BlockEditor';
 import { ContentIntegrationSidebar } from '@/components/crm/ContentIntegrationSidebar';
 import { GlobalSettingsPanel } from '@/components/crm/GlobalSettingsPanel';
 import { SaveTemplateModal } from '@/components/crm/SaveTemplateModal';
+import { SavedBlockLibraryDrawer } from '@/components/crm/SavedBlockLibraryDrawer';
+import { SaveBlockModal } from '@/components/crm/SaveBlockModal';
 import { SmartContentBlocksSidebar } from '@/components/crm/SmartContentBlocksSidebar';
 import { reorderArray } from '@/utils/dragUtils';
 
@@ -56,8 +59,12 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [showContentSidebar, setShowContentSidebar] = useState(false);
   const [showSmartBlocks, setShowSmartBlocks] = useState(false);
+  const [showBlockLibrary, setShowBlockLibrary] = useState(false);
   const [showGlobalSettings, setShowGlobalSettings] = useState(false);
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [showSaveBlock, setShowSaveBlock] = useState(false);
+  const [blockToSave, setBlockToSave] = useState<EmailBlock | null>(null);
+  const [recentBlocks, setRecentBlocks] = useState<EmailBlock[]>([]);
   const [campaign, setCampaign] = useState<any>(null);
   const [autoSaving, setAutoSaving] = useState(false);
 
@@ -161,6 +168,33 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
     
     setBlocks(prev => [...prev, newBlock]);
     setSelectedBlockId(newBlock.id);
+    
+    // Add to recent blocks
+    setRecentBlocks(prev => [newBlock, ...prev.slice(0, 2)]);
+  };
+
+  const insertBlock = (block: EmailBlock, position?: number) => {
+    const newBlock = {
+      ...block,
+      id: crypto.randomUUID(),
+      campaign_id: campaignId || '',
+      order_index: position !== undefined ? position : blocks.length
+    };
+    
+    if (position !== undefined) {
+      // Insert at specific position
+      const newBlocks = [...blocks];
+      newBlocks.splice(position, 0, newBlock);
+      setBlocks(newBlocks.map((b, index) => ({ ...b, order_index: index })));
+    } else {
+      // Add to end
+      setBlocks(prev => [...prev, newBlock]);
+    }
+    
+    setSelectedBlockId(newBlock.id);
+    
+    // Add to recent blocks
+    setRecentBlocks(prev => [newBlock, ...prev.slice(0, 2)]);
   };
 
   const getDefaultContent = (blockType: BlockType) => {
@@ -236,6 +270,11 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
     }
   };
 
+  const handleSaveBlock = (block: EmailBlock) => {
+    setBlockToSave(block);
+    setShowSaveBlock(true);
+  };
+
   if (crmLoading) {
     return <div className="flex items-center justify-center h-64">Loading...</div>;
   }
@@ -281,6 +320,15 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
                 Switch to Simple
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowBlockLibrary(true)}
+              className="gap-2"
+            >
+              <BookOpen className="w-4 h-4" />
+              📚 Insert From Library
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -464,7 +512,19 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
                                     <GripVertical className="w-4 h-4 text-muted-foreground" />
                                   </div>
                                 </div>
-                                <div className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 w-6 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSaveBlock(block);
+                                    }}
+                                    title="Save Block"
+                                  >
+                                    <MoreVertical className="w-3 h-3" />
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -541,6 +601,30 @@ const CRMCampaignBuilder: React.FC<CRMCampaignBuilderProps> = ({ onSwitchToSimpl
         settings={globalSettings}
         onUpdate={setGlobalSettings}
       />
+
+      {/* Block Library Drawer */}
+      <SavedBlockLibraryDrawer
+        open={showBlockLibrary}
+        onClose={() => setShowBlockLibrary(false)}
+        onInsertBlock={insertBlock}
+        recentBlocks={recentBlocks}
+      />
+
+      {/* Save Block Modal */}
+      {blockToSave && (
+        <SaveBlockModal
+          open={showSaveBlock}
+          onClose={() => {
+            setShowSaveBlock(false);
+            setBlockToSave(null);
+          }}
+          block={blockToSave}
+          onBlockSaved={() => {
+            setShowSaveBlock(false);
+            setBlockToSave(null);
+          }}
+        />
+      )}
 
       {/* Save Template Modal */}
       <SaveTemplateModal

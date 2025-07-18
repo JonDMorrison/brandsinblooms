@@ -1999,6 +1999,48 @@ export type Database = {
           },
         ]
       }
+      saved_blocks: {
+        Row: {
+          block_type: string
+          content: Json
+          created_at: string
+          id: string
+          is_bloomsuite_block: boolean | null
+          name: string
+          tags: string[] | null
+          tenant_id: string | null
+          updated_at: string
+          usage_count: number | null
+          user_id: string
+        }
+        Insert: {
+          block_type: string
+          content?: Json
+          created_at?: string
+          id?: string
+          is_bloomsuite_block?: boolean | null
+          name: string
+          tags?: string[] | null
+          tenant_id?: string | null
+          updated_at?: string
+          usage_count?: number | null
+          user_id: string
+        }
+        Update: {
+          block_type?: string
+          content?: Json
+          created_at?: string
+          id?: string
+          is_bloomsuite_block?: boolean | null
+          name?: string
+          tags?: string[] | null
+          tenant_id?: string | null
+          updated_at?: string
+          usage_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_campaign_templates: {
         Row: {
           category: string | null
