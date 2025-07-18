@@ -1,377 +1,93 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
+import Index from "@/pages/Index";
+import Login from "@/pages/Login";
+import SignUp from "@/pages/SignUp";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
+import Dashboard from "@/pages/Dashboard";
+import Campaigns from "@/pages/Campaigns";
+import CampaignDetail from "@/pages/CampaignDetail";
+import CampaignEdit from "@/pages/CampaignEdit";
+import Library from "@/pages/Library";
+import TemplateLibrary from "@/pages/TemplateLibrary";
+import Calendar from "@/pages/Calendar";
+import Analytics from "@/pages/Analytics";
+import SocialConnections from "@/pages/SocialConnections";
+import Account from "@/pages/Account";
+import Images from "@/pages/Images";
+import Onboarding from "@/pages/Onboarding";
+import CRM from "@/pages/crm/CRM";
+import CRMCustomers from "@/pages/crm/CRMCustomers";
+import CRMCustomerDetail from "@/pages/crm/CRMCustomerDetail";
+import CRMSegments from "@/pages/crm/CRMSegments";
+import CRMCampaigns from "@/pages/crm/CRMCampaigns";
+import CRMCampaignDetail from "@/pages/crm/CRMCampaignDetail";
+import CRMCampaignBuilder from "@/pages/crm/CRMCampaignBuilder";
+import CRMAnalytics from "@/pages/crm/CRMAnalytics";
+import CRMAutomations from "@/pages/crm/CRMAutomations";
+import CRMSMSCampaigns from "@/pages/crm/CRMSMSCampaigns";
+import CRMIntegrations from "@/pages/crm/CRMIntegrations";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import CRMCampaignCreator from '@/pages/crm/CRMCampaignCreator';
 
-import React, { lazy } from 'react';
-import {
-  BrowserRouter as Router,
-  Route,
-  Routes,
-  Navigate,
-} from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import { SubscriptionProvider } from './contexts/SubscriptionContext';
-import { ContentGenerationProvider } from './contexts/ContentGenerationContext';
-import { LoadingProvider } from './contexts/LoadingContext';
-import { GlobalDataProvider } from './contexts/GlobalDataContext';
-import { LazyLoadWrapper } from './components/LazyLoadWrapper';
-import { optimizeImageLoading } from './utils/performanceOptimizations';
-import { SidebarProvider } from '@/components/ui/sidebar';
-import { AuthenticatedLayout } from './components/layouts/AuthenticatedLayout';
-import { GlobalLoadingOverlay } from './components/loading/GlobalLoadingOverlay';
+const queryClient = new QueryClient();
 
-// Immediate loading for critical components
-import { SmartRootRoute } from './components/SmartRootRoute';
-import Auth from "./pages/Auth";
-
-
-// Lazy load non-critical components for better initial performance
-const NewDashboard = lazy(() => import('./pages/NewDashboard'));
-const Onboarding = lazy(() => import('./pages/OnboardingPage'));
-const PricingPage = lazy(() => import('./pages/PricingPage'));
-const AccountSettings = lazy(() => import('./pages/AccountPage'));
-const CompanyProfile = lazy(() => import('./pages/ProfilePage'));
-const SocialAccounts = lazy(() => import('./pages/SocialPage'));
-const BillingPage = lazy(() => import('./pages/BillingPage'));
-const CalendarPage = lazy(() => import('./pages/CalendarPage'));
-const TeamPage = lazy(() => import('./pages/TeamPage'));
-const ContentImportPage = lazy(() => import('./pages/ContentLibraryPage'));
-const ReviewQueuePage = lazy(() => import('./pages/ContentTasksPage'));
-const DevSocialPageWrapper = lazy(() => import('./pages/DevSocialPage'));
-const PublishPage = lazy(() => import("./pages/PublishPage"));
-const SuccessPage = lazy(() => import("./pages/SuccessPage"));
-const IntegrationsPage = lazy(() => import("./pages/IntegrationsPage"));
-const ZapierPage = lazy(() => import("./pages/ZapierPage"));
-const AutomationPage = lazy(() => import("./pages/AutomationPage"));
-const AuthCallbackPage = lazy(() => import("./pages/AuthCallbackPage"));
-
-// CRM Pages
-const CRMDashboard = lazy(() => import("./pages/crm/CRMDashboard"));
-const CRMCustomers = lazy(() => import("./pages/crm/CRMCustomers"));
-const CRMSegments = lazy(() => import("./pages/crm/CRMSegments"));
-const CRMCampaigns = lazy(() => import("./pages/crm/CRMCampaigns"));
-const CRMCampaignComposer = lazy(() => import("./pages/crm/CRMCampaignComposer"));
-const CRMCampaignBuilder = lazy(() => import("./pages/crm/CRMCampaignBuilder"));
-const CRMCampaignDetail = lazy(() => import("./pages/crm/CRMCampaignDetail"));
-const CRMSMSCampaigns = lazy(() => import("./pages/crm/CRMSMSCampaigns"));
-const CRMSMSCampaignComposer = lazy(() => import("./pages/crm/CRMSMSCampaignComposer"));
-const CRMSMSCampaignDetail = lazy(() => import("./pages/crm/CRMSMSCampaignDetail"));
-const Automations = lazy(() => import("./pages/crm/Automations"));
-const CRMAutomationBuilder = lazy(() => import("./pages/crm/CRMAutomationBuilder"));
-const PersonaAnalytics = lazy(() => import("./pages/crm/PersonaAnalytics"));
-const CRMAnalytics = lazy(() => import("./pages/crm/CRMAnalytics"));
-const POSIntegrations = lazy(() => import("./pages/crm/POSIntegrations"));
-const CustomerProfile = lazy(() => import("./pages/crm/CustomerProfile"));
-const CampaignDetails = lazy(() => import("./pages/crm/CampaignDetails"));
-const SMSCampaignDetails = lazy(() => import("./pages/crm/SMSCampaignDetails"));
-const EmailDomainSetup = lazy(() => import("./pages/crm/EmailDomainSetup"));
-const UnsubscribePage = lazy(() => import("./pages/crm/UnsubscribePage"));
-
-// Lazy load test components
-const SocialMediaIntegrationTest = lazy(() => import('./components/test/SocialMediaIntegrationTest').then(module => ({ default: module.SocialMediaIntegrationTest })));
-const OAuthDebugger = lazy(() => import('./components/test/OAuthDebugger').then(module => ({ default: module.OAuthDebugger })));
-
-const App = () => {
-  // Initialize image optimization when app loads
-  React.useEffect(() => {
-    optimizeImageLoading();
-  }, []);
+function App() {
   return (
-    <AuthProvider>
-      <LoadingProvider>
-        <GlobalDataProvider>
-          <Router>
-            <SubscriptionProvider>
-              <ContentGenerationProvider>
-                <SidebarProvider>
-                <GlobalLoadingOverlay />
-                <Routes>
-                {/* Critical routes - no lazy loading */}
-                <Route path="/" element={<SmartRootRoute />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/dashboard" element={<Navigate to="/" replace />} />
-                <Route path="/social" element={<Navigate to="/social-accounts" replace />} />
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <BrowserRouter>
+          <div className="min-h-screen bg-background">
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              
+              {/* Protected Routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/onboarding" element={<Onboarding />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/campaigns" element={<Campaigns />} />
+                <Route path="/campaigns/:campaignId" element={<CampaignDetail />} />
+                <Route path="/campaigns/:campaignId/edit" element={<CampaignEdit />} />
+                <Route path="/library" element={<Library />} />
+                <Route path="/library/templates" element={<TemplateLibrary />} />
+                <Route path="/calendar" element={<Calendar />} />
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/social-connections" element={<SocialConnections />} />
+                <Route path="/account" element={<Account />} />
+                <Route path="/images" element={<Images />} />
                 
-                {/* Authenticated routes with shared layout */}
-                <Route path="/new-dashboard" element={
-                  <AuthenticatedLayout>
-                    <LazyLoadWrapper>
-                      <NewDashboard />
-                    </LazyLoadWrapper>
-                  </AuthenticatedLayout>
-                } />
-              <Route path="/auth/callback" element={
-                <LazyLoadWrapper>
-                  <AuthCallbackPage />
-                </LazyLoadWrapper>
-              } />
-              <Route path="/auth/test" element={<div style={{padding: '20px', fontSize: '24px', color: 'green'}}>🧪 Auth Test Route Working! URL: {window.location.href}</div>} />
-              <Route path="/onboarding" element={
-                <LazyLoadWrapper>
-                  <Onboarding />
-                </LazyLoadWrapper>
-              } />
-              <Route path="/onboarding/manual" element={
-                <LazyLoadWrapper>
-                  <Onboarding />
-                </LazyLoadWrapper>
-              } />
-              <Route path="/pricing" element={
-                <LazyLoadWrapper>
-                  <PricingPage />
-                </LazyLoadWrapper>
-              } />
-              <Route path="/account" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <AccountSettings />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/profile" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CompanyProfile />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/company-profile" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CompanyProfile />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/social-accounts" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <SocialAccounts />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/billing" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <BillingPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/calendar" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CalendarPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/team" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <TeamPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/content-import" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <ContentImportPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/review-queue" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <ReviewQueuePage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/dev-social" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <DevSocialPageWrapper />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-                <Route path="/publish" element={
-                  <AuthenticatedLayout>
-                    <LazyLoadWrapper loadingText="Loading publish portal...">
-                      <PublishPage />
-                    </LazyLoadWrapper>
-                  </AuthenticatedLayout>
-                } />
-              <Route path="/success" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <SuccessPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/integrations" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <IntegrationsPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/integrations/zapier" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <ZapierPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/automation" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <AutomationPage />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMDashboard />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/customers" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMCustomers />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/customers/:id" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CustomerProfile />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/segments" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMSegments />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/campaigns" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMCampaigns />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/campaigns/new" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMCampaignComposer />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/campaigns/builder/:campaignId" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMCampaignBuilder />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/campaigns/:id" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CampaignDetails />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/sms-campaigns" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMSMSCampaigns />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/sms-campaigns/new" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <CRMSMSCampaignComposer />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/sms-campaigns/:id" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <SMSCampaignDetails />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/automations" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <Automations />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-               <Route path="/crm/automations/new" element={
-                 <AuthenticatedLayout>
-                   <LazyLoadWrapper>
-                     <CRMAutomationBuilder />
-                   </LazyLoadWrapper>
-                 </AuthenticatedLayout>
-               } />
-               <Route path="/crm/personas/analytics" element={
-                 <AuthenticatedLayout>
-                   <LazyLoadWrapper>
-                     <PersonaAnalytics />
-                   </LazyLoadWrapper>
-                 </AuthenticatedLayout>
-               } />
-               <Route path="/crm/analytics" element={
-                 <AuthenticatedLayout>
-                   <LazyLoadWrapper>
-                     <CRMAnalytics />
-                   </LazyLoadWrapper>
-                 </AuthenticatedLayout>
-               } />
-              <Route path="/crm/settings/integrations" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <POSIntegrations />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/crm/settings/email-auth" element={
-                <AuthenticatedLayout>
-                  <LazyLoadWrapper>
-                    <EmailDomainSetup />
-                  </LazyLoadWrapper>
-                </AuthenticatedLayout>
-              } />
-              <Route path="/unsubscribe" element={
-                <LazyLoadWrapper>
-                  <UnsubscribePage />
-                </LazyLoadWrapper>
-              } />
-              <Route path="/test/social-integration" element={
-                <LazyLoadWrapper>
-                  <div className="container mx-auto p-8">
-                    <SocialMediaIntegrationTest />
-                  </div>
-                </LazyLoadWrapper>
-              } />
-              <Route path="/test/oauth-debug" element={
-                <LazyLoadWrapper>
-                  <div className="container mx-auto p-8">
-                    <OAuthDebugger />
-                  </div>
-                </LazyLoadWrapper>
-              } />
-                </Routes>
-                </SidebarProvider>
-              </ContentGenerationProvider>
-            </SubscriptionProvider>
-            
-            
-          </Router>
-        </GlobalDataProvider>
-      </LoadingProvider>
-    </AuthProvider>
+                {/* CRM Routes */}
+                <Route path="/crm" element={<CRM />} />
+                <Route path="/crm/customers" element={<CRMCustomers />} />
+                <Route path="/crm/customers/:customerId" element={<CRMCustomerDetail />} />
+                <Route path="/crm/segments" element={<CRMSegments />} />
+                <Route path="/crm/campaigns" element={<CRMCampaigns />} />
+                <Route path="/crm/campaigns/new" element={<CRMCampaignCreator />} />
+                <Route path="/crm/campaigns/builder/:campaignId" element={<CRMCampaignBuilder />} />
+                <Route path="/crm/campaigns/:campaignId" element={<CRMCampaignDetail />} />
+                <Route path="/crm/analytics" element={<CRMAnalytics />} />
+                <Route path="/crm/automations" element={<CRMAutomations />} />
+                <Route path="/crm/sms" element={<CRMSMSCampaigns />} />
+                <Route path="/crm/integrations" element={<CRMIntegrations />} />
+                
+                {/* Admin Routes */}
+                <Route path="/admin" element={<AdminDashboard />} />
+              </Route>
+            </Routes>
+          </div>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
-};
+}
 
 export default App;
