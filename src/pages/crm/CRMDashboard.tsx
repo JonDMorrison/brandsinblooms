@@ -52,44 +52,42 @@ const CRMDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Your CRM Dashboard</h1>
-          <p className="text-gray-600">Monitor your campaigns and grow your customer base</p>
-        </div>
+    <div className="py-8">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">Your CRM Dashboard</h1>
+        <p className="text-gray-600">Monitor your campaigns and grow your customer base</p>
+      </div>
 
-        {/* Metrics Section */}
-        <div className="mb-8">
-          <HeroMetricsSection
-            customerStats={customerStats}
-            campaignStats={campaignStats}
+      {/* Metrics Section */}
+      <div className="mb-8">
+        <HeroMetricsSection
+          customerStats={customerStats}
+          campaignStats={campaignStats}
+          segmentCount={segmentCount}
+        />
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column - Quick Start & Empty State */}
+        <div className="lg:col-span-2 space-y-8">
+          <QuickStartStepper
+            customerCount={customerStats.total}
             segmentCount={segmentCount}
+            campaignCount={campaignStats.email.campaignCount + campaignStats.sms.campaignCount}
+            onStepComplete={() => {}}
+          />
+          
+          <EmptyStateSection
+            customerCount={customerStats.total}
+            campaignCount={campaignStats.email.campaignCount + campaignStats.sms.campaignCount}
           />
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Quick Start & Empty State */}
-          <div className="lg:col-span-2 space-y-8">
-            <QuickStartStepper
-              customerCount={customerStats.total}
-              segmentCount={segmentCount}
-              campaignCount={campaignStats.email.campaignCount + campaignStats.sms.campaignCount}
-              onStepComplete={() => {}}
-            />
-            
-            <EmptyStateSection
-              customerCount={customerStats.total}
-              campaignCount={campaignStats.email.campaignCount + campaignStats.sms.campaignCount}
-            />
-          </div>
-
-          {/* Right Column - Feature Highlights */}
-          <div className="space-y-8">
-            <FeatureHighlightsCard />
-          </div>
+        {/* Right Column - Feature Highlights */}
+        <div className="space-y-8">
+          <FeatureHighlightsCard />
         </div>
       </div>
 

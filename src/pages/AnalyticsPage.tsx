@@ -1,11 +1,9 @@
 
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
-import { ProtectedPageWrapper } from "@/components/ProtectedPageWrapper";
 import { Button } from "@/components/ui/button";
 import { BarChart3, TrendingUp, Users, Clock, Download, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getCurrentWeekNumber } from "@/utils/dateUtils";
 
 const AnalyticsPage = () => {
   const [campaigns, setCampaigns] = useState<any[]>([]);
@@ -57,7 +55,7 @@ const AnalyticsPage = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 py-6">
       {/* Page Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
         <div className="space-y-2">

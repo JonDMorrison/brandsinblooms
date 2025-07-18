@@ -9,6 +9,7 @@ import AnalyticsPage from "@/pages/AnalyticsPage";
 import AccountPage from "@/pages/AccountPage";
 import AdminPage from "@/pages/AdminPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { SidebarLayout } from "@/components/SidebarLayout";
 import CRMCampaignCreator from '@/pages/crm/CRMCampaignCreator';
 import CRMAnalytics from '@/pages/crm/CRMAnalytics';
 import CRMDashboard from '@/pages/crm/CRMDashboard';
@@ -22,8 +23,14 @@ function App() {
           <Route path="/" element={<SmartRootRoute />} />
           <Route path="/auth" element={<Auth />} />
           
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute><Outlet /></ProtectedRoute>}>
+          {/* Protected Routes with Sidebar Layout */}
+          <Route element={
+            <ProtectedRoute>
+              <SidebarLayout>
+                <Outlet />
+              </SidebarLayout>
+            </ProtectedRoute>
+          }>
             <Route path="/dashboard" element={<Index />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/account" element={<AccountPage />} />

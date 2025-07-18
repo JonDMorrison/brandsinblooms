@@ -3,15 +3,11 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { DashboardContent } from "@/components/dashboard/DashboardContent";
-import { UserMenu } from "@/components/UserMenu";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { SidebarLayout } from "@/components/SidebarLayout";
 import { DashboardErrorBoundary } from "@/components/DashboardErrorBoundary";
 import { useLoading } from "@/contexts/LoadingContext";
 
 const Index = () => {
   const { user, loading } = useAuth();
-  const isMobile = useIsMobile();
   const { setLoading, clearLoading } = useLoading();
   const [onboardingData, setOnboardingData] = useState({
     aboutBusiness: "",
@@ -107,24 +103,14 @@ const Index = () => {
 
   return (
     <DashboardErrorBoundary>
-      <div className="min-h-screen relative">
-        {/* Fixed UserMenu - always visible at top right */}
-        <div className={`fixed top-4 right-4 z-[9999] ${isMobile ? 'top-2 right-2' : ''}`}>
-          <UserMenu />
-        </div>
-        
-        <SidebarLayout>
-          <div className="w-full h-full bg-garden-background">
-            {/* Dashboard Content */}
-            <div className="w-full h-full p-6">
+      <div className="w-full h-full bg-garden-background">
+        <div className="w-full h-full p-6">
           <DashboardContent 
             onboardingData={onboardingData} 
             onBusinessNameChange={handleBusinessNameChange}
             onCampaignCreated={handleCampaignCreated}
           />
-            </div>
-          </div>
-        </SidebarLayout>
+        </div>
       </div>
     </DashboardErrorBoundary>
   );
