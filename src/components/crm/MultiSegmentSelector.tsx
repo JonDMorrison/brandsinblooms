@@ -272,5 +272,5 @@ const MultiSegmentSelector = ({
   );
 };
 
-export { MultiSegmentSelector };
 export default MultiSegmentSelector;
+export { MultiSegmentSelector };
