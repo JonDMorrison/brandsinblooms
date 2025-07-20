@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Search, Shuffle, Image as ImageIcon, Loader2, ExternalLink, Camera } from 'lucide-react';
+import { Upload, Search, Shuffle, Image as ImageIcon, Loader2, ExternalLink, Camera, CheckCircle } from 'lucide-react';
 import { useImageSuggestions } from '@/hooks/useImageSuggestions';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { useContentAssets } from '@/hooks/useContentAssets';
@@ -63,7 +64,30 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   if (compact) {
     return (
-      <div className={cn("space-y-3", className)}>
+      <div className={cn("space-y-4", className)}>
+        {/* Featured Image Display - Show prominently at top */}
+        {selectedImageUrl && (
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span>Featured Image Selected:</span>
+            </div>
+            <div className="relative aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
+              <img 
+                src={selectedImageUrl} 
+                alt="Selected featured image"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute top-2 right-2">
+                <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Selected
+                </Badge>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Compact search bar */}
         <div className="flex gap-2">
           <Input
@@ -71,7 +95,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            className="text-xs"
+            className="text-sm"
           />
           <Button 
             onClick={handleSearch} 
@@ -95,7 +119,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             <Button variant="outline" size="sm" className="w-full text-xs" asChild>
               <span>
                 <Upload className="h-3 w-3 mr-1" />
-                Upload
+                Upload New Image
               </span>
             </Button>
           </label>
@@ -103,45 +127,45 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
         {/* Compact image grid */}
         {searchResults.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-            {searchResults.slice(0, 4).map((image, index) => (
-              <div
-                key={index}
-                className="relative group cursor-pointer aspect-square rounded overflow-hidden border border-slate-200 hover:border-primary"
-                onClick={() => handleImageSelect(image.url, {
-                  source: 'unsplash',
-                  alt_text: image.alt,
-                  photographer: image.photographer,
-                  unsplash_id: image.id,
-                  thumb: image.thumb
-                })}
-              >
-                <img 
-                  src={image.thumb} 
-                  alt={image.alt}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Camera className="h-4 w-4 text-white" />
+          <div>
+            <div className="text-xs text-slate-600 mb-2 font-medium">Search Results:</div>
+            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+              {searchResults.slice(0, 6).map((image, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "relative group cursor-pointer aspect-square rounded overflow-hidden border-2 transition-all",
+                    selectedImageUrl === image.url 
+                      ? "border-green-500 bg-green-50" 
+                      : "border-slate-200 hover:border-primary"
+                  )}
+                  onClick={() => handleImageSelect(image.url, {
+                    source: 'unsplash',
+                    alt_text: image.alt,
+                    photographer: image.photographer,
+                    unsplash_id: image.id,
+                    thumb: image.thumb
+                  })}
+                >
+                  <img 
+                    src={image.thumb} 
+                    alt={image.alt}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    {selectedImageUrl === image.url ? (
+                      <CheckCircle className="h-5 w-5 text-green-400" />
+                    ) : (
+                      <Camera className="h-4 w-4 text-white" />
+                    )}
+                  </div>
+                  {selectedImageUrl === image.url && (
+                    <div className="absolute top-1 right-1">
+                      <CheckCircle className="h-4 w-4 text-green-600 bg-white rounded-full" />
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Show selected image */}
-        {selectedImageUrl && (
-          <div className="space-y-2">
-            <div className="text-xs text-slate-600 flex items-center gap-1">
-              <ImageIcon className="h-3 w-3" />
-              <span>Featured image:</span>
-            </div>
-            <div className="relative aspect-video rounded border border-slate-200 overflow-hidden">
-              <img 
-                src={selectedImageUrl} 
-                alt="Selected featured image"
-                className="w-full h-full object-cover"
-              />
+              ))}
             </div>
           </div>
         )}
@@ -151,6 +175,23 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   return (
     <div className={cn("w-full space-y-4", className)}>
+      {/* Featured Image Display - Full mode */}
+      {selectedImageUrl && (
+        <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
+          <div className="text-sm font-medium text-green-800 flex items-center gap-2 mb-3">
+            <CheckCircle className="h-4 w-4" />
+            <span>Currently Selected Image:</span>
+          </div>
+          <div className="relative aspect-video rounded-lg border border-green-300 overflow-hidden">
+            <img 
+              src={selectedImageUrl} 
+              alt="Selected featured image"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      )}
+
       <Tabs defaultValue="search" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="search">Search</TabsTrigger>
@@ -174,7 +215,15 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           {searchResults.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {searchResults.map((image, index) => (
-                <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow">
+                <Card 
+                  key={index} 
+                  className={cn(
+                    "cursor-pointer transition-all",
+                    selectedImageUrl === image.url 
+                      ? "ring-2 ring-green-500 shadow-lg" 
+                      : "hover:shadow-md"
+                  )}
+                >
                   <CardContent className="p-0">
                     <div 
                       className="relative aspect-square"
@@ -191,6 +240,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                         alt={image.alt}
                         className="w-full h-full object-cover rounded-t-lg"
                       />
+                      {selectedImageUrl === image.url && (
+                        <div className="absolute top-2 right-2">
+                          <CheckCircle className="h-6 w-6 text-green-600 bg-white rounded-full" />
+                        </div>
+                      )}
                       {image.photographer && (
                         <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2">
                           Photo by {image.photographer}
@@ -228,7 +282,15 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           ) : assets.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {assets.filter(asset => asset.type === 'image').map((asset) => (
-                <Card key={asset.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <Card 
+                  key={asset.id} 
+                  className={cn(
+                    "cursor-pointer transition-all",
+                    selectedImageUrl === asset.url 
+                      ? "ring-2 ring-green-500 shadow-lg" 
+                      : "hover:shadow-md"
+                  )}
+                >
                   <CardContent className="p-0">
                     <div 
                       className="relative aspect-square"
@@ -243,6 +305,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                         alt={asset.name}
                         className="w-full h-full object-cover rounded-t-lg"
                       />
+                      {selectedImageUrl === asset.url && (
+                        <div className="absolute top-2 right-2">
+                          <CheckCircle className="h-6 w-6 text-green-600 bg-white rounded-full" />
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

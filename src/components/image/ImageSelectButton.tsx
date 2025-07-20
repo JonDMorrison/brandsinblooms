@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { MediaSelector } from './MediaSelector';
-import { Image as ImageIcon } from 'lucide-react';
+import { Image as ImageIcon, Edit3 } from 'lucide-react';
 
 interface ImageSelectButtonProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
@@ -53,6 +54,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                 onClick={() => setShowSelector(!showSelector)}
                 className="bg-background/90 hover:bg-background"
               >
+                <Edit3 className="h-3 w-3 mr-1" />
                 Change Image
               </Button>
             </div>
@@ -83,7 +85,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
               <img 
                 src={selectedImageUrl} 
                 alt="Selected" 
-                className="w-full h-32 object-cover rounded-lg border border-primary/20"
+                className="w-full h-32 object-cover rounded-lg border-2 border-green-200"
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
                 <Button 
@@ -91,6 +93,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
                   size="sm"
                   className="bg-background/90 hover:bg-background"
                 >
+                  <Edit3 className="h-3 w-3 mr-1" />
                   Change Image
                 </Button>
               </div>
