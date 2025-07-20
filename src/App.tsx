@@ -16,6 +16,7 @@ import CRMDashboard from '@/pages/crm/CRMDashboard';
 import CRMCustomers from '@/pages/crm/CRMCustomers';
 import CRMSegments from '@/pages/crm/CRMSegments';
 import PersonaAnalytics from '@/pages/crm/PersonaAnalytics';
+import AddCustomer from '@/pages/crm/AddCustomer';
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
             {/* CRM Routes */}
             <Route path="/crm" element={<CRMDashboard />} />
             <Route path="/crm/customers" element={<CRMCustomers />} />
+            <Route path="/crm/customers/new" element={<AddCustomer />} />
             <Route path="/crm/segments" element={<CRMSegments />} />
             <Route path="/crm/personas/analytics" element={<PersonaAnalytics />} />
             <Route path="/crm/campaigns/new" element={<CRMCampaignCreator />} />

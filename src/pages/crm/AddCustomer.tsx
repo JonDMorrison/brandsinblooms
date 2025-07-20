@@ -1,0 +1,397 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  ArrowLeft, 
+  Plus, 
+  X, 
+  Save, 
+  User, 
+  Mail, 
+  Phone, 
+  DollarSign,
+  Calendar,
+  MessageSquare,
+  Tag
+} from 'lucide-react';
+
+type CustomerFormData = {
+  email: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  persona: string;
+  tags: string[];
+  sms_opt_in: boolean;
+  lifetime_value: number;
+  last_purchase_date: string;
+  custom_fields: Record<string, any>;
+  notes: string;
+};
+
+const AddCustomer = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [formData, setFormData] = useState<CustomerFormData>({
+    email: '',
+    first_name: '',
+    last_name: '',
+    phone: '',
+    persona: '',
+    tags: [],
+    sms_opt_in: false,
+    lifetime_value: 0,
+    last_purchase_date: '',
+    custom_fields: {},
+    notes: ''
+  });
+
+  const [newTag, setNewTag] = useState('');
+
+  const customerPersonas = [
+    'Plant-Killer Pam',
+    'Curb Appeal Ashley',
+    'DIY Dana',
+    'Patio Gardener Gail',
+    'Pet-Friendly Hannah',
+    'Pollinator Paula',
+    'Sustainable Susie',
+    'Vegetable Garden Veronica',
+    'Wellness Whitney'
+  ];
+
+  const addCustomerMutation = useMutation({
+    mutationFn: async (customerData: CustomerFormData) => {
+      const dataToInsert = {
+        email: customerData.email,
+        first_name: customerData.first_name || null,
+        last_name: customerData.last_name || null,
+        phone: customerData.phone || null,
+        persona: customerData.persona || null,
+        tags: customerData.tags.length > 0 ? customerData.tags : null,
+        sms_opt_in: customerData.sms_opt_in,
+        sms_opt_in_at: customerData.sms_opt_in ? new Date().toISOString() : null,
+        last_purchase_date: customerData.last_purchase_date || null,
+        lifetime_value: customerData.lifetime_value || null,
+        custom_fields: {
+          ...customerData.custom_fields,
+          notes: customerData.notes
+        }
+      };
+      
+      const { data, error } = await supabase
+        .from('crm_customers')
+        .insert([dataToInsert])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['crm-customers'] });
+      toast({ 
+        title: "Customer added successfully",
+        description: "The new customer has been added to your database."
+      });
+      navigate('/crm/customers');
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error adding customer", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.email) {
+      toast({
+        title: "Email required",
+        description: "Please enter a valid email address.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    addCustomerMutation.mutate(formData);
+  };
+
+  const handleInputChange = (field: keyof CustomerFormData, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const addTag = () => {
+    if (newTag.trim() && !formData.tags.includes(newTag.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, newTag.trim()]
+      }));
+      setNewTag('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
+  };
+
+  return (
+    <div className="container mx-auto p-6 max-w-4xl">
+      <div className="flex items-center gap-4 mb-6">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => navigate('/crm/customers')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Customers
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Add New Customer</h1>
+          <p className="text-muted-foreground">
+            Add a new customer to your garden center database
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Basic Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Basic Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="first_name">First Name</Label>
+                  <Input
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={(e) => handleInputChange('first_name', e.target.value)}
+                    placeholder="Enter first name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="last_name">Last Name</Label>
+                  <Input
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={(e) => handleInputChange('last_name', e.target.value)}
+                    placeholder="Enter last name"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="email">Email Address *</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    placeholder="customer@example.com"
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    placeholder="(555) 123-4567"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Customer Profile */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Customer Profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="persona">Gardening Persona</Label>
+                <Select 
+                  value={formData.persona} 
+                  onValueChange={(value) => handleInputChange('persona', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a persona..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customerPersonas.map((persona) => (
+                      <SelectItem key={persona} value={persona.toLowerCase()}>
+                        {persona}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="lifetime_value">Lifetime Value</Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    id="lifetime_value"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.lifetime_value}
+                    onChange={(e) => handleInputChange('lifetime_value', parseFloat(e.target.value) || 0)}
+                    placeholder="0.00"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="last_purchase_date">Last Purchase Date</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    id="last_purchase_date"
+                    type="date"
+                    value={formData.last_purchase_date}
+                    onChange={(e) => handleInputChange('last_purchase_date', e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Tags & Preferences */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Tags & Interests
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="tags">Customer Tags</Label>
+                <div className="flex gap-2 mb-2">
+                  <Input
+                    id="tags"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="Add a tag..."
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                  />
+                  <Button type="button" onClick={addTag} size="sm">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {formData.tags.map((tag, index) => (
+                    <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                      {tag}
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => removeTag(tag)}
+                      />
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="sms_opt_in"
+                  checked={formData.sms_opt_in}
+                  onCheckedChange={(checked) => handleInputChange('sms_opt_in', checked)}
+                />
+                <Label htmlFor="sms_opt_in" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  SMS Marketing Opt-in
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Notes */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Additional Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div>
+                <Label htmlFor="notes">Customer Notes</Label>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => handleInputChange('notes', e.target.value)}
+                  placeholder="Add any additional notes about this customer..."
+                  rows={4}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Submit Button */}
+        <div className="flex justify-end gap-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={() => navigate('/crm/customers')}
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit" 
+            disabled={addCustomerMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            <Save className="h-4 w-4" />
+            {addCustomerMutation.isPending ? 'Adding...' : 'Add Customer'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default AddCustomer;
