@@ -1,4 +1,3 @@
-
 import { processNewsletterContent } from './newsletterContentProcessor';
 import { supabase } from '@/integrations/supabase/client';
 import { ContentBlock, BlockType } from '@/types/emailBuilder';
@@ -58,6 +57,13 @@ export const enhancedNewsletterToCRM = async (
   const holiday = contentTask.holidays;
   const content = contentTask.ai_output || '';
 
+  console.log('📄 [enhancedNewsletterToCRM] Processing content:', {
+    contentLength: content.length,
+    hasCampaign: !!campaign,
+    hasHoliday: !!holiday,
+    contentPreview: content.substring(0, 200) + '...'
+  });
+
   // Determine theme source
   let themeSource: 'weekly' | 'holiday' | 'event' | 'custom' = 'custom';
   if (holiday) {
@@ -70,6 +76,12 @@ export const enhancedNewsletterToCRM = async (
 
   // Process newsletter content into structured format
   const processed = processNewsletterContent(content, campaign?.title);
+  console.log('📋 [enhancedNewsletterToCRM] Processed newsletter:', {
+    isStructured: processed.isStructured,
+    hasBlocks: processed.blocks.length > 0,
+    theme: processed.meta.theme,
+    blocksCount: processed.blocks.length
+  });
 
   // Generate campaign name
   const campaignName = generateEnhancedCampaignName(
@@ -89,6 +101,10 @@ export const enhancedNewsletterToCRM = async (
 
   // Convert to content blocks
   const contentBlocks = convertToContentBlocks(processed, contentTask);
+  console.log('📦 [enhancedNewsletterToCRM] Generated content blocks:', {
+    count: contentBlocks.length,
+    types: contentBlocks.map(b => b.type)
+  });
 
   // Extract persona tags and segments (from URL params or content analysis)
   const personaTags = urlParams?.get('personaTags') 
@@ -143,7 +159,7 @@ const generateEnhancedCampaignName = (
       prefix = '🎪 Event';
       break;
     default:
-      prefix = '📧 Custom';
+      prefix = '📧 Newsletter';
   }
 
   if (cleanTitle && cleanTitle !== 'Newsletter Campaign') {
@@ -177,6 +193,10 @@ const generateContextualSubjectLine = (
   const content = processed.newsletter_md?.toLowerCase() || '';
   const currentSeason = getCurrentSeason();
   
+  if (content.includes('fall') || content.includes('autumn')) {
+    return '🍂 Fall Garden Transition Guide';
+  }
+  
   if (content.includes(currentSeason)) {
     return `🌱 ${currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1)} Garden Care Guide`;
   }
@@ -187,13 +207,19 @@ const generateContextualSubjectLine = (
 const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[] => {
   const blocks: ContentBlock[] = [];
   
+  console.log('🔄 [convertToContentBlocks] Converting processed content:', {
+    hasNewsletterMd: !!processed.newsletter_md,
+    blocksCount: processed.blocks?.length || 0,
+    processedKeys: Object.keys(processed)
+  });
+  
   // Add header block
   const headerTitle = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
   if (headerTitle) {
     blocks.push({
       type: 'header' as BlockType,
       title: headerTitle,
-      content: processed.meta?.week_focus || 'Your Garden Update',
+      content: processed.meta?.week_focus || 'Your Garden Newsletter',
       source: 'newsletter',
       personaTag: contentTask.persona_tag
     });
@@ -201,7 +227,11 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
 
   // Convert structured blocks if available
   if (processed.blocks && processed.blocks.length > 0) {
-    processed.blocks.forEach((block: any) => {
+    console.log('📋 [convertToContentBlocks] Processing structured blocks:', processed.blocks);
+    
+    processed.blocks.forEach((block: any, index: number) => {
+      console.log(`🔧 [convertToContentBlocks] Processing block ${index}:`, block);
+      
       // Add text block
       if (block.title && block.body) {
         blocks.push({
@@ -239,6 +269,8 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
     });
   } else {
     // Convert markdown content to text blocks
+    console.log('📝 [convertToContentBlocks] Converting markdown to text blocks');
+    
     const sections = processed.newsletter_md?.split(/\n\s*\n/).filter((s: string) => s.trim()) || [];
     
     sections.forEach((section: string, index: number) => {
@@ -246,7 +278,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
       const title = lines[0]?.replace(/^#+\s*/, '').replace(/\*\*(.*?)\*\*/, '$1').trim();
       const content = lines.slice(1).join('\n').trim() || lines[0]?.trim();
 
-      if (title && content) {
+      if (title && content && !title.startsWith('#')) {
         blocks.push({
           type: 'text' as BlockType,
           title: title || `Section ${index + 1}`,
@@ -269,6 +301,11 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
       personaTag: contentTask.persona_tag
     });
   }
+
+  console.log('✅ [convertToContentBlocks] Generated blocks:', {
+    totalBlocks: blocks.length,
+    blockTypes: blocks.map(b => b.type)
+  });
 
   return blocks;
 };
@@ -334,6 +371,11 @@ const generateSegmentSuggestionsFromContent = (content: string, theme: string): 
   // Add theme-based suggestions
   if (theme?.includes('care')) {
     suggestions.push('Regular Maintenance');
+  }
+  
+  // Add fall-specific suggestions
+  if (lowerContent.includes('fall') || lowerContent.includes('autumn')) {
+    suggestions.push('Fall Transition', 'Seasonal Planning');
   }
   
   return [...new Set(suggestions)];

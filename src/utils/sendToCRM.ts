@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 
@@ -76,65 +75,41 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
     const images = extractImages(contentTask);
     console.log('🖼️ [sendToCRM] Extracted images:', images);
 
-    const payload: SendToCRMPayload = {
-      contentTaskId,
-      title,
-      themeSource,
-      content: contentTask.ai_output || '',
-      images,
-      personaTags,
-      segmentSuggestions,
-      campaignId: contentTask.campaign_id || undefined
-    };
-
-    console.log('📦 [sendToCRM] Prepared payload:', {
-      ...payload,
-      content: payload.content.substring(0, 100) + '...' // Truncate content for logging
-    });
-
-    // Enhanced URL encoding for better parameter transmission
-    const encodedContent = encodeURIComponent(JSON.stringify({
-      content: contentTask.ai_output || '',
-      metadata: {
-        title,
-        themeSource,
-        personaTags,
-        segmentSuggestions,
-        campaignId: contentTask.campaign_id,
-        images
-      }
-    }));
-
-    // Navigate to CRM with enhanced parameters
+    // Navigate to CRM with corrected parameters - use contentTaskId (not fromContentTaskId)
     const searchParams = new URLSearchParams({
-      fromContentTaskId: contentTaskId,
+      contentTaskId: contentTaskId, // Fixed: use contentTaskId consistently
       source: 'newsletter_content',
       themeSource,
       title: encodeURIComponent(title),
-      content: encodedContent,
-      ...(payload.personaTags?.length && { 
-        personaTags: encodeURIComponent(JSON.stringify(payload.personaTags)) 
+      content: encodeURIComponent(contentTask.ai_output || ''),
+      type: 'newsletter', // Add type parameter
+      ...(personaTags?.length && { 
+        personaTags: encodeURIComponent(JSON.stringify(personaTags)) 
       }),
-      ...(payload.segmentSuggestions?.length && { 
-        segmentSuggestions: encodeURIComponent(JSON.stringify(payload.segmentSuggestions)) 
+      ...(segmentSuggestions?.length && { 
+        segmentSuggestions: encodeURIComponent(JSON.stringify(segmentSuggestions)) 
       }),
-      ...(payload.campaignId && { campaignId: payload.campaignId })
+      ...(contentTask.campaign_id && { campaignId: contentTask.campaign_id }),
+      ...(images?.length && { 
+        images: encodeURIComponent(JSON.stringify(images)) 
+      })
     });
 
     const crmUrl = `/crm/campaigns/new?${searchParams.toString()}`;
     
-    console.log('✅ Navigating to CRM with enhanced parameters:', { 
-      crmUrl: crmUrl.substring(0, 200) + '...', // Truncate for logging
-      payload: {
-        ...payload,
-        content: payload.content.substring(0, 100) + '...' // Truncate content for logging
-      }
+    console.log('✅ [sendToCRM] Navigating to CRM with parameters:', { 
+      contentTaskId,
+      title,
+      themeSource,
+      personaTagsCount: personaTags?.length || 0,
+      segmentSuggestionsCount: segmentSuggestions?.length || 0,
+      imagesCount: images?.length || 0
     });
     
     // Use window.location for navigation to ensure URL parameters are preserved
     window.location.href = crmUrl;
     
-    toast.success(`"${title}" sent to CRM Campaign Builder with ${payload.personaTags?.length || 0} tags and ${payload.segmentSuggestions?.length || 0} segments`);
+    toast.success(`"${title}" sent to CRM Campaign Builder with ${personaTags?.length || 0} tags and ${segmentSuggestions?.length || 0} segments`);
     return true;
 
   } catch (error) {
