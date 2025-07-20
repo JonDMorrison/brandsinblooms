@@ -41,7 +41,6 @@ export const TaskActions = ({
       if (error) {
         toast.error(`Failed to approve content: ${error.message}`);
       } else {
-        toast.success('Content approved!');
         if (onTaskUpdate) onTaskUpdate();
       }
     } catch (error) {

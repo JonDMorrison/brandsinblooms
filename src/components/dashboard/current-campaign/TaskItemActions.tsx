@@ -62,7 +62,6 @@ export const TaskItemActions = ({
         toast.error(`Failed to approve content: ${error.message}`);
       } else {
         console.log('✅ TASK_ACTIONS: Successfully updated task status to approved');
-        toast.success('Content approved and moved to Ready to Post!');
         if (onTaskUpdate) {
           console.log('🔄 TASK_ACTIONS: Calling onTaskUpdate to refresh data');
           onTaskUpdate();

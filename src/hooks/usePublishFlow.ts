@@ -76,7 +76,6 @@ export const usePublishFlow = (): PublishFlowHook => {
 
       if (updateError) throw updateError;
 
-      toast.success('Content approved and ready for publishing');
       return generatedContent.id;
     } catch (error) {
       console.error('Error approving draft:', error);

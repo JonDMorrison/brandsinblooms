@@ -107,7 +107,6 @@ export const useReviewQueue = (onTaskUpdate?: () => void) => {
       if (error) throw error;
 
       console.log('✅ REVIEW_QUEUE: Task approved successfully');
-      toast.success('Content approved and ready to post!');
       await fetchPendingTasks(); // Refresh the list
       if (onTaskUpdate) onTaskUpdate();
     } catch (error) {
