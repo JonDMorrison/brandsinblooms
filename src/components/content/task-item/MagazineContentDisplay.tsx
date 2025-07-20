@@ -1,8 +1,10 @@
+
 import React from 'react';
 import { cleanContentForDisplay } from '@/utils/contentUtils';
 import { cleanVideoContent, isVideoScriptContent } from '@/utils/videoContentCleaner';
 import { SafeHtml } from '@/components/ui/safe-html';
 import { stripEmojis } from '@/utils/contentValidation';
+import { validateFormattedContent, repairFormattedContent } from '@/utils/contentFormatValidator';
 
 interface MagazineContentDisplayProps {
   content: string;
@@ -32,7 +34,7 @@ export const MagazineContentDisplay = ({
     );
   }
 
-  // Process content based on type
+  // Process content based on type with enhanced pipeline
   let processedContent = content;
   
   // Special handling for video content
@@ -50,12 +52,19 @@ export const MagazineContentDisplay = ({
       removedChars: content.length - processedContent.length
     });
   } else {
-    // For non-video content, use existing cleaning
+    // For non-video content, use enhanced cleaning
     processedContent = cleanContentForDisplay(content, postType);
   }
   
-  // Always strip emojis as final step
+  // Strip emojis with improved spacing preservation
   processedContent = stripEmojis(processedContent);
+  
+  // Validate and repair formatted content
+  const validation = validateFormattedContent(processedContent, postType);
+  if (!validation.isValid) {
+    console.log('Content validation issues detected:', validation.issues);
+    processedContent = repairFormattedContent(processedContent);
+  }
 
   return (
     <div className={`bg-white rounded-lg border border-gray-200 overflow-hidden ${className}`}>

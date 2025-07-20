@@ -76,14 +76,32 @@ export const parseNewsletterJson = (content: string): { subject: string; content
   return null;
 };
 
+// ENHANCED: Preserve markdown formatting during processing
+const preserveMarkdownFormatting = (text: string): string => {
+  // Protect bold markdown syntax during processing
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '__BOLD_START__$1__BOLD_END__')
+    .replace(/\*([^*]+)\*/g, '__ITALIC_START__$1__ITALIC_END__');
+};
+
+const restoreMarkdownFormatting = (text: string): string => {
+  // Restore protected markdown syntax
+  return text
+    .replace(/__BOLD_START__([^_]+)__BOLD_END__/g, '**$1**')
+    .replace(/__ITALIC_START__([^_]+)__ITALIC_END__/g, '*$1*');
+};
+
 // Helper function to add structure to plain text blog content
 const addBlogStructureToPlainText = (text: string): string => {
+  // Protect formatting first
+  const protectedText = preserveMarkdownFormatting(text);
+  
   // Split content into paragraphs
-  const paragraphs = text.split('\n\n').filter(p => p.trim());
+  const paragraphs = protectedText.split('\n\n').filter(p => p.trim());
   
   if (paragraphs.length < 3) {
-    // Not enough content to structure, return as is
-    return text;
+    // Not enough content to structure, return as is with restored formatting
+    return restoreMarkdownFormatting(protectedText);
   }
   
   // Try to identify logical sections based on content patterns
@@ -112,7 +130,8 @@ const addBlogStructureToPlainText = (text: string): string => {
     }
   }
   
-  return structured;
+  // Restore formatting before returning
+  return restoreMarkdownFormatting(structured);
 };
 
 // Extract a topic from a paragraph for header generation
@@ -142,16 +161,16 @@ const extractTopicFromParagraph = (paragraph: string): string => {
   return 'Garden Insights';
 };
 
-// Enhanced blog content formatting for the polished layout
+// ENHANCED blog content formatting with better spacing and formatting preservation
 export const formatBlogContent = (text: string): string => {
   if (!text) return '';
   
   console.log('formatBlogContent input:', text.substring(0, 200) + '...');
   
-  let formatted = text;
+  // Protect markdown formatting first
+  let formatted = preserveMarkdownFormatting(text);
   
   // First, remove any existing H1 tags since the title will be displayed in the header
-  // This prevents redundant titles from appearing in the content
   formatted = formatted.replace(/^#{1}\s+.*$/gm, '');
   
   // Check if content lacks proper markdown structure and try to add it
@@ -167,16 +186,23 @@ export const formatBlogContent = (text: string): string => {
     .replace(/^#{2}\s+(.+)$/gm, '<h2 class="text-3xl font-semibold font-display text-slate-900 mt-10 mb-4">$1</h2>')
     .replace(/^#{3}\s+(.+)$/gm, '<h3 class="text-2xl font-semibold font-display text-slate-900 mt-8 mb-3">$1</h3>')
     .replace(/^#{4}\s+(.+)$/gm, '<h4 class="text-xl font-semibold font-display text-slate-900 mt-6 mb-2">$1</h4>')
-    // Convert bold and italic with better styling
-    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em class="italic text-slate-700">$1</em>')
     // Convert blockquotes with custom styling
     .replace(/^>\s+(.+)$/gm, '<blockquote class="border-l-4 border-primary bg-primary/5 pl-6 py-4 my-6 italic text-slate-700">$1</blockquote>')
     // Convert lists with custom styling
     .replace(/^\s*[-*+]\s+(.+)$/gm, '<li class="mb-2 text-slate-700">$1</li>')
     // Convert numbered lists
-    .replace(/^\s*\d+\.\s+(.+)$/gm, '<li class="mb-2 text-slate-700">$1</li>')
-    // Convert line breaks to paragraphs - handle this more carefully
+    .replace(/^\s*\d+\.\s+(.+)$/gm, '<li class="mb-2 text-slate-700">$1</li>');
+
+  // Restore markdown formatting before final processing
+  formatted = restoreMarkdownFormatting(formatted);
+  
+  // Now handle bold and italic with better styling
+  formatted = formatted
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em class="italic text-slate-700">$1</em>');
+    
+  // Convert line breaks to paragraphs - handle this more carefully
+  formatted = formatted
     .split('\n\n')
     .map(paragraph => {
       paragraph = paragraph.trim();
