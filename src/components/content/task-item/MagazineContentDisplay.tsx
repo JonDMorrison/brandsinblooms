@@ -76,7 +76,7 @@ export const MagazineContentDisplay = ({
             <SafeHtml 
               content={processedContent} 
               className="text-sm"
-              type="magazine"
+              type="newsletter"
             />
           </div>
         ) : (
