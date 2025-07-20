@@ -131,9 +131,18 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
         {/* Show selected image */}
         {selectedImageUrl && (
-          <div className="text-xs text-slate-600 flex items-center gap-1">
-            <ImageIcon className="h-3 w-3" />
-            <span>Image selected</span>
+          <div className="space-y-2">
+            <div className="text-xs text-slate-600 flex items-center gap-1">
+              <ImageIcon className="h-3 w-3" />
+              <span>Featured image:</span>
+            </div>
+            <div className="relative aspect-video rounded border border-slate-200 overflow-hidden">
+              <img 
+                src={selectedImageUrl} 
+                alt="Selected featured image"
+                className="w-full h-full object-cover"
+              />
+            </div>
           </div>
         )}
       </div>
