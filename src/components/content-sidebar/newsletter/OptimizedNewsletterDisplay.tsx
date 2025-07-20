@@ -19,6 +19,7 @@ import {
   generateIntroFromContent,
   checkIsPlaceholderContent
 } from './NewsletterHelpers';
+import { sendToCRM } from '@/utils/sendToCRM';
 
 interface OptimizedNewsletterDisplayProps {
   content: string;
@@ -159,20 +160,26 @@ export const OptimizedNewsletterDisplay = ({
     }
   };
 
-  // Handle CRM campaign creation
-  const handleUseinCRM = () => {
-    const searchParams = new URLSearchParams({
-      source: 'newsletter_content',
-      content_task_id: contentTaskId || '',
-      newsletter_title: headline,
-      newsletter_content: content.substring(0, 500) + '...' // Preview
-    });
-    navigate(`/crm/campaigns/new?${searchParams.toString()}`);
+  // Enhanced CRM integration with new sendToCRM function
+  const handleUseinCRM = async () => {
+    if (!contentTaskId) {
+      toast({
+        title: "Error",
+        description: "Content ID not available for CRM transfer",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const success = await sendToCRM(contentTaskId);
     
-    toast({
-      title: "Newsletter sent to CRM",
-      description: `"${headline}" opened in campaign builder`
-    });
+    if (!success) {
+      // Error handling is done in sendToCRM function
+      return;
+    }
+
+    // The sendToCRM function handles navigation, so we don't need to do it here
+    console.log('✅ Content successfully sent to CRM');
   };
 
   // Check if content is approved
@@ -298,14 +305,14 @@ export const OptimizedNewsletterDisplay = ({
         </div>
       )}
 
-      {/* Footer */}
+      {/* Enhanced Footer */}
       <div className="mt-16 pt-8 border-t border-gray-200">
         <div className="flex items-center justify-between">
           <p className="text-gray-600">
             Thanks for reading! 🌿
           </p>
           
-          {/* Use in CRM Button - Only show for approved content */}
+          {/* Enhanced Use in CRM Button */}
           {isApproved && contentTaskId && (
             <div className="flex items-center gap-3">
               {hasCRMAccess ? (
@@ -315,7 +322,7 @@ export const OptimizedNewsletterDisplay = ({
                   className="border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition-colors"
                 >
                   <Mail className="w-4 h-4 mr-2" />
-                  Use in CRM
+                  Send to CRM
                 </Button>
               ) : (
                 <CRMUpgradePrompt variant="button" size="sm" />
@@ -323,6 +330,16 @@ export const OptimizedNewsletterDisplay = ({
             </div>
           )}
         </div>
+
+        {/* Additional context for CRM integration */}
+        {isApproved && contentTaskId && hasCRMAccess && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-sm text-blue-700">
+              💡 <strong>Tip:</strong> Clicking "Send to CRM" will convert this newsletter into an editable email campaign 
+              with smart segment suggestions and all images preserved.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Enhanced Newsletter Styles */}

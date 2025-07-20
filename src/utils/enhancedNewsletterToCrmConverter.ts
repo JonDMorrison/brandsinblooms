@@ -1,0 +1,348 @@
+
+import { processNewsletterContent } from './newsletterContentProcessor';
+import { supabase } from '@/integrations/supabase/client';
+import { ContentBlock, BlockType } from '@/types/emailBuilder';
+
+interface EnhancedNewsletterToCRMResult {
+  campaignName: string;
+  subjectLine: string;
+  contentBlocks: ContentBlock[];
+  originalContent: string;
+  themeSource: 'weekly' | 'holiday' | 'event' | 'custom';
+  personaTags: string[];
+  segmentSuggestions: string[];
+  sourceMetadata: {
+    contentTaskId: string;
+    campaignId?: string;
+    weekNumber?: number;
+    holidayId?: string;
+    theme?: string;
+  };
+}
+
+export const enhancedNewsletterToCRM = async (
+  contentTaskId: string,
+  urlParams?: URLSearchParams
+): Promise<EnhancedNewsletterToCRMResult> => {
+  console.log('🔄 Enhanced newsletter to CRM conversion', { contentTaskId });
+
+  // Fetch content task with full context
+  const { data: contentTask, error: taskError } = await supabase
+    .from('content_tasks')
+    .select(`
+      *,
+      campaigns (
+        id,
+        title,
+        theme,
+        week_number,
+        source,
+        description
+      ),
+      holidays (
+        id,
+        holiday_name,
+        category,
+        garden_relevance
+      )
+    `)
+    .eq('id', contentTaskId)
+    .single();
+
+  if (taskError || !contentTask) {
+    console.error('❌ Failed to fetch content task:', taskError);
+    throw new Error('Content task not found');
+  }
+
+  const campaign = contentTask.campaigns;
+  const holiday = contentTask.holidays;
+  const content = contentTask.ai_output || '';
+
+  // Determine theme source
+  let themeSource: 'weekly' | 'holiday' | 'event' | 'custom' = 'custom';
+  if (holiday) {
+    themeSource = 'holiday';
+  } else if (campaign?.source === 'system' && campaign?.week_number) {
+    themeSource = 'weekly';
+  } else if (campaign?.source === 'event') {
+    themeSource = 'event';
+  }
+
+  // Process newsletter content into structured format
+  const processed = processNewsletterContent(content, campaign?.title);
+
+  // Generate campaign name
+  const campaignName = generateEnhancedCampaignName(
+    campaign?.title || contentTask.notes || '',
+    themeSource,
+    holiday?.holiday_name,
+    campaign?.week_number
+  );
+
+  // Generate contextual subject line
+  const subjectLine = generateContextualSubjectLine(
+    processed,
+    themeSource,
+    holiday?.holiday_name,
+    campaign?.theme
+  );
+
+  // Convert to content blocks
+  const contentBlocks = convertToContentBlocks(processed, contentTask);
+
+  // Extract persona tags and segments (from URL params or content analysis)
+  const personaTags = urlParams?.get('personaTags') 
+    ? JSON.parse(decodeURIComponent(urlParams.get('personaTags')!))
+    : extractPersonaTagsFromContent(content);
+
+  const segmentSuggestions = urlParams?.get('segmentSuggestions')
+    ? JSON.parse(decodeURIComponent(urlParams.get('segmentSuggestions')!))
+    : generateSegmentSuggestionsFromContent(content, campaign?.theme || '');
+
+  return {
+    campaignName,
+    subjectLine,
+    contentBlocks,
+    originalContent: content,
+    themeSource,
+    personaTags,
+    segmentSuggestions,
+    sourceMetadata: {
+      contentTaskId,
+      campaignId: campaign?.id,
+      weekNumber: campaign?.week_number,
+      holidayId: holiday?.id,
+      theme: campaign?.theme || holiday?.category
+    }
+  };
+};
+
+const generateEnhancedCampaignName = (
+  title: string,
+  themeSource: string,
+  holidayName?: string,
+  weekNumber?: number
+): string => {
+  const cleanTitle = title
+    .replace(/Newsletter\s+Campaign\s*-?\s*/i, '')
+    .replace(/\+/g, ' ')
+    .replace(/%2F/g, '/')
+    .replace(/%20/g, ' ')
+    .trim();
+
+  let prefix = '📧';
+  
+  switch (themeSource) {
+    case 'weekly':
+      prefix = `🗓️ Week ${weekNumber}`;
+      break;
+    case 'holiday':
+      prefix = `🎉 ${holidayName}`;
+      break;
+    case 'event':
+      prefix = '🎪 Event';
+      break;
+    default:
+      prefix = '📧 Custom';
+  }
+
+  if (cleanTitle && cleanTitle !== 'Newsletter Campaign') {
+    return `${prefix}: ${cleanTitle}`;
+  }
+
+  return `${prefix} Garden Newsletter - ${new Date().toLocaleDateString()}`;
+};
+
+const generateContextualSubjectLine = (
+  processed: any,
+  themeSource: string,
+  holidayName?: string,
+  theme?: string
+): string => {
+  const mainHeader = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
+  
+  if (themeSource === 'holiday' && holidayName) {
+    return `🌱 ${holidayName} Garden Care Tips`;
+  }
+  
+  if (themeSource === 'weekly' && theme) {
+    return `🌿 This Week: ${theme}`;
+  }
+  
+  if (mainHeader && !mainHeader.includes('Newsletter')) {
+    return `🌱 ${mainHeader}`;
+  }
+  
+  // Contextual fallbacks based on content
+  const content = processed.newsletter_md?.toLowerCase() || '';
+  const currentSeason = getCurrentSeason();
+  
+  if (content.includes(currentSeason)) {
+    return `🌱 ${currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1)} Garden Care Guide`;
+  }
+  
+  return '🌱 Garden Care Tips - This Week\'s Focus';
+};
+
+const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[] => {
+  const blocks: ContentBlock[] = [];
+  
+  // Add header block
+  const headerTitle = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
+  if (headerTitle) {
+    blocks.push({
+      type: 'header' as BlockType,
+      title: headerTitle,
+      content: processed.meta?.week_focus || 'Your Garden Update',
+      source: 'newsletter',
+      personaTag: contentTask.persona_tag
+    });
+  }
+
+  // Convert structured blocks if available
+  if (processed.blocks && processed.blocks.length > 0) {
+    processed.blocks.forEach((block: any) => {
+      // Add text block
+      if (block.title && block.body) {
+        blocks.push({
+          type: 'text' as BlockType,
+          title: block.title,
+          content: block.body,
+          source: 'newsletter',
+          personaTag: contentTask.persona_tag
+        });
+      }
+
+      // Add image block if image prompt exists
+      if (block.image_prompt) {
+        blocks.push({
+          type: 'image' as BlockType,
+          title: block.alt_text || `Image for ${block.title}`,
+          content: block.image_prompt,
+          imageUrl: extractImageFromTask(contentTask),
+          source: 'newsletter',
+          personaTag: contentTask.persona_tag
+        });
+      }
+
+      // Add button block if CTA exists
+      if (block.cta && block.link) {
+        blocks.push({
+          type: 'button' as BlockType,
+          title: block.cta,
+          ctaText: block.cta,
+          ctaUrl: block.link,
+          source: 'newsletter',
+          personaTag: contentTask.persona_tag
+        });
+      }
+    });
+  } else {
+    // Convert markdown content to text blocks
+    const sections = processed.newsletter_md?.split(/\n\s*\n/).filter((s: string) => s.trim()) || [];
+    
+    sections.forEach((section: string, index: number) => {
+      const lines = section.split('\n').filter((l: string) => l.trim());
+      const title = lines[0]?.replace(/^#+\s*/, '').replace(/\*\*(.*?)\*\*/, '$1').trim();
+      const content = lines.slice(1).join('\n').trim() || lines[0]?.trim();
+
+      if (title && content) {
+        blocks.push({
+          type: 'text' as BlockType,
+          title: title || `Section ${index + 1}`,
+          content,
+          source: 'newsletter',
+          personaTag: contentTask.persona_tag
+        });
+      }
+    });
+  }
+
+  // Add image block if main image exists
+  const mainImage = extractImageFromTask(contentTask);
+  if (mainImage && !blocks.some(b => b.type === 'image')) {
+    blocks.push({
+      type: 'image' as BlockType,
+      title: 'Newsletter Image',
+      imageUrl: mainImage,
+      source: 'newsletter',
+      personaTag: contentTask.persona_tag
+    });
+  }
+
+  return blocks;
+};
+
+const extractImageFromTask = (contentTask: any): string | undefined => {
+  if (contentTask.image_url) {
+    return contentTask.image_url;
+  }
+  
+  if (contentTask.attachments) {
+    const attachments = typeof contentTask.attachments === 'string' 
+      ? JSON.parse(contentTask.attachments) 
+      : contentTask.attachments;
+    
+    if (attachments.image?.url) {
+      return attachments.image.url;
+    }
+    
+    if (attachments.selectedImages) {
+      const firstImage = Object.values(attachments.selectedImages)[0];
+      if (typeof firstImage === 'string' && firstImage.startsWith('http')) {
+        return firstImage;
+      }
+    }
+  }
+  
+  return undefined;
+};
+
+const extractPersonaTagsFromContent = (content: string): string[] => {
+  // Reuse logic from sendToCRM utility
+  const tags: string[] = [];
+  const lowerContent = content.toLowerCase();
+  
+  if (lowerContent.includes('beginner') || lowerContent.includes('new to')) {
+    tags.push('New Gardeners');
+  }
+  if (lowerContent.includes('expert') || lowerContent.includes('advanced')) {
+    tags.push('Expert Gardeners');
+  }
+  if (lowerContent.includes('vegetable') || lowerContent.includes('herb')) {
+    tags.push('Vegetable Gardeners');
+  }
+  if (lowerContent.includes('flower') || lowerContent.includes('bloom')) {
+    tags.push('Flower Enthusiasts');
+  }
+  if (lowerContent.includes('indoor') || lowerContent.includes('houseplant')) {
+    tags.push('Indoor Plant Lovers');
+  }
+
+  return [...new Set(tags)];
+};
+
+const generateSegmentSuggestionsFromContent = (content: string, theme: string): string[] => {
+  // Reuse logic from sendToCRM utility
+  const suggestions: string[] = [];
+  const lowerContent = content.toLowerCase();
+  
+  // Add seasonal suggestions
+  const currentSeason = getCurrentSeason();
+  suggestions.push(`${currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1)} Care`);
+  
+  // Add theme-based suggestions
+  if (theme?.includes('care')) {
+    suggestions.push('Regular Maintenance');
+  }
+  
+  return [...new Set(suggestions)];
+};
+
+const getCurrentSeason = (): string => {
+  const month = new Date().getMonth();
+  if (month >= 2 && month <= 4) return 'spring';
+  if (month >= 5 && month <= 7) return 'summer';
+  if (month >= 8 && month <= 10) return 'fall';
+  return 'winter';
+};
