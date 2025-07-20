@@ -15,19 +15,23 @@ export const formatNewsletterContent = (content: string): string => {
     cleanContent = cleanContent.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>');
   }
   
-  // Enhanced header detection and formatting
+  // IMPROVED: Much more conservative header detection and formatting
   const lines = cleanContent.split('\n').filter(line => line.trim());
   let formattedContent = '';
   let currentSection = '';
+  let headerCount = 0;
+  const maxHeaders = 3; // Limit the number of headers
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
     
-    // Check if this is a header
-    const isHeader = isLineHeader(line);
+    // Much more conservative header detection
+    const isHeader = headerCount < maxHeaders && isStrongHeader(line);
     
     if (isHeader) {
+      headerCount++;
+      
       // Close previous section if open
       if (currentSection) {
         formattedContent += `</div>`;
@@ -47,7 +51,7 @@ export const formatNewsletterContent = (content: string): string => {
           paragraph += sentence + ' ';
           
           // Create paragraph breaks for better readability, but preserve content flow
-          if ((j + 1) % 3 === 0 && paragraph.length > 150) {
+          if ((j + 1) % 4 === 0 && paragraph.length > 200) {
             formattedContent += `<p class="mb-4 text-slate-700 leading-relaxed">${paragraph.trim()}</p>`;
             paragraph = '';
           }
@@ -78,33 +82,34 @@ export const addNewsletterSections = (content: string): string => {
   }
   
   const lines = content.split('\n').filter(line => line.trim().length > 0);
+  
+  // IMPROVED: Don't add sections unless content is substantial and clearly benefits from structure
+  if (lines.length < 6) {
+    return content; // Too short to benefit from sections
+  }
+  
   let processedContent = '';
   let currentSection = '';
+  let sectionsAdded = 0;
+  const maxSections = 2; // Limit sections to prevent over-structuring
   
   lines.forEach((line, index) => {
     const trimmed = line.trim();
     
-    // Detect topic changes and section breaks
-    const gardenKeywords = ['plant', 'garden', 'seed', 'soil', 'water', 'grow', 'bloom', 'seasonal', 'maintenance'];
-    const businessKeywords = ['sale', 'offer', 'visit', 'store', 'special', 'promotion', 'event'];
-    const tipKeywords = ['tip', 'advice', 'remember', 'important', 'best practice', 'expert'];
+    // Only add sections at natural break points and limit total sections
+    const isNaturalBreak = index > 0 && index < lines.length - 2 && 
+                          sectionsAdded < maxSections &&
+                          isContentTransition(trimmed, lines[index - 1]);
     
-    const hasGardenKeywords = gardenKeywords.some(keyword => trimmed.toLowerCase().includes(keyword));
-    const hasBusinessKeywords = businessKeywords.some(keyword => trimmed.toLowerCase().includes(keyword));
-    const hasTipKeywords = tipKeywords.some(keyword => trimmed.toLowerCase().includes(keyword));
-    
-    // Add section headers based on content analysis
-    if (index === 0 || (hasGardenKeywords && currentSection !== 'garden')) {
-      if (hasGardenKeywords && index > 0) {
-        processedContent += '\n\n## Gardening Focus\n\n';
-        currentSection = 'garden';
+    if (isNaturalBreak) {
+      if (sectionsAdded === 0) {
+        processedContent += '\n\n## This Week\'s Focus\n\n';
+        currentSection = 'focus';
+      } else if (sectionsAdded === 1) {
+        processedContent += '\n\n## What\'s Next\n\n';
+        currentSection = 'next';
       }
-    } else if (hasBusinessKeywords && currentSection !== 'business') {
-      processedContent += '\n\n## What\'s Happening\n\n';
-      currentSection = 'business';
-    } else if (hasTipKeywords && currentSection !== 'tips') {
-      processedContent += '\n\n## Expert Tips\n\n';
-      currentSection = 'tips';
+      sectionsAdded++;
     }
     
     processedContent += trimmed + '\n';
@@ -113,28 +118,45 @@ export const addNewsletterSections = (content: string): string => {
   return processedContent;
 };
 
-// ENHANCED helper function to determine if a line should be treated as a header
-const isLineHeader = (line: string): boolean => {
-  if (!line) return false;
+// IMPROVED: Much more strict header detection
+const isStrongHeader = (line: string): boolean => {
+  if (!line || line.length > 80) return false;
   
-  // Known newsletter section patterns
-  const headerPatterns = [
-    /^(this week's focus|garden focus|what's happening|expert tips|seasonal highlights|plant care tips|garden maintenance|special offers|featured plants|growing tips)$/i,
-    /^[A-Z][A-Z\s&'-]{5,50}:?\s*$/,
-    /^\d+\.\s*[A-Z]/,
-    /^Week\s+\d+/i,
-    // New patterns for common newsletter headers
-    /^(fall transition|spring prep|summer care|winter protection)/i,
-    /^(planting|watering|fertilizing|pruning|harvest)/i
+  // Only very clear header patterns
+  const strongHeaderPatterns = [
+    /^(this week|what's happening|expert tips|seasonal focus|featured plants?)$/i,
+    /^[A-Z][A-Z\s&'-]{8,40}:?\s*$/,
+    /^Week\s+\d+/i
   ];
   
-  // Check if line matches header patterns
-  const matchesPattern = headerPatterns.some(pattern => pattern.test(line.trim()));
+  return strongHeaderPatterns.some(pattern => pattern.test(line.trim()));
+};
+
+// Helper to detect natural content transitions
+const isContentTransition = (currentLine: string, previousLine: string): boolean => {
+  if (!currentLine || !previousLine) return false;
   
-  // Additional checks for header-like content
-  const isShortUppercase = (line.length < 60 && line === line.toUpperCase() && line.split(' ').length <= 6);
-  const endsWithColon = (line.endsWith(':') && line.length < 80);
-  const isStronglyFormatted = (line.includes('**') && line.length < 100);
+  // Look for topic shifts in gardening content
+  const topicKeywords = {
+    seasonal: ['fall', 'winter', 'spring', 'summer', 'season'],
+    care: ['water', 'fertilize', 'prune', 'maintenance'],
+    business: ['visit', 'store', 'special', 'offer', 'sale']
+  };
   
-  return matchesPattern || isShortUppercase || endsWithColon || isStronglyFormatted;
+  const currentTopic = getContentTopic(currentLine, topicKeywords);
+  const previousTopic = getContentTopic(previousLine, topicKeywords);
+  
+  return currentTopic !== previousTopic && currentTopic !== 'general' && previousTopic !== 'general';
+};
+
+const getContentTopic = (line: string, keywords: Record<string, string[]>): string => {
+  const lowerLine = line.toLowerCase();
+  
+  for (const [topic, words] of Object.entries(keywords)) {
+    if (words.some(word => lowerLine.includes(word))) {
+      return topic;
+    }
+  }
+  
+  return 'general';
 };

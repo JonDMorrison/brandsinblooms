@@ -1,4 +1,3 @@
-
 /**
  * Content Format Validator
  * Validates content after processing to ensure proper formatting and readability
@@ -42,27 +41,45 @@ export const validateFormattedContent = (content: string, contentType: string): 
     suggestions.push('Clean up extra spaces and line breaks');
   }
   
-  // 4. Content-type specific validation
+  // 4. NEW: Check for repetitive headers
+  const headerMatches = content.match(/<h[2-6][^>]*>([^<]+)<\/h[2-6]>/g) || [];
+  const headerTexts = headerMatches.map(h => h.replace(/<[^>]*>/g, '').toLowerCase());
+  const duplicateHeaders = headerTexts.filter((header, index) => headerTexts.indexOf(header) !== index);
+  
+  if (duplicateHeaders.length > 0) {
+    issues.push('Repetitive headers detected');
+    suggestions.push('Remove duplicate section headers to improve content flow');
+  }
+  
+  // 5. NEW: Check for over-structured content
+  const headerCount = headerMatches.length;
+  const paragraphCount = (content.match(/<p[^>]*>/g) || []).length;
+  const headerToContentRatio = headerCount / Math.max(paragraphCount, 1);
+  
+  if (headerToContentRatio > 0.5) {
+    issues.push('Content may be over-structured with too many headers');
+    suggestions.push('Consider reducing the number of section headers for better readability');
+  }
+  
+  // 6. Content-type specific validation
   if (contentType === 'newsletter') {
-    // Newsletter should have some structure
+    // Newsletter should have some structure but not too much
     const hasStructure = content.includes('<h') || content.includes('##') || content.includes('<p>');
     if (!hasStructure && content.length > 200) {
-      issues.push('Newsletter lacks proper structure');
-      suggestions.push('Consider adding headers or sections to improve readability');
+      suggestions.push('Consider adding minimal structure to improve newsletter readability');
     }
   }
   
   if (contentType === 'blog') {
-    // Blog should have headers for long content
+    // Blog should have headers for very long content only
     const wordCount = content.split(/\s+/).length;
     const hasHeaders = content.includes('<h') || content.includes('##');
-    if (wordCount > 300 && !hasHeaders) {
-      issues.push('Long blog content lacks headers');
-      suggestions.push('Add section headers to break up long content');
+    if (wordCount > 500 && !hasHeaders) {
+      suggestions.push('Consider adding section headers for very long blog content');
     }
   }
   
-  // 5. Check for readability
+  // 7. Check for readability
   const averageSentenceLength = calculateAverageSentenceLength(content);
   if (averageSentenceLength > 30) {
     suggestions.push('Consider shorter sentences for better readability');
@@ -104,5 +121,26 @@ export const repairFormattedContent = (content: string): string => {
     .replace(/\s+\*\*/g, '**')
     .trim();
   
+  // NEW: Remove repetitive headers
+  repaired = removeRepetitiveHeaders(repaired);
+  
   return repaired;
+};
+
+// NEW: Function to remove repetitive headers
+const removeRepetitiveHeaders = (content: string): string => {
+  const headerPattern = /<h([2-6])[^>]*>([^<]+)<\/h\1>/g;
+  const seenHeaders = new Set<string>();
+  
+  return content.replace(headerPattern, (match, level, text) => {
+    const normalizedText = text.toLowerCase().trim();
+    
+    if (seenHeaders.has(normalizedText)) {
+      // Remove repetitive header, but keep the content that follows
+      return '';
+    }
+    
+    seenHeaders.add(normalizedText);
+    return match;
+  });
 };
