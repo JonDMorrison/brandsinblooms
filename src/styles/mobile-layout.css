@@ -68,7 +68,7 @@
   }
 
   /* Prevent any content from exceeding viewport width - EXCLUDE DROPDOWN PORTALS */
-  *:not([data-radix-popper-content-wrapper]):not([data-radix-select-content]):not([data-radix-popper-content]) {
+  *:not([data-radix-popper-content-wrapper]):not([data-radix-select-content]):not([data-radix-popper-content]):not([data-radix-portal]) {
     max-width: 100vw !important;
     box-sizing: border-box !important;
   }
@@ -92,18 +92,26 @@
 /* Dropdown Portal Specific Fixes - Override mobile constraints */
 [data-radix-popper-content-wrapper],
 [data-radix-select-content],
-[data-radix-popper-content] {
+[data-radix-popper-content],
+[data-radix-portal] {
   max-width: none !important;
   overflow: visible !important;
   position: fixed !important;
-  z-index: 200 !important;
+  z-index: 300 !important;
   pointer-events: auto !important;
+  transform-origin: var(--radix-popper-transform-origin) !important;
 }
 
-/* Ensure dropdown content is properly positioned */
+/* Ensure dropdown content is properly positioned and styled */
 [data-radix-select-content] {
-  transform-origin: var(--radix-popper-transform-origin) !important;
-  animation: none !important;
+  background-color: white !important;
+  border: 1px solid rgb(229, 231, 235) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  min-width: 8rem !important;
+  max-height: 24rem !important;
+  overflow: hidden !important;
+  z-index: 300 !important;
 }
 
 /* Global overflow prevention for all screen sizes */

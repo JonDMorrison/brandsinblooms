@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,6 +20,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   onBlocksChange
 }) => {
   const addBlock = (type: ContentBlock['type']) => {
+    console.log('Adding block of type:', type);
     const newBlock: ContentBlock = {
       id: `block_${Date.now()}`,
       type,
@@ -34,6 +36,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   };
 
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
+    console.log('Updating block:', id, 'with updates:', updates);
     onBlocksChange(blocks.map(block => 
       block.id === id ? { ...block, ...updates } : block
     ));
@@ -79,7 +82,6 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
 
   const renderBlockPreview = (block: ContentBlock) => {
     const isImageBlock = block.type === 'image';
-    const hasImage = block.imageUrl;
 
     return (
       <div className="p-4 bg-muted/30 rounded-lg">
@@ -126,7 +128,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
           </div>
         </div>
 
-        {/* Image Preview - Use ImageSelectButton for better integration */}
+        {/* Image Preview */}
         {isImageBlock && (
           <div className="mb-3">
             <ImageSelectButton
@@ -157,30 +159,44 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   };
 
   const renderBlockEditor = (block: ContentBlock) => {
+    console.log('Rendering block editor for block:', block.id, 'layout:', block.layout);
+    
     const updateField = (field: keyof ContentBlock, value: any) => {
+      console.log('Updating field:', field, 'with value:', value, 'for block:', block.id);
       updateBlock(block.id, { [field]: value });
     };
 
+    // Ensure layout has a valid default value
+    const currentLayout = block.layout || 'full-width';
+    console.log('Current layout for block', block.id, ':', currentLayout);
+
     return (
-      <div className="space-y-4 overflow-visible">
-        {/* Layout Selection */}
-        <div className="overflow-visible">
+      <div className="space-y-4">
+        {/* Layout Selection - Simplified */}
+        <div className="space-y-2">
           <Label>Layout</Label>
           <Select
-            value={block.layout || 'full-width'}
-            onValueChange={(value: BlockLayout) => updateField('layout', value)}
+            key={`layout-${block.id}-${currentLayout}`}
+            value={currentLayout}
+            onValueChange={(value: BlockLayout) => {
+              console.log('Layout select triggered! New value:', value, 'Block ID:', block.id);
+              updateField('layout', value);
+            }}
           >
-            <SelectTrigger>
-              <SelectValue />
+            <SelectTrigger 
+              className="w-full"
+              onClick={() => console.log('SelectTrigger clicked for block:', block.id)}
+            >
+              <SelectValue placeholder="Select layout" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[300]">
               <SelectItem value="full-width">Full Width</SelectItem>
               <SelectItem value="two-column-left">Two Column - Left</SelectItem>
               <SelectItem value="two-column-right">Two Column - Right</SelectItem>
             </SelectContent>
           </Select>
-          {block.layout !== 'full-width' && (
-            <p className="text-xs text-muted-foreground mt-1">
+          {currentLayout !== 'full-width' && (
+            <p className="text-xs text-muted-foreground">
               Two-column blocks will be paired with adjacent blocks. Desktop shows side-by-side, mobile stacks vertically.
             </p>
           )}
@@ -190,7 +206,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
         <div>
           <Label>Title</Label>
           <Input
-            value={block.title}
+            value={block.title || ''}
             onChange={(e) => updateField('title', e.target.value)}
             placeholder={`Enter ${block.type} title...`}
           />
@@ -201,7 +217,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
           <div>
             <Label>Content</Label>
             <Textarea
-              value={block.content}
+              value={block.content || ''}
               onChange={(e) => updateField('content', e.target.value)}
               placeholder="Enter content..."
               rows={4}
@@ -230,7 +246,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
             <div>
               <Label>Button Text</Label>
               <Input
-                value={block.ctaText}
+                value={block.ctaText || ''}
                 onChange={(e) => updateField('ctaText', e.target.value)}
                 placeholder="Click Here"
               />
@@ -238,7 +254,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
             <div>
               <Label>Button URL</Label>
               <Input
-                value={block.ctaUrl}
+                value={block.ctaUrl || ''}
                 onChange={(e) => updateField('ctaUrl', e.target.value)}
                 placeholder="https://example.com"
               />
@@ -252,7 +268,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
             <div>
               <Label>Call-to-Action Text (Optional)</Label>
               <Input
-                value={block.ctaText}
+                value={block.ctaText || ''}
                 onChange={(e) => updateField('ctaText', e.target.value)}
                 placeholder="Learn More"
               />
@@ -261,7 +277,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
               <div>
                 <Label>CTA URL</Label>
                 <Input
-                  value={block.ctaUrl}
+                  value={block.ctaUrl || ''}
                   onChange={(e) => updateField('ctaUrl', e.target.value)}
                   placeholder="https://example.com"
                 />
@@ -274,7 +290,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   };
 
   return (
-    <div className="space-y-6 overflow-visible">
+    <div className="space-y-6">
       {/* Add Block Buttons */}
       <Card>
         <CardHeader>
@@ -304,14 +320,14 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
 
       {/* Content Blocks */}
       {blocks.map((block, index) => (
-        <Card key={block.id} className="overflow-visible">
+        <Card key={block.id}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <GripVertical className="h-4 w-4 text-muted-foreground" />
               Block {index + 1}: {block.type}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6 overflow-visible">
+          <CardContent className="space-y-6">
             {/* Block Preview */}
             {renderBlockPreview(block)}
             
