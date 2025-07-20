@@ -32,10 +32,26 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { assets, loading: assetsLoading, uploadAsset } = useContentAssets();
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showingSuggestions, setShowingSuggestions] = useState(false);
+
+  // Load default suggestions on mount
+  useEffect(() => {
+    const loadDefaultSuggestions = async () => {
+      if (searchResults.length === 0 && !showingSuggestions) {
+        setShowingSuggestions(true);
+        const defaultQuery = contentContext || 'garden plants flowers';
+        const results = await searchImages(defaultQuery);
+        setSearchResults(results.slice(0, 6)); // Show first 6 as suggestions
+      }
+    };
+    
+    loadDefaultSuggestions();
+  }, [contentContext, searchImages, searchResults.length, showingSuggestions]);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
+    setShowingSuggestions(false);
     const results = await searchImages(searchQuery);
     setSearchResults(results);
   };
@@ -128,7 +144,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         {/* Compact image grid */}
         {searchResults.length > 0 && (
           <div>
-            <div className="text-xs text-slate-600 mb-2 font-medium">Search Results:</div>
+            <div className="text-xs text-slate-600 mb-2 font-medium">
+              {showingSuggestions ? 'Suggested Images:' : 'Search Results:'}
+            </div>
             <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
               {searchResults.slice(0, 6).map((image, index) => (
                 <div
@@ -213,7 +231,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           </div>
 
           {searchResults.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <div className="mb-3 text-sm text-slate-600 font-medium">
+                {showingSuggestions ? 'Suggested Images:' : 'Search Results:'}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {searchResults.map((image, index) => (
                 <Card 
                   key={index} 
@@ -254,6 +276,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                   </CardContent>
                 </Card>
               ))}
+            </div>
             </div>
           )}
         </TabsContent>
