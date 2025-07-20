@@ -11,17 +11,19 @@ import { enhancedNewsletterToCRM } from '@/utils/enhancedNewsletterToCrmConverte
 import { EmailBlockEditor } from '@/components/crm/EmailBlockEditor';
 import { EmailPreview } from '@/components/crm/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
+import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { Mail, ArrowLeft, Send, Eye } from 'lucide-react';
 
 export const CRMCampaignCreator: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { senderConfig, loading: senderConfigLoading } = useSenderConfiguration();
   
   // Form state
   const [campaignName, setCampaignName] = useState('');
   const [subjectLine, setSubjectLine] = useState('');
-  const [senderName, setSenderName] = useState('Your Garden Center');
-  const [senderEmail, setSenderEmail] = useState('hello@yourgarden.com');
+  const [senderName, setSenderName] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
   const [personaTags, setPersonaTags] = useState<string[]>([]);
   const [segmentSuggestions, setSegmentSuggestions] = useState<string[]>([]);
@@ -30,6 +32,14 @@ export const CRMCampaignCreator: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
+
+  // Initialize sender information when sender config loads
+  useEffect(() => {
+    if (senderConfig && !senderConfigLoading) {
+      setSenderName(senderConfig.displayName);
+      setSenderEmail(senderConfig.senderEmail);
+    }
+  }, [senderConfig, senderConfigLoading]);
 
   useEffect(() => {
     const processNewsletterImport = async () => {
