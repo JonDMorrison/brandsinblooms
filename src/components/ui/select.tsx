@@ -90,9 +90,6 @@ const SelectContent = React.forwardRef<
           className
         )}
         position={position}
-        onOpenAutoFocus={(e) => {
-          console.log('SelectContent opened');
-        }}
         onCloseAutoFocus={(e) => {
           console.log('SelectContent closed');
         }}
