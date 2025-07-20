@@ -69,7 +69,56 @@ export const WeeklyContentUpdater = () => {
           return;
         }
 
-        // Build query based on tenant availability  
+        // More thorough check for existing campaigns - check by title AND week
+        const { data: companyProfile } = await supabase
+          .from('company_profiles')
+          .select('company_name')
+          .eq('user_id', user.id)
+          .single();
+
+        const themeData = await generateMeaningfulTheme(
+          currentWeek, 
+          companyProfile?.company_name
+        );
+
+        // Check for existing campaigns with the same title (not just week/theme)
+        let existingCampaignQuery = supabase
+          .from('campaigns')
+          .select('id, title, theme, week_number, description')
+          .eq('user_id', user.id)
+          .eq('title', themeData.title);
+
+        if (tenant?.id) {
+          existingCampaignQuery = existingCampaignQuery.eq('tenant_id', tenant.id);
+        }
+
+        const { data: existingByTitle, error: titleCheckError } = await existingCampaignQuery.maybeSingle();
+
+        if (titleCheckError) {
+          console.error('❌ Error checking existing campaign by title:', titleCheckError);
+        }
+
+        if (existingByTitle) {
+          console.log('✅ Found existing campaign with same title:', existingByTitle.title);
+          
+          // Check if this campaign has content already
+          const { data: existingTasks } = await supabase
+            .from('content_tasks')
+            .select('id')
+            .eq('campaign_id', existingByTitle.id)
+            .eq('user_id', user.id);
+
+          if (existingTasks && existingTasks.length > 0) {
+            console.log('✅ Campaign already has content, setup complete');
+            return;
+          }
+
+          console.log('📝 Existing campaign has no content, generating...');
+          await generateContentForCampaign(existingByTitle);
+          return;
+        }
+
+        // Build fallback query based on tenant availability for legacy campaigns
         let campaignQuery = supabase
           .from('campaigns')
           .select('id, title, theme, week_number, description')
@@ -78,7 +127,6 @@ export const WeeklyContentUpdater = () => {
           .not('theme', 'ilike', '%seasonal gardening focus%')
           .not('theme', 'ilike', '%week % seasonal content%');
 
-        // Only add tenant_id filter if tenant exists
         if (tenant?.id) {
           campaignQuery = campaignQuery.eq('tenant_id', tenant.id);
         }
@@ -94,19 +142,6 @@ export const WeeklyContentUpdater = () => {
         if (!existingCampaign) {
           console.log('📝 Creating meaningful campaign for current ISO week:', currentWeek);
           
-          // Get company profile for personalization
-          const { data: companyProfile } = await supabase
-            .from('company_profiles')
-            .select('company_name')
-            .eq('user_id', user.id)
-            .single();
-
-          // Generate meaningful theme
-          const themeData = await generateMeaningfulTheme(
-            currentWeek, 
-            companyProfile?.company_name
-          );
-
           const campaignData = {
             week_number: currentWeek,
             title: themeData.title,
@@ -116,7 +151,7 @@ export const WeeklyContentUpdater = () => {
             prompt: `Create engaging gardening content focused on ${themeData.theme}`,
             user_id: user.id,
             source: 'auto_generated_meaningful',
-            ...(tenant?.id && { tenant_id: tenant.id }) // Only set tenant_id if tenant exists
+            ...(tenant?.id && { tenant_id: tenant.id })
           };
 
           const { data: newCampaign, error: createError } = await supabase
@@ -176,7 +211,7 @@ export const WeeklyContentUpdater = () => {
         );
 
         const timeoutPromise = new Promise<ContentGenerationResult>((_, reject) => 
-          setTimeout(() => reject(new Error('Content generation timeout')), 45000) // 45 second timeout
+          setTimeout(() => reject(new Error('Content generation timeout')), 45000)
         );
 
         const result = await Promise.race([generationPromise, timeoutPromise]) as ContentGenerationResult;

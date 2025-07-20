@@ -22,53 +22,94 @@ export const cleanupDuplicateCampaigns = async (userId: string, weekNumber: numb
       return { success: true, message: 'No cleanup needed' };
     }
 
-    // Identify the best campaign to keep
-    const bestCampaign = campaigns.find(c => 
-      c.theme && 
-      c.theme !== `Week ${weekNumber} Seasonal Content` &&
-      c.theme !== `Seasonal Gardening Focus - Week ${weekNumber}` &&
-      !c.theme.includes('PREVIEW') &&
-      c.source !== 'onboarding_immediate'
-    ) || campaigns[0]; // Fallback to newest if no good theme found
+    // Group campaigns by title to handle cross-title duplicates
+    const campaignsByTitle: { [key: string]: any[] } = {};
+    campaigns.forEach(campaign => {
+      const title = campaign.title || 'Untitled';
+      if (!campaignsByTitle[title]) {
+        campaignsByTitle[title] = [];
+      }
+      campaignsByTitle[title].push(campaign);
+    });
 
-    console.log('🎯 Keeping campaign:', bestCampaign.title, 'with theme:', bestCampaign.theme);
+    let totalCleaned = 0;
+    let bestCampaign = null;
 
-    // Get campaigns to delete (all except the best one)
-    const campaignsToDelete = campaigns.filter(c => c.id !== bestCampaign.id);
-    
-    if (campaignsToDelete.length === 0) {
-      return { success: true, message: 'No duplicates to remove' };
+    // Process each title group
+    for (const [title, titleCampaigns] of Object.entries(campaignsByTitle)) {
+      if (titleCampaigns.length <= 1) continue;
+
+      console.log(`🔍 Processing ${titleCampaigns.length} campaigns with title: "${title}"`);
+
+      // Identify the best campaign to keep for this title
+      const bestForTitle = titleCampaigns.find(c => 
+        c.theme && 
+        c.theme !== `Week ${weekNumber} Seasonal Content` &&
+        c.theme !== `Seasonal Gardening Focus - Week ${weekNumber}` &&
+        !c.theme.includes('PREVIEW') &&
+        c.source !== 'onboarding_immediate'
+      ) || titleCampaigns[0]; // Fallback to newest if no good theme found
+
+      if (!bestCampaign) bestCampaign = bestForTitle;
+
+      console.log('🎯 Keeping campaign for title:', bestForTitle.title, 'with theme:', bestForTitle.theme);
+
+      // Get campaigns to delete for this title
+      const campaignsToDelete = titleCampaigns.filter(c => c.id !== bestForTitle.id);
+      
+      if (campaignsToDelete.length === 0) continue;
+
+      console.log(`🗑️ Deleting ${campaignsToDelete.length} duplicate campaigns for title: "${title}"`);
+
+      // Update content tasks to point to the kept campaign before deletion
+      for (const campaign of campaignsToDelete) {
+        const { error: updateError } = await supabase
+          .from('content_tasks')
+          .update({ campaign_id: bestForTitle.id })
+          .eq('campaign_id', campaign.id);
+
+        if (updateError) {
+          console.error('Error updating tasks for campaign:', campaign.id, updateError);
+        }
+      }
+
+      // Delete the duplicate campaigns
+      const { error: deleteError } = await supabase
+        .from('campaigns')
+        .delete()
+        .in('id', campaignsToDelete.map(c => c.id));
+
+      if (deleteError) {
+        console.error('Error deleting campaigns:', deleteError);
+        return { success: false, message: deleteError.message };
+      }
+
+      totalCleaned += campaignsToDelete.length;
     }
 
-    console.log(`🗑️ Deleting ${campaignsToDelete.length} duplicate campaigns`);
+    // Now clean up duplicate content tasks across the remaining campaigns
+    if (bestCampaign) {
+      try {
+        console.log('🧹 Running comprehensive content cleanup...');
+        const { data: cleanupResult } = await supabase.functions.invoke('cleanup-duplicate-content', {
+          body: { campaign_title: bestCampaign.title }
+        });
 
-    // Delete content tasks for campaigns we're removing
-    for (const campaign of campaignsToDelete) {
-      const { error: tasksError } = await supabase
-        .from('content_tasks')
-        .delete()
-        .eq('campaign_id', campaign.id);
-
-      if (tasksError) {
-        console.error('Error deleting tasks for campaign:', campaign.id, tasksError);
+        if (cleanupResult && !cleanupResult.success) {
+          console.warn('Content cleanup had issues:', cleanupResult.error);
+        } else {
+          console.log('✅ Content cleanup completed:', cleanupResult?.message);
+        }
+      } catch (cleanupError) {
+        console.warn('Content cleanup failed:', cleanupError);
+        // Don't fail the whole operation if content cleanup fails
       }
     }
 
-    // Delete the duplicate campaigns
-    const { error: deleteError } = await supabase
-      .from('campaigns')
-      .delete()
-      .in('id', campaignsToDelete.map(c => c.id));
-
-    if (deleteError) {
-      console.error('Error deleting campaigns:', deleteError);
-      return { success: false, message: deleteError.message };
-    }
-
-    console.log(`✅ Successfully cleaned up ${campaignsToDelete.length} duplicate campaigns`);
+    console.log(`✅ Successfully cleaned up ${totalCleaned} duplicate campaigns`);
     return { 
       success: true, 
-      message: `Cleaned up ${campaignsToDelete.length} duplicates, kept: ${bestCampaign.theme}`,
+      message: `Cleaned up ${totalCleaned} duplicates, kept: ${bestCampaign?.theme || 'best campaign'}`,
       bestCampaign 
     };
 

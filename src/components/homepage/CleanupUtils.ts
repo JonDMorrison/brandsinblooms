@@ -1,9 +1,49 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
   try {
-    console.log('Cleaning up duplicates for campaign:', campaignId);
+    console.log('🧹 Starting cleanup for campaign:', campaignId);
     
+    // Get the campaign to find its title
+    const { data: campaign, error: campaignError } = await supabase
+      .from('campaigns')
+      .select('title, user_id')
+      .eq('id', campaignId)
+      .single();
+
+    if (campaignError || !campaign) {
+      console.error('Error fetching campaign:', campaignError);
+      return;
+    }
+
+    // Use the comprehensive cleanup function via campaign title
+    try {
+      const { data: cleanupResult, error: cleanupError } = await supabase.functions.invoke('cleanup-duplicate-content', {
+        body: { campaign_title: campaign.title }
+      });
+
+      if (cleanupError) {
+        console.error('❌ Cleanup function error:', cleanupError);
+      } else if (cleanupResult) {
+        console.log('✅ Comprehensive cleanup completed:', cleanupResult.message);
+        console.log(`📊 Results: ${cleanupResult.deletedCount} tasks deleted, ${cleanupResult.cleanedCount} tasks cleaned, ${cleanupResult.campaignsConsolidated} campaigns consolidated`);
+      }
+    } catch (error) {
+      console.error('❌ Error calling cleanup function:', error);
+      
+      // Fallback to local cleanup for this specific campaign
+      console.log('🔄 Falling back to local cleanup...');
+      await fallbackLocalCleanup(campaignId);
+    }
+  } catch (error) {
+    console.error('❌ Error in cleanup process:', error);
+  }
+};
+
+// Fallback cleanup function for when the edge function is not available
+const fallbackLocalCleanup = async (campaignId: string) => {
+  try {
     // Get all tasks for this campaign
     const { data: allTasks, error } = await supabase
       .from('content_tasks')
@@ -12,7 +52,7 @@ export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
       .order('created_at', { ascending: true });
 
     if (error || !allTasks) {
-      console.error('Error fetching tasks for cleanup:', error);
+      console.error('Error fetching tasks for fallback cleanup:', error);
       return;
     }
 
@@ -29,7 +69,7 @@ export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
     const tasksToDelete = allTasks.filter(task => !tasksToKeep.includes(task.id));
 
     if (tasksToDelete.length > 0) {
-      console.log('Removing duplicate tasks:', tasksToDelete.map(t => `${t.post_type} (${t.id})`));
+      console.log('🗑️ Fallback: Removing duplicate tasks:', tasksToDelete.map(t => `${t.post_type} (${t.id})`));
       
       const { error: deleteError } = await supabase
         .from('content_tasks')
@@ -37,14 +77,14 @@ export const cleanupDuplicatesForCampaign = async (campaignId: string) => {
         .in('id', tasksToDelete.map(t => t.id));
 
       if (deleteError) {
-        console.error('Error deleting duplicate tasks:', deleteError);
+        console.error('❌ Error deleting duplicate tasks:', deleteError);
       } else {
-        console.log('Successfully cleaned up', tasksToDelete.length, 'duplicate tasks');
+        console.log('✅ Fallback: Successfully cleaned up', tasksToDelete.length, 'duplicate tasks');
       }
     } else {
-      console.log('No duplicates found for campaign:', campaignId);
+      console.log('ℹ️ Fallback: No duplicates found for campaign:', campaignId);
     }
   } catch (error) {
-    console.error('Error cleaning up duplicates:', error);
+    console.error('❌ Error in fallback cleanup:', error);
   }
 };

@@ -16,35 +16,28 @@ function stripEmojis(content: string): string {
 
 function cleanVideoScript(content: string): string {
   return content
-    // Remove scene headers and formatting
     .replace(/\*\*\[Scene \d+:.*?\]\*\*/g, '')
     .replace(/\[Scene \d+:.*?\]/g, '')
     .replace(/\*\*\[.*?\]\*\*/g, '')
     .replace(/\[.*?\]/g, '')
-    // Remove visual and audio cues
     .replace(/\*Visual:.*?\*/g, '')
     .replace(/\*Background Music:.*?\*/g, '')
     .replace(/\*.*?music.*?\*/gi, '')
-    // Remove narrator and host labels
     .replace(/\*\*Narrator \(Voiceover\):\*\*/g, '')
     .replace(/Narrator \(Voiceover\):/g, '')
     .replace(/\*\*Host:\*\*/g, '')
     .replace(/Host:/g, '')
     .replace(/\*\*Host \(.*?\):\*\*/g, '')
-    // Remove video title formatting
     .replace(/\*\*Video Title:.*?\*\*/g, '')
     .replace(/\*\*Title:.*?\*\*/g, '')
-    // Clean up separators and extra formatting
     .replace(/---+/g, '')
     .replace(/\*\*\[End.*?\]\*\*/g, '')
     .replace(/\[End.*?\]/g, '')
-    // Clean up extra whitespace
     .replace(/\n\s*\n\s*\n/g, '\n\n')
     .trim();
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -52,54 +45,79 @@ serve(async (req) => {
   try {
     const { campaign_title } = await req.json();
     
-    console.log('🧹 Starting content cleanup for campaign:', campaign_title);
+    console.log('🧹 Starting comprehensive content cleanup for campaign:', campaign_title);
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get campaign ID
-    const { data: campaigns } = await supabase
+    // Get ALL campaigns with this title (not just the first one)
+    const { data: campaigns, error: campaignError } = await supabase
       .from('campaigns')
-      .select('id')
-      .eq('title', campaign_title);
+      .select('id, title, created_at, user_id')
+      .eq('title', campaign_title)
+      .order('created_at', { ascending: false });
 
-    if (!campaigns || campaigns.length === 0) {
-      throw new Error('Campaign not found');
+    if (campaignError) {
+      throw new Error(`Failed to fetch campaigns: ${campaignError.message}`);
     }
 
-    const campaignId = campaigns[0].id;
+    if (!campaigns || campaigns.length === 0) {
+      throw new Error('No campaigns found with this title');
+    }
 
-    // Get all content tasks for this campaign
-    const { data: allTasks } = await supabase
+    console.log(`🔍 Found ${campaigns.length} campaigns with title "${campaign_title}"`);
+
+    // Get all campaign IDs
+    const campaignIds = campaigns.map(c => c.id);
+
+    // Get ALL content tasks for ALL campaigns with this title
+    const { data: allTasks, error: tasksError } = await supabase
       .from('content_tasks')
       .select('*')
-      .eq('campaign_id', campaignId)
+      .in('campaign_id', campaignIds)
       .order('post_type')
       .order('created_at', { ascending: false });
 
-    if (!allTasks) {
-      throw new Error('No tasks found');
+    if (tasksError) {
+      throw new Error(`Failed to fetch tasks: ${tasksError.message}`);
     }
 
-    // Group by post_type and identify duplicates
+    if (!allTasks || allTasks.length === 0) {
+      console.log('ℹ️ No tasks found for these campaigns');
+      return new Response(JSON.stringify({
+        success: true,
+        deletedCount: 0,
+        cleanedCount: 0,
+        campaignsConsolidated: 0,
+        message: 'No tasks found to clean up'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`📊 Processing ${allTasks.length} total tasks across ${campaigns.length} campaigns`);
+
+    // Group by post_type and identify duplicates across ALL campaigns
     const tasksByType: { [key: string]: any[] } = {};
     allTasks.forEach(task => {
-      if (!tasksByType[task.post_type]) {
-        tasksByType[task.post_type] = [];
-      }
-      tasksByType[task.post_type].push(task);
+      const type = task.post_type || 'general';
+      if (!tasksByType[type]) tasksByType[type] = [];
+      tasksByType[type].push(task);
     });
 
     let deletedCount = 0;
     let cleanedCount = 0;
 
-    // Process each content type
+    // Process each content type across ALL campaigns
     for (const [postType, tasks] of Object.entries(tasksByType)) {
+      console.log(`🔄 Processing ${tasks.length} ${postType} tasks`);
+      
       if (tasks.length > 1) {
-        console.log(`🔍 Found ${tasks.length} ${postType} tasks, keeping most recent`);
-        
         // Keep the most recent task (first in our descending order)
         const keepTask = tasks[0];
         const tasksToDelete = tasks.slice(1);
+
+        console.log(`🎯 Keeping most recent ${postType} task: ${keepTask.id} (from campaign ${keepTask.campaign_id})`);
+        console.log(`🗑️ Deleting ${tasksToDelete.length} duplicate ${postType} tasks`);
 
         // Delete duplicates
         for (const task of tasksToDelete) {
@@ -110,7 +128,9 @@ serve(async (req) => {
           
           if (!error) {
             deletedCount++;
-            console.log(`🗑️ Deleted duplicate ${postType} task: ${task.id}`);
+            console.log(`✅ Deleted duplicate ${postType} task: ${task.id}`);
+          } else {
+            console.error(`❌ Failed to delete task ${task.id}:`, error);
           }
         }
 
@@ -131,6 +151,8 @@ serve(async (req) => {
             if (!error) {
               cleanedCount++;
               console.log(`✨ Cleaned ${postType} content: ${keepTask.id}`);
+            } else {
+              console.error(`❌ Failed to clean task ${keepTask.id}:`, error);
             }
           }
         }
@@ -153,25 +175,71 @@ serve(async (req) => {
             if (!error) {
               cleanedCount++;
               console.log(`✨ Cleaned ${postType} content: ${task.id}`);
+            } else {
+              console.error(`❌ Failed to clean task ${task.id}:`, error);
             }
           }
         }
       }
     }
 
-    console.log(`✅ Cleanup complete: ${deletedCount} duplicates deleted, ${cleanedCount} tasks cleaned`);
+    // Consolidate duplicate campaigns - keep the most recent one
+    let campaignsConsolidated = 0;
+    if (campaigns.length > 1) {
+      const keepCampaign = campaigns[0]; // Most recent
+      const campaignsToDelete = campaigns.slice(1);
+
+      console.log(`🎯 Keeping most recent campaign: ${keepCampaign.id} (${keepCampaign.created_at})`);
+      console.log(`🗑️ Consolidating ${campaignsToDelete.length} duplicate campaigns`);
+
+      // Update any remaining content tasks to point to the kept campaign
+      const { data: remainingTasks } = await supabase
+        .from('content_tasks')
+        .select('id, campaign_id')
+        .in('campaign_id', campaignIds);
+
+      if (remainingTasks && remainingTasks.length > 0) {
+        for (const task of remainingTasks) {
+          if (task.campaign_id !== keepCampaign.id) {
+            await supabase
+              .from('content_tasks')
+              .update({ campaign_id: keepCampaign.id })
+              .eq('id', task.id);
+          }
+        }
+      }
+
+      // Delete duplicate campaigns
+      for (const campaign of campaignsToDelete) {
+        const { error } = await supabase
+          .from('campaigns')
+          .delete()
+          .eq('id', campaign.id);
+
+        if (!error) {
+          campaignsConsolidated++;
+          console.log(`✅ Deleted duplicate campaign: ${campaign.id}`);
+        } else {
+          console.error(`❌ Failed to delete campaign ${campaign.id}:`, error);
+        }
+      }
+    }
+
+    console.log(`✅ Comprehensive cleanup complete: ${deletedCount} duplicate tasks deleted, ${cleanedCount} tasks cleaned, ${campaignsConsolidated} duplicate campaigns consolidated`);
 
     return new Response(JSON.stringify({
       success: true,
       deletedCount,
       cleanedCount,
-      message: `Cleanup complete: ${deletedCount} duplicates deleted, ${cleanedCount} tasks cleaned`
+      campaignsConsolidated,
+      campaignsProcessed: campaigns.length,
+      message: `Comprehensive cleanup complete: ${deletedCount} duplicate tasks deleted, ${cleanedCount} tasks cleaned, ${campaignsConsolidated} duplicate campaigns consolidated`
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('❌ Error in cleanup function:', error);
+    console.error('❌ Error in comprehensive cleanup function:', error);
     return new Response(JSON.stringify({ 
       success: false, 
       error: error.message 
