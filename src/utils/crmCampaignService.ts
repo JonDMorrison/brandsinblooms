@@ -107,7 +107,7 @@ export const saveCampaignAsDraft = async (campaignData: CampaignData) => {
       }
     }
 
-    // Link segments to campaign
+    // Link segments to campaign using the new campaign_segments table
     if (campaignData.segments.length > 0) {
       const segmentLinks = campaignData.segments.map(segment => ({
         campaign_id: campaign.id,
