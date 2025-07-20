@@ -19,6 +19,7 @@ import { ContentImportBadge } from '@/components/crm/campaigns/ContentImportBadg
 import { saveCampaignAsDraft, sendCampaign } from '@/utils/crmCampaignService';
 import { regenerateEmailContent, regenerateContentBlock } from '@/utils/aiContentRegenerator';
 import { getSeasonalTemplates, recommendTemplatesForContent } from '@/utils/seasonalTemplateService';
+import { enhancedNewsletterToCRM } from '@/utils/enhancedNewsletterToCrmConverter';
 
 interface CampaignData {
   name: string;
@@ -41,6 +42,7 @@ interface ContentBlock {
   imageUrl?: string;
   ctaUrl?: string;
   ctaText?: string;
+  source?: 'newsletter' | 'ai' | 'template' | 'manual';
 }
 
 export const CRMCampaignCreator = () => {
@@ -77,19 +79,77 @@ export const CRMCampaignCreator = () => {
   } = useSegmentSelector();
 
   useEffect(() => {
-    // Populate fromContentTaskId if available
-    const importedTitle = searchParams.get('title');
-    const importedThemeSource = searchParams.get('themeSource');
+    // Handle newsletter content import from sendToCRM
+    const fromContentTaskId = searchParams.get('fromContentTaskId');
+    const source = searchParams.get('source');
+    
+    if (fromContentTaskId && source === 'newsletter_content') {
+      console.log('🔄 Processing newsletter import from sendToCRM:', { fromContentTaskId });
+      processNewsletterImport(fromContentTaskId);
+    } else {
+      // Fallback to simple parameter handling
+      const importedTitle = searchParams.get('title');
+      const importedThemeSource = searchParams.get('themeSource');
 
-    if (importedTitle) {
-      setCampaignData(prev => ({
-        ...prev,
-        name: `${importedTitle} Campaign`,
-        subject: `Check out our ${importedTitle} Newsletter!`,
-        content: `We're excited to share our latest insights on ${importedTitle}.`
-      }));
+      if (importedTitle) {
+        setCampaignData(prev => ({
+          ...prev,
+          name: `${decodeURIComponent(importedTitle)} Campaign`,
+          subject: `Check out our ${decodeURIComponent(importedTitle)} Newsletter!`,
+          content: `We're excited to share our latest insights on ${decodeURIComponent(importedTitle)}.`
+        }));
+      }
     }
   }, [searchParams]);
+
+  // Process newsletter content using enhanced converter
+  const processNewsletterImport = async (contentTaskId: string) => {
+    setLoading(true);
+    try {
+      console.log('📧 Converting newsletter to CRM campaign with enhanced converter...');
+      
+      const result = await enhancedNewsletterToCRM(contentTaskId, searchParams);
+      
+      console.log('✅ Enhanced conversion result:', result);
+      
+      // Pre-populate form with converted content
+      setCampaignData(prev => ({
+        ...prev,
+        name: result.campaignName,
+        subject: result.subjectLine,
+        content: result.contentBlocks.map(block => {
+          if (block.content) return block.content;
+          if (block.title) return block.title;
+          return '';
+        }).join('\n\n'),
+      }));
+      
+      // Set content blocks for the campaign (map enhanced blocks to local ContentBlock type)
+      setContentBlocks(result.contentBlocks.map(block => ({
+        type: (block.type || 'text') as ContentBlock['type'],
+        title: block.title,
+        content: block.content,
+        imageUrl: block.imageUrl,
+        ctaText: block.ctaText,
+        ctaUrl: block.ctaUrl,
+        source: 'newsletter' as const
+      })));
+      
+      // Auto-suggest segments based on analysis
+      if (result.segmentSuggestions.length > 0) {
+        console.log('📊 Auto-suggesting segments:', result.segmentSuggestions);
+        // Note: The segment selection will need to be handled by the segment selector
+      }
+      
+      toast.success(`✅ Newsletter converted successfully! Campaign blocks: ${result.contentBlocks.length}`);
+      
+    } catch (error) {
+      console.error('❌ Error converting newsletter to CRM:', error);
+      toast.error('Failed to convert newsletter content. Please try manual creation.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSaveCampaign = async () => {
     if (!campaignData.name.trim()) {

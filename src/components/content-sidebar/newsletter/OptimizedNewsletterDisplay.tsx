@@ -170,15 +170,30 @@ export const OptimizedNewsletterDisplay = ({
       return;
     }
 
-    const success = await sendToCRM(contentTaskId);
-    
-    if (!success) {
-      // Error handling is done in sendToCRM function
-      return;
+    try {
+      console.log('🔄 Starting CRM transfer for content task:', contentTaskId);
+      
+      const success = await sendToCRM(contentTaskId);
+      
+      if (success) {
+        console.log('✅ Content successfully sent to CRM - redirecting...');
+        // Additional success feedback is handled in sendToCRM function
+      } else {
+        console.error('❌ CRM transfer failed');
+        toast({
+          title: "Transfer Failed",
+          description: "Could not transfer newsletter to CRM. Please try again.",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in CRM transfer:', error);
+      toast({
+        title: "Transfer Error",
+        description: "An unexpected error occurred during CRM transfer.",
+        variant: "destructive"
+      });
     }
-
-    // The sendToCRM function handles navigation, so we don't need to do it here
-    console.log('✅ Content successfully sent to CRM');
   };
 
   // Check if content is approved

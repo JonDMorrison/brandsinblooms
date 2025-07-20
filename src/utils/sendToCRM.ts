@@ -15,7 +15,7 @@ interface SendToCRMPayload {
 
 export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
   try {
-    console.log('🔄 Sending content to CRM:', { contentTaskId });
+    console.log('🔄 [sendToCRM] Starting CRM transfer for content task:', contentTaskId);
 
     // Fetch the content task with campaign details
     const { data: contentTask, error: taskError } = await supabase
@@ -33,10 +33,18 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
       .single();
 
     if (taskError || !contentTask) {
-      console.error('❌ Failed to fetch content task:', taskError);
+      console.error('❌ [sendToCRM] Failed to fetch content task:', taskError);
       toast.error('Failed to load content for CRM transfer');
       return false;
     }
+
+    console.log('✅ [sendToCRM] Content task fetched:', {
+      id: contentTask.id,
+      hasContent: !!contentTask.ai_output,
+      contentLength: contentTask.ai_output?.length || 0,
+      postType: contentTask.post_type,
+      campaignTitle: contentTask.campaigns?.title
+    });
 
     // Extract content details
     const campaign = contentTask.campaigns;
@@ -54,6 +62,7 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
 
     // Extract persona tags from content
     const personaTags = extractPersonaTags(contentTask.ai_output || '');
+    console.log('🏷️ [sendToCRM] Extracted persona tags:', personaTags);
     
     // Generate segment suggestions based on content
     const segmentSuggestions = generateSegmentSuggestions(
@@ -61,9 +70,11 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
       campaign?.theme || '',
       personaTags
     );
+    console.log('📊 [sendToCRM] Generated segment suggestions:', segmentSuggestions);
 
     // Extract images from attachments and content
     const images = extractImages(contentTask);
+    console.log('🖼️ [sendToCRM] Extracted images:', images);
 
     const payload: SendToCRMPayload = {
       contentTaskId,
@@ -76,12 +87,31 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
       campaignId: contentTask.campaign_id || undefined
     };
 
+    console.log('📦 [sendToCRM] Prepared payload:', {
+      ...payload,
+      content: payload.content.substring(0, 100) + '...' // Truncate content for logging
+    });
+
+    // Enhanced URL encoding for better parameter transmission
+    const encodedContent = encodeURIComponent(JSON.stringify({
+      content: contentTask.ai_output || '',
+      metadata: {
+        title,
+        themeSource,
+        personaTags,
+        segmentSuggestions,
+        campaignId: contentTask.campaign_id,
+        images
+      }
+    }));
+
     // Navigate to CRM with enhanced parameters
     const searchParams = new URLSearchParams({
       fromContentTaskId: contentTaskId,
       source: 'newsletter_content',
       themeSource,
       title: encodeURIComponent(title),
+      content: encodedContent,
       ...(payload.personaTags?.length && { 
         personaTags: encodeURIComponent(JSON.stringify(payload.personaTags)) 
       }),
@@ -93,12 +123,18 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
 
     const crmUrl = `/crm/campaigns/new?${searchParams.toString()}`;
     
-    console.log('✅ Navigating to CRM:', { crmUrl, payload });
+    console.log('✅ Navigating to CRM with enhanced parameters:', { 
+      crmUrl: crmUrl.substring(0, 200) + '...', // Truncate for logging
+      payload: {
+        ...payload,
+        content: payload.content.substring(0, 100) + '...' // Truncate content for logging
+      }
+    });
     
     // Use window.location for navigation to ensure URL parameters are preserved
     window.location.href = crmUrl;
     
-    toast.success(`"${title}" sent to CRM Campaign Builder`);
+    toast.success(`"${title}" sent to CRM Campaign Builder with ${payload.personaTags?.length || 0} tags and ${payload.segmentSuggestions?.length || 0} segments`);
     return true;
 
   } catch (error) {
