@@ -72,7 +72,6 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             className="text-xs"
-            size="sm"
           />
           <Button 
             onClick={handleSearch} 
