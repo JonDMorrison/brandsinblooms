@@ -1,4 +1,3 @@
-
 import { parseNewsletterYAML, StructuredNewsletter } from './newsletterUtils';
 import { fixMalformedNewsletter, validateNewsletterStructure, calculateReadingTime } from './newsletterContentFixer';
 
@@ -12,6 +11,15 @@ interface ProcessedNewsletter {
   };
   isStructured: boolean;
   needsRegeneration: boolean;
+  unstructuredSections?: UnstructuredSection[];
+}
+
+interface UnstructuredSection {
+  title: string;
+  content: string;
+  image_prompt: string;
+  alt_text: string;
+  id: string;
 }
 
 export const processNewsletterContent = (content: string, campaignTitle?: string): ProcessedNewsletter => {
@@ -54,12 +62,15 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     };
   }
 
-  // If YAML parsing failed, treat as unstructured content
-  console.log('[NEWSLETTER PROCESSOR] Content not structured, treating as markdown');
+  // If YAML parsing failed, treat as unstructured content and create sections
+  console.log('[NEWSLETTER PROCESSOR] Content not structured, creating sections with image support');
+  
+  const unstructuredSections = createSectionsFromUnstructuredContent(processedContent, campaignTitle);
   
   return {
     newsletter_md: processedContent,
     blocks: [],
+    unstructuredSections,
     meta: {
       reading_time: calculateReadingTime(processedContent),
       theme: extractThemeFromContent(processedContent, campaignTitle),
@@ -70,10 +81,98 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
   };
 };
 
+const createSectionsFromUnstructuredContent = (content: string, campaignTitle?: string): UnstructuredSection[] => {
+  const sections: UnstructuredSection[] = [];
+  
+  // Split content by headers (## or ###) or double line breaks
+  const parts = content.split(/(?=^#{2,3}\s+)/m).filter(part => part.trim());
+  
+  if (parts.length === 0) {
+    // No clear sections, create sections from paragraphs
+    const paragraphs = content.split(/\n\s*\n/).filter(p => p.trim());
+    
+    paragraphs.forEach((paragraph, index) => {
+      const lines = paragraph.split('\n').filter(line => line.trim());
+      const title = extractSectionTitle(lines[0]) || `Section ${index + 1}`;
+      const sectionContent = lines.slice(1).join('\n').trim() || lines[0];
+      
+      sections.push({
+        id: `section-${index}`,
+        title,
+        content: sectionContent,
+        image_prompt: generateImagePrompt(title, sectionContent, campaignTitle),
+        alt_text: `Image for ${title}`
+      });
+    });
+  } else {
+    // Create sections from header-based parts
+    parts.forEach((part, index) => {
+      const lines = part.split('\n').filter(line => line.trim());
+      const headerLine = lines.find(line => line.match(/^#{2,3}\s+/));
+      const title = headerLine ? headerLine.replace(/^#{2,3}\s+/, '').trim() : `Section ${index + 1}`;
+      const contentLines = lines.filter(line => !line.match(/^#{2,3}\s+/));
+      const sectionContent = contentLines.join('\n').trim();
+      
+      if (sectionContent) {
+        sections.push({
+          id: `section-${index}`,
+          title,
+          content: sectionContent,
+          image_prompt: generateImagePrompt(title, sectionContent, campaignTitle),
+          alt_text: `Image for ${title}`
+        });
+      }
+    });
+  }
+  
+  console.log(`[NEWSLETTER PROCESSOR] Created ${sections.length} sections with image prompts`);
+  return sections;
+};
+
+const generateImagePrompt = (title: string, content: string, campaignTitle?: string): string => {
+  const keywords = extractKeywordsFromText(`${title} ${content}`);
+  const basePrompt = campaignTitle ? `${campaignTitle} garden` : 'garden center';
+  return `${basePrompt} ${keywords.slice(0, 3).join(' ')}`.toLowerCase();
+};
+
+const extractKeywordsFromText = (text: string): string[] => {
+  // Remove common words and extract meaningful keywords
+  const commonWords = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'a', 'an', 'is', 'are', 'was', 'were'];
+  const words = text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !commonWords.includes(word))
+    .slice(0, 5);
+  
+  return words.length > 0 ? words : ['plants', 'garden'];
+};
+
+const extractSectionTitle = (line: string): string | null => {
+  if (!line) return null;
+  
+  const trimmed = line.trim();
+  
+  // Remove markdown syntax and extract clean title
+  let title = trimmed
+    .replace(/^#+\s*/, '')
+    .replace(/\*\*(.*?)\*\*/, '$1')
+    .replace(/__(.*?)__/, '$1')
+    .trim();
+  
+  // Check if it looks like a title (short, capitalized, etc.)
+  if (title.length < 100 && (title.includes(':') || title.match(/^[A-Z]/) || title.length < 60)) {
+    return title;
+  }
+  
+  return null;
+};
+
 const createEmptyNewsletter = (campaignTitle?: string): ProcessedNewsletter => {
   return {
     newsletter_md: '',
     blocks: [],
+    unstructuredSections: [],
     meta: {
       reading_time: '0 min',
       theme: 'Garden Newsletter',
