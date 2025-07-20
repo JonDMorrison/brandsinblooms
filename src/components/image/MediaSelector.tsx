@@ -4,12 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Search, Shuffle, Image as ImageIcon, Loader2, ExternalLink, Camera, CheckCircle } from 'lucide-react';
-import { useImageSuggestions } from '@/hooks/useImageSuggestions';
+import { Upload, Search, Image as ImageIcon, Loader2, Download, Edit3, Camera } from 'lucide-react';
 import { useUnsplash } from '@/hooks/useUnsplash';
 import { useContentAssets } from '@/hooks/useContentAssets';
+import { downloadUnsplashImage, copyAttributionToClipboard } from '@/services/unsplashDownloadService';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface MediaSelectorProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
@@ -27,21 +27,21 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   compact = false
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('search');
-  
-  const { searchImages, loading: unsplashLoading } = useUnsplash();
-  const { assets, loading: assetsLoading, uploadAsset } = useContentAssets();
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showingSuggestions, setShowingSuggestions] = useState(false);
+  const [selectedImageMetadata, setSelectedImageMetadata] = useState<any>(null);
+  
+  const { searchImages, loading: unsplashLoading } = useUnsplash();
+  const { uploadAsset } = useContentAssets();
 
   // Load default suggestions on mount
   useEffect(() => {
     const loadDefaultSuggestions = async () => {
       if (searchResults.length === 0 && !showingSuggestions) {
         setShowingSuggestions(true);
-        const defaultQuery = contentContext || 'garden plants flowers';
+        const defaultQuery = contentContext || 'professional business';
         const results = await searchImages(defaultQuery);
-        setSearchResults(results.slice(0, 6)); // Show first 6 as suggestions
+        setSearchResults(results.slice(0, 6));
       }
     };
     
@@ -57,7 +57,47 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   };
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
+    setSelectedImageMetadata(metadata);
     onImageSelect(imageUrl, metadata);
+  };
+
+  const handleDownload = async (image: any, event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    
+    if (!image.photographer || !image.id) {
+      toast.error('Unable to download: Missing image information');
+      return;
+    }
+
+    try {
+      const result = await downloadUnsplashImage({
+        imageUrl: image.url,
+        photographer: image.photographer,
+        photographerUrl: image.photographer_url,
+        unsplashId: image.id,
+        downloadLocation: image.download_location
+      });
+
+      if (result.success) {
+        toast.success(`Downloaded: ${result.filename}`);
+        
+        // Copy attribution to clipboard
+        const copied = await copyAttributionToClipboard(
+          image.photographer,
+          image.photographer_url,
+          'copy'
+        );
+        
+        if (copied) {
+          toast.success('Attribution copied to clipboard');
+        }
+      } else {
+        toast.error(`Download failed: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Download failed');
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,36 +115,54 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       }
     } catch (error) {
       console.error('Upload failed:', error);
+      toast.error('Upload failed');
     }
   };
 
   if (compact) {
     return (
       <div className={cn("space-y-4", className)}>
-        {/* Featured Image Display - Show prominently at top */}
-        {selectedImageUrl && (
-          <div className="space-y-2">
-            <div className="text-sm font-medium text-slate-700 flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-green-600" />
-              <span>Featured Image Selected:</span>
-            </div>
-            <div className="relative aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
+        {/* Compact Featured Image */}
+        <div className="space-y-2">
+          {selectedImageUrl ? (
+            <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
               <img 
                 src={selectedImageUrl} 
                 alt="Selected featured image"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute top-2 right-2">
-                <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-300">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Selected
-                </Badge>
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="bg-white/90 hover:bg-white"
+                >
+                  <Edit3 className="h-3 w-3 mr-1" />
+                  Change Image
+                </Button>
+                {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={(e) => handleDownload(selectedImageMetadata, e)}
+                    className="bg-white/90 hover:bg-white"
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center">
+              <div className="text-center">
+                <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-600">Select a featured image</p>
+              </div>
+            </div>
+          )}
+        </div>
 
-        {/* Compact search bar */}
+        {/* Compact Controls */}
         <div className="flex gap-2">
           <Input
             placeholder="Search images..."
@@ -123,46 +181,40 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           </Button>
         </div>
 
-        {/* Compact upload button */}
-        <div className="flex gap-2">
-          <label className="flex-1">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button variant="outline" size="sm" className="w-full text-xs" asChild>
-              <span>
-                <Upload className="h-3 w-3 mr-1" />
-                Upload New Image
-              </span>
-            </Button>
-          </label>
-        </div>
+        <label className="block">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <Button variant="outline" size="sm" className="w-full text-xs" asChild>
+            <span>
+              <Upload className="h-3 w-3 mr-1" />
+              Upload New Image
+            </span>
+          </Button>
+        </label>
 
-        {/* Compact image grid */}
+        {/* Compact 3 Thumbnails */}
         {searchResults.length > 0 && (
           <div>
             <div className="text-xs text-slate-600 mb-2 font-medium">
-              {showingSuggestions ? 'Suggested Images:' : 'Search Results:'}
+              {showingSuggestions ? 'Suggested:' : 'Results:'}
             </div>
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-              {searchResults.slice(0, 6).map((image, index) => (
+            <div className="grid grid-cols-3 gap-2">
+              {searchResults.slice(0, 3).map((image, index) => (
                 <div
                   key={index}
-                  className={cn(
-                    "relative group cursor-pointer aspect-square rounded overflow-hidden border-2 transition-all",
-                    selectedImageUrl === image.url 
-                      ? "border-green-500 bg-green-50" 
-                      : "border-slate-200 hover:border-primary"
-                  )}
+                  className="relative group cursor-pointer aspect-square rounded overflow-hidden border-2 border-slate-200 hover:border-primary transition-all"
                   onClick={() => handleImageSelect(image.url, {
                     source: 'unsplash',
                     alt_text: image.alt,
                     photographer: image.photographer,
+                    photographer_url: image.photographer_url,
                     unsplash_id: image.id,
-                    thumb: image.thumb
+                    thumb: image.thumb,
+                    download_location: image.download_location
                   })}
                 >
                   <img 
@@ -171,17 +223,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    {selectedImageUrl === image.url ? (
-                      <CheckCircle className="h-5 w-5 text-green-400" />
-                    ) : (
-                      <Camera className="h-4 w-4 text-white" />
-                    )}
+                    <Camera className="h-4 w-4 text-white" />
                   </div>
-                  {selectedImageUrl === image.url && (
-                    <div className="absolute top-1 right-1">
-                      <CheckCircle className="h-4 w-4 text-green-600 bg-white rounded-full" />
-                    </div>
-                  )}
                 </div>
               ))}
             </div>
@@ -192,33 +235,51 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   }
 
   return (
-    <div className={cn("w-full space-y-4", className)}>
-      {/* Featured Image Display - Full mode */}
-      {selectedImageUrl && (
-        <div className="mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg">
-          <div className="text-sm font-medium text-green-800 flex items-center gap-2 mb-3">
-            <CheckCircle className="h-4 w-4" />
-            <span>Currently Selected Image:</span>
-          </div>
-          <div className="relative aspect-video rounded-lg border border-green-300 overflow-hidden">
+    <div className={cn("w-full space-y-6", className)}>
+      {/* Featured Image Section */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-slate-700">Featured Image</h3>
+        
+        {selectedImageUrl ? (
+          <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
             <img 
               src={selectedImageUrl} 
               alt="Selected featured image"
               className="w-full h-full object-cover"
             />
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+              <div className="text-center">
+                <Edit3 className="h-6 w-6 text-white mx-auto mb-2" />
+                <p className="text-white font-medium">Change Image</p>
+              </div>
+              {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={(e) => handleDownload(selectedImageMetadata, e)}
+                  className="bg-white/90 hover:bg-white"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center hover:border-gray-400 hover:bg-gray-100 transition-colors">
+            <div className="text-center">
+              <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <h4 className="text-lg font-medium text-gray-600 mb-1">Select a Featured Image</h4>
+              <p className="text-sm text-gray-500">Choose from suggestions below or search for something specific</p>
+            </div>
+          </div>
+        )}
+      </div>
 
-      <Tabs defaultValue="search" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="search">Search</TabsTrigger>
-          <TabsTrigger value="upload">Upload</TabsTrigger>
-          <TabsTrigger value="library">Library</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="search" className="space-y-4">
-          <div className="flex gap-2">
+      {/* Search & Upload Controls */}
+      <div className="space-y-3">
+        <div className="flex gap-3">
+          <div className="flex-1 flex gap-2">
             <Input
               placeholder="Search for images..."
               value={searchQuery}
@@ -229,123 +290,80 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </div>
-
-          {searchResults.length > 0 && (
-            <div>
-              <div className="mb-3 text-sm text-slate-600 font-medium">
-                {showingSuggestions ? 'Suggested Images:' : 'Search Results:'}
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {searchResults.map((image, index) => (
-                <Card 
-                  key={index} 
-                  className={cn(
-                    "cursor-pointer transition-all",
-                    selectedImageUrl === image.url 
-                      ? "ring-2 ring-green-500 shadow-lg" 
-                      : "hover:shadow-md"
-                  )}
-                >
-                  <CardContent className="p-0">
-                    <div 
-                      className="relative aspect-square"
-                      onClick={() => handleImageSelect(image.url, {
-                        source: 'unsplash',
-                        alt_text: image.alt,
-                        photographer: image.photographer,
-                        unsplash_id: image.id,
-                        thumb: image.thumb
-                      })}
-                    >
-                      <img 
-                        src={image.thumb} 
-                        alt={image.alt}
-                        className="w-full h-full object-cover rounded-t-lg"
-                      />
-                      {selectedImageUrl === image.url && (
-                        <div className="absolute top-2 right-2">
-                          <CheckCircle className="h-6 w-6 text-green-600 bg-white rounded-full" />
-                        </div>
-                      )}
-                      {image.photographer && (
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2">
-                          Photo by {image.photographer}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="upload" className="space-y-4">
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+          
+          <label>
             <input
               type="file"
               accept="image/*"
               onChange={handleFileUpload}
               className="hidden"
-              id="file-upload"
             />
-            <label htmlFor="file-upload" className="cursor-pointer">
-              <Upload className="mx-auto h-12 w-12 text-gray-400" />
-              <p className="mt-2 text-sm text-gray-600">Click to upload an image</p>
-            </label>
-          </div>
-        </TabsContent>
+            <Button variant="outline" asChild>
+              <span>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload
+              </span>
+            </Button>
+          </label>
+        </div>
+      </div>
 
-        <TabsContent value="library" className="space-y-4">
-          {assetsLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin" />
-            </div>
-          ) : assets.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {assets.filter(asset => asset.type === 'image').map((asset) => (
-                <Card 
-                  key={asset.id} 
-                  className={cn(
-                    "cursor-pointer transition-all",
-                    selectedImageUrl === asset.url 
-                      ? "ring-2 ring-green-500 shadow-lg" 
-                      : "hover:shadow-md"
-                  )}
-                >
-                  <CardContent className="p-0">
-                    <div 
-                      className="relative aspect-square"
-                      onClick={() => handleImageSelect(asset.url || '/placeholder.svg', {
-                        source: 'upload',
-                        alt_text: asset.name,
-                        file_name: asset.name
-                      })}
-                    >
-                      <img 
-                        src={asset.url || '/placeholder.svg'} 
-                        alt={asset.name}
-                        className="w-full h-full object-cover rounded-t-lg"
-                      />
-                      {selectedImageUrl === asset.url && (
-                        <div className="absolute top-2 right-2">
-                          <CheckCircle className="h-6 w-6 text-green-600 bg-white rounded-full" />
-                        </div>
-                      )}
+      {/* 3 Thumbnail Grid */}
+      {searchResults.length > 0 && (
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-slate-700">
+            {showingSuggestions ? 'Suggested Images' : 'Search Results'}
+          </h4>
+          
+          <div className="grid grid-cols-3 gap-4">
+            {searchResults.slice(0, 3).map((image, index) => (
+              <Card 
+                key={index} 
+                className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
+                onClick={() => handleImageSelect(image.url, {
+                  source: 'unsplash',
+                  alt_text: image.alt,
+                  photographer: image.photographer,
+                  photographer_url: image.photographer_url,
+                  unsplash_id: image.id,
+                  thumb: image.thumb,
+                  download_location: image.download_location
+                })}
+              >
+                <CardContent className="p-0">
+                  <div className="relative aspect-square">
+                    <img 
+                      src={image.thumb} 
+                      alt={image.alt}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                      <Camera className="h-6 w-6 text-white" />
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <ImageIcon className="mx-auto h-12 w-12 text-gray-300" />
-              <p className="mt-2">No images in your library yet</p>
+                    {image.photographer && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-lg">
+                        Photo by {image.photographer}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          
+          {searchResults.length > 3 && (
+            <div className="text-center">
+              <Button 
+                variant="outline" 
+                onClick={() => setSearchResults(searchResults.slice(0, searchResults.length))}
+                className="text-sm"
+              >
+                Search for more options above
+              </Button>
             </div>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+      )}
     </div>
   );
 };
