@@ -25,7 +25,6 @@ export interface ContentBlock {
 
 export const regenerateEmailContent = async (
   originalContent: string,
-  campaignTitle: string,
   options: RegenerationOptions = {}
 ) => {
   try {
@@ -42,7 +41,6 @@ export const regenerateEmailContent = async (
     const { data, error } = await supabase.functions.invoke('regenerate-email-content', {
       body: {
         original_content: originalContent,
-        campaign_title: campaignTitle,
         business_context: {
           company_name: profile?.company_name || 'Your Garden Center',
           brand_voice: profile?.brand_voice || 'friendly and helpful',
@@ -65,13 +63,7 @@ export const regenerateEmailContent = async (
 
     if (error) throw error;
 
-    return {
-      regeneratedContent: data.regenerated_content,
-      subjectVariations: data.subject_variations || [],
-      ctaVariations: data.cta_variations || [],
-      toneAnalysis: data.tone_analysis,
-      improvementSuggestions: data.improvement_suggestions || []
-    };
+    return data.regenerated_content;
 
   } catch (error) {
     console.error('Error regenerating email content:', error);
@@ -80,9 +72,8 @@ export const regenerateEmailContent = async (
   }
 };
 
-export const regenerateSpecificBlock = async (
+export const regenerateContentBlock = async (
   block: ContentBlock,
-  campaignContext: string,
   options: RegenerationOptions = {}
 ) => {
   try {
@@ -94,7 +85,6 @@ export const regenerateSpecificBlock = async (
           content: block.content,
           cta_text: block.ctaText
         },
-        campaign_context: campaignContext,
         regeneration_options: options,
         timestamp: new Date().toISOString()
       }
@@ -103,39 +93,17 @@ export const regenerateSpecificBlock = async (
     if (error) throw error;
 
     return {
-      regeneratedBlock: data.regenerated_block,
-      variations: data.variations || [],
-      performancePrediction: data.performance_prediction
+      type: data.regenerated_block.type,
+      title: data.regenerated_block.title,
+      content: data.regenerated_block.content,
+      ctaText: data.regenerated_block.cta_text,
+      ctaUrl: block.ctaUrl,
+      imageUrl: block.imageUrl
     };
 
   } catch (error) {
     console.error('Error regenerating content block:', error);
     toast.error('Failed to regenerate content block');
-    throw error;
-  }
-};
-
-export const generateABTestVariations = async (
-  originalContent: string,
-  variationCount: number = 3
-) => {
-  try {
-    const { data, error } = await supabase.functions.invoke('generate-ab-variations', {
-      body: {
-        original_content: originalContent,
-        variation_count: variationCount,
-        variation_types: ['tone', 'structure', 'cta_focus'],
-        timestamp: new Date().toISOString()
-      }
-    });
-
-    if (error) throw error;
-
-    return data.variations;
-
-  } catch (error) {
-    console.error('Error generating A/B test variations:', error);
-    toast.error('Failed to generate variations');
     throw error;
   }
 };
