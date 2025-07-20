@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { MediaSelector } from '@/components/image/MediaSelector';
 
 interface BlogPostLayoutProps {
   title?: string;
@@ -10,6 +11,10 @@ interface BlogPostLayoutProps {
   companyName?: string;
   content: string;
   className?: string;
+  showMediaSelector?: boolean;
+  selectedImageUrl?: string;
+  contentContext?: string;
+  onImageSelect?: (imageUrl: string, metadata?: any) => void;
 }
 
 export const BlogPostLayout = ({ 
@@ -19,7 +24,11 @@ export const BlogPostLayout = ({
   readingTime, 
   companyName,
   content, 
-  className 
+  className,
+  showMediaSelector = false,
+  selectedImageUrl,
+  contentContext,
+  onImageSelect
 }: BlogPostLayoutProps) => {
   const formattedDate = date ? new Date(date).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -29,13 +38,11 @@ export const BlogPostLayout = ({
 
   const estimatedReadingTime = readingTime || Math.ceil(content.replace(/<[^>]*>/g, '').split(' ').length / 200);
 
-  // Remove debug logging to prevent console clutter
-
   return (
     <div className={cn("bg-white text-slate-800 min-h-0", className)}>
       {/* Hero Header */}
       {(title || companyName) && (
-        <header className="w-full bg-white py-8 border-b border-slate-100">
+        <header className="w-full bg-white py-8 border-b border-slate-100 relative">
           <div className="max-w-3xl mx-auto px-4 space-y-4 text-center">
             {companyName && (
               <p className="text-sm font-medium text-primary">{companyName}</p>
@@ -53,6 +60,21 @@ export const BlogPostLayout = ({
               <span>{estimatedReadingTime} min read</span>
             </div>
           </div>
+
+          {/* MediaSelector in top right corner */}
+          {showMediaSelector && (
+            <div className="absolute top-4 right-4 z-10">
+              <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-2 max-w-xs">
+                <MediaSelector
+                  onImageSelect={onImageSelect || (() => {})}
+                  selectedImageUrl={selectedImageUrl}
+                  contentContext={contentContext}
+                  compact={true}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          )}
         </header>
       )}
 
@@ -86,7 +108,6 @@ export const BlogCallout = ({ children, className }: { children: React.ReactNode
   </aside>
 );
 
-// Responsive image component
 export const BlogImage = ({ 
   src, 
   alt, 

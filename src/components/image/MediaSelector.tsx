@@ -1,13 +1,14 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Search, Upload, Check, ExternalLink, Edit2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Upload, Search, Shuffle, Image as ImageIcon, Loader2, ExternalLink, Camera } from 'lucide-react';
+import { useImageSuggestions } from '@/hooks/useImageSuggestions';
+import { useUnsplash } from '@/hooks/useUnsplash';
+import { useContentAssets } from '@/hooks/useContentAssets';
 import { cn } from '@/lib/utils';
-import { getUnsplashImage, extractImageKeyword, UnsplashImageResult } from '@/lib/api/unsplash';
-// Removed sonner import - using global toast replacement
-import { supabase } from '@/integrations/supabase/client';
 
 interface MediaSelectorProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
@@ -17,13 +18,6 @@ interface MediaSelectorProps {
   compact?: boolean;
 }
 
-interface SelectedImageData {
-  url: string;
-  photographer?: string;
-  source: 'unsplash' | 'upload';
-  unsplash_id?: string;
-}
-
 export const MediaSelector: React.FC<MediaSelectorProps> = ({
   onImageSelect,
   selectedImageUrl,
@@ -31,437 +25,229 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   className,
   compact = false
 }) => {
-  const [activeTab, setActiveTab] = useState('find');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<UnsplashImageResult[]>([]);
-  const [selectedImage, setSelectedImage] = useState<SelectedImageData | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
-  const [finalizedImageUrl, setFinalizedImageUrl] = useState<string | null>(selectedImageUrl || null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState('search');
+  
+  const { searchImages, loading: unsplashLoading } = useUnsplash();
+  const { assets, loading: assetsLoading, uploadAsset } = useContentAssets();
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // Auto-suggest search from content
-  React.useEffect(() => {
-    if (contentContext && !searchQuery) {
-      const keyword = extractImageKeyword(contentContext);
-      if (keyword) {
-        setSearchQuery(keyword);
-        handleSearch(keyword);
-      }
-    }
-  }, [contentContext]);
-
-  const handleSearch = async (query?: string) => {
-    const searchTerm = query || searchQuery;
-    if (!searchTerm.trim()) return;
-
-    setIsSearching(true);
-    try {
-      // Fetch multiple different images by making several API calls with variations
-      const searchVariations = [
-        searchTerm,
-        `${searchTerm} nature`,
-        `${searchTerm} outdoor`,
-        `${searchTerm} beautiful`
-      ];
-
-      const results = await Promise.all(
-        searchVariations.map(async (variation, index) => {
-          try {
-            const result = await getUnsplashImage(variation);
-            if (result) {
-              return {
-                ...result,
-                unsplash_id: `${result.unsplash_id}-${index}`
-              };
-            }
-            return null;
-          } catch {
-            return null;
-          }
-        })
-      );
-
-      const validResults = results.filter(Boolean) as UnsplashImageResult[];
-      if (validResults.length > 0) {
-        setSearchResults(validResults);
-      }
-    } catch (error) {
-      toast.error('Failed to search images');
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleImageSelect = (image: UnsplashImageResult) => {
-    const imageData: SelectedImageData = {
-      url: image.url,
-      photographer: image.photographer,
-      source: 'unsplash',
-      unsplash_id: image.unsplash_id
-    };
-    setSelectedImage(imageData);
-  };
-
-  const handleFileUpload = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
-      return;
-    }
-
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      const { data, error } = await supabase.functions.invoke('image-upload', {
-        body: formData
-      });
-
-      if (error) {
-        throw new Error(error.message || 'Upload failed');
-      }
-
-      if (!data?.success || !data?.imageUrl) {
-        throw new Error('Invalid response from upload service');
-      }
-
-      const imageData: SelectedImageData = {
-        url: data.imageUrl,
-        source: 'upload'
-      };
-      setSelectedImage(imageData);
-      toast.success('Image uploaded successfully');
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
     
-    const files = Array.from(e.dataTransfer.files);
-    if (files[0]) {
-      handleFileUpload(files[0]);
-    }
-  }, []);
+    const results = await searchImages(searchQuery);
+    setSearchResults(results);
+  };
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(true);
-  }, []);
+  const handleImageSelect = (imageUrl: string, metadata?: any) => {
+    onImageSelect(imageUrl, metadata);
+  };
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-  }, []);
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-  const handleUseImage = () => {
-    if (selectedImage) {
-      setFinalizedImageUrl(selectedImage.url);
-      onImageSelect(selectedImage.url, {
-        photographer: selectedImage.photographer,
-        source: selectedImage.source,
-        unsplash_id: selectedImage.unsplash_id
-      });
-      toast.success('Image selected successfully');
+    try {
+      const asset = await uploadAsset(file, []);
+      if (asset?.url) {
+        handleImageSelect(asset.url, {
+          source: 'upload',
+          alt_text: `Uploaded image: ${file.name}`,
+          file_name: file.name
+        });
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
     }
   };
 
-  const handleEditInCanva = () => {
-    if (selectedImage) {
-      // Open Canva with the selected image
-      const canvaUrl = `https://www.canva.com/design/new?photo=${encodeURIComponent(selectedImage.url)}`;
-      window.open(canvaUrl, '_blank');
-    }
-  };
-
-  // Show finalized image if one exists
-  if (finalizedImageUrl) {
+  if (compact) {
     return (
-      <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
-        <div className={compact ? "p-2 h-full" : "p-4 h-full"}>
-          <div className="relative group">
-            <img 
-              src={finalizedImageUrl} 
-              alt="Selected image" 
-              className="w-full h-full object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-              onClick={() => setFinalizedImageUrl(null)}
-            />
-            
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div 
-                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer"
-                    onClick={() => setFinalizedImageUrl(null)}
-                  >
-                    <div className="bg-white/95 hover:bg-white text-gray-700 hover:text-gray-900 rounded-full p-2.5 shadow-xl border border-gray-200/50 transition-all duration-200 hover:scale-110 hover:shadow-2xl backdrop-blur-sm">
-                      <Edit2 className="w-4 h-4" />
-                    </div>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Choose A New Image</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
-          <p className={cn(
-            "text-text-tertiary text-center mt-2",
-            compact ? "text-xs" : "text-sm"
-          )}>
-            Click image to change
-          </p>
+      <div className={cn("space-y-3", className)}>
+        {/* Compact search bar */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Search images..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            className="text-xs"
+            size="sm"
+          />
+          <Button 
+            onClick={handleSearch} 
+            disabled={unsplashLoading}
+            size="sm"
+            variant="outline"
+          >
+            {unsplashLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+          </Button>
         </div>
+
+        {/* Compact upload button */}
+        <div className="flex gap-2">
+          <label className="flex-1">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button variant="outline" size="sm" className="w-full text-xs" asChild>
+              <span>
+                <Upload className="h-3 w-3 mr-1" />
+                Upload
+              </span>
+            </Button>
+          </label>
+        </div>
+
+        {/* Compact image grid */}
+        {searchResults.length > 0 && (
+          <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+            {searchResults.slice(0, 4).map((image, index) => (
+              <div
+                key={index}
+                className="relative group cursor-pointer aspect-square rounded overflow-hidden border border-slate-200 hover:border-primary"
+                onClick={() => handleImageSelect(image.url, {
+                  source: 'unsplash',
+                  alt_text: image.alt,
+                  photographer: image.photographer,
+                  unsplash_id: image.id,
+                  thumb: image.thumb
+                })}
+              >
+                <img 
+                  src={image.thumb} 
+                  alt={image.alt}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <Camera className="h-4 w-4 text-white" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Show selected image */}
+        {selectedImageUrl && (
+          <div className="text-xs text-slate-600 flex items-center gap-1">
+            <ImageIcon className="h-3 w-3" />
+            <span>Image selected</span>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
-    <div className={cn('bg-gradient-to-br from-surface-primary via-surface-secondary to-surface-tertiary rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 backdrop-blur-sm', className)}>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={cn(
-          "grid w-full grid-cols-2 bg-gradient-to-r from-background/80 to-background/60 backdrop-blur-md border border-primary/10 rounded-xl shadow-lg shadow-primary/10",
-          compact ? "p-0.5 mt-2 mb-0" : "p-1 mt-4 mb-0"
-        )}>
-          <TabsTrigger value="find" className={cn(
-            "rounded-lg font-medium flex items-center gap-1.5",
-            compact ? "text-xs px-2 py-1" : "text-sm"
-          )}>
-            <Search className={compact ? "w-3 h-3" : "w-4 h-4"} />
-            {compact ? "Find" : "Find a Free Image"}
-          </TabsTrigger>
-          <TabsTrigger value="upload" className={cn(
-            "rounded-lg font-medium flex items-center gap-1.5",
-            compact ? "text-xs px-2 py-1" : "text-sm"
-          )}>
-            <Upload className={compact ? "w-3 h-3" : "w-4 h-4"} />
-            {compact ? "Upload" : "Upload Your Own"}
-          </TabsTrigger>
+    <div className={cn("w-full space-y-4", className)}>
+      <Tabs defaultValue="search" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="search">Search</TabsTrigger>
+          <TabsTrigger value="upload">Upload</TabsTrigger>
+          <TabsTrigger value="library">Library</TabsTrigger>
         </TabsList>
 
-        <div className={compact ? "p-2" : "p-4"}>
-          <TabsContent value="find" className={cn("mt-0", compact ? "space-y-2" : "space-y-3")}>
-            {/* Inline Search Bar */}
-            <div className="flex gap-2">
-              <div className="relative group flex-1">
-                <Search className={cn(
-                  "absolute left-3 top-1/2 transform -translate-y-1/2 text-text-tertiary group-focus-within:text-primary transition-colors duration-200",
-                  compact ? "w-3 h-3" : "w-4 h-4"
-                )} />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                  placeholder={compact ? "Search images..." : "Search for beautiful images..."}
-                  className={cn(
-                    "rounded-lg border-2 border-primary/20 bg-surface-primary/50 backdrop-blur-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:bg-surface-primary focus:shadow-lg focus:shadow-primary/10 transition-all duration-200",
-                    compact ? "pl-8 h-8 text-sm" : "pl-10 h-10"
-                  )}
-                />
-              </div>
-              <Button 
-                onClick={() => handleSearch()}
-                disabled={isSearching || !searchQuery.trim()}
-                size="icon"
-                className={cn(
-                  "bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300",
-                  compact ? "h-8 w-8" : "h-10 w-10"
-                )}
-              >
-                <Search className={compact ? "w-3 h-3" : "w-4 h-4"} />
-              </Button>
-            </div>
+        <TabsContent value="search" className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search for images..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            />
+            <Button onClick={handleSearch} disabled={unsplashLoading}>
+              {unsplashLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+            </Button>
+          </div>
 
-            {/* Image Grid */}
-            {searchResults.length > 0 && (
-              <div className={cn(
-                "bg-surface-primary/30 rounded-xl border border-primary/10",
-                compact ? "space-y-2 p-2" : "space-y-4 p-4"
-              )}>
-                {!compact && (
-                  /* Featured Large Image - only show in non-compact mode */
-                  <div 
-                    className="relative cursor-pointer group rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
-                    onClick={() => handleImageSelect(searchResults[0])}
-                  >
-                    <img 
-                      src={searchResults[0].thumb} 
-                      alt={searchResults[0].alt}
-                      className="w-full h-64 object-cover transition-all duration-300 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <div className="absolute top-3 right-3 w-8 h-8 bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25">
-                        <Check className="w-5 h-5 text-white" />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Thumbnail Grid */}
-                <div className={cn(
-                  "grid gap-2",
-                  compact ? "grid-cols-2" : "grid-cols-3"
-                )}>
-                  {(compact ? searchResults.slice(0, 4) : searchResults.slice(1, 4)).map((image, index) => (
+          {searchResults.length > 0 && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {searchResults.map((image, index) => (
+                <Card key={index} className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-0">
                     <div 
-                      key={image.unsplash_id || index}
-                      className="relative cursor-pointer group rounded-lg overflow-hidden border-2 border-transparent hover:border-brand-teal/50 transition-all duration-300"
-                      onClick={() => handleImageSelect(image)}
+                      className="relative aspect-square"
+                      onClick={() => handleImageSelect(image.url, {
+                        source: 'unsplash',
+                        alt_text: image.alt,
+                        photographer: image.photographer,
+                        unsplash_id: image.id,
+                        thumb: image.thumb
+                      })}
                     >
                       <img 
                         src={image.thumb} 
                         alt={image.alt}
-                        className={cn(
-                          "w-full object-cover transition-all duration-300 group-hover:scale-105",
-                          compact ? "h-16" : "h-24"
-                        )}
+                        className="w-full h-full object-cover rounded-t-lg"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                        <div className={cn(
-                          "absolute bg-gradient-to-r from-brand-teal to-brand-teal-600 rounded-full flex items-center justify-center shadow-lg shadow-brand-teal/25",
-                          compact ? "top-1 right-1 w-5 h-5" : "top-2 right-2 w-6 h-6"
-                        )}>
-                          <Check className={compact ? "w-3 h-3 text-white" : "w-4 h-4 text-white"} />
+                      {image.photographer && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-xs p-2">
+                          Photo by {image.photographer}
                         </div>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </TabsContent>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
 
-          <TabsContent value="upload" className={cn("mt-0", compact ? "space-y-2" : "space-y-3")}>
-            {/* Drag & Drop Zone */}
-            <div 
-              className={cn(
-                "border-2 border-dashed rounded-xl text-center transition-all duration-300 backdrop-blur-sm",
-                compact ? "p-3" : "p-6",
-                dragActive 
-                  ? "border-brand-teal bg-gradient-to-br from-brand-teal/10 to-brand-teal/5 shadow-lg shadow-brand-teal/10" 
-                  : "border-primary/30 bg-surface-primary/30 hover:border-brand-teal/50 hover:bg-surface-primary/50"
-              )}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-            >
-              <Upload className={cn(
-                "mx-auto transition-colors duration-300",
-                compact ? "w-6 h-6 mb-2" : "w-12 h-12 mb-4",
-                dragActive ? "text-brand-teal" : "text-text-tertiary"
-              )} />
-              <h3 className={cn(
-                "font-semibold text-text-primary",
-                compact ? "text-sm mb-1" : "text-base mb-1"
-              )}>
-                {dragActive ? "Drop your image here" : "Upload your image"}
-              </h3>
-              <p className={cn(
-                "text-text-secondary",
-                compact ? "text-xs mb-2" : "text-sm mb-4"
-              )}>
-                {dragActive ? "Release to upload" : (compact ? "Drag & drop or click to browse" : "Drag & drop your image here, or click to browse")}
-              </p>
-              <Button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className={cn(
-                  "bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-medium rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300",
-                  compact ? "h-8 px-4 text-sm" : "h-10 px-6"
-                )}
-              >
-                {isUploading ? 'Uploading...' : 'Choose File'}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0])}
-                className="hidden"
-              />
-              {!compact && (
-                <p className="text-text-tertiary text-xs mt-4">
-                  Supports PNG, JPG, GIF up to 10MB
-                </p>
-              )}
-            </div>
-          </TabsContent>
-        </div>
-      </Tabs>
-
-      {/* Selected Image Panel */}
-      {selectedImage && (
-        <div className={cn(
-          "border-t border-primary/10 bg-gradient-to-r from-brand-teal/5 via-surface-primary to-brand-teal/5 backdrop-blur-sm rounded-b-2xl",
-          compact ? "p-2" : "p-4"
-        )}>
-          <h3 className={cn(
-            "font-semibold text-text-primary flex items-center gap-2",
-            compact ? "text-sm mb-2" : "text-base mb-3"
-          )}>
-            <Check className={compact ? "w-3 h-3 text-brand-teal" : "w-4 h-4 text-brand-teal"} />
-            Selected Image
-          </h3>
-          <div className={cn(
-            "flex gap-3",
-            compact ? "flex-col" : "flex-col sm:flex-row gap-4"
-          )}>
-            {/* Thumbnail */}
-            <div className="flex-shrink-0">
-              <img 
-                src={selectedImage.url} 
-                alt="Selected" 
-                className={cn(
-                  "object-cover rounded-lg border-2 border-brand-teal/30 shadow-lg shadow-brand-teal/10",
-                  compact ? "w-12 h-12" : "w-16 h-16"
-                )}
-              />
-            </div>
-            
-            {/* Info & Actions */}
-            <div className={cn("flex-1", compact ? "space-y-2" : "space-y-3")}>
-              <p className={cn(
-                "text-text-secondary font-medium",
-                compact ? "text-xs" : "text-sm"
-              )}>
-                {selectedImage.source === 'unsplash' 
-                  ? `Photo by ${selectedImage.photographer} on Unsplash`
-                  : 'Your uploaded image'
-                }
-              </p>
-              
-              <div className={compact ? "space-y-1" : "flex flex-col sm:flex-row gap-2"}>
-                <Button 
-                  onClick={handleUseImage}
-                  className={cn(
-                    "bg-gradient-to-r from-brand-teal via-brand-teal-600 to-brand-teal-700 hover:from-brand-teal-600 hover:via-brand-teal-700 hover:to-brand-teal-800 text-white font-medium rounded-lg shadow-lg shadow-brand-teal/25 hover:shadow-xl hover:shadow-brand-teal/30 transition-all duration-300",
-                    compact ? "h-8 w-full text-sm" : "h-10 flex-1"
-                  )}
-                >
-                  Use This Image
-                </Button>
-                {!compact && (
-                  <Button 
-                    variant="outline"
-                    onClick={handleEditInCanva}
-                    className="h-10 border-2 border-brand-teal/30 bg-surface-primary/50 backdrop-blur-sm hover:bg-brand-teal/10 hover:border-brand-teal/50 text-text-primary font-medium rounded-lg transition-all duration-300 flex-1"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Edit in Canva
-                  </Button>
-                )}
-              </div>
-            </div>
+        <TabsContent value="upload" className="space-y-4">
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="file-upload"
+            />
+            <label htmlFor="file-upload" className="cursor-pointer">
+              <Upload className="mx-auto h-12 w-12 text-gray-400" />
+              <p className="mt-2 text-sm text-gray-600">Click to upload an image</p>
+            </label>
           </div>
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="library" className="space-y-4">
+          {assetsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : assets.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {assets.filter(asset => asset.type === 'image').map((asset) => (
+                <Card key={asset.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="p-0">
+                    <div 
+                      className="relative aspect-square"
+                      onClick={() => handleImageSelect(asset.url || '/placeholder.svg', {
+                        source: 'upload',
+                        alt_text: asset.name,
+                        file_name: asset.name
+                      })}
+                    >
+                      <img 
+                        src={asset.url || '/placeholder.svg'} 
+                        alt={asset.name}
+                        className="w-full h-full object-cover rounded-t-lg"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <ImageIcon className="mx-auto h-12 w-12 text-gray-300" />
+              <p className="mt-2">No images in your library yet</p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

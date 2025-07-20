@@ -1,9 +1,12 @@
+
 import React from 'react';
 import { BlogPostLayout } from "@/components/blog/BlogPostLayout";
 import { CompactImageCarousel } from "@/components/homepage/ready-to-post/CompactImageCarousel";
 import { extractBlogMetadata, cleanContentForDisplay } from "@/utils/contentUtils";
 import { formatNewsletterContent, addNewsletterSections } from "@/utils/newsletterFormatter";
 import { SafeHtml } from "@/components/ui/safe-html";
+import { ImageAssetManager } from "@/lib/imageAssetManager";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface TaskItemContentProps {
   task: any;
@@ -13,11 +16,47 @@ interface TaskItemContentProps {
 }
 
 export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: TaskItemContentProps) => {
+  const { user } = useAuth();
+
   if (!hasContent) return null;
 
   // Extract blog metadata for enhanced display using normalized data
   const blogMetadata = task.post_type === 'blog' && hasContent ? 
     extractBlogMetadata(cleanContent) : null;
+
+  const handleImageSelect = async (imageUrl: string, metadata?: any) => {
+    if (!user || !task.id) return;
+
+    try {
+      // Update the content task with the selected image
+      await ImageAssetManager.updateContentTaskImage(
+        task.id,
+        imageUrl,
+        metadata?.source || 'unsplash',
+        metadata
+      );
+
+      // If it's an Unsplash image, create an asset record
+      if (metadata?.source === 'unsplash' && metadata?.unsplash_id) {
+        await ImageAssetManager.createUnsplashAsset(
+          user.id,
+          task.id,
+          {
+            url: imageUrl,
+            thumb: metadata.thumb || imageUrl,
+            alt: metadata.alt_text || '',
+            photographer: metadata.photographer,
+            unsplash_id: metadata.unsplash_id
+          }
+        );
+      }
+
+      // Refresh the parent component if needed
+      // This would typically trigger a re-fetch of the task data
+    } catch (error) {
+      console.error('Error updating task image:', error);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -29,6 +68,10 @@ export const TaskItemContent = ({ task, hasContent, cleanContent, onClick }: Tas
             companyName={task.campaigns?.company_profiles?.business_name}
             content={cleanContent}
             className="bg-white min-h-0"
+            showMediaSelector={true}
+            selectedImageUrl={task.image_url}
+            contentContext={cleanContent}
+            onImageSelect={handleImageSelect}
           />
         ) : task.post_type === 'newsletter' ? (
           <div className="p-4">
