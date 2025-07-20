@@ -99,6 +99,55 @@ export const enhancedNewsletterToCRM = async (
     campaign?.theme
   );
 
+const isSystemInstructionalText = (text: string): boolean => {
+  if (!text || typeof text !== 'string') return false;
+  
+  const instructionalPatterns = [
+    /restructure.*existing.*newsletter.*content/i,
+    /generate.*content.*based.*on/i,
+    /create.*newsletter.*from/i,
+    /transform.*into.*proper.*format/i,
+    /convert.*to.*yaml.*format/i,
+    /process.*newsletter.*content/i
+  ];
+  
+  return instructionalPatterns.some(pattern => pattern.test(text));
+};
+
+const getCleanHeaderContent = (processed: any, campaign: any, holiday: any): string => {
+  // Try meta.theme first
+  if (processed.meta?.theme && !isSystemInstructionalText(processed.meta.theme)) {
+    return processed.meta.theme;
+  }
+  
+  // Try campaign theme or description
+  if (campaign?.theme && !isSystemInstructionalText(campaign.theme)) {
+    return campaign.theme;
+  }
+  
+  if (campaign?.description && !isSystemInstructionalText(campaign.description)) {
+    return campaign.description;
+  }
+  
+  // Try holiday context
+  if (holiday?.garden_relevance) {
+    return `${holiday.holiday_name} Garden Care`;
+  }
+  
+  // Extract from newsletter content (first paragraph after header)
+  const firstParagraph = processed.newsletter_md
+    ?.split('\n')
+    .find((line: string) => line.trim() && !line.startsWith('#') && line.length > 20);
+    
+  if (firstParagraph && !isSystemInstructionalText(firstParagraph)) {
+    return firstParagraph.replace(/\*\*(.*?)\*\*/g, '$1').substring(0, 100) + '...';
+  }
+  
+  // Seasonal fallback
+  const currentSeason = getCurrentSeason();
+  return `Your ${currentSeason.charAt(0).toUpperCase() + currentSeason.slice(1)} Garden Newsletter`;
+};
+
 const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[] => {
   const blocks: ContentBlock[] = [];
   
@@ -111,10 +160,12 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
   // Add header block first
   const headerTitle = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
   if (headerTitle) {
+    const cleanContent = getCleanHeaderContent(processed, contentTask.campaigns, contentTask.holidays);
+    
     blocks.push({
       type: 'header',
       title: headerTitle,
-      content: processed.meta?.week_focus || 'Your Garden Newsletter',
+      content: cleanContent,
       source: 'newsletter',
       personaTag: contentTask.persona_tag
     });
