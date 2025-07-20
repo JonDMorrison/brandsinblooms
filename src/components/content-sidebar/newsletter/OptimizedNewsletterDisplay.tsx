@@ -12,7 +12,6 @@ import { NewsletterRegenerator } from './NewsletterRegenerator';
 import { NewsletterContentBlock } from './NewsletterContentBlock';
 import { useNewsletterImages } from './useNewsletterImages';
 import { supabase } from '@/integrations/supabase/client';
-// Removed sonner import - using global toast replacement
 import {
   calculateReadingTime,
   extractTitleFromContent,
@@ -51,16 +50,16 @@ export const OptimizedNewsletterDisplay = ({
     campaignTitle
   });
 
-  // Process the newsletter content
+  // Process the newsletter content using the enhanced processor
   const processedNewsletter = processNewsletterContent(content || '', campaignTitle);
   
-  // Only force regeneration for truly placeholder content
-  const needsRegeneration = isPlaceholderContent;
+  // Only force regeneration for truly placeholder content or failed processing
+  const needsRegeneration = processedNewsletter.needsRegeneration;
   
   // Use the specialized newsletter images hook for structured newsletters only
   console.log('[NEWSLETTER] Calling useNewsletterImages with:', {
     blocksCount: processedNewsletter.blocks.length,
-    isPlaceholder: isPlaceholderContent || !processedNewsletter.isStructured,
+    isPlaceholder: needsRegeneration,
     isStructured: processedNewsletter.isStructured,
     contentTaskId,
     sampleBlock: processedNewsletter.blocks[0]
@@ -68,7 +67,7 @@ export const OptimizedNewsletterDisplay = ({
   
   const { images, loadingImages, imageErrors } = useNewsletterImages(
     processedNewsletter.blocks,
-    isPlaceholderContent,
+    needsRegeneration,
     contentTaskId,
     campaignTitle
   );
@@ -187,7 +186,7 @@ export const OptimizedNewsletterDisplay = ({
 
   // If content needs regeneration, show regeneration interface
   if (needsRegeneration) {
-    console.log('[NEWSLETTER] Showing regeneration component for unstructured content');
+    console.log('[NEWSLETTER] Showing regeneration component for content that needs regeneration');
     return (
       <div className={`max-w-4xl mx-auto ${className || ''}`}>
         <div className="space-y-6 p-6 bg-gradient-to-br from-slate-50 to-white rounded-xl border border-slate-200">
@@ -195,7 +194,7 @@ export const OptimizedNewsletterDisplay = ({
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full border border-amber-200">
               <FileText className="w-4 h-4" />
               <span className="text-sm font-medium">
-                {isRegenerating ? 'Converting Newsletter...' : 'Newsletter Needs Restructuring'}
+                {isRegenerating ? 'Processing Newsletter...' : 'Newsletter Needs Processing'}
               </span>
             </div>
             
@@ -205,8 +204,8 @@ export const OptimizedNewsletterDisplay = ({
               </h3>
               <p className="text-slate-600 max-w-md mx-auto">
                 {isRegenerating 
-                  ? 'Converting unstructured content to proper newsletter format...'
-                  : 'This newsletter content needs to be converted to structured format for proper display.'
+                  ? 'Processing newsletter content for proper display...'
+                  : 'This newsletter content needs to be processed for optimal formatting and display.'
                 }
               </p>
             </div>
@@ -252,6 +251,11 @@ export const OptimizedNewsletterDisplay = ({
           <Badge variant="outline">
             Newsletter
           </Badge>
+          {processedNewsletter.isStructured && (
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+              Structured
+            </Badge>
+          )}
         </div>
         
         <h1 className="text-4xl font-bold text-slate-900 leading-tight mb-4">

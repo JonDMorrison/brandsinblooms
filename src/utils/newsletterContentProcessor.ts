@@ -1,372 +1,146 @@
 
-// Enhanced newsletter content processing utility
+import { parseNewsletterYAML, StructuredNewsletter } from './newsletterUtils';
+import { fixMalformedNewsletter, validateNewsletterStructure, calculateReadingTime } from './newsletterContentFixer';
+
 interface ProcessedNewsletter {
-  isStructured: boolean;
   newsletter_md: string;
-  blocks: Array<{
-    title: string;
-    body: string;
-    cta: string;
-    link: string;
-    image_prompt: string;
-    alt_text: string;
-  }>;
+  blocks: any[];
   meta: {
     reading_time: string;
     theme: string;
     week_focus: string;
   };
+  isStructured: boolean;
+  needsRegeneration: boolean;
 }
 
 export const processNewsletterContent = (content: string, campaignTitle?: string): ProcessedNewsletter => {
-  if (!content) {
-    return {
-      isStructured: false,
-      newsletter_md: '',
-      blocks: [],
-      meta: {
-        reading_time: '1 min read',
-        theme: campaignTitle || 'Newsletter',
-        week_focus: 'Content Update'
-      }
-    };
-  }
-
-  console.log('🔍 Processing newsletter content:', {
-    length: content.length,
-    hasBlocks: content.includes('blocks:'),
-    hasTitleStructure: content.includes('- title:'),
-    hasNewsletterMd: content.includes('newsletter_md:'),
-    preview: content.substring(0, 200),
-    contentType: 'Newsletter Content Debug'
+  console.log('[NEWSLETTER PROCESSOR] Processing content:', {
+    contentLength: content?.length || 0,
+    campaignTitle,
+    hasYAML: content?.includes('newsletter_md:') || false
   });
 
-  // Check if content is YAML structured - look for newsletter_md: or blocks:
-  const isYAMLStructured = content.includes('newsletter_md:') || (content.includes('blocks:') && content.includes('- title:'));
-  
-  if (isYAMLStructured) {
-    console.log('📋 Detected YAML structured newsletter');
-    // Parse YAML structure
-    const yamlResult = parseSimpleYAML(content);
-    if (yamlResult) {
-      console.log('✅ Successfully parsed YAML newsletter');
-      return {
-        isStructured: true,
-        ...yamlResult,
-        meta: {
-          reading_time: yamlResult.meta?.reading_time || calculateReadingTime(yamlResult.newsletter_md || content),
-          theme: yamlResult.meta?.theme || campaignTitle || 'Newsletter',
-          week_focus: yamlResult.meta?.week_focus || 'Content Update'
-        }
-      };
-    } else {
-      console.log('❌ Failed to parse YAML, falling back to plain text');
-    }
+  if (!content || content.trim().length === 0) {
+    return createEmptyNewsletter(campaignTitle);
   }
 
-  // Detect if this is unstructured newsletter content that needs regeneration
-  if (isUnstructuredNewsletter(content)) {
-    console.log('⚠️ Detected unstructured newsletter content - forcing regeneration');
+  // Check if content is malformed and needs fixing
+  const needsFixing = !validateNewsletterStructure(content) || content.includes('blocks: title:');
+  
+  let processedContent = content;
+  
+  if (needsFixing) {
+    console.log('[NEWSLETTER PROCESSOR] Fixing malformed content');
+    processedContent = fixMalformedNewsletter(content);
+  }
+
+  // Try to parse the YAML structure
+  const parsedNewsletter = parseNewsletterYAML(processedContent);
+  
+  if (parsedNewsletter && parsedNewsletter.blocks && parsedNewsletter.blocks.length > 0) {
+    console.log('[NEWSLETTER PROCESSOR] Successfully parsed structured newsletter');
+    
     return {
-      isStructured: false,
-      newsletter_md: '',
-      blocks: [],
+      newsletter_md: parsedNewsletter.newsletter_md || '',
+      blocks: parsedNewsletter.blocks,
       meta: {
-        reading_time: calculateReadingTime(content),
-        theme: campaignTitle || 'Newsletter',
-        week_focus: 'Content Update - Needs Restructuring'
-      }
+        reading_time: parsedNewsletter.meta?.reading_time || calculateReadingTime(processedContent),
+        theme: parsedNewsletter.meta?.theme || extractThemeFromContent(processedContent, campaignTitle),
+        week_focus: parsedNewsletter.meta?.week_focus || (campaignTitle || 'Garden Newsletter')
+      },
+      isStructured: true,
+      needsRegeneration: false
     };
   }
 
-  // Process as plain text newsletter (for truly minimal content)
+  // If YAML parsing failed, treat as unstructured content
+  console.log('[NEWSLETTER PROCESSOR] Content not structured, treating as markdown');
+  
   return {
-    isStructured: false,
-    newsletter_md: content,
-    blocks: createBlocksFromPlainText(content, campaignTitle),
+    newsletter_md: processedContent,
+    blocks: [],
     meta: {
-      reading_time: calculateReadingTime(content),
-      theme: campaignTitle || 'Newsletter',
-      week_focus: 'Content Update'
-    }
+      reading_time: calculateReadingTime(processedContent),
+      theme: extractThemeFromContent(processedContent, campaignTitle),
+      week_focus: campaignTitle || 'Garden Newsletter'
+    },
+    isStructured: false,
+    needsRegeneration: isPlaceholderContent(processedContent)
   };
 };
 
-const filterUnwantedSections = (content: string): string => {
-  // Remove the "Get Informed with Our Content" section
-  const sectionToRemove = /Section 3: Get Informed with Our Content[\s\S]*?(?=\n\n(?:[A-Z]|$)|\n*$)/i;
-  return content.replace(sectionToRemove, '').trim();
+const createEmptyNewsletter = (campaignTitle?: string): ProcessedNewsletter => {
+  return {
+    newsletter_md: '',
+    blocks: [],
+    meta: {
+      reading_time: '0 min',
+      theme: 'Garden Newsletter',
+      week_focus: campaignTitle || 'Newsletter Content'
+    },
+    isStructured: false,
+    needsRegeneration: true
+  };
 };
 
-export const convertNewsletterMarkdownToHtml = (content: string): string => {
-  if (!content) return '';
+const extractThemeFromContent = (content: string, campaignTitle?: string): string => {
+  const textToAnalyze = (campaignTitle + ' ' + content).toLowerCase();
+  
+  if (textToAnalyze.includes('summer')) return 'Summer Care';
+  if (textToAnalyze.includes('spring')) return 'Spring Growth';
+  if (textToAnalyze.includes('fall') || textToAnalyze.includes('autumn')) return 'Fall Care';
+  if (textToAnalyze.includes('winter')) return 'Winter Protection';
+  if (textToAnalyze.includes('growing')) return 'Growing Success';
+  if (textToAnalyze.includes('planting')) return 'Planting Guide';
+  
+  return 'Seasonal Gardening';
+};
 
-  // Filter out unwanted sections first
-  let processed = filterUnwantedSections(content);
-
-  // Enhanced header detection and conversion
-  processed = processed
-    // Main headers (# or ##)
-    .replace(/^#{1,2}\s+(.+)$/gm, '<h2 class="text-2xl font-bold text-slate-900 mt-8 mb-4 pb-2 border-b border-slate-200">$1</h2>')
-    // Sub headers (###)
-    .replace(/^#{3}\s+(.+)$/gm, '<h3 class="text-xl font-semibold text-slate-800 mt-6 mb-3">$1</h3>')
-    // Smaller headers (####)
-    .replace(/^#{4,}\s+(.+)$/gm, '<h4 class="text-lg font-medium text-slate-700 mt-4 mb-2">$1</h4>');
-
-  // Detect and format section headers (lines that look like headers but aren't markdown)
-  processed = processed.replace(/^([A-Z][A-Z\s&'-]{5,50}):?\s*$/gm, (match, title) => {
-    return `<h3 class="text-xl font-semibold text-slate-800 mt-6 mb-3 text-center bg-slate-50 py-2 px-4 rounded-lg border-l-4 border-primary">${title}</h3>`;
-  });
-
-  // Common newsletter section headers
-  const sectionHeaders = [
-    'This Week\'s Focus',
-    'Garden Focus',
-    'What\'s Happening',
-    'Expert Tips',
-    'Seasonal Highlights',
-    'Plant Care Tips',
-    'Garden Maintenance',
-    'Special Offers',
-    'Featured Plants',
-    'Growing Tips'
+const isPlaceholderContent = (content: string): boolean => {
+  const placeholderIndicators = [
+    'placeholder',
+    'lorem ipsum',
+    'sample content',
+    'example text',
+    'ai is currently generating',
+    'content will be generated'
   ];
-
-  sectionHeaders.forEach(header => {
-    const regex = new RegExp(`^${header}\\s*:?\\s*$`, 'gmi');
-    processed = processed.replace(regex, `<h3 class="text-xl font-semibold text-slate-800 mt-6 mb-3 text-center bg-slate-50 py-2 px-4 rounded-lg border-l-4 border-primary">${header}</h3>`);
-  });
-
-  // Bold text formatting
-  processed = processed.replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>');
-  processed = processed.replace(/__(.*?)__/g, '<strong class="font-semibold text-slate-900">$1</strong>');
-
-  // Italic text formatting
-  processed = processed.replace(/\*(.*?)\*/g, '<em class="italic text-slate-700">$1</em>');
-  processed = processed.replace(/_(.*?)_/g, '<em class="italic text-slate-700">$1</em>');
-
-  // List formatting
-  processed = processed.replace(/^[-•]\s+(.+)$/gm, '<li class="ml-6 mb-2 text-slate-700">• $1</li>');
-  processed = processed.replace(/^\d+\.\s+(.+)$/gm, '<li class="ml-6 mb-2 text-slate-700 list-decimal">$1</li>');
-
-  // Convert paragraphs - split by double newlines
-  const sections = processed.split(/\n\s*\n/).filter(section => section.trim());
   
-  processed = sections.map(section => {
-    const trimmed = section.trim();
-    
-    // Skip if already HTML tagged
-    if (trimmed.match(/^<(h[1-6]|div|li|ul|ol|p)/)) {
-      return trimmed;
-    }
-
-    // Handle lists
-    if (trimmed.includes('<li class="ml-6')) {
-      return `<ul class="space-y-1 my-4">${trimmed}</ul>`;
-    }
-
-    // Regular paragraphs
-    return `<p class="mb-4 text-slate-700 leading-relaxed">${trimmed}</p>`;
-  }).join('\n');
-
-  // Add section spacing
-  processed = processed.replace(/(<h[2-4][^>]*>)/g, '<div class="mt-8 first:mt-0">$1');
-  processed = processed.replace(/(<\/h[2-4]>)/g, '$1</div>');
-
-  return processed;
+  const lowerContent = content.toLowerCase();
+  return placeholderIndicators.some(indicator => lowerContent.includes(indicator)) || content.trim().length < 100;
 };
 
-const parseSimpleYAML = (content: string) => {
-  try {
-    console.log('📥 Parsing YAML content, length:', content.length);
-    console.log('📥 Content preview:', content.substring(0, 500));
-    
-    const lines = content.split('\n');
-    const result: any = {
-      blocks: [],
-      meta: {},
-      newsletter_md: ''
-    };
-    
-    let inNewsletterMd = false;
-    let currentBlock: any = {};
-    let inBlocks = false;
-    let newsletterMdStarted = false;
-    let currentSection = '';
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const trimmed = line.trim();
+// Convert newsletter markdown to HTML with proper formatting
+export const convertNewsletterMarkdownToHtml = (markdown: string): string => {
+  if (!markdown) return '';
+  
+  return markdown
+    // Convert headers
+    .replace(/^# (.+)$/gm, '<h1 class="text-4xl font-bold text-slate-900 mb-6">$1</h1>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-2xl font-semibold text-slate-900 mb-4 mt-8">$1</h2>')
+    .replace(/^### (.+)$/gm, '<h3 class="text-xl font-semibold text-slate-900 mb-3 mt-6">$1</h3>')
+    // Convert italic text (subtitles)
+    .replace(/^\*(.+)\*$/gm, '<p class="text-lg italic text-slate-600 mb-6">$1</p>')
+    // Convert bold text
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-slate-900">$1</strong>')
+    // Convert separators
+    .replace(/^---$/gm, '<hr class="border-t border-slate-200 my-8">')
+    // Convert paragraphs - split by double newlines and wrap
+    .split(/\n\s*\n/)
+    .map(paragraph => {
+      paragraph = paragraph.trim();
+      if (!paragraph) return '';
       
-      // Skip YAML fence markers
-      if (trimmed === '```yaml' || trimmed === '```') {
-        continue;
+      // Skip if already wrapped in HTML
+      if (paragraph.match(/^<(h[1-6]|hr|p)/)) {
+        return paragraph;
       }
       
-      // Detect newsletter_md section start
-      if (trimmed === 'newsletter_md: |' || trimmed.startsWith('newsletter_md:')) {
-        console.log('🔍 Found newsletter_md section at line', i + 1);
-        inNewsletterMd = true;
-        newsletterMdStarted = true;
-        inBlocks = false;
-        continue;
-      }
-      
-      // Detect other root-level sections that end newsletter_md
-      if (line.length > 0 && !line.startsWith(' ') && !line.startsWith('\t') && 
-          (trimmed === 'blocks:' || trimmed === 'meta:' || trimmed === 'extra_content_ideas:')) {
-        if (inNewsletterMd) {
-          console.log('🛑 Stopping newsletter_md collection at line', i + 1, 'due to section:', trimmed);
-          inNewsletterMd = false;
-        }
-        
-        if (trimmed === 'blocks:') {
-          console.log('🔍 Found blocks section at line', i + 1);
-          inBlocks = true;
-          continue;
-        }
-        
-        if (trimmed === 'meta:') {
-          console.log('🔍 Found meta section at line', i + 1);
-          inBlocks = false;
-          currentSection = 'meta';
-          continue;
-        }
-        
-        if (trimmed === 'extra_content_ideas:') {
-          console.log('🛑 Stopping block processing at extra_content_ideas section at line', i + 1);
-          inBlocks = false;
-          break; // Stop processing entirely when we hit extra content ideas
-        }
-      }
-      
-      // Collect newsletter_md content (everything indented after newsletter_md: |)
-      if (inNewsletterMd && newsletterMdStarted) {
-        // Remove exactly 2 spaces of YAML indentation if present
-        const contentLine = line.startsWith('  ') ? line.substring(2) : line;
-        result.newsletter_md += contentLine + '\n';
-        continue;
-      }
-      
-      if (inBlocks && trimmed.startsWith('- title:')) {
-        console.log('🔍 Found new block at line', i, ':', trimmed);
-        if (Object.keys(currentBlock).length > 0) {
-          result.blocks.push(currentBlock);
-          console.log('✅ Added block:', currentBlock.title);
-        }
-        currentBlock = {
-          title: trimmed.replace('- title:', '').replace(/"/g, '').trim(),
-          body: '',
-          cta: '',
-          link: '',
-          image_prompt: '',
-          alt_text: ''
-        };
-      } else if (inBlocks && Object.keys(currentBlock).length > 0) {
-        // Parse block properties
-        if (trimmed.startsWith('body:')) {
-          currentBlock.body = trimmed.replace('body:', '').replace(/"/g, '').trim();
-        } else if (trimmed.startsWith('cta:')) {
-          currentBlock.cta = trimmed.replace('cta:', '').replace(/"/g, '').trim();
-        } else if (trimmed.startsWith('link:')) {
-          currentBlock.link = trimmed.replace('link:', '').replace(/"/g, '').trim();
-        } else if (trimmed.startsWith('image_prompt:')) {
-          currentBlock.image_prompt = trimmed.replace('image_prompt:', '').replace(/"/g, '').trim();
-        } else if (trimmed.startsWith('alt_text:')) {
-          currentBlock.alt_text = trimmed.replace('alt_text:', '').replace(/"/g, '').trim();
-        }
-      } else if (currentSection === 'meta') {
-        if (trimmed.startsWith('reading_time:')) {
-          result.meta.reading_time = trimmed.replace('reading_time:', '').replace(/"/g, '').trim();
-        } else if (trimmed.startsWith('theme:')) {
-          result.meta.theme = trimmed.replace('theme:', '').replace(/"/g, '').trim();
-        } else if (trimmed.startsWith('week_focus:')) {
-          result.meta.week_focus = trimmed.replace('week_focus:', '').replace(/"/g, '').trim();
-        }
-      }
-    }
-    
-    // Add the last block if it exists
-    if (Object.keys(currentBlock).length > 0) {
-      result.blocks.push(currentBlock);
-      console.log('✅ Added final block:', currentBlock.title);
-    }
-    
-    result.newsletter_md = filterUnwantedSections(result.newsletter_md.trim());
-    
-    // If we have blocks but no newsletter_md, generate a simple header
-    if (result.blocks.length > 0 && !result.newsletter_md) {
-      const theme = result.meta.theme || 'Newsletter Update';
-      const weekFocus = result.meta.week_focus || 'Latest Updates';
-      result.newsletter_md = `# ${theme}\n\n${weekFocus}`;
-      console.log('📝 Generated fallback newsletter_md for blocks-only content');
-    }
-    
-    console.log('✅ YAML parsing result:', {
-      hasNewsletterMd: !!result.newsletter_md,
-      newsletterMdLength: result.newsletter_md.length,
-      blockCount: result.blocks.length,
-      metaKeys: Object.keys(result.meta),
-      firstBlockTitle: result.blocks[0]?.title
-    });
-    
-    // Consider parsing successful if we have either blocks OR newsletter content
-    const isSuccessful = result.blocks.length > 0 || (result.newsletter_md && result.newsletter_md.trim().length > 0);
-    console.log('🎯 Parsing success check:', { isSuccessful, hasBlocks: result.blocks.length > 0, hasContent: !!result.newsletter_md });
-    
-    return isSuccessful ? result : null;
-  } catch (error) {
-    console.error('❌ Error parsing YAML:', error);
-    return null;
-  }
-};
-
-const createBlocksFromPlainText = (content: string, campaignTitle?: string) => {
-  if (!content) return [];
-  
-  // Split content into logical sections
-  const sections = content.split(/\n\s*\n/).filter(section => section.trim());
-  
-  return sections.map((section, index) => {
-    const lines = section.split('\n').filter(line => line.trim());
-    const title = lines[0]?.replace(/^#+\s*/, '').replace(/\*\*(.*?)\*\*/, '$1').trim() || `Section ${index + 1}`;
-    const body = lines.slice(1).join(' ').trim() || lines[0]?.trim() || '';
-    
-    return {
-      title,
-      body,
-      cta: '',
-      link: '',
-      image_prompt: `${campaignTitle || 'garden'} ${title}`.toLowerCase(),
-      alt_text: `Image for ${title}`
-    };
-  });
-};
-
-const calculateReadingTime = (content: string): string => {
-  if (!content) return '1 min read';
-  
-  const wordCount = content.replace(/<[^>]*>/g, '').split(/\s+/).length;
-  const readingTime = Math.max(1, Math.ceil(wordCount / 200));
-  return `${readingTime} min read`;
-};
-
-const isUnstructuredNewsletter = (content: string): boolean => {
-  if (!content) return false;
-  
-  // Check for email-style newsletter (raw email content)
-  const hasEmailFormat = content.includes('Subject:') && !content.includes('newsletter_md:');
-  
-  // Check for missing YAML structure in newsletter content that's substantial
-  const hasNoYAMLStructure = !content.includes('newsletter_md:') && 
-                            !content.includes('blocks:') && 
-                            !content.includes('- title:') &&
-                            content.length > 200; // Substantial content without structure
-  
-  // Check for content that looks like raw newsletter text
-  const looksLikeRawNewsletter = content.includes('Subject:') || 
-                                content.includes('Dear') ||
-                                (content.includes('garden') && content.length > 300 && !content.includes('##'));
-  
-  return hasEmailFormat || (hasNoYAMLStructure && looksLikeRawNewsletter);
+      return `<p class="mb-4 text-slate-700 leading-relaxed">${paragraph}</p>`;
+    })
+    .join('\n')
+    // Clean up extra spacing
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 };

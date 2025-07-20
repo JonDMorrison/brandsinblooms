@@ -74,7 +74,9 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
       }
       
       if (inNewsletterMd && currentSection === 'newsletter_md') {
-        newsletterMd += line + '\n';
+        // Remove the leading 2 spaces that were added during formatting
+        const contentLine = line.startsWith('  ') ? line.substring(2) : line;
+        newsletterMd += contentLine + '\n';
         continue;
       }
       
@@ -86,7 +88,7 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
           title: trimmed.replace('- title:', '').replace(/"/g, '').trim()
         };
       } else if (currentSection === 'blocks' && trimmed.startsWith('body:')) {
-        currentBlock.body = trimmed.replace('body:', '').replace(/"/g, '').trim();
+        currentBlock.body = trimmed.replace('body:', '').replace(/^"(.*)"$/, '$1').trim();
       } else if (currentSection === 'blocks' && trimmed.startsWith('cta:')) {
         currentBlock.cta = trimmed.replace('cta:', '').replace(/"/g, '').trim();
       } else if (currentSection === 'blocks' && trimmed.startsWith('link:')) {
@@ -132,6 +134,16 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
     // Validate that we have meaningful blocks
     if (result.blocks.length === 0) {
       console.log('No valid blocks found in YAML parsing');
+      return null;
+    }
+    
+    // Ensure all blocks have required properties
+    result.blocks = result.blocks.filter((block: any) => 
+      block.title && block.body && block.title.length > 0 && block.body.length > 0
+    );
+    
+    if (result.blocks.length === 0) {
+      console.log('No blocks with required properties found');
       return null;
     }
     
