@@ -3,10 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, RefreshCw, Eye } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Eye, Wand2, Templates } from 'lucide-react';
 import { EmailComposer } from '@/components/crm/EmailComposer';
 import { ContentImportBadge } from '@/components/crm/campaigns/ContentImportBadge';
 import { enhancedNewsletterToCRM } from '@/utils/enhancedNewsletterToCrmConverter';
+import { saveCampaignAsDraft, sendCampaign } from '@/utils/crmCampaignService';
+import { regenerateEmailContent } from '@/utils/aiContentRegenerator';
+import { getSeasonalTemplateRecommendations } from '@/utils/seasonalTemplateService';
 import { toast } from '@/utils/toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,6 +22,8 @@ export default function CRMCampaignCreator() {
   const [importedContent, setImportedContent] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [regenerating, setRegenerating] = useState(false);
+  const [templateRecommendations, setTemplateRecommendations] = useState<any>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   // Check for content import parameters
   const fromContentTaskId = searchParams.get('fromContentTaskId');
@@ -28,6 +33,8 @@ export default function CRMCampaignCreator() {
   useEffect(() => {
     if (isContentImport) {
       loadImportedContent();
+    } else {
+      loadTemplateRecommendations();
     }
   }, [isContentImport, fromContentTaskId]);
 
@@ -45,6 +52,9 @@ export default function CRMCampaignCreator() {
       console.log('✅ Content imported successfully:', result);
       setImportedContent(result);
       
+      // Load template recommendations based on imported content
+      await loadTemplateRecommendations(result.contentBlocks.map(b => b.content).join(' '), result.personaTags);
+      
       toast.success(`Newsletter content imported: "${result.campaignName}"`);
     } catch (error) {
       console.error('❌ Failed to import content:', error);
@@ -55,14 +65,55 @@ export default function CRMCampaignCreator() {
     }
   };
 
+  const loadTemplateRecommendations = async (content?: string, personaTags?: string[]) => {
+    try {
+      const recommendations = await getSeasonalTemplateRecommendations(content, personaTags);
+      setTemplateRecommendations(recommendations);
+    } catch (error) {
+      console.error('Failed to load template recommendations:', error);
+    }
+  };
+
   const handleRegenerateContent = async () => {
-    if (!fromContentTaskId) return;
+    if (!fromContentTaskId || !importedContent) return;
 
     setRegenerating(true);
     try {
-      // Call regeneration API or refresh content
-      await loadImportedContent();
+      const originalContent = importedContent.contentBlocks
+        .map(block => `${block.title}\n${block.content}`)
+        .join('\n\n');
+
+      const regenerated = await regenerateEmailContent(
+        originalContent,
+        importedContent.campaignName,
+        {
+          tone: 'friendly',
+          focus: 'seasonal',
+          personaTag: importedContent.personaTags[0],
+          preserveStructure: true
+        }
+      );
+
+      // Update imported content with regenerated version
+      const updatedContent = {
+        ...importedContent,
+        contentBlocks: [
+          {
+            type: 'text',
+            title: importedContent.campaignName,
+            content: regenerated.regeneratedContent
+          }
+        ]
+      };
+      
+      setImportedContent(updatedContent);
       toast.success('Content regenerated successfully');
+
+      // Show improvement suggestions if available
+      if (regenerated.improvementSuggestions.length > 0) {
+        toast.info(`💡 Tip: ${regenerated.improvementSuggestions[0]}`);
+      }
+
     } catch (error) {
       console.error('❌ Failed to regenerate content:', error);
       toast.error('Failed to regenerate content');
@@ -75,9 +126,16 @@ export default function CRMCampaignCreator() {
     try {
       console.log('💾 Saving CRM campaign:', emailData);
       
-      // Add imported content metadata to save data
+      // Prepare campaign data with imported content metadata
       const campaignData = {
-        ...emailData,
+        name: emailData.subject || 'Untitled Campaign',
+        subject: emailData.subject,
+        sender_name: emailData.senderName,
+        sender_email: emailData.senderEmail,
+        content: emailData.content,
+        preheader: emailData.preheader,
+        segments: emailData.segments || [],
+        schedule: emailData.schedule || { type: 'optimal' },
         ...(importedContent && {
           source_content_id: fromContentTaskId,
           source_metadata: importedContent.sourceMetadata,
@@ -85,13 +143,12 @@ export default function CRMCampaignCreator() {
         })
       };
 
-      // TODO: Implement actual save logic to crm_campaigns table
-      console.log('Campaign data to save:', campaignData);
+      const savedCampaign = await saveCampaignAsDraft(campaignData);
+      console.log('✅ Campaign saved:', savedCampaign);
       
-      toast.success('Campaign saved as draft');
     } catch (error) {
       console.error('❌ Failed to save campaign:', error);
-      toast.error('Failed to save campaign');
+      // Error handling is done in the service
     }
   };
 
@@ -99,23 +156,32 @@ export default function CRMCampaignCreator() {
     try {
       console.log('📤 Sending CRM campaign:', emailData);
       
-      // Add imported content metadata
+      // Prepare campaign data
       const campaignData = {
-        ...emailData,
+        name: emailData.subject || 'Untitled Campaign',
+        subject: emailData.subject,
+        sender_name: emailData.senderName,
+        sender_email: emailData.senderEmail,
+        content: emailData.content,
+        preheader: emailData.preheader,
+        segments: emailData.segments || [],
+        schedule: emailData.schedule || { type: 'immediate' },
         ...(importedContent && {
           source_content_id: fromContentTaskId,
           source_metadata: importedContent.sourceMetadata,
+          content_blocks: importedContent.contentBlocks,
         })
       };
 
-      // TODO: Implement actual send logic
-      console.log('Campaign data to send:', campaignData);
+      const sentCampaign = await sendCampaign(campaignData);
+      console.log('✅ Campaign sent:', sentCampaign);
       
-      toast.success('Campaign sent successfully!');
+      // Navigate to campaigns list
       navigate('/crm/campaigns');
+      
     } catch (error) {
       console.error('❌ Failed to send campaign:', error);
-      toast.error('Failed to send campaign');
+      // Error handling is done in the service
     }
   };
 
@@ -218,20 +284,71 @@ export default function CRMCampaignCreator() {
             )}
           </div>
 
-          {importedContent && (
-            <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            {/* Template Recommendations Button */}
+            {templateRecommendations && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTemplates(!showTemplates)}
+              >
+                <Templates className="h-4 w-4 mr-2" />
+                Templates ({templateRecommendations.recommended.length})
+              </Button>
+            )}
+
+            {importedContent && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleRegenerateContent}
                 disabled={regenerating}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${regenerating ? 'animate-spin' : ''}`} />
-                {regenerating ? 'Regenerating...' : 'Regenerate Content'}
+                <Wand2 className={`h-4 w-4 mr-2 ${regenerating ? 'animate-spin' : ''}`} />
+                {regenerating ? 'Regenerating...' : 'AI Enhance'}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
+
+        {/* Template Recommendations */}
+        {showTemplates && templateRecommendations && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Templates className="h-5 w-5" />
+                Recommended Templates
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {templateRecommendations.recommended.map((template: any) => (
+                  <div key={template.id} className="p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <h4 className="font-medium text-sm">{template.name}</h4>
+                    <p className="text-xs text-gray-600 mt-1">{template.theme}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                        {template.season}
+                      </span>
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                        {template.category}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {templateRecommendations.content_analysis?.detected_themes.length > 0 && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    <strong>Content Analysis:</strong> Detected themes include{' '}
+                    {templateRecommendations.content_analysis.detected_themes.join(', ')}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Campaign Title */}
         {importedContent && (
@@ -241,7 +358,7 @@ export default function CRMCampaignCreator() {
             </h1>
             <p className="text-gray-600">
               This email campaign was created using your approved BloomSuite content. 
-              You can still make edits and customizations below.
+              You can enhance it with AI or use our seasonal templates.
             </p>
           </div>
         )}
@@ -263,7 +380,7 @@ export default function CRMCampaignCreator() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Eye className="h-5 w-5" />
-                Source Information
+                Source Information & AI Insights
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -281,7 +398,7 @@ export default function CRMCampaignCreator() {
                 </div>
                 {importedContent.personaTags.length > 0 && (
                   <div>
-                    <span className="font-medium text-gray-700">Persona Tags:</span>
+                    <span className="font-medium text-gray-700">AI Persona Tags:</span>
                     <p className="text-gray-600">{importedContent.personaTags.join(', ')}</p>
                   </div>
                 )}
@@ -292,6 +409,14 @@ export default function CRMCampaignCreator() {
                   </div>
                 )}
               </div>
+              
+              {templateRecommendations && (
+                <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                  <p className="text-sm text-green-700">
+                    <strong>🎯 Smart Insights:</strong> Based on your content, we found {templateRecommendations.recommended.length} highly relevant templates and identified this as {templateRecommendations.content_analysis.season_match} content.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
