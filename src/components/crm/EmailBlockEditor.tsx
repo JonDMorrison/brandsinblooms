@@ -14,7 +14,7 @@ import {
   Type, 
   Image, 
   MousePointer, 
-  Header,
+  Heading,
   Eye
 } from 'lucide-react';
 
@@ -59,7 +59,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
 
   const getBlockIcon = (type: ContentBlock['type']) => {
     switch (type) {
-      case 'header': return <Header className="h-4 w-4" />;
+      case 'header': return <Heading className="h-4 w-4" />;
       case 'text': return <Type className="h-4 w-4" />;
       case 'image': return <Image className="h-4 w-4" />;
       case 'button': return <MousePointer className="h-4 w-4" />;
@@ -105,7 +105,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
             variant="outline"
             onClick={() => addBlock('header')}
           >
-            <Header className="h-4 w-4 mr-2" />
+            <Heading className="h-4 w-4 mr-2" />
             Header
           </Button>
           <Button

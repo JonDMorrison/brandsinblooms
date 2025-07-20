@@ -20,7 +20,7 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
   senderEmail
 }) => {
   const renderBlock = (block: ContentBlock, index: number) => {
-    const blockStyle = "margin-bottom: 24px;";
+    const blockStyle = { marginBottom: '24px' };
     
     switch (block.type) {
       case 'header':
