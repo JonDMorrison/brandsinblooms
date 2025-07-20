@@ -162,9 +162,9 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
     };
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 overflow-visible">
         {/* Layout Selection */}
-        <div>
+        <div className="overflow-visible">
           <Label>Layout</Label>
           <Select
             value={block.layout || 'full-width'}
@@ -274,7 +274,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-visible">
       {/* Add Block Buttons */}
       <Card>
         <CardHeader>
@@ -304,14 +304,14 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
 
       {/* Content Blocks */}
       {blocks.map((block, index) => (
-        <Card key={block.id}>
+        <Card key={block.id} className="overflow-visible">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <GripVertical className="h-4 w-4 text-muted-foreground" />
               Block {index + 1}: {block.type}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 overflow-visible">
             {/* Block Preview */}
             {renderBlockPreview(block)}
             
