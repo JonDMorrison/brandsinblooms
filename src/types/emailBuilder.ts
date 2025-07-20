@@ -36,6 +36,7 @@ export interface GlobalSettings {
 }
 
 export interface ContentBlock {
+  id: string;
   type: BlockType;
   title?: string;
   content?: string;

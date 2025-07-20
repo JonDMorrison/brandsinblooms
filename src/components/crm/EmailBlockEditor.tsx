@@ -28,7 +28,8 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       content: '',
       imageUrl: '',
       ctaText: '',
-      ctaUrl: ''
+      ctaUrl: '',
+      source: 'manual'
     };
     onBlocksChange([...blocks, newBlock]);
   };

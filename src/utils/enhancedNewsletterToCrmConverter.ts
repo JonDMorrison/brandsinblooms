@@ -163,6 +163,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
     const cleanContent = getCleanHeaderContent(processed, contentTask.campaigns, contentTask.holidays);
     
     blocks.push({
+      id: `block_${Date.now()}_header`,
       type: 'header',
       title: headerTitle,
       content: cleanContent,
@@ -189,6 +190,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
       // Add text block with content
       if (block.title && block.body) {
         blocks.push({
+          id: `block_${Date.now()}_text_${index}`,
           type: 'text',
           title: block.title,
           content: block.body,
@@ -200,6 +202,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
       // Add image block if image prompt exists or use main image
       if (block.image_prompt || mainImage) {
         blocks.push({
+          id: `block_${Date.now()}_image_${index}`,
           type: 'image',
           title: block.alt_text || `Image for ${block.title}` || 'Newsletter Image',
           content: block.image_prompt || 'Garden newsletter image',
@@ -212,6 +215,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
       // Add button block if CTA exists
       if (block.cta && block.link) {
         blocks.push({
+          id: `block_${Date.now()}_button_${index}`,
           type: 'button',
           title: block.cta,
           content: block.cta,
@@ -244,6 +248,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
         
         if (title && content) {
           blocks.push({
+            id: `block_${Date.now()}_text_header_${index}`,
             type: 'text',
             title: title,
             content: content,
@@ -258,6 +263,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
         
         if (content && content.length > 10) { // Only add substantial content
           blocks.push({
+            id: `block_${Date.now()}_text_section_${index}`,
             type: 'text',
             title: title,
             content: content,
@@ -272,6 +278,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
   // Add main image block if we have an image and haven't added one yet
   if (mainImage && !blocks.some(b => b.type === 'image')) {
     blocks.push({
+      id: `block_${Date.now()}_main_image`,
       type: 'image',
       title: 'Newsletter Featured Image',
       content: 'Featured image from your garden newsletter',
@@ -284,6 +291,7 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
   // Add a default CTA button if none exists
   if (!blocks.some(b => b.type === 'button')) {
     blocks.push({
+      id: `block_${Date.now()}_default_cta`,
       type: 'button',
       title: 'Learn More',
       content: 'Visit Our Garden Center',
