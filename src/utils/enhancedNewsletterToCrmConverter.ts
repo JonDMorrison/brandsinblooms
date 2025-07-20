@@ -99,6 +99,159 @@ export const enhancedNewsletterToCRM = async (
     campaign?.theme
   );
 
+const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[] => {
+  const blocks: ContentBlock[] = [];
+  
+  console.log('🔄 [convertToContentBlocks] Converting processed content:', {
+    hasNewsletterMd: !!processed.newsletter_md,
+    blocksCount: processed.blocks?.length || 0,
+    processedKeys: Object.keys(processed)
+  });
+  
+  // Add header block first
+  const headerTitle = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
+  if (headerTitle) {
+    blocks.push({
+      type: 'header',
+      title: headerTitle,
+      content: processed.meta?.week_focus || 'Your Garden Newsletter',
+      source: 'newsletter',
+      personaTag: contentTask.persona_tag
+    });
+  }
+
+  // Extract main image for use across blocks
+  const mainImage = extractImageFromTask(contentTask);
+  
+  // Convert structured blocks if available
+  if (processed.blocks && processed.blocks.length > 0) {
+    console.log('📋 [convertToContentBlocks] Processing structured blocks:', processed.blocks);
+    
+    processed.blocks.forEach((block: any, index: number) => {
+      console.log(`🔧 [convertToContentBlocks] Processing block ${index}:`, {
+        title: block.title,
+        hasBody: !!block.body,
+        hasImagePrompt: !!block.image_prompt,
+        hasCta: !!block.cta
+      });
+      
+      // Add text block with content
+      if (block.title && block.body) {
+        blocks.push({
+          type: 'text',
+          title: block.title,
+          content: block.body,
+          source: 'newsletter',
+          personaTag: contentTask.persona_tag
+        });
+      }
+
+      // Add image block if image prompt exists or use main image
+      if (block.image_prompt || mainImage) {
+        blocks.push({
+          type: 'image',
+          title: block.alt_text || `Image for ${block.title}` || 'Newsletter Image',
+          content: block.image_prompt || 'Garden newsletter image',
+          imageUrl: mainImage, // Use the actual image from content task
+          source: 'newsletter',
+          personaTag: contentTask.persona_tag
+        });
+      }
+
+      // Add button block if CTA exists
+      if (block.cta && block.link) {
+        blocks.push({
+          type: 'button',
+          title: block.cta,
+          content: block.cta,
+          ctaText: block.cta,
+          ctaUrl: block.link,
+          source: 'newsletter',
+          personaTag: contentTask.persona_tag
+        });
+      }
+    });
+  } else {
+    // Convert markdown content to text blocks
+    console.log('📝 [convertToContentBlocks] Converting markdown to text blocks');
+    
+    const sections = processed.newsletter_md?.split(/\n\s*\n/).filter((s: string) => s.trim()) || [];
+    
+    sections.forEach((section: string, index: number) => {
+      const lines = section.split('\n').filter((l: string) => l.trim());
+      if (lines.length === 0) return;
+      
+      const firstLine = lines[0].trim();
+      
+      // Skip the main header as we already added it
+      if (firstLine.startsWith('# ') && index === 0) return;
+      
+      // Handle section headers
+      if (firstLine.startsWith('## ') || firstLine.startsWith('### ')) {
+        const title = firstLine.replace(/^#+\s*/, '').replace(/\*\*(.*?)\*\*/, '$1').trim();
+        const content = lines.slice(1).join('\n').trim();
+        
+        if (title && content) {
+          blocks.push({
+            type: 'text',
+            title: title,
+            content: content,
+            source: 'newsletter',
+            personaTag: contentTask.persona_tag
+          });
+        }
+      } else if (!firstLine.startsWith('#')) {
+        // Regular content block
+        const title = `Section ${index + 1}`;
+        const content = lines.join('\n').trim();
+        
+        if (content && content.length > 10) { // Only add substantial content
+          blocks.push({
+            type: 'text',
+            title: title,
+            content: content,
+            source: 'newsletter',
+            personaTag: contentTask.persona_tag
+          });
+        }
+      }
+    });
+  }
+
+  // Add main image block if we have an image and haven't added one yet
+  if (mainImage && !blocks.some(b => b.type === 'image')) {
+    blocks.push({
+      type: 'image',
+      title: 'Newsletter Featured Image',
+      content: 'Featured image from your garden newsletter',
+      imageUrl: mainImage,
+      source: 'newsletter',
+      personaTag: contentTask.persona_tag
+    });
+  }
+
+  // Add a default CTA button if none exists
+  if (!blocks.some(b => b.type === 'button')) {
+    blocks.push({
+      type: 'button',
+      title: 'Learn More',
+      content: 'Visit Our Garden Center',
+      ctaText: 'Visit Our Garden Center',
+      ctaUrl: 'https://yourgardencenter.com',
+      source: 'newsletter',
+      personaTag: contentTask.persona_tag
+    });
+  }
+
+  console.log('✅ [convertToContentBlocks] Generated blocks:', {
+    totalBlocks: blocks.length,
+    blockTypes: blocks.map(b => b.type),
+    hasImages: blocks.some(b => b.type === 'image' && b.imageUrl)
+  });
+
+  return blocks;
+};
+
   // Convert to content blocks
   const contentBlocks = convertToContentBlocks(processed, contentTask);
   console.log('📦 [enhancedNewsletterToCRM] Generated content blocks:', {
@@ -204,111 +357,7 @@ const generateContextualSubjectLine = (
   return '🌱 Garden Care Tips - This Week\'s Focus';
 };
 
-const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[] => {
-  const blocks: ContentBlock[] = [];
-  
-  console.log('🔄 [convertToContentBlocks] Converting processed content:', {
-    hasNewsletterMd: !!processed.newsletter_md,
-    blocksCount: processed.blocks?.length || 0,
-    processedKeys: Object.keys(processed)
-  });
-  
-  // Add header block
-  const headerTitle = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
-  if (headerTitle) {
-    blocks.push({
-      type: 'header' as BlockType,
-      title: headerTitle,
-      content: processed.meta?.week_focus || 'Your Garden Newsletter',
-      source: 'newsletter',
-      personaTag: contentTask.persona_tag
-    });
-  }
 
-  // Convert structured blocks if available
-  if (processed.blocks && processed.blocks.length > 0) {
-    console.log('📋 [convertToContentBlocks] Processing structured blocks:', processed.blocks);
-    
-    processed.blocks.forEach((block: any, index: number) => {
-      console.log(`🔧 [convertToContentBlocks] Processing block ${index}:`, block);
-      
-      // Add text block
-      if (block.title && block.body) {
-        blocks.push({
-          type: 'text' as BlockType,
-          title: block.title,
-          content: block.body,
-          source: 'newsletter',
-          personaTag: contentTask.persona_tag
-        });
-      }
-
-      // Add image block if image prompt exists
-      if (block.image_prompt) {
-        blocks.push({
-          type: 'image' as BlockType,
-          title: block.alt_text || `Image for ${block.title}`,
-          content: block.image_prompt,
-          imageUrl: extractImageFromTask(contentTask),
-          source: 'newsletter',
-          personaTag: contentTask.persona_tag
-        });
-      }
-
-      // Add button block if CTA exists
-      if (block.cta && block.link) {
-        blocks.push({
-          type: 'button' as BlockType,
-          title: block.cta,
-          ctaText: block.cta,
-          ctaUrl: block.link,
-          source: 'newsletter',
-          personaTag: contentTask.persona_tag
-        });
-      }
-    });
-  } else {
-    // Convert markdown content to text blocks
-    console.log('📝 [convertToContentBlocks] Converting markdown to text blocks');
-    
-    const sections = processed.newsletter_md?.split(/\n\s*\n/).filter((s: string) => s.trim()) || [];
-    
-    sections.forEach((section: string, index: number) => {
-      const lines = section.split('\n').filter((l: string) => l.trim());
-      const title = lines[0]?.replace(/^#+\s*/, '').replace(/\*\*(.*?)\*\*/, '$1').trim();
-      const content = lines.slice(1).join('\n').trim() || lines[0]?.trim();
-
-      if (title && content && !title.startsWith('#')) {
-        blocks.push({
-          type: 'text' as BlockType,
-          title: title || `Section ${index + 1}`,
-          content,
-          source: 'newsletter',
-          personaTag: contentTask.persona_tag
-        });
-      }
-    });
-  }
-
-  // Add image block if main image exists
-  const mainImage = extractImageFromTask(contentTask);
-  if (mainImage && !blocks.some(b => b.type === 'image')) {
-    blocks.push({
-      type: 'image' as BlockType,
-      title: 'Newsletter Image',
-      imageUrl: mainImage,
-      source: 'newsletter',
-      personaTag: contentTask.persona_tag
-    });
-  }
-
-  console.log('✅ [convertToContentBlocks] Generated blocks:', {
-    totalBlocks: blocks.length,
-    blockTypes: blocks.map(b => b.type)
-  });
-
-  return blocks;
-};
 
 const extractImageFromTask = (contentTask: any): string | undefined => {
   if (contentTask.image_url) {
