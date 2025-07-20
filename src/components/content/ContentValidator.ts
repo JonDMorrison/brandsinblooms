@@ -1,5 +1,6 @@
 
-import { validateContent } from '../../utils/contentValidation';
+import { validateContent, cleanVideoScript } from '../../utils/contentValidation';
+import { cleanVideoContent } from '../../utils/videoContentCleaner';
 import type { ValidationResult } from '../../types/contentGeneration';
 
 export type { ValidationResult };
@@ -12,7 +13,8 @@ export class ContentValidator {
   static async validateAndRegenerate(
     content: string,
     regenerateFunction: () => Promise<string>,
-    maxAttempts: number = 3
+    maxAttempts: number = 3,
+    contentType?: string
   ): Promise<{ content: string; attempts: number; issues: string[] }> {
     let attempts = 0;
     let currentContent = content;
@@ -22,8 +24,10 @@ export class ContentValidator {
       const validation = this.validate(currentContent);
       
       if (validation.isValid) {
+        // Apply content-type specific cleaning before returning
+        const finalContent = this.applyContentTypeCleaning(currentContent, contentType);
         return {
-          content: currentContent,
+          content: finalContent,
           attempts: attempts + 1,
           issues: []
         };
@@ -43,8 +47,8 @@ export class ContentValidator {
       }
     }
     
-    // Only attempt basic cleanup for placeholder issues - preserve all formatting
-    const cleanedContent = this.attemptBasicCleanup(currentContent);
+    // Attempt comprehensive cleanup for all content types
+    const cleanedContent = this.attemptComprehensiveCleanup(currentContent, contentType);
     const finalValidation = this.validate(cleanedContent);
     
     return {
@@ -54,10 +58,26 @@ export class ContentValidator {
     };
   }
   
-  private static attemptBasicCleanup(content: string): string {
+  private static applyContentTypeCleaning(content: string, contentType?: string): string {
+    if (!contentType) return content;
+    
+    switch (contentType.toLowerCase()) {
+      case 'video':
+        return cleanVideoContent(content);
+      default:
+        return content;
+    }
+  }
+  
+  private static attemptComprehensiveCleanup(content: string, contentType?: string): string {
     let cleaned = content;
     
-    // Only clean up actual placeholder issues - preserve all formatting
+    // Apply content-type specific cleaning first
+    if (contentType?.toLowerCase() === 'video') {
+      cleaned = cleanVideoContent(cleaned);
+    }
+    
+    // Then apply basic placeholder cleanup
     cleaned = cleaned.replace(/\[company\s*name\]/gi, 'we');
     cleaned = cleaned.replace(/\[garden\s*center\s*name\]/gi, 'our garden center');
     cleaned = cleaned.replace(/\[business\s*name\]/gi, 'our business');

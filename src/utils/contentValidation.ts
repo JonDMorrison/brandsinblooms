@@ -26,6 +26,52 @@ export const FORBIDDEN_PHRASES = [
   '[garden center location]'
 ];
 
+// Video-specific scene patterns that should be removed
+export const VIDEO_SCENE_PATTERNS = [
+  // Scene headers and descriptions
+  /\*\*\[Scene \d+:.*?\]\*\*/gi,
+  /\[Scene \d+:.*?\]/gi,
+  /\*\*Scene \d+:.*?\*\*/gi,
+  /Scene \d+:.*?(?=\n|\r)/gi,
+  
+  // Visual and production cues
+  /\*Visual:.*?\*/gi,
+  /\*Background Music:.*?\*/gi,
+  /\*Audio:.*?\*/gi,
+  /\*Setting:.*?\*/gi,
+  
+  // Camera directions
+  /Camera pans to.*?(?=\n|\r)/gi,
+  /Close-up of.*?(?=\n|\r)/gi,
+  /Wide shot.*?(?=\n|\r)/gi,
+  /Cut to.*?(?=\n|\r)/gi,
+  
+  // Narrator and host labels
+  /\*\*Narrator \(Voiceover\):\*\*/gi,
+  /Narrator \(Voiceover\):/gi,
+  /\*\*Host:\*\*/gi,
+  /Host:/gi,
+  
+  // Video formatting
+  /\*\*Video Title:.*?\*\*/gi,
+  /\*\*Title:.*?\*\*/gi,
+  /Video Title:.*?(?=\n|\r)/gi,
+  
+  // Timestamps and timing
+  /\d+:\d+\s*-\s*\d+:\d+/gi,
+  /\[\d+:\d+\]/gi,
+  
+  // Stage directions
+  /\(.*?walks to.*?\)/gi,
+  /\(.*?points to.*?\)/gi,
+  /\(.*?gestures.*?\)/gi,
+  /\(.*?demonstrates.*?\)/gi,
+  
+  // Production notes
+  /\*\*\[.*?\]\*\*/gi,
+  /---+/gi
+];
+
 // Function to strip emojis from content - COMPREHENSIVE removal
 export function stripEmojis(content: string): string {
   return content
@@ -120,29 +166,36 @@ export function stripEmojis(content: string): string {
     .replace(/[\u{3299}]/gu, '');
 }
 
-// Function to clean video script formatting
+// Function to clean video script formatting - ENHANCED
 export function cleanVideoScript(content: string): string {
-  return content
-    // Remove scene headers
-    .replace(/\*\*\[Scene \d+:.*?\]\*\*/g, '')
-    .replace(/\[Scene \d+:.*?\]/g, '')
-    // Remove visual cues
-    .replace(/\*Visual:.*?\*/g, '')
-    .replace(/\*Background Music:.*?\*/g, '')
-    // Remove narrator labels
-    .replace(/\*\*Narrator \(Voiceover\):\*\*/g, '')
-    .replace(/Narrator \(Voiceover\):/g, '')
-    .replace(/\*\*Host:\*\*/g, '')
-    .replace(/Host:/g, '')
-    // Remove video formatting
-    .replace(/\*\*Video Title:.*?\*\*/g, '')
-    .replace(/\*\*Title:.*?\*\*/g, '')
-    .replace(/\*\*\[.*?\]\*\*/g, '')
+  let cleaned = content;
+  
+  // Remove all video scene patterns
+  VIDEO_SCENE_PATTERNS.forEach(pattern => {
+    cleaned = cleaned.replace(pattern, '');
+  });
+  
+  // Additional cleanup for common video script elements
+  cleaned = cleaned
+    // Remove any remaining bracketed content
     .replace(/\[.*?\]/g, '')
+    // Remove asterisk-wrapped content
+    .replace(/\*[^*]*\*/g, '')
+    // Remove parenthetical stage directions
+    .replace(/\([^)]*walks[^)]*\)/gi, '')
+    .replace(/\([^)]*points[^)]*\)/gi, '')
+    .replace(/\([^)]*gestures[^)]*\)/gi, '')
+    .replace(/\([^)]*demonstrates[^)]*\)/gi, '')
+    // Remove setting descriptions
+    .replace(/SETTING:.*?(?=\n|\r|$)/gi, '')
+    .replace(/Location:.*?(?=\n|\r|$)/gi, '')
     // Clean up extra whitespace and dashes
     .replace(/---+/g, '')
     .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/^\s+|\s+$/gm, '') // Trim each line
     .trim();
+    
+  return cleaned;
 }
 
 export function validateContent(content: string): ValidationResult {
@@ -175,6 +228,13 @@ export function validateContent(content: string): ValidationResult {
           issues.push('Contains emojis - STRICTLY FORBIDDEN');
           break;
       }
+    }
+  });
+  
+  // Check for video scene information
+  VIDEO_SCENE_PATTERNS.forEach(pattern => {
+    if (pattern.test(content)) {
+      issues.push('Contains video scene information - needs clean teaching script only');
     }
   });
   

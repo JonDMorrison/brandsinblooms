@@ -1,4 +1,3 @@
-
 export function validateContent(content: string, contentType?: string): {
   isValid: boolean;
   issues: string[];
@@ -15,6 +14,26 @@ export function validateContent(content: string, contentType?: string): {
   const emojiRegex = /[\p{Emoji}]/u;
   if (emojiRegex.test(content)) {
     issues.push('Content contains emojis - must be removed');
+  }
+  
+  // Video-specific validation for scene information
+  if (contentType?.toLowerCase() === 'video') {
+    const videoScenePatterns = [
+      /\[Scene \d+:/i,
+      /\*Visual:/i,
+      /\*Background Music:/i,
+      /Camera pans/i,
+      /Close-up of/i,
+      /Narrator \(Voiceover\):/i,
+      /\*\*Host:\*\*/i,
+      /Video Title:/i,
+      /\d+:\d+\s*-\s*\d+:\d+/i
+    ];
+    
+    const hasSceneInfo = videoScenePatterns.some(pattern => pattern.test(content));
+    if (hasSceneInfo) {
+      issues.push('Video content contains scene information - needs clean teaching script only');
+    }
   }
   
   // Check for AI-like language patterns that reduce quality
@@ -186,6 +205,15 @@ function validateContentType(content: string, contentType: string): {
       }
       if (wordCount < 250) {
         issues.push(`Newsletter too short: ${wordCount} words (needs 300+ for value)`);
+      }
+      break;
+      
+    case 'video':
+      if (wordCount > 500) {
+        issues.push(`Video script too long: ${wordCount} words (target 200-400 for speaking time)`);
+      }
+      if (wordCount < 150) {
+        issues.push(`Video script too short: ${wordCount} words (needs 200+ for value)`);
       }
       break;
   }
