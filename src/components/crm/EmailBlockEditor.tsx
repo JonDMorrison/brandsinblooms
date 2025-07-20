@@ -5,7 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ContentBlock } from '@/types/emailBuilder';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
+import { TwoColumnBlock } from './TwoColumnBlock';
 import { 
   Plus, 
   Trash2, 
@@ -15,7 +17,9 @@ import {
   Image, 
   MousePointer, 
   Heading,
-  Eye
+  Eye,
+  Columns2,
+  Layout
 } from 'lucide-react';
 
 interface EmailBlockEditorProps {
@@ -32,7 +36,8 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       type,
       title: type === 'header' ? 'New Header' : 'New Content',
       content: type === 'button' ? 'Click Here' : 'Add your content here...',
-      source: 'manual'
+      source: 'manual',
+      layout: 'full-width'
     };
     onBlocksChange([...blocks, newBlock]);
   };
@@ -89,6 +94,307 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
     );
   };
 
+  const getLayoutIcon = (layout?: BlockLayout) => {
+    switch (layout) {
+      case 'two-column-left':
+      case 'two-column-right':
+        return <Columns2 className="h-3 w-3" />;
+      default:
+        return <Layout className="h-3 w-3" />;
+    }
+  };
+
+  // Group blocks for two-column rendering
+  const renderBlocks = () => {
+    const renderedBlocks = [];
+    let i = 0;
+
+    while (i < blocks.length) {
+      const currentBlock = blocks[i];
+      const nextBlock = blocks[i + 1];
+
+      // Check if we have a two-column pair
+      if (
+        currentBlock.layout === 'two-column-left' &&
+        nextBlock?.layout === 'two-column-right'
+      ) {
+        // Render two-column block
+        renderedBlocks.push(
+          <div key={`two-col-${i}`} className="space-y-4">
+            <div className="flex items-center justify-between p-2 bg-muted/20 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Columns2 className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Two-Column Layout</span>
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => moveBlock(i, 'up')}
+                  disabled={i === 0}
+                >
+                  <MoveUp className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => moveBlock(i, 'down')}
+                  disabled={i >= blocks.length - 2}
+                >
+                  <MoveDown className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    deleteBlock(i + 1);
+                    deleteBlock(i);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <TwoColumnBlock
+              leftBlock={currentBlock}
+              rightBlock={nextBlock}
+              isPreview={true}
+            />
+            
+            {/* Editors for both blocks */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[currentBlock, nextBlock].map((block, blockIndex) => (
+                <Card key={i + blockIndex} className="border-l-4 border-l-primary">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getBlockIcon(block.type)}
+                        <span className="text-sm font-medium">
+                          {blockIndex === 0 ? 'Left' : 'Right'} - {block.type}
+                        </span>
+                      </div>
+                      {getSourceBadge(block.source, block.personaTag)}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {renderBlockEditor(block, i + blockIndex)}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+        i += 2; // Skip next block since we processed it
+      } else {
+        // Render single block
+        renderedBlocks.push(renderSingleBlock(currentBlock, i));
+        i += 1;
+      }
+    }
+
+    return renderedBlocks;
+  };
+
+  const renderSingleBlock = (block: ContentBlock, index: number) => (
+    <Card key={index} className="border-l-4 border-l-primary">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {getBlockIcon(block.type)}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium capitalize">{block.type} Block</span>
+                {getLayoutIcon(block.layout)}
+              </div>
+              <div className="mt-1">
+                {getSourceBadge(block.source, block.personaTag)}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => moveBlock(index, 'up')}
+              disabled={index === 0}
+            >
+              <MoveUp className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => moveBlock(index, 'down')}
+              disabled={index === blocks.length - 1}
+            >
+              <MoveDown className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => deleteBlock(index)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Block Preview */}
+        <div className="p-3 bg-muted/50 rounded-lg border-l-2 border-l-muted-foreground/20">
+          {renderBlockPreview(block)}
+        </div>
+
+        {/* Block Editor */}
+        <div className="space-y-3 pt-2 border-t">
+          {renderBlockEditor(block, index)}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  const renderBlockPreview = (block: ContentBlock) => {
+    switch (block.type) {
+      case 'header':
+        return (
+          <div className="text-center">
+            <h2 className="text-xl font-bold text-primary mb-1">
+              {block.title || 'Header Title'}
+            </h2>
+            {block.content && (
+              <p className="text-muted-foreground">{block.content}</p>
+            )}
+          </div>
+        );
+      
+      case 'text':
+        return (
+          <div>
+            {block.title && (
+              <h3 className="font-semibold mb-2">{block.title}</h3>
+            )}
+            <p className="text-sm text-muted-foreground line-clamp-3">
+              {block.content || 'No content'}
+            </p>
+          </div>
+        );
+      
+      case 'image':
+        return (
+          <div className="text-center">
+            {block.imageUrl ? (
+              <img
+                src={block.imageUrl}
+                alt={block.title || 'Email image'}
+                className="max-w-full h-24 object-cover rounded mx-auto mb-2"
+              />
+            ) : (
+              <div className="w-full h-24 bg-muted border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center mb-2">
+                <Image className="h-8 w-8 text-muted-foreground" />
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {block.title || 'Image Block'}
+            </p>
+          </div>
+        );
+      
+      case 'button':
+        return (
+          <div className="text-center">
+            <button className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm">
+              {block.ctaText || block.content || 'Click Here'}
+            </button>
+            {block.ctaUrl && (
+              <p className="text-xs text-muted-foreground mt-1">
+                → {block.ctaUrl}
+              </p>
+            )}
+          </div>
+        );
+      
+      default:
+        return null;
+    }
+  };
+
+  const renderBlockEditor = (block: ContentBlock, index: number) => (
+    <>
+      <div>
+        <Label className="text-sm">Layout</Label>
+        <Select
+          value={block.layout || 'full-width'}
+          onValueChange={(value: BlockLayout) => updateBlock(index, { layout: value })}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select layout" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="full-width">Full Width</SelectItem>
+            <SelectItem value="two-column-left">Two Column - Left</SelectItem>
+            <SelectItem value="two-column-right">Two Column - Right</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label className="text-sm">Title</Label>
+        <Input
+          value={block.title || ''}
+          onChange={(e) => updateBlock(index, { title: e.target.value })}
+          placeholder={`${block.type} title...`}
+        />
+      </div>
+
+      {block.type !== 'button' && (
+        <div>
+          <Label className="text-sm">Content</Label>
+          <Textarea
+            value={block.content || ''}
+            onChange={(e) => updateBlock(index, { content: e.target.value })}
+            placeholder={`Enter ${block.type} content...`}
+            rows={3}
+          />
+        </div>
+      )}
+
+      {block.type === 'image' && (
+        <div>
+          <Label className="text-sm">Image URL</Label>
+          <Input
+            value={block.imageUrl || ''}
+            onChange={(e) => updateBlock(index, { imageUrl: e.target.value })}
+            placeholder="https://example.com/image.jpg"
+          />
+        </div>
+      )}
+
+      {block.type === 'button' && (
+        <>
+          <div>
+            <Label className="text-sm">Button Text</Label>
+            <Input
+              value={block.ctaText || block.content || ''}
+              onChange={(e) => updateBlock(index, { 
+                ctaText: e.target.value,
+                content: e.target.value 
+              })}
+              placeholder="Click Here"
+            />
+          </div>
+          <div>
+            <Label className="text-sm">Button URL</Label>
+            <Input
+              value={block.ctaUrl || ''}
+              onChange={(e) => updateBlock(index, { ctaUrl: e.target.value })}
+              placeholder="https://example.com"
+            />
+          </div>
+        </>
+      )}
+    </>
+  );
+
   return (
     <Card>
       <CardHeader>
@@ -136,167 +442,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
 
         {/* Content Blocks */}
         <div className="space-y-4">
-          {blocks.map((block, index) => (
-            <Card key={index} className="border-l-4 border-l-primary">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    {getBlockIcon(block.type)}
-                    <div>
-                      <span className="font-medium capitalize">{block.type} Block</span>
-                      <div className="mt-1">
-                        {getSourceBadge(block.source, block.personaTag)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => moveBlock(index, 'up')}
-                      disabled={index === 0}
-                    >
-                      <MoveUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => moveBlock(index, 'down')}
-                      disabled={index === blocks.length - 1}
-                    >
-                      <MoveDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => deleteBlock(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Block Preview */}
-                <div className="p-3 bg-muted/50 rounded-lg border-l-2 border-l-muted-foreground/20">
-                  {block.type === 'header' && (
-                    <div className="text-center">
-                      <h2 className="text-xl font-bold text-primary mb-1">
-                        {block.title || 'Header Title'}
-                      </h2>
-                      {block.content && (
-                        <p className="text-muted-foreground">{block.content}</p>
-                      )}
-                    </div>
-                  )}
-                  
-                  {block.type === 'text' && (
-                    <div>
-                      {block.title && (
-                        <h3 className="font-semibold mb-2">{block.title}</h3>
-                      )}
-                      <p className="text-sm text-muted-foreground line-clamp-3">
-                        {block.content || 'No content'}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {block.type === 'image' && (
-                    <div className="text-center">
-                      {block.imageUrl ? (
-                        <img
-                          src={block.imageUrl}
-                          alt={block.title || 'Email image'}
-                          className="max-w-full h-24 object-cover rounded mx-auto mb-2"
-                        />
-                      ) : (
-                        <div className="w-full h-24 bg-muted border-2 border-dashed border-muted-foreground/30 rounded flex items-center justify-center mb-2">
-                          <Image className="h-8 w-8 text-muted-foreground" />
-                        </div>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        {block.title || 'Image Block'}
-                      </p>
-                    </div>
-                  )}
-                  
-                  {block.type === 'button' && (
-                    <div className="text-center">
-                      <button className="px-4 py-2 bg-primary text-primary-foreground rounded text-sm">
-                        {block.ctaText || block.content || 'Click Here'}
-                      </button>
-                      {block.ctaUrl && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          → {block.ctaUrl}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Block Editor */}
-                <div className="space-y-3 pt-2 border-t">
-                  <div>
-                    <Label className="text-sm">Title</Label>
-                    <Input
-                      value={block.title || ''}
-                      onChange={(e) => updateBlock(index, { title: e.target.value })}
-                      placeholder={`${block.type} title...`}
-                    />
-                  </div>
-
-                  {block.type !== 'button' && (
-                    <div>
-                      <Label className="text-sm">Content</Label>
-                      <Textarea
-                        value={block.content || ''}
-                        onChange={(e) => updateBlock(index, { content: e.target.value })}
-                        placeholder={`Enter ${block.type} content...`}
-                        rows={3}
-                      />
-                    </div>
-                  )}
-
-                  {block.type === 'image' && (
-                    <div>
-                      <Label className="text-sm">Image URL</Label>
-                      <Input
-                        value={block.imageUrl || ''}
-                        onChange={(e) => updateBlock(index, { imageUrl: e.target.value })}
-                        placeholder="https://example.com/image.jpg"
-                      />
-                    </div>
-                  )}
-
-                  {block.type === 'button' && (
-                    <>
-                      <div>
-                        <Label className="text-sm">Button Text</Label>
-                        <Input
-                          value={block.ctaText || block.content || ''}
-                          onChange={(e) => updateBlock(index, { 
-                            ctaText: e.target.value,
-                            content: e.target.value 
-                          })}
-                          placeholder="Click Here"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-sm">Button URL</Label>
-                        <Input
-                          value={block.ctaUrl || ''}
-                          onChange={(e) => updateBlock(index, { ctaUrl: e.target.value })}
-                          placeholder="https://example.com"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          {blocks.length === 0 && (
+          {blocks.length > 0 ? renderBlocks() : (
             <div className="text-center py-12 text-muted-foreground border-2 border-dashed border-muted-foreground/30 rounded-lg">
               <Image className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium mb-2">No content blocks yet</p>

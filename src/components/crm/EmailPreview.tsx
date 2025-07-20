@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ContentBlock } from '@/types/emailBuilder';
+import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
 import { Mail, Eye } from 'lucide-react';
 
 interface EmailPreviewProps {
@@ -98,6 +98,60 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
     }
   };
 
+  const renderTwoColumnHTML = (leftBlock: ContentBlock, rightBlock: ContentBlock): string => {
+    const leftContent = renderBlockToHTML(leftBlock, 0).replace(/margin-bottom: 24px;/, '');
+    const rightContent = renderBlockToHTML(rightBlock, 0).replace(/margin-bottom: 24px;/, '');
+
+    return `
+      <div style="margin-bottom: 24px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="width: 50%; vertical-align: top; padding-right: 12px;">
+              ${leftContent}
+            </td>
+            <td style="width: 50%; vertical-align: top; padding-left: 12px;">
+              ${rightContent}
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Mobile fallback -->
+        <div style="display: none;">
+          <!--[if !mso]><!-->
+          <div class="mobile-stack" style="display: none;">
+            ${leftContent}
+            ${rightContent}
+          </div>
+          <!--<![endif]-->
+        </div>
+      </div>
+    `;
+  };
+
+  const generateEmailHTML = (): string => {
+    const renderedContent = [];
+    let i = 0;
+
+    while (i < blocks.length) {
+      const currentBlock = blocks[i];
+      const nextBlock = blocks[i + 1];
+
+      // Check if we have a two-column pair
+      if (
+        currentBlock.layout === 'two-column-left' &&
+        nextBlock?.layout === 'two-column-right'
+      ) {
+        renderedContent.push(renderTwoColumnHTML(currentBlock, nextBlock));
+        i += 2; // Skip next block
+      } else {
+        renderedContent.push(renderBlockToHTML(currentBlock, i));
+        i += 1;
+      }
+    }
+
+    return renderedContent.join('');
+  };
+
   const emailHTML = `
     <!DOCTYPE html>
     <html>
@@ -105,10 +159,20 @@ export const EmailPreview: React.FC<EmailPreviewProps> = ({
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${subjectLine || 'Email Preview'}</title>
+        <style>
+          @media only screen and (max-width: 600px) {
+            .mobile-stack {
+              display: block !important;
+            }
+            table {
+              display: none !important;
+            }
+          }
+        </style>
       </head>
       <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f8fafc;">
         <div style="max-width: 600px; margin: 0 auto; background: #ffffff;">
-          ${blocks.map((block, index) => renderBlockToHTML(block, index)).join('')}
+          ${generateEmailHTML()}
           
           <!-- Footer -->
           <div style="background: #f8fafc; padding: 24px; text-align: center; color: #64748b; font-size: 14px; border-top: 1px solid #e2e8f0;">

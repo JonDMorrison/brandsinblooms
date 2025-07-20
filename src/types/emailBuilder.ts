@@ -1,4 +1,6 @@
+
 export type BlockType = 'header' | 'text' | 'image' | 'button' | 'divider' | 'product';
+export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right';
 
 export interface EmailBlock {
   id: string;
@@ -42,4 +44,5 @@ export interface ContentBlock {
   ctaUrl?: string;
   source: 'newsletter' | 'ai' | 'template' | 'manual';
   personaTag?: string;
+  layout?: BlockLayout;
 }
