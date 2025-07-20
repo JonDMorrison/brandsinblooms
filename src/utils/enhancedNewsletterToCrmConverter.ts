@@ -257,8 +257,22 @@ const convertToContentBlocks = (processed: any, contentTask: any): ContentBlock[
           });
         }
       } else if (!firstLine.startsWith('#')) {
-        // Regular content block
-        const title = `Section ${index + 1}`;
+        // Regular content block - extract meaningful title from content
+        let title = `Section ${index + 1}`;
+        
+        // Try to extract a meaningful title from the content
+        if (firstLine.includes('**') && firstLine.includes('**')) {
+          // Bold text as title
+          const boldMatch = firstLine.match(/\*\*(.*?)\*\*/);
+          if (boldMatch) title = boldMatch[1];
+        } else if (firstLine.includes(':') && firstLine.length < 100) {
+          // Line ending with colon (likely a title)
+          title = firstLine.replace(':', '').trim();
+        } else if (firstLine.length < 60 && !firstLine.includes('.')) {
+          // Short line without period (likely a title)
+          title = firstLine;
+        }
+        
         const content = lines.join('\n').trim();
         
         if (content && content.length > 10) { // Only add substantial content
