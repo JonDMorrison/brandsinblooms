@@ -179,7 +179,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
         <div>
           <Label>Layout</Label>
           <Select
-            value={block.layout}
+            value={block.layout || 'full-width'}
             onValueChange={(value: BlockLayout) => updateField('layout', value)}
           >
             <SelectTrigger>
