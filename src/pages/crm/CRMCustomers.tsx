@@ -190,7 +190,7 @@ const CRMCustomers = () => {
           </div>
           <div className="flex gap-2">
             <CustomerImportModal />
-            <Button>
+            <Button onClick={() => navigate('/crm/customers/new')}>
               <Plus className="h-4 w-4 mr-2" />
               Add Customer
             </Button>
@@ -276,7 +276,7 @@ const CRMCustomers = () => {
                 </p>
                 <div className="flex justify-center gap-2">
                   <CustomerImportModal />
-                  <Button>
+                  <Button onClick={() => navigate('/crm/customers/new')}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Customer
                   </Button>
