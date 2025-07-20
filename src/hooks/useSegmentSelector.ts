@@ -8,7 +8,11 @@ interface Segment {
   description?: string;
 }
 
-export const useSegmentSelector = () => {
+interface UseSegmentSelectorOptions {
+  onSegmentsSelected?: (segments: Segment[]) => void;
+}
+
+export const useSegmentSelector = (options?: UseSegmentSelectorOptions) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedSegments, setSelectedSegments] = useState<Segment[]>([]);
 
@@ -17,6 +21,9 @@ export const useSegmentSelector = () => {
 
   const handleSegmentsSelected = (segments: Segment[]) => {
     setSelectedSegments(segments);
+    if (options?.onSegmentsSelected) {
+      options.onSegmentsSelected(segments);
+    }
   };
 
   const clearSegments = () => {
@@ -24,10 +31,12 @@ export const useSegmentSelector = () => {
   };
 
   const hasSegments = selectedSegments.length > 0;
+  const selectedSegmentIds = selectedSegments.map(segment => segment.id);
 
   return {
     isOpen,
     selectedSegments,
+    selectedSegmentIds,
     openModal,
     closeModal,
     handleSegmentsSelected,

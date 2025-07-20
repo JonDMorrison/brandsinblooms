@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,15 +8,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { SegmentSelectorButton } from "../SegmentSelectorButton";
 import { SegmentChip } from "../SegmentChip";
 import { useSegmentSelector } from "@/hooks/useSegmentSelector";
+import { SegmentSelector } from "../campaigns/SegmentSelector";
 
 export const CampaignSegmentExample = () => {
   const [campaignName, setCampaignName] = useState("");
   const [campaignContent, setCampaignContent] = useState("");
   
   const {
+    isOpen,
     selectedSegments,
     selectedSegmentIds,
     openModal,
+    closeModal,
+    handleSegmentsSelected,
     clearSegments,
     hasSegments
   } = useSegmentSelector({
@@ -100,6 +105,13 @@ export const CampaignSegmentExample = () => {
             Create Campaign
           </Button>
         </div>
+
+        <SegmentSelector
+          isOpen={isOpen}
+          onClose={closeModal}
+          onSegmentsSelected={handleSegmentsSelected}
+          selectedSegments={selectedSegments}
+        />
       </CardContent>
     </Card>
   );
