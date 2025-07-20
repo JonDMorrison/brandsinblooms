@@ -5,6 +5,12 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 export const GlobalLoadingOverlay = () => {
   const { currentLoading } = useLoading();
 
+  console.log('🔄 GlobalLoadingOverlay render:', { 
+    hasCurrentLoading: !!currentLoading,
+    message: currentLoading?.message,
+    priority: currentLoading?.priority 
+  });
+
   if (!currentLoading) return null;
 
   return (

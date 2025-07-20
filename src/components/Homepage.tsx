@@ -69,7 +69,17 @@ const HomepageContent = () => {
 
   // Manage loading states in global context
   useEffect(() => {
+    console.log('🏠 Homepage useEffect: Loading state check', {
+      hasUser: !!user,
+      tenantLoading,
+      hasTenant: !!tenant,
+      dataLoading: loading,
+      isCached,
+      currentPath: window.location.pathname
+    });
+
     if (!user) {
+      console.log('🏠 Homepage: No user, setting auth loading');
       setLoading('homepage', {
         isLoading: true,
         message: 'Please log in to access your campaigns',
@@ -79,6 +89,7 @@ const HomepageContent = () => {
     }
     
     if (tenantLoading) {
+      console.log('🏠 Homepage: Tenant loading, setting tenant loading');
       setLoading('homepage', {
         isLoading: true,
         message: 'Setting up your workspace...',
@@ -88,6 +99,7 @@ const HomepageContent = () => {
     }
     
     if (!tenant) {
+      console.log('🏠 Homepage: No tenant found, setting tenant error loading');
       setLoading('homepage', {
         isLoading: true,
         message: 'Setting up your workspace... Please contact support if this continues.',
@@ -97,6 +109,7 @@ const HomepageContent = () => {
     }
     
     if (loading && !isCached) {
+      console.log('🏠 Homepage: Data loading and not cached, setting data loading');
       setLoading('homepage', {
         isLoading: true,
         message: 'Loading your campaigns and content...',
@@ -106,8 +119,9 @@ const HomepageContent = () => {
     }
     
     // Clear loading when everything is ready
+    console.log('🏠 Homepage: Everything ready, clearing loading');
     clearLoading('homepage');
-  }, [user, tenantLoading, tenant, loading, setLoading, clearLoading]);
+  }, [user, tenantLoading, tenant, loading, isCached, setLoading, clearLoading]);
 
   // Handle early returns - let GlobalLoadingOverlay handle the display
   if (!user || tenantLoading || !tenant) {
