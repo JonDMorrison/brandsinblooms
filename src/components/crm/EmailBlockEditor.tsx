@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   blocks,
   onBlocksChange
 }) => {
+  const [isAddBlockModalOpen, setIsAddBlockModalOpen] = useState(false);
   const addBlock = (type: ContentBlock['type']) => {
     console.log('Adding block of type:', type);
     const newBlock: ContentBlock = {
@@ -119,9 +120,17 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
             {/* Layout-based Block Creation */}
             <div>
               <Label className="text-sm font-medium mb-2 block">Choose Layout</Label>
+              <Button
+                variant="outline"
+                onClick={() => setIsAddBlockModalOpen(true)}
+                className="w-full"
+              >
+                Add Block with Layout
+              </Button>
               <BlockLayoutModal 
+                isOpen={isAddBlockModalOpen}
+                onClose={() => setIsAddBlockModalOpen(false)}
                 onSelect={addBlockWithLayout}
-                triggerText="Add Block with Layout"
               />
             </div>
             

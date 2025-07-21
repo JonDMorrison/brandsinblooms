@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock, BlockType, BlockLayout } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -21,10 +21,11 @@ const blockTypeOptions = [
   { value: 'product', label: 'Product', icon: '📦' }
 ];
 
-export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
-  block,
-  onUpdate
+export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({ 
+  block, 
+  onUpdate 
 }) => {
+  const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
   const handleTypeChange = (newType: BlockType) => {
     console.log('Converting block type from', block.type, 'to', newType);
     
@@ -77,9 +78,17 @@ export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
       
       <div className="flex items-center gap-2">
         <Layout className="h-4 w-4 text-muted-foreground" />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsLayoutModalOpen(true)}
+        >
+          Change Layout
+        </Button>
         <BlockLayoutModal 
+          isOpen={isLayoutModalOpen}
+          onClose={() => setIsLayoutModalOpen(false)}
           onSelect={handleLayoutChange}
-          triggerText="Change Layout"
         />
       </div>
     </div>
