@@ -102,22 +102,21 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
   );
 
   const renderLayoutComponent = () => {
-    // Map the layout type to the appropriate template component
-    switch (block.layout) {
-      case 'two-column-left':
-        return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
-      case 'two-column-right':
-        return <Layout2 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
-      case 'full-width':
-      default:
-        // For full-width blocks, choose layout based on content type
-        if (block.type === 'image') {
-          return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
-        } else if (block.type === 'text') {
-          return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
-        } else {
-          return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
-        }
+    // Map layout types to appropriate templates based on both layout and type
+    if (block.layout === 'two-column-left') {
+      return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
+    } else if (block.layout === 'two-column-right') {
+      return <Layout2 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
+    } else if (block.type === 'header') {
+      // Headers get centered single column layout
+      return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
+    } else if (block.type === 'image') {
+      return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
+    } else if (block.type === 'button') {
+      return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
+    } else {
+      // Default text layout
+      return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
     }
   };
 
@@ -132,11 +131,9 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
 export const mapModalLayoutToBlockLayout = (modalLayoutType: string): BlockLayout => {
   switch (modalLayoutType) {
     case 'image-left':
-      return 'two-column-left';
-    case 'image-right':
-      return 'two-column-right';
     case 'image-vertical-left':
       return 'two-column-left';
+    case 'image-right':
     case 'image-vertical-right':
       return 'two-column-right';
     case 'text-double':

@@ -1,31 +1,28 @@
 
 import React, { useState } from 'react';
-import { ContentBlock, AlignmentType, SpacingType, ResponsiveBehaviorType } from '@/types/emailBuilder';
+import { ContentBlock } from '@/types/emailBuilder';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ImageSelectButton } from '@/components/image/ImageSelectButton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
+import { BlockTypeConverter } from './BlockTypeConverter';
+import { LayoutPreview } from './LayoutRenderer';
 import { 
-  GripVertical, 
   ChevronDown, 
   ChevronUp, 
   Copy, 
   Trash2, 
   ArrowUp, 
   ArrowDown,
-  AlignLeft,
-  AlignCenter,
-  AlignRight,
-  Smartphone,
-  Monitor,
   Eye,
   EyeOff,
   Palette,
-  Zap
+  Settings
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface EnhancedBlockEditorProps {
   block: ContentBlock;
@@ -48,433 +45,331 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
   canMoveUp,
   canMoveDown
 }) => {
-  const [isExpanded, setIsExpanded] = useState(!block.collapsed);
+  const [collapsed, setCollapsed] = useState(block.collapsed || false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const handleToggleCollapse = () => {
-    const newExpanded = !isExpanded;
-    setIsExpanded(newExpanded);
-    onUpdate(block.id, { collapsed: !newExpanded });
+  const handleUpdate = (updates: Partial<ContentBlock>) => {
+    onUpdate(block.id, updates);
   };
 
-  const updateField = (field: keyof ContentBlock, value: any) => {
-    onUpdate(block.id, { [field]: value });
+  const getBlockIcon = (type: ContentBlock['type']) => {
+    switch (type) {
+      case 'header': return '📄';
+      case 'text': return '📝';
+      case 'image': return '🖼️';
+      case 'button': return '🔘';
+      default: return '📦';
+    }
   };
 
-  const handleImageSelect = (imageUrl: string, metadata?: any) => {
-    onUpdate(block.id, { 
-      imageUrl,
-      ...(metadata?.alt_text && { title: metadata.alt_text })
-    });
-  };
-
-  const getBlockTypeIcon = () => {
-    const icons = {
-      header: '📄',
-      text: '📝',
-      image: '🖼️',
-      button: '🔘',
-      divider: '➖',
-      product: '🛍️'
-    };
-    return icons[block.type] || '📄';
-  };
-
-  const getPreviewText = () => {
+  const getBlockTitle = (block: ContentBlock) => {
     if (block.title) return block.title;
-    if (block.content) return block.content.substring(0, 50) + (block.content.length > 50 ? '...' : '');
+    if (block.content) return block.content.substring(0, 30) + '...';
     if (block.ctaText) return block.ctaText;
-    return `${block.type} block`;
+    return `${block.type.charAt(0).toUpperCase() + block.type.slice(1)} Block`;
   };
-
-  const spacingOptions: { value: SpacingType; label: string }[] = [
-    { value: 'none', label: 'None' },
-    { value: 'small', label: 'Small' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'large', label: 'Large' }
-  ];
-
-  const responsiveBehaviorOptions: { value: ResponsiveBehaviorType; label: string }[] = [
-    { value: 'stack', label: 'Stack normally' },
-    { value: 'reverse', label: 'Reverse order' },
-    { value: 'hide-image', label: 'Hide images' }
-  ];
-
-  const animationOptions = [
-    { value: 'none', label: 'No Animation' },
-    { value: 'fade-in', label: 'Fade In' },
-    { value: 'slide-up', label: 'Slide Up' },
-    { value: 'scale-in', label: 'Scale In' }
-  ];
-
-  const backgroundColors = [
-    { value: '', label: 'Default', color: 'transparent' },
-    { value: 'hsl(var(--primary))', label: 'Primary', color: 'hsl(var(--primary))' },
-    { value: 'hsl(var(--secondary))', label: 'Secondary', color: 'hsl(var(--secondary))' },
-    { value: 'hsl(var(--muted))', label: 'Muted', color: 'hsl(var(--muted))' },
-    { value: 'hsl(var(--accent))', label: 'Accent', color: 'hsl(var(--accent))' },
-    { value: '#ffffff', label: 'White', color: '#ffffff' },
-    { value: '#f8f9fa', label: 'Light Gray', color: '#f8f9fa' },
-    { value: '#e9ecef', label: 'Gray', color: '#e9ecef' }
-  ];
-
-  const textColors = [
-    { value: '', label: 'Default', color: 'hsl(var(--foreground))' },
-    { value: 'hsl(var(--primary))', label: 'Primary', color: 'hsl(var(--primary))' },
-    { value: 'hsl(var(--muted-foreground))', label: 'Muted', color: 'hsl(var(--muted-foreground))' },
-    { value: '#ffffff', label: 'White', color: '#ffffff' },
-    { value: '#000000', label: 'Black', color: '#000000' },
-    { value: '#6b7280', label: 'Gray', color: '#6b7280' }
-  ];
 
   return (
-    <div className="border border-border rounded-lg bg-card shadow-sm">
-      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CollapsibleTrigger asChild>
-          <div 
-            className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors"
-            onClick={handleToggleCollapse}
-          >
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <GripVertical className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-              <span className="text-lg flex-shrink-0">{getBlockTypeIcon()}</span>
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium">
-                  Block {index + 1}: {block.type}
-                </span>
-                <div className="text-xs text-muted-foreground truncate">
-                  {getPreviewText()}
-                </div>
-              </div>
-            </div>
+    <Card className={`transition-all duration-200 ${block.visible === false ? 'opacity-50' : ''}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setCollapsed(!collapsed)}
+            >
+              {collapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            </Button>
             
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  updateField('visible', !(block.visible ?? true));
-                }}
-                className={cn(
-                  "h-8 w-8 p-0",
-                  block.visible === false ? "text-muted-foreground" : "text-foreground"
-                )}
-                title={block.visible === false ? "Show block" : "Hide block"}
-              >
-                {block.visible === false ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMove(block.id, 'up');
-                }}
-                disabled={!canMoveUp}
-                className="h-8 w-8 p-0"
-              >
-                <ArrowUp className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onMove(block.id, 'down');
-                }}
-                disabled={!canMoveDown}
-                className="h-8 w-8 p-0"
-              >
-                <ArrowDown className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDuplicate(block);
-                }}
-                className="h-8 w-8 p-0"
-              >
-                <Copy className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onRemove(block.id);
-                }}
-                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            <div className="flex items-center gap-2">
+              <span className="text-lg">{getBlockIcon(block.type)}</span>
+              <div>
+                <h3 className="font-medium text-sm">{getBlockTitle(block)}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {block.type} • {block.layout || 'full-width'}
+                </p>
+              </div>
             </div>
           </div>
-        </CollapsibleTrigger>
 
-        <CollapsibleContent>
-          <div className="p-4 pt-0 space-y-4 border-t border-border">
-            {/* Layout Controls */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Alignment */}
-              <div>
-                <Label className="text-xs font-medium mb-2 block">Alignment</Label>
-                <div className="flex border border-border rounded-md">
-                  {[
-                    { value: 'left' as AlignmentType, icon: AlignLeft },
-                    { value: 'center' as AlignmentType, icon: AlignCenter },
-                    { value: 'right' as AlignmentType, icon: AlignRight }
-                  ].map(({ value, icon: Icon }) => (
-                    <button
-                      key={value}
-                      onClick={() => updateField('alignment', value)}
-                      className={cn(
-                        'flex-1 p-2 flex items-center justify-center transition-colors',
-                        block.alignment === value 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'hover:bg-muted'
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => handleUpdate({ visible: !(block.visible ?? true) })}
+              title={block.visible === false ? 'Show block' : 'Hide block'}
+            >
+              {block.visible === false ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onMove(block.id, 'up')}
+              disabled={!canMoveUp}
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onMove(block.id, 'down')}
+              disabled={!canMoveDown}
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onDuplicate(block)}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => onRemove(block.id)}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
 
-              {/* Padding */}
-              <div>
-                <Label className="text-xs font-medium mb-2 block">Padding</Label>
-                <select
-                  value={block.padding || 'medium'}
-                  onChange={(e) => updateField('padding', e.target.value as SpacingType)}
-                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                >
-                  {spacingOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+        {/* Block Type and Layout Converter */}
+        {!collapsed && (
+          <BlockTypeConverter
+            block={block}
+            onUpdate={handleUpdate}
+          />
+        )}
+      </CardHeader>
 
-              {/* Margin */}
+      {!collapsed && (
+        <CardContent className="space-y-4">
+          {/* Content Fields */}
+          <div className="space-y-3">
+            {(block.type === 'header' || block.type === 'text' || block.type === 'image') && (
               <div>
-                <Label className="text-xs font-medium mb-2 block">Margin</Label>
-                <select
-                  value={block.margin || 'medium'}
-                  onChange={(e) => updateField('margin', e.target.value as SpacingType)}
-                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                >
-                  {spacingOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Responsive Behavior */}
-            {block.layout !== 'full-width' && (
-              <div>
-                <Label className="text-xs font-medium mb-2 flex items-center gap-2">
-                  <Smartphone className="h-3 w-3" />
-                  Mobile Behavior
-                </Label>
-                <select
-                  value={block.responsiveBehavior || 'stack'}
-                  onChange={(e) => updateField('responsiveBehavior', e.target.value as ResponsiveBehaviorType)}
-                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                >
-                  {responsiveBehaviorOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                <Label htmlFor={`title-${block.id}`}>Title</Label>
+                <Input
+                  id={`title-${block.id}`}
+                  value={block.title || ''}
+                  onChange={(e) => handleUpdate({ title: e.target.value })}
+                  placeholder="Enter title..."
+                />
               </div>
             )}
 
-            {/* Visual Settings */}
-            <div className="space-y-4 p-3 bg-muted/30 rounded-md border">
-              <div className="flex items-center gap-2 mb-3">
-                <Palette className="h-4 w-4" />
-                <Label className="text-sm font-medium">Visual Settings</Label>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Background Color */}
-                <div>
-                  <Label className="text-xs font-medium mb-2 block">Background Color</Label>
-                  <div className="space-y-2">
-                    <select
-                      value={block.backgroundColor || ''}
-                      onChange={(e) => updateField('backgroundColor', e.target.value)}
-                      className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                    >
-                      {backgroundColors.map(option => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    {block.backgroundColor && (
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-4 h-4 rounded border border-border" 
-                          style={{ backgroundColor: block.backgroundColor }}
-                        />
-                        <span className="text-xs text-muted-foreground">Preview</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Text Color */}
-                <div>
-                  <Label className="text-xs font-medium mb-2 block">Text Color</Label>
-                  <div className="space-y-2">
-                    <select
-                      value={block.textColor || ''}
-                      onChange={(e) => updateField('textColor', e.target.value)}
-                      className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                    >
-                      {textColors.map(option => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                    {block.textColor && (
-                      <div className="flex items-center gap-2">
-                        <div 
-                          className="w-4 h-4 rounded border border-border" 
-                          style={{ backgroundColor: block.textColor }}
-                        />
-                        <span className="text-xs text-muted-foreground">Preview</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Animation */}
+            {(block.type === 'header' || block.type === 'text') && (
               <div>
-                <Label className="text-xs font-medium mb-2 flex items-center gap-2">
-                  <Zap className="h-3 w-3" />
-                  Animation
-                </Label>
-                <select
-                  value={block.animation || 'none'}
-                  onChange={(e) => updateField('animation', e.target.value)}
-                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                >
-                  {animationOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Content Fields */}
-            <div className="space-y-3">
-              {/* Title */}
-              <div>
-                <Label className="text-xs font-medium mb-1 block">Title</Label>
-                <Input
-                  value={block.title || ''}
-                  onChange={(e) => updateField('title', e.target.value)}
-                  placeholder={`Enter ${block.type} title...`}
-                  className="text-sm"
+                <Label htmlFor={`content-${block.id}`}>Content</Label>
+                <Textarea
+                  id={`content-${block.id}`}
+                  value={block.content || ''}
+                  onChange={(e) => handleUpdate({ content: e.target.value })}
+                  placeholder="Enter content..."
+                  rows={3}
                 />
               </div>
+            )}
 
-              {/* Content */}
-              {block.type !== 'button' && block.type !== 'image' && (
+            {block.type === 'image' && (
+              <div>
+                <Label htmlFor={`image-${block.id}`}>Image URL</Label>
+                <Input
+                  id={`image-${block.id}`}
+                  value={block.imageUrl || ''}
+                  onChange={(e) => handleUpdate({ imageUrl: e.target.value })}
+                  placeholder="Enter image URL..."
+                />
+              </div>
+            )}
+
+            {(block.type === 'button' || block.type === 'image') && (
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs font-medium mb-1 block">Content</Label>
-                  <Textarea
-                    value={block.content || ''}
-                    onChange={(e) => updateField('content', e.target.value)}
-                    placeholder="Enter content..."
-                    rows={3}
-                    className="text-sm resize-none"
+                  <Label htmlFor={`cta-text-${block.id}`}>Button Text</Label>
+                  <Input
+                    id={`cta-text-${block.id}`}
+                    value={block.ctaText || ''}
+                    onChange={(e) => handleUpdate({ ctaText: e.target.value })}
+                    placeholder="Button text..."
                   />
                 </div>
-              )}
-
-              {/* Image Selection */}
-              {block.type === 'image' && (
                 <div>
-                  <Label className="text-xs font-medium mb-1 block">Image</Label>
-                  <ImageSelectButton
-                    onImageSelect={handleImageSelect}
-                    selectedImageUrl={block.imageUrl}
-                    contentContext={block.title || block.content}
-                    mode="modal"
-                    buttonText="Select Image"
-                    className="w-full text-sm"
+                  <Label htmlFor={`cta-url-${block.id}`}>Button URL</Label>
+                  <Input
+                    id={`cta-url-${block.id}`}
+                    value={block.ctaUrl || ''}
+                    onChange={(e) => handleUpdate({ ctaUrl: e.target.value })}
+                    placeholder="https://..."
                   />
                 </div>
-              )}
-
-              {/* Button Fields */}
-              {block.type === 'button' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs font-medium mb-1 block">Button Text</Label>
-                    <Input
-                      value={block.ctaText || ''}
-                      onChange={(e) => updateField('ctaText', e.target.value)}
-                      placeholder="Click Here"
-                      className="text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium mb-1 block">Button URL</Label>
-                    <Input
-                      value={block.ctaUrl || ''}
-                      onChange={(e) => updateField('ctaUrl', e.target.value)}
-                      placeholder="https://example.com"
-                      className="text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* CTA Fields for other blocks */}
-              {block.type !== 'button' && block.type !== 'header' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs font-medium mb-1 block">CTA Text (Optional)</Label>
-                    <Input
-                      value={block.ctaText || ''}
-                      onChange={(e) => updateField('ctaText', e.target.value)}
-                      placeholder="Learn More"
-                      className="text-sm"
-                    />
-                  </div>
-                  {block.ctaText && (
-                    <div>
-                      <Label className="text-xs font-medium mb-1 block">CTA URL</Label>
-                      <Input
-                        value={block.ctaUrl || ''}
-                        onChange={(e) => updateField('ctaUrl', e.target.value)}
-                        placeholder="https://example.com"
-                        className="text-sm"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
+
+          {/* Layout Preview */}
+          <LayoutPreview block={block} onUpdate={handleUpdate} />
+
+          {/* Advanced Settings Toggle */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              Advanced Settings
+              {showAdvanced ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {/* Advanced Settings */}
+          {showAdvanced && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Alignment</Label>
+                    <Select
+                      value={block.alignment || 'left'}
+                      onValueChange={(value) => handleUpdate({ alignment: value as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="left">Left</SelectItem>
+                        <SelectItem value="center">Center</SelectItem>
+                        <SelectItem value="right">Right</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Responsive Behavior</Label>
+                    <Select
+                      value={block.responsiveBehavior || 'stack'}
+                      onValueChange={(value) => handleUpdate({ responsiveBehavior: value as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="stack">Stack</SelectItem>
+                        <SelectItem value="reverse">Reverse</SelectItem>
+                        <SelectItem value="hide-image">Hide Image</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Padding</Label>
+                    <Select
+                      value={block.padding || 'medium'}
+                      onValueChange={(value) => handleUpdate({ padding: value as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="small">Small</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="large">Large</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label>Margin</Label>
+                    <Select
+                      value={block.margin || 'medium'}
+                      onValueChange={(value) => handleUpdate({ margin: value as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        <SelectItem value="small">Small</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="large">Large</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor={`bg-color-${block.id}`}>Background Color</Label>
+                    <Input
+                      id={`bg-color-${block.id}`}
+                      type="color"
+                      value={block.backgroundColor || '#ffffff'}
+                      onChange={(e) => handleUpdate({ backgroundColor: e.target.value })}
+                      className="h-10"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor={`text-color-${block.id}`}>Text Color</Label>
+                    <Input
+                      id={`text-color-${block.id}`}
+                      type="color"
+                      value={block.textColor || '#000000'}
+                      onChange={(e) => handleUpdate({ textColor: e.target.value })}
+                      className="h-10"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Animation</Label>
+                  <Select
+                    value={block.animation || 'fade-in'}
+                    onValueChange={(value) => handleUpdate({ animation: value as any })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      <SelectItem value="fade-in">Fade In</SelectItem>
+                      <SelectItem value="slide-up">Slide Up</SelectItem>
+                      <SelectItem value="scale-in">Scale In</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id={`visible-${block.id}`}
+                    checked={block.visible ?? true}
+                    onCheckedChange={(checked) => handleUpdate({ visible: checked })}
+                  />
+                  <Label htmlFor={`visible-${block.id}`}>Block visible</Label>
+                </div>
+              </div>
+            </>
+          )}
+        </CardContent>
+      )}
+    </Card>
   );
 };
