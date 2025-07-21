@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -242,64 +241,63 @@ export const CRMCampaignCreator: React.FC = () => {
           </Card>
         )}
 
+        {/* Full-width Content Blocks Editor */}
+        <EmailBlockEditor
+          blocks={contentBlocks}
+          onBlocksChange={setContentBlocks}
+        />
+
+        {/* Campaign Settings and Preview Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Campaign Settings */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Campaign Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Campaign Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="campaign-name">Campaign Name</Label>
+                <Input
+                  id="campaign-name"
+                  value={campaignName}
+                  onChange={(e) => setCampaignName(e.target.value)}
+                  placeholder="Enter campaign name..."
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="subject-line">Subject Line</Label>
+                <Input
+                  id="subject-line"
+                  value={subjectLine}
+                  onChange={(e) => setSubjectLine(e.target.value)}
+                  placeholder="Enter email subject..."
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="campaign-name">Campaign Name</Label>
+                  <Label htmlFor="sender-name">Sender Name</Label>
                   <Input
-                    id="campaign-name"
-                    value={campaignName}
-                    onChange={(e) => setCampaignName(e.target.value)}
-                    placeholder="Enter campaign name..."
+                    id="sender-name"
+                    value={senderName}
+                    onChange={(e) => setSenderName(e.target.value)}
+                    placeholder="Your Name"
                   />
                 </div>
-                
                 <div>
-                  <Label htmlFor="subject-line">Subject Line</Label>
+                  <Label htmlFor="sender-email">Sender Email</Label>
                   <Input
-                    id="subject-line"
-                    value={subjectLine}
-                    onChange={(e) => setSubjectLine(e.target.value)}
-                    placeholder="Enter email subject..."
+                    id="sender-email"
+                    type="email"
+                    value={senderEmail}
+                    onChange={(e) => setSenderEmail(e.target.value)}
+                    placeholder="your@email.com"
                   />
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="sender-name">Sender Name</Label>
-                    <Input
-                      id="sender-name"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="Your Name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="sender-email">Sender Email</Label>
-                    <Input
-                      id="sender-email"
-                      type="email"
-                      value={senderEmail}
-                      onChange={(e) => setSenderEmail(e.target.value)}
-                      placeholder="your@email.com"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Content Blocks Editor */}
-            <EmailBlockEditor
-              blocks={contentBlocks}
-              onBlocksChange={setContentBlocks}
-            />
-          </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Preview */}
           {showPreview && (
