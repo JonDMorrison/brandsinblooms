@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -19,6 +18,9 @@ import { BlockTypeConverter } from './BlockTypeConverter';
 import { HeaderBlockEditor } from './blocks/HeaderBlockEditor';
 import { ImageBlockEditor } from './blocks/ImageBlockEditor';
 import { ButtonBlockEditor } from './blocks/ButtonBlockEditor';
+import { TextBlockEditor } from './blocks/TextBlockEditor';
+import { DividerBlockEditor } from './blocks/DividerBlockEditor';
+import { ProductBlockEditor } from './blocks/ProductBlockEditor';
 
 interface EnhancedBlockEditorProps {
   block: ContentBlock;
@@ -79,6 +81,14 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
             isExpanded={isExpanded}
           />
         );
+      case 'text':
+        return (
+          <TextBlockEditor 
+            block={block} 
+            onUpdate={handleUpdate} 
+            isExpanded={isExpanded}
+          />
+        );
       case 'image':
         return (
           <ImageBlockEditor 
@@ -95,8 +105,24 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
             isExpanded={isExpanded}
           />
         );
+      case 'divider':
+        return (
+          <DividerBlockEditor 
+            block={block} 
+            onUpdate={handleUpdate} 
+            isExpanded={isExpanded}
+          />
+        );
+      case 'product':
+        return (
+          <ProductBlockEditor 
+            block={block} 
+            onUpdate={handleUpdate} 
+            isExpanded={isExpanded}
+          />
+        );
       default:
-        // Fallback for other block types
+        // Fallback for any unknown block types
         return (
           <div className="p-4 text-center text-muted-foreground">
             <Settings className="h-8 w-8 mx-auto mb-2" />
