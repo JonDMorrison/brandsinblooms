@@ -8,28 +8,13 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { ImageSelectButton } from '@/components/image/ImageSelectButton';
 import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
+import { LayoutPreview, mapModalLayoutToBlockLayout, determineBlockTypeFromLayout } from './LayoutRenderer';
 import { Plus, GripVertical, Trash2, Copy } from 'lucide-react';
 
 interface EmailBlockEditorProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
 }
-
-// Map the new layout types to existing BlockLayout types
-const mapLayoutTypeToBlockLayout = (layoutType: LayoutType): BlockLayout => {
-  switch (layoutType) {
-    case 'image-left':
-    case 'image-vertical-left':
-      return 'two-column-left';
-    case 'image-right':
-    case 'image-vertical-right':
-      return 'two-column-right';
-    case 'text-double':
-    case 'text-triple':
-    default:
-      return 'full-width';
-  }
-};
 
 export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   blocks,
@@ -54,16 +39,13 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   const addBlockWithLayout = (layoutType: LayoutType) => {
     console.log('Adding block with layout:', layoutType);
     
-    // Determine the most appropriate block type based on layout
-    let blockType: ContentBlock['type'] = 'text';
-    if (layoutType.includes('image')) {
-      blockType = 'image';
-    }
+    const blockType = determineBlockTypeFromLayout(layoutType);
+    const blockLayout = mapModalLayoutToBlockLayout(layoutType);
     
     const newBlock: ContentBlock = {
       id: `block_${Date.now()}`,
       type: blockType,
-      layout: mapLayoutTypeToBlockLayout(layoutType),
+      layout: blockLayout,
       title: '',
       content: '',
       imageUrl: '',
@@ -117,84 +99,6 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       imageUrl,
       ...(metadata?.alt_text && { title: metadata.alt_text })
     });
-  };
-
-  const renderBlockPreview = (block: ContentBlock) => {
-    const isImageBlock = block.type === 'image';
-
-    return (
-      <div className="p-4 bg-muted/30 rounded-lg">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium capitalize flex items-center gap-2">
-            {block.layout !== 'full-width' && (
-              <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded">
-                {block.layout === 'two-column-left' ? '← Left Column' : '→ Right Column'}
-              </span>
-            )}
-            {block.type}
-          </span>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="sm"  
-              onClick={() => moveBlock(block.id, 'up')}
-              disabled={blocks.findIndex(b => b.id === block.id) === 0}
-            >
-              ↑
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => moveBlock(block.id, 'down')}
-              disabled={blocks.findIndex(b => b.id === block.id) === blocks.length - 1}
-            >
-              ↓
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => duplicateBlock(block)}
-            >
-              <Copy className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => removeBlock(block.id)}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Image Preview */}
-        {isImageBlock && (
-          <div className="mb-3">
-            <ImageSelectButton
-              onImageSelect={(imageUrl, metadata) => handleImageSelect(block.id, imageUrl, metadata)}
-              selectedImageUrl={block.imageUrl}
-              contentContext={block.title || block.content}
-              mode="modal"
-              buttonText="Select Image"
-              className="w-full"
-            />
-          </div>
-        )}
-
-        {/* Content Preview */}
-        <div className="text-sm text-muted-foreground">
-          {block.title && <div className="font-medium mb-1">{block.title}</div>}
-          {block.content && <div className="line-clamp-2">{block.content}</div>}
-          {block.ctaText && (
-            <div className="mt-2">
-              <span className="px-2 py-1 bg-primary text-primary-foreground rounded text-xs">
-                {block.ctaText}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-    );
   };
 
   const renderBlockEditor = (block: ContentBlock) => {
@@ -366,8 +270,42 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Block Preview */}
-            {renderBlockPreview(block)}
+            {/* Block Preview using Layout Templates */}
+            <LayoutPreview block={block} />
+            
+            {/* Block Actions */}
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"  
+                onClick={() => moveBlock(block.id, 'up')}
+                disabled={blocks.findIndex(b => b.id === block.id) === 0}
+              >
+                ↑
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => moveBlock(block.id, 'down')}
+                disabled={blocks.findIndex(b => b.id === block.id) === blocks.length - 1}
+              >
+                ↓
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => duplicateBlock(block)}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => removeBlock(block.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
             
             {/* Block Editor */}
             {renderBlockEditor(block)}
