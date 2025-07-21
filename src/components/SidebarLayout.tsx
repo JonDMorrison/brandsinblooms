@@ -6,7 +6,6 @@ import { UserMenu } from "@/components/UserMenu";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/AppSidebar";
 
-
 interface SidebarLayoutProps {
   children: ReactNode;
 }
@@ -20,22 +19,21 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex" aria-hidden="false">
+      <div className="min-h-screen w-full flex">
         {/* Fixed UserMenu - always visible in top-right */}
-        <div className="fixed top-6 right-6 z-50" aria-hidden="false">
+        <div className="fixed top-6 right-6 z-50">
           <UserMenu />
         </div>
         
         <AppSidebar />
-        <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col" aria-hidden="false">
+        <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col">
           {/* Trial Banner - constrained to main content width */}
           <TrialBanner />
-          <div className="flex-1 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-hidden="false">
+          <div className="flex-1 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {children}
           </div>
         </main>
       </div>
-        
     </SidebarProvider>
   );
 };

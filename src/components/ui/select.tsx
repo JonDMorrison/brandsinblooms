@@ -28,7 +28,6 @@ const SelectTrigger = React.forwardRef<
         console.log('SelectTrigger clicked!', e);
         props.onClick?.(e);
       }}
-      aria-hidden="false"
       {...props}
     >
       {children}
@@ -91,17 +90,19 @@ const SelectContent = React.forwardRef<
           className
         )}
         position={position}
-        aria-hidden="false"
+        modal={false}
         onCloseAutoFocus={(e) => {
-          console.log('SelectContent closed');
+          console.log('SelectContent onCloseAutoFocus - preventing default');
           e.preventDefault();
         }}
         onEscapeKeyDown={(e) => {
           console.log('SelectContent escape key pressed');
         }}
+        onPointerDownOutside={(e) => {
+          console.log('SelectContent pointer down outside');
+        }}
         {...props}
       >
-        <SelectScrollUpButton />
         <SelectPrimitive.Viewport
           className={cn(
             "p-1",
@@ -109,9 +110,10 @@ const SelectContent = React.forwardRef<
               "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]"
           )}
         >
+          <SelectScrollUpButton />
           {children}
+          <SelectScrollDownButton />
         </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   );
