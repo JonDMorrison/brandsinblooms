@@ -23,6 +23,32 @@ const getSpacingClass = (spacing?: string, type: 'padding' | 'margin' = 'padding
   }
 };
 
+// Helper function to get animation classes
+const getAnimationClass = (animation?: string) => {
+  switch (animation) {
+    case 'fade-in': return 'animate-fade-in';
+    case 'slide-up': return 'animate-fade-in'; // Using fade-in as fallback
+    case 'scale-in': return 'animate-scale-in';
+    case 'none':
+    default: return '';
+  }
+};
+
+// Helper function to get block styles
+const getBlockStyles = (block: ContentBlock): React.CSSProperties => {
+  const styles: React.CSSProperties = {};
+  
+  if (block.backgroundColor) {
+    styles.backgroundColor = block.backgroundColor;
+  }
+  
+  if (block.textColor) {
+    styles.color = block.textColor;
+  }
+  
+  return styles;
+};
+
 // Helper function to get alignment classes
 const getAlignmentClass = (alignment?: string) => {
   switch (alignment) {
@@ -51,11 +77,18 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
   editable = false, 
   onUpdate 
 }) => {
-  // Build spacing and alignment classes
+  // Skip rendering if block is hidden
+  if (block.visible === false) {
+    return null;
+  }
+
+  // Build spacing, alignment, and animation classes
   const paddingClass = getSpacingClass(block.padding, 'padding');
   const marginClass = getSpacingClass(block.margin, 'margin');
   const alignmentClass = getAlignmentClass(block.alignment);
   const responsiveClass = getResponsiveClass(block.responsiveBehavior, block.layout);
+  const animationClass = getAnimationClass(block.animation);
+  const blockStyles = getBlockStyles(block);
   
   // Combine all styling classes
   const styleClasses = cn(
@@ -63,6 +96,8 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
     marginClass,
     alignmentClass,
     responsiveClass,
+    animationClass,
+    'transition-all duration-300', // Smooth transitions
     className
   );
 
@@ -87,7 +122,7 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
   };
 
   return (
-    <div className="layout-renderer">
+    <div className="layout-renderer" style={blockStyles}>
       {renderLayoutComponent()}
     </div>
   );

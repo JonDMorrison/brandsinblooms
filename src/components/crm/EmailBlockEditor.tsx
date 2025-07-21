@@ -34,7 +34,9 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       alignment: type === 'header' ? 'center' : 'left', // Smart defaults
       padding: 'medium',
       margin: 'medium',
-      responsiveBehavior: 'stack'
+      responsiveBehavior: 'stack',
+      visible: true, // New blocks are visible by default
+      animation: 'fade-in' // Add subtle animation by default
     };
     onBlocksChange([...blocks, newBlock]);
   };
@@ -59,7 +61,9 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       alignment: blockType === 'header' ? 'center' : 'left',
       padding: 'medium',
       margin: 'medium',
-      responsiveBehavior: 'stack'
+      responsiveBehavior: 'stack',
+      visible: true,
+      animation: 'fade-in'
     };
     onBlocksChange([...blocks, newBlock]);
   };

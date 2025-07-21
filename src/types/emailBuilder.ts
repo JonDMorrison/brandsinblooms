@@ -50,10 +50,16 @@ export interface ContentBlock {
   personaTag?: string;
   layout?: BlockLayout;
   
-  // New fields for enhanced editor
+  // Layout & Structure
   collapsed?: boolean;
   alignment?: AlignmentType;
   padding?: SpacingType;
   margin?: SpacingType;
   responsiveBehavior?: ResponsiveBehaviorType;
+  
+  // Visual Settings
+  visible?: boolean;
+  backgroundColor?: string;
+  textColor?: string;
+  animation?: 'none' | 'fade-in' | 'slide-up' | 'scale-in';
 }

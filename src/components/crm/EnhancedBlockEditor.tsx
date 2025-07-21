@@ -18,7 +18,11 @@ import {
   AlignCenter,
   AlignRight,
   Smartphone,
-  Monitor
+  Monitor,
+  Eye,
+  EyeOff,
+  Palette,
+  Zap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -95,6 +99,33 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
     { value: 'hide-image', label: 'Hide images' }
   ];
 
+  const animationOptions = [
+    { value: 'none', label: 'No Animation' },
+    { value: 'fade-in', label: 'Fade In' },
+    { value: 'slide-up', label: 'Slide Up' },
+    { value: 'scale-in', label: 'Scale In' }
+  ];
+
+  const backgroundColors = [
+    { value: '', label: 'Default', color: 'transparent' },
+    { value: 'hsl(var(--primary))', label: 'Primary', color: 'hsl(var(--primary))' },
+    { value: 'hsl(var(--secondary))', label: 'Secondary', color: 'hsl(var(--secondary))' },
+    { value: 'hsl(var(--muted))', label: 'Muted', color: 'hsl(var(--muted))' },
+    { value: 'hsl(var(--accent))', label: 'Accent', color: 'hsl(var(--accent))' },
+    { value: '#ffffff', label: 'White', color: '#ffffff' },
+    { value: '#f8f9fa', label: 'Light Gray', color: '#f8f9fa' },
+    { value: '#e9ecef', label: 'Gray', color: '#e9ecef' }
+  ];
+
+  const textColors = [
+    { value: '', label: 'Default', color: 'hsl(var(--foreground))' },
+    { value: 'hsl(var(--primary))', label: 'Primary', color: 'hsl(var(--primary))' },
+    { value: 'hsl(var(--muted-foreground))', label: 'Muted', color: 'hsl(var(--muted-foreground))' },
+    { value: '#ffffff', label: 'White', color: '#ffffff' },
+    { value: '#000000', label: 'Black', color: '#000000' },
+    { value: '#6b7280', label: 'Gray', color: '#6b7280' }
+  ];
+
   return (
     <div className="border border-border rounded-lg bg-card shadow-sm">
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
@@ -117,6 +148,21 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
             </div>
             
             <div className="flex items-center gap-1 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateField('visible', !(block.visible ?? true));
+                }}
+                className={cn(
+                  "h-8 w-8 p-0",
+                  block.visible === false ? "text-muted-foreground" : "text-foreground"
+                )}
+                title={block.visible === false ? "Show block" : "Hide block"}
+              >
+                {block.visible === false ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"
@@ -250,6 +296,89 @@ export const EnhancedBlockEditor: React.FC<EnhancedBlockEditorProps> = ({
                 </select>
               </div>
             )}
+
+            {/* Visual Settings */}
+            <div className="space-y-4 p-3 bg-muted/30 rounded-md border">
+              <div className="flex items-center gap-2 mb-3">
+                <Palette className="h-4 w-4" />
+                <Label className="text-sm font-medium">Visual Settings</Label>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Background Color */}
+                <div>
+                  <Label className="text-xs font-medium mb-2 block">Background Color</Label>
+                  <div className="space-y-2">
+                    <select
+                      value={block.backgroundColor || ''}
+                      onChange={(e) => updateField('backgroundColor', e.target.value)}
+                      className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                    >
+                      {backgroundColors.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    {block.backgroundColor && (
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded border border-border" 
+                          style={{ backgroundColor: block.backgroundColor }}
+                        />
+                        <span className="text-xs text-muted-foreground">Preview</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Text Color */}
+                <div>
+                  <Label className="text-xs font-medium mb-2 block">Text Color</Label>
+                  <div className="space-y-2">
+                    <select
+                      value={block.textColor || ''}
+                      onChange={(e) => updateField('textColor', e.target.value)}
+                      className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                    >
+                      {textColors.map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    {block.textColor && (
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded border border-border" 
+                          style={{ backgroundColor: block.textColor }}
+                        />
+                        <span className="text-xs text-muted-foreground">Preview</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Animation */}
+              <div>
+                <Label className="text-xs font-medium mb-2 flex items-center gap-2">
+                  <Zap className="h-3 w-3" />
+                  Animation
+                </Label>
+                <select
+                  value={block.animation || 'none'}
+                  onChange={(e) => updateField('animation', e.target.value)}
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                >
+                  {animationOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             {/* Content Fields */}
             <div className="space-y-3">
