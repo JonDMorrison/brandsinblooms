@@ -5,15 +5,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { ImageSelectButton } from '@/components/image/ImageSelectButton';
-import { Plus, GripVertical, Trash2, Copy, Image as ImageIcon } from 'lucide-react';
+import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
+import { Plus, GripVertical, Trash2, Copy } from 'lucide-react';
 
 interface EmailBlockEditorProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
 }
+
+// Map the new layout types to existing BlockLayout types
+const mapLayoutTypeToBlockLayout = (layoutType: LayoutType): BlockLayout => {
+  switch (layoutType) {
+    case 'image-left':
+    case 'image-vertical-left':
+      return 'two-column-left';
+    case 'image-right':
+    case 'image-vertical-right':
+      return 'two-column-right';
+    case 'text-double':
+    case 'text-triple':
+    default:
+      return 'full-width';
+  }
+};
 
 export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
   blocks,
@@ -25,6 +41,29 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       id: `block_${Date.now()}`,
       type,
       layout: 'full-width',
+      title: '',
+      content: '',
+      imageUrl: '',
+      ctaText: '',
+      ctaUrl: '',
+      source: 'manual'
+    };
+    onBlocksChange([...blocks, newBlock]);
+  };
+
+  const addBlockWithLayout = (layoutType: LayoutType) => {
+    console.log('Adding block with layout:', layoutType);
+    
+    // Determine the most appropriate block type based on layout
+    let blockType: ContentBlock['type'] = 'text';
+    if (layoutType.includes('image')) {
+      blockType = 'image';
+    }
+    
+    const newBlock: ContentBlock = {
+      id: `block_${Date.now()}`,
+      type: blockType,
+      layout: mapLayoutTypeToBlockLayout(layoutType),
       title: '',
       content: '',
       imageUrl: '',
@@ -166,35 +205,19 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       updateBlock(block.id, { [field]: value });
     };
 
-    // Ensure layout has a valid default value
     const currentLayout = block.layout || 'full-width';
     console.log('Current layout for block', block.id, ':', currentLayout);
 
     return (
       <div className="space-y-4">
-        {/* Layout Selection - Simplified */}
+        {/* Layout Display - Read-only for now */}
         <div className="space-y-2">
           <Label>Layout</Label>
-          <Select
-            key={`layout-${block.id}-${currentLayout}`}
-            value={currentLayout}
-            onValueChange={(value: BlockLayout) => {
-              console.log('Layout select triggered! New value:', value, 'Block ID:', block.id);
-              updateField('layout', value);
-            }}
-          >
-            <SelectTrigger 
-              className="w-full"
-              onClick={() => console.log('SelectTrigger clicked for block:', block.id)}
-            >
-              <SelectValue placeholder="Select layout" />
-            </SelectTrigger>
-            <SelectContent className="z-[300]">
-              <SelectItem value="full-width">Full Width</SelectItem>
-              <SelectItem value="two-column-left">Two Column - Left</SelectItem>
-              <SelectItem value="two-column-right">Two Column - Right</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="px-3 py-2 bg-muted rounded-md text-sm">
+            {currentLayout === 'full-width' ? 'Full Width' : 
+             currentLayout === 'two-column-left' ? 'Two Column - Left' : 
+             'Two Column - Right'}
+          </div>
           {currentLayout !== 'full-width' && (
             <p className="text-xs text-muted-foreground">
               Two-column blocks will be paired with adjacent blocks. Desktop shows side-by-side, mobile stacks vertically.
@@ -291,29 +314,44 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Add Block Buttons */}
+      {/* Add Block Section */}
       <Card>
         <CardHeader>
           <CardTitle>Add Content Block</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-            {[
-              { type: 'header' as const, label: 'Header', icon: '📄' },
-              { type: 'text' as const, label: 'Text', icon: '📝' },
-              { type: 'image' as const, label: 'Image', icon: '🖼️' },
-              { type: 'button' as const, label: 'Button', icon: '🔘' }
-            ].map(({ type, label, icon }) => (
-              <Button
-                key={type}
-                variant="outline"
-                onClick={() => addBlock(type)}
-                className="h-16 flex flex-col gap-1"
-              >
-                <span className="text-xl">{icon}</span>
-                <span className="text-xs">{label}</span>
-              </Button>
-            ))}
+          <div className="space-y-4">
+            {/* Layout-based Block Creation */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Choose Layout</Label>
+              <BlockLayoutModal 
+                onSelect={addBlockWithLayout}
+                triggerText="Add Block with Layout"
+              />
+            </div>
+            
+            {/* Traditional Block Type Creation */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Or Choose Block Type</Label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {[
+                  { type: 'header' as const, label: 'Header', icon: '📄' },
+                  { type: 'text' as const, label: 'Text', icon: '📝' },
+                  { type: 'image' as const, label: 'Image', icon: '🖼️' },
+                  { type: 'button' as const, label: 'Button', icon: '🔘' }
+                ].map(({ type, label, icon }) => (
+                  <Button
+                    key={type}
+                    variant="outline"
+                    onClick={() => addBlock(type)}
+                    className="h-16 flex flex-col gap-1"
+                  >
+                    <span className="text-xl">{icon}</span>
+                    <span className="text-xs">{label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
