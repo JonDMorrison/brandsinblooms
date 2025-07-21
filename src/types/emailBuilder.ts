@@ -1,6 +1,9 @@
 
 export type BlockType = 'header' | 'text' | 'image' | 'button' | 'divider' | 'product';
 export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right';
+export type AlignmentType = 'left' | 'center' | 'right';
+export type SpacingType = 'none' | 'small' | 'medium' | 'large';
+export type ResponsiveBehaviorType = 'stack' | 'reverse' | 'hide-image';
 
 export interface EmailBlock {
   id: string;
@@ -46,4 +49,11 @@ export interface ContentBlock {
   source: 'newsletter' | 'ai' | 'template' | 'manual';
   personaTag?: string;
   layout?: BlockLayout;
+  
+  // New fields for enhanced editor
+  collapsed?: boolean;
+  alignment?: AlignmentType;
+  padding?: SpacingType;
+  margin?: SpacingType;
+  responsiveBehavior?: ResponsiveBehaviorType;
 }

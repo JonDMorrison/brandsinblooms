@@ -2,14 +2,12 @@
 import React from 'react';
 import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { ImageSelectButton } from '@/components/image/ImageSelectButton';
+import { Label } from '@/components/ui/label';
 import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
 import { LayoutPreview, mapModalLayoutToBlockLayout, determineBlockTypeFromLayout } from './LayoutRenderer';
-import { Plus, GripVertical, Trash2, Copy } from 'lucide-react';
+import { EnhancedBlockEditor } from './EnhancedBlockEditor';
+import { Plus } from 'lucide-react';
 
 interface EmailBlockEditorProps {
   blocks: ContentBlock[];
@@ -31,7 +29,12 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       imageUrl: '',
       ctaText: '',
       ctaUrl: '',
-      source: 'manual'
+      source: 'manual',
+      collapsed: false, // New blocks start expanded
+      alignment: type === 'header' ? 'center' : 'left', // Smart defaults
+      padding: 'medium',
+      margin: 'medium',
+      responsiveBehavior: 'stack'
     };
     onBlocksChange([...blocks, newBlock]);
   };
@@ -51,7 +54,12 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
       imageUrl: '',
       ctaText: '',
       ctaUrl: '',
-      source: 'manual'
+      source: 'manual',
+      collapsed: false,
+      alignment: blockType === 'header' ? 'center' : 'left',
+      padding: 'medium',
+      margin: 'medium',
+      responsiveBehavior: 'stack'
     };
     onBlocksChange([...blocks, newBlock]);
   };
@@ -71,7 +79,8 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
     const newBlock: ContentBlock = {
       ...block,
       id: `block_${Date.now()}`,
-      title: `${block.title} (Copy)`
+      title: `${block.title} (Copy)`,
+      collapsed: false // Duplicated blocks start expanded
     };
     const blockIndex = blocks.findIndex(b => b.id === block.id);
     const newBlocks = [...blocks];
@@ -92,128 +101,6 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     [newBlocks[currentIndex], newBlocks[targetIndex]] = [newBlocks[targetIndex], newBlocks[currentIndex]];
     onBlocksChange(newBlocks);
-  };
-
-  const handleImageSelect = (blockId: string, imageUrl: string, metadata?: any) => {
-    updateBlock(blockId, { 
-      imageUrl,
-      ...(metadata?.alt_text && { title: metadata.alt_text })
-    });
-  };
-
-  const renderBlockEditor = (block: ContentBlock) => {
-    console.log('Rendering block editor for block:', block.id, 'layout:', block.layout);
-    
-    const updateField = (field: keyof ContentBlock, value: any) => {
-      console.log('Updating field:', field, 'with value:', value, 'for block:', block.id);
-      updateBlock(block.id, { [field]: value });
-    };
-
-    const currentLayout = block.layout || 'full-width';
-    console.log('Current layout for block', block.id, ':', currentLayout);
-
-    return (
-      <div className="space-y-4">
-        {/* Layout Display - Read-only for now */}
-        <div className="space-y-2">
-          <Label>Layout</Label>
-          <div className="px-3 py-2 bg-muted rounded-md text-sm">
-            {currentLayout === 'full-width' ? 'Full Width' : 
-             currentLayout === 'two-column-left' ? 'Two Column - Left' : 
-             'Two Column - Right'}
-          </div>
-          {currentLayout !== 'full-width' && (
-            <p className="text-xs text-muted-foreground">
-              Two-column blocks will be paired with adjacent blocks. Desktop shows side-by-side, mobile stacks vertically.
-            </p>
-          )}
-        </div>
-
-        {/* Title */}
-        <div>
-          <Label>Title</Label>
-          <Input
-            value={block.title || ''}
-            onChange={(e) => updateField('title', e.target.value)}
-            placeholder={`Enter ${block.type} title...`}
-          />
-        </div>
-
-        {/* Content */}
-        {block.type !== 'button' && block.type !== 'image' && (
-          <div>
-            <Label>Content</Label>
-            <Textarea
-              value={block.content || ''}
-              onChange={(e) => updateField('content', e.target.value)}
-              placeholder="Enter content..."
-              rows={4}
-            />
-          </div>
-        )}
-
-        {/* Image Selection */}
-        {block.type === 'image' && (
-          <div>
-            <Label>Image</Label>
-            <ImageSelectButton
-              onImageSelect={(imageUrl, metadata) => handleImageSelect(block.id, imageUrl, metadata)}
-              selectedImageUrl={block.imageUrl}
-              contentContext={block.title || block.content}
-              mode="modal"
-              buttonText="Select Image"
-              className="w-full"
-            />
-          </div>
-        )}
-
-        {/* Button Fields */}
-        {block.type === 'button' && (
-          <>
-            <div>
-              <Label>Button Text</Label>
-              <Input
-                value={block.ctaText || ''}
-                onChange={(e) => updateField('ctaText', e.target.value)}
-                placeholder="Click Here"
-              />
-            </div>
-            <div>
-              <Label>Button URL</Label>
-              <Input
-                value={block.ctaUrl || ''}
-                onChange={(e) => updateField('ctaUrl', e.target.value)}
-                placeholder="https://example.com"
-              />
-            </div>
-          </>
-        )}
-
-        {/* CTA Fields for other blocks */}
-        {block.type !== 'button' && block.type !== 'header' && (
-          <>
-            <div>
-              <Label>Call-to-Action Text (Optional)</Label>
-              <Input
-                value={block.ctaText || ''}
-                onChange={(e) => updateField('ctaText', e.target.value)}
-                placeholder="Learn More"
-              />
-            </div>
-            {block.ctaText && (
-              <div>
-                <Label>CTA URL</Label>
-                <Input
-                  value={block.ctaUrl || ''}
-                  onChange={(e) => updateField('ctaUrl', e.target.value)}
-                  placeholder="https://example.com"
-                />
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    );
   };
 
   return (
@@ -260,58 +147,22 @@ export const EmailBlockEditor: React.FC<EmailBlockEditorProps> = ({
         </CardContent>
       </Card>
 
-      {/* Content Blocks */}
-      {blocks.map((block, index) => (
-        <Card key={block.id}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <GripVertical className="h-4 w-4 text-muted-foreground" />
-              Block {index + 1}: {block.type}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Block Preview using Layout Templates */}
-            <LayoutPreview block={block} />
-            
-            {/* Block Actions */}
-            <div className="flex gap-2">
-              <Button
-                variant="ghost"
-                size="sm"  
-                onClick={() => moveBlock(block.id, 'up')}
-                disabled={blocks.findIndex(b => b.id === block.id) === 0}
-              >
-                ↑
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => moveBlock(block.id, 'down')}
-                disabled={blocks.findIndex(b => b.id === block.id) === blocks.length - 1}
-              >
-                ↓
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => duplicateBlock(block)}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => removeBlock(block.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            {/* Block Editor */}
-            {renderBlockEditor(block)}
-          </CardContent>
-        </Card>
-      ))}
+      {/* Content Blocks - Enhanced Editors */}
+      <div className="space-y-3">
+        {blocks.map((block, index) => (
+          <EnhancedBlockEditor
+            key={block.id}
+            block={block}
+            index={index}
+            onUpdate={updateBlock}
+            onRemove={removeBlock}
+            onDuplicate={duplicateBlock}
+            onMove={moveBlock}
+            canMoveUp={index > 0}
+            canMoveDown={index < blocks.length - 1}
+          />
+        ))}
+      </div>
 
       {blocks.length === 0 && (
         <Card>

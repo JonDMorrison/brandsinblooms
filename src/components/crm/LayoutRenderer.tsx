@@ -2,6 +2,7 @@
 import React from 'react';
 import { ContentBlock, BlockLayout } from '@/types/emailBuilder';
 import { Layout1, Layout2, Layout3, Layout4, Layout6, Layout7 } from './LayoutTemplates';
+import { cn } from '@/lib/utils';
 
 interface LayoutRendererProps {
   block: ContentBlock;
@@ -10,28 +11,77 @@ interface LayoutRendererProps {
   onUpdate?: (updates: Partial<ContentBlock>) => void;
 }
 
+// Helper function to get spacing classes
+const getSpacingClass = (spacing?: string, type: 'padding' | 'margin' = 'padding') => {
+  const prefix = type === 'padding' ? 'p' : 'm';
+  switch (spacing) {
+    case 'none': return `${prefix}-0`;
+    case 'small': return `${prefix}-2`;
+    case 'medium': return `${prefix}-4`;
+    case 'large': return `${prefix}-8`;
+    default: return `${prefix}-4`; // Default to medium
+  }
+};
+
+// Helper function to get alignment classes
+const getAlignmentClass = (alignment?: string) => {
+  switch (alignment) {
+    case 'left': return 'text-left';
+    case 'center': return 'text-center';
+    case 'right': return 'text-right';
+    default: return 'text-left';
+  }
+};
+
+// Helper function to get responsive behavior classes
+const getResponsiveClass = (behavior?: string, layout?: string) => {
+  if (layout === 'full-width') return '';
+  
+  switch (behavior) {
+    case 'reverse': return 'flex-col-reverse md:flex-row';
+    case 'hide-image': return '[&_img]:hidden md:[&_img]:block';
+    case 'stack':
+    default: return 'flex-col md:flex-row';
+  }
+};
+
 export const LayoutRenderer: React.FC<LayoutRendererProps> = ({ 
   block, 
   className = '', 
   editable = false, 
   onUpdate 
 }) => {
+  // Build spacing and alignment classes
+  const paddingClass = getSpacingClass(block.padding, 'padding');
+  const marginClass = getSpacingClass(block.margin, 'margin');
+  const alignmentClass = getAlignmentClass(block.alignment);
+  const responsiveClass = getResponsiveClass(block.responsiveBehavior, block.layout);
+  
+  // Combine all styling classes
+  const styleClasses = cn(
+    paddingClass,
+    marginClass,
+    alignmentClass,
+    responsiveClass,
+    className
+  );
+
   const renderLayoutComponent = () => {
     // Map the layout type to the appropriate template component
     switch (block.layout) {
       case 'two-column-left':
-        return <Layout1 block={block} className={className} editable={editable} onUpdate={onUpdate} />;
+        return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
       case 'two-column-right':
-        return <Layout2 block={block} className={className} editable={editable} onUpdate={onUpdate} />;
+        return <Layout2 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
       case 'full-width':
       default:
         // For full-width blocks, choose layout based on content type
         if (block.type === 'image') {
-          return <Layout1 block={block} className={className} editable={editable} onUpdate={onUpdate} />;
+          return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
         } else if (block.type === 'text') {
-          return <Layout6 block={block} className={className} editable={editable} onUpdate={onUpdate} />;
+          return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
         } else {
-          return <Layout6 block={block} className={className} editable={editable} onUpdate={onUpdate} />;
+          return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
         }
     }
   };
