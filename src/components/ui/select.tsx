@@ -90,7 +90,6 @@ const SelectContent = React.forwardRef<
           className
         )}
         position={position}
-        modal={false}
         onCloseAutoFocus={(e) => {
           console.log('SelectContent onCloseAutoFocus - preventing default');
           e.preventDefault();
