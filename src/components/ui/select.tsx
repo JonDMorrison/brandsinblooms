@@ -91,7 +91,6 @@ const SelectContent = React.forwardRef<
           className
         )}
         position={position}
-        modal={false}
         aria-hidden="false"
         onCloseAutoFocus={(e) => {
           console.log('SelectContent closed');
