@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ContentBlock, BlockType, BlockLayout } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,9 @@ const blockTypeOptions = [
   { value: 'header', label: 'Header', icon: '📄' },
   { value: 'text', label: 'Text', icon: '📝' },
   { value: 'image', label: 'Image', icon: '🖼️' },
-  { value: 'button', label: 'Button', icon: '🔘' }
+  { value: 'button', label: 'Button', icon: '🔘' },
+  { value: 'divider', label: 'Divider', icon: '➖' },
+  { value: 'product', label: 'Product', icon: '📦' }
 ];
 
 export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
@@ -56,7 +59,7 @@ export const BlockTypeConverter: React.FC<BlockTypeConverterProps> = ({
         <RefreshCw className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium text-muted-foreground">Convert to:</span>
         <Select value={block.type} onValueChange={handleTypeChange}>
-          <SelectTrigger className="w-32 h-8">
+          <SelectTrigger className="w-36 h-8">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -108,6 +111,19 @@ const preserveContentDuringTypeChange = (block: ContentBlock, newType: BlockType
       preserved.ctaText = block.ctaText || block.title || block.content || 'Click Here';
       preserved.ctaUrl = block.ctaUrl || '#';
       preserved.content = block.content || '';
+      break;
+      
+    case 'divider':
+      // Dividers typically don't have content, just styling
+      preserved.content = '';
+      break;
+      
+    case 'product':
+      preserved.title = block.title || 'Product Name';
+      preserved.content = block.content || 'Product description...';
+      preserved.imageUrl = block.imageUrl || '';
+      preserved.ctaText = block.ctaText || 'View Product';
+      preserved.ctaUrl = block.ctaUrl || '#';
       break;
   }
   
