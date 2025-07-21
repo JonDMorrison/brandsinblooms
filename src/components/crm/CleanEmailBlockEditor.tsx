@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { SimpleBlockEditor } from './SimpleBlockEditor';
-import { QuickAddBlocks } from './QuickAddBlocks';
+import { AddBlockModal } from './AddBlockModal';
 
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
@@ -15,7 +16,9 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   blocks,
   onBlocksChange
 }) => {
-  const addBlock = (type: ContentBlock['type']) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [insertIndex, setInsertIndex] = useState<number | null>(null);
+  const addBlock = (type: ContentBlock['type'], index?: number) => {
     console.log('Adding block of type:', type);
     const newBlock: ContentBlock = {
       id: `block_${Date.now()}`,
@@ -59,7 +62,25 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
         ctaText: '$99.99'
       })
     };
-    onBlocksChange([...blocks, newBlock]);
+    
+    if (index !== undefined) {
+      const newBlocks = [...blocks];
+      newBlocks.splice(index + 1, 0, newBlock);
+      onBlocksChange(newBlocks);
+    } else {
+      onBlocksChange([...blocks, newBlock]);
+    }
+  };
+
+  const openAddModal = (index?: number) => {
+    setInsertIndex(index ?? null);
+    setIsModalOpen(true);
+  };
+
+  const handleModalAddBlock = (type: ContentBlock['type']) => {
+    addBlock(type, insertIndex ?? undefined);
+    setIsModalOpen(false);
+    setInsertIndex(null);
   };
 
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
@@ -104,23 +125,32 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Quick Add Blocks */}
-      <QuickAddBlocks onAddBlock={addBlock} />
-
       {/* Content Blocks */}
       <div className="space-y-3">
         {blocks.map((block, index) => (
-          <SimpleBlockEditor
-            key={block.id}
-            block={block}
-            index={index}
-            onUpdate={updateBlock}
-            onRemove={removeBlock}
-            onDuplicate={duplicateBlock}
-            onMove={moveBlock}
-            canMoveUp={index > 0}
-            canMoveDown={index < blocks.length - 1}
-          />
+          <div key={block.id} className="space-y-3">
+            <SimpleBlockEditor
+              block={block}
+              index={index}
+              onUpdate={updateBlock}
+              onRemove={removeBlock}
+              onDuplicate={duplicateBlock}
+              onMove={moveBlock}
+              canMoveUp={index > 0}
+              canMoveDown={index < blocks.length - 1}
+            />
+            {/* Add Block Button */}
+            <div className="flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openAddModal(index)}
+                className="h-8 w-8 p-0 rounded-full border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
         ))}
       </div>
 
@@ -131,11 +161,21 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
             <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-medium mb-2">Start building your email</h3>
             <p className="text-muted-foreground mb-4">
-              Add your first content block using the options above.
+              Click the button below to add your first content block.
             </p>
+            <Button onClick={() => openAddModal()}>
+              Add First Block
+            </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Add Block Modal */}
+      <AddBlockModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onAddBlock={handleModalAddBlock}
+      />
     </div>
   );
 };
