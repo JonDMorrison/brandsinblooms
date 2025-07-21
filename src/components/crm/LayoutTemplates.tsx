@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { EditableText } from './EditableText';
-import { EditableImage } from './EditableImage';
+import { MediaSelectorImage } from './MediaSelectorImage';
 
 interface LayoutTemplateProps {
   block: ContentBlock;
@@ -15,9 +14,13 @@ export const Layout1: React.FC<LayoutTemplateProps> = ({ block, className = '', 
   <div className={`layout-1 flex items-start gap-6 ${className}`}>
     <div className="w-1/2">
       {editable ? (
-        <EditableImage 
+        <MediaSelectorImage 
           src={block.imageUrl} 
-          onChange={(src) => onUpdate?.({ imageUrl: src })} 
+          onChange={(src, metadata) => onUpdate?.({ 
+            imageUrl: src,
+            ...(metadata?.alt_text && { title: metadata.alt_text })
+          })}
+          contentContext={block.title || block.content}
         />
       ) : (
         block.imageUrl ? (
@@ -120,9 +123,13 @@ export const Layout2: React.FC<LayoutTemplateProps> = ({ block, className = '', 
     </div>
     <div className="w-1/2">
       {editable ? (
-        <EditableImage 
+        <MediaSelectorImage 
           src={block.imageUrl} 
-          onChange={(src) => onUpdate?.({ imageUrl: src })} 
+          onChange={(src, metadata) => onUpdate?.({ 
+            imageUrl: src,
+            ...(metadata?.alt_text && { title: metadata.alt_text })
+          })}
+          contentContext={block.title || block.content}
         />
       ) : (
         block.imageUrl ? (
@@ -145,9 +152,13 @@ export const Layout3: React.FC<LayoutTemplateProps> = ({ block, className = '', 
   <div className={`layout-3 flex gap-6 items-start ${className}`}>
     <div className="w-1/4">
       {editable ? (
-        <EditableImage 
+        <MediaSelectorImage 
           src={block.imageUrl} 
-          onChange={(src) => onUpdate?.({ imageUrl: src })} 
+          onChange={(src, metadata) => onUpdate?.({ 
+            imageUrl: src,
+            ...(metadata?.alt_text && { title: metadata.alt_text })
+          })}
+          contentContext={block.title || block.content}
         />
       ) : (
         block.imageUrl ? (
@@ -250,9 +261,13 @@ export const Layout4: React.FC<LayoutTemplateProps> = ({ block, className = '', 
     </div>
     <div className="w-1/4">
       {editable ? (
-        <EditableImage 
+        <MediaSelectorImage 
           src={block.imageUrl} 
-          onChange={(src) => onUpdate?.({ imageUrl: src })} 
+          onChange={(src, metadata) => onUpdate?.({ 
+            imageUrl: src,
+            ...(metadata?.alt_text && { title: metadata.alt_text })
+          })}
+          contentContext={block.title || block.content}
         />
       ) : (
         block.imageUrl ? (
