@@ -20,17 +20,17 @@ export const SidebarLayout = ({ children }: SidebarLayoutProps) => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen w-full flex">
+      <div className="min-h-screen w-full flex" aria-hidden="false">
         {/* Fixed UserMenu - always visible in top-right */}
-        <div className="fixed top-6 right-6 z-50">
+        <div className="fixed top-6 right-6 z-50" aria-hidden="false">
           <UserMenu />
         </div>
         
         <AppSidebar />
-        <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col">
+        <main className="flex-1 w-full h-full overflow-x-hidden flex flex-col" aria-hidden="false">
           {/* Trial Banner - constrained to main content width */}
           <TrialBanner />
-          <div className="flex-1 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex-1 w-full h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-hidden="false">
             {children}
           </div>
         </main>

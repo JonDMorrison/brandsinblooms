@@ -67,8 +67,8 @@
     border-radius: 0 !important;
   }
 
-  /* Prevent any content from exceeding viewport width - EXCLUDE DROPDOWN PORTALS */
-  *:not([data-radix-popper-content-wrapper]):not([data-radix-select-content]):not([data-radix-popper-content]):not([data-radix-portal]) {
+  /* Prevent any content from exceeding viewport width - EXCLUDE SELECT AND DROPDOWN PORTALS */
+  *:not([data-radix-popper-content-wrapper]):not([data-radix-select-content]):not([data-radix-popper-content]):not([data-radix-portal]):not([data-radix-select-viewport]) {
     max-width: 100vw !important;
     box-sizing: border-box !important;
   }
@@ -89,29 +89,44 @@
   }
 }
 
-/* Dropdown Portal Specific Fixes - Override mobile constraints */
+/* Enhanced Dropdown Portal Fixes - Override mobile constraints and ARIA conflicts */
 [data-radix-popper-content-wrapper],
 [data-radix-select-content],
 [data-radix-popper-content],
-[data-radix-portal] {
+[data-radix-portal],
+[data-radix-select-viewport] {
   max-width: none !important;
   overflow: visible !important;
   position: fixed !important;
-  z-index: 300 !important;
+  z-index: 9999 !important;
   pointer-events: auto !important;
   transform-origin: var(--radix-popper-transform-origin) !important;
+  /* Override any aria-hidden from parent containers */
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
-/* Ensure dropdown content is properly positioned and styled */
+/* Enhanced dropdown content styling with accessibility fixes */
 [data-radix-select-content] {
   background-color: white !important;
   border: 1px solid rgb(229, 231, 235) !important;
   border-radius: 6px !important;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
   min-width: 8rem !important;
   max-height: 24rem !important;
   overflow: hidden !important;
-  z-index: 300 !important;
+  z-index: 9999 !important;
+  /* Ensure content is not hidden by ARIA */
+  aria-hidden: false !important;
+}
+
+/* Dark mode support for dropdown */
+@media (prefers-color-scheme: dark) {
+  [data-radix-select-content] {
+    background-color: rgb(31, 41, 55) !important;
+    border-color: rgb(75, 85, 99) !important;
+    color: rgb(243, 244, 246) !important;
+  }
 }
 
 /* Global overflow prevention for all screen sizes */
@@ -132,4 +147,14 @@ html, body {
 
 .w-full {
   max-width: 100% !important;
+}
+
+/* Sidebar-specific ARIA fixes */
+[data-vaul-drawer][aria-hidden="true"] [data-radix-select-content],
+[data-vaul-drawer][aria-hidden="true"] [data-radix-select-trigger],
+.group\/sidebar-wrapper[aria-hidden="true"] [data-radix-select-content],
+.group\/sidebar-wrapper[aria-hidden="true"] [data-radix-select-trigger] {
+  aria-hidden: false !important;
+  visibility: visible !important;
+  pointer-events: auto !important;
 }
