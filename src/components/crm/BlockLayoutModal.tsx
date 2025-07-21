@@ -35,20 +35,20 @@ export const BlockLayoutModal: React.FC<BlockLayoutModalProps> = ({
     // Header Layouts
     {
       id: 'header-hero' as LayoutType,
-      title: 'Hero Header',
-      description: 'Large header with background image',
+      title: 'Feature Banner',
+      description: 'Eye-catching hero section with background image and overlay text',
       category: 'Header',
       icon: '🎯',
       preview: (
         <div className="h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded flex items-center justify-center text-white text-xs font-medium">
-          Hero Header
+          Feature Banner
         </div>
       )
     },
     {
       id: 'header-simple' as LayoutType,
-      title: 'Simple Header',
-      description: 'Clean header with title and subtitle',
+      title: 'Text Only (Full Width)',
+      description: 'Clean full-width text section with title and subtitle',
       category: 'Header',
       icon: '📄',
       preview: (
@@ -62,8 +62,8 @@ export const BlockLayoutModal: React.FC<BlockLayoutModalProps> = ({
     // Image Layouts
     {
       id: 'image-full' as LayoutType,
-      title: 'Full Width Image',
-      description: 'Full width responsive image with caption',
+      title: 'Full-Width Image',
+      description: 'Responsive image that spans the full email width with optional caption',
       category: 'Image',
       icon: '🖼️',
       preview: (
@@ -76,8 +76,8 @@ export const BlockLayoutModal: React.FC<BlockLayoutModalProps> = ({
     },
     {
       id: 'image-left' as LayoutType,
-      title: 'Image Left',
-      description: 'Image on left, content on right',
+      title: 'Image Left, Text Right',
+      description: 'Visual content on left side with descriptive text on right',
       category: 'Image',
       icon: '⬅️',
       preview: (
@@ -91,8 +91,8 @@ export const BlockLayoutModal: React.FC<BlockLayoutModalProps> = ({
     },
     {
       id: 'image-right' as LayoutType,
-      title: 'Image Right',
-      description: 'Content on left, image on right',
+      title: 'Image Right, Text Left',
+      description: 'Descriptive text on left with supporting visual on right',
       category: 'Image',
       icon: '➡️',
       preview: (
@@ -108,8 +108,8 @@ export const BlockLayoutModal: React.FC<BlockLayoutModalProps> = ({
     // Button Layouts
     {
       id: 'button-centered' as LayoutType,
-      title: 'Centered Button',
-      description: 'Center-aligned button with optional text',
+      title: 'Call to Action (CTA)',
+      description: 'Center-aligned action button with supporting text above',
       category: 'Button',
       icon: '🔘',
       preview: (
