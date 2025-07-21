@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { MediaSelector } from '@/components/image/MediaSelector';
-import { Camera, Upload } from 'lucide-react';
+import { Camera, Upload, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface MediaSelectorImageProps {
   src?: string;
@@ -48,14 +49,18 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
         </button>
       </div>
 
-      {isOpen && (
-        <MediaSelector
-          isOpen={isOpen}
-          onClose={() => setIsOpen(false)}
-          onSelect={handleImageSelect}
-          contentContext={contentContext}
-        />
-      )}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Select Image</DialogTitle>
+          </DialogHeader>
+          <MediaSelector
+            onImageSelect={handleImageSelect}
+            selectedImageUrl={src}
+            contentContext={contentContext}
+          />
+        </DialogContent>
+      </Dialog>
     </>
   );
 };
