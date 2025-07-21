@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Layout, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export type LayoutType = 
   | 'image-left'
@@ -21,16 +21,16 @@ export type LayoutType =
   | 'button-right';
 
 interface BlockLayoutModalProps {
+  isOpen: boolean;
+  onClose: () => void;
   onSelect: (layoutType: LayoutType) => void;
-  triggerText?: string;
 }
 
 export const BlockLayoutModal: React.FC<BlockLayoutModalProps> = ({ 
-  onSelect, 
-  triggerText = "Add Block with Layout" 
+  isOpen,
+  onClose,
+  onSelect
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
   const layoutOptions = [
     // Header Layouts
     {
@@ -188,19 +188,13 @@ export const BlockLayoutModal: React.FC<BlockLayoutModalProps> = ({
 
   const handleSelect = (layoutType: LayoutType) => {
     onSelect(layoutType);
-    setIsOpen(false);
+    onClose();
   };
 
   const categories = ['Header', 'Image', 'Button', 'Text'];
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Layout className="h-4 w-4" />
-          {triggerText}
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">

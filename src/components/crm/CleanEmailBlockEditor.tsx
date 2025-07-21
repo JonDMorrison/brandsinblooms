@@ -5,12 +5,136 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { SimpleBlockEditor } from './SimpleBlockEditor';
-import { AddBlockModal } from './AddBlockModal';
+import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
 
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
 }
+
+// Mapping function to convert layout types to block types and configurations
+const mapLayoutToBlock = (layoutType: LayoutType): { type: ContentBlock['type']; config: Partial<ContentBlock> } => {
+  switch (layoutType) {
+    case 'header-hero':
+      return {
+        type: 'header',
+        config: {
+          headline: 'Your Feature Banner',
+          body: 'Create an eye-catching hero section with background image and overlay text',
+          alignment: 'center',
+          padding: 'large',
+          backgroundImageUrl: '',
+          backgroundOpacity: 70
+        }
+      };
+    case 'header-simple':
+      return {
+        type: 'header',
+        config: {
+          headline: 'Your Header Title',
+          body: 'Add your subtitle or description here...',
+          alignment: 'center',
+          padding: 'medium'
+        }
+      };
+    case 'image-full':
+      return {
+        type: 'image',
+        config: {
+          title: 'Full-Width Image',
+          altText: 'Image description',
+          caption: 'Optional caption text',
+          alignment: 'center',
+          layout: 'full-width'
+        }
+      };
+    case 'image-left':
+      return {
+        type: 'image',
+        config: {
+          title: 'Image & Text Section',
+          content: 'Add your descriptive text here...',
+          altText: 'Image description',
+          alignment: 'left',
+          layout: 'two-column-left'
+        }
+      };
+    case 'image-right':
+      return {
+        type: 'image',
+        config: {
+          title: 'Text & Image Section',
+          content: 'Add your descriptive text here...',
+          altText: 'Image description',
+          alignment: 'right',
+          layout: 'two-column-right'
+        }
+      };
+    case 'button-centered':
+      return {
+        type: 'button',
+        config: {
+          heading: 'Ready to take action?',
+          body: 'Click the button below to get started.',
+          buttonText: 'Get Started',
+          buttonUrl: '',
+          alignment: 'center',
+          padding: 'medium'
+        }
+      };
+    case 'button-left':
+      return {
+        type: 'button',
+        config: {
+          heading: 'Take Action',
+          body: 'Learn more about our services.',
+          buttonText: 'Learn More',
+          buttonUrl: '',
+          alignment: 'left',
+          padding: 'medium'
+        }
+      };
+    case 'button-right':
+      return {
+        type: 'button',
+        config: {
+          heading: 'Get Started Today',
+          body: 'Join thousands of satisfied customers.',
+          buttonText: 'Join Now',
+          buttonUrl: '',
+          alignment: 'right',
+          padding: 'medium'
+        }
+      };
+    case 'text-double':
+      return {
+        type: 'text',
+        config: {
+          title: 'Two Column Text',
+          content: 'Column 1 content goes here...\n\nColumn 2 content goes here...',
+          layout: 'two-column-left',
+          alignment: 'left'
+        }
+      };
+    case 'text-triple':
+      return {
+        type: 'text',
+        config: {
+          title: 'Three Column Text',
+          content: 'Column 1 content...\n\nColumn 2 content...\n\nColumn 3 content...',
+          alignment: 'left'
+        }
+      };
+    default:
+      return {
+        type: 'text',
+        config: {
+          title: 'Text Section',
+          content: 'Add your content here...'
+        }
+      };
+  }
+};
 
 export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   blocks,
@@ -18,8 +142,12 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
-  const addBlock = (type: ContentBlock['type'], index?: number) => {
-    console.log('Adding block of type:', type);
+
+  const addBlockWithLayout = (layoutType: LayoutType, index?: number) => {
+    console.log('Adding block with layout:', layoutType);
+    
+    const { type, config } = mapLayoutToBlock(layoutType);
+    
     const newBlock: ContentBlock = {
       id: `block_${Date.now()}`,
       type,
@@ -31,36 +159,14 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       ctaUrl: '',
       source: 'manual',
       collapsed: false,
-      alignment: type === 'header' ? 'center' : 'left',
+      alignment: 'left',
       padding: 'medium',
       margin: 'medium',
       responsiveBehavior: 'stack',
       visible: true,
       animation: 'fade-in',
-      // Smart defaults based on block type
-      ...(type === 'header' && {
-        headline: 'Your Header Title',
-        body: 'Add your subtitle or description here...'
-      }),
-      ...(type === 'text' && {
-        title: 'Text Section',
-        content: 'Add your content here...'
-      }),
-      ...(type === 'button' && {
-        buttonText: 'Click Here',
-        heading: 'Ready to take action?',
-        body: 'Click the button below to get started.'
-      }),
-      ...(type === 'image' && {
-        altText: 'Image description',
-        caption: ''
-      }),
-      ...(type === 'product' && {
-        title: 'Product Name',
-        content: 'Product description goes here...',
-        buttonText: 'Shop Now',
-        ctaText: '$99.99'
-      })
+      // Apply layout-specific configuration
+      ...config
     };
     
     if (index !== undefined) {
@@ -77,8 +183,8 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     setIsModalOpen(true);
   };
 
-  const handleModalAddBlock = (type: ContentBlock['type']) => {
-    addBlock(type, insertIndex ?? undefined);
+  const handleModalAddBlock = (layoutType: LayoutType) => {
+    addBlockWithLayout(layoutType, insertIndex ?? undefined);
     setIsModalOpen(false);
     setInsertIndex(null);
   };
@@ -161,20 +267,20 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
             <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-medium mb-2">Start building your email</h3>
             <p className="text-muted-foreground mb-4">
-              Click the button below to add your first content block.
+              Choose from professional layouts to create engaging content blocks.
             </p>
             <Button onClick={() => openAddModal()}>
-              Add First Block
+              Choose Layout
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Add Block Modal */}
-      <AddBlockModal
+      {/* Block Layout Modal */}
+      <BlockLayoutModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onAddBlock={handleModalAddBlock}
+        onSelect={handleModalAddBlock}
       />
     </div>
   );
