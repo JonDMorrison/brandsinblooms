@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { Upload, Eye, EyeOff } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Upload, Eye, ChevronDown, Settings } from 'lucide-react';
+import { useState } from 'react';
 
 interface HeaderBlockEditorProps {
   block: ContentBlock;
@@ -21,36 +23,35 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
   onUpdate,
   isExpanded
 }) => {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
   const updateField = (field: string, value: any) => {
     onUpdate({ [field]: value });
   };
 
-  // Compact header preview when collapsed
-  const renderCompactPreview = () => (
-    <div className="flex items-center gap-3 min-w-0">
-      <div className="w-8 h-8 bg-gradient-to-r from-primary/20 to-primary/40 rounded flex items-center justify-center text-xs font-medium">
-        H
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="font-medium text-sm truncate">
-          {block.headline || 'Header Block'}
-        </div>
-        <div className="text-xs text-muted-foreground truncate">
-          {block.body ? `${block.body.substring(0, 50)}...` : 'No body text'}
-        </div>
-      </div>
-      {block.backgroundImageUrl && (
-        <img 
-          src={block.backgroundImageUrl} 
-          alt="Background" 
-          className="w-6 h-6 rounded object-cover"
-        />
-      )}
-    </div>
-  );
-
   if (!isExpanded) {
-    return renderCompactPreview();
+    return (
+      <div className="flex items-center gap-3 min-w-0">
+        <div className="w-8 h-8 bg-gradient-to-r from-primary/20 to-primary/40 rounded flex items-center justify-center text-xs font-medium">
+          H
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="font-medium text-sm truncate">
+            {block.headline || 'Header Block'}
+          </div>
+          <div className="text-xs text-muted-foreground truncate">
+            {block.body ? `${block.body.substring(0, 50)}...` : 'No body text'}
+          </div>
+        </div>
+        {block.backgroundImageUrl && (
+          <img 
+            src={block.backgroundImageUrl} 
+            alt="Background" 
+            className="w-6 h-6 rounded object-cover"
+          />
+        )}
+      </div>
+    );
   }
 
   return (
@@ -60,7 +61,7 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-sm">
             <Eye className="h-4 w-4" />
-            Live Preview
+            Preview
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -95,49 +96,59 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
         </CardContent>
       </Card>
 
-      {/* Editor Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="headline">Headline *</Label>
-            <Input
-              id="headline"
-              value={block.headline || ''}
-              onChange={(e) => updateField('headline', e.target.value)}
-              placeholder="Enter your header title..."
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="body">Body Text</Label>
-            <Textarea
-              id="body"
-              value={block.body || ''}
-              onChange={(e) => updateField('body', e.target.value)}
-              placeholder="Add supporting text (markdown supported)..."
-              rows={4}
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="alignment">Text Alignment</Label>
-            <Select
-              value={block.alignment || 'center'}
-              onValueChange={(value) => updateField('alignment', value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="left">Left</SelectItem>
-                <SelectItem value="center">Center</SelectItem>
-                <SelectItem value="right">Right</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Essential Fields */}
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="headline">Headline</Label>
+          <Input
+            id="headline"
+            value={block.headline || ''}
+            onChange={(e) => updateField('headline', e.target.value)}
+            placeholder="Enter your header title..."
+          />
         </div>
 
-        <div className="space-y-4">
+        <div>
+          <Label htmlFor="body">Body Text</Label>
+          <Textarea
+            id="body"
+            value={block.body || ''}
+            onChange={(e) => updateField('body', e.target.value)}
+            placeholder="Add supporting text..."
+            rows={3}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="alignment">Text Alignment</Label>
+          <Select
+            value={block.alignment || 'center'}
+            onValueChange={(value) => updateField('alignment', value)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="left">Left</SelectItem>
+              <SelectItem value="center">Center</SelectItem>
+              <SelectItem value="right">Right</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Advanced Options */}
+      <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" className="w-full justify-between">
+            <span className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Advanced Options
+            </span>
+            <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pt-4 space-y-4">
           <div>
             <Label htmlFor="backgroundImage">Background Image</Label>
             <div className="flex gap-2">
@@ -155,7 +166,7 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
 
           {block.backgroundImageUrl && (
             <div>
-              <Label htmlFor="opacity">Background Opacity</Label>
+              <Label htmlFor="opacity">Background Overlay</Label>
               <div className="px-3">
                 <Slider
                   value={[block.backgroundOpacity || 0.4]}
@@ -189,8 +200,8 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
               </SelectContent>
             </Select>
           </div>
-        </div>
-      </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 };
