@@ -1,196 +1,256 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Layout, Plus } from 'lucide-react';
 
-export type LayoutType = 'image-left' | 'image-right' | 'image-vertical-left' | 'image-vertical-right' | 'text-double' | 'text-triple';
+export type LayoutType = 
+  | 'image-left'
+  | 'image-right' 
+  | 'image-vertical-left'
+  | 'image-vertical-right'
+  | 'text-double'
+  | 'text-triple'
+  | 'header-hero'
+  | 'header-simple'
+  | 'image-full'
+  | 'button-centered'
+  | 'button-left'
+  | 'button-right';
 
 interface BlockLayoutModalProps {
   onSelect: (layoutType: LayoutType) => void;
   triggerText?: string;
 }
 
-const layoutOptions = [
-  { 
-    id: 1, 
-    type: 'image-left' as LayoutType, 
-    name: 'Image Left',
-    icon: <LayoutImageLeft /> 
-  },
-  { 
-    id: 2, 
-    type: 'image-right' as LayoutType, 
-    name: 'Image Right',
-    icon: <LayoutImageRight /> 
-  },
-  { 
-    id: 3, 
-    type: 'image-vertical-left' as LayoutType, 
-    name: 'Image Vertical Left',
-    icon: <LayoutImageVerticalLeft /> 
-  },
-  { 
-    id: 4, 
-    type: 'image-vertical-right' as LayoutType, 
-    name: 'Image Vertical Right',
-    icon: <LayoutImageVerticalRight /> 
-  },
-  { 
-    id: 6, 
-    type: 'text-double' as LayoutType, 
-    name: 'Text Double',
-    icon: <LayoutTextDouble /> 
-  },
-  { 
-    id: 7, 
-    type: 'text-triple' as LayoutType, 
-    name: 'Text Triple',
-    icon: <LayoutTextTriple /> 
-  },
-];
-
 export const BlockLayoutModal: React.FC<BlockLayoutModalProps> = ({ 
   onSelect, 
-  triggerText = "Add Block" 
+  triggerText = "Add Block with Layout" 
 }) => {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
-  const handleSelect = (type: LayoutType) => {
-    setOpen(false);
-    onSelect(type);
+  const layoutOptions = [
+    // Header Layouts
+    {
+      id: 'header-hero' as LayoutType,
+      title: 'Hero Header',
+      description: 'Large header with background image',
+      category: 'Header',
+      icon: '🎯',
+      preview: (
+        <div className="h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded flex items-center justify-center text-white text-xs font-medium">
+          Hero Header
+        </div>
+      )
+    },
+    {
+      id: 'header-simple' as LayoutType,
+      title: 'Simple Header',
+      description: 'Clean header with title and subtitle',
+      category: 'Header',
+      icon: '📄',
+      preview: (
+        <div className="h-16 bg-gray-100 rounded flex flex-col items-center justify-center">
+          <div className="text-xs font-bold">Title</div>
+          <div className="text-xs text-gray-500">Subtitle</div>
+        </div>
+      )
+    },
+    
+    // Image Layouts
+    {
+      id: 'image-full' as LayoutType,
+      title: 'Full Width Image',
+      description: 'Full width responsive image with caption',
+      category: 'Image',
+      icon: '🖼️',
+      preview: (
+        <div className="h-16 bg-gray-200 rounded flex items-center justify-center">
+          <div className="w-full h-10 bg-gray-300 rounded flex items-center justify-center text-xs">
+            Full Image
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'image-left' as LayoutType,
+      title: 'Image Left',
+      description: 'Image on left, content on right',
+      category: 'Image',
+      icon: '⬅️',
+      preview: (
+        <div className="h-16 flex gap-1">
+          <div className="w-1/2 bg-gray-300 rounded"></div>
+          <div className="w-1/2 bg-gray-100 rounded flex items-center justify-center text-xs">
+            Text
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'image-right' as LayoutType,
+      title: 'Image Right',
+      description: 'Content on left, image on right',
+      category: 'Image',
+      icon: '➡️',
+      preview: (
+        <div className="h-16 flex gap-1">
+          <div className="w-1/2 bg-gray-100 rounded flex items-center justify-center text-xs">
+            Text
+          </div>
+          <div className="w-1/2 bg-gray-300 rounded"></div>
+        </div>
+      )
+    },
+    
+    // Button Layouts
+    {
+      id: 'button-centered' as LayoutType,
+      title: 'Centered Button',
+      description: 'Center-aligned button with optional text',
+      category: 'Button',
+      icon: '🔘',
+      preview: (
+        <div className="h-16 bg-gray-50 rounded flex flex-col items-center justify-center gap-1">
+          <div className="text-xs">Text above</div>
+          <div className="bg-blue-500 text-white px-2 py-1 rounded text-xs">Button</div>
+        </div>
+      )
+    },
+    {
+      id: 'button-left' as LayoutType,
+      title: 'Left Aligned Button',
+      description: 'Left-aligned button with text',
+      category: 'Button',
+      icon: '⬅️',
+      preview: (
+        <div className="h-16 bg-gray-50 rounded flex flex-col justify-center pl-2 gap-1">
+          <div className="text-xs">Text above</div>
+          <div className="bg-blue-500 text-white px-2 py-1 rounded text-xs w-fit">Button</div>
+        </div>
+      )
+    },
+    {
+      id: 'button-right' as LayoutType,
+      title: 'Right Aligned Button',
+      description: 'Right-aligned button with text',
+      category: 'Button',
+      icon: '➡️',
+      preview: (
+        <div className="h-16 bg-gray-50 rounded flex flex-col justify-center items-end pr-2 gap-1">
+          <div className="text-xs">Text above</div>
+          <div className="bg-blue-500 text-white px-2 py-1 rounded text-xs">Button</div>
+        </div>
+      )
+    },
+    
+    // Text Layouts
+    {
+      id: 'text-double' as LayoutType,
+      title: 'Two Columns',
+      description: 'Text split into two columns',
+      category: 'Text',
+      icon: '📝',
+      preview: (
+        <div className="h-16 flex gap-1">
+          <div className="w-1/2 bg-gray-100 rounded flex items-center justify-center text-xs">
+            Column 1
+          </div>
+          <div className="w-1/2 bg-gray-100 rounded flex items-center justify-center text-xs">
+            Column 2
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 'text-triple' as LayoutType,
+      title: 'Three Columns',
+      description: 'Text split into three columns',
+      category: 'Text',
+      icon: '📋',
+      preview: (
+        <div className="h-16 flex gap-1">
+          <div className="w-1/3 bg-gray-100 rounded flex items-center justify-center text-xs">
+            Col 1
+          </div>
+          <div className="w-1/3 bg-gray-100 rounded flex items-center justify-center text-xs">
+            Col 2
+          </div>
+          <div className="w-1/3 bg-gray-100 rounded flex items-center justify-center text-xs">
+            Col 3
+          </div>
+        </div>
+      )
+    }
+  ];
+
+  const handleSelect = (layoutType: LayoutType) => {
+    onSelect(layoutType);
+    setIsOpen(false);
   };
 
+  const categories = ['Header', 'Image', 'Button', 'Text'];
+
   return (
-    <>
-      <Button onClick={() => setOpen(true)} className="gap-2">
-        <Plus className="h-4 w-4" />
-        {triggerText}
-      </Button>
-      
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl" style={{ backgroundColor: '#F6F1EB' }}>
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold text-gray-700 mb-4">
-              Select a Layout
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="grid grid-cols-3 gap-4 p-4">
-            {layoutOptions.map(({ id, type, name, icon }) => (
-              <button
-                key={id}
-                className="group rounded-lg border border-gray-200 hover:border-[#B2B394] hover:shadow-md p-6 bg-white flex flex-col items-center justify-center transition-all duration-200 hover:bg-gradient-to-b hover:from-white hover:to-[#F1F1F1] min-h-[120px]"
-                onClick={() => handleSelect(type)}
-              >
-                <div className="mb-3 group-hover:scale-105 transition-transform duration-200">
-                  {icon}
-                </div>
-                <span className="text-sm text-gray-600 font-medium text-center">
-                  {name}
-                </span>
-              </button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <Layout className="h-4 w-4" />
+          {triggerText}
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="h-5 w-5" />
+            Choose Block Layout
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {categories.map(category => (
+            <div key={category}>
+              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                {category} Blocks
+                <Badge variant="secondary" className="text-xs">
+                  {layoutOptions.filter(opt => opt.category === category).length}
+                </Badge>
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {layoutOptions
+                  .filter(option => option.category === category)
+                  .map((option) => (
+                    <Card 
+                      key={option.id}
+                      className="cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/20"
+                      onClick={() => handleSelect(option.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{option.icon}</span>
+                            <div>
+                              <h4 className="font-medium text-sm">{option.title}</h4>
+                              <p className="text-xs text-muted-foreground">{option.description}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="aspect-video">
+                            {option.preview}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                }
+              </div>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
-
-// Layout icon components with clean line art style
-function LayoutImageLeft() {
-  return (
-    <div className="w-16 h-12 flex bg-gray-50 rounded border">
-      <div className="w-1/2 h-full border-r border-gray-300 bg-gray-200 rounded-l flex items-center justify-center">
-        <div className="w-4 h-3 bg-gray-400 rounded"></div>
-      </div>
-      <div className="flex-1 h-full flex flex-col justify-center px-2 space-y-1">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-        <div className="h-1 bg-gray-400 rounded w-1/2"></div>
-      </div>
-    </div>
-  );
-}
-
-function LayoutImageRight() {
-  return (
-    <div className="w-16 h-12 flex bg-gray-50 rounded border">
-      <div className="flex-1 h-full flex flex-col justify-center px-2 space-y-1">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-        <div className="h-1 bg-gray-400 rounded w-1/2"></div>
-      </div>
-      <div className="w-1/2 h-full border-l border-gray-300 bg-gray-200 rounded-r flex items-center justify-center">
-        <div className="w-4 h-3 bg-gray-400 rounded"></div>
-      </div>
-    </div>
-  );
-}
-
-function LayoutImageVerticalLeft() {
-  return (
-    <div className="w-16 h-12 flex bg-gray-50 rounded border">
-      <div className="w-1/3 h-full bg-gray-200 rounded-l flex items-center justify-center mr-1">
-        <div className="w-3 h-6 bg-gray-400 rounded"></div>
-      </div>
-      <div className="flex-1 h-full flex flex-col justify-center space-y-1">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-        <div className="h-1 bg-gray-400 rounded w-1/2"></div>
-      </div>
-    </div>
-  );
-}
-
-function LayoutImageVerticalRight() {
-  return (
-    <div className="w-16 h-12 flex bg-gray-50 rounded border">
-      <div className="flex-1 h-full flex flex-col justify-center space-y-1 mr-1">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-        <div className="h-1 bg-gray-400 rounded w-1/2"></div>
-      </div>
-      <div className="w-1/3 h-full bg-gray-200 rounded-r flex items-center justify-center">
-        <div className="w-3 h-6 bg-gray-400 rounded"></div>
-      </div>
-    </div>
-  );
-}
-
-function LayoutTextDouble() {
-  return (
-    <div className="w-16 h-12 flex bg-gray-50 rounded border">
-      <div className="w-1/2 h-full flex flex-col justify-center px-2 space-y-1 border-r border-gray-300">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-        <div className="h-1 bg-gray-400 rounded w-1/2"></div>
-      </div>
-      <div className="w-1/2 h-full flex flex-col justify-center px-2 space-y-1">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-        <div className="h-1 bg-gray-400 rounded w-1/2"></div>
-      </div>
-    </div>
-  );
-}
-
-function LayoutTextTriple() {
-  return (
-    <div className="w-16 h-12 flex bg-gray-50 rounded border">
-      <div className="w-1/3 h-full flex flex-col justify-center px-1 space-y-1 border-r border-gray-300">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-      </div>
-      <div className="w-1/3 h-full flex flex-col justify-center px-1 space-y-1 border-r border-gray-300">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-      </div>
-      <div className="w-1/3 h-full flex flex-col justify-center px-1 space-y-1">
-        <div className="h-1 bg-gray-400 rounded w-full"></div>
-        <div className="h-1 bg-gray-400 rounded w-3/4"></div>
-      </div>
-    </div>
-  );
-}

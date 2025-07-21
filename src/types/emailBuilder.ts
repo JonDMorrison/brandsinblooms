@@ -62,4 +62,42 @@ export interface ContentBlock {
   backgroundColor?: string;
   textColor?: string;
   animation?: 'none' | 'fade-in' | 'slide-up' | 'scale-in';
+  
+  // New specialized block fields
+  headline?: string;
+  body?: string;
+  backgroundImageUrl?: string;
+  backgroundOpacity?: number;
+  altText?: string;
+  caption?: string;
+  buttonText?: string;
+  buttonUrl?: string;
+  heading?: string;
+}
+
+// Specialized interfaces for type safety
+export interface HeaderBlock extends ContentBlock {
+  type: 'header';
+  headline: string;
+  body?: string;
+  backgroundImageUrl?: string;
+  backgroundOpacity?: number;
+  alignment: AlignmentType;
+  padding: SpacingType;
+}
+
+export interface ImageBlock extends ContentBlock {
+  type: 'image';
+  imageUrl: string;
+  altText?: string;
+  caption?: string;
+}
+
+export interface ButtonBlock extends ContentBlock {
+  type: 'button';
+  heading?: string;
+  body?: string;
+  buttonText: string;
+  buttonUrl: string;
+  alignment: AlignmentType;
 }
