@@ -26,10 +26,15 @@ export const LayoutOption: React.FC<LayoutOptionProps> = ({
   isNew,
   onClick
 }) => {
+  const handleClick = () => {
+    console.log('🎯 LayoutOption clicked:', title);
+    onClick();
+  };
+
   return (
     <Card 
       className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-primary/30 bg-white"
-      onClick={onClick}
+      onClick={handleClick}
     >
       <CardContent className="p-4">
         <div className="space-y-4">

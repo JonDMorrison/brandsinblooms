@@ -119,6 +119,7 @@ export const EnhancedBlockLayoutModal: React.FC<EnhancedBlockLayoutModalProps> =
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   const handleSelect = (layoutType: LayoutType) => {
+    console.log('🚀 EnhancedBlockLayoutModal handleSelect called with:', layoutType);
     onSelect(layoutType);
     onClose();
   };

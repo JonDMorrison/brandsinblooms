@@ -144,7 +144,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
 
   const addBlockWithLayout = (layoutType: LayoutType, index?: number) => {
-    console.log('Adding block with layout:', layoutType);
+    console.log('🔧 Adding block with layout:', layoutType, 'at index:', index);
     
     const { type, config } = mapLayoutToBlock(layoutType);
     
@@ -184,6 +184,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   };
 
   const handleModalAddBlock = (layoutType: LayoutType) => {
+    console.log('📝 handleModalAddBlock called with:', layoutType, 'insertIndex:', insertIndex);
     addBlockWithLayout(layoutType, insertIndex ?? undefined);
     setIsModalOpen(false);
     setInsertIndex(null);
