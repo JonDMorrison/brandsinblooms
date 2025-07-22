@@ -10,7 +10,7 @@ import AccountPage from "@/pages/AccountPage";
 import AdminPage from "@/pages/AdminPage";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SidebarLayout } from "@/components/SidebarLayout";
-import CRMCampaignCreator from '@/pages/crm/CRMCampaignCreator';
+import { CRMCampaignCreator } from '@/pages/crm/CRMCampaignCreator';
 import CRMCampaigns from '@/pages/crm/CRMCampaigns';
 import CRMCampaignReport from '@/pages/crm/CRMCampaignReport';
 import CRMAnalytics from '@/pages/crm/CRMAnalytics';

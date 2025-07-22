@@ -25,10 +25,10 @@ import {
   Mouse,
   Mail
 } from "lucide-react"
-import { NewsletterContentImporter } from '@/components/content-sidebar/newsletter/NewsletterContentImporter';
-import { SmartSendOptimization } from '@/components/content-sidebar/SmartSendOptimization';
+// import { NewsletterContentImporter } from '@/components/content-sidebar/newsletter/NewsletterContentImporter';
+// import { SmartSendOptimization } from '@/components/content-sidebar/SmartSendOptimization';
 import { EmailPreview } from '@/components/crm/EmailPreview';
-import { ContentBlockEditor } from '@/components/crm/ContentBlockEditor';
+// import { ContentBlockEditor } from '@/components/crm/ContentBlockEditor';
 import { ContentBlock } from '@/types/emailBuilder';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { v4 as uuidv4 } from 'uuid';
@@ -169,17 +169,9 @@ export const CRMCampaignCreator = () => {
               </TabsContent>
 
               <TabsContent value="enhance" className="space-y-4">
-                <SmartSendOptimization
-                  campaignTheme={campaignName}
-                  contentBlocks={contentBlocks}
-                  onTimingUpdate={(timing, reasoning) => {
-                    setScheduledAt(timing);
-                    setSendReasoning(reasoning);
-                  }}
-                  onAudienceUpdate={(segmentIds) => {
-                    setSelectedSegmentIds(segmentIds);
-                  }}
-                />
+                <div className="p-6 text-center text-muted-foreground">
+                  Smart send optimization features coming soon...
+                </div>
               </TabsContent>
 
               <TabsContent value="schedule" className="space-y-4">
@@ -230,10 +222,9 @@ export const CRMCampaignCreator = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <NewsletterContentImporter
-                      onContentImported={handleNewsletterImport}
-                      isLoading={isImporting}
-                    />
+                    <div className="p-6 text-center text-muted-foreground">
+                      Newsletter import feature coming soon...
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -309,13 +300,21 @@ export const CRMCampaignCreator = () => {
                                       snapshot.isDragging ? 'rotate-2 scale-105' : ''
                                     } transition-transform`}
                                   >
-                                    <ContentBlockEditor
-                                      block={block}
-                                      onUpdate={(updatedBlock) => updateContentBlock(block.id, updatedBlock)}
-                                      onDelete={() => deleteContentBlock(block.id)}
-                                      dragHandleProps={provided.dragHandleProps}
-                                      isDragging={snapshot.isDragging}
-                                    />
+                                    <div className="p-4 border rounded-lg bg-card">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-medium">{block.type} Block</span>
+                                        <Button 
+                                          size="sm" 
+                                          variant="outline" 
+                                          onClick={() => deleteContentBlock(block.id)}
+                                        >
+                                          Delete
+                                        </Button>
+                                      </div>
+                                      <p className="text-sm text-muted-foreground mt-2">
+                                        {block.content}
+                                      </p>
+                                    </div>
                                   </div>
                                 )}
                               </Draggable>
@@ -368,8 +367,11 @@ export const CRMCampaignCreator = () => {
               </CardHeader>
               <CardContent>
                 <EmailPreview
+                  blocks={contentBlocks}
+                  campaignName={campaignName}
                   subjectLine={subjectLine}
-                  contentBlocks={contentBlocks}
+                  senderName="Your Company"
+                  senderEmail="noreply@yourcompany.com"
                 />
               </CardContent>
             </Card>
