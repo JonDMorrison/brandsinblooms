@@ -313,17 +313,20 @@ export const syncNewsletterToCRM = async (
     }
 
     // Create campaign blocks
-    const blockInserts = crmBlocks.map((block, index) => ({
-      campaign_id: campaign.id,
-      block_type: block.type,
-      content: block.content,
-      image_url: block.imageUrl,
-      cta_url: block.buttonUrl,
-      cta_text: block.buttonText,
-      order_index: index,
-      source: 'newsletter',
-      persona_tag: null
-    }));
+    const blockInserts = crmBlocks.map((block, index) => {
+      const insertData: any = {
+        campaign_id: campaign.id,
+        block_type: block.type,
+        content: JSON.parse(block.content || '{}'),
+        image_url: block.imageUrl || null,
+        cta_url: block.buttonUrl || null,
+        cta_text: block.buttonText || null,
+        order_index: index,
+        source: 'newsletter',
+        persona_tag: null
+      };
+      return insertData;
+    });
 
     const { error: blocksError } = await supabase
       .from('campaign_blocks')

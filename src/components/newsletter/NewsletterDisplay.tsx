@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { OptimizedNewsletterDisplay } from '../content-sidebar/newsletter/OptimizedNewsletterDisplay';
+import { NewsletterSyncButton } from './NewsletterSyncButton';
 import { normalizeTask } from '@/utils/normalizeTask';
 import { validateContentCompliance } from '@/utils/campaignTitleUtils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
-// Removed sonner import - using global toast replacement
+import { useToast } from '@/hooks/use-toast';
 
 interface NewsletterDisplayProps {
   task: any;
@@ -16,6 +17,7 @@ interface NewsletterDisplayProps {
 
 export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [newsletterContent, setNewsletterContent] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -61,9 +63,17 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
         console.error('❌ Newsletter generation error:', error);
         
         if (error.message?.includes('shouldGenerateContent')) {
-          toast.error('Please generate campaign content first, then try the newsletter again.');
+          toast({
+            title: "Generation Error",
+            description: 'Please generate campaign content first, then try the newsletter again.',
+            variant: "destructive"
+          });
         } else {
-          toast.error(`Newsletter generation failed: ${error.message}`);
+          toast({
+            title: "Generation Failed",
+            description: `Newsletter generation failed: ${error.message}`,
+            variant: "destructive"
+          });
         }
         setHasError(true);
         return;
@@ -85,7 +95,11 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
         if (updateError) {
           console.error('❌ Error updating newsletter task:', updateError);
         } else {
-          toast.success('Newsletter generated successfully!');
+          toast({
+            title: "Success",
+            description: 'Newsletter generated successfully!',
+            variant: "default"
+          });
         }
       } else {
         console.error('❌ No content returned from newsletter generation');
@@ -93,7 +107,11 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
       }
     } catch (error) {
       console.error('❌ Newsletter generation failed:', error);
-      toast.error('Failed to generate newsletter content');
+      toast({
+        title: "Generation Failed",
+        description: 'Failed to generate newsletter content',
+        variant: "destructive"
+      });
       setHasError(true);
     } finally {
       setIsGenerating(false);
@@ -153,13 +171,26 @@ export const NewsletterDisplay = ({ task }: NewsletterDisplayProps) => {
   });
   
   return (
-    <div className="prose lg:prose-lg mx-auto">
-    <OptimizedNewsletterDisplay 
-      content={displayContent} 
-      contentTaskId={task.id}
-      taskStatus={task.status}
-        campaignTitle={task.campaigns?.title}
-      />
+    <div className="space-y-6">
+      {/* Sync to CRM Button */}
+      {task?.campaign_id && displayContent && (
+        <NewsletterSyncButton
+          contentTaskId={task.id}
+          themeCampaignId={task.campaign_id}
+          newsletterContent={displayContent}
+          campaignTitle={task.campaigns?.title}
+        />
+      )}
+      
+      {/* Newsletter Content */}
+      <div className="prose lg:prose-lg mx-auto">
+        <OptimizedNewsletterDisplay 
+          content={displayContent} 
+          contentTaskId={task.id}
+          taskStatus={task.status}
+          campaignTitle={task.campaigns?.title}
+        />
+      </div>
     </div>
   );
 };

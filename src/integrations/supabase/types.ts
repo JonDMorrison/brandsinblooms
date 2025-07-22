@@ -717,6 +717,7 @@ export type Database = {
           created_at: string | null
           delivery_method: string | null
           id: string
+          metadata: Json | null
           metrics: Json | null
           name: string
           open_rate: number | null
@@ -726,6 +727,7 @@ export type Database = {
           sent_at: string | null
           status: string | null
           subject_line: string | null
+          synced_from: string | null
           tenant_id: string | null
           total_clicks: number | null
           total_opens: number | null
@@ -740,6 +742,7 @@ export type Database = {
           created_at?: string | null
           delivery_method?: string | null
           id?: string
+          metadata?: Json | null
           metrics?: Json | null
           name: string
           open_rate?: number | null
@@ -749,6 +752,7 @@ export type Database = {
           sent_at?: string | null
           status?: string | null
           subject_line?: string | null
+          synced_from?: string | null
           tenant_id?: string | null
           total_clicks?: number | null
           total_opens?: number | null
@@ -763,6 +767,7 @@ export type Database = {
           created_at?: string | null
           delivery_method?: string | null
           id?: string
+          metadata?: Json | null
           metrics?: Json | null
           name?: string
           open_rate?: number | null
@@ -772,6 +777,7 @@ export type Database = {
           sent_at?: string | null
           status?: string | null
           subject_line?: string | null
+          synced_from?: string | null
           tenant_id?: string | null
           total_clicks?: number | null
           total_opens?: number | null
