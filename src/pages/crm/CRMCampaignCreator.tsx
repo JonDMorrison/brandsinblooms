@@ -25,7 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 const CRMCampaignCreator = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { saveTemplate } = useCampaignTemplates();
+  const { saveAsTemplate } = useCampaignTemplates();
   const { cloneCampaign } = useCampaignCloning();
   const { templates: contentTemplates } = useContentTemplates();
 
@@ -86,14 +86,11 @@ const CRMCampaignCreator = () => {
     }
 
     try {
-      await saveTemplate({
+      await saveAsTemplate({
         name: campaignName,
         category: campaignType,
         description: description || `Template created from ${campaignName}`,
-        content_blocks: blocks,
-        subject_line: subjectLine,
-        sender_name: senderName,
-        sender_email: senderEmail
+        content_blocks: blocks
       });
 
       toast.success('Campaign saved as template');
@@ -251,11 +248,10 @@ const CRMCampaignCreator = () => {
                 <CardTitle>Content Blocks</CardTitle>
               </CardHeader>
               <CardContent>
-                <CleanEmailBlockEditor
-                  blocks={blocks}
-                  onBlocksChange={setBlocks}
-                  campaignName={campaignName}
-                />
+            <CleanEmailBlockEditor
+              blocks={blocks}
+              onBlocksChange={setBlocks}
+            />
               </CardContent>
             </Card>
           </div>

@@ -26,6 +26,8 @@ import { toast } from '@/utils/toast';
 
 interface CampaignTemplatesModalProps {
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   currentCampaign?: {
     name: string;
     subject_line: string;
@@ -33,13 +35,17 @@ interface CampaignTemplatesModalProps {
   };
   onApplyTemplate?: (template: CampaignTemplate) => void;
   onSaveAsTemplate?: (templateData: SaveTemplateData) => void;
+  onTemplateSelect?: (template: any) => void;
 }
 
 export const CampaignTemplatesModal: React.FC<CampaignTemplatesModalProps> = ({
   trigger,
+  open,
+  onOpenChange,
   currentCampaign,
   onApplyTemplate,
-  onSaveAsTemplate
+  onSaveAsTemplate,
+  onTemplateSelect
 }) => {
   const { 
     templates, 
@@ -53,6 +59,12 @@ export const CampaignTemplatesModal: React.FC<CampaignTemplatesModalProps> = ({
   } = useCampaignTemplates();
 
   const [isOpen, setIsOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (open !== undefined) {
+      setIsOpen(open);
+    }
+  }, [open]);
   const [activeTab, setActiveTab] = useState<'browse' | 'save'>('browse');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -108,7 +120,9 @@ export const CampaignTemplatesModal: React.FC<CampaignTemplatesModalProps> = ({
   const handleApplyTemplate = async (template: CampaignTemplate) => {
     await useTemplate(template.id);
     onApplyTemplate?.(template);
+    onTemplateSelect?.(template);
     setIsOpen(false);
+    onOpenChange?.(false);
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
@@ -120,7 +134,10 @@ export const CampaignTemplatesModal: React.FC<CampaignTemplatesModalProps> = ({
   const categories = Array.from(new Set(templates.map(t => t.category).filter(Boolean)));
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      setIsOpen(open);
+      onOpenChange?.(open);
+    }}>
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline">
