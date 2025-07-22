@@ -103,24 +103,24 @@ const CRMCampaignCreator = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-full mx-auto p-6 space-y-6">
+        {/* Back Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/crm/campaigns')}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Campaigns
+        </Button>
+
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/crm/campaigns')}
-              className="flex items-center gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Campaigns
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold">Create Campaign</h1>
-              <p className="text-muted-foreground">Design and schedule your marketing campaign</p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold">Create Campaign</h1>
+            <p className="text-muted-foreground">Design and schedule your marketing campaign</p>
           </div>
-
+          
           <div className="flex items-center gap-3">
             <Button
               variant="outline"
