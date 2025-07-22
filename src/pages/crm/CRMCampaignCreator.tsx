@@ -9,9 +9,10 @@ import { enhancedNewsletterToCRM } from '@/utils/enhancedNewsletterToCrmConverte
 import { CleanEmailBlockEditor } from '@/components/crm/CleanEmailBlockEditor';
 import { EmailPreview } from '@/components/crm/EmailPreview';
 import { SmartCampaignEnhancements } from '@/components/crm/SmartCampaignEnhancements';
+import { SmartSendOptimization } from '@/components/crm/SmartSendOptimization';
 import { ContentBlock } from '@/types/emailBuilder';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
-import { Mail, ArrowLeft, Send, Eye, EyeOff, Settings } from 'lucide-react';
+import { Mail, ArrowLeft, Send, Eye, EyeOff, Settings, Zap, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const CRMCampaignCreator: React.FC = () => {
@@ -30,10 +31,14 @@ export const CRMCampaignCreator: React.FC = () => {
   const [segmentSuggestions, setSegmentSuggestions] = useState<string[]>([]);
   const [syncedFrom, setSyncedFrom] = useState<string | null>(null);
   const [themeCampaignId, setThemeCampaignId] = useState<string | null>(null);
-  
+  const [scheduledAt, setScheduledAt] = useState<string | null>(null);
+  const [sendReasoning, setSendReasoning] = useState<string>('');
+  const [selectedSegmentIds, setSelectedSegmentIds] = useState<string[]>([]);
+
   // UI state
   const [isProcessing, setIsProcessing] = useState(true);
   const [showPreview, setShowPreview] = useState(false);
+  const [activeTab, setActiveTab] = useState<'content' | 'enhance' | 'schedule'>('content');
   const [processingError, setProcessingError] = useState<string | null>(null);
 
   // Initialize sender information when sender config loads
@@ -122,9 +127,13 @@ export const CRMCampaignCreator: React.FC = () => {
       console.log('💾 [CRMCampaignCreator] Saving campaign:', {
         name: campaignName,
         subject: subjectLine,
-        blocksCount: contentBlocks.length
+        blocksCount: contentBlocks.length,
+        scheduledAt,
+        segmentIds: selectedSegmentIds
       });
 
+      // Here you would implement the actual save logic
+      // For now, we'll just show success
       toast.success(`Campaign "${campaignName}" saved successfully!`);
       navigate('/crm/campaigns');
       
@@ -132,6 +141,15 @@ export const CRMCampaignCreator: React.FC = () => {
       console.error('❌ Failed to save campaign:', error);
       toast.error('Failed to save campaign');
     }
+  };
+
+  const handleTimingChange = (sendAt: string, reasoning: string) => {
+    setScheduledAt(sendAt);
+    setSendReasoning(reasoning);
+  };
+
+  const handleAudienceChange = (segmentIds: string[]) => {
+    setSelectedSegmentIds(segmentIds);
   };
 
   if (isProcessing) {
@@ -199,6 +217,34 @@ export const CRMCampaignCreator: React.FC = () => {
           </div>
         </div>
 
+        {/* Campaign Progress Tabs */}
+        <div className="flex gap-1 p-1 bg-muted rounded-lg w-fit">
+          <Button
+            variant={activeTab === 'content' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('content')}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Content
+          </Button>
+          <Button
+            variant={activeTab === 'enhance' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('enhance')}
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Enhance
+          </Button>
+          <Button
+            variant={activeTab === 'schedule' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveTab('schedule')}
+          >
+            <Zap className="h-4 w-4 mr-2" />
+            Schedule
+          </Button>
+        </div>
+
         {/* Error Alert */}
         {processingError && (
           <Card className="border-destructive">
@@ -218,70 +264,86 @@ export const CRMCampaignCreator: React.FC = () => {
         )}>
           {/* Main Content Column */}
           <div className="space-y-6">
-            {/* Campaign Settings */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Campaign Settings
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="campaign-name">Campaign Name</Label>
-                  <Input
-                    id="campaign-name"
-                    value={campaignName}
-                    onChange={(e) => setCampaignName(e.target.value)}
-                    placeholder="Enter campaign name..."
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="sender-name">From Name</Label>
-                    <Input
-                      id="sender-name"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="Your Name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="sender-email">From Email</Label>
-                    <Input
-                      id="sender-email"
-                      type="email"
-                      value={senderEmail}
-                      onChange={(e) => setSenderEmail(e.target.value)}
-                      placeholder="your@email.com"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {activeTab === 'content' && (
+              <>
+                {/* Campaign Settings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Settings className="h-5 w-5" />
+                      Campaign Settings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="campaign-name">Campaign Name</Label>
+                      <Input
+                        id="campaign-name"
+                        value={campaignName}
+                        onChange={(e) => setCampaignName(e.target.value)}
+                        placeholder="Enter campaign name..."
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="sender-name">From Name</Label>
+                        <Input
+                          id="sender-name"
+                          value={senderName}
+                          onChange={(e) => setSenderName(e.target.value)}
+                          placeholder="Your Name"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="sender-email">From Email</Label>
+                        <Input
+                          id="sender-email"
+                          type="email"
+                          value={senderEmail}
+                          onChange={(e) => setSenderEmail(e.target.value)}
+                          placeholder="your@email.com"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-            {/* Content Blocks Editor */}
-            <CleanEmailBlockEditor
-              blocks={contentBlocks}
-              onBlocksChange={setContentBlocks}
-            />
+                {/* Content Blocks Editor */}
+                <CleanEmailBlockEditor
+                  blocks={contentBlocks}
+                  onBlocksChange={setContentBlocks}
+                />
+              </>
+            )}
           </div>
 
-          {/* Smart Enhancements Column */}
+          {/* Enhancement/Schedule Column */}
           <div className="space-y-6">
-            <SmartCampaignEnhancements
-              subjectLine={subjectLine}
-              onSubjectLineChange={setSubjectLine}
-              preheaderText={preheaderText}
-              onPreheaderTextChange={setPreheaderText}
-              contentBlocks={contentBlocks}
-              personaTags={personaTags}
-              onPersonaTagsChange={setPersonaTags}
-              syncedFrom={syncedFrom || undefined}
-              themeCampaignId={themeCampaignId || undefined}
-              campaignName={campaignName}
-            />
+            {activeTab === 'enhance' && (
+              <SmartCampaignEnhancements
+                subjectLine={subjectLine}
+                onSubjectLineChange={setSubjectLine}
+                preheaderText={preheaderText}
+                onPreheaderTextChange={setPreheaderText}
+                contentBlocks={contentBlocks}
+                personaTags={personaTags}
+                onPersonaTagsChange={setPersonaTags}
+                syncedFrom={syncedFrom || undefined}
+                themeCampaignId={themeCampaignId || undefined}
+                campaignName={campaignName}
+              />
+            )}
+
+            {activeTab === 'schedule' && (
+              <SmartSendOptimization
+                campaignId={themeCampaignId || 'new'}
+                personaTags={personaTags}
+                onTimingChange={handleTimingChange}
+                onAudienceChange={handleAudienceChange}
+                initialScheduledAt={scheduledAt || undefined}
+              />
+            )}
           </div>
 
           {/* Preview Column - Only shown when showPreview is true */}
