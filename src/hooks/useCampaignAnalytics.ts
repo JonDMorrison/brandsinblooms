@@ -15,10 +15,17 @@ interface CampaignMetrics {
 interface CampaignAnalytics {
   id: string;
   name: string;
+  subject_line: string;
   status: string;
   sent_at: string;
   metrics: CampaignMetrics | null;
   created_at: string;
+  open_rate: number;
+  click_rate: number;
+  total_sent: number;
+  total_opens: number;
+  total_clicks: number;
+  delivery_method?: string;
 }
 
 interface EmailTrackingEvent {
@@ -50,11 +57,18 @@ export const useCampaignAnalytics = () => {
       const processedCampaigns: CampaignAnalytics[] = (data || []).map(campaign => ({
         id: campaign.id,
         name: campaign.name,
+        subject_line: campaign.subject_line || '',
         status: campaign.status,
         sent_at: campaign.sent_at || campaign.created_at,
         metrics: typeof campaign.metrics === 'object' && campaign.metrics !== null && !Array.isArray(campaign.metrics) ? 
           campaign.metrics as unknown as CampaignMetrics : null,
-        created_at: campaign.created_at
+        created_at: campaign.created_at,
+        open_rate: campaign.open_rate || 0,
+        click_rate: campaign.click_rate || 0,
+        total_sent: campaign.total_sent || 0,
+        total_opens: campaign.total_opens || 0,
+        total_clicks: campaign.total_clicks || 0,
+        delivery_method: campaign.delivery_method
       }));
 
       setCampaigns(processedCampaigns);
