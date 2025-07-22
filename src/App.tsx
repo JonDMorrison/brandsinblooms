@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SidebarLayout } from "@/components/SidebarLayout";
 import CRMCampaignCreator from '@/pages/crm/CRMCampaignCreator';
 import CRMCampaigns from '@/pages/crm/CRMCampaigns';
+import CRMCampaignReport from '@/pages/crm/CRMCampaignReport';
 import CRMAnalytics from '@/pages/crm/CRMAnalytics';
 import CRMDashboard from '@/pages/crm/CRMDashboard';
 import CRMCustomers from '@/pages/crm/CRMCustomers';
@@ -48,6 +49,7 @@ function App() {
             <Route path="/crm/personas/analytics" element={<PersonaAnalytics />} />
             <Route path="/crm/campaigns" element={<CRMCampaigns />} />
             <Route path="/crm/campaigns/new" element={<CRMCampaignCreator />} />
+            <Route path="/crm/campaigns/:campaignId/report" element={<CRMCampaignReport />} />
             <Route path="/crm/analytics" element={<CRMAnalytics />} />
             
             {/* Admin Routes */}

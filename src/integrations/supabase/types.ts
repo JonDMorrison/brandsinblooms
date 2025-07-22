@@ -712,6 +712,7 @@ export type Database = {
       crm_campaigns: {
         Row: {
           actual_sender_email: string | null
+          auto_send_enabled: boolean | null
           click_rate: number | null
           content: string | null
           created_at: string | null
@@ -721,9 +722,11 @@ export type Database = {
           metrics: Json | null
           name: string
           open_rate: number | null
+          predicted_segment_ids: string[] | null
           preheader_text: string | null
           scheduled_at: string | null
           segment_id: string | null
+          send_reasoning: string | null
           sender_display_name: string | null
           sent_at: string | null
           status: string | null
@@ -738,6 +741,7 @@ export type Database = {
         }
         Insert: {
           actual_sender_email?: string | null
+          auto_send_enabled?: boolean | null
           click_rate?: number | null
           content?: string | null
           created_at?: string | null
@@ -747,9 +751,11 @@ export type Database = {
           metrics?: Json | null
           name: string
           open_rate?: number | null
+          predicted_segment_ids?: string[] | null
           preheader_text?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
+          send_reasoning?: string | null
           sender_display_name?: string | null
           sent_at?: string | null
           status?: string | null
@@ -764,6 +770,7 @@ export type Database = {
         }
         Update: {
           actual_sender_email?: string | null
+          auto_send_enabled?: boolean | null
           click_rate?: number | null
           content?: string | null
           created_at?: string | null
@@ -773,9 +780,11 @@ export type Database = {
           metrics?: Json | null
           name?: string
           open_rate?: number | null
+          predicted_segment_ids?: string[] | null
           preheader_text?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
+          send_reasoning?: string | null
           sender_display_name?: string | null
           sent_at?: string | null
           status?: string | null
