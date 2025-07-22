@@ -8,9 +8,10 @@ import { toast } from '@/utils/toast';
 import { enhancedNewsletterToCRM } from '@/utils/enhancedNewsletterToCrmConverter';
 import { CleanEmailBlockEditor } from '@/components/crm/CleanEmailBlockEditor';
 import { EmailPreview } from '@/components/crm/EmailPreview';
+import { SmartCampaignEnhancements } from '@/components/crm/SmartCampaignEnhancements';
 import { ContentBlock } from '@/types/emailBuilder';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
-import { Mail, ArrowLeft, Send, Eye, EyeOff } from 'lucide-react';
+import { Mail, ArrowLeft, Send, Eye, EyeOff, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export const CRMCampaignCreator: React.FC = () => {
@@ -21,11 +22,14 @@ export const CRMCampaignCreator: React.FC = () => {
   // Form state
   const [campaignName, setCampaignName] = useState('');
   const [subjectLine, setSubjectLine] = useState('');
+  const [preheaderText, setPreheaderText] = useState('');
   const [senderName, setSenderName] = useState('');
   const [senderEmail, setSenderEmail] = useState('');
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
   const [personaTags, setPersonaTags] = useState<string[]>([]);
   const [segmentSuggestions, setSegmentSuggestions] = useState<string[]>([]);
+  const [syncedFrom, setSyncedFrom] = useState<string | null>(null);
+  const [themeCampaignId, setThemeCampaignId] = useState<string | null>(null);
   
   // UI state
   const [isProcessing, setIsProcessing] = useState(true);
@@ -79,6 +83,8 @@ export const CRMCampaignCreator: React.FC = () => {
           setContentBlocks(result.contentBlocks);
           setPersonaTags(result.personaTags);
           setSegmentSuggestions(result.segmentSuggestions);
+          setSyncedFrom(contentTaskId);
+          setThemeCampaignId(contentTaskId);
           
           toast.success(`Newsletter "${result.campaignName}" loaded with ${result.contentBlocks.length} content blocks`);
           
@@ -208,14 +214,17 @@ export const CRMCampaignCreator: React.FC = () => {
         {/* Dynamic Grid Layout */}
         <div className={cn(
           "grid gap-6 w-full transition-all duration-300",
-          showPreview ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
+          showPreview ? "grid-cols-1 lg:grid-cols-3" : "grid-cols-1 lg:grid-cols-2"
         )}>
           {/* Main Content Column */}
           <div className="space-y-6">
             {/* Campaign Settings */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Campaign Settings</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Settings className="h-5 w-5" />
+                  Campaign Settings
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -225,16 +234,6 @@ export const CRMCampaignCreator: React.FC = () => {
                     value={campaignName}
                     onChange={(e) => setCampaignName(e.target.value)}
                     placeholder="Enter campaign name..."
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="subject-line">Subject Line</Label>
-                  <Input
-                    id="subject-line"
-                    value={subjectLine}
-                    onChange={(e) => setSubjectLine(e.target.value)}
-                    placeholder="Enter email subject..."
                   />
                 </div>
                 
@@ -262,51 +261,26 @@ export const CRMCampaignCreator: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Import Details */}
-            {(personaTags.length > 0 || segmentSuggestions.length > 0) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Import Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {personaTags.length > 0 && (
-                    <div>
-                      <Label className="text-sm font-medium">Persona Tags</Label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {personaTags.map((tag, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-primary/10 text-primary rounded-md text-sm"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {segmentSuggestions.length > 0 && (
-                    <div>
-                      <Label className="text-sm font-medium">Suggested Segments</Label>
-                      <div className="flex flex-wrap gap-2 mt-2">
-                        {segmentSuggestions.map((segment, index) => (
-                          <span
-                            key={index}
-                            className="px-2 py-1 bg-secondary/50 text-secondary-foreground rounded-md text-sm"
-                          >
-                            {segment}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
             {/* Content Blocks Editor */}
             <CleanEmailBlockEditor
               blocks={contentBlocks}
               onBlocksChange={setContentBlocks}
+            />
+          </div>
+
+          {/* Smart Enhancements Column */}
+          <div className="space-y-6">
+            <SmartCampaignEnhancements
+              subjectLine={subjectLine}
+              onSubjectLineChange={setSubjectLine}
+              preheaderText={preheaderText}
+              onPreheaderTextChange={setPreheaderText}
+              contentBlocks={contentBlocks}
+              personaTags={personaTags}
+              onPersonaTagsChange={setPersonaTags}
+              syncedFrom={syncedFrom || undefined}
+              themeCampaignId={themeCampaignId || undefined}
+              campaignName={campaignName}
             />
           </div>
 
