@@ -2,24 +2,47 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { CalendarGrid } from './calendar/CalendarGrid';
 import { CalendarHeader } from './calendar/CalendarHeader';
-
+import { NewsletterSchedulingModal } from './calendar/NewsletterSchedulingModal';
+import { NewsletterEditDrawer } from './calendar/NewsletterEditDrawer';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useNewsletterCalendar } from '@/hooks/useNewsletterCalendar';
 import { supabase } from '@/integrations/supabase/client';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { addMonths, subMonths, addWeeks, subWeeks } from 'date-fns';
 import { ContentViewerDialog } from './content/ContentViewerDialog';
 import { CampaignDetailsModal } from './calendar/CampaignDetailsModal';
 import { useRouteState } from '@/hooks/useRouteState';
+import { Mail, Filter, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
 
 export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
   campaigns: any[];
   tasks: any[];
   onDataUpdate: () => void;
 }) => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  // Newsletter management
+  const {
+    newsletters,
+    loading: newslettersLoading,
+    createNewsletter,
+    updateNewsletter,
+    deleteNewsletter,
+    duplicateNewsletter,
+    getNewslettersForDate
+  } = useNewsletterCalendar();
+
   // Route state management for persistence between page navigations
   const { saveState, getState, updateState } = useRouteState({
     selectedTasks: [],
     viewMode: 'month',
-    currentDate: new Date().toISOString()
+    currentDate: new Date().toISOString(),
+    showNewsletters: true,
+    newsletterFilters: []
   });
 
   // Initialize state from saved route state
@@ -32,10 +55,19 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
     savedState.currentDate ? new Date(savedState.currentDate) : new Date()
   );
   
+  // Newsletter-specific state
+  const [showNewsletters, setShowNewsletters] = useState<boolean>(savedState.showNewsletters ?? true);
   const [selectedTaskForModal, setSelectedTaskForModal] = useState<any>(null);
   const [selectedCampaignForModal, setSelectedCampaignForModal] = useState<any>(null);
   const [contentModalOpen, setContentModalOpen] = useState(false);
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
+  
+  // Newsletter modals
+  const [newsletterModalOpen, setNewsletterModalOpen] = useState(false);
+  const [newsletterDrawerOpen, setNewsletterDrawerOpen] = useState(false);
+  const [selectedNewsletter, setSelectedNewsletter] = useState<any>(null);
+  const [selectedDateForNewsletter, setSelectedDateForNewsletter] = useState<Date | null>(null);
+  const [newsletterMode, setNewsletterMode] = useState<'create' | 'edit'>('create');
 
   // Use the drag and drop hook with proper handlers
   const { isDragging, draggedTask, handleDragStart, handleDragEnd, handleDrop } = useDragAndDrop(onDataUpdate);
@@ -70,6 +102,13 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
     setViewMode(newViewMode);
     updateState('viewMode', newViewMode);
   }, [updateState]);
+
+  // Save newsletter visibility state
+  const toggleNewsletterVisibility = useCallback(() => {
+    const newValue = !showNewsletters;
+    setShowNewsletters(newValue);
+    updateState('showNewsletters', newValue);
+  }, [showNewsletters, updateState]);
 
   // Task selection and bulk operations with state persistence
   const toggleTaskSelection = useCallback((taskId: string) => {
@@ -145,17 +184,97 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
     setCampaignModalOpen(true);
   };
 
+  const handleNewsletterClick = (newsletter: any) => {
+    setSelectedNewsletter(newsletter);
+    setNewsletterDrawerOpen(true);
+  };
+
   const handleDateClick = (date: Date) => {
-    // Date modal functionality to be implemented
+    // Open newsletter creation modal for selected date
+    setSelectedDateForNewsletter(date);
+    setNewsletterMode('create');
+    setNewsletterModalOpen(true);
+  };
+
+  // Newsletter action handlers
+  const handleCreateNewsletter = () => {
+    setSelectedDateForNewsletter(new Date());
+    setNewsletterMode('create');
+    setNewsletterModalOpen(true);
+  };
+
+  const handleEditNewsletter = (newsletter: any) => {
+    setSelectedNewsletter(newsletter);
+    setNewsletterMode('edit');
+    setNewsletterModalOpen(true);
+  };
+
+  const handleDuplicateNewsletter = async (newsletter: any) => {
+    try {
+      await duplicateNewsletter(newsletter);
+      onDataUpdate(); // Refresh the parent data
+    } catch (error) {
+      console.error('Error duplicating newsletter:', error);
+    }
+  };
+
+  const handleDeleteNewsletter = async (newsletter: any) => {
+    try {
+      await deleteNewsletter(newsletter.id);
+      onDataUpdate(); // Refresh the parent data
+    } catch (error) {
+      console.error('Error deleting newsletter:', error);
+    }
+  };
+
+  const handleViewNewsletterInCRM = (newsletter: any) => {
+    navigate(`/crm/campaigns/${newsletter.id}`);
+  };
+
+  const handleNewsletterSuccess = () => {
+    onDataUpdate(); // Refresh the parent data
   };
 
   const isTaskSelected = useCallback((task: any) => {
     return selectedTasks.includes(task.id);
   }, [selectedTasks]);
 
-
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col space-y-4">
+      {/* Newsletter Controls */}
+      <div className="flex items-center justify-between p-4 bg-white rounded-lg border shadow-sm">
+        <div className="flex items-center gap-4">
+          <h3 className="font-semibold text-lg">Calendar View</h3>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={showNewsletters ? "default" : "outline"}
+              size="sm"
+              onClick={toggleNewsletterVisibility}
+              className="flex items-center gap-2"
+            >
+              <Mail className="w-4 h-4" />
+              Newsletters
+              {showNewsletters && (
+                <Badge variant="secondary" className="ml-1">
+                  {newsletters.length}
+                </Badge>
+              )}
+            </Button>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleCreateNewsletter}
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            New Newsletter
+          </Button>
+        </div>
+      </div>
+
       <CalendarHeader
         viewMode={viewMode}
         currentDate={currentDate}
@@ -174,11 +293,13 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
         <CalendarGrid
           campaigns={campaigns}
           tasks={tasks}
+          newsletters={showNewsletters ? newsletters : []}
           currentDate={currentDate}
           viewMode={viewMode}
           onTaskClick={handleTaskClick}
           onTaskLongPress={handleTaskLongPress}
           onCampaignClick={handleCampaignClick}
+          onNewsletterClick={handleNewsletterClick}
           onDateClick={handleDateClick}
           selectedTasks={selectedTasks}
           onDrop={handleDrop}
@@ -189,6 +310,33 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
           onDragEnd={handleDragEnd}
         />
       </div>
+
+      {/* Newsletter Modals */}
+      <NewsletterSchedulingModal
+        isOpen={newsletterModalOpen}
+        onClose={() => {
+          setNewsletterModalOpen(false);
+          setSelectedNewsletter(null);
+          setSelectedDateForNewsletter(null);
+        }}
+        onSuccess={handleNewsletterSuccess}
+        selectedDate={selectedDateForNewsletter || undefined}
+        existingNewsletter={newsletterMode === 'edit' ? selectedNewsletter : undefined}
+        mode={newsletterMode}
+      />
+
+      <NewsletterEditDrawer
+        newsletter={selectedNewsletter}
+        isOpen={newsletterDrawerOpen}
+        onClose={() => {
+          setNewsletterDrawerOpen(false);
+          setSelectedNewsletter(null);
+        }}
+        onEdit={handleEditNewsletter}
+        onDuplicate={handleDuplicateNewsletter}
+        onDelete={handleDeleteNewsletter}
+        onViewInCRM={handleViewNewsletterInCRM}
+      />
 
       {/* Content Modal */}
       {selectedTaskForModal && (

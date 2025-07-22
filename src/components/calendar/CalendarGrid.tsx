@@ -6,11 +6,13 @@ import { addDays, startOfWeek, startOfMonth, endOfMonth, isSameMonth, format } f
 interface CalendarGridProps {
   campaigns: any[];
   tasks: any[];
+  newsletters: any[];
   currentDate: Date;
   viewMode: 'month' | 'week';
   onTaskClick: (task: any) => void;
   onTaskLongPress?: (task: any) => void;
   onCampaignClick: (campaign: any) => void;
+  onNewsletterClick: (newsletter: any) => void;
   onDateClick: (date: Date) => void;
   selectedTasks: any[];
   onDrop?: (date: Date) => void;
@@ -24,11 +26,13 @@ interface CalendarGridProps {
 export const CalendarGrid = React.memo(({
   campaigns,
   tasks,
+  newsletters,
   currentDate,
   viewMode,
   onTaskClick,
   onTaskLongPress,
   onCampaignClick,
+  onNewsletterClick,
   onDateClick,
   selectedTasks,
   onDrop,
@@ -107,6 +111,23 @@ export const CalendarGrid = React.memo(({
     return map;
   }, [tasks]);
 
+  // Create a map of date strings to newsletters for efficient lookup
+  const newslettersByDate = React.useMemo(() => {
+    const map = new Map<string, any[]>();
+    
+    newsletters.forEach(newsletter => {
+      if (!newsletter.scheduled_at) return;
+      
+      const dateKey = format(new Date(newsletter.scheduled_at), 'yyyy-MM-dd');
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(newsletter);
+    });
+    
+    return map;
+  }, [newsletters]);
+
   const days = generateDays;
   const gridCols = viewMode === 'week' ? 'grid-cols-7' : 'grid-cols-7';
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
@@ -131,9 +152,10 @@ export const CalendarGrid = React.memo(({
         {days.map((date) => {
           const dateKey = format(date, 'yyyy-MM-dd');
           
-          // Get campaigns and tasks for this specific date only
+          // Get campaigns, tasks, and newsletters for this specific date only
           const dayCampaigns = campaignsByDate.get(dateKey) || [];
           const dayTasks = tasksByDate.get(dateKey) || [];
+          const dayNewsletters = newslettersByDate.get(dateKey) || [];
 
           const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
           const isToday = date.toDateString() === new Date().toDateString();
@@ -146,9 +168,12 @@ export const CalendarGrid = React.memo(({
               date={date}
               campaigns={dayCampaigns}
               tasks={dayTasks}
+              newsletters={dayNewsletters}
               onTaskClick={onTaskClick}
               onTaskLongPress={onTaskLongPress}
               onCampaignClick={onCampaignClick}
+              onNewsletterClick={onNewsletterClick}
+              onDateClick={onDateClick}
               isCurrentMonth={isCurrentMonth}
               isToday={isToday}
               selectionMode={true}
