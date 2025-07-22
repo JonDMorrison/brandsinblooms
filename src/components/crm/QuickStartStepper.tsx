@@ -134,9 +134,11 @@ export const QuickStartStepper: React.FC<QuickStartStepperProps> = ({
     {
       icon: Mail,
       title: "Launch Campaign",
-      description: "Send your first targeted message",
+      description: campaignCount > 0 
+        ? `View your ${campaignCount} campaigns or create a new one`
+        : "Send your first targeted message",
       action: 'chevron' as const,
-      href: "/crm/campaigns/new",
+      href: campaignCount > 0 ? "/crm/campaigns" : "/crm/campaigns/new",
       isComplete: campaignCount > 0,
       stepNumber: 4
     }

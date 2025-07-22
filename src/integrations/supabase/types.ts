@@ -721,6 +721,7 @@ export type Database = {
           metrics: Json | null
           name: string
           open_rate: number | null
+          preheader_text: string | null
           scheduled_at: string | null
           segment_id: string | null
           sender_display_name: string | null
@@ -746,6 +747,7 @@ export type Database = {
           metrics?: Json | null
           name: string
           open_rate?: number | null
+          preheader_text?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
           sender_display_name?: string | null
@@ -771,6 +773,7 @@ export type Database = {
           metrics?: Json | null
           name?: string
           open_rate?: number | null
+          preheader_text?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
           sender_display_name?: string | null
