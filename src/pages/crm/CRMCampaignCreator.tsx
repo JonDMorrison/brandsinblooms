@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import { EmailPreview } from '@/components/crm/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
 import { useSenderConfiguration } from '@/hooks/useSenderConfiguration';
 import { Mail, ArrowLeft, Send, Eye, EyeOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export const CRMCampaignCreator: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -205,9 +205,12 @@ export const CRMCampaignCreator: React.FC = () => {
           </Card>
         )}
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Campaign Settings & Content */}
+        {/* Dynamic Grid Layout */}
+        <div className={cn(
+          "grid gap-6 w-full transition-all duration-300",
+          showPreview ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1"
+        )}>
+          {/* Main Content Column */}
           <div className="space-y-6">
             {/* Campaign Settings */}
             <Card>
@@ -307,7 +310,7 @@ export const CRMCampaignCreator: React.FC = () => {
             />
           </div>
 
-          {/* Right Column - Preview */}
+          {/* Preview Column - Only shown when showPreview is true */}
           {showPreview && (
             <div className="lg:sticky lg:top-6 h-fit">
               <EmailPreview
