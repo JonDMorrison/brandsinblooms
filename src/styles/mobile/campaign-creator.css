@@ -1,0 +1,105 @@
+
+@layer utilities {
+  /* Campaign Creator Mobile Optimizations */
+  @media (max-width: 768px) {
+    
+    /* Campaign Creator Container */
+    .campaign-creator-container {
+      @apply px-3 py-4 space-y-4 !important;
+    }
+
+    /* Campaign Settings Card - Full width on mobile */
+    .campaign-settings-card {
+      @apply w-full max-w-full mx-0 !important;
+    }
+
+    /* Campaign Settings Grid - Stack vertically on mobile */
+    .campaign-settings-grid {
+      @apply grid-cols-1 gap-4 !important;
+    }
+
+    /* Content Grid - Single column on mobile */
+    .campaign-content-grid {
+      @apply grid-cols-1 gap-4 !important;
+    }
+
+    /* Tab Navigation - Better mobile spacing */
+    .campaign-tabs-list {
+      @apply grid-cols-3 gap-1 !important;
+    }
+
+    .campaign-tabs-trigger {
+      @apply text-xs px-2 py-2 !important;
+    }
+
+    /* Content Blocks Editor - Mobile optimization */
+    .content-blocks-editor {
+      @apply p-3 !important;
+    }
+
+    /* Preview Card - Mobile optimization */
+    .preview-card {
+      @apply p-3 !important;
+    }
+
+    /* Button Groups - Stack on mobile */
+    .campaign-button-group {
+      @apply flex-col space-y-2 space-x-0 !important;
+    }
+
+    .campaign-button-group > * {
+      @apply w-full !important;
+    }
+
+    /* Header Actions - Mobile layout */
+    .campaign-header-actions {
+      @apply flex-col space-y-2 space-x-0 !important;
+    }
+
+    /* Form Groups - Better mobile spacing */
+    .campaign-form-group {
+      @apply space-y-3 !important;
+    }
+
+    /* Reduce excessive spacing on mobile */
+    .space-y-6 > * + * {
+      @apply mt-4 !important;
+    }
+
+    .space-y-8 > * + * {
+      @apply mt-5 !important;
+    }
+
+    /* Card content padding optimization */
+    .campaign-card-content {
+      @apply p-4 !important;
+    }
+
+    /* Separator spacing */
+    .campaign-separator {
+      @apply my-4 !important;
+    }
+  }
+
+  /* Tablet optimizations */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .campaign-content-grid {
+      @apply grid-cols-1 gap-5 !important;
+    }
+
+    .campaign-settings-grid {
+      @apply grid-cols-2 gap-5 !important;
+    }
+  }
+
+  /* Desktop optimizations */
+  @media (min-width: 1025px) {
+    .campaign-content-grid {
+      @apply grid-cols-2 gap-6 !important;
+    }
+
+    .campaign-settings-grid {
+      @apply grid-cols-3 gap-6 !important;
+    }
+  }
+}
