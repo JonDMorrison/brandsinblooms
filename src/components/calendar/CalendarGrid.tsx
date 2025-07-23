@@ -132,8 +132,6 @@ export const CalendarGrid = React.memo(({
   const gridCols = viewMode === 'week' ? 'grid-cols-7' : 'grid-cols-7';
   const dayHeight = viewMode === 'week' ? 'h-full' : 'min-h-[120px]';
 
-  
-
   return (
     <div className="relative bg-gradient-to-br from-white/80 to-white/40 backdrop-blur-sm border border-white/20 rounded-2xl shadow-2xl overflow-hidden">
       {/* Gradient Background Overlay */}
@@ -159,8 +157,6 @@ export const CalendarGrid = React.memo(({
 
           const isCurrentMonth = viewMode === 'week' || isSameMonth(date, currentDate);
           const isToday = date.toDateString() === new Date().toDateString();
-
-          
 
           return (
             <CalendarDayCell

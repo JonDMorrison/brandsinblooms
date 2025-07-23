@@ -141,6 +141,11 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
       setSelectedTasks([]);
       onDataUpdate();
     } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to complete tasks. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setBulkCompleteLoading(false);
     }
@@ -165,6 +170,11 @@ export const CalendarView = React.memo(({ campaigns, tasks, onDataUpdate }: {
       setSelectedTasks([]);
       onDataUpdate();
     } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete tasks. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setBulkDeleteLoading(false);
     }

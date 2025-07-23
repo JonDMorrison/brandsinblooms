@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { cn } from "@/lib/utils";
 import { CalendarDayHeader } from "./CalendarDayHeader";
@@ -24,15 +25,37 @@ interface Task {
   };
 }
 
+interface Newsletter {
+  id: string;
+  name: string;
+  subject_line: string;
+  status: 'draft' | 'scheduled' | 'sent';
+  scheduled_at: string | null;
+  sent_at: string | null;
+  created_at: string;
+  segment_id?: string;
+  crm_segments?: {
+    name: string;
+  };
+  metrics?: {
+    sent?: number;
+    opened?: number;
+    clicked?: number;
+  };
+}
+
 interface CalendarDayCellProps {
   date: Date;
   campaigns: Campaign[];
   tasks?: Task[];
+  newsletters?: Newsletter[];
   isCurrentMonth: boolean;
   isToday: boolean;
   onCampaignClick?: (campaign: Campaign) => void;
   onTaskClick?: (task: Task) => void;
   onTaskLongPress?: (task: Task) => void;
+  onNewsletterClick?: (newsletter: Newsletter) => void;
+  onDateClick?: (date: Date) => void;
   selectionMode?: boolean;
   selectedCampaigns?: Campaign[];
   selectedTasks?: Task[];
@@ -51,11 +74,14 @@ export const CalendarDayCell = React.memo(({
   date,
   campaigns,
   tasks = [],
+  newsletters = [],
   isCurrentMonth,
   isToday,
   onCampaignClick,
   onTaskClick,
   onTaskLongPress,
+  onNewsletterClick,
+  onDateClick,
   selectionMode = false,
   selectedCampaigns = [],
   selectedTasks = [],
@@ -76,6 +102,12 @@ export const CalendarDayCell = React.memo(({
     return date < new Date(new Date().setHours(0, 0, 0, 0));
   }, [date]);
 
+  const handleDateClick = () => {
+    if (onDateClick) {
+      onDateClick(date);
+    }
+  };
+
   return (
     <CalendarDropZone
       date={date}
@@ -85,7 +117,7 @@ export const CalendarDayCell = React.memo(({
     >
       <div
         className={cn(
-          "min-h-[140px] p-3 transition-all duration-300 relative group",
+          "min-h-[140px] p-3 transition-all duration-300 relative group cursor-pointer",
           // Base styling with improved shadows and borders
           "border-r border-b border-green-100/60 shadow-sm",
           // Current month styling with subtle gradients
@@ -101,6 +133,7 @@ export const CalendarDayCell = React.memo(({
           // Enhanced hover effects
           isCurrentMonth && "hover:shadow-lg hover:shadow-green-100/30 hover:scale-[1.02] hover:z-10"
         )}
+        onClick={handleDateClick}
       >
         {/* Today corner accent */}
         {isToday && (
@@ -116,6 +149,7 @@ export const CalendarDayCell = React.memo(({
         <CalendarDayContent
           campaigns={campaigns}
           tasks={tasks}
+          newsletters={newsletters}
           selectionMode={selectionMode}
           selectedCampaigns={selectedCampaigns}
           isPastDate={isPastDate}
@@ -123,6 +157,7 @@ export const CalendarDayCell = React.memo(({
           onCampaignClick={onCampaignClick}
           onTaskClick={onTaskClick}
           onTaskLongPress={onTaskLongPress}
+          onNewsletterClick={onNewsletterClick}
           isTaskSelected={isTaskSelected}
           onDragStart={onDragStart}
           onDragEnd={onDragEnd}

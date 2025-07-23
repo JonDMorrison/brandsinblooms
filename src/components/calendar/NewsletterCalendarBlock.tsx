@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -69,14 +70,14 @@ export const NewsletterCalendarBlock: React.FC<NewsletterCalendarBlockProps> = (
       className={cn(
         "cursor-pointer transition-all hover:shadow-md border-l-4",
         getStatusColor(newsletter.status),
-        isCompact ? "p-2" : "p-3"
+        isCompact ? "p-1" : "p-3"
       )}
       onClick={() => onClick(newsletter)}
     >
-      <CardContent className={cn("p-0", isCompact ? "space-y-1" : "space-y-2")}>
+      <CardContent className={cn("p-0", isCompact ? "space-y-0.5" : "space-y-2")}>
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-1.5 mb-0.5">
               {getStatusIcon(newsletter.status)}
               <h3 className={cn(
                 "font-medium truncate",
@@ -94,8 +95,8 @@ export const NewsletterCalendarBlock: React.FC<NewsletterCalendarBlockProps> = (
           <Badge 
             variant="outline" 
             className={cn(
-              "ml-2 capitalize",
-              isCompact ? "text-xs px-1" : "text-xs"
+              "ml-1 capitalize",
+              isCompact ? "text-xs px-1 py-0" : "text-xs"
             )}
           >
             {newsletter.status}
