@@ -8,6 +8,7 @@ import CalendarPage from '@/pages/CalendarPage';
 import PublishPage from '@/pages/PublishPage';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { SidebarLayout } from '@/components/SidebarLayout';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -23,24 +24,32 @@ function App() {
         } />
         <Route path="/" element={
           <ProtectedRoute>
-            <ContentGenerationProvider>
-              <Homepage />
-            </ContentGenerationProvider>
+            <SidebarLayout>
+              <ContentGenerationProvider>
+                <Homepage />
+              </ContentGenerationProvider>
+            </SidebarLayout>
           </ProtectedRoute>
         } />
         <Route path="/calendar" element={
           <ProtectedRoute>
-            <CalendarPage />
+            <SidebarLayout>
+              <CalendarPage />
+            </SidebarLayout>
           </ProtectedRoute>
         } />
         <Route path="/publish" element={
           <ProtectedRoute>
-            <PublishPage />
+            <SidebarLayout>
+              <PublishPage />
+            </SidebarLayout>
           </ProtectedRoute>
         } />
         <Route path="/crm/campaigns/new" element={
           <ProtectedRoute>
-            <CRMCampaignCreatorPage />
+            <SidebarLayout>
+              <CRMCampaignCreatorPage />
+            </SidebarLayout>
           </ProtectedRoute>
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
