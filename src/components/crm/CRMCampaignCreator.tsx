@@ -10,7 +10,8 @@ import { Loader2, Mail, ArrowLeft } from 'lucide-react';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
 import { EmailPreview } from './campaign-composer/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
-import { convertNewsletterToCRM } from '@/utils/newsletterToCrmConverter';
+import { convertNewsletterToCRM } from '@/utils/newsletterToCrmSync';
+import { supabase } from '@/integrations/supabase/client';
 
 export const CRMCampaignCreator: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -37,26 +38,68 @@ export const CRMCampaignCreator: React.FC = () => {
     }
   }, [searchParams]);
 
-  const handleNewsletterConversion = async (contentTaskId: string, title: string, content: string) => {
+  const handleNewsletterConversion = async (contentTaskId: string, title: string, urlContent: string) => {
     setConverting(true);
     
     try {
       console.log('📧 Converting newsletter to CRM campaign', { contentTaskId, title });
       
-      const result = await convertNewsletterToCRM(contentTaskId, title, content);
+      // Fetch full content from database instead of relying on truncated URL content
+      const { data: contentTask, error } = await supabase
+        .from('content_tasks')
+        .select('ai_output')
+        .eq('id', contentTaskId)
+        .single();
+      
+      if (error || !contentTask) {
+        throw new Error('Failed to fetch newsletter content');
+      }
+      
+      const fullContent = contentTask.ai_output || urlContent;
+      console.log('🔄 Using full newsletter content:', fullContent.substring(0, 200) + '...');
+      
+      // Use the new newsletter conversion system
+      const result = await convertNewsletterToCRM(fullContent, title, contentTaskId);
       
       // Pre-fill campaign settings
-      setCampaignName(result.campaignName);
-      setSubjectLine(result.subjectLine);
+      setCampaignName(result.campaignTitle);
+      setSubjectLine(`${result.campaignTitle} - Garden Newsletter`);
       setPreheaderText('Expert gardening tips delivered to your inbox');
       
-      // Convert newsletter content to blocks
-      const convertedBlocks = convertNewsletterToBlocks(result.emailContent);
-      setBlocks(convertedBlocks);
+      // Convert CRM blocks to ContentBlocks
+      const contentBlocks: ContentBlock[] = result.blocks
+        .filter(block => block.type !== 'spacer') // Filter out spacer blocks as they're not supported
+        .map((block, index) => {
+          // Map CRM block types to ContentBlock types
+          const blockType = block.type === 'spacer' ? 'divider' : block.type;
+          
+          return {
+            id: block.id,
+            type: blockType as ContentBlock['type'],
+            title: block.type === 'header' ? undefined : block.content.text?.split('\n')[0],
+            content: block.content.text,
+            headline: block.type === 'header' ? block.content.text : undefined,
+            body: block.type === 'header' ? 'Your weekly garden newsletter' : undefined,
+            buttonText: block.content.buttonText,
+            buttonUrl: block.content.buttonUrl,
+            imageUrl: block.content.imageUrl,
+            altText: block.content.imageAlt,
+            alignment: block.content.alignment || 'left',
+            padding: block.content.size === 'large' ? 'large' : 'medium',
+            source: 'newsletter',
+            collapsed: false,
+            visible: true,
+            animation: 'fade-in'
+          } as ContentBlock;
+        });
+      
+      setBlocks(contentBlocks);
+      
+      console.log('✅ Newsletter converted to', result.blocks.length, 'blocks');
       
       toast({
         title: "Newsletter Converted!",
-        description: "Your newsletter content has been converted to an email campaign."
+        description: `Converted newsletter into ${result.blocks.length} email blocks.`
       });
       
     } catch (error) {
@@ -71,70 +114,6 @@ export const CRMCampaignCreator: React.FC = () => {
     }
   };
 
-  const convertNewsletterToBlocks = (emailContent: string): ContentBlock[] => {
-    const blocks: ContentBlock[] = [];
-    
-    // Parse the HTML content and extract sections
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(emailContent, 'text/html');
-    
-    // Extract header
-    const headerElement = doc.querySelector('h1, h2');
-    if (headerElement) {
-      blocks.push({
-        id: `header_${Date.now()}`,
-        type: 'header',
-        headline: headerElement.textContent || '',
-        body: 'Your weekly garden newsletter',
-        alignment: 'center',
-        padding: 'large',
-        source: 'newsletter',
-        collapsed: false,
-        visible: true,
-        animation: 'fade-in'
-      });
-    }
-    
-    // Extract text sections
-    const textSections = doc.querySelectorAll('h3, h4');
-    textSections.forEach((section, index) => {
-      const nextElement = section.nextElementSibling;
-      const content = nextElement?.textContent || '';
-      
-      if (content.trim()) {
-        blocks.push({
-          id: `text_${Date.now()}_${index}`,
-          type: 'text',
-          title: section.textContent || '',
-          content: content,
-          alignment: 'left',
-          padding: 'medium',
-          source: 'newsletter',
-          collapsed: false,
-          visible: true,
-          animation: 'fade-in'
-        });
-      }
-    });
-    
-    // Add a default CTA block
-    blocks.push({
-      id: `cta_${Date.now()}`,
-      type: 'button',
-      heading: 'Visit Our Garden Center',
-      body: 'Get expert advice and quality plants for your garden.',
-      buttonText: 'Shop Now',
-      buttonUrl: '#',
-      alignment: 'center',
-      padding: 'large',
-      source: 'manual',
-      collapsed: false,
-      visible: true,
-      animation: 'fade-in'
-    });
-    
-    return blocks;
-  };
 
   const generateEmailHTML = (): string => {
     let html = `
