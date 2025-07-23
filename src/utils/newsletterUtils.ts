@@ -27,132 +27,191 @@ export interface StructuredNewsletter {
 
 export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter | null => {
   try {
+    console.log('[YAML PARSER] Starting to parse newsletter YAML content');
+    
     // Check if content contains YAML structure indicators
-    if (!yamlContent.includes('blocks:') && !yamlContent.includes('- title:')) {
-      console.log('Content does not appear to be YAML structured newsletter');
+    if (!yamlContent.includes('newsletter_md:') && !yamlContent.includes('blocks:')) {
+      console.log('[YAML PARSER] Content does not appear to be YAML structured newsletter');
       return null;
     }
 
-    // Simple YAML parsing for our specific structure
-    const lines = yamlContent.split('\n');
+    // Enhanced YAML parsing for the complex structure
     const result: any = {
       blocks: [],
       extra_content_ideas: [],
       meta: {}
     };
     
-    let currentSection = '';
-    let newsletterMd = '';
-    let inNewsletterMd = false;
-    let currentBlock: any = {};
-    let currentIdea: any = {};
+    // Split content into major sections
+    const sections = yamlContent.split(/(?=^(?:newsletter_md:|blocks:|extra_content_ideas:|meta:))/m);
     
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const trimmed = line.trim();
+    for (const section of sections) {
+      const lines = section.split('\n');
+      const firstLine = lines[0]?.trim();
       
-      if (trimmed === 'newsletter_md: |') {
-        inNewsletterMd = true;
-        currentSection = 'newsletter_md';
-        continue;
+      if (firstLine?.startsWith('newsletter_md:')) {
+        // Parse newsletter markdown content (handle pipe syntax)
+        if (firstLine.includes('|')) {
+          // Multi-line content with pipe syntax
+          const contentLines = lines.slice(1).filter(line => line.startsWith('  ') || line.trim() === '');
+          result.newsletter_md = contentLines
+            .map(line => line.startsWith('  ') ? line.substring(2) : line)
+            .join('\n')
+            .trim();
+        } else {
+          // Single line content
+          result.newsletter_md = firstLine.replace('newsletter_md:', '').trim();
+        }
       }
       
-      if (trimmed === 'blocks:') {
-        inNewsletterMd = false;
-        currentSection = 'blocks';
-        continue;
-      }
-      
-      if (trimmed === 'extra_content_ideas:') {
-        currentSection = 'extra_content_ideas';
-        continue;
-      }
-      
-      if (trimmed === 'meta:') {
-        currentSection = 'meta';
-        continue;
-      }
-      
-      if (inNewsletterMd && currentSection === 'newsletter_md') {
-        // Remove the leading 2 spaces that were added during formatting
-        const contentLine = line.startsWith('  ') ? line.substring(2) : line;
-        newsletterMd += contentLine + '\n';
-        continue;
-      }
-      
-      if (currentSection === 'blocks' && trimmed.startsWith('- title:')) {
+      if (firstLine?.startsWith('blocks:')) {
+        // Parse blocks section
+        const blockLines = lines.slice(1);
+        let currentBlock: any = {};
+        
+        for (const line of blockLines) {
+          const trimmed = line.trim();
+          
+          if (trimmed.startsWith('- title:')) {
+            if (Object.keys(currentBlock).length > 0) {
+              result.blocks.push(currentBlock);
+            }
+            currentBlock = {
+              title: extractYamlValue(trimmed, '- title:')
+            };
+          } else if (trimmed.startsWith('body:')) {
+            currentBlock.body = extractYamlValue(trimmed, 'body:');
+          } else if (trimmed.startsWith('cta:')) {
+            currentBlock.cta = extractYamlValue(trimmed, 'cta:');
+          } else if (trimmed.startsWith('link:')) {
+            currentBlock.link = extractYamlValue(trimmed, 'link:');
+          } else if (trimmed.startsWith('image_prompt:')) {
+            currentBlock.image_prompt = extractYamlValue(trimmed, 'image_prompt:');
+          } else if (trimmed.startsWith('alt_text:')) {
+            currentBlock.alt_text = extractYamlValue(trimmed, 'alt_text:');
+          }
+        }
+        
+        // Add the last block
         if (Object.keys(currentBlock).length > 0) {
           result.blocks.push(currentBlock);
         }
-        currentBlock = {
-          title: trimmed.replace('- title:', '').replace(/"/g, '').trim()
-        };
-      } else if (currentSection === 'blocks' && trimmed.startsWith('body:')) {
-        currentBlock.body = trimmed.replace('body:', '').replace(/^"(.*)"$/, '$1').trim();
-      } else if (currentSection === 'blocks' && trimmed.startsWith('cta:')) {
-        currentBlock.cta = trimmed.replace('cta:', '').replace(/"/g, '').trim();
-      } else if (currentSection === 'blocks' && trimmed.startsWith('link:')) {
-        currentBlock.link = trimmed.replace('link:', '').replace(/"/g, '').trim();
-      } else if (currentSection === 'blocks' && trimmed.startsWith('image_prompt:')) {
-        currentBlock.image_prompt = trimmed.replace('image_prompt:', '').replace(/"/g, '').trim();
-      } else if (currentSection === 'blocks' && trimmed.startsWith('alt_text:')) {
-        currentBlock.alt_text = trimmed.replace('alt_text:', '').replace(/"/g, '').trim();
       }
       
-      if (currentSection === 'extra_content_ideas' && trimmed.startsWith('- title:')) {
+      if (firstLine?.startsWith('extra_content_ideas:')) {
+        // Parse extra content ideas
+        const ideaLines = lines.slice(1);
+        let currentIdea: any = {};
+        
+        for (const line of ideaLines) {
+          const trimmed = line.trim();
+          
+          if (trimmed.startsWith('- title:')) {
+            if (Object.keys(currentIdea).length > 0) {
+              result.extra_content_ideas.push(currentIdea);
+            }
+            currentIdea = {
+              title: extractYamlValue(trimmed, '- title:')
+            };
+          } else if (trimmed.startsWith('quick_desc:')) {
+            currentIdea.quick_desc = extractYamlValue(trimmed, 'quick_desc:');
+          }
+        }
+        
+        // Add the last idea
         if (Object.keys(currentIdea).length > 0) {
           result.extra_content_ideas.push(currentIdea);
         }
-        currentIdea = {
-          title: trimmed.replace('- title:', '').replace(/"/g, '').trim()
-        };
-      } else if (currentSection === 'extra_content_ideas' && trimmed.startsWith('quick_desc:')) {
-        currentIdea.quick_desc = trimmed.replace('quick_desc:', '').replace(/"/g, '').trim();
       }
       
-      if (currentSection === 'meta') {
-        if (trimmed.startsWith('reading_time:')) {
-          result.meta.reading_time = trimmed.replace('reading_time:', '').replace(/"/g, '').trim();
-        } else if (trimmed.startsWith('theme:')) {
-          result.meta.theme = trimmed.replace('theme:', '').replace(/"/g, '').trim();
-        } else if (trimmed.startsWith('week_focus:')) {
-          result.meta.week_focus = trimmed.replace('week_focus:', '').replace(/"/g, '').trim();
+      if (firstLine?.startsWith('meta:')) {
+        // Parse meta section
+        const metaLines = lines.slice(1);
+        
+        for (const line of metaLines) {
+          const trimmed = line.trim();
+          
+          if (trimmed.startsWith('reading_time:')) {
+            result.meta.reading_time = extractYamlValue(trimmed, 'reading_time:');
+          } else if (trimmed.startsWith('theme:')) {
+            result.meta.theme = extractYamlValue(trimmed, 'theme:');
+          } else if (trimmed.startsWith('week_focus:')) {
+            result.meta.week_focus = extractYamlValue(trimmed, 'week_focus:');
+          }
         }
       }
     }
     
-    // Add last items
-    if (Object.keys(currentBlock).length > 0) {
-      result.blocks.push(currentBlock);
-    }
-    if (Object.keys(currentIdea).length > 0) {
-      result.extra_content_ideas.push(currentIdea);
-    }
-    
-    result.newsletter_md = newsletterMd.trim();
-    
     // Validate that we have meaningful blocks
-    if (result.blocks.length === 0) {
-      console.log('No valid blocks found in YAML parsing');
+    if (!result.blocks || result.blocks.length === 0) {
+      console.log('[YAML PARSER] No valid blocks found in YAML parsing');
       return null;
     }
     
-    // Ensure all blocks have required properties
-    result.blocks = result.blocks.filter((block: any) => 
-      block.title && block.body && block.title.length > 0 && block.body.length > 0
-    );
+    // Ensure all blocks have required properties and clean them up
+    result.blocks = result.blocks
+      .filter((block: any) => block.title && block.body)
+      .map((block: any) => ({
+        title: block.title || '',
+        body: block.body || '',
+        cta: block.cta || 'Learn more',
+        link: block.link || '#',
+        image_prompt: block.image_prompt || `${block.title} garden newsletter`,
+        alt_text: block.alt_text || `Image for ${block.title}`
+      }));
     
     if (result.blocks.length === 0) {
-      console.log('No blocks with required properties found');
+      console.log('[YAML PARSER] No blocks with required properties found');
       return null;
     }
     
-    console.log('Successfully parsed YAML newsletter with', result.blocks.length, 'blocks');
+    // Ensure meta has default values
+    result.meta = {
+      reading_time: result.meta.reading_time || '≈3 min',
+      theme: result.meta.theme || 'Garden Newsletter', 
+      week_focus: result.meta.week_focus || 'Seasonal Gardening'
+    };
+    
+    // Ensure newsletter_md has content
+    if (!result.newsletter_md) {
+      result.newsletter_md = generateMarkdownFromBlocks(result.blocks);
+    }
+    
+    console.log('[YAML PARSER] Successfully parsed YAML newsletter with', result.blocks.length, 'blocks');
     return result as StructuredNewsletter;
   } catch (error) {
-    console.error('Error parsing newsletter YAML:', error);
+    console.error('[YAML PARSER] Error parsing newsletter YAML:', error);
     return null;
   }
+};
+
+// Helper function to extract values from YAML lines
+const extractYamlValue = (line: string, prefix: string): string => {
+  const value = line.replace(prefix, '').trim();
+  
+  // Remove quotes if present
+  if ((value.startsWith('"') && value.endsWith('"')) || 
+      (value.startsWith("'") && value.endsWith("'"))) {
+    return value.slice(1, -1);
+  }
+  
+  return value;
+};
+
+// Helper function to generate markdown from blocks if missing
+const generateMarkdownFromBlocks = (blocks: NewsletterBlock[]): string => {
+  let markdown = '';
+  
+  blocks.forEach((block, index) => {
+    markdown += `## ${block.title}\n\n`;
+    markdown += `${block.body}\n\n`;
+    
+    if (index < blocks.length - 1) {
+      markdown += '---\n\n';
+    }
+  });
+  
+  return markdown.trim();
 };
 
 // Enhanced markdown processing for newsletter content

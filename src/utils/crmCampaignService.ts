@@ -21,6 +21,15 @@ export interface CampaignData {
   source_content_id?: string;
   source_metadata?: any;
   content_blocks?: any[];
+  // Enhanced for newsletter sync
+  newsletter_sync?: {
+    source_task_id?: string;
+    sync_status?: 'synced' | 'modified' | 'out-of-sync';
+    theme?: string;
+    reading_time?: string;
+    persona_tags?: string[];
+    original_blocks_count?: number;
+  };
 }
 
 export interface CampaignBlock {

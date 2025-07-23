@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
+import { convertNewsletterToCRM, createCRMCampaignFromNewsletter } from './newsletterToCrmSync';
 
 interface SendToCRMPayload {
   contentTaskId: string;
@@ -10,6 +11,9 @@ interface SendToCRMPayload {
   personaTags?: string[];
   segmentSuggestions?: string[];
   campaignId?: string;
+  // Enhanced for newsletter sync
+  newsletterBlocks?: any[];
+  isNewsletterContent?: boolean;
 }
 
 export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
@@ -59,30 +63,52 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
       themeSource = 'event';
     }
 
-    // Extract persona tags from content
-    const personaTags = extractPersonaTags(contentTask.ai_output || '');
-    console.log('🏷️ [sendToCRM] Extracted persona tags:', personaTags);
+    // Enhanced newsletter handling
+    let personaTags: string[] = [];
+    let segmentSuggestions: string[] = [];
+    let newsletterBlocks: any[] = [];
     
-    // Generate segment suggestions based on content
-    const segmentSuggestions = generateSegmentSuggestions(
-      contentTask.ai_output || '',
-      campaign?.theme || '',
-      personaTags
-    );
+    const isNewsletterContent = contentTask.post_type === 'newsletter';
+    
+    if (isNewsletterContent) {
+      console.log('📧 [sendToCRM] Processing newsletter content for CRM conversion');
+      const conversionResult = convertNewsletterToCRM(contentTask.ai_output || '', title, contentTaskId);
+      
+      personaTags = conversionResult.personaTags;
+      segmentSuggestions = conversionResult.segments;
+      newsletterBlocks = conversionResult.blocks;
+      
+      console.log('✨ [sendToCRM] Newsletter conversion complete:', {
+        blocksCount: newsletterBlocks.length,
+        theme: conversionResult.theme,
+        readingTime: conversionResult.readingTime
+      });
+    } else {
+      // Standard content processing
+      personaTags = extractPersonaTags(contentTask.ai_output || '');
+      segmentSuggestions = generateSegmentSuggestions(
+        contentTask.ai_output || '',
+        campaign?.theme || '',
+        personaTags
+      );
+    }
+    
+    console.log('🏷️ [sendToCRM] Extracted persona tags:', personaTags);
     console.log('📊 [sendToCRM] Generated segment suggestions:', segmentSuggestions);
 
     // Extract images from attachments and content
     const images = extractImages(contentTask);
     console.log('🖼️ [sendToCRM] Extracted images:', images);
 
-    // Navigate to CRM with corrected parameters - use contentTaskId (not fromContentTaskId)
+    // Navigate to CRM with enhanced parameters for newsletter support
     const searchParams = new URLSearchParams({
-      contentTaskId: contentTaskId, // Fixed: use contentTaskId consistently
+      contentTaskId: contentTaskId,
       source: 'newsletter_content',
       themeSource,
       title: encodeURIComponent(title),
       content: encodeURIComponent(contentTask.ai_output || ''),
-      type: 'newsletter', // Add type parameter
+      type: isNewsletterContent ? 'newsletter' : 'content',
+      isNewsletterContent: isNewsletterContent.toString(),
       ...(personaTags?.length && { 
         personaTags: encodeURIComponent(JSON.stringify(personaTags)) 
       }),
@@ -92,6 +118,9 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
       ...(contentTask.campaign_id && { campaignId: contentTask.campaign_id }),
       ...(images?.length && { 
         images: encodeURIComponent(JSON.stringify(images)) 
+      }),
+      ...(isNewsletterContent && newsletterBlocks.length && {
+        newsletterBlocks: encodeURIComponent(JSON.stringify(newsletterBlocks))
       })
     });
 
@@ -109,7 +138,11 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
     // Use window.location for navigation to ensure URL parameters are preserved
     window.location.href = crmUrl;
     
-    toast.success(`"${title}" sent to CRM Campaign Builder with ${personaTags?.length || 0} tags and ${segmentSuggestions?.length || 0} segments`);
+    const successMessage = isNewsletterContent 
+      ? `Newsletter "${title}" converted to CRM with ${newsletterBlocks.length} blocks, ${personaTags?.length || 0} tags and ${segmentSuggestions?.length || 0} segments`
+      : `"${title}" sent to CRM Campaign Builder with ${personaTags?.length || 0} tags and ${segmentSuggestions?.length || 0} segments`;
+    
+    toast.success(successMessage);
     return true;
 
   } catch (error) {
