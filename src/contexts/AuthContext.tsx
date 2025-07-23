@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
+import * as React from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase, forceLogout } from "@/integrations/supabase/client";
 
@@ -14,10 +14,10 @@ interface AuthContextType {
   forceReset: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
+  const context = React.useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
@@ -25,14 +25,22 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [isInLimboState, setIsInLimboState] = useState(false);
+  console.log('🔧 AuthProvider: React is:', React);
+  console.log('🔧 AuthProvider: useState is:', React.useState);
+  
+  if (!React || !React.useState) {
+    console.error('❌ React or useState is not available!');
+    return <div>React Error: Please refresh the page</div>;
+  }
+  
+  const [user, setUser] = React.useState<User | null>(null);
+  const [session, setSession] = React.useState<Session | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [authError, setAuthError] = React.useState<string | null>(null);
+  const [isInLimboState, setIsInLimboState] = React.useState(false);
 
   // Detect limbo state (authenticated but stuck in redirect loops)
-  useEffect(() => {
+  React.useEffect(() => {
     const currentPath = window.location.pathname;
     const isOnPricingPage = currentPath === '/pricing';
     const hasUser = !!user;
@@ -53,7 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [user, session, loading, isInLimboState]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     let mounted = true;
     
     console.log('🔄 AuthProvider: Setting up auth state listeners');
@@ -174,7 +182,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const value = useMemo(() => ({
+  const value = React.useMemo(() => ({
     user,
     session,
     loading,
