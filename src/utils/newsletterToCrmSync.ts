@@ -52,7 +52,13 @@ export const convertNewsletterToCRM = (
   }
   
   // First try to parse as YAML with pipe syntax
+  console.log('[NEWSLETTER TO CRM] Attempting to parse YAML content');
   const parsedNewsletter = parseNewsletterYAML(decodedContent);
+  
+  console.log('[NEWSLETTER TO CRM] YAML parse result:', parsedNewsletter ? 'SUCCESS' : 'FAILED');
+  if (parsedNewsletter) {
+    console.log('[NEWSLETTER TO CRM] YAML parsed blocks:', parsedNewsletter.blocks.length);
+  }
   
   let processedNewsletter;
   if (parsedNewsletter) {
@@ -65,10 +71,12 @@ export const convertNewsletterToCRM = (
     };
   } else {
     // Fallback to regular processing
+    console.log('[NEWSLETTER TO CRM] Falling back to regular processing');
     processedNewsletter = processNewsletterContent(decodedContent, campaignTitle);
     
     // If unstructured, convert unstructuredSections to blocks format
     if (!processedNewsletter.isStructured && processedNewsletter.unstructuredSections) {
+      console.log('[NEWSLETTER TO CRM] Converting unstructured sections to blocks:', processedNewsletter.unstructuredSections.length);
       processedNewsletter.blocks = processedNewsletter.unstructuredSections.map((section, index) => ({
         title: section.title || `Section ${index + 1}`,
         body: section.content || '',
@@ -77,6 +85,7 @@ export const convertNewsletterToCRM = (
         image_prompt: section.image_prompt || `${section.title || campaignTitle} garden newsletter`,
         alt_text: section.alt_text || `Image for ${section.title || campaignTitle}`
       }));
+      console.log('[NEWSLETTER TO CRM] Converted to blocks:', processedNewsletter.blocks.length);
     }
   }
   
