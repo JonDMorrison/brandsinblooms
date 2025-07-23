@@ -41,8 +41,18 @@ export const convertNewsletterToCRM = (
 ): NewsletterToCRMConversion => {
   console.log('[NEWSLETTER TO CRM] Converting newsletter to CRM format');
   
+  // URL decode the content if it comes from URL parameters
+  let decodedContent = newsletterContent;
+  try {
+    if (newsletterContent.includes('%')) {
+      decodedContent = decodeURIComponent(newsletterContent);
+    }
+  } catch (error) {
+    console.log('[NEWSLETTER TO CRM] Failed to decode URL content, using original');
+  }
+  
   // First try to parse as YAML with pipe syntax
-  const parsedNewsletter = parseNewsletterYAML(newsletterContent);
+  const parsedNewsletter = parseNewsletterYAML(decodedContent);
   
   let processedNewsletter;
   if (parsedNewsletter) {
@@ -55,7 +65,19 @@ export const convertNewsletterToCRM = (
     };
   } else {
     // Fallback to regular processing
-    processedNewsletter = processNewsletterContent(newsletterContent, campaignTitle);
+    processedNewsletter = processNewsletterContent(decodedContent, campaignTitle);
+    
+    // If unstructured, convert unstructuredSections to blocks format
+    if (!processedNewsletter.isStructured && processedNewsletter.unstructuredSections) {
+      processedNewsletter.blocks = processedNewsletter.unstructuredSections.map((section, index) => ({
+        title: section.title || `Section ${index + 1}`,
+        body: section.content || '',
+        cta: section.cta || 'Learn More',
+        link: section.link || '#',
+        image_prompt: section.image_prompt || `${section.title || campaignTitle} garden newsletter`,
+        alt_text: section.alt_text || `Image for ${section.title || campaignTitle}`
+      }));
+    }
   }
   
   // Extract persona tags and segments

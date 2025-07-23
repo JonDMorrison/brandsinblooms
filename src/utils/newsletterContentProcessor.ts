@@ -20,6 +20,8 @@ interface UnstructuredSection {
   image_prompt: string;
   alt_text: string;
   id: string;
+  cta?: string;
+  link?: string;
 }
 
 export const processNewsletterContent = (content: string, campaignTitle?: string): ProcessedNewsletter => {
@@ -101,7 +103,9 @@ const createSectionsFromUnstructuredContent = (content: string, campaignTitle?: 
         title,
         content: sectionContent,
         image_prompt: generateImagePrompt(title, sectionContent, campaignTitle),
-        alt_text: `Image for ${title}`
+        alt_text: `Image for ${title}`,
+        cta: 'Learn More',
+        link: '#'
       });
     });
   } else {
@@ -119,7 +123,9 @@ const createSectionsFromUnstructuredContent = (content: string, campaignTitle?: 
           title,
           content: sectionContent,
           image_prompt: generateImagePrompt(title, sectionContent, campaignTitle),
-          alt_text: `Image for ${title}`
+          alt_text: `Image for ${title}`,
+          cta: 'Learn More',
+          link: '#'
         });
       }
     });
