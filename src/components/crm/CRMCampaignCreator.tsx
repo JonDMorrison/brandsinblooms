@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export const CRMCampaignCreator: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
   
   const [campaignName, setCampaignName] = useState('');
@@ -221,17 +222,19 @@ export const CRMCampaignCreator: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
+      {/* Back Button */}
+      <div>
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+      </div>
+      
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => window.history.back()}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Create Email Campaign</h1>
-            <p className="text-muted-foreground">Build and customize your email campaign</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Create Email Campaign</h1>
+          <p className="text-muted-foreground">Build and customize your email campaign</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowPreview(true)}>
