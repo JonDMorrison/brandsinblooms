@@ -52,12 +52,12 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
       if (firstLine?.startsWith('newsletter_md:')) {
         // Parse newsletter markdown content (handle pipe syntax)
         if (firstLine.includes('|')) {
-          // Multi-line content with pipe syntax
-          const contentLines = lines.slice(1).filter(line => line.startsWith('  ') || line.trim() === '');
-          result.newsletter_md = contentLines
-            .map(line => line.startsWith('  ') ? line.substring(2) : line)
-            .join('\n')
-            .trim();
+          // Multi-line content with pipe syntax - get all lines after the pipe
+          const contentLines = lines.slice(1);
+          result.newsletter_md = contentLines.join('\n').trim();
+          
+          // Parse sections from the markdown content
+          result.blocks = parseMarkdownSections(result.newsletter_md);
         } else {
           // Single line content
           result.newsletter_md = firstLine.replace('newsletter_md:', '').trim();
@@ -142,6 +142,11 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
       }
     }
     
+    // If we parsed from markdown and have no blocks from YAML structure, use markdown blocks
+    if (result.blocks.length === 0 && result.newsletter_md) {
+      result.blocks = parseMarkdownSections(result.newsletter_md);
+    }
+    
     // Validate that we have meaningful blocks
     if (!result.blocks || result.blocks.length === 0) {
       console.log('[YAML PARSER] No valid blocks found in YAML parsing');
@@ -196,6 +201,39 @@ const extractYamlValue = (line: string, prefix: string): string => {
   }
   
   return value;
+};
+
+// Helper function to parse sections from markdown content
+const parseMarkdownSections = (markdown: string): NewsletterBlock[] => {
+  const blocks: NewsletterBlock[] = [];
+  
+  // Split by ## headers to get sections
+  const sections = markdown.split(/(?=^##\s+)/m).filter(section => section.trim());
+  
+  sections.forEach((section, index) => {
+    const lines = section.split('\n').filter(line => line.trim());
+    
+    // Find the title (## header)
+    const titleLine = lines.find(line => line.startsWith('##'));
+    const title = titleLine ? titleLine.replace(/^##\s+/, '').trim() : `Section ${index + 1}`;
+    
+    // Get all content after the title
+    const contentLines = lines.filter(line => !line.startsWith('##'));
+    const body = contentLines.join('\n').trim();
+    
+    if (title && body) {
+      blocks.push({
+        title,
+        body,
+        cta: 'Learn More',
+        link: '#',
+        image_prompt: `${title} garden newsletter`,
+        alt_text: `Image for ${title}`
+      });
+    }
+  });
+  
+  return blocks;
 };
 
 // Helper function to generate markdown from blocks if missing

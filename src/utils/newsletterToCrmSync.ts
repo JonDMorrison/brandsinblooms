@@ -41,8 +41,22 @@ export const convertNewsletterToCRM = (
 ): NewsletterToCRMConversion => {
   console.log('[NEWSLETTER TO CRM] Converting newsletter to CRM format');
   
-  // Process the newsletter content
-  const processedNewsletter = processNewsletterContent(newsletterContent, campaignTitle);
+  // First try to parse as YAML with pipe syntax
+  const parsedNewsletter = parseNewsletterYAML(newsletterContent);
+  
+  let processedNewsletter;
+  if (parsedNewsletter) {
+    processedNewsletter = {
+      newsletter_md: parsedNewsletter.newsletter_md,
+      blocks: parsedNewsletter.blocks,
+      meta: parsedNewsletter.meta,
+      isStructured: true,
+      needsRegeneration: false
+    };
+  } else {
+    // Fallback to regular processing
+    processedNewsletter = processNewsletterContent(newsletterContent, campaignTitle);
+  }
   
   // Extract persona tags and segments
   const personaTags = extractPersonaTags(newsletterContent);
@@ -52,40 +66,29 @@ export const convertNewsletterToCRM = (
   // Convert newsletter blocks to CRM blocks
   const crmBlocks: CRMCampaignBlock[] = [];
   
-  // Add header block
-  crmBlocks.push(createHeaderBlock(campaignTitle || processedNewsletter.meta.week_focus));
+  // Parse the markdown content to extract headline and subheadline
+  const markdownLines = processedNewsletter.newsletter_md?.split('\n') || [];
+  const headlineLine = markdownLines.find(line => line.startsWith('#'));
+  const subheadlineLine = markdownLines.find(line => line.startsWith('*') && line.endsWith('*'));
   
-  // Add spacer after header
-  crmBlocks.push(createSpacerBlock());
+  // Create header block with headline and subheadline
+  if (headlineLine) {
+    const headline = headlineLine.replace(/^#+\s*/, '').trim();
+    const subheadline = subheadlineLine ? subheadlineLine.replace(/^\*|\*$/g, '').trim() : '';
+    
+    crmBlocks.push(createCombinedHeaderBlock(headline, subheadline));
+    crmBlocks.push(createSpacerBlock());
+  }
   
-  // Convert newsletter blocks to CRM blocks
-  if (processedNewsletter.isStructured && processedNewsletter.blocks.length > 0) {
+  // Convert newsletter blocks to CRM content blocks (image-right, text-left layout)
+  if (processedNewsletter.blocks && processedNewsletter.blocks.length > 0) {
     processedNewsletter.blocks.forEach((block, index) => {
-      // Add section header
-      crmBlocks.push(createTextBlock(block.title, 'header'));
-      
-      // Add section content
-      crmBlocks.push(createTextBlock(block.body, 'content'));
-      
-      // Add CTA button if present
-      if (block.cta && block.cta !== 'Learn more') {
-        crmBlocks.push(createButtonBlock(block.cta, block.link));
-      }
+      // Create content block with image-right, text-left layout
+      crmBlocks.push(createContentBlock(block.title, block.body, block.image_prompt, block.alt_text));
       
       // Add spacer between sections (except last)
       if (index < processedNewsletter.blocks.length - 1) {
-        crmBlocks.push(createSpacerBlock());
-      }
-    });
-  } else {
-    // Handle unstructured content
-    const sections = processedNewsletter.unstructuredSections || [];
-    sections.forEach((section, index) => {
-      crmBlocks.push(createTextBlock(section.title, 'header'));
-      crmBlocks.push(createTextBlock(section.content, 'content'));
-      
-      if (index < sections.length - 1) {
-        crmBlocks.push(createSpacerBlock());
+        crmBlocks.push(createSpacerBlock('small'));
       }
     });
   }
@@ -125,6 +128,37 @@ const createHeaderBlock = (text: string): CRMCampaignBlock => ({
     fontWeight: 'bold',
     textColor: '#1a202c',
     padding: '20px',
+    backgroundColor: '#ffffff'
+  }
+});
+
+const createCombinedHeaderBlock = (headline: string, subheadline: string): CRMCampaignBlock => ({
+  id: `header-combined-${Date.now()}`,
+  type: 'header',
+  content: {
+    text: subheadline ? `${headline}\n${subheadline}` : headline,
+    alignment: 'center'
+  },
+  styles: {
+    fontSize: '28px',
+    fontWeight: 'bold',
+    textColor: '#1a202c',
+    padding: '30px 20px',
+    backgroundColor: '#ffffff'
+  }
+});
+
+const createContentBlock = (title: string, content: string, imagePrompt: string, altText: string): CRMCampaignBlock => ({
+  id: `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  type: 'text',
+  content: {
+    text: `<h3 style="font-size: 20px; font-weight: bold; color: #2d3748; margin-bottom: 15px;">${title}</h3><p style="font-size: 16px; color: #4a5568; line-height: 1.6;">${content}</p>`,
+    alignment: 'left',
+    imageUrl: imagePrompt,
+    imageAlt: altText
+  },
+  styles: {
+    padding: '25px 20px',
     backgroundColor: '#ffffff'
   }
 });
