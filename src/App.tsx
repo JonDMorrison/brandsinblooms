@@ -7,6 +7,7 @@ import OnboardingPage from '@/pages/OnboardingPage';
 import CalendarPage from '@/pages/CalendarPage';
 import PublishPage from '@/pages/PublishPage';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
+import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
@@ -42,6 +43,13 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <PublishPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/campaigns/new/:campaignSlug" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMCampaignBuilderPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />

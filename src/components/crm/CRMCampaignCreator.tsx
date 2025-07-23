@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,12 +14,24 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { convertNewsletterToCRM } from '@/utils/newsletterToCrmSync';
 import { supabase } from '@/integrations/supabase/client';
 
-export const CRMCampaignCreator: React.FC = () => {
+interface CRMCampaignCreatorProps {
+  campaignSlug?: string;
+  contentTaskId?: string | null;
+}
+
+export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({ 
+  campaignSlug, 
+  contentTaskId: propContentTaskId 
+}) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
   
   const [campaignName, setCampaignName] = useState('');
+  
+  // Get contentTaskId from props or URL parameters
+  const urlContentTaskId = searchParams.get('contentTaskId');
+  const finalContentTaskId = propContentTaskId || urlContentTaskId;
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
@@ -28,16 +41,16 @@ export const CRMCampaignCreator: React.FC = () => {
 
   // Check for URL parameters and auto-populate from newsletter
   useEffect(() => {
-    const contentTaskId = searchParams.get('contentTaskId');
+    const contentTaskId = finalContentTaskId;
     const title = searchParams.get('title');
     const content = searchParams.get('content');
     const type = searchParams.get('type');
 
     if (contentTaskId && type === 'newsletter') {
-      console.log('🔄 Auto-populating from newsletter content');
+      console.log('🔄 Auto-populating from newsletter content', { contentTaskId, campaignSlug });
       handleNewsletterConversion(contentTaskId, title || '', content || '');
     }
-  }, [searchParams]);
+  }, [searchParams, finalContentTaskId, campaignSlug]);
 
   const handleNewsletterConversion = async (contentTaskId: string, title: string, urlContent: string) => {
     setConverting(true);

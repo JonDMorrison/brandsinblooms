@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/utils/toast';
 import { convertNewsletterToCRM, createCRMCampaignFromNewsletter } from './newsletterToCrmSync';
+import { generateCampaignSlug } from './campaignSlugUtils';
 
 interface SendToCRMPayload {
   contentTaskId: string;
@@ -100,31 +101,61 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
     const images = extractImages(contentTask);
     console.log('🖼️ [sendToCRM] Extracted images:', images);
 
-    // Navigate to CRM with enhanced parameters for newsletter support
-    const searchParams = new URLSearchParams({
-      contentTaskId: contentTaskId,
-      source: 'newsletter_content',
-      themeSource,
-      title: encodeURIComponent(title),
-      content: encodeURIComponent(contentTask.ai_output || ''),
-      type: isNewsletterContent ? 'newsletter' : 'content',
-      isNewsletterContent: isNewsletterContent.toString(),
-      ...(personaTags?.length && { 
-        personaTags: encodeURIComponent(JSON.stringify(personaTags)) 
-      }),
-      ...(segmentSuggestions?.length && { 
-        segmentSuggestions: encodeURIComponent(JSON.stringify(segmentSuggestions)) 
-      }),
-      ...(contentTask.campaign_id && { campaignId: contentTask.campaign_id }),
-      ...(images?.length && { 
-        images: encodeURIComponent(JSON.stringify(images)) 
-      }),
-      ...(isNewsletterContent && newsletterBlocks.length && {
-        newsletterBlocks: encodeURIComponent(JSON.stringify(newsletterBlocks))
-      })
-    });
+    // Create unique campaign slug for newsletter content
+    let crmUrl: string;
+    
+    if (isNewsletterContent) {
+      const campaignSlug = generateCampaignSlug(title, contentTaskId);
+      
+      // Navigate to unique campaign URL with essential parameters
+      const searchParams = new URLSearchParams({
+        contentTaskId: contentTaskId,
+        source: 'newsletter_content',
+        themeSource,
+        title: encodeURIComponent(title),
+        content: encodeURIComponent(contentTask.ai_output || ''),
+        type: 'newsletter',
+        isNewsletterContent: 'true',
+        ...(personaTags?.length && { 
+          personaTags: encodeURIComponent(JSON.stringify(personaTags)) 
+        }),
+        ...(segmentSuggestions?.length && { 
+          segmentSuggestions: encodeURIComponent(JSON.stringify(segmentSuggestions)) 
+        }),
+        ...(contentTask.campaign_id && { campaignId: contentTask.campaign_id }),
+        ...(images?.length && { 
+          images: encodeURIComponent(JSON.stringify(images)) 
+        }),
+        ...(newsletterBlocks.length && {
+          newsletterBlocks: encodeURIComponent(JSON.stringify(newsletterBlocks))
+        })
+      });
 
-    const crmUrl = `/crm/campaigns/new?${searchParams.toString()}`;
+      crmUrl = `/crm/campaigns/new/${campaignSlug}?${searchParams.toString()}`;
+    } else {
+      // Use generic route for non-newsletter content
+      const searchParams = new URLSearchParams({
+        contentTaskId: contentTaskId,
+        source: 'newsletter_content',
+        themeSource,
+        title: encodeURIComponent(title),
+        content: encodeURIComponent(contentTask.ai_output || ''),
+        type: 'content',
+        isNewsletterContent: 'false',
+        ...(personaTags?.length && { 
+          personaTags: encodeURIComponent(JSON.stringify(personaTags)) 
+        }),
+        ...(segmentSuggestions?.length && { 
+          segmentSuggestions: encodeURIComponent(JSON.stringify(segmentSuggestions)) 
+        }),
+        ...(contentTask.campaign_id && { campaignId: contentTask.campaign_id }),
+        ...(images?.length && { 
+          images: encodeURIComponent(JSON.stringify(images)) 
+        })
+      });
+
+      crmUrl = `/crm/campaigns/new?${searchParams.toString()}`;
+    }
     
     console.log('✅ [sendToCRM] Navigating to CRM with parameters:', { 
       contentTaskId,

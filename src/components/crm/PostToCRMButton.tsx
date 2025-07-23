@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Mail, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCRMAccess } from '@/hooks/useCRMAccess';
+import { generateCampaignSlug } from '@/utils/campaignSlugUtils';
 
 interface PostToCRMButtonProps {
   task: any;
@@ -28,11 +29,14 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
   const handleCreateCampaign = () => {
     if (!canCreateCampaign) return;
 
-    // Extract newsletter content for pre-filling
+    // Extract newsletter content and create campaign title
     const content = task.ai_output?.replace(/<[^>]*>/g, '').trim() || '';
     const campaignTitle = `Newsletter Campaign - ${new Date().toLocaleDateString()}`;
     
-    // Navigate to CRM campaign creation with pre-filled data
+    // Generate unique campaign slug for newsletter
+    const campaignSlug = generateCampaignSlug(campaignTitle, task.id);
+    
+    // Navigate to unique CRM campaign creation with pre-filled data
     const params = new URLSearchParams({
       contentTaskId: task.id,
       title: campaignTitle,
@@ -40,10 +44,10 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
       type: 'newsletter'
     });
     
-    navigate(`/crm/campaigns/new?${params.toString()}`);
+    navigate(`/crm/campaigns/new/${campaignSlug}?${params.toString()}`);
     toast({
       title: "Success",
-      description: "Redirecting to CRM campaign creation..."
+      description: "Redirecting to unique CRM campaign creation..."
     });
   };
 
