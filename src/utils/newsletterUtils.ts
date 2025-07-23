@@ -42,8 +42,10 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
       meta: {}
     };
     
-    // Split content into major sections
+    // Split content into major sections - handle both line start and general patterns
     const sections = yamlContent.split(/(?=^(?:newsletter_md:|blocks:|extra_content_ideas:|meta:))/m);
+    
+    console.log('[YAML PARSER] Split into sections:', sections.length, sections.map(s => s.split('\n')[0]));
     
     for (const section of sections) {
       const lines = section.split('\n');
