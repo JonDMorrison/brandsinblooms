@@ -8,6 +8,7 @@ import CalendarPage from '@/pages/CalendarPage';
 import PublishPage from '@/pages/PublishPage';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
 import { Analytics } from '@vercel/analytics/react';
 
 function App() {
@@ -22,7 +23,9 @@ function App() {
         } />
         <Route path="/" element={
           <ProtectedRoute>
-            <Homepage />
+            <ContentGenerationProvider>
+              <Homepage />
+            </ContentGenerationProvider>
           </ProtectedRoute>
         } />
         <Route path="/calendar" element={
