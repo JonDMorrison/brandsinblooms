@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 import { Mail, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCRMAccess } from '@/hooks/useCRMAccess';
@@ -19,6 +20,7 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
   size = 'default'
 }) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { hasCRMAccess, loading } = useCRMAccess();
 
   const canCreateCampaign = task.ai_output && task.status === 'approved' && task.post_type === 'newsletter';
@@ -39,7 +41,10 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
     });
     
     navigate(`/crm/campaigns/new?${params.toString()}`);
-    toast.success('Redirecting to CRM campaign creation...');
+    toast({
+      title: "Success",
+      description: "Redirecting to CRM campaign creation..."
+    });
   };
 
   const getTooltipMessage = () => {
