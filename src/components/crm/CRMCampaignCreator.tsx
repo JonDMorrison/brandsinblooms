@@ -314,13 +314,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Campaign Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Campaign Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+      {/* Campaign Settings - Top Horizontal Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Campaign Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="campaign-name">Campaign Name</Label>
               <Input
@@ -328,6 +328,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 value={campaignName}
                 onChange={(e) => setCampaignName(e.target.value)}
                 placeholder="Enter campaign name"
+                className="mt-1"
               />
             </div>
             
@@ -338,6 +339,7 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 value={subjectLine}
                 onChange={(e) => setSubjectLine(e.target.value)}
                 placeholder="Enter subject line"
+                className="mt-1"
               />
             </div>
             
@@ -348,26 +350,25 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
                 value={preheaderText}
                 onChange={(e) => setPreheaderText(e.target.value)}
                 placeholder="Optional preheader text"
+                className="mt-1"
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        {/* Email Content Builder */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Content</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CleanEmailBlockEditor
-                blocks={blocks}
-                onBlocksChange={setBlocks}
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      {/* Email Content Builder - Full Width */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Email Content</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CleanEmailBlockEditor
+            blocks={blocks}
+            onBlocksChange={setBlocks}
+          />
+        </CardContent>
+      </Card>
 
       {/* Email Preview Modal */}
       <EmailPreview
