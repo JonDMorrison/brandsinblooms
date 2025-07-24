@@ -46,11 +46,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const content = searchParams.get('content');
     const type = searchParams.get('type');
 
+    console.log('📋 useEffect triggered with dependencies:', { 
+      contentTaskId, 
+      campaignSlug, 
+      hasSearchParams: !!searchParams.toString(),
+      type 
+    });
+
     if (contentTaskId && type === 'newsletter') {
       console.log('🔄 Auto-populating from newsletter content', { contentTaskId, campaignSlug });
       handleNewsletterConversion(contentTaskId, title || '', content || '');
     }
   }, [searchParams, finalContentTaskId, campaignSlug]);
+
+  // Additional useEffect to monitor blocks changes
+  useEffect(() => {
+    console.log('📊 Blocks state changed:', { 
+      blockCount: blocks.length, 
+      blockIds: blocks.map(b => b.id),
+      blockTypes: blocks.map(b => b.type)
+    });
+  }, [blocks]);
 
   const handleNewsletterConversion = async (contentTaskId: string, title: string, urlContent: string) => {
     setConverting(true);
@@ -103,6 +119,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           visible: block.visible,
           hasRequiredFields: !!(block.type && block.source)
         });
+      });
+      
+      console.log('🔄 Setting blocks into editor state:', {
+        blocksToSet: result.blocks.length,
+        currentBlocksLength: blocks.length
       });
       
       setBlocks(result.blocks);

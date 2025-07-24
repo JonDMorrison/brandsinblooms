@@ -140,6 +140,18 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   blocks,
   onBlocksChange
 }) => {
+  console.log('📧 CleanEmailBlockEditor received blocks:', {
+    count: blocks.length,
+    blocks: blocks.map(b => ({
+      id: b.id,
+      type: b.type,
+      title: b.title || b.headline,
+      hasContent: !!(b.content || b.body),
+      visible: b.visible,
+      source: b.source
+    }))
+  });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
 
