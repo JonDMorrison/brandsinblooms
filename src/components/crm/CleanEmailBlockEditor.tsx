@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -140,8 +140,13 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
   blocks,
   onBlocksChange
 }) => {
+  const [internalBlocks, setInternalBlocks] = useState<ContentBlock[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [insertIndex, setInsertIndex] = useState<number | null>(null);
+
   console.log('📧 CleanEmailBlockEditor received blocks:', {
     count: blocks.length,
+    internalCount: internalBlocks.length,
     blocks: blocks.map(b => ({
       id: b.id,
       type: b.type,
@@ -152,8 +157,15 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     }))
   });
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [insertIndex, setInsertIndex] = useState<number | null>(null);
+  // Handle blocks prop changes with proper timing
+  useEffect(() => {
+    if (blocks && blocks.length > 0) {
+      setInternalBlocks(blocks);
+      console.log("✅ Loaded blocks into internal state", blocks);
+    } else {
+      console.log("🛑 Ignoring empty blocks load");
+    }
+  }, [blocks]);
 
   const addBlockWithLayout = (layoutType: LayoutType, index?: number) => {
     console.log('🔧 Adding block with layout:', layoutType, 'at index:', index);
@@ -182,11 +194,14 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     };
     
     if (index !== undefined) {
-      const newBlocks = [...blocks];
+      const newBlocks = [...internalBlocks];
       newBlocks.splice(index + 1, 0, newBlock);
+      setInternalBlocks(newBlocks);
       onBlocksChange(newBlocks);
     } else {
-      onBlocksChange([...blocks, newBlock]);
+      const newBlocks = [...internalBlocks, newBlock];
+      setInternalBlocks(newBlocks);
+      onBlocksChange(newBlocks);
     }
   };
 
@@ -204,13 +219,17 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
 
   const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
     console.log('Updating block:', id, 'with updates:', updates);
-    onBlocksChange(blocks.map(block => 
+    const newBlocks = internalBlocks.map(block => 
       block.id === id ? { ...block, ...updates } : block
-    ));
+    );
+    setInternalBlocks(newBlocks);
+    onBlocksChange(newBlocks);
   };
 
   const removeBlock = (id: string) => {
-    onBlocksChange(blocks.filter(block => block.id !== id));
+    const newBlocks = internalBlocks.filter(block => block.id !== id);
+    setInternalBlocks(newBlocks);
+    onBlocksChange(newBlocks);
   };
 
   const duplicateBlock = (block: ContentBlock) => {
@@ -221,32 +240,48 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       headline: block.headline ? `${block.headline} (Copy)` : block.headline,
       collapsed: false
     };
-    const blockIndex = blocks.findIndex(b => b.id === block.id);
-    const newBlocks = [...blocks];
+    const blockIndex = internalBlocks.findIndex(b => b.id === block.id);
+    const newBlocks = [...internalBlocks];
     newBlocks.splice(blockIndex + 1, 0, newBlock);
+    setInternalBlocks(newBlocks);
     onBlocksChange(newBlocks);
   };
 
   const moveBlock = (id: string, direction: 'up' | 'down') => {
-    const currentIndex = blocks.findIndex(block => block.id === id);
+    const currentIndex = internalBlocks.findIndex(block => block.id === id);
     if (
       (direction === 'up' && currentIndex === 0) ||
-      (direction === 'down' && currentIndex === blocks.length - 1)
+      (direction === 'down' && currentIndex === internalBlocks.length - 1)
     ) {
       return;
     }
 
-    const newBlocks = [...blocks];
+    const newBlocks = [...internalBlocks];
     const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     [newBlocks[currentIndex], newBlocks[targetIndex]] = [newBlocks[targetIndex], newBlocks[currentIndex]];
+    setInternalBlocks(newBlocks);
     onBlocksChange(newBlocks);
   };
+
+  // Show loading state if we haven't received blocks yet
+  if (blocks.length > 0 && internalBlocks.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="py-8 text-center">
+            <div className="animate-spin h-8 w-8 mx-auto mb-4 border-2 border-primary border-t-transparent rounded-full"></div>
+            <p className="text-muted-foreground">Loading content blocks...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       {/* Content Blocks */}
       <div className="space-y-3">
-        {blocks.map((block, index) => (
+        {internalBlocks.map((block, index) => (
           <div key={block.id} className="space-y-3">
             <SimpleBlockEditor
               block={block}
@@ -256,7 +291,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
               onDuplicate={duplicateBlock}
               onMove={moveBlock}
               canMoveUp={index > 0}
-              canMoveDown={index < blocks.length - 1}
+              canMoveDown={index < internalBlocks.length - 1}
             />
             {/* Add Block Button */}
             <div className="flex justify-center">
