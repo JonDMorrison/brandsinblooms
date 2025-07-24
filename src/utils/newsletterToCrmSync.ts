@@ -230,9 +230,10 @@ export const convertNewsletterToCRM = (
     }
   }
   
-  // Extract persona tags and segments
+  // Extract persona tags and segments with safe null handling
   const personaTags = extractPersonaTags(newsletterContent);
-  const segments = generateSegmentSuggestions(newsletterContent, processedNewsletter.meta.theme, personaTags);
+  const safeTheme = processedNewsletter.meta?.theme || 'Garden Newsletter';
+  const segments = generateSegmentSuggestions(newsletterContent, safeTheme, personaTags);
   const images = extractImageUrls(newsletterContent);
   
   // Convert newsletter blocks directly to ContentBlocks
@@ -380,9 +381,9 @@ export const convertNewsletterToCRM = (
   }
   
   return {
-    campaignTitle: campaignTitle || processedNewsletter.meta.week_focus,
-    theme: processedNewsletter.meta.theme,
-    readingTime: processedNewsletter.meta.reading_time,
+    campaignTitle: campaignTitle || processedNewsletter.meta?.week_focus || 'Newsletter Campaign',
+    theme: processedNewsletter.meta?.theme || 'Garden Newsletter',
+    readingTime: processedNewsletter.meta?.reading_time || '3 min read',
     blocks: contentBlocks,
     segments,
     personaTags,
@@ -430,11 +431,12 @@ const generateSegmentSuggestions = (content: string, theme: string, personaTags:
   // Base segments
   segments.push('newsletter-subscribers');
   
-  // Theme-based segments
-  if (theme.toLowerCase().includes('summer')) {
+  // Theme-based segments with safe null handling
+  const safeTheme = (theme || '').toLowerCase();
+  if (safeTheme.includes('summer')) {
     segments.push('summer-gardening-interested');
   }
-  if (theme.toLowerCase().includes('seasonal')) {
+  if (safeTheme.includes('seasonal')) {
     segments.push('seasonal-gardening-tips');
   }
   
