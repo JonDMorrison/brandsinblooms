@@ -35,6 +35,11 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
+  console.log('🎯 CRMCampaignCreator - Current blocks state:', { 
+    blocksLength: blocks.length, 
+    blockIds: blocks.map(b => b.id),
+    allBlocksData: blocks.map(b => ({ id: b.id, type: b.type, title: b.title, visible: b.visible }))
+  });
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -54,7 +59,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       type,
       allParams: Object.fromEntries(searchParams.entries()),
       currentURL: window.location.href,
-      searchString: searchParams.toString()
+      searchString: searchParams.toString(),
+      currentBlocksCount: blocks.length
     });
 
     // Check if we have newsletter content in URL but missing type parameter
@@ -70,6 +76,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     } else if (content && content.includes('newsletter_md')) {
       console.log('🔄 Auto-populating from URL newsletter content without contentTaskId');
       handleNewsletterConversion('url-content', title || '', content);
+    } else {
+      console.log('❌ No newsletter conversion conditions met:', { 
+        hasContentTaskId: !!contentTaskId, 
+        type, 
+        hasContent: !!content, 
+        contentIncludesNewsletter: content?.includes('newsletter_md') 
+      });
     }
   }, [searchParams, finalContentTaskId, campaignSlug]);
 
@@ -133,7 +146,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         }))
       });
       
+      console.log('🔍 Setting blocks in state:', { 
+        crmBlocksLength: crmBlocks.length, 
+        currentBlocksLength: blocks.length,
+        aboutToSet: crmBlocks.map(b => ({ id: b.id, type: b.type, title: b.title }))
+      });
       setBlocks(crmBlocks);
+      console.log('✅ Blocks should now be set in state');
       
       console.log('✅ Newsletter converted to', crmBlocks.length, 'blocks with layouts and images');
       
