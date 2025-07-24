@@ -1,33 +1,12 @@
 import { parseNewsletterYAML, StructuredNewsletter } from './newsletterUtils';
 import { processNewsletterContent } from './newsletterContentProcessor';
-
-export interface CRMCampaignBlock {
-  id: string;
-  type: 'header' | 'text' | 'image' | 'button' | 'spacer';
-  content: {
-    text?: string;
-    imageUrl?: string;
-    imageAlt?: string;
-    buttonText?: string;
-    buttonUrl?: string;
-    alignment?: 'left' | 'center' | 'right';
-    size?: 'small' | 'medium' | 'large';
-  };
-  styles: {
-    backgroundColor?: string;
-    textColor?: string;
-    fontSize?: string;
-    fontWeight?: string;
-    padding?: string;
-    margin?: string;
-  };
-}
+import { ContentBlock } from '@/types/emailBuilder';
 
 export interface NewsletterToCRMConversion {
   campaignTitle: string;
   theme: string;
   readingTime: string;
-  blocks: CRMCampaignBlock[];
+  blocks: ContentBlock[];
   segments: string[];
   personaTags: string[];
   images: string[];
@@ -94,8 +73,8 @@ export const convertNewsletterToCRM = (
   const segments = generateSegmentSuggestions(newsletterContent, processedNewsletter.meta.theme, personaTags);
   const images = extractImageUrls(newsletterContent);
   
-  // Convert newsletter blocks to CRM blocks
-  const crmBlocks: CRMCampaignBlock[] = [];
+  // Convert newsletter blocks directly to ContentBlocks
+  const contentBlocks: ContentBlock[] = [];
   
   // Parse the markdown content to extract headline and subheadline
   const markdownLines = processedNewsletter.newsletter_md?.split('\n') || [];
@@ -107,28 +86,42 @@ export const convertNewsletterToCRM = (
     const headline = headlineLine.replace(/^#+\s*/, '').trim();
     const subheadline = subheadlineLine ? subheadlineLine.replace(/^\*|\*$/g, '').trim() : '';
     
-    crmBlocks.push(createCombinedHeaderBlock(headline, subheadline));
-    crmBlocks.push(createSpacerBlock());
-  }
-  
-  // Convert newsletter blocks to CRM content blocks (image-right, text-left layout)
-  if (processedNewsletter.blocks && processedNewsletter.blocks.length > 0) {
-    processedNewsletter.blocks.forEach((block, index) => {
-      // Create content block with image-right, text-left layout
-      crmBlocks.push(createContentBlock(block.title, block.body, block.image_prompt, block.alt_text));
-      
-      // Add spacer between sections (except last)
-      if (index < processedNewsletter.blocks.length - 1) {
-        crmBlocks.push(createSpacerBlock('small'));
-      }
+    contentBlocks.push({
+      id: `header-${Date.now()}`,
+      type: 'header',
+      headline,
+      body: subheadline || 'Your weekly garden newsletter',
+      alignment: 'center',
+      padding: 'large',
+      source: 'newsletter',
+      collapsed: false,
+      visible: true,
+      animation: 'fade-in'
     });
   }
   
-  // Add footer spacer
-  crmBlocks.push(createSpacerBlock());
+  // Convert newsletter blocks to ContentBlocks
+  if (processedNewsletter.blocks && processedNewsletter.blocks.length > 0) {
+    processedNewsletter.blocks.forEach((block, index) => {
+      contentBlocks.push({
+        id: `content-${Date.now()}-${index}`,
+        type: 'text',
+        title: block.title,
+        content: block.body,
+        imageUrl: block.image_prompt,
+        altText: block.alt_text,
+        alignment: 'left',
+        padding: 'medium',
+        source: 'newsletter',
+        collapsed: false,
+        visible: true,
+        animation: 'fade-in'
+      });
+    });
+  }
   
   console.log('[NEWSLETTER TO CRM] Conversion complete:', {
-    blocksCount: crmBlocks.length,
+    blocksCount: contentBlocks.length,
     personaTags: personaTags.length,
     segments: segments.length,
     images: images.length
@@ -138,7 +131,7 @@ export const convertNewsletterToCRM = (
     campaignTitle: campaignTitle || processedNewsletter.meta.week_focus,
     theme: processedNewsletter.meta.theme,
     readingTime: processedNewsletter.meta.reading_time,
-    blocks: crmBlocks,
+    blocks: contentBlocks,
     segments,
     personaTags,
     images,
@@ -146,95 +139,6 @@ export const convertNewsletterToCRM = (
   };
 };
 
-// Helper functions to create CRM blocks
-const createHeaderBlock = (text: string): CRMCampaignBlock => ({
-  id: `header-${Date.now()}`,
-  type: 'header',
-  content: {
-    text,
-    alignment: 'center'
-  },
-  styles: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    textColor: '#1a202c',
-    padding: '20px',
-    backgroundColor: '#ffffff'
-  }
-});
-
-const createCombinedHeaderBlock = (headline: string, subheadline: string): CRMCampaignBlock => ({
-  id: `header-combined-${Date.now()}`,
-  type: 'header',
-  content: {
-    text: subheadline ? `${headline}\n${subheadline}` : headline,
-    alignment: 'center'
-  },
-  styles: {
-    fontSize: '28px',
-    fontWeight: 'bold',
-    textColor: '#1a202c',
-    padding: '30px 20px',
-    backgroundColor: '#ffffff'
-  }
-});
-
-const createContentBlock = (title: string, content: string, imagePrompt: string, altText: string): CRMCampaignBlock => ({
-  id: `content-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-  type: 'text',
-  content: {
-    text: `<h3 style="font-size: 20px; font-weight: bold; color: #2d3748; margin-bottom: 15px;">${title}</h3><p style="font-size: 16px; color: #4a5568; line-height: 1.6;">${content}</p>`,
-    alignment: 'left',
-    imageUrl: imagePrompt,
-    imageAlt: altText
-  },
-  styles: {
-    padding: '25px 20px',
-    backgroundColor: '#ffffff'
-  }
-});
-
-const createTextBlock = (text: string, variant: 'header' | 'content'): CRMCampaignBlock => ({
-  id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-  type: 'text',
-  content: {
-    text,
-    alignment: 'left'
-  },
-  styles: {
-    fontSize: variant === 'header' ? '20px' : '16px',
-    fontWeight: variant === 'header' ? 'bold' : 'normal',
-    textColor: variant === 'header' ? '#2d3748' : '#4a5568',
-    padding: variant === 'header' ? '20px 20px 10px 20px' : '10px 20px',
-    backgroundColor: '#ffffff'
-  }
-});
-
-const createButtonBlock = (text: string, url: string): CRMCampaignBlock => ({
-  id: `button-${Date.now()}`,
-  type: 'button',
-  content: {
-    buttonText: text,
-    buttonUrl: url,
-    alignment: 'center'
-  },
-  styles: {
-    padding: '20px',
-    backgroundColor: '#ffffff'
-  }
-});
-
-const createSpacerBlock = (size: 'small' | 'medium' | 'large' = 'medium'): CRMCampaignBlock => ({
-  id: `spacer-${Date.now()}`,
-  type: 'spacer',
-  content: {
-    size
-  },
-  styles: {
-    padding: size === 'small' ? '10px' : size === 'medium' ? '20px' : '40px',
-    backgroundColor: '#ffffff'
-  }
-});
 
 // Extract persona tags from content
 const extractPersonaTags = (content: string): string[] => {

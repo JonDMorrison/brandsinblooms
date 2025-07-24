@@ -84,82 +84,13 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       console.log('🔍 CRM Conversion Result:', {
         title: result.campaignTitle,
         blockCount: result.blocks.length,
-        blocks: result.blocks.map(b => ({ type: b.type, id: b.id, hasText: !!b.content.text }))
+        blocks: result.blocks.map(b => ({ type: b.type, id: b.id, title: b.title || b.headline }))
       });
 
-      // Convert CRM blocks to ContentBlocks
-      const contentBlocks: ContentBlock[] = result.blocks
-        .filter(block => block.type !== 'spacer') // Filter out spacer blocks as they're not supported
-        .map((block, index) => {
-          console.log(`🔧 Processing block ${index}:`, { type: block.type, id: block.id, content: block.content });
-          
-          if (block.type === 'header') {
-            // Handle header blocks - split headline and subheadline
-            const textLines = block.content.text?.split('\n') || [];
-            const headline = textLines[0] || '';
-            const body = textLines.slice(1).join(' ').trim() || 'Your weekly garden newsletter';
-            
-            return {
-              id: block.id,
-              type: 'header',
-              headline,
-              body,
-              alignment: (block.content.alignment || 'center') as any,
-              padding: 'large' as any,
-              source: 'newsletter',
-              collapsed: false,
-              visible: true,
-              animation: 'fade-in'
-            } as ContentBlock;
-          } else if (block.type === 'text') {
-            // Handle text content blocks - extract title and content from HTML
-            const htmlContent = block.content.text || '';
-            
-            // Extract title from h3 tag
-            const titleMatch = htmlContent.match(/<h3[^>]*>(.*?)<\/h3>/i);
-            const title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '') : '';
-            
-            // Extract content from p tag
-            const contentMatch = htmlContent.match(/<p[^>]*>(.*?)<\/p>/i);
-            const content = contentMatch ? contentMatch[1].replace(/<[^>]*>/g, '') : htmlContent.replace(/<[^>]*>/g, '');
-            
-            return {
-              id: block.id,
-              type: 'text',
-              title,
-              content,
-              imageUrl: block.content.imageUrl,
-              altText: block.content.imageAlt,
-              alignment: (block.content.alignment || 'left') as any,
-              padding: 'medium' as any,
-              source: 'newsletter',
-              collapsed: false,
-              visible: true,
-              animation: 'fade-in'
-            } as ContentBlock;
-          } else {
-            // Handle other block types
-            return {
-              id: block.id,
-              type: block.type as ContentBlock['type'],
-              content: block.content.text,
-              buttonText: block.content.buttonText,
-              buttonUrl: block.content.buttonUrl,
-              imageUrl: block.content.imageUrl,
-              altText: block.content.imageAlt,
-              alignment: (block.content.alignment || 'left') as any,
-              padding: 'medium' as any,
-              source: 'newsletter',
-              collapsed: false,
-              visible: true,
-              animation: 'fade-in'
-            } as ContentBlock;
-          }
-        });
-
-      console.log('✅ Converted to ContentBlocks:', contentBlocks.map(b => ({ type: b.type, id: b.id, title: b.title, hasContent: !!b.content })));
+      // The result.blocks are already ContentBlocks, use them directly
+      console.log('✅ Using ContentBlocks directly:', result.blocks.map(b => ({ type: b.type, id: b.id, title: b.title || b.headline, hasContent: !!b.content })));
       
-      setBlocks(contentBlocks);
+      setBlocks(result.blocks);
       
       console.log('✅ Newsletter converted to', result.blocks.length, 'blocks');
       
