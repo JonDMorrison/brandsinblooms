@@ -1,6 +1,7 @@
 import { parseNewsletterYAML, StructuredNewsletter, extractNewsletterSections } from './newsletterUtils';
 import { processNewsletterContent } from './newsletterContentProcessor';
 import { ContentBlock } from '@/types/emailBuilder';
+import yaml from 'js-yaml';
 
 export interface NewsletterToCRMConversion {
   campaignTitle: string;
@@ -13,12 +14,139 @@ export interface NewsletterToCRMConversion {
   originalContent: string;
 }
 
+// New standalone function for direct YAML to ContentBlock conversion
+export function convertNewsletterToCRM_Direct(newsletterRaw: string): ContentBlock[] {
+  const decoded = decodeURIComponent(newsletterRaw);
+  let parsedBlocks: ContentBlock[] = [];
+
+  // First try YAML parsing
+  try {
+    const parsed = yaml.load(decoded) as any;
+    if (parsed && Array.isArray(parsed.blocks)) {
+      console.log('[YAML PARSER] Success:', parsed.blocks.length, 'blocks parsed');
+      
+      // Create header block from newsletter_md first line
+      if (parsed.newsletter_md) {
+        const lines = parsed.newsletter_md.split('\n');
+        const headlineLine = lines.find((line: string) => line.startsWith('#'));
+        if (headlineLine) {
+          parsedBlocks.push({
+            id: 'block-header',
+            type: 'header',
+            headline: headlineLine.replace(/^#+\s*/, '').trim(),
+            body: 'Your weekly garden newsletter',
+            alignment: 'center',
+            padding: 'large',
+            source: 'newsletter',
+            collapsed: false,
+            visible: true,
+            animation: 'fade-in'
+          });
+        }
+      }
+      
+      // Convert YAML blocks to ContentBlocks
+      parsed.blocks.forEach((b: any, i: number) => {
+        parsedBlocks.push({
+          id: `block-${i}`,
+          type: 'text',
+          title: b.title || '',
+          content: b.body || b.content || '',
+          ctaText: b.cta || '',
+          ctaUrl: b.link || '',
+          imageUrl: b.image_prompt || '',
+          altText: b.alt_text || '',
+          alignment: 'left',
+          padding: 'medium',
+          source: 'newsletter',
+          collapsed: false,
+          visible: true,
+          animation: 'fade-in'
+        });
+      });
+      
+      console.log('[YAML PARSER] Converted to', parsedBlocks.length, 'ContentBlocks');
+      return parsedBlocks;
+    }
+  } catch (e) {
+    console.warn('[YAML PARSER] Failed:', e);
+  }
+
+  // Fallback: parse markdown into blocks
+  console.log('[FALLBACK PARSER] Starting markdown parsing');
+  const lines = decoded.split('\n');
+  let current: ContentBlock | null = null;
+
+  for (const line of lines) {
+    if (line.startsWith('# ')) {
+      // Header block
+      if (current) parsedBlocks.push(current);
+      current = {
+        id: 'block-header',
+        type: 'header',
+        headline: line.replace('# ', '').trim(),
+        body: 'Your weekly garden newsletter',
+        alignment: 'center',
+        padding: 'large',
+        source: 'newsletter',
+        collapsed: false,
+        visible: true,
+        animation: 'fade-in'
+      };
+    } else if (line.startsWith('## ')) {
+      // Text block title
+      if (current) parsedBlocks.push(current);
+      current = {
+        id: `block-${parsedBlocks.length + 1}`,
+        type: 'text',
+        title: line.replace('## ', '').trim(),
+        content: '',
+        alignment: 'left',
+        padding: 'medium',
+        source: 'newsletter',
+        collapsed: false,
+        visible: true,
+        animation: 'fade-in'
+      };
+    } else if (current && line.trim()) {
+      // Add content to current block
+      current.content = (current.content || '') + (current.content ? '\n' : '') + line.trim();
+    }
+  }
+
+  if (current) parsedBlocks.push(current);
+
+  console.log('[FALLBACK PARSER] Parsed', parsedBlocks.length, 'blocks');
+  parsedBlocks.forEach((b, i) => {
+    const title = b.type === 'header' ? b.headline : b.title;
+    console.log(`Block ${i + 1}: ${title}`);
+  });
+
+  return parsedBlocks;
+}
+
 export const convertNewsletterToCRM = (
   newsletterContent: string,
   campaignTitle?: string,
   contentTaskId?: string
 ): NewsletterToCRMConversion => {
   console.log('[NEWSLETTER TO CRM] Converting newsletter to CRM format');
+  
+  // Try direct conversion first for better results
+  const directBlocks = convertNewsletterToCRM_Direct(newsletterContent);
+  if (directBlocks.length > 1) {
+    console.log('[NEWSLETTER TO CRM] ✅ Direct conversion successful:', directBlocks.length, 'blocks');
+    return {
+      campaignTitle: campaignTitle || 'Newsletter Campaign',
+      theme: 'Garden Newsletter',
+      readingTime: '3 min read',
+      blocks: directBlocks,
+      segments: ['newsletter-subscribers'],
+      personaTags: ['general-gardener'],
+      images: [],
+      originalContent: newsletterContent
+    };
+  }
   
   // Enhanced URL decode and YAML structure preprocessing
   let decodedContent = newsletterContent;
