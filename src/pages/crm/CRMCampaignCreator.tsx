@@ -239,98 +239,91 @@ const CRMCampaignCreator = () => {
 
         <Separator />
 
-        {/* Main Content Area - 2 Column Layout */}
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {/* Content Column */}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Content Blocks</CardTitle>
-              </CardHeader>
-              <CardContent>
+        {/* Email Content Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Email Content</CardTitle>
+          </CardHeader>
+          <CardContent>
             <CleanEmailBlockEditor
               blocks={blocks}
               onBlocksChange={setBlocks}
             />
-              </CardContent>
-            </Card>
-          </div>
+          </CardContent>
+        </Card>
 
-          {/* Tools & Preview Column */}
-          <div className="space-y-6">
-            <Card>
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <CardHeader className="pb-3">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="content" className="flex items-center gap-2">
-                      <Wand2 className="h-4 w-4" />
-                      Enhancement
-                    </TabsTrigger>
-                    <TabsTrigger value="schedule" className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      Schedule
-                    </TabsTrigger>
-                    <TabsTrigger value="preview" className="flex items-center gap-2">
-                      <Eye className="h-4 w-4" />
-                      Preview
-                    </TabsTrigger>
-                  </TabsList>
-                </CardHeader>
+        {/* Tools & Preview Section */}
+        <Card>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <CardHeader className="pb-3">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="content" className="flex items-center gap-2">
+                  <Wand2 className="h-4 w-4" />
+                  Enhancement
+                </TabsTrigger>
+                <TabsTrigger value="schedule" className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Schedule
+                </TabsTrigger>
+                <TabsTrigger value="preview" className="flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </TabsTrigger>
+              </TabsList>
+            </CardHeader>
 
-                <CardContent>
-                  <TabsContent value="content" className="space-y-4">
-                    <div>
-                      <h3 className="font-medium mb-3">AI Enhancement Tools</h3>
-                      <div className="space-y-3">
-                        <Button variant="outline" className="w-full justify-start">
-                          <Wand2 className="h-4 w-4 mr-2" />
-                          Improve Subject Line
-                        </Button>
-                        <Button variant="outline" className="w-full justify-start">
-                          <Wand2 className="h-4 w-4 mr-2" />
-                          Enhance Content
-                        </Button>
-                        <Button variant="outline" className="w-full justify-start">
-                          <Wand2 className="h-4 w-4 mr-2" />
-                          Generate CTA
-                        </Button>
-                      </div>
-                    </div>
-                  </TabsContent>
+            <CardContent>
+              <TabsContent value="content" className="space-y-4">
+                <div>
+                  <h3 className="font-medium mb-3">AI Enhancement Tools</h3>
+                  <div className="space-y-3">
+                    <Button variant="outline" className="w-full justify-start">
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Improve Subject Line
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Enhance Content
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      Generate CTA
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
 
-                  <TabsContent value="schedule" className="space-y-4">
-                    <div>
-                      <h3 className="font-medium mb-3">Schedule Campaign</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Set when your campaign should be sent
-                      </p>
-                      <div className="space-y-3">
-                        <Button variant="outline" className="w-full justify-start">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Send Now
-                        </Button>
-                        <Button variant="outline" className="w-full justify-start">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Schedule for Later
-                        </Button>
-                      </div>
-                    </div>
-                  </TabsContent>
+              <TabsContent value="schedule" className="space-y-4">
+                <div>
+                  <h3 className="font-medium mb-3">Schedule Campaign</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Set when your campaign should be sent
+                  </p>
+                  <div className="space-y-3">
+                    <Button variant="outline" className="w-full justify-start">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Send Now
+                    </Button>
+                    <Button variant="outline" className="w-full justify-start">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      Schedule for Later
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
 
-                  <TabsContent value="preview" className="space-y-4">
-                    <EmailPreview
-                      blocks={blocks}
-                      campaignName={campaignName}
-                      subjectLine={subjectLine}
-                      senderName={senderName}
-                      senderEmail={senderEmail}
-                    />
-                  </TabsContent>
-                </CardContent>
-              </Tabs>
-            </Card>
-          </div>
-        </div>
+              <TabsContent value="preview" className="space-y-4">
+                <EmailPreview
+                  blocks={blocks}
+                  campaignName={campaignName}
+                  subjectLine={subjectLine}
+                  senderName={senderName}
+                  senderEmail={senderEmail}
+                />
+              </TabsContent>
+            </CardContent>
+          </Tabs>
+        </Card>
 
         {/* Template Modal */}
         <CampaignTemplatesModal
