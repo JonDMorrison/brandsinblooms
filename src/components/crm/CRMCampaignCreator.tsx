@@ -46,16 +46,30 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const content = searchParams.get('content');
     const type = searchParams.get('type');
 
+    // Enhanced debugging for URL parameters
     console.log('📋 useEffect triggered with dependencies:', { 
       contentTaskId, 
       campaignSlug, 
       hasSearchParams: !!searchParams.toString(),
-      type 
+      type,
+      allParams: Object.fromEntries(searchParams.entries()),
+      currentURL: window.location.href,
+      searchString: searchParams.toString()
     });
+
+    // Check if we have newsletter content in URL but missing type parameter
+    if (content && !type && content.includes('newsletter_md')) {
+      console.log('🔄 Detected newsletter content without type parameter, forcing conversion');
+      handleNewsletterConversion(contentTaskId || 'url-based', title || '', content);
+      return;
+    }
 
     if (contentTaskId && type === 'newsletter') {
       console.log('🔄 Auto-populating from newsletter content', { contentTaskId, campaignSlug });
       handleNewsletterConversion(contentTaskId, title || '', content || '');
+    } else if (content && content.includes('newsletter_md')) {
+      console.log('🔄 Auto-populating from URL newsletter content without contentTaskId');
+      handleNewsletterConversion('url-content', title || '', content);
     }
   }, [searchParams, finalContentTaskId, campaignSlug]);
 
@@ -72,24 +86,33 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     setConverting(true);
     
     try {
-      console.log('📧 Converting newsletter to CRM campaign', { contentTaskId, title });
+      console.log('📧 Converting newsletter to CRM campaign', { contentTaskId, title, hasUrlContent: !!urlContent });
       
-      // Fetch full content from database instead of relying on truncated URL content
-      const { data: contentTask, error } = await supabase
-        .from('content_tasks')
-        .select('ai_output')
-        .eq('id', contentTaskId)
-        .single();
+      let fullContent = urlContent;
       
-      if (error || !contentTask) {
-        throw new Error('Failed to fetch newsletter content');
+      // Only fetch from database if contentTaskId is a valid UUID
+      if (contentTaskId && !['url-based', 'url-content'].includes(contentTaskId) && urlContent.length < 1000) {
+        console.log('🔍 Fetching full content from database for contentTaskId:', contentTaskId);
+        const { data: contentTask, error } = await supabase
+          .from('content_tasks')
+          .select('ai_output')
+          .eq('id', contentTaskId)
+          .single();
+        
+        if (!error && contentTask?.ai_output) {
+          fullContent = contentTask.ai_output;
+          console.log('✅ Retrieved full content from database');
+        } else {
+          console.log('⚠️ Could not fetch from database, using URL content');
+        }
+      } else {
+        console.log('🔄 Using URL content directly (no database fetch needed)');
       }
       
-      const fullContent = contentTask.ai_output || urlContent;
-      console.log('🔄 Using full newsletter content:', fullContent.substring(0, 200) + '...');
+      console.log('🔄 Using newsletter content:', fullContent.substring(0, 200) + '...');
       
       // Use the new newsletter conversion system
-      const result = await convertNewsletterToCRM(fullContent, title, contentTaskId);
+      const result = convertNewsletterToCRM(fullContent, title, contentTaskId);
       
       // Pre-fill campaign settings
       setCampaignName(result.campaignTitle);
