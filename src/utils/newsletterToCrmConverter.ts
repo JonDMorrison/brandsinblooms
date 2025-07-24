@@ -376,8 +376,6 @@ const createHeaderBlock = async (processed: any): Promise<ContentBlock | null> =
     id: 'header-block',
     type: 'header',
     layout: 'full-width',
-    title: title,
-    content: subtitle,
     headline: title,
     body: subtitle,
     imageUrl: headerImage.url,
