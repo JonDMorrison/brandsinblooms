@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { SimpleBlockEditor } from './SimpleBlockEditor';
 import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
+import { mediaSelector } from '@/utils/mediaSelector';
 
 interface CleanEmailBlockEditorProps {
   blocks: ContentBlock[];
@@ -13,7 +14,7 @@ interface CleanEmailBlockEditorProps {
 }
 
 // Mapping function to convert layout types to block types and configurations
-const mapLayoutToBlock = (layoutType: LayoutType): { type: ContentBlock['type']; config: Partial<ContentBlock> } => {
+const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: ContentBlock['type']; config: Partial<ContentBlock> }> => {
   switch (layoutType) {
     case 'header-hero':
       return {
@@ -38,36 +39,51 @@ const mapLayoutToBlock = (layoutType: LayoutType): { type: ContentBlock['type'];
         }
       };
     case 'image-full':
+      const fullWidthImage = await mediaSelector({ 
+        prompt: 'garden center nursery plants',
+        count: 1 
+      });
       return {
         type: 'image',
         config: {
           title: 'Full-Width Image',
-          altText: 'Image description',
+          altText: fullWidthImage.alt || 'Garden center plants',
           caption: 'Optional caption text',
           alignment: 'center',
-          layout: 'full-width'
+          layout: 'full-width',
+          imageUrl: fullWidthImage.url
         }
       };
     case 'image-left':
+      const leftImage = await mediaSelector({ 
+        prompt: 'beautiful garden flowers plants',
+        count: 1 
+      });
       return {
         type: 'image',
         config: {
           title: 'Image & Text Section',
           content: 'Add your descriptive text here...',
-          altText: 'Image description',
+          altText: leftImage.alt || 'Garden flowers and plants',
           alignment: 'left',
-          layout: 'two-column-left'
+          layout: 'two-column-left',
+          imageUrl: leftImage.url
         }
       };
     case 'image-right':
+      const rightImage = await mediaSelector({ 
+        prompt: 'gardening tools plants nursery',
+        count: 1 
+      });
       return {
         type: 'image',
         config: {
           title: 'Text & Image Section',
           content: 'Add your descriptive text here...',
-          altText: 'Image description',
+          altText: rightImage.alt || 'Gardening tools and plants',
           alignment: 'right',
-          layout: 'two-column-right'
+          layout: 'two-column-right',
+          imageUrl: rightImage.url
         }
       };
     case 'button-centered':
@@ -164,41 +180,87 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     console.log("✅ Synced blocks into internal state:", blocks.length, "blocks");
   }, [blocks]);
 
-  const addBlockWithLayout = (layoutType: LayoutType, index?: number) => {
+  const addBlockWithLayout = async (layoutType: LayoutType, index?: number) => {
     console.log('🔧 Adding block with layout:', layoutType, 'at index:', index);
     
-    const { type, config } = mapLayoutToBlock(layoutType);
-    
-    const newBlock: ContentBlock = {
-      id: `block_${Date.now()}`,
-      type,
-      layout: 'full-width',
-      title: '',
-      content: '',
-      imageUrl: '',
-      ctaText: '',
-      ctaUrl: '',
-      source: 'manual',
-      collapsed: false,
-      alignment: 'left',
-      padding: 'medium',
-      margin: 'medium',
-      responsiveBehavior: 'stack',
-      visible: true,
-      animation: 'fade-in',
-      // Apply layout-specific configuration
-      ...config
-    };
-    
-    if (index !== undefined) {
-      const newBlocks = [...internalBlocks];
-      newBlocks.splice(index + 1, 0, newBlock);
-      setInternalBlocks(newBlocks);
-      onBlocksChange(newBlocks);
-    } else {
-      const newBlocks = [...internalBlocks, newBlock];
-      setInternalBlocks(newBlocks);
-      onBlocksChange(newBlocks);
+    try {
+      const { type, config } = await mapLayoutToBlock(layoutType);
+      
+      const newBlock: ContentBlock = {
+        id: `block_${Date.now()}`,
+        type,
+        layout: 'full-width',
+        title: '',
+        content: '',
+        imageUrl: '',
+        ctaText: '',
+        ctaUrl: '',
+        source: 'manual',
+        collapsed: false,
+        alignment: 'left',
+        padding: 'medium',
+        margin: 'medium',
+        responsiveBehavior: 'stack',
+        visible: true,
+        animation: 'fade-in',
+        // Apply layout-specific configuration
+        ...config
+      };
+      
+      if (index !== undefined) {
+        const newBlocks = [...internalBlocks];
+        newBlocks.splice(index + 1, 0, newBlock);
+        setInternalBlocks(newBlocks);
+        onBlocksChange(newBlocks);
+      } else {
+        const newBlocks = [...internalBlocks, newBlock];
+        setInternalBlocks(newBlocks);
+        onBlocksChange(newBlocks);
+      }
+    } catch (error) {
+      console.error('Error adding block with layout:', error);
+      // Fallback to adding block without auto-image
+      const fallbackConfig = layoutType.includes('image') ? {
+        type: 'image' as const,
+        config: {
+          title: 'Image Section',
+          content: 'Add your descriptive text here...',
+          altText: 'Image description',
+          alignment: 'left' as const,
+          layout: 'full-width' as const
+        }
+      } : { type: 'text' as const, config: {} };
+      
+      const newBlock: ContentBlock = {
+        id: `block_${Date.now()}`,
+        type: fallbackConfig.type,
+        layout: 'full-width',
+        title: '',
+        content: '',
+        imageUrl: '',
+        ctaText: '',
+        ctaUrl: '',
+        source: 'manual',
+        collapsed: false,
+        alignment: 'left',
+        padding: 'medium',
+        margin: 'medium',
+        responsiveBehavior: 'stack',
+        visible: true,
+        animation: 'fade-in',
+        ...fallbackConfig.config
+      };
+      
+      if (index !== undefined) {
+        const newBlocks = [...internalBlocks];
+        newBlocks.splice(index + 1, 0, newBlock);
+        setInternalBlocks(newBlocks);
+        onBlocksChange(newBlocks);
+      } else {
+        const newBlocks = [...internalBlocks, newBlock];
+        setInternalBlocks(newBlocks);
+        onBlocksChange(newBlocks);
+      }
     }
   };
 
@@ -207,9 +269,9 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     setIsModalOpen(true);
   };
 
-  const handleModalAddBlock = (layoutType: LayoutType) => {
+  const handleModalAddBlock = async (layoutType: LayoutType) => {
     console.log('📝 handleModalAddBlock called with:', layoutType, 'insertIndex:', insertIndex);
-    addBlockWithLayout(layoutType, insertIndex ?? undefined);
+    await addBlockWithLayout(layoutType, insertIndex ?? undefined);
     setIsModalOpen(false);
     setInsertIndex(null);
   };

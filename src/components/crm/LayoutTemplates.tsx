@@ -45,7 +45,7 @@ export const Layout1: React.FC<LayoutProps> = ({ block, className, editable, onU
           />
         ) : (
           <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
-            <span className="text-muted-foreground">Image placeholder</span>
+            <span className="text-muted-foreground">Select an image</span>
           </div>
         )}
       </div>
@@ -84,7 +84,7 @@ export const Layout2: React.FC<LayoutProps> = ({ block, className, editable, onU
           />
         ) : (
           <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
-            <span className="text-muted-foreground">Image placeholder</span>
+            <span className="text-muted-foreground">Select an image</span>
           </div>
         )}
       </div>
@@ -123,7 +123,7 @@ export const Layout3: React.FC<LayoutProps> = ({ block, className, editable, onU
           />
         ) : (
           <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
-            <span className="text-muted-foreground">Image placeholder</span>
+            <span className="text-muted-foreground">Select an image</span>
           </div>
         )}
       </div>
@@ -162,7 +162,7 @@ export const Layout4: React.FC<LayoutProps> = ({ block, className, editable, onU
           />
         ) : (
           <div className="w-full h-64 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
-            <span className="text-muted-foreground">Image placeholder</span>
+            <span className="text-muted-foreground">Select an image</span>
           </div>
         )}
       </div>
@@ -248,7 +248,7 @@ export const Layout6: React.FC<LayoutProps> = ({ block, className, editable, onU
           />
         ) : (
           <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
-            <span className="text-muted-foreground">Image placeholder</span>
+            <span className="text-muted-foreground">Select an image</span>
           </div>
         )}
         {block.caption && (
