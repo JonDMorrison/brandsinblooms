@@ -158,8 +158,9 @@ const CRMCampaignCreator = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="space-y-4">
+            <div className="space-y-4">
+              {/* Top Row - Primary Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="campaignName">Campaign Name *</Label>
                   <Input
@@ -167,6 +168,16 @@ const CRMCampaignCreator = () => {
                     value={campaignName}
                     onChange={(e) => setCampaignName(e.target.value)}
                     placeholder="Enter campaign name"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="subjectLine">Subject Line</Label>
+                  <Input
+                    id="subjectLine"
+                    value={subjectLine}
+                    onChange={(e) => setSubjectLine(e.target.value)}
+                    placeholder="Enter email subject line"
                     className="mt-1"
                   />
                 </div>
@@ -186,17 +197,8 @@ const CRMCampaignCreator = () => {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="subjectLine">Subject Line</Label>
-                  <Input
-                    id="subjectLine"
-                    value={subjectLine}
-                    onChange={(e) => setSubjectLine(e.target.value)}
-                    placeholder="Enter email subject line"
-                    className="mt-1"
-                  />
-                </div>
+              {/* Bottom Row - Sender & Description */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label htmlFor="senderName">Sender Name</Label>
                   <Input
@@ -207,9 +209,6 @@ const CRMCampaignCreator = () => {
                     className="mt-1"
                   />
                 </div>
-              </div>
-
-              <div className="space-y-4">
                 <div>
                   <Label htmlFor="senderEmail">Sender Email</Label>
                   <Input
