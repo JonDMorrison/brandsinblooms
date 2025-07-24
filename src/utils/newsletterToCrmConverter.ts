@@ -355,9 +355,9 @@ const suggestSegment = (processed: any): string | undefined => {
 const createHeaderBlock = async (processed: any): Promise<ContentBlock | null> => {
   const newsletterMd = processed.newsletter_md || '';
   
-  // Extract main title using regex
-  const titleMatch = newsletterMd.match(/^#\s+(.+)$/m);
-  const title = titleMatch?.[1] || 'Garden Newsletter';
+  // Extract main title using regex (stop at first asterisk to avoid duplication)
+  const titleMatch = newsletterMd.match(/^#\s+([^*\n]+)/m);
+  const title = titleMatch?.[1]?.trim() || 'Garden Newsletter';
   
   // Extract subtitle/description (italic text)
   const subtitleMatch = newsletterMd.match(/\*(.*?)\*/);
