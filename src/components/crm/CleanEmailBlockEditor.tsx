@@ -157,14 +157,11 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     }))
   });
 
-  // Handle blocks prop changes with proper timing
+  // Always sync internal state with parent blocks prop
   useEffect(() => {
-    if (blocks && blocks.length > 0) {
-      setInternalBlocks(blocks);
-      console.log("✅ Loaded blocks into internal state", blocks);
-    } else {
-      console.log("🛑 Ignoring empty blocks load");
-    }
+    console.log("🔄 Syncing blocks - parent has:", blocks.length, "internal has:", internalBlocks.length);
+    setInternalBlocks(blocks);
+    console.log("✅ Synced blocks into internal state:", blocks.length, "blocks");
   }, [blocks]);
 
   const addBlockWithLayout = (layoutType: LayoutType, index?: number) => {
@@ -263,8 +260,10 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     onBlocksChange(newBlocks);
   };
 
-  // Show loading state if we haven't received blocks yet
-  if (blocks.length > 0 && internalBlocks.length === 0) {
+  // Show loading only during initial mount when blocks are expected but not loaded
+  const isInitialLoading = blocks.length > 0 && internalBlocks.length === 0;
+  if (isInitialLoading) {
+    console.log("🔄 Showing loading state - parent blocks:", blocks.length, "internal:", internalBlocks.length);
     return (
       <div className="space-y-4">
         <Card>
@@ -309,7 +308,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       </div>
 
       {/* Empty State */}
-      {blocks.length === 0 && (
+      {internalBlocks.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
             <Plus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
