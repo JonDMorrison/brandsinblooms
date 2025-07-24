@@ -44,7 +44,7 @@ export const convertNewsletterToCRM = async (
   console.log('📋 Processed newsletter:', {
     isStructured: processed.isStructured,
     hasBlocks: processed.blocks.length > 0,
-    theme: processed.meta.theme
+    theme: processed.meta?.theme
   });
 
   // Generate campaign name from title or newsletter content
@@ -80,7 +80,7 @@ const generateCampaignName = (title: string, processed: any): string => {
   }
 
   // Fallback to newsletter theme or content
-  if (processed.meta.theme && processed.meta.theme !== 'Newsletter') {
+  if (processed.meta?.theme && processed.meta.theme !== 'Newsletter') {
     return `📧 ${processed.meta.theme}`;
   }
 
@@ -94,9 +94,9 @@ const generateCampaignName = (title: string, processed: any): string => {
 };
 
 const generateSubjectLine = (processed: any, title: string): string => {
-  // Extract main theme or focus
-  const theme = processed.meta.theme;
-  const weekFocus = processed.meta.week_focus;
+  // Extract main theme or focus with safe null handling
+  const theme = processed.meta?.theme;
+  const weekFocus = processed.meta?.week_focus;
   
   // Try to extract the main header from newsletter content
   const mainHeader = processed.newsletter_md.match(/^#\s+(.+)$/m)?.[1];
