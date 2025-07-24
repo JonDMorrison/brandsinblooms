@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Upload, Eye, Image as ImageIcon } from 'lucide-react';
+import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { Layout2 } from '@/components/crm/LayoutTemplates';
 
 interface ImageBlockEditorProps {
   block: ContentBlock;
@@ -52,6 +54,114 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
     return renderCompactPreview();
   }
 
+  // Special handling for two-column-right layout (text-left, image-right)
+  if (block.layout === 'two-column-right') {
+    return (
+      <div className="space-y-6">
+        {/* Live Preview using actual Layout2 component */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Eye className="h-4 w-4" />
+              Live Preview - Text Left, Image Right
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Layout2 
+              block={block} 
+              className="border rounded-lg p-4 bg-background"
+              editable={false}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Two-Column Editor Interface */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column: Text Content Editing */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Text Content</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="title">Title</Label>
+                <Input
+                  id="title"
+                  value={block.title || ''}
+                  onChange={(e) => updateField('title', e.target.value)}
+                  placeholder="Enter article title..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="content">Article Content</Label>
+                <Textarea
+                  id="content"
+                  value={block.content || ''}
+                  onChange={(e) => updateField('content', e.target.value)}
+                  placeholder="Enter your article content here..."
+                  rows={6}
+                  className="min-h-[120px]"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="ctaText">Call to Action Button</Label>
+                <Input
+                  id="ctaText"
+                  value={block.ctaText || ''}
+                  onChange={(e) => updateField('ctaText', e.target.value)}
+                  placeholder="Learn More"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="ctaUrl">Button URL</Label>
+                <Input
+                  id="ctaUrl"
+                  value={block.ctaUrl || ''}
+                  onChange={(e) => updateField('ctaUrl', e.target.value)}
+                  placeholder="https://example.com"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Right Column: Image Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Featured Image</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <MediaSelectorImage
+                src={block.imageUrl}
+                onChange={(imageUrl, metadata) => {
+                  updateField('imageUrl', imageUrl);
+                  if (metadata?.alt) {
+                    updateField('altText', metadata.alt);
+                  }
+                }}
+                contentContext={`${block.title || ''} ${block.content || ''}`.trim()}
+                className="h-48"
+              />
+              
+              <div>
+                <Label htmlFor="altText">Alt Text (for accessibility)</Label>
+                <Input
+                  id="altText"
+                  value={block.altText || ''}
+                  onChange={(e) => updateField('altText', e.target.value)}
+                  placeholder="Describe the image for screen readers..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to original layout for other block types
   return (
     <div className="space-y-6">
       {/* Live Preview */}
@@ -82,7 +192,7 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
               <div className="w-full h-48 bg-muted rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/25">
                 <div className="text-center">
                   <ImageIcon className="h-12 w-12 mx-auto mb-2 text-muted-foreground" />
-                  <span className="text-muted-foreground">Add an image URL below</span>
+                  <span className="text-muted-foreground">Select an image</span>
                 </div>
               </div>
             )}
@@ -114,18 +224,17 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
         </div>
 
         <div>
-          <Label htmlFor="imageUrl">Image URL *</Label>
-          <div className="flex gap-2">
-            <Input
-              id="imageUrl"
-              value={block.imageUrl || ''}
-              onChange={(e) => updateField('imageUrl', e.target.value)}
-              placeholder="https://example.com/image.jpg"
-            />
-            <Button variant="outline" size="sm">
-              <Upload className="w-4 h-4" />
-            </Button>
-          </div>
+          <Label>Image</Label>
+          <MediaSelectorImage
+            src={block.imageUrl}
+            onChange={(imageUrl, metadata) => {
+              updateField('imageUrl', imageUrl);
+              if (metadata?.alt) {
+                updateField('altText', metadata.alt);
+              }
+            }}
+            contentContext={`${block.title || ''} ${block.content || ''}`.trim()}
+          />
         </div>
 
         <div>
