@@ -1,4 +1,4 @@
-import { parseNewsletterYAML, StructuredNewsletter } from './newsletterUtils';
+import { parseNewsletterYAML, StructuredNewsletter, extractNewsletterSections } from './newsletterUtils';
 import { processNewsletterContent } from './newsletterContentProcessor';
 import { ContentBlock } from '@/types/emailBuilder';
 
@@ -145,20 +145,43 @@ export const convertNewsletterToCRM = (
       contentBlocks.push(contentBlock);
     });
   } else {
-    console.log('[NEWSLETTER TO CRM] No valid blocks found in processedNewsletter, creating fallback content');
-    // Create a single fallback block if no structured content found
-    contentBlocks.push({
-      id: `fallback-${Date.now()}`,
-      type: 'text' as const,
-      title: 'Newsletter Content',
-      content: decodedContent.substring(0, 500) + '...',
-      alignment: 'left' as const,
-      padding: 'medium' as const,
-      source: 'newsletter' as const,
-      collapsed: false,
-      visible: true,
-      animation: 'fade-in' as const
-    });
+    console.log('[NEWSLETTER TO CRM] No valid blocks found in processedNewsletter, creating blocks from markdown content');
+    // Extract sections from newsletter markdown content
+    if (processedNewsletter.newsletter_md) {
+      const { sections } = extractNewsletterSections(processedNewsletter.newsletter_md);
+      console.log('[NEWSLETTER TO CRM] Extracted sections from markdown:', sections.length);
+      
+      sections.forEach((section, index) => {
+        contentBlocks.push({
+          id: `section-${Date.now()}-${index}`,
+          type: 'text' as const,
+          title: section.title,
+          content: section.content,
+          alignment: 'left' as const,
+          padding: 'medium' as const,
+          source: 'newsletter' as const,
+          collapsed: false,
+          visible: true,
+          animation: 'fade-in' as const
+        });
+      });
+    }
+    
+    // If still no blocks, create a single fallback block
+    if (contentBlocks.length === 1) { // Only header exists
+      contentBlocks.push({
+        id: `fallback-${Date.now()}`,
+        type: 'text' as const,
+        title: 'Newsletter Content',
+        content: decodedContent.substring(0, 500) + '...',
+        alignment: 'left' as const,
+        padding: 'medium' as const,
+        source: 'newsletter' as const,
+        collapsed: false,
+        visible: true,
+        animation: 'fade-in' as const
+      });
+    }
   }
   
   console.log('[NEWSLETTER TO CRM] Conversion complete:', {
