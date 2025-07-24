@@ -40,7 +40,11 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
     }
     
     // Check if content contains YAML structure indicators
-    if (!decodedContent.includes('newsletter_md:') && !decodedContent.includes('blocks:')) {
+    const hasNewsletterMd = decodedContent.includes('newsletter_md:');
+    const hasBlocks = decodedContent.includes('blocks:');
+    console.log('[YAML PARSER] Structure check:', { hasNewsletterMd, hasBlocks });
+    
+    if (!hasNewsletterMd && !hasBlocks) {
       console.log('[YAML PARSER] Content does not appear to be YAML structured newsletter');
       return null;
     }
@@ -73,16 +77,27 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
           // Parse newsletter markdown content (handle pipe syntax)
           const lines = sectionContent.split('\n');
           const firstLine = lines[0].trim();
+          console.log('[YAML PARSER] Processing newsletter_md section, firstLine:', firstLine);
           
           if (firstLine.includes('|')) {
-            // Multi-line content with pipe syntax
+            // Multi-line content with pipe syntax - content starts from next line
             const contentLines = lines.slice(1);
             result.newsletter_md = contentLines.join('\n').trim();
             console.log('[YAML PARSER] Found newsletter_md with pipe syntax, length:', result.newsletter_md.length);
+            console.log('[YAML PARSER] First 200 chars:', result.newsletter_md.substring(0, 200));
           } else {
-            // Single line content
-            result.newsletter_md = firstLine.replace('newsletter_md:', '').trim();
-            console.log('[YAML PARSER] Found newsletter_md single line, length:', result.newsletter_md.length);
+            // Check if the entire line after 'newsletter_md:' contains pipe
+            const afterColon = firstLine.substring(firstLine.indexOf(':') + 1).trim();
+            if (afterColon === '|') {
+              // Multi-line content starts from next line
+              const contentLines = lines.slice(1);
+              result.newsletter_md = contentLines.join('\n').trim();
+              console.log('[YAML PARSER] Found newsletter_md with pipe on next line, length:', result.newsletter_md.length);
+            } else {
+              // Single line content
+              result.newsletter_md = afterColon;
+              console.log('[YAML PARSER] Found newsletter_md single line, length:', result.newsletter_md.length);
+            }
           }
         }
         
@@ -204,8 +219,10 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
     
     // If we parsed from markdown and have no blocks from YAML structure, use markdown blocks
     if (result.blocks.length === 0 && result.newsletter_md) {
-      console.log('[YAML PARSER] No YAML blocks found, parsing from markdown');
+      console.log('[YAML PARSER] No YAML blocks found, parsing from markdown content');
+      console.log('[YAML PARSER] Markdown content to parse:', result.newsletter_md.substring(0, 300));
       result.blocks = parseMarkdownSections(result.newsletter_md);
+      console.log('[YAML PARSER] Parsed', result.blocks.length, 'blocks from markdown');
     }
     
     // Validate that we have meaningful blocks

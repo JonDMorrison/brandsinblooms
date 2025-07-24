@@ -87,8 +87,23 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         blocks: result.blocks.map(b => ({ type: b.type, id: b.id, title: b.title || b.headline }))
       });
 
-      // The result.blocks are already ContentBlocks, use them directly
-      console.log('✅ Using ContentBlocks directly:', result.blocks.map(b => ({ type: b.type, id: b.id, title: b.title || b.headline, hasContent: !!b.content })));
+      // Debug: Print the exact blocks structure to compare with expected format
+      console.log('🔍 DEBUGGING BLOCKS STRUCTURE:');
+      console.log('📊 Blocks JSON:', JSON.stringify(result.blocks, null, 2));
+      console.log('🔧 Block count:', result.blocks.length);
+      result.blocks.forEach((block, i) => {
+        console.log(`🧱 Block ${i + 1}:`, {
+          id: block.id,
+          type: block.type,
+          title: block.title,
+          content: block.content,
+          headline: block.headline,
+          body: block.body,
+          source: block.source,
+          visible: block.visible,
+          hasRequiredFields: !!(block.type && block.source)
+        });
+      });
       
       setBlocks(result.blocks);
       

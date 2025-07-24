@@ -32,11 +32,15 @@ export const convertNewsletterToCRM = (
   
   // First try to parse as YAML with pipe syntax
   console.log('[NEWSLETTER TO CRM] Attempting to parse YAML content');
+  console.log('[NEWSLETTER TO CRM] Content preview for YAML parsing:', decodedContent.substring(0, 300));
   const parsedNewsletter = parseNewsletterYAML(decodedContent);
   
   console.log('[NEWSLETTER TO CRM] YAML parse result:', parsedNewsletter ? 'SUCCESS' : 'FAILED');
   if (parsedNewsletter) {
     console.log('[NEWSLETTER TO CRM] YAML parsed blocks:', parsedNewsletter.blocks.length);
+    console.log('[NEWSLETTER TO CRM] YAML block titles:', parsedNewsletter.blocks.map(b => b.title));
+  } else {
+    console.log('[NEWSLETTER TO CRM] YAML parsing failed, will use fallback processing');
   }
   
   let processedNewsletter;
@@ -102,21 +106,45 @@ export const convertNewsletterToCRM = (
   
   // Convert newsletter blocks to ContentBlocks
   if (processedNewsletter.blocks && processedNewsletter.blocks.length > 0) {
+    console.log('[NEWSLETTER TO CRM] Converting', processedNewsletter.blocks.length, 'newsletter blocks to ContentBlocks');
     processedNewsletter.blocks.forEach((block, index) => {
-      contentBlocks.push({
+      const contentBlock = {
         id: `content-${Date.now()}-${index}`,
-        type: 'text',
+        type: 'text' as const,
         title: block.title,
         content: block.body,
         imageUrl: block.image_prompt,
         altText: block.alt_text,
-        alignment: 'left',
-        padding: 'medium',
-        source: 'newsletter',
+        alignment: 'left' as const,
+        padding: 'medium' as const,
+        source: 'newsletter' as const,
         collapsed: false,
         visible: true,
-        animation: 'fade-in'
+        animation: 'fade-in' as const
+      };
+      console.log(`[NEWSLETTER TO CRM] Created ContentBlock ${index + 1}:`, {
+        id: contentBlock.id,
+        type: contentBlock.type,
+        title: contentBlock.title,
+        hasContent: !!contentBlock.content,
+        source: contentBlock.source
       });
+      contentBlocks.push(contentBlock);
+    });
+  } else {
+    console.log('[NEWSLETTER TO CRM] No valid blocks found in processedNewsletter, creating fallback content');
+    // Create a single fallback block if no structured content found
+    contentBlocks.push({
+      id: `fallback-${Date.now()}`,
+      type: 'text' as const,
+      title: 'Newsletter Content',
+      content: decodedContent.substring(0, 500) + '...',
+      alignment: 'left' as const,
+      padding: 'medium' as const,
+      source: 'newsletter' as const,
+      collapsed: false,
+      visible: true,
+      animation: 'fade-in' as const
     });
   }
   
