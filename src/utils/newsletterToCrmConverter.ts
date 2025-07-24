@@ -1,5 +1,7 @@
 import { processNewsletterContent } from './newsletterContentProcessor';
 import { supabase } from '@/integrations/supabase/client';
+import { mediaSelector, batchMediaSelector } from './mediaSelector';
+import { ContentBlock } from '@/types/emailBuilder';
 
 interface NewsletterToCRMResult {
   campaignName: string;
@@ -8,6 +10,7 @@ interface NewsletterToCRMResult {
   originalContent: string;
   isFromNewsletter: boolean;
   suggestedSegment?: string;
+  blocks?: ContentBlock[];
 }
 
 export const convertNewsletterToCRM = async (
@@ -53,8 +56,8 @@ export const convertNewsletterToCRM = async (
   // Generate subject line suggestions
   const subjectLine = generateSubjectLine(processed, title);
   
-  // Convert newsletter content to email-ready HTML
-  const emailContent = convertToEmailHTML(processed);
+  // Convert newsletter content to CRM blocks with layout and images
+  const { emailContent, blocks } = await convertToEmailBlocks(processed);
 
   return {
     campaignName,
@@ -62,7 +65,8 @@ export const convertNewsletterToCRM = async (
     emailContent,
     originalContent: fullContent,
     isFromNewsletter: true,
-    suggestedSegment: suggestSegment(processed)
+    suggestedSegment: suggestSegment(processed),
+    blocks
   };
 };
 
@@ -131,6 +135,93 @@ const generateSubjectLine = (processed: any, title: string): string => {
   }
   
   return '🌱 Garden Care Tips - This Week\'s Focus';
+};
+
+const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: string; blocks: ContentBlock[] }> => {
+  const blocks: ContentBlock[] = [];
+  
+  console.log('[CRM SYNC] Converting newsletter to CRM blocks with layouts and images');
+  
+  // Process structured blocks if available
+  if (processed.blocks && processed.blocks.length > 0) {
+    console.log(`[CRM SYNC] Processing ${processed.blocks.length} structured blocks`);
+    
+    // Create ContentBlocks from newsletter blocks
+    const newsletterBlocks = processed.blocks.map((block: any, index: number) => {
+      const contentBlock: ContentBlock = {
+        id: `block-${index}`,
+        type: 'text',
+        layout: 'two-column-right', // Assign text-left-image-right layout
+        title: block.title || '',
+        content: block.body || '',
+        ctaText: block.cta || 'Learn More',
+        ctaUrl: block.link || '#',
+        source: 'newsletter'
+      };
+      
+      console.log(`[CRM SYNC] Assigned layout "two-column-right" to block: ${contentBlock.title}`);
+      return contentBlock;
+    });
+    
+    // Extract image prompts for batch fetching
+    const imagePrompts = processed.blocks.map((block: any) => 
+      block.image_prompt || block.alt_text || block.title || 'garden center newsletter image'
+    );
+    const images = await batchMediaSelector(imagePrompts, '/images/newsletter-fallback.jpg');
+    
+    // Assign images to blocks
+    newsletterBlocks.forEach((block, index) => {
+      const selectedImage = images[index];
+      block.imageUrl = selectedImage.url;
+      block.altText = selectedImage.alt;
+      
+      console.log(`[CRM SYNC] Image selected for "${block.title}":`, selectedImage.url);
+      blocks.push(block);
+    });
+  }
+  
+  // Process unstructured sections if available
+  if (processed.unstructuredSections && processed.unstructuredSections.length > 0) {
+    console.log(`[CRM SYNC] Processing ${processed.unstructuredSections.length} unstructured sections`);
+    
+    const sectionBlocks = processed.unstructuredSections.map((section: any, index: number) => {
+      const contentBlock: ContentBlock = {
+        id: `section-${index}`,
+        type: 'text',
+        layout: 'two-column-right',
+        title: section.title || '',
+        content: section.content || '',
+        ctaText: section.cta || 'Learn More',
+        ctaUrl: section.link || '#',
+        source: 'newsletter'
+      };
+      
+      console.log(`[CRM SYNC] Assigned layout "two-column-right" to section: ${contentBlock.title}`);
+      return contentBlock;
+    });
+    
+    // Extract image prompts for batch fetching
+    const sectionImagePrompts = processed.unstructuredSections.map((section: any) => 
+      section.image_prompt || section.title || 'garden center newsletter'
+    );
+    const sectionImages = await batchMediaSelector(sectionImagePrompts, '/images/newsletter-fallback.jpg');
+    
+    // Assign images to section blocks
+    sectionBlocks.forEach((block, index) => {
+      const selectedImage = sectionImages[index];
+      block.imageUrl = selectedImage.url;
+      block.altText = selectedImage.alt;
+      
+      console.log(`[CRM SYNC] Image selected for "${block.title}":`, selectedImage.url);
+      blocks.push(block);
+    });
+  }
+  
+  // Generate HTML content for email (existing functionality)
+  const emailContent = convertToEmailHTML(processed);
+  
+  console.log(`[CRM SYNC] Created ${blocks.length} CRM blocks with layouts and images`);
+  return { emailContent, blocks };
 };
 
 const convertToEmailHTML = (processed: any): string => {

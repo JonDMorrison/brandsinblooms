@@ -11,7 +11,7 @@ import { Loader2, Mail, ArrowLeft } from 'lucide-react';
 import { CleanEmailBlockEditor } from './CleanEmailBlockEditor';
 import { EmailPreview } from './campaign-composer/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
-import { convertNewsletterToCRM } from '@/utils/newsletterToCrmSync';
+import { convertNewsletterToCRM } from '@/utils/newsletterToCrmConverter';
 import { supabase } from '@/integrations/supabase/client';
 
 interface CRMCampaignCreatorProps {
@@ -111,51 +111,35 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       
       console.log('🔄 Using newsletter content:', fullContent.substring(0, 200) + '...');
       
-      // Use the new newsletter conversion system
-      const result = convertNewsletterToCRM(fullContent, title, contentTaskId);
+      // Use the enhanced newsletter conversion system with layout and images
+      const result = await convertNewsletterToCRM(contentTaskId || 'url-content', title, fullContent);
       
       // Pre-fill campaign settings
-      setCampaignName(result.campaignTitle);
-      setSubjectLine(`${result.campaignTitle} - Garden Newsletter`);
+      setCampaignName(result.campaignName);
+      setSubjectLine(result.subjectLine);
       setPreheaderText('Expert gardening tips delivered to your inbox');
       
-      // Debug: Log the conversion result
+      // Set blocks with layout and images
+      const crmBlocks = result.blocks || [];
       console.log('🔍 CRM Conversion Result:', {
-        title: result.campaignTitle,
-        blockCount: result.blocks.length,
-        blocks: result.blocks.map(b => ({ type: b.type, id: b.id, title: b.title || b.headline }))
-      });
-
-      // Debug: Print the exact blocks structure to compare with expected format
-      console.log('🔍 DEBUGGING BLOCKS STRUCTURE:');
-      console.log('📊 Blocks JSON:', JSON.stringify(result.blocks, null, 2));
-      console.log('🔧 Block count:', result.blocks.length);
-      result.blocks.forEach((block, i) => {
-        console.log(`🧱 Block ${i + 1}:`, {
-          id: block.id,
-          type: block.type,
-          title: block.title,
-          content: block.content,
-          headline: block.headline,
-          body: block.body,
-          source: block.source,
-          visible: block.visible,
-          hasRequiredFields: !!(block.type && block.source)
-        });
+        campaignName: result.campaignName,
+        blockCount: crmBlocks.length,
+        blocks: crmBlocks.map(b => ({ 
+          type: b.type, 
+          id: b.id, 
+          title: b.title, 
+          layout: b.layout,
+          hasImage: !!b.imageUrl
+        }))
       });
       
-      console.log('🔄 Setting blocks into editor state:', {
-        blocksToSet: result.blocks.length,
-        currentBlocksLength: blocks.length
-      });
+      setBlocks(crmBlocks);
       
-      setBlocks(result.blocks);
-      
-      console.log('✅ Newsletter converted to', result.blocks.length, 'blocks');
+      console.log('✅ Newsletter converted to', crmBlocks.length, 'blocks with layouts and images');
       
       toast({
         title: "Newsletter Converted!",
-        description: `Converted newsletter into ${result.blocks.length} email blocks.`
+        description: `Converted newsletter into ${crmBlocks.length} email blocks with layouts and images.`
       });
       
     } catch (error) {
