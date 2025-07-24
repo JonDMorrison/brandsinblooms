@@ -48,12 +48,21 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
   // Try to parse the YAML structure
   const parsedNewsletter = parseNewsletterYAML(processedContent);
   
-  if (parsedNewsletter && parsedNewsletter.blocks && parsedNewsletter.blocks.length > 0) {
+  if (parsedNewsletter && parsedNewsletter.newsletter_md) {
     console.log('[NEWSLETTER PROCESSOR] Successfully parsed structured newsletter');
+    
+    // Check if we have proper blocks or need to create them from markdown content
+    let finalBlocks = parsedNewsletter.blocks || [];
+    
+    // If no blocks found or only empty blocks, create them from newsletter markdown content
+    if (!finalBlocks.length || finalBlocks.every(block => !block.title && !block.body)) {
+      console.log('[NEWSLETTER PROCESSOR] No valid blocks found, creating from markdown content');
+      finalBlocks = createBlocksFromMarkdownContent(parsedNewsletter.newsletter_md);
+    }
     
     return {
       newsletter_md: parsedNewsletter.newsletter_md || '',
-      blocks: parsedNewsletter.blocks,
+      blocks: finalBlocks,
       meta: {
         reading_time: parsedNewsletter.meta?.reading_time || calculateReadingTime(processedContent),
         theme: parsedNewsletter.meta?.theme || extractThemeFromContent(processedContent, campaignTitle),
@@ -81,6 +90,78 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     isStructured: false,
     needsRegeneration: isPlaceholderContent(processedContent)
   };
+};
+
+const createBlocksFromMarkdownContent = (markdownContent: string): any[] => {
+  console.log('[NEWSLETTER PROCESSOR] Creating blocks from markdown content');
+  const blocks: any[] = [];
+  
+  // Split content by headers - first # is main header, ## are sections
+  const lines = markdownContent.split('\n');
+  let currentSection: { title: string; content: string[]; isMainHeader: boolean } | null = null;
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    
+    if (trimmedLine.match(/^# /)) {
+      // Main header - save previous section and start new one
+      if (currentSection) {
+        blocks.push(createBlockFromSection(currentSection));
+      }
+      currentSection = {
+        title: trimmedLine.replace(/^# /, '').trim(),
+        content: [],
+        isMainHeader: true
+      };
+    } else if (trimmedLine.match(/^## /)) {
+      // Section header - save previous section and start new one
+      if (currentSection) {
+        blocks.push(createBlockFromSection(currentSection));
+      }
+      currentSection = {
+        title: trimmedLine.replace(/^## /, '').trim(),
+        content: [],
+        isMainHeader: false
+      };
+    } else if (currentSection && trimmedLine) {
+      // Add content to current section
+      currentSection.content.push(line);
+    }
+  }
+  
+  // Add the last section
+  if (currentSection) {
+    blocks.push(createBlockFromSection(currentSection));
+  }
+  
+  console.log(`[NEWSLETTER PROCESSOR] Created ${blocks.length} blocks from markdown`);
+  return blocks;
+};
+
+const createBlockFromSection = (section: { title: string; content: string[]; isMainHeader: boolean }): any => {
+  const contentText = section.content.join('\n').trim();
+  
+  if (section.isMainHeader) {
+    // Main header becomes a header block
+    return {
+      type: 'header',
+      title: section.title,
+      body: contentText,
+      image_prompt: `garden newsletter header ${section.title.toLowerCase()}`,
+      alt_text: `Header image for ${section.title}`
+    };
+  } else {
+    // Section headers become text blocks
+    return {
+      type: 'text',
+      title: section.title,
+      body: contentText,
+      image_prompt: `garden ${section.title.toLowerCase()}`,
+      alt_text: `Image for ${section.title}`,
+      cta: 'Learn More',
+      link: '#'
+    };
+  }
 };
 
 const createSectionsFromUnstructuredContent = (content: string, campaignTitle?: string): UnstructuredSection[] => {
