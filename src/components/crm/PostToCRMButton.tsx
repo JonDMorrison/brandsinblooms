@@ -40,7 +40,7 @@ export const PostToCRMButton: React.FC<PostToCRMButtonProps> = ({
     const params = new URLSearchParams({
       contentTaskId: task.id,
       title: campaignTitle,
-      content: content.substring(0, 500), // Limit content preview
+      content: content, // Pass full content instead of limiting to 500 chars
       type: 'newsletter'
     });
     

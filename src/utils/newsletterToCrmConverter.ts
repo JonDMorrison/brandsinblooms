@@ -353,36 +353,48 @@ const suggestSegment = (processed: any): string | undefined => {
 };
 
 const createHeaderBlock = async (processed: any): Promise<ContentBlock | null> => {
-  const newsletterMd = processed.newsletter_md || '';
-  
-  // Extract main title using regex (stop at first asterisk to avoid duplication)
-  const titleMatch = newsletterMd.match(/^#\s+([^*\n]+)/m);
-  const title = titleMatch?.[1]?.trim() || 'Garden Newsletter';
-  
-  // Extract subtitle/description (italic text)
-  const subtitleMatch = newsletterMd.match(/\*(.*?)\*/);
-  const subtitle = subtitleMatch?.[1] || 'Expert gardening insights and tips';
-  
-  console.log(`[CRM SYNC] Creating header block with title: "${title}"`);
-  
-  // Fetch header image
-  const headerImagePrompt = `${title} garden newsletter header banner`;
-  const headerImage = await mediaSelector({ 
-    prompt: headerImagePrompt, 
-    fallback: '/images/newsletter-fallback.jpg' 
-  });
-  
-  const headerBlock: ContentBlock = {
-    id: 'header-block',
-    type: 'header',
-    layout: 'full-width',
-    headline: title,
-    body: subtitle,
-    imageUrl: headerImage.url,
-    altText: headerImage.alt,
-    source: 'newsletter'
-  };
-  
-  console.log(`[CRM SYNC] Header image selected:`, headerImage.url);
-  return headerBlock;
+  try {
+    const newsletterMd = processed.newsletter_md || '';
+    
+    // Extract main title using regex (stop at first asterisk to avoid duplication)
+    const titleMatch = newsletterMd.match(/^#\s+([^*\n]+)/m);
+    const title = titleMatch?.[1]?.trim() || 'Garden Newsletter';
+    
+    // Extract subtitle/description (italic text)
+    const subtitleMatch = newsletterMd.match(/\*(.*?)\*/);
+    const subtitle = subtitleMatch?.[1] || 'Expert gardening insights and tips';
+    
+    console.log(`[CRM SYNC] Creating header block with title: "${title}"`);
+    
+    // Fetch header image with error handling
+    let headerImage;
+    try {
+      const headerImagePrompt = `${title} garden newsletter header banner`;
+      headerImage = await mediaSelector({ 
+        prompt: headerImagePrompt, 
+        fallback: '/images/newsletter-fallback.jpg' 
+      });
+    } catch (imageError) {
+      console.warn('[CRM SYNC] Header image fetch failed:', imageError);
+      headerImage = { url: '/images/newsletter-fallback.jpg', alt: 'Newsletter header' };
+    }
+    
+    const headerBlock: ContentBlock = {
+      id: 'header-block',
+      type: 'header',
+      layout: 'full-width',
+      title: title, // Use title instead of headline for consistency
+      headline: title,
+      body: subtitle,
+      imageUrl: headerImage.url,
+      altText: headerImage.alt,
+      source: 'newsletter'
+    };
+    
+    console.log(`[CRM SYNC] Header image selected:`, headerImage.url);
+    return headerBlock;
+  } catch (error) {
+    console.error('[CRM SYNC] Failed to create header block:', error);
+    return null;
+  }
 };

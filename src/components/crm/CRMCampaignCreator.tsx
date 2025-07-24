@@ -51,40 +51,19 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     const content = searchParams.get('content');
     const type = searchParams.get('type');
 
-    // Enhanced debugging for URL parameters
-    console.log('📋 useEffect triggered with dependencies:', { 
+    console.log('📋 useEffect triggered:', { 
       contentTaskId, 
-      campaignSlug, 
-      hasSearchParams: !!searchParams.toString(),
       type,
-      allParams: Object.fromEntries(searchParams.entries()),
-      currentURL: window.location.href,
-      searchString: searchParams.toString(),
-      currentBlocksCount: blocks.length
+      hasContent: !!content,
+      contentLength: content?.length || 0
     });
 
-    // Check if we have newsletter content in URL but missing type parameter
-    if (content && !type && content.includes('newsletter_md')) {
-      console.log('🔄 Detected newsletter content without type parameter, forcing conversion');
-      handleNewsletterConversion(contentTaskId || 'url-based', title || '', content);
-      return;
-    }
-
-    if (contentTaskId && type === 'newsletter') {
-      console.log('🔄 Auto-populating from newsletter content', { contentTaskId, campaignSlug });
+    // Simplified condition - if we have contentTaskId and type is newsletter, convert
+    if (contentTaskId && type === 'newsletter' && !converting && blocks.length === 0) {
+      console.log('🔄 Starting newsletter conversion');
       handleNewsletterConversion(contentTaskId, title || '', content || '');
-    } else if (content && content.includes('newsletter_md')) {
-      console.log('🔄 Auto-populating from URL newsletter content without contentTaskId');
-      handleNewsletterConversion('url-content', title || '', content);
-    } else {
-      console.log('❌ No newsletter conversion conditions met:', { 
-        hasContentTaskId: !!contentTaskId, 
-        type, 
-        hasContent: !!content, 
-        contentIncludesNewsletter: content?.includes('newsletter_md') 
-      });
     }
-  }, [searchParams, finalContentTaskId, campaignSlug]);
+  }, [searchParams, finalContentTaskId, campaignSlug, converting, blocks.length]);
 
   // Additional useEffect to monitor blocks changes
   useEffect(() => {
@@ -96,6 +75,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   }, [blocks]);
 
   const handleNewsletterConversion = async (contentTaskId: string, title: string, urlContent: string) => {
+    if (converting) return; // Prevent multiple conversions
+    
     setConverting(true);
     
     try {
@@ -103,29 +84,37 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       
       let fullContent = urlContent;
       
-      // Only fetch from database if contentTaskId is a valid UUID
-      if (contentTaskId && !['url-based', 'url-content'].includes(contentTaskId) && urlContent.length < 1000) {
+      // Always try to fetch from database for valid UUID
+      if (contentTaskId && contentTaskId.length === 36 && contentTaskId.includes('-')) {
         console.log('🔍 Fetching full content from database for contentTaskId:', contentTaskId);
-        const { data: contentTask, error } = await supabase
-          .from('content_tasks')
-          .select('ai_output')
-          .eq('id', contentTaskId)
-          .single();
-        
-        if (!error && contentTask?.ai_output) {
-          fullContent = contentTask.ai_output;
-          console.log('✅ Retrieved full content from database');
-        } else {
-          console.log('⚠️ Could not fetch from database, using URL content');
+        try {
+          const { data: contentTask, error } = await supabase
+            .from('content_tasks')
+            .select('ai_output')
+            .eq('id', contentTaskId)
+            .single();
+          
+          if (!error && contentTask?.ai_output) {
+            fullContent = contentTask.ai_output;
+            console.log('✅ Retrieved full content from database');
+          }
+        } catch (dbError) {
+          console.log('⚠️ Database fetch failed, using URL content:', dbError);
         }
-      } else {
-        console.log('🔄 Using URL content directly (no database fetch needed)');
       }
       
-      console.log('🔄 Using newsletter content:', fullContent.substring(0, 200) + '...');
+      if (!fullContent) {
+        throw new Error('No content available for conversion');
+      }
+      
+      console.log('🔄 Converting content (length:', fullContent.length, ')');
       
       // Use the enhanced newsletter conversion system with layout and images
       const result = await convertNewsletterToCRM(contentTaskId || 'url-content', title, fullContent);
+      
+      if (!result.blocks || result.blocks.length === 0) {
+        throw new Error('Conversion resulted in no blocks');
+      }
       
       // Pre-fill campaign settings
       setCampaignName(result.campaignName);
@@ -133,39 +122,36 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       setPreheaderText('Expert gardening tips delivered to your inbox');
       
       // Set blocks with layout and images
-      const crmBlocks = result.blocks || [];
-      console.log('🔍 CRM Conversion Result:', {
-        campaignName: result.campaignName,
-        blockCount: crmBlocks.length,
-        blocks: crmBlocks.map(b => ({ 
-          type: b.type, 
-          id: b.id, 
-          title: b.title, 
-          layout: b.layout,
-          hasImage: !!b.imageUrl
-        }))
-      });
+      const crmBlocks = result.blocks;
+      console.log('✅ Newsletter converted to', crmBlocks.length, 'blocks');
       
-      console.log('🔍 Setting blocks in state:', { 
-        crmBlocksLength: crmBlocks.length, 
-        currentBlocksLength: blocks.length,
-        aboutToSet: crmBlocks.map(b => ({ id: b.id, type: b.type, title: b.title }))
-      });
       setBlocks(crmBlocks);
-      console.log('✅ Blocks should now be set in state');
-      
-      console.log('✅ Newsletter converted to', crmBlocks.length, 'blocks with layouts and images');
       
       toast({
         title: "Newsletter Converted!",
-        description: `Converted newsletter into ${crmBlocks.length} email blocks with layouts and images.`
+        description: `Converted newsletter into ${crmBlocks.length} email blocks.`
       });
       
     } catch (error) {
-      console.error('Error converting newsletter:', error);
+      console.error('❌ Newsletter conversion failed:', error);
+      
+      // Create fallback block so user isn't stuck
+      const fallbackBlock: ContentBlock = {
+        id: 'fallback-block',
+        type: 'text',
+        layout: 'full-width',
+        title: 'Newsletter Content',
+        content: 'Your newsletter content will appear here. You can edit this block or add new ones below.',
+        source: 'manual'
+      };
+      
+      setBlocks([fallbackBlock]);
+      setCampaignName(title || 'Newsletter Campaign');
+      setSubjectLine('Your Newsletter Update');
+      
       toast({
-        title: "Conversion Error",
-        description: "Failed to convert newsletter content. Please try again.",
+        title: "Conversion Issue",
+        description: "Created a basic template. Please edit the content as needed.",
         variant: "destructive"
       });
     } finally {
