@@ -25,6 +25,19 @@ export const convertNewsletterToCRM = (
   try {
     if (newsletterContent.includes('%')) {
       decodedContent = decodeURIComponent(newsletterContent);
+      
+      // Fix line breaks that may have been lost during URL encoding
+      decodedContent = decodedContent
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        // Fix pipe syntax when content is on same line
+        .replace(/newsletter_md:\s*\|\s*#/, 'newsletter_md: |\n  #')
+        // Add line breaks before major YAML sections
+        .replace(/(\w)\s+(blocks:|meta:|extra_content_ideas:)/g, '$1\n\n$2')
+        // Ensure proper indentation for blocks
+        .replace(/blocks:\s*-\s*title:/g, 'blocks:\n  - title:')
+        // Fix spacing around sections
+        .replace(/(\w)\s*(newsletter_md:|blocks:|meta:)/g, '$1\n\n$2');
     }
   } catch (error) {
     console.log('[NEWSLETTER TO CRM] Failed to decode URL content, using original');

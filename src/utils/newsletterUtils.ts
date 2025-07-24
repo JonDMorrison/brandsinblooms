@@ -30,11 +30,23 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
     console.log('[YAML PARSER] Starting to parse newsletter YAML content, length:', yamlContent.length);
     console.log('[YAML PARSER] Content preview:', yamlContent.substring(0, 500));
     
-    // Decode URL-encoded content first
+    // Decode URL-encoded content first and fix line breaks
     let decodedContent = yamlContent;
     try {
       decodedContent = decodeURIComponent(yamlContent);
-      console.log('[YAML PARSER] URL decoded content preview:', decodedContent.substring(0, 500));
+      
+      // Fix line breaks that were lost or malformed during encoding
+      decodedContent = decodedContent
+        .replace(/\\n/g, '\n')
+        .replace(/\\r/g, '\r')
+        // Fix the critical pipe syntax issue - move inline content to next line
+        .replace(/newsletter_md:\s*\|\s*(.+)/g, (match, content) => {
+          return `newsletter_md: |\n  ${content}`;
+        })
+        // Ensure proper spacing between sections
+        .replace(/(\w)\s+(blocks:|meta:|extra_content_ideas:)/g, '$1\n\n$2');
+        
+      console.log('[YAML PARSER] Fixed line breaks and pipe syntax, preview:', decodedContent.substring(0, 500));
     } catch (e) {
       console.log('[YAML PARSER] Content was not URL encoded, using original');
     }
@@ -80,17 +92,28 @@ export const parseNewsletterYAML = (yamlContent: string): StructuredNewsletter |
           console.log('[YAML PARSER] Processing newsletter_md section, firstLine:', firstLine);
           
           if (firstLine.includes('|')) {
-            // Multi-line content with pipe syntax - content starts from next line
-            const contentLines = lines.slice(1);
-            result.newsletter_md = contentLines.join('\n').trim();
-            console.log('[YAML PARSER] Found newsletter_md with pipe syntax, length:', result.newsletter_md.length);
+            // Check if content is on the same line as the pipe
+            const pipeIndex = firstLine.indexOf('|');
+            const contentAfterPipe = firstLine.substring(pipeIndex + 1).trim();
+            
+            if (contentAfterPipe) {
+              // Content is on the same line as pipe - use it plus any following lines
+              const followingLines = lines.slice(1).filter(line => line.trim());
+              result.newsletter_md = [contentAfterPipe, ...followingLines].join('\n').trim();
+              console.log('[YAML PARSER] Found newsletter_md with inline pipe content, length:', result.newsletter_md.length);
+            } else {
+              // Multi-line content with pipe syntax - content starts from next line
+              const contentLines = lines.slice(1).filter(line => line.trim());
+              result.newsletter_md = contentLines.join('\n').trim();
+              console.log('[YAML PARSER] Found newsletter_md with pipe syntax, length:', result.newsletter_md.length);
+            }
             console.log('[YAML PARSER] First 200 chars:', result.newsletter_md.substring(0, 200));
           } else {
             // Check if the entire line after 'newsletter_md:' contains pipe
             const afterColon = firstLine.substring(firstLine.indexOf(':') + 1).trim();
             if (afterColon === '|') {
               // Multi-line content starts from next line
-              const contentLines = lines.slice(1);
+              const contentLines = lines.slice(1).filter(line => line.trim());
               result.newsletter_md = contentLines.join('\n').trim();
               console.log('[YAML PARSER] Found newsletter_md with pipe on next line, length:', result.newsletter_md.length);
             } else {
