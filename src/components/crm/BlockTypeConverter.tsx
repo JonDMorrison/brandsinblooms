@@ -111,9 +111,12 @@ const preserveContentDuringTypeChange = (block: ContentBlock, newType: BlockType
       break;
       
     case 'image':
-      preserved.imageUrl = block.imageUrl || '';
       preserved.title = block.title || '';
       preserved.content = block.content || '';
+      preserved.imageUrl = block.imageUrl || '';
+      preserved.altText = block.altText || '';
+      preserved.ctaText = block.ctaText || 'Learn More';
+      preserved.ctaUrl = block.ctaUrl || '#';
       break;
       
     case 'button':
@@ -148,9 +151,17 @@ const preserveContentDuringLayoutChange = (
   // Keep all existing content but ensure it's compatible with new type
   const preserved = preserveContentDuringTypeChange(block, newType);
   
-  // Preserve layout-specific settings
+  // Preserve ALL content fields during layout changes
   return {
     ...preserved,
+    // Always preserve these core content fields
+    title: block.title || preserved.title,
+    content: block.content || preserved.content,
+    imageUrl: block.imageUrl || preserved.imageUrl,
+    altText: block.altText || preserved.altText,
+    ctaText: block.ctaText || preserved.ctaText,
+    ctaUrl: block.ctaUrl || preserved.ctaUrl,
+    // Layout-specific settings
     alignment: block.alignment || 'left',
     padding: block.padding || 'medium',
     margin: block.margin || 'medium',

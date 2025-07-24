@@ -3,6 +3,7 @@ import React from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Upload, Eye, Image as ImageIcon } from 'lucide-react';
@@ -92,6 +93,27 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
       {/* Editor Fields */}
       <div className="space-y-4">
         <div>
+          <Label htmlFor="title">Title</Label>
+          <Input
+            id="title"
+            value={block.title || ''}
+            onChange={(e) => updateField('title', e.target.value)}
+            placeholder="Enter block title..."
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="content">Content</Label>
+          <Textarea
+            id="content"
+            value={block.content || ''}
+            onChange={(e) => updateField('content', e.target.value)}
+            placeholder="Enter block content..."
+            rows={4}
+          />
+        </div>
+
+        <div>
           <Label htmlFor="imageUrl">Image URL *</Label>
           <div className="flex gap-2">
             <Input
@@ -117,12 +139,22 @@ export const ImageBlockEditor: React.FC<ImageBlockEditorProps> = ({
         </div>
 
         <div>
-          <Label htmlFor="caption">Caption</Label>
+          <Label htmlFor="ctaText">Call to Action Button</Label>
           <Input
-            id="caption"
-            value={block.caption || ''}
-            onChange={(e) => updateField('caption', e.target.value)}
-            placeholder="Optional image caption..."
+            id="ctaText"
+            value={block.ctaText || ''}
+            onChange={(e) => updateField('ctaText', e.target.value)}
+            placeholder="Learn More"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="ctaUrl">Button URL</Label>
+          <Input
+            id="ctaUrl"
+            value={block.ctaUrl || ''}
+            onChange={(e) => updateField('ctaUrl', e.target.value)}
+            placeholder="https://example.com"
           />
         </div>
       </div>
