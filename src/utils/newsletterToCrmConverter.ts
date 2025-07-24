@@ -142,6 +142,13 @@ const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: str
   
   console.log('[CRM SYNC] Converting newsletter to CRM blocks with layouts and images');
   
+  // Create header block from newsletter title and subtitle
+  const headerBlock = await createHeaderBlock(processed);
+  if (headerBlock) {
+    blocks.push(headerBlock);
+    console.log(`[CRM SYNC] Created header block: ${headerBlock.title}`);
+  }
+  
   // Process structured blocks if available
   if (processed.blocks && processed.blocks.length > 0) {
     console.log(`[CRM SYNC] Processing ${processed.blocks.length} structured blocks`);
@@ -343,4 +350,41 @@ const suggestSegment = (processed: any): string | undefined => {
   }
   
   return undefined;
+};
+
+const createHeaderBlock = async (processed: any): Promise<ContentBlock | null> => {
+  const newsletterMd = processed.newsletter_md || '';
+  
+  // Extract main title using regex
+  const titleMatch = newsletterMd.match(/^#\s+(.+)$/m);
+  const title = titleMatch?.[1] || 'Garden Newsletter';
+  
+  // Extract subtitle/description (italic text)
+  const subtitleMatch = newsletterMd.match(/\*(.*?)\*/);
+  const subtitle = subtitleMatch?.[1] || 'Expert gardening insights and tips';
+  
+  console.log(`[CRM SYNC] Creating header block with title: "${title}"`);
+  
+  // Fetch header image
+  const headerImagePrompt = `${title} garden newsletter header banner`;
+  const headerImage = await mediaSelector({ 
+    prompt: headerImagePrompt, 
+    fallback: '/images/newsletter-fallback.jpg' 
+  });
+  
+  const headerBlock: ContentBlock = {
+    id: 'header-block',
+    type: 'header',
+    layout: 'full-width',
+    title: title,
+    content: subtitle,
+    headline: title,
+    body: subtitle,
+    imageUrl: headerImage.url,
+    altText: headerImage.alt,
+    source: 'newsletter'
+  };
+  
+  console.log(`[CRM SYNC] Header image selected:`, headerImage.url);
+  return headerBlock;
 };
