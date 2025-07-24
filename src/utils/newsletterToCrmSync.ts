@@ -20,24 +20,40 @@ export const convertNewsletterToCRM = (
 ): NewsletterToCRMConversion => {
   console.log('[NEWSLETTER TO CRM] Converting newsletter to CRM format');
   
-  // URL decode the content if it comes from URL parameters
+  // Enhanced URL decode and YAML structure preprocessing
   let decodedContent = newsletterContent;
   try {
     if (newsletterContent.includes('%')) {
       decodedContent = decodeURIComponent(newsletterContent);
+      console.log('[NEWSLETTER TO CRM] URL decoded, length:', decodedContent.length);
       
-      // Fix line breaks that may have been lost during URL encoding
+      // Comprehensive YAML structure fixes
       decodedContent = decodedContent
         .replace(/\\n/g, '\n')
         .replace(/\\r/g, '\r')
-        // Fix pipe syntax when content is on same line
-        .replace(/newsletter_md:\s*\|\s*#/, 'newsletter_md: |\n  #')
-        // Add line breaks before major YAML sections
+        .replace(/\+/g, ' ')
+        // Critical fix: Handle newsletter_md pipe syntax with inline content
+        .replace(/newsletter_md:\s*\|\s*(.+?)(\s+##|\s+blocks:|\s+meta:|\s+extra_content_ideas:|$)/gs, (match, content, ending) => {
+          // Split content and ensure proper indentation
+          const lines = content.split(/(?=\s*##\s+)/g);
+          const indentedContent = lines
+            .map(line => line.trim())
+            .filter(line => line)
+            .map(line => `  ${line}`)
+            .join('\n');
+          
+          return `newsletter_md: |\n${indentedContent}${ending ? '\n' + ending.trim() : ''}`;
+        })
+        // Fix blocks section structure
         .replace(/(\w)\s+(blocks:|meta:|extra_content_ideas:)/g, '$1\n\n$2')
-        // Ensure proper indentation for blocks
+        // Handle inline blocks that may be malformed
         .replace(/blocks:\s*-\s*title:/g, 'blocks:\n  - title:')
-        // Fix spacing around sections
+        // Fix block field spacing
+        .replace(/(\w+):\s*"([^"]*?)"\s*(\w+):/g, '$1: "$2"\n    $3:')
+        // Ensure proper line breaks between major sections
         .replace(/(\w)\s*(newsletter_md:|blocks:|meta:)/g, '$1\n\n$2');
+        
+      console.log('[NEWSLETTER TO CRM] YAML preprocessing complete, preview:', decodedContent.substring(0, 300));
     }
   } catch (error) {
     console.log('[NEWSLETTER TO CRM] Failed to decode URL content, using original');
@@ -48,12 +64,13 @@ export const convertNewsletterToCRM = (
   console.log('[NEWSLETTER TO CRM] Content preview for YAML parsing:', decodedContent.substring(0, 300));
   const parsedNewsletter = parseNewsletterYAML(decodedContent);
   
-  console.log('[NEWSLETTER TO CRM] YAML parse result:', parsedNewsletter ? 'SUCCESS' : 'FAILED');
+  console.log('[NEWSLETTER TO CRM] YAML parse result:', parsedNewsletter ? '✅ SUCCESS' : '❌ FAILED');
   if (parsedNewsletter) {
-    console.log('[NEWSLETTER TO CRM] YAML parsed blocks:', parsedNewsletter.blocks.length);
-    console.log('[NEWSLETTER TO CRM] YAML block titles:', parsedNewsletter.blocks.map(b => b.title));
+    console.log('[NEWSLETTER TO CRM] ✅ YAML parsed blocks:', parsedNewsletter.blocks?.length || 0);
+    console.log('[NEWSLETTER TO CRM] ✅ YAML block titles:', parsedNewsletter.blocks?.map(b => b.title) || []);
+    console.log('[NEWSLETTER TO CRM] ✅ Newsletter MD length:', parsedNewsletter.newsletter_md?.length || 0);
   } else {
-    console.log('[NEWSLETTER TO CRM] YAML parsing failed, will use fallback processing');
+    console.log('[NEWSLETTER TO CRM] ❌ YAML parsing failed, will use fallback processing');
   }
   
   let processedNewsletter;
@@ -145,11 +162,12 @@ export const convertNewsletterToCRM = (
       contentBlocks.push(contentBlock);
     });
   } else {
-    console.log('[NEWSLETTER TO CRM] No valid blocks found in processedNewsletter, creating blocks from markdown content');
-    // Extract sections from newsletter markdown content
+    console.log('[NEWSLETTER TO CRM] ❌ No valid blocks found in processedNewsletter, using intelligent fallback');
+    
+    // Enhanced fallback: Try to extract from newsletter_md content
     if (processedNewsletter.newsletter_md) {
       const { sections } = extractNewsletterSections(processedNewsletter.newsletter_md);
-      console.log('[NEWSLETTER TO CRM] Extracted sections from markdown:', sections.length);
+      console.log('[NEWSLETTER TO CRM] ✅ Extracted', sections.length, 'sections from markdown fallback');
       
       sections.forEach((section, index) => {
         contentBlocks.push({
@@ -164,16 +182,49 @@ export const convertNewsletterToCRM = (
           visible: true,
           animation: 'fade-in' as const
         });
+        console.log(`[NEWSLETTER TO CRM] ✅ Created section block: ${section.title}`);
       });
     }
     
-    // If still no blocks, create a single fallback block
+    // Aggressive fallback: Split the entire content by ## headers if markdown extraction failed
     if (contentBlocks.length === 1) { // Only header exists
+      console.log('[NEWSLETTER TO CRM] ⚠️ Markdown fallback failed, trying aggressive text splitting');
+      
+      // Split by ## pattern
+      const headerSections = decodedContent.split(/##\s+/);
+      if (headerSections.length > 1) {
+        headerSections.slice(1).forEach((section, index) => {
+          const lines = section.split('\n');
+          const title = lines[0]?.trim() || `Section ${index + 1}`;
+          const content = lines.slice(1).join('\n').trim();
+          
+          if (content) {
+            contentBlocks.push({
+              id: `split-${Date.now()}-${index}`,
+              type: 'text' as const,
+              title: title,
+              content: content.substring(0, 1000), // Limit content length
+              alignment: 'left' as const,
+              padding: 'medium' as const,
+              source: 'newsletter' as const,
+              collapsed: false,
+              visible: true,
+              animation: 'fade-in' as const
+            });
+            console.log(`[NEWSLETTER TO CRM] ✅ Created split block: ${title}`);
+          }
+        });
+      }
+    }
+    
+    // Last resort fallback
+    if (contentBlocks.length === 1) { // Only header exists
+      console.log('[NEWSLETTER TO CRM] ⚠️ All fallbacks failed, creating single content block');
       contentBlocks.push({
         id: `fallback-${Date.now()}`,
         type: 'text' as const,
         title: 'Newsletter Content',
-        content: decodedContent.substring(0, 500) + '...',
+        content: decodedContent.substring(0, 1000) + (decodedContent.length > 1000 ? '...' : ''),
         alignment: 'left' as const,
         padding: 'medium' as const,
         source: 'newsletter' as const,
@@ -184,12 +235,21 @@ export const convertNewsletterToCRM = (
     }
   }
   
-  console.log('[NEWSLETTER TO CRM] Conversion complete:', {
-    blocksCount: contentBlocks.length,
+  console.log('[NEWSLETTER TO CRM] ✅ Conversion complete:', {
+    totalBlocks: contentBlocks.length,
+    blockTypes: contentBlocks.map(b => b.type),
+    blockTitles: contentBlocks.map(b => b.type === 'header' ? b.headline : b.title),
     personaTags: personaTags.length,
     segments: segments.length,
     images: images.length
   });
+  
+  // Final validation
+  if (contentBlocks.length < 2) {
+    console.warn('[NEWSLETTER TO CRM] ⚠️ WARNING: Only', contentBlocks.length, 'blocks created - expected 4+');
+  } else {
+    console.log('[NEWSLETTER TO CRM] ✅ SUCCESS: Created', contentBlocks.length, 'blocks from newsletter');
+  }
   
   return {
     campaignTitle: campaignTitle || processedNewsletter.meta.week_focus,

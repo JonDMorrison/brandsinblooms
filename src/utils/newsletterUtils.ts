@@ -251,83 +251,120 @@ const parseNewsletterManually = (content: string): StructuredNewsletter | null =
 const parseBlocksManually = (blockContent: string): NewsletterBlock[] => {
   const blocks: NewsletterBlock[] = [];
   
-  console.log('[YAML PARSER] Raw block content for manual parsing:', blockContent);
+  console.log('[YAML PARSER] 🔍 Raw block content for manual parsing (length:', blockContent.length, ')');
+  console.log('[YAML PARSER] 📋 Content preview:', blockContent.substring(0, 500));
   
-  // More flexible splitting - handle various block formats
-  const blockItems = blockContent.split(/(?=^\s*-\s)/m).filter(item => item.trim());
+  // Enhanced splitting - handle multiple block formats
+  let blockItems: string[] = [];
   
-  // If no block items found with standard splitting, try alternative approach
+  // Method 1: Standard YAML list splitting
+  blockItems = blockContent.split(/(?=^\s*-\s)/m).filter(item => item.trim());
+  console.log('[YAML PARSER] 📊 Method 1 (standard split) found:', blockItems.length, 'items');
+  
+  // Method 2: Try splitting by title: pattern if standard fails
   if (blockItems.length === 0) {
-    console.log('[YAML PARSER] No blocks found with standard splitting, trying alternative parsing');
-    // Try to parse as a single line with multiple fields
-    const singleLineMatch = blockContent.match(/title:\s*"([^"]*)".*?body:\s*"([^"]*)".*?(?:cta:\s*"([^"]*)")?.*?(?:link:\s*"([^"]*)")?/s);
-    if (singleLineMatch) {
-      blocks.push({
-        title: singleLineMatch[1] || '',
-        body: singleLineMatch[2] || '',
-        cta: singleLineMatch[3] || 'Learn More',
-        link: singleLineMatch[4] || '#',
-        image_prompt: '',
-        alt_text: ''
-      });
-      console.log('[YAML PARSER] Parsed 1 block from single line format');
+    blockItems = blockContent.split(/(?=\s*title:\s*")/g).filter(item => item.trim() && item.includes('title:'));
+    console.log('[YAML PARSER] 📊 Method 2 (title split) found:', blockItems.length, 'items');
+  }
+  
+  // Method 3: Try inline parsing for severely malformed blocks
+  if (blockItems.length === 0) {
+    console.log('[YAML PARSER] 🔄 Trying inline parsing for malformed blocks');
+    
+    // Look for title/body patterns in the entire content
+    const titleMatches = Array.from(blockContent.matchAll(/title:\s*"([^"]*?)"/g));
+    const bodyMatches = Array.from(blockContent.matchAll(/body:\s*"([^"]*?)"/g));
+    
+    console.log('[YAML PARSER] 📋 Found', titleMatches.length, 'titles and', bodyMatches.length, 'bodies');
+    
+    if (titleMatches.length > 0 && bodyMatches.length > 0) {
+      const maxBlocks = Math.min(titleMatches.length, bodyMatches.length);
+      for (let i = 0; i < maxBlocks; i++) {
+        blocks.push({
+          title: titleMatches[i][1] || '',
+          body: bodyMatches[i][1] || '',
+          cta: 'Learn More',
+          link: '#',
+          image_prompt: `${titleMatches[i][1]} garden newsletter`,
+          alt_text: `Image for ${titleMatches[i][1]}`
+        });
+      }
+      console.log('[YAML PARSER] ✅ Parsed', blocks.length, 'blocks using inline method');
       return blocks;
     }
   }
   
+  // Process each block item with enhanced parsing
   blockItems.forEach((item, index) => {
-    console.log(`[YAML PARSER] Parsing block ${index + 1}:`, item.substring(0, 200));
+    console.log(`[YAML PARSER] 🔍 Processing block ${index + 1}:`, item.substring(0, 200));
     
     const block: any = {};
     
-    // Extract all field:value pairs from the block, handling quoted values
-    const fieldMatches = item.matchAll(/(\w+):\s*"([^"]*?)"/g);
-    for (const match of fieldMatches) {
+    // Enhanced field extraction with multiple patterns
+    // Pattern 1: Quoted values
+    const quotedMatches = item.matchAll(/(\w+):\s*"([^"]*?)"/g);
+    for (const match of quotedMatches) {
       const [, key, value] = match;
-      if (['title', 'body', 'cta', 'link', 'image_prompt', 'alt_text', 'type'].includes(key)) {
+      if (['title', 'body', 'content', 'cta', 'link', 'image_prompt', 'alt_text', 'type'].includes(key)) {
         block[key] = value;
-        console.log(`[YAML PARSER] Extracted ${key}: ${value.substring(0, 50)}...`);
+        console.log(`[YAML PARSER] ✅ Extracted ${key}: ${value.substring(0, 50)}...`);
       }
     }
     
-    // Fallback: try without quotes
+    // Pattern 2: Unquoted values (fallback)
     if (Object.keys(block).length === 0) {
+      console.log('[YAML PARSER] 🔄 Trying unquoted pattern matching');
       const lines = item.split('\n').map(line => line.trim()).filter(line => line);
+      
       lines.forEach(line => {
+        // Remove list marker
         if (line.startsWith('- ') || line.startsWith('-\t')) {
           line = line.substring(1).trim();
         }
         
-        const [key, ...valueParts] = line.split(':');
-        if (key && valueParts.length > 0) {
-          const value = valueParts.join(':').trim().replace(/^["']|["']$/g, '');
-          const cleanKey = key.trim();
+        const colonIndex = line.indexOf(':');
+        if (colonIndex > 0) {
+          const key = line.substring(0, colonIndex).trim();
+          const value = line.substring(colonIndex + 1).trim().replace(/^["']|["']$/g, '');
           
-          if (['title', 'body', 'cta', 'link', 'image_prompt', 'alt_text', 'type'].includes(cleanKey)) {
-            block[cleanKey] = value;
+          if (['title', 'body', 'content', 'cta', 'link', 'image_prompt', 'alt_text', 'type'].includes(key)) {
+            block[key] = value;
+            console.log(`[YAML PARSER] ✅ Unquoted ${key}: ${value.substring(0, 50)}...`);
           }
         }
       });
     }
     
-    // Only add block if it has at least title and body
-    if (block.title && block.body) {
-      blocks.push({
+    // Use 'content' as fallback for 'body' if available
+    if (!block.body && block.content) {
+      block.body = block.content;
+      console.log('[YAML PARSER] ✅ Used content field as body');
+    }
+    
+    // Enhanced validation and block creation
+    if (block.title && (block.body || block.content)) {
+      const newBlock = {
         title: block.title || '',
-        body: block.body || '',
+        body: block.body || block.content || '',
         cta: block.cta || 'Learn More',
         link: block.link || '#',
         image_prompt: block.image_prompt || `${block.title} garden newsletter`,
         alt_text: block.alt_text || `Image for ${block.title}`
-      });
-      console.log(`[YAML PARSER] Successfully parsed block: ${block.title}`);
+      };
+      
+      blocks.push(newBlock);
+      console.log(`[YAML PARSER] ✅ Successfully created block: "${newBlock.title}"`);
     } else {
-      console.log(`[YAML PARSER] Skipping incomplete block - title: ${!!block.title}, body: ${!!block.body}`);
-      console.log(`[YAML PARSER] Block data:`, block);
+      console.log(`[YAML PARSER] ❌ Skipping incomplete block - title: ${!!block.title}, body: ${!!(block.body || block.content)}`);
+      console.log('[YAML PARSER] 📋 Available fields:', Object.keys(block));
+      console.log('[YAML PARSER] 📋 Raw item content:', item);
     }
   });
   
-  console.log(`[YAML PARSER] Parsed ${blocks.length} blocks manually`);
+  console.log(`[YAML PARSER] ✅ Manual parsing complete: ${blocks.length} blocks extracted`);
+  if (blocks.length > 0) {
+    console.log('[YAML PARSER] 📋 Block titles:', blocks.map(b => b.title));
+  }
   return blocks;
 };
 
