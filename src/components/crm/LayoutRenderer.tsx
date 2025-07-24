@@ -102,7 +102,7 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
   );
 
   const renderLayoutComponent = () => {
-    // Map layout types to appropriate templates based on both layout and type
+    // Prioritize layout over type for rendering decisions
     if (block.layout === 'two-column-left') {
       return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
     } else if (block.layout === 'two-column-right') {
@@ -110,10 +110,11 @@ export const LayoutRenderer: React.FC<LayoutRendererProps> = ({
     } else if (block.type === 'header') {
       // Headers get centered single column layout
       return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
-    } else if (block.type === 'image') {
-      return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
     } else if (block.type === 'button') {
       return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
+    } else if (block.type === 'image') {
+      // Default image layout (image-left) for image blocks without explicit layout
+      return <Layout1 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;
     } else {
       // Default text layout
       return <Layout6 block={block} className={styleClasses} editable={editable} onUpdate={onUpdate} />;

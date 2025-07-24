@@ -157,7 +157,7 @@ const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: str
     const newsletterBlocks = processed.blocks.map((block: any, index: number) => {
       const contentBlock: ContentBlock = {
         id: `block-${index}`,
-        type: 'text',
+        type: 'image', // Changed to 'image' since these blocks have images
         layout: 'two-column-right', // Assign text-left-image-right layout
         title: block.title || '',
         content: block.body || '',
@@ -194,7 +194,7 @@ const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: str
     const sectionBlocks = processed.unstructuredSections.map((section: any, index: number) => {
       const contentBlock: ContentBlock = {
         id: `section-${index}`,
-        type: 'text',
+        type: 'image', // Changed to 'image' since these blocks have images
         layout: 'two-column-right',
         title: section.title || '',
         content: section.content || '',

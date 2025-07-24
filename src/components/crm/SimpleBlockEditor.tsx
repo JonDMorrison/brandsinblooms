@@ -17,6 +17,7 @@ import { ButtonBlockEditor } from './blocks/ButtonBlockEditor';
 import { TextBlockEditor } from './blocks/TextBlockEditor';
 import { DividerBlockEditor } from './blocks/DividerBlockEditor';
 import { ProductBlockEditor } from './blocks/ProductBlockEditor';
+import { BlockTypeConverter } from './BlockTypeConverter';
 
 interface SimpleBlockEditorProps {
   block: ContentBlock;
@@ -182,7 +183,8 @@ export const SimpleBlockEditor: React.FC<SimpleBlockEditorProps> = ({
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="border-t bg-muted/20 p-6">
+        <div className="border-t bg-muted/20 p-6 space-y-4">
+          <BlockTypeConverter block={block} onUpdate={handleUpdate} />
           {renderSpecializedEditor()}
         </div>
       )}
