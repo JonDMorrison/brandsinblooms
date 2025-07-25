@@ -124,12 +124,45 @@ const isValidUrl = (url: string): boolean => {
 };
 
 export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentBlock[] => {
+  console.log('🔄 Converting newsletter blocks to CRM format:', {
+    totalBlocks: processedNewsletter.blocks?.length || 0,
+    blocks: processedNewsletter.blocks?.map((b: any, i: number) => ({
+      index: i,
+      type: b.type,
+      title: b.title,
+      hasImageUrl: !!b.image_url,
+      hasImagePrompt: !!b.image_prompt,
+      hasCta: !!b.cta,
+      hasLink: !!b.link
+    }))
+  });
+
   const crmBlocks: ContentBlock[] = [];
 
   processedNewsletter.blocks.forEach((block: any, index: number) => {
-    // Determine if this should be an image-text block
-    const hasImage = block.image_url || block.image_prompt;
-    const blockType = hasImage && (block.type === 'text' || !block.type) ? 'image-text' : mapBlockTypeToCRM(block.type);
+    // Check if block has image content (URL or prompt)
+    const hasImage = !!(block.image_url || block.image_prompt);
+    const hasText = !!(block.title || block.body);
+    
+    // Force blocks with images to be image-text type regardless of original type
+    let blockType: string;
+    if (hasImage && hasText) {
+      blockType = 'image-text';
+    } else if (hasImage && !hasText) {
+      blockType = 'image';
+    } else {
+      blockType = mapBlockTypeToCRM(block.type);
+    }
+    
+    console.log(`📝 Block ${index + 1}:`, {
+      originalType: block.type,
+      convertedType: blockType,
+      hasImage,
+      hasText,
+      title: block.title?.substring(0, 50),
+      imageUrl: block.image_url,
+      imagePrompt: block.image_prompt
+    });
     
     const crmBlock: ContentBlock = {
       id: `block-${index}`,
