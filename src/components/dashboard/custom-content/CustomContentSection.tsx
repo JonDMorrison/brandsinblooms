@@ -174,46 +174,52 @@ export const CustomContentSection = ({
 
       <div className="space-y-4">
         {campaigns.map(campaign => (
-          <Card key={campaign.id} className="bg-white border-gray-200">
-            <CardHeader className="px-4 py-3 flex items-center justify-between">
-              <CardTitle className="text-lg font-semibold">{campaign.title}</CardTitle>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                  {expandedCampaigns.has(campaign.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  <span className="sr-only">Toggle</span>
-                </Button>
-              </CollapsibleTrigger>
-            </CardHeader>
-            <CollapsibleContent className="pl-4 pr-2">
-              <CardContent className="py-2 space-y-2">
-                <div className="text-sm text-muted-foreground">{campaign.description}</div>
-                <Separator />
-                <div className="flex items-center space-x-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Start Date: {formatDate(campaign.start_date)}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Theme: {campaign.theme || 'Not specified'}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Created: {format(new Date(campaign.created_at), 'MMMM d, yyyy')}</span>
-                </div>
-                {campaign.tenant_id && (
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Tenant ID: {campaign.tenant_id}</span>
-                  </div>
-                )}
-                <div className="flex justify-end pt-4">
-                  <Button variant="outline" size="sm" onClick={() => toggleCampaignExpansion(campaign.id)}>
-                    Manage Content
+          <Collapsible 
+            key={campaign.id} 
+            open={expandedCampaigns.has(campaign.id)} 
+            onOpenChange={() => toggleCampaignExpansion(campaign.id)}
+          >
+            <Card className="bg-white border-gray-200">
+              <CardHeader className="px-4 py-3 flex items-center justify-between">
+                <CardTitle className="text-lg font-semibold">{campaign.title}</CardTitle>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                    {expandedCampaigns.has(campaign.id) ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    <span className="sr-only">Toggle</span>
                   </Button>
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
+                </CollapsibleTrigger>
+              </CardHeader>
+              <CollapsibleContent className="pl-4 pr-2">
+                <CardContent className="py-2 space-y-2">
+                  <div className="text-sm text-muted-foreground">{campaign.description}</div>
+                  <Separator />
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Start Date: {formatDate(campaign.start_date)}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Target className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Theme: {campaign.theme || 'Not specified'}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Created: {format(new Date(campaign.created_at), 'MMMM d, yyyy')}</span>
+                  </div>
+                  {campaign.tenant_id && (
+                    <div className="flex items-center space-x-2">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Tenant ID: {campaign.tenant_id}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-end pt-4">
+                    <Button variant="outline" size="sm" onClick={() => toggleCampaignExpansion(campaign.id)}>
+                      Manage Content
+                    </Button>
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         ))}
       </div>
 
