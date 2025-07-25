@@ -140,7 +140,16 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   console.error('[MediaSelector] Image failed to load:', selectedImageUrl);
-                  e.currentTarget.src = '/images/newsletter-fallback.jpg';
+                  const currentSrc = e.currentTarget.src;
+                  const fallbackPath = '/images/newsletter-fallback.jpg';
+                  
+                  // Prevent infinite loop - only set fallback if not already using it
+                  if (!currentSrc.includes('newsletter-fallback.jpg')) {
+                    e.currentTarget.src = fallbackPath;
+                  } else {
+                    // If fallback also fails, use a data URI placeholder
+                    e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                  }
                 }}
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
@@ -260,7 +269,16 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               className="w-full h-full object-cover"
               onError={(e) => {
                 console.error('[MediaSelector] Full view image failed to load:', selectedImageUrl);
-                e.currentTarget.src = '/images/newsletter-fallback.jpg';
+                const currentSrc = e.currentTarget.src;
+                const fallbackPath = '/images/newsletter-fallback.jpg';
+                
+                // Prevent infinite loop - only set fallback if not already using it
+                if (!currentSrc.includes('newsletter-fallback.jpg')) {
+                  e.currentTarget.src = fallbackPath;
+                } else {
+                  // If fallback also fails, use a data URI placeholder
+                  e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1Zjd1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgVW5hdmFpbGFibGU8L3RleHQ+PC9zdmc+';
+                }
               }}
             />
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
