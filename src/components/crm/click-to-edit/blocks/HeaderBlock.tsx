@@ -33,7 +33,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPre
           />
         )}
         <div className={cn(
-          "relative z-10 p-12 text-white",
+          "relative z-10 p-12 text-white bg-slate-800/80",
           block.textAlign === 'center' && "text-center",
           block.textAlign === 'right' && "text-right"
         )}>
