@@ -127,36 +127,57 @@ export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentB
   const crmBlocks: ContentBlock[] = [];
 
   processedNewsletter.blocks.forEach((block: any, index: number) => {
+    // Determine if this should be an image-text block
+    const hasImage = block.image_url || block.image_prompt;
+    const blockType = hasImage && (block.type === 'text' || !block.type) ? 'image-text' : mapBlockTypeToCRM(block.type);
+    
     const crmBlock: ContentBlock = {
       id: `block-${index}`,
-      type: mapBlockTypeToCRM(block.type) as any,
+      type: blockType as any,
       source: 'newsletter' as const,
       visible: true,
-      alignment: 'left' as const,
+      textAlign: 'left' as const,
       padding: 'medium' as const,
-      margin: 'medium' as const,
+      layout: blockType === 'image-text' ? 'image-left' : undefined,
     };
 
     // Map block-specific content based on type
-    switch (block.type) {
-      case 'header':
-        crmBlock.headline = block.title;
-        crmBlock.body = block.body;
-        crmBlock.content = JSON.stringify({
-          headline: block.title,
-          body: block.body || '',
-          backgroundColor: block.background_color || ''
-        });
-        break;
+    // Handle image-text blocks (converted from text blocks with images)
+    if (blockType === 'image-text') {
+      crmBlock.headline = block.title;
+      crmBlock.body = block.body;
+      crmBlock.imageUrl = block.image_url;
+      crmBlock.altText = block.alt_text;
+      crmBlock.buttonText = block.cta;
+      crmBlock.buttonUrl = block.link;
+      crmBlock.content = JSON.stringify({
+        headline: block.title || '',
+        body: block.body || '',
+        imageUrl: block.image_url || '',
+        altText: block.alt_text || '',
+        buttonText: block.cta || '',
+        buttonUrl: block.link || ''
+      });
+    } else {
+      switch (block.type) {
+        case 'header':
+          crmBlock.headline = block.title;
+          crmBlock.body = block.body;
+          crmBlock.content = JSON.stringify({
+            headline: block.title,
+            body: block.body || '',
+            backgroundColor: block.background_color || ''
+          });
+          break;
 
-      case 'text':
-        crmBlock.title = block.title;
-        crmBlock.content = JSON.stringify({
-          title: block.title || '',
-          body: block.body || '',
-          textAlign: 'left'
-        });
-        break;
+        case 'text':
+          crmBlock.title = block.title;
+          crmBlock.content = JSON.stringify({
+            title: block.title || '',
+            body: block.body || '',
+            textAlign: 'left'
+          });
+          break;
 
       case 'image':
         crmBlock.imageUrl = block.image_url;
@@ -206,6 +227,7 @@ export const convertNewsletterBlocksToCRM = (processedNewsletter: any): ContentB
           body: block.body || JSON.stringify(block),
           textAlign: 'left'
         });
+      }
     }
 
     crmBlocks.push(crmBlock);
