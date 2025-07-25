@@ -69,7 +69,11 @@ export const SimpleBlockEditor: React.FC<SimpleBlockEditorProps> = ({
   };
 
   const getBlockTypeLabel = () => {
-    return block.type.charAt(0).toUpperCase() + block.type.slice(1);
+    const baseType = block.type.charAt(0).toUpperCase() + block.type.slice(1);
+    if (block.type === 'text' && block.layout === 'two-column-right') {
+      return `${baseType} (Image Right)`;
+    }
+    return baseType;
   };
 
   const getPreviewContent = () => {

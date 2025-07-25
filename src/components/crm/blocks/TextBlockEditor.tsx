@@ -1,10 +1,13 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Eye, EyeOff } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 
 interface TextBlockEditorProps {
   block: ContentBlock;
@@ -17,23 +20,98 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
   onUpdate,
   isExpanded
 }) => {
+  const [showPreview, setShowPreview] = useState(false);
+  
+  const isImageRightLayout = block.layout === 'two-column-right';
+  
   if (!isExpanded) {
     return (
       <div className="flex-1 min-w-0">
         <div className="text-sm text-muted-foreground truncate">
           {block.title ? `"${block.title}"` : 'Text Block'}
+          {isImageRightLayout && (
+            <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
+              Image Right
+            </span>
+          )}
           {block.content && (
             <span className="ml-2 text-xs">
               - {block.content.substring(0, 50)}...
             </span>
           )}
         </div>
+        {isImageRightLayout && block.imageUrl && (
+          <div className="mt-2 flex items-center gap-2">
+            <img 
+              src={block.imageUrl} 
+              alt={block.altText || 'Block image'} 
+              className="w-8 h-8 rounded object-cover"
+            />
+            <span className="text-xs text-muted-foreground">Image attached</span>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="space-y-4">
+      {/* Layout Preview Toggle */}
+      {isImageRightLayout && (
+        <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Image Right Layout</span>
+            <span className="text-xs text-muted-foreground">Text left, image right</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPreview(!showPreview)}
+            className="h-8"
+          >
+            {showPreview ? (
+              <>
+                <EyeOff className="h-3 w-3 mr-1" />
+                Hide Preview
+              </>
+            ) : (
+              <>
+                <Eye className="h-3 w-3 mr-1" />
+                Show Preview
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Layout Preview */}
+      {showPreview && isImageRightLayout && (
+        <Card className="p-4 bg-muted/30">
+          <div className="text-xs text-muted-foreground mb-2">Layout Preview:</div>
+          <div className="flex gap-4 items-start">
+            <div className="flex-1">
+              <div className="text-sm font-medium mb-2">
+                {block.title || 'Your title here'}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {block.content || 'Your content will appear here...'}
+              </div>
+            </div>
+            <div className="w-24 h-16 bg-muted rounded flex items-center justify-center flex-shrink-0">
+              {block.imageUrl ? (
+                <img 
+                  src={block.imageUrl} 
+                  alt={block.altText || 'Preview'} 
+                  className="w-full h-full object-cover rounded"
+                />
+              ) : (
+                <span className="text-xs text-muted-foreground">Image</span>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div>
         <Label htmlFor="text-title">Title (Optional)</Label>
         <Input
