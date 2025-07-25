@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Upload, Eye, ChevronDown, Settings } from 'lucide-react';
+import { Upload, Eye, ChevronDown, Settings, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { ImageSelectButton } from '@/components/image';
 
 interface HeaderBlockEditorProps {
   block: ContentBlock;
@@ -150,38 +151,54 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
         </CollapsibleTrigger>
         <CollapsibleContent className="pt-4 space-y-4">
           <div>
-            <Label htmlFor="backgroundImage">Background Image</Label>
-            <div className="flex gap-2">
-              <Input
-                id="backgroundImage"
-                value={block.backgroundImageUrl || ''}
-                onChange={(e) => updateField('backgroundImageUrl', e.target.value)}
-                placeholder="https://example.com/image.jpg"
-              />
-              <Button variant="outline" size="sm">
-                <Upload className="w-4 h-4" />
+            <Label>Background Image</Label>
+            <ImageSelectButton
+              onImageSelect={(imageUrl) => updateField('backgroundImageUrl', imageUrl)}
+              selectedImageUrl={block.backgroundImageUrl}
+              contentContext="header background"
+              mode="inline"
+              buttonText="Select Background Image"
+            />
+            {block.backgroundImageUrl && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => updateField('backgroundImageUrl', '')}
+                className="mt-2"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Remove Image
               </Button>
-            </div>
+            )}
           </div>
 
-          {block.backgroundImageUrl && (
-            <div>
-              <Label htmlFor="opacity">Background Overlay</Label>
-              <div className="px-3">
-                <Slider
-                  value={[block.backgroundOpacity || 0.4]}
-                  onValueChange={(value) => updateField('backgroundOpacity', value[0])}
-                  max={1}
-                  min={0}
-                  step={0.1}
-                  className="w-full"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {Math.round((block.backgroundOpacity || 0.4) * 100)}% overlay
-              </div>
+          <div>
+            <Label htmlFor="backgroundColor">Background Color</Label>
+            <Input
+              id="backgroundColor"
+              type="color"
+              value={block.backgroundColor || '#1f2937'}
+              onChange={(e) => updateField('backgroundColor', e.target.value)}
+              className="h-10 w-full"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="opacity">Background Opacity</Label>
+            <div className="px-3">
+              <Slider
+                value={[block.backgroundOpacity || 0.4]}
+                onValueChange={(value) => updateField('backgroundOpacity', value[0])}
+                max={1}
+                min={0}
+                step={0.1}
+                className="w-full"
+              />
             </div>
-          )}
+            <div className="text-xs text-muted-foreground mt-1">
+              {Math.round((block.backgroundOpacity || 0.4) * 100)}% {block.backgroundImageUrl ? 'overlay' : 'opacity'}
+            </div>
+          </div>
 
           <div>
             <Label htmlFor="padding">Padding</Label>
