@@ -110,9 +110,9 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
       {/* Analysis Loading */}
       <WebsiteAnalysisLoader isAnalyzing={isAnalyzing} />
       
-      <div className="min-h-screen flex items-center justify-center bg-garden-background p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-garden-background p-4">
         {/* Simple step indicator */}
-        <div className="text-center mb-4 w-full max-w-lg">
+        <div className="text-center mb-8 w-full max-w-lg">
           <p className="text-sm text-muted-foreground">Step {currentStep} of 2</p>
           <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
             <div 
@@ -124,7 +124,7 @@ export const SimplifiedOnboardingFlow = ({ onComplete }: SimplifiedOnboardingFlo
 
         {/* Main content - Hide when analyzing or completing */}
         {!isAnalyzing && !isCompletingOnboarding && (
-          <div className="w-full max-w-lg mx-auto mt-6">
+          <div className="w-full max-w-lg">
             {currentStep === 1 ? (
               <UrlInputStep
                 websiteUrl={websiteUrl}
