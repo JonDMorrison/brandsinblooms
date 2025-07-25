@@ -80,7 +80,7 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
               />
             )}
             <div 
-              className={`relative z-10 p-6 text-${block.alignment || 'center'} max-w-2xl mx-auto`}
+              className={`relative z-10 p-6 text-${block.alignment || 'center'} w-full`}
               style={{ backgroundColor: block.backgroundImageUrl ? 'transparent' : (block.backgroundColor || '#1f2937') }}
             >
               <h1 className="text-2xl font-bold mb-2">
