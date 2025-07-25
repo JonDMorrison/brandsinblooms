@@ -136,10 +136,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
               <img 
                 src={selectedImageUrl} 
-                alt="Selected featured image"
+                alt={selectedImageMetadata?.alt_text || "Featured image"}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   console.error('[MediaSelector] Image failed to load:', selectedImageUrl);
+                  console.error('[MediaSelector] Current src:', e.currentTarget.src);
                   const currentSrc = e.currentTarget.src;
                   const fallbackPath = '/images/newsletter-fallback.jpg';
                   
@@ -265,7 +266,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
             <img 
               src={selectedImageUrl} 
-              alt="Selected featured image"
+              alt={selectedImageMetadata?.alt_text || "Featured image"}
               className="w-full h-full object-cover"
               onError={(e) => {
                 console.error('[MediaSelector] Full view image failed to load:', selectedImageUrl);
