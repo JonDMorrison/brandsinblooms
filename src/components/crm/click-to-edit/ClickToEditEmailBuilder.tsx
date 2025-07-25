@@ -1,0 +1,228 @@
+import React, { useState } from 'react';
+import { ContentBlock } from '@/types/emailBuilder';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import { ClickToEditBlock } from './ClickToEditBlock';
+import { HeaderBlock } from './blocks/HeaderBlock';
+import { TextBlock } from './blocks/TextBlock';
+import { ImageBlock } from './blocks/ImageBlock';
+import { ImageTextBlock } from './blocks/ImageTextBlock';
+import { DividerBlock } from './blocks/DividerBlock';
+import { ButtonBlock } from './blocks/ButtonBlock';
+import { SocialFollowBlock } from './blocks/SocialFollowBlock';
+import { FooterBlock } from './blocks/FooterBlock';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+interface ClickToEditEmailBuilderProps {
+  blocks: ContentBlock[];
+  onBlocksChange: (blocks: ContentBlock[]) => void;
+}
+
+export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = ({
+  blocks,
+  onBlocksChange
+}) => {
+  const createBlock = (type: ContentBlock['type'], afterIndex?: number): ContentBlock => {
+    const id = `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const baseBlock: ContentBlock = {
+      id,
+      type,
+      source: 'manual',
+      visible: true,
+      collapsed: false,
+      layout: type === 'image-text' ? 'image-left' : undefined,
+      textAlign: 'left',
+      padding: 'medium'
+    };
+
+    return baseBlock;
+  };
+
+  const addBlock = (type: ContentBlock['type'], afterIndex?: number) => {
+    const newBlock = createBlock(type);
+    const newBlocks = [...blocks];
+    
+    if (afterIndex !== undefined) {
+      newBlocks.splice(afterIndex + 1, 0, newBlock);
+    } else {
+      newBlocks.push(newBlock);
+    }
+    
+    onBlocksChange(newBlocks);
+  };
+
+  const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
+    const newBlocks = blocks.map(block =>
+      block.id === id ? { ...block, ...updates } : block
+    );
+    onBlocksChange(newBlocks);
+  };
+
+  const removeBlock = (id: string) => {
+    onBlocksChange(blocks.filter(block => block.id !== id));
+  };
+
+  const duplicateBlock = (block: ContentBlock) => {
+    const newBlock = {
+      ...block,
+      id: `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    };
+    const blockIndex = blocks.findIndex(b => b.id === block.id);
+    const newBlocks = [...blocks];
+    newBlocks.splice(blockIndex + 1, 0, newBlock);
+    onBlocksChange(newBlocks);
+  };
+
+  const moveBlock = (id: string, direction: 'up' | 'down') => {
+    const currentIndex = blocks.findIndex(block => block.id === id);
+    if (currentIndex === -1) return;
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= blocks.length) return;
+
+    const newBlocks = [...blocks];
+    const [movedBlock] = newBlocks.splice(currentIndex, 1);
+    newBlocks.splice(newIndex, 0, movedBlock);
+    onBlocksChange(newBlocks);
+  };
+
+  const renderBlock = (block: ContentBlock) => {
+    const props = {
+      block,
+      onUpdate: (updates: Partial<ContentBlock>) => updateBlock(block.id, updates)
+    };
+
+    switch (block.type) {
+      case 'header':
+        return <HeaderBlock {...props} isPreview={false} />;
+      case 'text':
+        return <TextBlock {...props} isPreview={false} />;
+      case 'image':
+        return <ImageBlock {...props} isPreview={false} />;
+      case 'image-text':
+        return <ImageTextBlock {...props} isPreview={false} />;
+      case 'divider':
+        return <DividerBlock {...props} isPreview={false} />;
+      case 'button':
+        return <ButtonBlock {...props} isPreview={false} />;
+      case 'social-follow':
+        return <SocialFollowBlock {...props} isPreview={false} />;
+      case 'footer':
+        return <FooterBlock {...props} isPreview={false} />;
+      default:
+        return <div>Unknown block type</div>;
+    }
+  };
+
+  const renderBlockPreview = (block: ContentBlock) => {
+    const props = {
+      block,
+      onUpdate: (updates: Partial<ContentBlock>) => updateBlock(block.id, updates)
+    };
+
+    switch (block.type) {
+      case 'header':
+        return <HeaderBlock {...props} isPreview={true} />;
+      case 'text':
+        return <TextBlock {...props} isPreview={true} />;
+      case 'image':
+        return <ImageBlock {...props} isPreview={true} />;
+      case 'image-text':
+        return <ImageTextBlock {...props} isPreview={true} />;
+      case 'divider':
+        return <DividerBlock {...props} isPreview={true} />;
+      case 'button':
+        return <ButtonBlock {...props} isPreview={true} />;
+      case 'social-follow':
+        return <SocialFollowBlock {...props} isPreview={true} />;
+      case 'footer':
+        return <FooterBlock {...props} isPreview={true} />;
+      default:
+        return <div>Unknown block type</div>;
+    }
+  };
+
+  const AddBlockButton: React.FC<{ afterIndex?: number }> = ({ afterIndex }) => (
+    <div className="flex justify-center py-4">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Block
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onClick={() => addBlock('header', afterIndex)}>
+            📄 Header
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => addBlock('text', afterIndex)}>
+            📝 Text
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => addBlock('image', afterIndex)}>
+            🖼️ Image
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => addBlock('image-text', afterIndex)}>
+            📄 Image + Text
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => addBlock('button', afterIndex)}>
+            🔘 Button
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => addBlock('divider', afterIndex)}>
+            ➖ Divider
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => addBlock('social-follow', afterIndex)}>
+            📱 Social Follow
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => addBlock('footer', afterIndex)}>
+            📋 Footer
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-2">
+      {/* Add block button at top */}
+      <AddBlockButton />
+
+      {/* Render all blocks */}
+      {blocks.map((block, index) => (
+        <React.Fragment key={block.id}>
+          <ClickToEditBlock
+            block={block}
+            index={index}
+            onUpdate={updateBlock}
+            onRemove={removeBlock}
+            onDuplicate={duplicateBlock}
+            onMove={moveBlock}
+            canMoveUp={index > 0}
+            canMoveDown={index < blocks.length - 1}
+          >
+            {{
+              preview: renderBlockPreview(block),
+              editor: renderBlock(block)
+            }}
+          </ClickToEditBlock>
+          
+          {/* Add block button between blocks */}
+          <AddBlockButton afterIndex={index} />
+        </React.Fragment>
+      ))}
+
+      {/* Empty state */}
+      {blocks.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <div className="text-6xl mb-4">📧</div>
+          <h3 className="text-lg font-medium mb-2">Start building your email</h3>
+          <p className="text-sm mb-4">Add your first content block to get started</p>
+        </div>
+      )}
+    </div>
+  );
+};

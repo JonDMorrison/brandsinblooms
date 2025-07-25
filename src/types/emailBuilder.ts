@@ -1,6 +1,6 @@
 
-export type BlockType = 'header' | 'text' | 'image' | 'button' | 'divider' | 'product' | 'quote' | 'cta' | 'newsletter-header' | 'image-gallery';
-export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right' | 'three-column' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'overlay' | 'background';
+export type BlockType = 'header' | 'text' | 'image' | 'image-text' | 'button' | 'divider' | 'product' | 'quote' | 'cta' | 'newsletter-header' | 'image-gallery' | 'social-follow' | 'footer';
+export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right' | 'three-column' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background' | 'overlay' | 'background' | 'image-left' | 'text-left';
 export type AlignmentType = 'left' | 'center' | 'right' | 'justify';
 export type SpacingType = 'none' | 'small' | 'medium' | 'large' | 'extra-large';
 export type ResponsiveBehaviorType = 'stack' | 'reverse' | 'hide-image' | 'mobile-first';
@@ -55,6 +55,7 @@ export interface ContentBlock {
   // Layout & Structure
   collapsed?: boolean;
   alignment?: AlignmentType;
+  textAlign?: AlignmentType;
   padding?: SpacingType;
   margin?: SpacingType;
   responsiveBehavior?: ResponsiveBehaviorType;
@@ -96,6 +97,31 @@ export interface ContentBlock {
   subtitle?: string;
   issueNumber?: string;
   publishDate?: string;
+  
+  // Button block specific
+  buttonColor?: string;
+  buttonSize?: string;
+  isRounded?: boolean;
+  
+  // Divider block specific
+  dividerThickness?: number;
+  dividerColor?: string;
+  paddingTop?: number;
+  paddingBottom?: number;
+  
+  // Social follow block specific
+  socialLinks?: {
+    [platform: string]: {
+      enabled: boolean;
+      url: string;
+    };
+  };
+  iconColor?: string;
+  iconSize?: string;
+  
+  // Text styling
+  fontFamily?: string;
+  fontSize?: string;
 }
 
 // Specialized interfaces for type safety

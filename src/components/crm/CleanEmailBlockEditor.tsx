@@ -4,7 +4,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { EnhancedBlockEditor } from './EnhancedBlockEditor';
+import { ClickToEditEmailBuilder } from './click-to-edit/ClickToEditEmailBuilder';
 import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
 import { mediaSelector } from '@/utils/mediaSelector';
 
@@ -447,34 +447,14 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Content Blocks */}
-      <div className="space-y-3">
-        {internalBlocks.map((block, index) => (
-          <div key={block.id} className="space-y-3">
-            <EnhancedBlockEditor
-              block={block}
-              index={index}
-              onUpdate={updateBlock}
-              onRemove={removeBlock}
-              onDuplicate={duplicateBlock}
-              onMove={moveBlock}
-              canMoveUp={index > 0}
-              canMoveDown={index < internalBlocks.length - 1}
-            />
-            {/* Add Block Button */}
-            <div className="flex justify-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => openAddModal(index)}
-                className="h-8 w-8 p-0 rounded-full border-2 border-dashed border-muted-foreground/30 hover:border-primary/50 hover:bg-primary/5"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Click-to-Edit Email Builder */}
+      <ClickToEditEmailBuilder
+        blocks={internalBlocks}
+        onBlocksChange={(newBlocks) => {
+          setInternalBlocks(newBlocks);
+          onBlocksChange(newBlocks);
+        }}
+      />
 
       {/* Empty State */}
       {internalBlocks.length === 0 && (
