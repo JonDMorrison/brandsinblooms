@@ -93,7 +93,10 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPre
         <Label>Background Image</Label>
         <MediaSelectorImage
           src={block.backgroundImageUrl}
-          onChange={(imageUrl) => onUpdate({ backgroundImageUrl: imageUrl })}
+          onChange={(imageUrl, metadata) => {
+            console.log('[HeaderBlock] Image selected:', imageUrl, metadata);
+            onUpdate({ backgroundImageUrl: imageUrl });
+          }}
           className="h-32"
         />
       </div>
