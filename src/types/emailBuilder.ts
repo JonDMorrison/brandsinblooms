@@ -1,9 +1,11 @@
 
-export type BlockType = 'header' | 'text' | 'image' | 'button' | 'divider' | 'product';
-export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right';
-export type AlignmentType = 'left' | 'center' | 'right';
-export type SpacingType = 'none' | 'small' | 'medium' | 'large';
-export type ResponsiveBehaviorType = 'stack' | 'reverse' | 'hide-image';
+export type BlockType = 'header' | 'text' | 'image' | 'button' | 'divider' | 'product' | 'quote' | 'cta' | 'newsletter-header' | 'image-gallery';
+export type BlockLayout = 'full-width' | 'two-column-left' | 'two-column-right' | 'three-column' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background';
+export type AlignmentType = 'left' | 'center' | 'right' | 'justify';
+export type SpacingType = 'none' | 'small' | 'medium' | 'large' | 'extra-large';
+export type ResponsiveBehaviorType = 'stack' | 'reverse' | 'hide-image' | 'mobile-first';
+export type ImageSizeType = 'small' | 'medium' | 'large' | 'full-width' | 'cover';
+export type ImagePositionType = 'left' | 'right' | 'center' | 'background' | 'overlay';
 
 export interface EmailBlock {
   id: string;
@@ -63,6 +65,13 @@ export interface ContentBlock {
   textColor?: string;
   animation?: 'none' | 'fade-in' | 'slide-up' | 'scale-in';
   
+  // Enhanced Image Settings
+  imageSize?: ImageSizeType;
+  imagePosition?: ImagePositionType;
+  imageRounded?: boolean;
+  imageShadow?: boolean;
+  imageBorder?: boolean;
+  
   // New specialized block fields
   headline?: string;
   body?: string;
@@ -73,6 +82,20 @@ export interface ContentBlock {
   buttonText?: string;
   buttonUrl?: string;
   heading?: string;
+  
+  // Quote-specific fields
+  quote?: string;
+  author?: string;
+  authorTitle?: string;
+  
+  // CTA-specific fields
+  ctaStyle?: 'primary' | 'secondary' | 'outline' | 'ghost';
+  ctaSize?: 'small' | 'medium' | 'large';
+  
+  // Newsletter Header fields
+  subtitle?: string;
+  issueNumber?: string;
+  publishDate?: string;
 }
 
 // Specialized interfaces for type safety
@@ -86,11 +109,41 @@ export interface HeaderBlock extends ContentBlock {
   padding: SpacingType;
 }
 
+export interface NewsletterHeaderBlock extends ContentBlock {
+  type: 'newsletter-header';
+  title: string;
+  subtitle?: string;
+  issueNumber?: string;
+  publishDate?: string;
+  backgroundImageUrl?: string;
+}
+
+export interface QuoteBlock extends ContentBlock {
+  type: 'quote';
+  quote: string;
+  author?: string;
+  authorTitle?: string;
+  alignment: AlignmentType;
+}
+
+export interface CTABlock extends ContentBlock {
+  type: 'cta';
+  heading?: string;
+  body?: string;
+  ctaText: string;
+  ctaUrl: string;
+  ctaStyle: 'primary' | 'secondary' | 'outline' | 'ghost';
+  ctaSize: 'small' | 'medium' | 'large';
+  alignment: AlignmentType;
+}
+
 export interface ImageBlock extends ContentBlock {
   type: 'image';
   imageUrl: string;
   altText?: string;
   caption?: string;
+  imageSize: ImageSizeType;
+  imagePosition: ImagePositionType;
 }
 
 export interface ButtonBlock extends ContentBlock {
@@ -100,4 +153,17 @@ export interface ButtonBlock extends ContentBlock {
   buttonText: string;
   buttonUrl: string;
   alignment: AlignmentType;
+}
+
+// Newsletter Styling Configuration
+export interface NewsletterTheme {
+  primaryColor: string;
+  secondaryColor: string;
+  accentColor: string;
+  backgroundColor: string;
+  textColor: string;
+  headerFont: string;
+  bodyFont: string;
+  borderRadius: string;
+  maxWidth: string;
 }

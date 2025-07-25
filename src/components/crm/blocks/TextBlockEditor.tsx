@@ -1,13 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { ContentBlock } from '@/types/emailBuilder';
+import { ContentBlock, BlockLayout, AlignmentType, SpacingType, ImageSizeType, ImagePositionType } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Eye, EyeOff } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Eye, EyeOff, Layout, Image as ImageIcon, Palette, Settings } from 'lucide-react';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { mediaSelector } from '@/utils/mediaSelector';
 
@@ -23,18 +26,33 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
   isExpanded
 }) => {
   const [showPreview, setShowPreview] = useState(false);
+  const [activeTab, setActiveTab] = useState('content');
   
-  const isImageRightLayout = block.layout === 'two-column-right';
+  const hasImageLayout = ['two-column-right', 'two-column-left', 'image-60-40', 'image-70-30', 'image-overlay', 'image-background'].includes(block.layout || '');
+
+  const getLayoutDisplayName = (layout: BlockLayout) => {
+    const layoutNames = {
+      'full-width': 'Full Width',
+      'two-column-left': 'Image Left',
+      'two-column-right': 'Image Right',
+      'image-60-40': '60/40 Split',
+      'image-70-30': '70/30 Split',
+      'image-overlay': 'Text Overlay',
+      'image-background': 'Background Image',
+      'three-column': 'Three Column'
+    };
+    return layoutNames[layout as keyof typeof layoutNames] || layout;
+  };
   
   if (!isExpanded) {
     return (
       <div className="flex-1 min-w-0">
         <div className="text-sm text-muted-foreground truncate">
           {block.title ? `"${block.title}"` : 'Text Block'}
-          {isImageRightLayout && (
-            <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
-              Image Right
-            </span>
+          {block.layout && (
+            <Badge variant="outline" className="ml-2 text-xs">
+              {getLayoutDisplayName(block.layout)}
+            </Badge>
           )}
           {block.content && (
             <span className="ml-2 text-xs">
@@ -42,7 +60,7 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
             </span>
           )}
         </div>
-        {isImageRightLayout && block.imageUrl && (
+        {hasImageLayout && block.imageUrl && (
           <div className="mt-2 flex items-center gap-2">
             <img 
               src={block.imageUrl} 
@@ -71,9 +89,9 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
     layout: block.layout
   });
 
-  // Auto-fetch image for two-column-right blocks that don't have an image
+  // Auto-fetch image for image layouts that don't have an image
   useEffect(() => {
-    if (isImageRightLayout && !block.imageUrl && (block.title || block.content)) {
+    if (hasImageLayout && !block.imageUrl && (block.title || block.content)) {
       const contentForImage = `${block.title || ''} ${block.content || ''}`.trim();
       if (contentForImage) {
         console.log('[TextBlockEditor] Auto-fetching image for content:', contentForImage);
@@ -91,52 +109,61 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
         });
       }
     }
-  }, [isImageRightLayout, block.imageUrl, block.title, block.content, onUpdate]);
+  }, [hasImageLayout, block.imageUrl, block.title, block.content, onUpdate]);
 
-  // Two-column layout for image-right blocks
-  if (isImageRightLayout) {
-    return (
-      <div className="space-y-4">
-        {/* Layout Preview Toggle */}
-        <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Image Right Layout</span>
-            <span className="text-xs text-muted-foreground">Text left, image right</span>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowPreview(!showPreview)}
-            className="h-8"
-          >
-            {showPreview ? (
-              <>
-                <EyeOff className="h-3 w-3 mr-1" />
-                Hide Preview
-              </>
-            ) : (
-              <>
-                <Eye className="h-3 w-3 mr-1" />
-                Show Preview
-              </>
-            )}
-          </Button>
+  // Enhanced layout editor with tabs
+  return (
+    <div className="space-y-4">
+      {/* Layout Preview Toggle */}
+      <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border">
+        <div className="flex items-center gap-2">
+          <Layout className="h-4 w-4" />
+          <span className="text-sm font-medium">
+            {block.layout ? getLayoutDisplayName(block.layout) : 'Single Column'}
+          </span>
+          {hasImageLayout && (
+            <Badge variant="secondary" className="text-xs">
+              Image Layout
+            </Badge>
+          )}
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowPreview(!showPreview)}
+          className="h-8"
+        >
+          {showPreview ? (
+            <>
+              <EyeOff className="h-3 w-3 mr-1" />
+              Hide Preview
+            </>
+          ) : (
+            <>
+              <Eye className="h-3 w-3 mr-1" />
+              Show Preview
+            </>
+          )}
+        </Button>
+      </div>
 
-        {/* Layout Preview */}
-        {showPreview && (
-          <Card className="p-4 bg-muted/30">
-            <div className="text-xs text-muted-foreground mb-2">Layout Preview:</div>
-            <div className="flex gap-4 items-start">
-              <div className="w-1/2">
-                <div className="text-sm font-medium mb-2">
-                  {block.title || 'Your title here'}
+      {/* Layout Preview */}
+      {showPreview && (
+        <Card className="p-4 bg-muted/30">
+          <div className="text-xs text-muted-foreground mb-3">Live Preview:</div>
+          <div className={`${getPreviewLayoutClass(block.layout)} gap-4 items-start`}>
+            <div className="space-y-2">
+              {block.title && (
+                <div className="text-sm font-medium">
+                  {block.title}
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {block.content || 'Your content will appear here...'}
-                </div>
+              )}
+              <div className="text-sm text-muted-foreground">
+                {block.content || 'Your content will appear here...'}
               </div>
-              <div className="w-1/2 h-16 bg-muted rounded flex items-center justify-center flex-shrink-0">
+            </div>
+            {hasImageLayout && (
+              <div className={`${getImagePreviewClass(block.layout)} bg-muted rounded flex items-center justify-center flex-shrink-0`}>
                 {block.imageUrl ? (
                   <img 
                     src={block.imageUrl} 
@@ -144,168 +171,313 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
                     className="w-full h-full object-cover rounded"
                   />
                 ) : (
-                  <span className="text-xs text-muted-foreground">Image</span>
+                  <ImageIcon className="h-6 w-6 text-muted-foreground" />
                 )}
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Two-Column Editor */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Text Content */}
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="text-title">Title (Optional)</Label>
-              <Input
-                id="text-title"
-                value={block.title || ''}
-                onChange={(e) => onUpdate({ title: e.target.value })}
-                placeholder="Enter title..."
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="text-content">Content</Label>
-              <Textarea
-                id="text-content"
-                value={block.content || ''}
-                onChange={(e) => onUpdate({ content: e.target.value })}
-                placeholder="Enter your text content..."
-                className="min-h-[120px]"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="text-alignment">Alignment</Label>
-                <Select 
-                  value={block.alignment || 'left'} 
-                  onValueChange={(value) => onUpdate({ alignment: value as any })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="left">Left</SelectItem>
-                    <SelectItem value="center">Center</SelectItem>
-                    <SelectItem value="right">Right</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="text-padding">Padding</Label>
-                <Select 
-                  value={block.padding || 'medium'} 
-                  onValueChange={(value) => onUpdate({ padding: value as any })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="small">Small</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="large">Large</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Alt Text Field */}
-            {block.imageUrl && (
-              <div>
-                <Label htmlFor="alt-text">Alt Text</Label>
-                <Input
-                  id="alt-text"
-                  value={block.altText || ''}
-                  onChange={(e) => onUpdate({ altText: e.target.value })}
-                  placeholder="Describe the image for accessibility..."
-                />
               </div>
             )}
           </div>
+        </Card>
+      )}
 
-          {/* Right Column - Image Selection */}
-          <div className="space-y-4">
+      {/* Tabbed Editor Interface */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="content" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Content
+          </TabsTrigger>
+          <TabsTrigger value="layout" className="flex items-center gap-2">
+            <Layout className="h-4 w-4" />
+            Layout
+          </TabsTrigger>
+          <TabsTrigger value="image" className="flex items-center gap-2" disabled={!hasImageLayout}>
+            <ImageIcon className="h-4 w-4" />
+            Image
+          </TabsTrigger>
+          <TabsTrigger value="style" className="flex items-center gap-2">
+            <Palette className="h-4 w-4" />
+            Style
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content" className="space-y-4 mt-4">
+          <div>
+            <Label htmlFor="text-title">Title (Optional)</Label>
+            <Input
+              id="text-title"
+              value={block.title || ''}
+              onChange={(e) => onUpdate({ title: e.target.value })}
+              placeholder="Enter title..."
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="text-content">Content</Label>
+            <Textarea
+              id="text-content"
+              value={block.content || ''}
+              onChange={(e) => onUpdate({ content: e.target.value })}
+              placeholder="Enter your text content..."
+              className="min-h-[120px]"
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="layout" className="space-y-4 mt-4">
+          <div>
+            <Label htmlFor="block-layout">Block Layout</Label>
+            <Select 
+              value={block.layout || 'full-width'} 
+              onValueChange={(value) => onUpdate({ layout: value as BlockLayout })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="full-width">Full Width</SelectItem>
+                <SelectItem value="two-column-left">Image Left</SelectItem>
+                <SelectItem value="two-column-right">Image Right</SelectItem>
+                <SelectItem value="image-60-40">60/40 Split</SelectItem>
+                <SelectItem value="image-70-30">70/30 Split</SelectItem>
+                <SelectItem value="image-overlay">Text Overlay</SelectItem>
+                <SelectItem value="image-background">Background Image</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Select Image</Label>
-              <div className="mt-2">
-                <MediaSelectorImage
-                  src={block.imageUrl}
-                  onChange={handleImageSelect}
-                  contentContext={`${block.title || ''} ${block.content || ''}`}
-                  className="h-48"
-                />
-              </div>
+              <Label htmlFor="text-alignment">Text Alignment</Label>
+              <Select 
+                value={block.alignment || 'left'} 
+                onValueChange={(value) => onUpdate({ alignment: value as AlignmentType })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="left">Left</SelectItem>
+                  <SelectItem value="center">Center</SelectItem>
+                  <SelectItem value="right">Right</SelectItem>
+                  <SelectItem value="justify">Justify</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="text-padding">Padding</Label>
+              <Select 
+                value={block.padding || 'medium'} 
+                onValueChange={(value) => onUpdate({ padding: value as SpacingType })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="small">Small</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="large">Large</SelectItem>
+                  <SelectItem value="extra-large">Extra Large</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
+        </TabsContent>
 
-  // Single-column layout for other blocks
-  return (
-    <div className="space-y-4">
-      <div>
-        <Label htmlFor="text-title">Title (Optional)</Label>
-        <Input
-          id="text-title"
-          value={block.title || ''}
-          onChange={(e) => onUpdate({ title: e.target.value })}
-          placeholder="Enter title..."
-        />
-      </div>
-      
-      <div>
-        <Label htmlFor="text-content">Content</Label>
-        <Textarea
-          id="text-content"
-          value={block.content || ''}
-          onChange={(e) => onUpdate({ content: e.target.value })}
-          placeholder="Enter your text content..."
-          className="min-h-[120px]"
-        />
-      </div>
+        <TabsContent value="image" className="space-y-4 mt-4">
+          {hasImageLayout && (
+            <>
+              <div>
+                <Label>Select Image</Label>
+                <div className="mt-2">
+                  <MediaSelectorImage
+                    src={block.imageUrl}
+                    onChange={handleImageSelect}
+                    contentContext={`${block.title || ''} ${block.content || ''}`}
+                    className="h-48"
+                  />
+                </div>
+              </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="text-alignment">Alignment</Label>
-          <Select 
-            value={block.alignment || 'left'} 
-            onValueChange={(value) => onUpdate({ alignment: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="left">Left</SelectItem>
-              <SelectItem value="center">Center</SelectItem>
-              <SelectItem value="right">Right</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="image-size">Image Size</Label>
+                  <Select 
+                    value={block.imageSize || 'medium'} 
+                    onValueChange={(value) => onUpdate({ imageSize: value as ImageSizeType })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="small">Small</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="large">Large</SelectItem>
+                      <SelectItem value="full-width">Full Width</SelectItem>
+                      <SelectItem value="cover">Cover</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-        <div>
-          <Label htmlFor="text-padding">Padding</Label>
-          <Select 
-            value={block.padding || 'medium'} 
-            onValueChange={(value) => onUpdate({ padding: value as any })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              <SelectItem value="small">Small</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="large">Large</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+                <div>
+                  <Label htmlFor="image-position">Image Position</Label>
+                  <Select 
+                    value={block.imagePosition || 'center'} 
+                    onValueChange={(value) => onUpdate({ imagePosition: value as ImagePositionType })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                      <SelectItem value="background">Background</SelectItem>
+                      <SelectItem value="overlay">Overlay</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="image-rounded"
+                    checked={block.imageRounded || false}
+                    onCheckedChange={(checked) => onUpdate({ imageRounded: checked })}
+                  />
+                  <Label htmlFor="image-rounded" className="text-sm">Rounded</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="image-shadow"
+                    checked={block.imageShadow || false}
+                    onCheckedChange={(checked) => onUpdate({ imageShadow: checked })}
+                  />
+                  <Label htmlFor="image-shadow" className="text-sm">Shadow</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="image-border"
+                    checked={block.imageBorder || false}
+                    onCheckedChange={(checked) => onUpdate({ imageBorder: checked })}
+                  />
+                  <Label htmlFor="image-border" className="text-sm">Border</Label>
+                </div>
+              </div>
+
+              {block.imageUrl && (
+                <div>
+                  <Label htmlFor="alt-text">Alt Text</Label>
+                  <Input
+                    id="alt-text"
+                    value={block.altText || ''}
+                    onChange={(e) => onUpdate({ altText: e.target.value })}
+                    placeholder="Describe the image for accessibility..."
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="style" className="space-y-4 mt-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="background-color">Background Color</Label>
+              <Input
+                id="background-color"
+                type="color"
+                value={block.backgroundColor || '#ffffff'}
+                onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
+                className="h-10"
+              />
+            </div>
+            <div>
+              <Label htmlFor="text-color">Text Color</Label>
+              <Input
+                id="text-color"
+                type="color"
+                value={block.textColor || '#000000'}
+                onChange={(e) => onUpdate({ textColor: e.target.value })}
+                className="h-10"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="animation">Animation</Label>
+            <Select 
+              value={block.animation || 'none'} 
+              onValueChange={(value) => onUpdate({ animation: value as any })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="fade-in">Fade In</SelectItem>
+                <SelectItem value="slide-up">Slide Up</SelectItem>
+                <SelectItem value="scale-in">Scale In</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="responsive-behavior">Mobile Behavior</Label>
+            <Select 
+              value={block.responsiveBehavior || 'stack'} 
+              onValueChange={(value) => onUpdate({ responsiveBehavior: value as any })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="stack">Stack Vertically</SelectItem>
+                <SelectItem value="reverse">Reverse Order</SelectItem>
+                <SelectItem value="hide-image">Hide Image</SelectItem>
+                <SelectItem value="mobile-first">Mobile First</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
+
+  // Helper functions for preview layout classes
+  function getPreviewLayoutClass(layout?: BlockLayout): string {
+    switch (layout) {
+      case 'two-column-left':
+      case 'two-column-right':
+        return 'flex';
+      case 'image-60-40':
+        return 'flex';
+      case 'image-70-30':
+        return 'flex';
+      case 'image-overlay':
+        return 'relative';
+      case 'image-background':
+        return 'relative';
+      default:
+        return 'block';
+    }
+  }
+
+  function getImagePreviewClass(layout?: BlockLayout): string {
+    switch (layout) {
+      case 'image-60-40':
+        return 'w-2/5 h-16';
+      case 'image-70-30':
+        return 'w-1/3 h-16';
+      case 'image-overlay':
+        return 'absolute inset-0 opacity-20';
+      case 'image-background':
+        return 'absolute inset-0 opacity-30';
+      default:
+        return 'w-1/2 h-16';
+    }
+  }
 };
+
