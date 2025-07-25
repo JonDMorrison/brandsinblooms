@@ -4,7 +4,7 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { SimpleBlockEditor } from './SimpleBlockEditor';
+import { EnhancedBlockEditor } from './EnhancedBlockEditor';
 import { BlockLayoutModal, LayoutType } from './BlockLayoutModal';
 import { mediaSelector } from '@/utils/mediaSelector';
 
@@ -13,9 +13,116 @@ interface CleanEmailBlockEditorProps {
   onBlocksChange: (blocks: ContentBlock[]) => void;
 }
 
-// Mapping function to convert layout types to block types and configurations
+// Enhanced mapping function to convert layout types to block types and configurations
 const mapLayoutToBlock = async (layoutType: LayoutType): Promise<{ type: ContentBlock['type']; config: Partial<ContentBlock> }> => {
   switch (layoutType) {
+    // Newsletter-specific layouts
+    case 'newsletter-header':
+      return {
+        type: 'newsletter-header',
+        config: {
+          title: 'Newsletter Title',
+          subtitle: 'Weekly insights and updates',
+          issueNumber: '#001',
+          publishDate: new Date().toLocaleDateString(),
+          backgroundImageUrl: '',
+          alignment: 'center',
+          padding: 'large'
+        }
+      };
+    case 'quote-featured':
+      return {
+        type: 'quote',
+        config: {
+          quote: 'Add an inspiring quote here...',
+          author: 'Author Name',
+          authorTitle: 'Title or Company',
+          alignment: 'center',
+          padding: 'large'
+        }
+      };
+    case 'cta-primary':
+      return {
+        type: 'cta',
+        config: {
+          heading: 'Take Action Today',
+          body: 'Don\'t miss out on this opportunity. Join thousands of satisfied customers.',
+          ctaText: 'Get Started',
+          ctaUrl: '',
+          ctaStyle: 'primary',
+          ctaSize: 'large',
+          alignment: 'center',
+          padding: 'large'
+        }
+      };
+    // Enhanced image layouts
+    case 'image-60-40':
+      const image6040 = await mediaSelector({ 
+        prompt: 'beautiful garden flowers plants',
+        count: 1 
+      });
+      return {
+        type: 'image',
+        config: {
+          title: 'Image Focus Layout',
+          content: 'Supporting text content...',
+          altText: image6040.alt || 'Garden content',
+          layout: 'image-60-40',
+          imageUrl: image6040.url,
+          alignment: 'left'
+        }
+      };
+    case 'image-70-30':
+      const image7030 = await mediaSelector({ 
+        prompt: 'gardening landscape design',
+        count: 1 
+      });
+      return {
+        type: 'image',
+        config: {
+          title: 'Image Dominant Layout',
+          content: 'Complementary text...',
+          altText: image7030.alt || 'Landscape design',
+          layout: 'image-70-30',
+          imageUrl: image7030.url,
+          alignment: 'left'
+        }
+      };
+    case 'image-overlay':
+      const overlayImage = await mediaSelector({ 
+        prompt: 'stunning garden landscape background',
+        count: 1 
+      });
+      return {
+        type: 'image',
+        config: {
+          title: 'Overlay Text',
+          content: 'Text overlaid on image background',
+          altText: overlayImage.alt || 'Garden background',
+          layout: 'overlay',
+          imageUrl: overlayImage.url,
+          backgroundOpacity: 60,
+          alignment: 'center'
+        }
+      };
+    case 'image-background':
+      const bgImage = await mediaSelector({ 
+        prompt: 'natural garden background texture',
+        count: 1 
+      });
+      return {
+        type: 'image',
+        config: {
+          title: 'Background Image Section',
+          content: 'Content with background image',
+          altText: bgImage.alt || 'Garden background',
+          layout: 'background',
+          backgroundImageUrl: bgImage.url,
+          backgroundOpacity: 30,
+          alignment: 'center'
+        }
+      };
+    // Original layouts (enhanced)
     case 'header-hero':
       return {
         type: 'header',
@@ -344,7 +451,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
       <div className="space-y-3">
         {internalBlocks.map((block, index) => (
           <div key={block.id} className="space-y-3">
-            <SimpleBlockEditor
+            <EnhancedBlockEditor
               block={block}
               index={index}
               onUpdate={updateBlock}

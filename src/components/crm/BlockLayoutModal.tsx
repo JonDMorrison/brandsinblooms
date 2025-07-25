@@ -14,7 +14,14 @@ export type LayoutType =
   | 'image-full'
   | 'button-centered'
   | 'button-left'
-  | 'button-right';
+  | 'button-right'
+  | 'newsletter-header'
+  | 'quote-featured'
+  | 'cta-primary'
+  | 'image-60-40'
+  | 'image-70-30'
+  | 'image-overlay'
+  | 'image-background';
 
 interface BlockLayoutModalProps {
   isOpen: boolean;

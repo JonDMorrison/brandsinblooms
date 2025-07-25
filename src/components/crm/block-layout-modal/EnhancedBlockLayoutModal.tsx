@@ -16,6 +16,37 @@ interface EnhancedBlockLayoutModalProps {
 }
 
 const layoutOptions = [
+  // Newsletter Layouts
+  {
+    id: 'newsletter-header' as LayoutType,
+    title: 'Newsletter Header',
+    description: 'Professional newsletter header with title, issue number, and date',
+    category: 'Newsletter',
+    icon: '📧',
+    isPopular: true,
+    isNew: true,
+    previewType: 'newsletter-header' as const
+  },
+  {
+    id: 'quote-featured' as LayoutType,
+    title: 'Featured Quote',
+    description: 'Elegant quote block with author attribution',
+    category: 'Newsletter',
+    icon: '💬',
+    isNew: true,
+    previewType: 'quote-featured' as const
+  },
+  {
+    id: 'cta-primary' as LayoutType,
+    title: 'Enhanced CTA',
+    description: 'Advanced call-to-action with customizable styling',
+    category: 'Newsletter',
+    icon: '🎯',
+    isPopular: true,
+    isNew: true,
+    previewType: 'cta-primary' as const
+  },
+
   // Header Layouts
   {
     id: 'header-hero' as LayoutType,
@@ -35,7 +66,7 @@ const layoutOptions = [
     previewType: 'header-simple' as const
   },
   
-  // Image Layouts
+  // Enhanced Image Layouts
   {
     id: 'image-full' as LayoutType,
     title: 'Full-Width Image',
@@ -44,6 +75,42 @@ const layoutOptions = [
     icon: '🖼️',
     isPopular: true,
     previewType: 'image-full' as const
+  },
+  {
+    id: 'image-60-40' as LayoutType,
+    title: 'Image Focus (60/40)',
+    description: 'Image-dominant layout with 60% image, 40% text',
+    category: 'Image',
+    icon: '📸',
+    isNew: true,
+    previewType: 'image-60-40' as const
+  },
+  {
+    id: 'image-70-30' as LayoutType,
+    title: 'Image Dominant (70/30)',
+    description: 'Strong visual impact with 70% image, 30% text',
+    category: 'Image',
+    icon: '🖼️',
+    isNew: true,
+    previewType: 'image-70-30' as const
+  },
+  {
+    id: 'image-overlay' as LayoutType,
+    title: 'Text Overlay',
+    description: 'Text overlaid on background image for dramatic effect',
+    category: 'Image',
+    icon: '🌅',
+    isNew: true,
+    previewType: 'image-overlay' as const
+  },
+  {
+    id: 'image-background' as LayoutType,
+    title: 'Background Image',
+    description: 'Content with subtle background image',
+    category: 'Image',
+    icon: '🎨',
+    isNew: true,
+    previewType: 'image-background' as const
   },
   {
     id: 'image-left' as LayoutType,

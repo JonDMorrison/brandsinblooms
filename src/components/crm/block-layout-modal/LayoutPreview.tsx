@@ -2,7 +2,7 @@
 import React from 'react';
 
 interface LayoutPreviewProps {
-  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple';
+  type: 'header-hero' | 'header-simple' | 'image-full' | 'image-left' | 'image-right' | 'button-centered' | 'button-left' | 'button-right' | 'text-double' | 'text-triple' | 'newsletter-header' | 'quote-featured' | 'cta-primary' | 'image-60-40' | 'image-70-30' | 'image-overlay' | 'image-background';
 }
 
 export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
@@ -123,6 +123,80 @@ export const LayoutPreview: React.FC<LayoutPreviewProps> = ({ type }) => {
                 <div className="w-1/2 h-1 bg-gray-200 rounded"></div>
               </div>
             ))}
+          </div>
+        );
+
+      case 'newsletter-header':
+        return (
+          <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-md flex flex-col items-center justify-center text-white relative">
+            <div className="text-xs font-bold mb-1">📧 Newsletter</div>
+            <div className="text-xs opacity-90 mb-1">Issue #001</div>
+            <div className="text-xs opacity-75">Jan 2024</div>
+          </div>
+        );
+
+      case 'quote-featured':
+        return (
+          <div className="h-full bg-gradient-to-br from-amber-50 to-orange-100 rounded-md flex flex-col items-center justify-center border-l-4 border-orange-400">
+            <div className="text-xs font-medium text-orange-800 mb-1">"Quote text"</div>
+            <div className="text-xs text-orange-600">— Author</div>
+          </div>
+        );
+
+      case 'cta-primary':
+        return (
+          <div className="h-full bg-gradient-to-b from-green-50 to-green-100 rounded-md flex flex-col items-center justify-center gap-1 border">
+            <div className="text-xs font-bold text-green-800">Enhanced CTA</div>
+            <div className="w-3/4 h-1 bg-green-200 rounded"></div>
+            <div className="bg-green-600 text-white px-3 py-1 rounded text-xs font-medium">
+              Take Action
+            </div>
+          </div>
+        );
+
+      case 'image-60-40':
+        return (
+          <div className="h-full flex gap-1 rounded-md overflow-hidden">
+            <div className="w-3/5 bg-gradient-to-br from-teal-200 to-teal-300 flex items-center justify-center">
+              <div className="text-xs font-medium text-teal-800">60%</div>
+            </div>
+            <div className="w-2/5 bg-white border flex flex-col justify-center px-1">
+              <div className="w-full h-1 bg-gray-300 rounded mb-1"></div>
+              <div className="w-3/4 h-1 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        );
+
+      case 'image-70-30':
+        return (
+          <div className="h-full flex gap-1 rounded-md overflow-hidden">
+            <div className="w-7/10 bg-gradient-to-br from-violet-200 to-violet-300 flex items-center justify-center">
+              <div className="text-xs font-medium text-violet-800">70%</div>
+            </div>
+            <div className="w-3/10 bg-white border flex flex-col justify-center px-1">
+              <div className="w-full h-1 bg-gray-300 rounded mb-1"></div>
+              <div className="w-full h-1 bg-gray-200 rounded"></div>
+            </div>
+          </div>
+        );
+
+      case 'image-overlay':
+        return (
+          <div className="h-full bg-gradient-to-br from-slate-400 via-slate-500 to-slate-600 rounded-md flex items-center justify-center relative">
+            <div className="absolute inset-0 bg-black/30 rounded-md"></div>
+            <div className="relative text-center text-white">
+              <div className="text-xs font-bold">Overlay Text</div>
+            </div>
+          </div>
+        );
+
+      case 'image-background':
+        return (
+          <div className="h-full bg-gradient-to-br from-emerald-100 via-emerald-200 to-emerald-300 rounded-md flex items-center justify-center relative">
+            <div className="absolute inset-0 bg-white/40 rounded-md"></div>
+            <div className="relative text-center">
+              <div className="text-xs font-medium text-emerald-800">Background</div>
+            </div>
           </div>
         );
       
