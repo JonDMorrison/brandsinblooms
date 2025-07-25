@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Upload, Eye, ChevronDown, Settings, Trash2 } from 'lucide-react';
+import { Upload, Eye, ChevronDown, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { ImageSelectButton } from '@/components/image';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
