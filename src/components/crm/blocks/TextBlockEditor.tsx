@@ -128,7 +128,7 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
           <Card className="p-4 bg-muted/30">
             <div className="text-xs text-muted-foreground mb-2">Layout Preview:</div>
             <div className="flex gap-4 items-start">
-              <div className="flex-1">
+              <div className="w-1/2">
                 <div className="text-sm font-medium mb-2">
                   {block.title || 'Your title here'}
                 </div>
@@ -136,7 +136,7 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
                   {block.content || 'Your content will appear here...'}
                 </div>
               </div>
-              <div className="w-24 h-16 bg-muted rounded flex items-center justify-center flex-shrink-0">
+              <div className="w-1/2 h-16 bg-muted rounded flex items-center justify-center flex-shrink-0">
                 {block.imageUrl ? (
                   <img 
                     src={block.imageUrl} 
