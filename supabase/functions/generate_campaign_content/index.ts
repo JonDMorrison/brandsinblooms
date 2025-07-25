@@ -64,13 +64,76 @@ serve(async (req) => {
 
     console.log(`📝 Generating content for missing types: ${typesToGenerate.join(', ')}`);
 
-    // Define content prompts with strict no-emoji instructions
+    // Define content prompts with structured output instructions
     const contentPrompts = {
-      instagram: `Create an engaging Instagram post about ${campaign_title} for ${businessName}. Include relevant hashtags and a call-to-action. Keep it concise and visually appealing. Make it feel authentic and personal. Focus on gardening advice and tips. Do NOT use any emojis.`,
-      facebook: `Write a Facebook post about ${campaign_title} for ${businessName}. Make it conversational and community-focused. Include tips or advice that would be valuable to garden center customers. Share practical gardening knowledge. Do NOT use any emojis.`,
-      blog: `Write a comprehensive blog post about ${campaign_title} for ${businessName}. Include an engaging title, introduction, main content with helpful tips, and a conclusion. Make it SEO-friendly and informative for garden center customers. Focus on detailed gardening advice. Do NOT use any emojis.`,
-      video: `Create a clean 90-second video script about ${campaign_title} for ${businessName}. Write ONLY the spoken words - no scene descriptions, visual cues, or production notes. Make it engaging and educational for garden center customers. Focus on one clear teaching point about ${campaign_title}. Do NOT use any emojis.`,
-      newsletter: `Create a structured newsletter about ${campaign_title} for ${businessName}. Include multiple sections with gardening tips, seasonal advice, and practical information. Make it valuable for garden center customers with actionable insights. Do NOT use any emojis.`
+      instagram: `Create an engaging Instagram post about ${campaign_title} for ${businessName}. 
+
+      Structure the response as multiple slides/sections if the content is long enough:
+      - Main post content with gardening advice
+      - Include relevant hashtags 
+      - Call-to-action to visit the garden center
+      
+      Focus on practical tips, seasonal advice, and authentic gardening insights. Do NOT use any emojis.`,
+      
+      facebook: `Write a Facebook post about ${campaign_title} for ${businessName}. 
+
+      Create engaging, community-focused content with:
+      - Introduction hook about the topic
+      - Practical gardening tips and advice  
+      - Community engagement element
+      - Call-to-action to visit or contact
+      
+      Make it conversational and valuable for garden center customers. Do NOT use any emojis.`,
+      
+      blog: `Write a comprehensive blog post about ${campaign_title} for ${businessName}. 
+
+      Structure the blog with clear sections:
+      - Engaging title and introduction
+      - 3-4 main content sections with helpful tips
+      - Practical advice and actionable insights
+      - Conclusion with call-to-action
+      
+      Make it SEO-friendly, informative, and valuable for gardening enthusiasts. Do NOT use any emojis.`,
+      
+      video: `Create a 90-second video script about ${campaign_title} for ${businessName}. 
+
+      Structure the script in segments:
+      - Opening hook (10-15 seconds)
+      - Main teaching content in 2-3 segments (60-70 seconds)
+      - Closing with call-to-action (15-20 seconds)
+      
+      Write ONLY the spoken words - no scene descriptions or production notes. Focus on one clear teaching point. Do NOT use any emojis.`,
+      
+      newsletter: `Create a structured newsletter about ${campaign_title} for ${businessName} in this YAML format:
+
+      newsletter_md: |
+        # ${campaign_title} Newsletter
+        [Newsletter introduction paragraph]
+
+      blocks:
+        - title: "Section 1 Title"
+          body: "Detailed content with gardening tips and advice"
+          cta: "Learn more"
+          link: "#"
+          image_prompt: "${campaign_title} gardening professional"
+          alt_text: "Section 1 image description"
+        - title: "Section 2 Title"
+          body: "More valuable content for garden center customers"
+          cta: "Visit us"
+          link: "#"
+          image_prompt: "${campaign_title} garden center advice"
+          alt_text: "Section 2 image description"
+
+      extra_content_ideas:
+        - title: "Follow-up Content Idea"
+          quick_desc: "Brief description of related content"
+
+      meta:
+        reading_time: "≈3 min"
+        theme: "${campaign_title}"
+        week_focus: "Main focus description"
+      
+      Focus on actionable gardening insights and seasonal advice. Do NOT use any emojis.`
     };
 
     // Function to validate and clean content
