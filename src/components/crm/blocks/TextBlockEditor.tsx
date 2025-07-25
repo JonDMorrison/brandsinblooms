@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { MediaSelector } from '@/components/image/MediaSelector';
+import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { mediaSelector } from '@/utils/mediaSelector';
 
 interface TextBlockEditorProps {
@@ -232,11 +232,11 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
             <div>
               <Label>Select Image</Label>
               <div className="mt-2">
-                <MediaSelector
-                  onImageSelect={handleImageSelect}
-                  selectedImageUrl={block.imageUrl}
+                <MediaSelectorImage
+                  src={block.imageUrl}
+                  onChange={handleImageSelect}
                   contentContext={`${block.title || ''} ${block.content || ''}`}
-                  compact={true}
+                  className="h-48"
                 />
               </div>
             </div>
