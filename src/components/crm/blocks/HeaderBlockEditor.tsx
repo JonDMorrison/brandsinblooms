@@ -12,6 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Upload, Eye, ChevronDown, Settings, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { ImageSelectButton } from '@/components/image';
+import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 
 interface HeaderBlockEditorProps {
   block: ContentBlock;
@@ -152,24 +153,12 @@ export const HeaderBlockEditor: React.FC<HeaderBlockEditorProps> = ({
         <CollapsibleContent className="pt-4 space-y-4">
           <div>
             <Label>Background Image</Label>
-            <ImageSelectButton
-              onImageSelect={(imageUrl) => updateField('backgroundImageUrl', imageUrl)}
-              selectedImageUrl={block.backgroundImageUrl}
+            <MediaSelectorImage
+              src={block.backgroundImageUrl}
+              onChange={(imageUrl) => updateField('backgroundImageUrl', imageUrl)}
               contentContext="header background"
-              mode="inline"
-              buttonText="Select Background Image"
+              className="mt-2"
             />
-            {block.backgroundImageUrl && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => updateField('backgroundImageUrl', '')}
-                className="mt-2"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Remove Image
-              </Button>
-            )}
           </div>
 
           <div>
