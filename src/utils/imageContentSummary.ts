@@ -45,7 +45,7 @@ const CONTEXT_WORDS = [
  */
 export function extractImageSummary(content: string): string {
   if (!content?.trim()) {
-    return 'garden';
+    return 'garden center';
   }
 
   // Clean and normalize the content
@@ -56,6 +56,29 @@ export function extractImageSummary(content: string): string {
     .trim();
 
   const words = cleanContent.split(' ');
+
+  // Special handling for seasonal/monthly themes
+  const seasonalMappings: Record<string, string> = {
+    'national honey month': 'bee garden',
+    'honey month': 'bee garden',
+    'pollinator': 'bee garden',
+    'bee friendly': 'bee garden',
+    'summer heat': 'summer garden',
+    'heat protection': 'summer garden',
+    'plant rescue': 'plant care',
+    'plant recovery': 'plant care',
+    'garden planning': 'garden tools',
+    'garden preparation': 'garden tools',
+    'fall garden': 'autumn garden',
+    'winter garden': 'winter plants'
+  };
+
+  // Check for seasonal mappings first
+  for (const [phrase, mapping] of Object.entries(seasonalMappings)) {
+    if (cleanContent.includes(phrase)) {
+      return mapping;
+    }
+  }
 
   // First, look for priority garden terms
   for (const term of PRIORITY_GARDEN_TERMS) {
@@ -120,8 +143,16 @@ export function extractImageSummary(content: string): string {
     return gardenWords[0];
   }
 
-  // Fallback to generic garden terms
-  return 'garden';
+  // Smart seasonal fallbacks based on current month
+  const currentMonth = new Date().getMonth();
+  const seasonalFallbacks: Record<number, string> = {
+    0: 'winter garden', 1: 'winter garden', 2: 'spring garden',
+    3: 'spring garden', 4: 'spring garden', 5: 'summer garden',
+    6: 'summer garden', 7: 'bee garden', // July is National Honey Month
+    8: 'late summer', 9: 'autumn garden', 10: 'autumn garden', 11: 'winter garden'
+  };
+  
+  return seasonalFallbacks[currentMonth] || 'garden center';
 }
 
 /**

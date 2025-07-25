@@ -13,12 +13,12 @@ export const getHashtagsForType = (postType: string): string => {
 
 export const getImageIdeaForType = (postType: string): string => {
   const imageIdeasMap: Record<string, string> = {
-    instagram: 'Professional photo with engaging visual elements',
-    facebook: 'Community-focused image or infographic',
-    email: 'Simple header image or company logo',
-    newsletter: 'Newsletter banner with company branding',
-    video: 'Thumbnail image for video content'
+    instagram: 'garden center plants',
+    facebook: 'community garden',
+    email: 'garden center',
+    newsletter: 'seasonal garden',
+    video: 'garden tips'
   };
   
-  return imageIdeasMap[postType] || 'Professional business image';
+  return imageIdeasMap[postType] || 'garden center';
 };

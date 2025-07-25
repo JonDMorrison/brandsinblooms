@@ -10,6 +10,8 @@ import { useContentAssets } from '@/hooks/useContentAssets';
 import { downloadUnsplashImage, copyAttributionToClipboard } from '@/services/unsplashDownloadService';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { extractImageSummary } from '@/utils/imageContentSummary';
+import { validateImageQuery } from '@/utils/dynamicImageSearch';
 
 interface MediaSelectorProps {
   onImageSelect: (imageUrl: string, metadata?: any) => void;
@@ -39,7 +41,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     const loadDefaultSuggestions = async () => {
       if (searchResults.length === 0 && !showingSuggestions) {
         setShowingSuggestions(true);
-        const defaultQuery = contentContext || 'professional business';
+        const rawQuery = contentContext ? extractImageSummary(contentContext) : 'garden center';
+        const defaultQuery = validateImageQuery(rawQuery);
+        console.log('[MediaSelector] Loading suggestions with validated query:', defaultQuery, 'from context:', rawQuery);
         const results = await searchImages(defaultQuery);
         setSearchResults(results.slice(0, 6));
       }
@@ -51,8 +55,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
+    const cleanQuery = validateImageQuery(searchQuery);
+    console.log('[MediaSelector] Searching with validated query:', cleanQuery, 'from input:', searchQuery);
+    
     setShowingSuggestions(false);
-    const results = await searchImages(searchQuery);
+    const results = await searchImages(cleanQuery);
     setSearchResults(results);
   };
 

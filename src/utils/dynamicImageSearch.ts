@@ -30,14 +30,14 @@ interface CampaignData {
 export function extractDynamicQuery(
   task?: ContentTask | null, 
   campaign?: CampaignData | null,
-  fallback = 'garden'
+  fallback = 'garden center'
 ): string {
   console.log('[DYNAMIC QUERY] Extracting query from:', { task, campaign });
   
   // Priority 1: Use image_idea if available
   if (task?.image_idea) {
     const summary = extractImageSummary(task.image_idea);
-    if (summary && summary !== 'garden') {
+    if (summary && !isGenericTerm(summary)) {
       console.log('[DYNAMIC QUERY] Using image idea summary:', summary);
       return summary;
     }
@@ -46,7 +46,7 @@ export function extractDynamicQuery(
   // Priority 2: Extract from AI output content
   if (task?.ai_output) {
     const summary = extractImageSummary(task.ai_output);
-    if (summary && summary !== 'garden') {
+    if (summary && !isGenericTerm(summary)) {
       console.log('[DYNAMIC QUERY] Using AI output summary:', summary);
       return summary;
     }
@@ -56,7 +56,7 @@ export function extractDynamicQuery(
   const campaignSource = campaign || task?.campaigns;
   if (campaignSource?.theme) {
     const summary = extractImageSummary(campaignSource.theme);
-    if (summary && summary !== 'garden') {
+    if (summary && !isGenericTerm(summary)) {
       console.log('[DYNAMIC QUERY] Using campaign theme summary:', summary);
       return summary;
     }
@@ -65,7 +65,7 @@ export function extractDynamicQuery(
   // Priority 4: Use campaign title
   if (campaignSource?.title) {
     const summary = extractImageSummary(campaignSource.title);
-    if (summary && summary !== 'garden') {
+    if (summary && !isGenericTerm(summary)) {
       console.log('[DYNAMIC QUERY] Using campaign title summary:', summary);
       return summary;
     }
@@ -75,7 +75,36 @@ export function extractDynamicQuery(
   return fallback;
 }
 
-// Legacy functions removed - now using extractImageSummary from imageContentSummary.ts
+/**
+ * Checks if a term is too generic for good image results
+ */
+function isGenericTerm(term: string): boolean {
+  const genericTerms = ['garden', 'plant', 'flower', 'care', 'tips', 'guide'];
+  return genericTerms.includes(term.toLowerCase());
+}
+
+/**
+ * Validates and cleans image queries to ensure quality results
+ */
+export function validateImageQuery(query: string): string {
+  if (!query?.trim()) return 'garden center';
+  
+  // Remove overly complex queries - limit to 2 words max
+  const words = query.trim().split(/\s+/);
+  if (words.length > 2) {
+    // Try to extract the most relevant 1-2 words
+    const relevantWords = words.filter(word => 
+      word.length > 3 && 
+      !['the', 'and', 'for', 'with', 'your', 'that', 'this', 'from'].includes(word.toLowerCase())
+    );
+    
+    if (relevantWords.length > 0) {
+      return relevantWords.slice(0, 2).join(' ');
+    }
+  }
+  
+  return query;
+}
 
 /**
  * Enhanced topic extraction for specific post types
