@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, EyeOff } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { MediaSelector } from '@/components/image/MediaSelector';
+import { mediaSelector } from '@/utils/mediaSelector';
 
 interface TextBlockEditorProps {
   block: ContentBlock;
@@ -61,6 +62,36 @@ export const TextBlockEditor: React.FC<TextBlockEditorProps> = ({
       altText: metadata?.alt || block.altText || 'Selected image'
     });
   };
+
+  // Debug: Log block data to see if imageUrl exists
+  console.log('[TextBlockEditor] Block data:', {
+    title: block.title,
+    hasImageUrl: !!block.imageUrl,
+    imageUrl: block.imageUrl,
+    layout: block.layout
+  });
+
+  // Auto-fetch image for two-column-right blocks that don't have an image
+  useEffect(() => {
+    if (isImageRightLayout && !block.imageUrl && (block.title || block.content)) {
+      const contentForImage = `${block.title || ''} ${block.content || ''}`.trim();
+      if (contentForImage) {
+        console.log('[TextBlockEditor] Auto-fetching image for content:', contentForImage);
+        mediaSelector({ 
+          prompt: contentForImage,
+          fallback: '/images/newsletter-fallback.jpg' 
+        }).then((result) => {
+          console.log('[TextBlockEditor] Auto-fetched image:', result.url);
+          onUpdate({ 
+            imageUrl: result.url,
+            altText: result.alt || 'Auto-selected image'
+          });
+        }).catch((error) => {
+          console.error('[TextBlockEditor] Failed to auto-fetch image:', error);
+        });
+      }
+    }
+  }, [isImageRightLayout, block.imageUrl, block.title, block.content, onUpdate]);
 
   // Two-column layout for image-right blocks
   if (isImageRightLayout) {
