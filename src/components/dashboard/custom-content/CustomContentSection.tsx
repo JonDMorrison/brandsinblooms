@@ -40,6 +40,7 @@ export const CustomContentSection = ({
     campaignTitle: ''
   });
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [showCustomCampaignModal, setShowCustomCampaignModal] = React.useState(false);
 
   // Update campaigns when prop changes
   React.useEffect(() => {
@@ -302,9 +303,12 @@ export const CustomContentSection = ({
             {shouldShowEmptyState ? (
               <div className="text-center py-12 px-6 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                  <button 
+                    onClick={() => setShowCustomCampaignModal(true)}
+                    className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors cursor-pointer"
+                  >
                     <Plus className="w-8 h-8 text-primary" />
-                  </div>
+                  </button>
                   <div className="space-y-2">
                     <h3 className="text-lg font-semibold text-foreground">No Custom Campaigns Yet</h3>
                     <p className="text-muted-foreground max-w-md">
