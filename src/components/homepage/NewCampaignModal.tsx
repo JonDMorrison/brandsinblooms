@@ -234,7 +234,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
             <Label htmlFor="date" className="text-garden-green-dark">
               Campaign Start Date *
             </Label>
-            <Popover>
+            <Popover onOpenChange={(open) => console.log('Popover open state:', open)}>
               <PopoverTrigger asChild>
                 <Button
                   variant={"outline"}
@@ -243,24 +243,30 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
                     !selectedDate && "text-muted-foreground"
                   )}
                   disabled={loading || generatingContent}
+                  onClick={() => console.log('Date picker button clicked')}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
                   {selectedDate ? format(selectedDate, "PPP") : <span>Pick a start date</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent 
-                className="w-auto p-0 z-[100] bg-white border shadow-lg" 
+                className="z-[100] w-auto border-0 bg-white p-0 shadow-xl"
                 align="start"
+                side="bottom"
+                sideOffset={5}
               >
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={setSelectedDate}
+                  onSelect={(date) => {
+                    console.log('Date selected:', date);
+                    setSelectedDate(date);
+                  }}
                   disabled={(date) =>
                     date < new Date() || date < new Date("1900-01-01")
                   }
                   initialFocus
-                  className={cn("p-3 pointer-events-auto")}
+                  className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
