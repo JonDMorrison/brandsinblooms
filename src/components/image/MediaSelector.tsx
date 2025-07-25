@@ -119,6 +119,14 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     }
   };
 
+  // Debug logging
+  console.log('[MediaSelector] Props:', {
+    selectedImageUrl,
+    hasSelectedImage: !!selectedImageUrl,
+    compact,
+    contentContext
+  });
+
   if (compact) {
     return (
       <div className={cn("space-y-4", className)}>
@@ -130,6 +138,10 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 src={selectedImageUrl} 
                 alt="Selected featured image"
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  console.error('[MediaSelector] Image failed to load:', selectedImageUrl);
+                  e.currentTarget.src = '/images/newsletter-fallback.jpg';
+                }}
               />
               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
                 <Button 
@@ -246,6 +258,10 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               src={selectedImageUrl} 
               alt="Selected featured image"
               className="w-full h-full object-cover"
+              onError={(e) => {
+                console.error('[MediaSelector] Full view image failed to load:', selectedImageUrl);
+                e.currentTarget.src = '/images/newsletter-fallback.jpg';
+              }}
             />
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
               <div className="text-center">
