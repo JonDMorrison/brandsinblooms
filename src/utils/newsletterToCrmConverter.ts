@@ -153,20 +153,32 @@ const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: str
   if (processed.blocks && processed.blocks.length > 0) {
     console.log(`[CRM SYNC] Processing ${processed.blocks.length} structured blocks`);
     
-    // Create ContentBlocks from newsletter blocks
+    // Create ContentBlocks from newsletter blocks  
     const newsletterBlocks = processed.blocks.map((block: any, index: number) => {
+      // Check if block has image content
+      const hasImage = !!(block.image_prompt || block.image_url);
+      const hasText = !!(block.title || block.body);
+      
+      // Use image-text type for blocks with both text and images
+      const blockType = hasImage && hasText ? 'image-text' : 'text';
+      const blockLayout = hasImage && hasText ? 'image-left' : 'full-width';
+      
       const contentBlock: ContentBlock = {
         id: `block-${index}`,
-        type: 'text', // Keeping as 'text' since Layout2 works well with text blocks
-        layout: 'two-column-right', // Assign text-left-image-right layout
+        type: blockType,
+        layout: blockLayout,
         title: block.title || '',
-        content: block.body || '',
+        headline: block.title || '', // For image-text blocks
+        body: block.body || '', // For image-text blocks  
+        content: block.body || '', // For text blocks
+        buttonText: block.cta || 'Learn More',
+        buttonUrl: block.link || '#',
         ctaText: block.cta || 'Learn More',
         ctaUrl: block.link || '#',
         source: 'newsletter'
       };
       
-      console.log(`[CRM SYNC] Assigned layout "two-column-right" to block: ${contentBlock.title}`);
+      console.log(`[CRM SYNC] Created ${blockType} block with ${blockLayout} layout: ${contentBlock.title}`);
       return contentBlock;
     });
     
@@ -192,18 +204,30 @@ const convertToEmailBlocks = async (processed: any): Promise<{ emailContent: str
     console.log(`[CRM SYNC] Processing ${processed.unstructuredSections.length} unstructured sections`);
     
     const sectionBlocks = processed.unstructuredSections.map((section: any, index: number) => {
+      // Check if section has image content
+      const hasImage = !!(section.image_prompt || section.image_url);
+      const hasText = !!(section.title || section.content);
+      
+      // Use image-text type for sections with both text and images
+      const blockType = hasImage && hasText ? 'image-text' : 'text';
+      const blockLayout = hasImage && hasText ? 'image-left' : 'full-width';
+      
       const contentBlock: ContentBlock = {
         id: `section-${index}`,
-        type: 'text', // Keeping as 'text' since Layout2 works well with text blocks
-        layout: 'two-column-right',
+        type: blockType,
+        layout: blockLayout,
         title: section.title || '',
-        content: section.content || '',
+        headline: section.title || '', // For image-text blocks
+        body: section.content || '', // For image-text blocks
+        content: section.content || '', // For text blocks
+        buttonText: section.cta || 'Learn More',
+        buttonUrl: section.link || '#',
         ctaText: section.cta || 'Learn More',
         ctaUrl: section.link || '#',
         source: 'newsletter'
       };
       
-      console.log(`[CRM SYNC] Assigned layout "two-column-right" to section: ${contentBlock.title}`);
+      console.log(`[CRM SYNC] Created ${blockType} section with ${blockLayout} layout: ${contentBlock.title}`);
       return contentBlock;
     });
     
