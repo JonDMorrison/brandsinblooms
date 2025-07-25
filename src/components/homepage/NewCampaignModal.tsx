@@ -1,21 +1,15 @@
 
 import { useState, useRef } from "react";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/hooks/useTenant";
-import { dateToWeekNumber } from "@/utils/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Loader2, CheckCircle } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { generateRequiredTasks } from "./RequiredTasksGenerator";
 
@@ -32,7 +26,6 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState("");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [loading, setLoading] = useState(false);
   const [generatingContent, setGeneratingContent] = useState(false);
   const [contentGenerated, setContentGenerated] = useState(false);
@@ -58,11 +51,6 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       return;
     }
 
-    if (!selectedDate) {
-      setError("Please select a start date for the campaign");
-      return;
-    }
-
     setLoading(true);
     setError(null);
 
@@ -71,8 +59,10 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
 
       const campaignPrompt = `Create a marketing campaign for "${title}" ${theme ? `with theme: ${theme}` : ''} ${description ? `- ${description}` : ''}. Generate engaging content that promotes this campaign effectively.`;
 
-      const weekNumber = dateToWeekNumber(selectedDate);
-      const startDate = selectedDate.toISOString().split('T')[0];
+      // Use current date and week for start_date and week_number
+      const currentDate = new Date();
+      const startDate = currentDate.toISOString().split('T')[0];
+      const weekNumber = Math.ceil(((currentDate.getTime() - new Date(currentDate.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000)));
 
       // 🔒 SECURITY: Always set user_id, only set tenant_id if tenant exists
       const campaignData = {
@@ -153,7 +143,6 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       setTitle("");
       setDescription("");
       setTheme("");
-      setSelectedDate(undefined);
       setError(null);
 
       // Close modal after short delay to show success state
@@ -181,7 +170,6 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
       setTitle("");
       setDescription("");
       setTheme("");
-      setSelectedDate(undefined);
       setError(null);
       setContentGenerated(false);
       onOpenChange(false);
@@ -230,47 +218,6 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
             />
           </div>
 
-          <div>
-            <Label htmlFor="date" className="text-garden-green-dark">
-              Campaign Start Date *
-            </Label>
-            <Popover onOpenChange={(open) => console.log('Popover open state:', open)}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-full justify-start text-left font-normal border-garden-green-light focus:border-garden-green",
-                    !selectedDate && "text-muted-foreground"
-                  )}
-                  disabled={loading || generatingContent}
-                  onClick={() => console.log('Date picker button clicked')}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {selectedDate ? format(selectedDate, "PPP") : <span>Pick a start date</span>}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent 
-                className="z-[100] w-auto border-0 bg-white p-0 shadow-xl"
-                align="start"
-                side="bottom"
-                sideOffset={5}
-              >
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={(date) => {
-                    console.log('Date selected:', date);
-                    setSelectedDate(date);
-                  }}
-                  disabled={(date) =>
-                    date < new Date() || date < new Date("1900-01-01")
-                  }
-                  initialFocus
-                  className="pointer-events-auto"
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
           
           <div>
             <Label htmlFor="theme" className="text-garden-green-dark">
@@ -312,7 +259,7 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
             </Button>
             <Button
               type="submit"
-              disabled={!title.trim() || !selectedDate || loading || generatingContent}
+              disabled={!title.trim() || loading || generatingContent}
               className="bg-garden-green hover:bg-garden-green-dark text-white"
             >
               {loading ? (

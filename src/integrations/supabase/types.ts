@@ -241,12 +241,12 @@ export type Database = {
           id: string
           prompt: string | null
           source: string | null
-          start_date: string
+          start_date: string | null
           tenant_id: string | null
           theme: string | null
           title: string
           user_id: string | null
-          week_number: number
+          week_number: number | null
         }
         Insert: {
           created_at?: string
@@ -256,12 +256,12 @@ export type Database = {
           id?: string
           prompt?: string | null
           source?: string | null
-          start_date: string
+          start_date?: string | null
           tenant_id?: string | null
           theme?: string | null
           title: string
           user_id?: string | null
-          week_number: number
+          week_number?: number | null
         }
         Update: {
           created_at?: string
@@ -271,12 +271,12 @@ export type Database = {
           id?: string
           prompt?: string | null
           source?: string | null
-          start_date?: string
+          start_date?: string | null
           tenant_id?: string | null
           theme?: string | null
           title?: string
           user_id?: string | null
-          week_number?: number
+          week_number?: number | null
         }
         Relationships: [
           {
