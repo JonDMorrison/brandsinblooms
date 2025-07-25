@@ -12,16 +12,19 @@ import { Button } from "@/components/ui/button";
 // Removed sonner import - using global toast replacement
 import { cn } from "@/lib/utils";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { NewCampaignModal } from "@/components/homepage/NewCampaignModal";
 
 interface CustomContentSectionProps {
   userCreatedCampaigns: any[];
   onContentGenerated?: () => void;
+  onCampaignUpdate?: () => void;
   className?: string;
 }
 
 export const CustomContentSection = ({
   userCreatedCampaigns,
   onContentGenerated,
+  onCampaignUpdate,
   className
 }: CustomContentSectionProps) => {
   const { user } = useAuth();
@@ -253,6 +256,13 @@ export const CustomContentSection = ({
     fetchCampaignContent();
   };
 
+  const handleNewCampaignCreate = () => {
+    setShowCustomCampaignModal(false);
+    if (onCampaignUpdate) {
+      onCampaignUpdate();
+    }
+  };
+
   // Always show the section, even if empty - this allows users to create campaigns
   const shouldShowEmptyState = campaigns.length === 0;
 
@@ -374,6 +384,13 @@ export const CustomContentSection = ({
           }}
         />
       )}
+
+      {/* New Campaign Modal */}
+      <NewCampaignModal 
+        open={showCustomCampaignModal} 
+        onOpenChange={setShowCustomCampaignModal} 
+        onCampaignCreated={handleNewCampaignCreate} 
+      />
     </>
   );
 };
