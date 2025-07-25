@@ -58,7 +58,7 @@ export function processUniversalContent(task: ContentTask): ProcessedContent {
 function processNewsletterContent(task: ContentTask, raw: string): ProcessedContent {
   const parsedNewsletter = parseNewsletterYAML(raw);
   
-  if (parsedNewsletter) {
+  if (parsedNewsletter && parsedNewsletter.blocks && Array.isArray(parsedNewsletter.blocks) && parsedNewsletter.blocks.length > 0) {
     // Already structured - enhance with metadata
     return {
       blocks: parsedNewsletter.blocks.map((block, index) => ({
@@ -66,8 +66,8 @@ function processNewsletterContent(task: ContentTask, raw: string): ProcessedCont
         id: `block-${index}`,
         order_index: index,
         block_type: 'text' as const,
-        image_prompt: block.image_prompt || generateImagePrompt(task, block.title),
-        alt_text: block.alt_text || `${block.title} - newsletter content image`
+        image_prompt: block.image_prompt || generateImagePrompt(task, block.title || 'newsletter content'),
+        alt_text: block.alt_text || `${block.title || 'Newsletter content'} - newsletter content image`
       })),
       metadata: {
         reading_time: parsedNewsletter.meta?.reading_time || '≈3 min',
