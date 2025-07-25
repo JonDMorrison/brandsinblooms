@@ -117,6 +117,7 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPre
             console.log('[HeaderBlock] Image selected:', imageUrl, metadata);
             onUpdate({ backgroundImageUrl: imageUrl });
           }}
+          contentContext={block.headline || block.body || 'header background'}
           className="h-32"
         />
         {block.backgroundImageUrl && (

@@ -20,7 +20,9 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   const [isOpen, setIsOpen] = useState(false);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
+    console.log('[MediaSelectorImage] Image selected before calling onChange:', imageUrl, metadata);
     onChange?.(imageUrl, metadata);
+    console.log('[MediaSelectorImage] onChange called successfully');
     setIsOpen(false);
   };
 
