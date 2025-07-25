@@ -248,7 +248,11 @@ export const NewCampaignModal = ({ open, onOpenChange, onCampaignCreated }: NewC
                   {selectedDate ? format(selectedDate, "PPP") : <span>Pick a start date</span>}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent 
+                className="w-auto p-0 z-[80] bg-white border shadow-lg" 
+                align="start"
+                container={modalRef.current}
+              >
                 <Calendar
                   mode="single"
                   selected={selectedDate}
