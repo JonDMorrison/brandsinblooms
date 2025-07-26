@@ -109,7 +109,7 @@ export const CRMCampaignsPage: React.FC = () => {
                           Your Campaign
                         </span>
                         <Button variant="outline" size="sm" asChild>
-                          <NavLink to={`/crm/campaigns/${campaign.id}/builder`}>
+                          <NavLink to={`/crm/campaigns/${campaign.id}`}>
                             <Eye className="h-4 w-4 mr-1" />
                             Edit
                           </NavLink>

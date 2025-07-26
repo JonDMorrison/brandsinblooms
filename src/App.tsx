@@ -94,6 +94,13 @@ function App() {
             </SidebarLayout>
           </ProtectedRoute>
         } />
+        <Route path="/crm/campaigns/:campaignId" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMCampaignBuilderPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
         <Route path="/crm/campaigns/new/:campaignSlug" element={
           <ProtectedRoute>
             <SidebarLayout>
