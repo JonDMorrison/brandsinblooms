@@ -50,16 +50,9 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
         </button>
       </div>
 
-      <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) {
-          setIsOpen(false);
-        } else {
-          setIsOpen(true);
-        }
-      }}>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent 
           className="max-w-4xl max-h-[90vh] overflow-y-auto"
-          onPointerDownOutside={(e) => e.preventDefault()}
         >
           <div className="space-y-4">
             <DialogHeader>

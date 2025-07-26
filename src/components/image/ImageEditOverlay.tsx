@@ -50,10 +50,7 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
           </Tooltip>
         </TooltipProvider>
         
-        <DialogContent 
-          className="max-w-4xl max-h-[90vh] overflow-y-auto"
-          onPointerDownOutside={(e) => e.preventDefault()}
-        >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <div className="space-y-4">
             <DialogHeader>
               <DialogTitle>Select Image</DialogTitle>

@@ -93,7 +93,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     console.log('[MediaSelector] onImageSelect callback completed');
   };
 
-  const handleThumbnailClick = (image: any, index: number) => (e: React.MouseEvent) => {
+  const handleThumbnailClick = (image: any, index: number) => {
     console.log('[MediaSelector] Thumbnail clicked - entering preview mode:', index, image);
     
     const imageMetadata = {
@@ -111,6 +111,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       metadata: imageMetadata
     });
     setIsPreviewing(true);
+    console.log('[MediaSelector] Preview state set to true');
   };
 
   const handleDownload = async (image: any, event?: React.MouseEvent) => {
@@ -298,7 +299,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 <div
                   key={index}
                   className="relative group cursor-pointer aspect-square rounded overflow-hidden border-2 border-slate-200 hover:border-primary transition-all"
-                  onClick={handleThumbnailClick(image, index)}
+                  onClick={() => handleThumbnailClick(image, index)}
                 >
                   <img 
                     src={image.thumb} 
@@ -469,7 +470,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               <Card 
                 key={`${image.id}-${index}`}
                 className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
-                onClick={handleThumbnailClick(image, index)}
+                onClick={() => handleThumbnailClick(image, index)}
               >
                 <CardContent className="p-0">
                   <div className="relative aspect-square">
