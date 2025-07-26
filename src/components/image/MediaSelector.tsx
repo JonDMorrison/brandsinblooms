@@ -176,7 +176,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const handleConfirmSelection = () => {
     if (previewImage) {
       console.log('[MediaSelector] "Choose This Image" button clicked - confirming selection:', previewImage);
-      handleImageSelect(previewImage.url, previewImage.metadata);
+      onImageSelect(previewImage.url, previewImage.metadata);
+      // Reset preview state after selection
       setPreviewImage(null);
       setIsPreviewing(false);
     }

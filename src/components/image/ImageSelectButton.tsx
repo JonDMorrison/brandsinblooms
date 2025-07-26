@@ -111,7 +111,10 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
           )}
         </div>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-4xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <div className="space-y-4">
           <DialogHeader>
             <DialogTitle>Select Image</DialogTitle>
