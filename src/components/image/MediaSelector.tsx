@@ -32,6 +32,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showingSuggestions, setShowingSuggestions] = useState(false);
   const [selectedImageMetadata, setSelectedImageMetadata] = useState<any>(null);
+  const [previewImage, setPreviewImage] = useState<{url: string, metadata: any} | null>(null);
   
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
@@ -246,6 +247,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                     console.log('[MediaSelector] Compact image clicked:', index, image);
                     e.preventDefault();
                     e.stopPropagation();
+                    // In compact mode, still use immediate selection for better UX
                     handleImageSelect(image.url, {
                       source: 'unsplash',
                       alt_text: image.alt,
@@ -280,14 +282,14 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       <div className="space-y-4">
         <h3 className="text-sm font-medium text-slate-700">Featured Image</h3>
         
-        {selectedImageUrl ? (
+        {selectedImageUrl || previewImage ? (
           <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
             <img 
-              src={selectedImageUrl} 
-              alt={selectedImageMetadata?.alt_text || "Featured image"}
+              src={previewImage?.url || selectedImageUrl} 
+              alt={previewImage?.metadata?.alt_text || selectedImageMetadata?.alt_text || "Featured image"}
               className="w-full h-full object-cover"
               onError={(e) => {
-                console.error('[MediaSelector] Full view image failed to load:', selectedImageUrl);
+                console.error('[MediaSelector] Full view image failed to load:', previewImage?.url || selectedImageUrl);
                 const currentSrc = e.currentTarget.src;
                 const fallbackPath = '/images/newsletter-fallback.jpg';
                 
@@ -300,23 +302,48 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 }
               }}
             />
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
-              <div className="text-center">
-                <Edit3 className="h-6 w-6 text-white mx-auto mb-2" />
-                <p className="text-white font-medium">Change Image</p>
+            
+            {/* Show "Select This Image" button when previewing */}
+            {previewImage && !selectedImageUrl && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <Button 
+                    onClick={() => {
+                      console.log('[MediaSelector] Select button clicked, calling onImageSelect');
+                      handleImageSelect(previewImage.url, previewImage.metadata);
+                      setPreviewImage(null);
+                    }}
+                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
+                  >
+                    Select This Image
+                  </Button>
+                  <p className="text-white text-sm">
+                    Photo by {previewImage.metadata?.photographer}
+                  </p>
+                </div>
               </div>
-              {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={(e) => handleDownload(selectedImageMetadata, e)}
-                  className="bg-white/90 hover:bg-white"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-              )}
-            </div>
+            )}
+            
+            {/* Show edit controls for selected images */}
+            {selectedImageUrl && !previewImage && (
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+                <div className="text-center">
+                  <Edit3 className="h-6 w-6 text-white mx-auto mb-2" />
+                  <p className="text-white font-medium">Change Image</p>
+                </div>
+                {selectedImageMetadata?.source === 'unsplash' && selectedImageMetadata?.photographer && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={(e) => handleDownload(selectedImageMetadata, e)}
+                    className="bg-white/90 hover:bg-white"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="aspect-video rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center hover:border-gray-400 hover:bg-gray-100 transition-colors">
@@ -380,14 +407,17 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                   console.log('[MediaSelector] Full view image clicked:', index, image);
                   e.preventDefault();
                   e.stopPropagation();
-                  handleImageSelect(image.url, {
-                    source: 'unsplash',
-                    alt_text: image.alt,
-                    photographer: image.photographer,
-                    photographer_url: image.photographer_url,
-                    unsplash_id: image.id,
-                    thumb: image.thumb,
-                    download_location: image.download_location
+                  setPreviewImage({
+                    url: image.url,
+                    metadata: {
+                      source: 'unsplash',
+                      alt_text: image.alt,
+                      photographer: image.photographer,
+                      photographer_url: image.photographer_url,
+                      unsplash_id: image.id,
+                      thumb: image.thumb,
+                      download_location: image.download_location
+                    }
                   });
                 }}
               >
