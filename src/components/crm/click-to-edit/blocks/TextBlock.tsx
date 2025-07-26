@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Bold, Italic, Link, List, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { InlineTextEditor } from '../inline/InlineTextEditor';
+import { InlineStyleEditor } from '../inline/InlineStyleEditor';
 import { cn } from '@/lib/utils';
 
 interface TextBlockProps {
@@ -13,7 +15,24 @@ interface TextBlockProps {
   isPreview: boolean;
 }
 
+type InlineEditMode = 'text' | 'style' | null;
+
 export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview }) => {
+  const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
+
+  const handleInlineEdit = (mode: InlineEditMode, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setInlineEditMode(mode);
+  };
+
+  const handleInlineSave = () => {
+    setInlineEditMode(null);
+  };
+
+  const handleInlineCancel = () => {
+    setInlineEditMode(null);
+  };
+
   if (isPreview) {
     const paddingClass = {
       none: 'p-0',
@@ -23,21 +42,52 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
     }[block.padding || 'medium'];
 
     return (
-      <div className={cn(
-        paddingClass,
-        block.textAlign === 'center' && "text-center",
-        block.textAlign === 'right' && "text-right"
-      )}>
-        <div 
-          className="prose max-w-none"
-          style={{ 
-            fontSize: block.fontSize || '16px',
-            fontFamily: block.fontFamily || 'inherit'
-          }}
-          dangerouslySetInnerHTML={{ 
-            __html: block.content || '<p>Add your text content here...</p>' 
-          }}
-        />
+      <div 
+        className={cn(
+          paddingClass,
+          block.textAlign === 'center' && "text-center",
+          block.textAlign === 'right' && "text-right",
+          "relative"
+        )}
+        onClick={(e) => handleInlineEdit('style', e)}
+      >
+        {/* Text content with inline editing */}
+        {inlineEditMode === 'text' ? (
+          <div className="relative z-50">
+            <InlineTextEditor
+              value={block.content || ''}
+              onChange={(value) => onUpdate({ content: value })}
+              onSave={handleInlineSave}
+              onCancel={handleInlineCancel}
+              placeholder="Enter text content"
+              multiline={true}
+            />
+          </div>
+        ) : (
+          <div 
+            className="prose max-w-none cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors"
+            style={{ 
+              fontSize: block.fontSize || '16px',
+              fontFamily: block.fontFamily || 'inherit'
+            }}
+            onClick={(e) => handleInlineEdit('text', e)}
+            dangerouslySetInnerHTML={{ 
+              __html: block.content || '<p>Click to add text content</p>' 
+            }}
+          />
+        )}
+
+        {/* Style editor overlay */}
+        {inlineEditMode === 'style' && (
+          <div className="absolute top-2 right-2 z-50">
+            <InlineStyleEditor
+              textAlign={block.textAlign}
+              onTextAlignChange={(align) => onUpdate({ textAlign: align as any })}
+              onSave={handleInlineSave}
+              onCancel={handleInlineCancel}
+            />
+          </div>
+        )}
       </div>
     );
   }

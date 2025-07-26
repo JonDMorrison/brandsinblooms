@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,6 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { InlineTextEditor } from '../inline/InlineTextEditor';
+import { InlineImageEditor } from '../inline/InlineImageEditor';
+import { InlineStyleEditor } from '../inline/InlineStyleEditor';
 import { cn } from '@/lib/utils';
 
 interface ImageTextBlockProps {
@@ -14,14 +17,31 @@ interface ImageTextBlockProps {
   isPreview: boolean;
 }
 
+type InlineEditMode = 'headline' | 'body' | 'image' | 'style' | null;
+
 export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate, isPreview }) => {
+  const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
   const isImageLeft = block.layout === 'image-left' || !block.layout;
+
+  const handleInlineEdit = (mode: InlineEditMode, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setInlineEditMode(mode);
+  };
+
+  const handleInlineSave = () => {
+    setInlineEditMode(null);
+  };
+
+  const handleInlineCancel = () => {
+    setInlineEditMode(null);
+  };
 
   if (isPreview) {
     return (
       <div 
-        className="p-6 rounded-lg"
+        className="relative p-6 rounded-lg"
         style={{ backgroundColor: block.backgroundColor || 'transparent' }}
+        onClick={(e) => handleInlineEdit('style', e)}
       >
         <div className={cn(
           "grid gap-6 items-center",
@@ -34,33 +54,97 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate,
             block.textAlign === 'center' && "text-center",
             block.textAlign === 'right' && "text-right"
           )}>
-            {block.headline && (
-              <h2 className="text-2xl font-bold">
-                {block.headline}
+            {/* Headline with inline editing */}
+            {inlineEditMode === 'headline' ? (
+              <div className="relative z-50">
+                <InlineTextEditor
+                  value={block.headline || ''}
+                  onChange={(value) => onUpdate({ headline: value })}
+                  onSave={handleInlineSave}
+                  onCancel={handleInlineCancel}
+                  placeholder="Enter headline"
+                />
+              </div>
+            ) : (
+              <h2 
+                className="text-2xl font-bold cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors"
+                onClick={(e) => handleInlineEdit('headline', e)}
+              >
+                {block.headline || 'Click to add headline'}
               </h2>
             )}
-            {block.body && (
-              <div className="text-muted-foreground whitespace-pre-wrap">
-                {block.body}
+            
+            {/* Body text with inline editing */}
+            {inlineEditMode === 'body' ? (
+              <div className="relative z-50">
+                <InlineTextEditor
+                  value={block.body || ''}
+                  onChange={(value) => onUpdate({ body: value })}
+                  onSave={handleInlineSave}
+                  onCancel={handleInlineCancel}
+                  placeholder="Enter body text"
+                  multiline={true}
+                />
+              </div>
+            ) : (
+              <div 
+                className="text-muted-foreground whitespace-pre-wrap cursor-pointer hover:bg-muted/50 p-2 rounded transition-colors"
+                onClick={(e) => handleInlineEdit('body', e)}
+              >
+                {block.body || 'Click to add body text'}
               </div>
             )}
           </div>
 
-          {/* Image */}
-          <div className={cn(!isImageLeft && "md:order-2")}>
-            {block.imageUrl ? (
-              <img
-                src={block.imageUrl}
-                alt={block.altText || ''}
-                className="w-full h-auto rounded-lg"
-              />
+          {/* Image with inline editing */}
+          <div className={cn(!isImageLeft && "md:order-2", "relative")}>
+            {inlineEditMode === 'image' ? (
+              <div className="relative z-50">
+                <InlineImageEditor
+                  imageUrl={block.imageUrl}
+                  onChange={(imageUrl) => onUpdate({ imageUrl })}
+                  onSave={handleInlineSave}
+                  onCancel={handleInlineCancel}
+                  contentContext="Email newsletter image"
+                />
+              </div>
             ) : (
-              <div className="bg-muted rounded-lg aspect-video flex items-center justify-center text-muted-foreground">
-                No image selected
+              <div 
+                className="cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={(e) => handleInlineEdit('image', e)}
+              >
+                {block.imageUrl ? (
+                  <img
+                    src={block.imageUrl}
+                    alt={block.altText || ''}
+                    className="w-full h-auto rounded-lg"
+                  />
+                ) : (
+                  <div className="bg-muted rounded-lg aspect-video flex items-center justify-center text-muted-foreground hover:bg-muted/80">
+                    Click to add image
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
+
+        {/* Style editor overlay */}
+        {inlineEditMode === 'style' && (
+          <div className="absolute top-2 right-2 z-50">
+            <InlineStyleEditor
+              backgroundColor={block.backgroundColor}
+              textAlign={block.textAlign}
+              layout={block.layout}
+              onBackgroundColorChange={(color) => onUpdate({ backgroundColor: color })}
+              onTextAlignChange={(align) => onUpdate({ textAlign: align as any })}
+              onLayoutChange={(layout) => onUpdate({ layout: layout as any })}
+              onSave={handleInlineSave}
+              onCancel={handleInlineCancel}
+              showLayoutOptions={true}
+            />
+          </div>
+        )}
       </div>
     );
   }

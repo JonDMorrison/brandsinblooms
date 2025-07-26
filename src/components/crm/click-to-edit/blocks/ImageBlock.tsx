@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
+import { InlineImageEditor } from '../inline/InlineImageEditor';
+import { InlineStyleEditor } from '../inline/InlineStyleEditor';
 import { cn } from '@/lib/utils';
 
 interface ImageBlockProps {
@@ -12,29 +14,79 @@ interface ImageBlockProps {
   isPreview: boolean;
 }
 
+type InlineEditMode = 'image' | 'style' | null;
+
 export const ImageBlock: React.FC<ImageBlockProps> = ({ block, onUpdate, isPreview }) => {
+  const [inlineEditMode, setInlineEditMode] = useState<InlineEditMode>(null);
+
+  const handleInlineEdit = (mode: InlineEditMode, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setInlineEditMode(mode);
+  };
+
+  const handleInlineSave = () => {
+    setInlineEditMode(null);
+  };
+
+  const handleInlineCancel = () => {
+    setInlineEditMode(null);
+  };
+
   if (isPreview) {
     return (
       <div className={cn(
-        "p-6",
+        "relative p-6",
         block.textAlign === 'center' && "text-center",
         block.textAlign === 'right' && "text-right"
-      )}>
-        {block.imageUrl ? (
-          <img
-            src={block.imageUrl}
-            alt={block.altText || ''}
-            className="max-w-full h-auto rounded-lg"
-          />
+      )}
+      onClick={(e) => handleInlineEdit('style', e)}
+      >
+        {/* Image with inline editing */}
+        {inlineEditMode === 'image' ? (
+          <div className="relative z-50">
+            <InlineImageEditor
+              imageUrl={block.imageUrl}
+              onChange={(imageUrl) => onUpdate({ imageUrl })}
+              onSave={handleInlineSave}
+              onCancel={handleInlineCancel}
+              contentContext="Email newsletter image"
+            />
+          </div>
         ) : (
-          <div className="bg-muted rounded-lg aspect-video flex items-center justify-center text-muted-foreground">
-            No image selected
+          <div 
+            className="cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={(e) => handleInlineEdit('image', e)}
+          >
+            {block.imageUrl ? (
+              <img
+                src={block.imageUrl}
+                alt={block.altText || ''}
+                className="max-w-full h-auto rounded-lg"
+              />
+            ) : (
+              <div className="bg-muted rounded-lg aspect-video flex items-center justify-center text-muted-foreground hover:bg-muted/80">
+                Click to add image
+              </div>
+            )}
           </div>
         )}
+        
         {block.caption && (
           <p className="mt-3 text-sm text-muted-foreground italic">
             {block.caption}
           </p>
+        )}
+
+        {/* Style editor overlay */}
+        {inlineEditMode === 'style' && (
+          <div className="absolute top-2 right-2 z-50">
+            <InlineStyleEditor
+              textAlign={block.textAlign}
+              onTextAlignChange={(align) => onUpdate({ textAlign: align as any })}
+              onSave={handleInlineSave}
+              onCancel={handleInlineCancel}
+            />
+          </div>
         )}
       </div>
     );
