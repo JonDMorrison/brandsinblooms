@@ -23,6 +23,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     console.log('[MediaSelectorImage] Image selected before calling onChange:', imageUrl, metadata);
     onChange?.(imageUrl, metadata);
     console.log('[MediaSelectorImage] onChange called successfully');
+    // Only close modal after successful selection - let the MediaSelector handle the preview flow
     setIsOpen(false);
   };
 
