@@ -91,7 +91,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   };
 
   const handleThumbnailClick = (image: any, index: number) => {
-    console.log('[MediaSelector] Thumbnail clicked:', index, image);
+    console.log('[MediaSelector] Full modal thumbnail clicked (NOT closing modal):', index, image);
     const imageMetadata = {
       source: 'unsplash',
       alt_text: image.alt,
@@ -102,7 +102,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       download_location: image.download_location
     };
     
-    console.log('[MediaSelector] Setting preview image:', {
+    console.log('[MediaSelector] Setting preview image for full modal:', {
       url: image.url,
       metadata: imageMetadata
     });
@@ -175,7 +175,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   const handleSelectPreview = () => {
     if (previewImage) {
-      console.log('[MediaSelector] Selecting preview image:', previewImage);
+      console.log('[MediaSelector] "Choose This Image" button clicked - selecting preview image:', previewImage);
       handleImageSelect(previewImage.url, previewImage.metadata);
     }
   };
@@ -296,8 +296,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('[MediaSelector] Compact thumbnail clicked:', index, image);
-                    handleImageSelect(image.url, {
+                    console.log('[MediaSelector] Compact thumbnail clicked - setting preview:', index, image);
+                    const imageMetadata = {
                       source: 'unsplash',
                       alt_text: image.alt,
                       photographer: image.photographer,
@@ -305,6 +305,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                       unsplash_id: image.id,
                       thumb: image.thumb,
                       download_location: image.download_location
+                    };
+                    
+                    setPreviewImage({
+                      url: image.url,
+                      metadata: imageMetadata
                     });
                   }}
                 >
@@ -355,10 +360,14 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                 <div className="text-center space-y-3">
                   <Button 
-                    onClick={handleSelectPreview}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      console.log('[MediaSelector] "Choose This Image" button clicked');
+                      handleSelectPreview();
+                    }}
                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-2"
                   >
-                    Select This Image
+                    Choose This Image
                   </Button>
                   <Button 
                     onClick={handleClearPreview}
