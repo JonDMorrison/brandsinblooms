@@ -8,6 +8,12 @@ import CalendarPage from '@/pages/CalendarPage';
 import PublishPage from '@/pages/PublishPage';
 import { CRMCampaignCreatorPage } from '@/pages/CRMCampaignCreatorPage';
 import { CRMCampaignBuilderPage } from '@/pages/CRMCampaignBuilderPage';
+import { CRMDashboardPage } from '@/pages/crm/CRMDashboardPage';
+import { CRMCustomersPage } from '@/pages/crm/CRMCustomersPage';
+import { CRMSegmentsPage } from '@/pages/crm/CRMSegmentsPage';
+import { CRMPersonaAnalyticsPage } from '@/pages/crm/CRMPersonaAnalyticsPage';
+import { CRMAnalyticsPage } from '@/pages/crm/CRMAnalyticsPage';
+import { CRMCampaignsPage } from '@/pages/crm/CRMCampaignsPage';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { SidebarLayout } from '@/components/SidebarLayout';
 import { ContentGenerationProvider } from '@/contexts/ContentGenerationContext';
@@ -43,6 +49,48 @@ function App() {
           <ProtectedRoute>
             <SidebarLayout>
               <PublishPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMDashboardPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/customers" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMCustomersPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/segments" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMSegmentsPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/personas/analytics" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMPersonaAnalyticsPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/analytics" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMAnalyticsPage />
+            </SidebarLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/crm/campaigns" element={
+          <ProtectedRoute>
+            <SidebarLayout>
+              <CRMCampaignsPage />
             </SidebarLayout>
           </ProtectedRoute>
         } />
