@@ -723,6 +723,7 @@ export type Database = {
           name: string
           open_rate: number | null
           predicted_segment_ids: string[] | null
+          preheader: string | null
           preheader_text: string | null
           scheduled_at: string | null
           segment_id: string | null
@@ -752,6 +753,7 @@ export type Database = {
           name: string
           open_rate?: number | null
           predicted_segment_ids?: string[] | null
+          preheader?: string | null
           preheader_text?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
@@ -781,6 +783,7 @@ export type Database = {
           name?: string
           open_rate?: number | null
           predicted_segment_ids?: string[] | null
+          preheader?: string | null
           preheader_text?: string | null
           scheduled_at?: string | null
           segment_id?: string | null
