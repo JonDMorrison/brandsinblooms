@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Settings } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { InlineImageEditor } from '../inline/InlineImageEditor';
@@ -35,12 +37,19 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({ block, onUpdate, isPrevi
   if (isPreview) {
     return (
       <div className={cn(
-        "relative p-6",
+        "relative p-6 group",
         block.textAlign === 'center' && "text-center",
         block.textAlign === 'right' && "text-right"
-      )}
-      onClick={(e) => handleInlineEdit('style', e)}
-      >
+      )}>
+        {/* Settings button - appears on hover in top right */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-40"
+          onClick={(e) => handleInlineEdit('style', e)}
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
         {/* Image with inline editing */}
         {inlineEditMode === 'image' ? (
           <div className="relative z-50">

@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Bold, Italic, Link, List, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Bold, Italic, Link, List, AlignLeft, AlignCenter, AlignRight, Settings } from 'lucide-react';
 import { InlineTextEditor } from '../inline/InlineTextEditor';
 import { InlineStyleEditor } from '../inline/InlineStyleEditor';
 import { cn } from '@/lib/utils';
@@ -47,10 +47,18 @@ export const TextBlock: React.FC<TextBlockProps> = ({ block, onUpdate, isPreview
           paddingClass,
           block.textAlign === 'center' && "text-center",
           block.textAlign === 'right' && "text-right",
-          "relative"
+          "relative group"
         )}
-        onClick={(e) => handleInlineEdit('style', e)}
       >
+        {/* Settings button - appears on hover in top right */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-40"
+          onClick={(e) => handleInlineEdit('style', e)}
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
         {/* Text content with inline editing */}
         {inlineEditMode === 'text' ? (
           <div className="relative z-50">

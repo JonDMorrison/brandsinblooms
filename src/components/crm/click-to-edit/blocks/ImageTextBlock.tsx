@@ -5,6 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Settings } from 'lucide-react';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { InlineTextEditor } from '../inline/InlineTextEditor';
 import { InlineImageEditor } from '../inline/InlineImageEditor';
@@ -39,10 +41,18 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate,
   if (isPreview) {
     return (
       <div 
-        className="relative p-6 rounded-lg"
+        className="relative p-6 rounded-lg group"
         style={{ backgroundColor: block.backgroundColor || 'transparent' }}
-        onClick={(e) => handleInlineEdit('style', e)}
       >
+        {/* Settings button - appears on hover in top right */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-40"
+          onClick={(e) => handleInlineEdit('style', e)}
+        >
+          <Settings className="h-4 w-4" />
+        </Button>
         <div className={cn(
           "grid gap-6 items-center",
           isImageLeft ? "md:grid-cols-2" : "md:grid-cols-2"
