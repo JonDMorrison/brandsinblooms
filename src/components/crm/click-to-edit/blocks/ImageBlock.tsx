@@ -41,14 +41,16 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({ block, onUpdate, isPrevi
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-4">
       <div className="space-y-2">
         <Label>Image</Label>
-        <MediaSelectorImage
-          src={block.imageUrl}
-          onChange={(imageUrl) => onUpdate({ imageUrl })}
-          className="h-48"
-        />
+        <div className="min-h-[200px]">
+          <MediaSelectorImage
+            src={block.imageUrl}
+            onChange={(imageUrl) => onUpdate({ imageUrl })}
+            className="w-full"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
