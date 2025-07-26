@@ -1,10 +1,25 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Mail, Plus, Calendar, BarChart3 } from 'lucide-react';
+import { Mail, Plus, Calendar, BarChart3, Eye } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useCampaigns } from '@/hooks/useCampaigns';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const CRMCampaignsPage: React.FC = () => {
+  const { campaigns, loading, fetchCampaigns } = useCampaigns();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      fetchCampaigns(user.id);
+    }
+  }, [user, fetchCampaigns]);
+
+  const activeCampaigns = campaigns.filter(c => c.status === 'active' || c.status === 'sent').length;
+  const scheduledCampaigns = campaigns.filter(c => c.status === 'scheduled').length;
+  const draftCampaigns = campaigns.filter(c => c.status === 'draft' || !c.status).length;
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -24,7 +39,7 @@ export const CRMCampaignsPage: React.FC = () => {
             <Mail className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
+            <div className="text-2xl font-bold">{activeCampaigns}</div>
             <p className="text-xs text-muted-foreground">
               Running campaigns
             </p>
@@ -37,7 +52,7 @@ export const CRMCampaignsPage: React.FC = () => {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{scheduledCampaigns}</div>
             <p className="text-xs text-muted-foreground">
               Campaigns scheduled
             </p>
@@ -50,34 +65,83 @@ export const CRMCampaignsPage: React.FC = () => {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">7</div>
+            <div className="text-2xl font-bold">{draftCampaigns}</div>
             <p className="text-xs text-muted-foreground">
               In progress
             </p>
           </CardContent>
         </Card>
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Campaign Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-muted-foreground">
-              Create, manage, and track your email marketing campaigns. Build engaging newsletters, promotional emails, and automated sequences.
-            </p>
-            <Button asChild variant="outline">
-              <NavLink to="/crm/campaigns/new">
-                Get Started with Your First Campaign
-              </NavLink>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+
+      {loading ? (
+        <Card>
+          <CardContent className="p-6">
+            <p>Loading campaigns...</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {campaigns.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Your Campaigns
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {campaigns.map((campaign) => (
+                    <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div>
+                        <h3 className="font-semibold">{campaign.title}</h3>
+                        <p className="text-sm text-muted-foreground">{campaign.description || campaign.theme}</p>
+                        {campaign.start_date && (
+                          <p className="text-xs text-muted-foreground">
+                            Start date: {new Date(campaign.start_date).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs px-2 py-1 rounded bg-secondary">
+                          Week {campaign.week_number}
+                        </span>
+                        <Button variant="outline" size="sm" asChild>
+                          <NavLink to={`/crm/campaigns/${campaign.id}`}>
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </NavLink>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Campaign Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p className="text-muted-foreground">
+                  Create, manage, and track your email marketing campaigns. Build engaging newsletters, promotional emails, and automated sequences.
+                </p>
+                <Button asChild variant="outline">
+                  <NavLink to="/crm/campaigns/new">
+                    Get Started with Your First Campaign
+                  </NavLink>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 };
