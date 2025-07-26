@@ -191,34 +191,99 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     <div className="flex justify-center py-4">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 bg-background hover:bg-accent"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Add Block trigger clicked');
+            }}
+          >
             <Plus className="h-4 w-4" />
             Add Block
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
-          <DropdownMenuItem onClick={() => addBlock('header', afterIndex)}>
+        <DropdownMenuContent className="z-[500] bg-background border shadow-lg">
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Adding header block');
+              addBlock('header', afterIndex);
+            }}
+          >
             📄 Header
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => addBlock('text', afterIndex)}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Adding text block');
+              addBlock('text', afterIndex);
+            }}
+          >
             📝 Text
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => addBlock('image', afterIndex)}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Adding image block');
+              addBlock('image', afterIndex);
+            }}
+          >
             🖼️ Image
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => addBlock('image-text', afterIndex)}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Adding image-text block');
+              addBlock('image-text', afterIndex);
+            }}
+          >
             📄 Image + Text
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => addBlock('button', afterIndex)}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Adding button block');
+              addBlock('button', afterIndex);
+            }}
+          >
             🔘 Button
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => addBlock('divider', afterIndex)}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Adding divider block');
+              addBlock('divider', afterIndex);
+            }}
+          >
             ➖ Divider
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => addBlock('social-follow', afterIndex)}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Adding social-follow block');
+              addBlock('social-follow', afterIndex);
+            }}
+          >
             📱 Social Follow
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => addBlock('footer', afterIndex)}>
+          <DropdownMenuItem 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('Adding footer block');
+              addBlock('footer', afterIndex);
+            }}
+          >
             📋 Footer
           </DropdownMenuItem>
         </DropdownMenuContent>

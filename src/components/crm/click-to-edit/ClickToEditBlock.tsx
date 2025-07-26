@@ -108,35 +108,60 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   };
 
   return (
-    <div className="group relative"
-    style={{ position: 'relative' }}>
+    <div className="group relative" style={{ position: 'relative', zIndex: 1 }}>
       {/* Drag Handle - appears on hover */}
-      <div className="absolute -left-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute -left-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10">
         <div className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground">
           <GripVertical className="h-4 w-4" />
         </div>
       </div>
 
       {/* Block Actions - appears on hover */}
-      <div className="absolute -right-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="absolute -right-8 top-4 opacity-0 group-hover:opacity-100 transition-opacity z-20">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 w-8 p-0 bg-background border shadow-sm hover:bg-accent"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('DropdownMenuTrigger clicked');
+              }}
+            >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onDuplicate(block)}>
+          <DropdownMenuContent align="end" className="z-[500] bg-background border shadow-lg">
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Duplicate clicked');
+                onDuplicate(block);
+              }}
+            >
               Duplicate
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => onMove(block.id, 'up')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Move up clicked');
+                onMove(block.id, 'up');
+              }}
               disabled={!canMoveUp}
             >
               Move Up
             </DropdownMenuItem>
             <DropdownMenuItem 
-              onClick={() => onMove(block.id, 'down')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Move down clicked');
+                onMove(block.id, 'down');
+              }}
               disabled={!canMoveDown}
             >
               Move Down
@@ -144,7 +169,15 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             <DropdownMenuItem>
               Convert to
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onRemove(block.id)} className="text-destructive">
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Delete clicked');
+                onRemove(block.id);
+              }} 
+              className="text-destructive"
+            >
               Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -165,10 +198,27 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium">Editing {block.type} block</h3>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handleCancel}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Cancel clicked');
+                    handleCancel();
+                  }}
+                >
                   Cancel
                 </Button>
-                <Button size="sm" onClick={handleSave}>
+                <Button 
+                  size="sm" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Save clicked');
+                    handleSave();
+                  }}
+                >
                   Save
                 </Button>
               </div>
@@ -179,7 +229,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             })}
           </div>
         ) : (
-          <div className="p-0">
+          <div 
+            className="p-0 cursor-pointer" 
+            onClick={handleBlockClick}
+            style={{ pointerEvents: 'auto' }}
+          >
             {React.cloneElement(children.preview as React.ReactElement, {
               block: localBlock
             })}

@@ -468,7 +468,14 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
             <p className="text-muted-foreground mb-4">
               Choose from professional layouts to create engaging content blocks.
             </p>
-            <Button onClick={() => openAddModal()}>
+            <Button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Choose Layout button clicked');
+                openAddModal();
+              }}
+            >
               Choose Layout
             </Button>
           </CardContent>
