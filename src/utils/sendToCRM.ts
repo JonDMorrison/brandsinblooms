@@ -113,7 +113,6 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
         source: 'newsletter_content',
         themeSource,
         title: encodeURIComponent(title),
-        content: encodeURIComponent(contentTask.ai_output || ''),
         type: 'newsletter',
         isNewsletterContent: 'true',
         ...(personaTags?.length && { 
@@ -132,6 +131,13 @@ export const sendToCRM = async (contentTaskId: string): Promise<boolean> => {
       });
 
       crmUrl = `/crm/campaigns/new/${campaignSlug}?${searchParams.toString()}`;
+      
+      console.log('🎯 [sendToCRM] Generated CRM URL for newsletter:', {
+        contentTaskId,
+        campaignSlug,
+        title,
+        crmUrl: crmUrl.substring(0, 100) + '...'
+      });
     } else {
       // Use generic route for non-newsletter content
       const searchParams = new URLSearchParams({

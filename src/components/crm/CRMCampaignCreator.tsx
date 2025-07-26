@@ -35,14 +35,14 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [subjectLine, setSubjectLine] = useState('');
   const [preheaderText, setPreheaderText] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
-  console.log('🎯 CRMCampaignCreator - Current blocks state:', { 
-    blocksLength: blocks.length, 
-    blockIds: blocks.map(b => b.id),
-    allBlocksData: blocks.map(b => ({ id: b.id, type: b.type, title: b.title, visible: b.visible }))
-  });
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [sourceContentInfo, setSourceContentInfo] = useState<{
+    taskId: string;
+    campaignTitle: string;
+    contentPreview: string;
+  } | null>(null);
 
   // Check for URL parameters and auto-populate from newsletter
   useEffect(() => {
@@ -90,13 +90,27 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         try {
           const { data: contentTask, error } = await supabase
             .from('content_tasks')
-            .select('ai_output')
+            .select(`
+              ai_output,
+              campaigns!inner(title, theme)
+            `)
             .eq('id', contentTaskId)
             .single();
           
           if (!error && contentTask?.ai_output) {
             fullContent = contentTask.ai_output;
-            console.log('✅ Retrieved full content from database');
+            
+            // Set source content info for verification
+            setSourceContentInfo({
+              taskId: contentTaskId,
+              campaignTitle: contentTask.campaigns?.title || 'Unknown Campaign',
+              contentPreview: fullContent.substring(0, 150) + '...'
+            });
+            
+            console.log('✅ Retrieved full content from database:', {
+              campaignTitle: contentTask.campaigns?.title,
+              contentLength: fullContent.length
+            });
           }
         } catch (dbError) {
           console.log('⚠️ Database fetch failed, using URL content:', dbError);
@@ -279,6 +293,16 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Create Email Campaign</h1>
           <p className="text-muted-foreground">Build and customize your email campaign</p>
+          {sourceContentInfo && (
+            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
+              <p className="font-medium text-blue-900">
+                📄 Source: {sourceContentInfo.campaignTitle}
+              </p>
+              <p className="text-blue-700 mt-1">
+                {sourceContentInfo.contentPreview}
+              </p>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowPreview(true)}>

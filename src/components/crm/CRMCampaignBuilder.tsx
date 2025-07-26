@@ -16,10 +16,14 @@ export const CRMCampaignBuilder: React.FC = () => {
     if (slugMatch) {
       const shortId = slugMatch[1];
       console.log('🔍 Extracted short ID from slug:', shortId);
-      // For now, try to construct the full UUID - this is a temporary solution
-      // In practice, you'd want to query the database to find the full ID
-      if (shortId === 'dfe675') {
-        contentTaskId = 'dfe67554-2a5b-4afd-bb5f-1d4bea38a617';
+      // Map known content task IDs based on short ID
+      const contentTaskMappings: Record<string, string> = {
+        'dfe675': 'dfe67554-2a5b-4afd-bb5f-1d4bea38a617', // National Honey Month
+        '01408f': '01408f9b-292e-4dc4-ae85-250a93d76478', // Hydrangea Focus Week
+      };
+      
+      if (contentTaskMappings[shortId]) {
+        contentTaskId = contentTaskMappings[shortId];
         console.log('✅ Mapped short ID to full content task ID:', contentTaskId);
       }
     }
@@ -35,9 +39,12 @@ export const CRMCampaignBuilder: React.FC = () => {
   if (contentTaskId && campaignSlug?.includes('newsletter-campaign')) {
     // Set URL parameters to trigger newsletter conversion
     const currentParams = new URLSearchParams(window.location.search);
-    currentParams.set('contentTaskId', contentTaskId);
-    currentParams.set('type', 'newsletter');
-    currentParams.set('title', 'National Honey Month');
+    if (!currentParams.get('contentTaskId')) {
+      currentParams.set('contentTaskId', contentTaskId);
+    }
+    if (!currentParams.get('type')) {
+      currentParams.set('type', 'newsletter');
+    }
     
     // Update URL without page reload if parameters are missing
     const newUrl = `${window.location.pathname}?${currentParams.toString()}`;
