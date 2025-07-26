@@ -208,9 +208,10 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
 
   if (compact) {
     return (
-      <div className={cn("space-y-4", className)}>
+      <div className={cn("bg-white border border-gray-200 rounded-lg p-6 space-y-6", className)}>
         {/* Compact Featured Image */}
-        <div className="space-y-2">
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700">Featured Image</h4>
           {selectedImageUrl ? (
             <div className="relative group aspect-video rounded-lg border-2 border-green-200 overflow-hidden bg-green-50">
               <img 
@@ -260,51 +261,59 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           )}
         </div>
 
-        {/* Compact Controls */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="Search images..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            className="text-sm"
-          />
-          <Button 
-            onClick={handleSearch} 
-            disabled={unsplashLoading}
-            size="sm"
-            variant="outline"
-          >
-            {unsplashLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
-          </Button>
+        {/* Search Controls */}
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium text-gray-700">Search Images</h4>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Search images..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              className="text-sm"
+            />
+            <Button 
+              onClick={handleSearch} 
+              disabled={unsplashLoading}
+              size="sm"
+              variant="outline"
+            >
+              {unsplashLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+            </Button>
+          </div>
+
+          <label className="block">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button variant="outline" size="sm" className="w-full text-xs" asChild>
+              <span>
+                <Upload className="h-3 w-3 mr-1" />
+                Upload New Image
+              </span>
+            </Button>
+          </label>
         </div>
 
-        <label className="block">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <Button variant="outline" size="sm" className="w-full text-xs" asChild>
-            <span>
-              <Upload className="h-3 w-3 mr-1" />
-              Upload New Image
-            </span>
-          </Button>
-        </label>
-
-        {/* Compact 3 Thumbnails */}
+        {/* Image Thumbnails */}
         {searchResults.length > 0 && (
-          <div>
-            <div className="text-xs text-slate-600 mb-2 font-medium">
-              {showingSuggestions ? 'Suggested:' : 'Results:'}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-gray-700">
+                {showingSuggestions ? 'Suggested Images' : 'Search Results'}
+              </h4>
+              <span className="text-xs text-gray-500">
+                {searchResults.length} images found
+              </span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {searchResults.slice(0, 3).map((image, index) => (
                 <div
                   key={image.id || index}
-                  className="relative group cursor-pointer aspect-square rounded overflow-hidden border-2 border-slate-200 hover:border-primary transition-all"
+                  className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
                   onClick={() => handleThumbnailClick(image, index)}
                 >
                   <img 
@@ -322,9 +331,38 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                       }
                     }}
                   />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Camera className="h-4 w-4 text-white" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                    <div className="bg-white rounded-full p-2">
+                      <Camera className="h-4 w-4 text-gray-700" />
+                    </div>
                   </div>
+                  {image.photographer && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <p className="text-white text-xs truncate">Photo by {image.photographer}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {searchResults.length > 3 && (
+              <p className="text-xs text-gray-500 text-center">
+                Showing 3 of {searchResults.length} results. Click any image to view larger.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {unsplashLoading && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-medium text-gray-700">Loading Images...</h4>
+            <div className="grid grid-cols-3 gap-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="aspect-square rounded-lg bg-gray-100 animate-pulse flex items-center justify-center"
+                >
+                  <Loader2 className="h-4 w-4 text-gray-400 animate-spin" />
                 </div>
               ))}
             </div>
