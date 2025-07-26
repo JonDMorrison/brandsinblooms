@@ -39,8 +39,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showingSuggestions, setShowingSuggestions] = useState(false);
   const [selectedImageMetadata, setSelectedImageMetadata] = useState<any>(null);
-  const [previewImage, setPreviewImage] = useState<{url: string, metadata: any} | null>(null);
-  const [isPreviewing, setIsPreviewing] = useState(false);
+  // Removed preview state - thumbnails now directly select images
   
   const { searchImages, loading: unsplashLoading } = useUnsplash();
   const { uploadAsset } = useContentAssets();
@@ -89,14 +88,12 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelector] Image selected:', imageUrl, metadata);
     setSelectedImageMetadata(metadata);
-    setPreviewImage(null); // Clear preview when selecting
     onImageSelect(imageUrl, metadata);
     console.log('[MediaSelector] onImageSelect callback completed');
   };
 
   const handleThumbnailClick = (image: any, index: number) => {
-    console.log('[MediaSelector] Entering handleThumbnailClick for image:', image);
-    console.log('[MediaSelector] Current isPreviewing state BEFORE update:', isPreviewing);
+    console.log('[MediaSelector] Thumbnail clicked - directly selecting image:', image);
     
     const imageMetadata = {
       source: 'unsplash',
@@ -108,15 +105,8 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
       download_location: image.download_location
     };
     
-    // Set preview state
-    setIsPreviewing(true);
-    setPreviewImage({
-      url: image.url,
-      metadata: imageMetadata
-    });
-
-    console.log('[MediaSelector] Preview state set to true, previewImage set to:', image.id);
-    console.log('[MediaSelector] isPreviewing state AFTER update:', isPreviewing);
+    // Directly call handleImageSelect instead of going to preview mode
+    handleImageSelect(image.url, imageMetadata);
   };
 
   const handleDownload = async (image: any, event?: React.MouseEvent) => {
@@ -179,32 +169,13 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     }
   };
 
-  const handleConfirmSelection = () => {
-    if (previewImage) {
-      console.log('[MediaSelector] "Choose This Image" button clicked - confirming selection:', previewImage);
-      onImageSelect(previewImage.url, previewImage.metadata);
-      // Reset preview state after selection
-      setPreviewImage(null);
-      setIsPreviewing(false);
-    }
-  };
-
-  const handleBackToBrowse = () => {
-    console.log('[MediaSelector] Back to browse mode');
-    setPreviewImage(null);
-    setIsPreviewing(false);
-    onBackClick?.();
-  };
+  // Removed handleConfirmSelection and handleBackToBrowse - no longer needed
 
   // Debugging render flow
-  console.log('[MediaSelector] Component re-rendered. isPreviewing:', isPreviewing);
-  console.log('[MediaSelector] Current state:', {
+  console.log('[MediaSelector] Component re-rendered with state:', {
     searchResultsCount: searchResults.length,
-    hasPreviewImage: !!previewImage,
-    previewImageUrl: previewImage?.url,
     showingSuggestions,
-    unsplashLoading,
-    isPreviewing: isPreviewing
+    unsplashLoading
   });
 
   if (compact) {
@@ -402,59 +373,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
     );
   }
 
-  // Preview Mode UI
-  if (isPreviewing && previewImage) {
-    console.log('[MediaSelector] Rendering preview mode.', previewImage);
-    return (
-      <div className={cn("w-full", className)}>
-        <div className="flex items-center gap-3 mb-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleBackToBrowse}
-            className="p-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h3 className="text-lg font-semibold">Preview Image</h3>
-            {previewImage.metadata?.photographer && (
-              <p className="text-sm text-muted-foreground">
-                Photo by {previewImage.metadata.photographer}
-              </p>
-            )}
-          </div>
-        </div>
-        
-        <div className="mb-6">
-          <div className="aspect-video rounded-lg overflow-hidden bg-gray-100">
-            <img 
-              src={previewImage.url} 
-              alt={previewImage.metadata?.alt_text || "Preview image"}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-        
-        <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            onClick={handleBackToBrowse}
-          >
-            Back to Browse
-          </Button>
-          <Button
-            onClick={handleConfirmSelection}
-            className="bg-primary hover:bg-primary/90"
-          >
-            Choose This Image
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  // Browse Mode UI
+  // Browse Mode UI - thumbnails now directly select images
   console.log('[MediaSelector] Rendering thumbnail grid (not in preview mode).');
   return (
     <div className={cn("w-full space-y-6", className)}>
