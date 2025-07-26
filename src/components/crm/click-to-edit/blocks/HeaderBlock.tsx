@@ -15,52 +15,64 @@ interface HeaderBlockProps {
 }
 
 export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPreview }) => {
-  if (isPreview) {
-    return (
-      <div className="relative overflow-hidden rounded-lg">
-        {/* Background Image - bottom layer */}
-        {block.backgroundImageUrl && (
-          <div 
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ 
-              backgroundImage: `url(${block.backgroundImageUrl})`,
-              opacity: (block.backgroundOpacity || 100) / 100
-            }}
-          />
-        )}
-        
-        {/* Color Overlay - middle layer */}
-        {block.backgroundColor && (
-          <div 
-            className="absolute inset-0"
-            style={{ 
-              backgroundColor: block.backgroundColor,
-              opacity: (block.colorOverlayOpacity || 50) / 100
-            }}
-          />
-        )}
-        
-        {/* Content - top layer */}
-        <div className={cn(
-          "relative z-10 p-12 text-white",
-          // Add dark background only if no background image or color
-          !block.backgroundImageUrl && !block.backgroundColor && "bg-slate-800/80",
-          block.textAlign === 'center' && "text-center",
-          block.textAlign === 'right' && "text-right"
-        )}>
-          <h1 className="text-4xl font-bold mb-4">
-            {block.headline || 'Your Headline Here'}
-          </h1>
-          <p className="text-lg opacity-90">
-            {block.body || 'Add your subtitle or description text here.'}
-          </p>
-        </div>
+  // Live preview component that can be reused
+  const PreviewContent = () => (
+    <div className="relative overflow-hidden rounded-lg">
+      {/* Background Image - bottom layer */}
+      {block.backgroundImageUrl && (
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ 
+            backgroundImage: `url(${block.backgroundImageUrl})`,
+            opacity: (block.backgroundOpacity || 100) / 100
+          }}
+        />
+      )}
+      
+      {/* Color Overlay - middle layer */}
+      {block.backgroundColor && (
+        <div 
+          className="absolute inset-0"
+          style={{ 
+            backgroundColor: block.backgroundColor,
+            opacity: (block.colorOverlayOpacity || 50) / 100
+          }}
+        />
+      )}
+      
+      {/* Content - top layer */}
+      <div className={cn(
+        "relative z-10 p-12 text-white",
+        // Add dark background only if no background image or color
+        !block.backgroundImageUrl && !block.backgroundColor && "bg-slate-800/80",
+        block.textAlign === 'center' && "text-center",
+        block.textAlign === 'right' && "text-right"
+      )}>
+        <h1 className="text-4xl font-bold mb-4">
+          {block.headline || 'Your Headline Here'}
+        </h1>
+        <p className="text-lg opacity-90">
+          {block.body || 'Add your subtitle or description text here.'}
+        </p>
       </div>
-    );
+    </div>
+  );
+
+  if (isPreview) {
+    return <PreviewContent />;
   }
 
   return (
     <div className="space-y-6">
+      {/* Live Preview Section */}
+      <div className="space-y-2">
+        <Label>Live Preview</Label>
+        <div className="border rounded-lg overflow-hidden">
+          <PreviewContent />
+        </div>
+      </div>
+
+      {/* Editor Controls */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="headline">Headline</Label>
