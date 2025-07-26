@@ -58,6 +58,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         try {
           const results = await searchImages(defaultQuery);
           console.log('[MediaSelector] Search results received:', results?.length || 0, 'results');
+          console.log('[MediaSelector] First result structure:', results?.[0]);
           setSearchResults(results.slice(0, 6));
         } catch (error) {
           console.error('[MediaSelector] Error loading suggestions:', error);
@@ -309,40 +310,54 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 {searchResults.length} images found
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {searchResults.slice(0, 3).map((image, index) => (
-                <div
-                  key={image.id || index}
-                  className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
-                  onClick={() => handleThumbnailClick(image, index)}
-                >
-                  <img 
-                    src={image.thumb || image.thumb_url || image.url} 
-                    alt={image.alt || 'Image thumbnail'}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.error('[MediaSelector] Thumbnail failed to load:', image.thumb || image.thumb_url);
-                      // Fallback to main image URL if thumb fails
-                      if (e.currentTarget.src !== image.url) {
-                        e.currentTarget.src = image.url;
-                      } else {
-                        // Show placeholder
-                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY2NzM4NSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
-                      }
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                    <div className="bg-white rounded-full p-2">
-                      <Camera className="h-4 w-4 text-gray-700" />
+            <div className="grid grid-cols-3 gap-3 min-h-[120px]">
+              {searchResults.slice(0, 3).map((image, index) => {
+                console.log('[MediaSelector] Rendering thumbnail:', index, {
+                  id: image.id,
+                  thumb: image.thumb,
+                  thumb_url: image.thumb_url,
+                  url: image.url,
+                  download_url: image.download_url
+                });
+                return (
+                  <div
+                    key={image.id || index}
+                    className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                    onClick={() => handleThumbnailClick(image, index)}
+                  >
+                    <img 
+                      src={image.thumb_url || image.thumb || image.download_url || image.url} 
+                      alt={image.alt || 'Image thumbnail'}
+                      className="w-full h-full object-cover"
+                      onLoad={() => console.log('[MediaSelector] Image loaded successfully:', image.id)}
+                      onError={(e) => {
+                        console.error('[MediaSelector] Thumbnail failed to load:', {
+                          src: e.currentTarget.src,
+                          image: image
+                        });
+                        // Fallback chain
+                        const currentSrc = e.currentTarget.src;
+                        if (currentSrc !== (image.download_url || image.url)) {
+                          e.currentTarget.src = image.download_url || image.url;
+                        } else {
+                          // Show placeholder
+                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY2NzM4NSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
+                        }
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                      <div className="bg-white rounded-full p-2">
+                        <Camera className="h-4 w-4 text-gray-700" />
+                      </div>
                     </div>
+                    {image.photographer && (
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <p className="text-white text-xs truncate">Photo by {image.photographer}</p>
+                      </div>
+                    )}
                   </div>
-                  {image.photographer && (
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <p className="text-white text-xs truncate">Photo by {image.photographer}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
             {searchResults.length > 3 && (
               <p className="text-xs text-gray-500 text-center">
@@ -521,42 +536,55 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             {showingSuggestions ? 'Suggested Images' : 'Search Results'}
           </h4>
           
-          <div className="grid grid-cols-3 gap-4">
-            {searchResults.slice(0, 3).map((image, index) => (
-              <Card 
-                key={`${image.id}-${index}`}
-                className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
-                onClick={() => handleThumbnailClick(image, index)}
-              >
-                <CardContent className="p-0">
-                  <div className="relative aspect-square">
-                    <img 
-                     src={image.thumb || image.thumb_url || image.url} 
-                      alt={image.alt}
-                      className="w-full h-full object-cover rounded-lg"
-                      onError={(e) => {
-                        console.error('[MediaSelector] Thumbnail failed to load:', image.thumb || image.thumb_url);
-                        // Fallback chain: thumb -> thumb_url -> url -> placeholder
-                        const currentSrc = e.currentTarget.src;
-                        if (currentSrc !== image.url && image.url) {
-                          e.currentTarget.src = image.url;
-                        } else {
-                          e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgRmFpbGVkPC90ZXh0Pjwvc3ZnPg==';
-                        }
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                      <Camera className="h-6 w-6 text-white" />
-                    </div>
-                    {image.photographer && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-lg">
-                        Photo by {image.photographer}
+          <div className="grid grid-cols-3 gap-4 min-h-[160px]">
+            {searchResults.slice(0, 3).map((image, index) => {
+              console.log('[MediaSelector] Browse mode - rendering thumbnail:', index, {
+                id: image.id,
+                thumb: image.thumb,
+                thumb_url: image.thumb_url,
+                url: image.url,
+                download_url: image.download_url
+              });
+              return (
+                <Card 
+                  key={`${image.id}-${index}`}
+                  className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
+                  onClick={() => handleThumbnailClick(image, index)}
+                >
+                  <CardContent className="p-0">
+                    <div className="relative aspect-square">
+                      <img 
+                        src={image.thumb_url || image.thumb || image.download_url || image.url} 
+                        alt={image.alt}
+                        className="w-full h-full object-cover rounded-lg"
+                        onLoad={() => console.log('[MediaSelector] Browse mode - Image loaded:', image.id)}
+                        onError={(e) => {
+                          console.error('[MediaSelector] Browse mode - Thumbnail failed to load:', {
+                            src: e.currentTarget.src,
+                            image: image
+                          });
+                          // Fallback chain: thumb_url -> thumb -> download_url -> url -> placeholder
+                          const currentSrc = e.currentTarget.src;
+                          if (currentSrc !== (image.download_url || image.url)) {
+                            e.currentTarget.src = image.download_url || image.url;
+                          } else {
+                            e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NSI+SW1hZ2UgRmFpbGVkPC90ZXh0Pjwvc3ZnPg==';
+                          }
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                        <Camera className="h-6 w-6 text-white" />
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      {image.photographer && (
+                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent text-white text-xs p-2 rounded-b-lg">
+                          Photo by {image.photographer}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
           
           {searchResults.length > 3 && (

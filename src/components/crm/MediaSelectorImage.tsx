@@ -36,16 +36,16 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   // If in selection mode, show the MediaSelector inline
   if (isSelecting) {
     return (
-      <div className={`w-full space-y-4 mb-8 ${className}`}>
-        <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
-            <h4 className="text-sm font-medium text-gray-900">Select Image</h4>
+      <div className={`w-full mb-8 ${className}`}>
+        <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+            <h4 className="text-lg font-semibold text-gray-900">Select Image</h4>
             <Button variant="outline" size="sm" onClick={handleCancel}>
-              <X className="h-3 w-3 mr-1" />
+              <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
           </div>
-          <div className="w-full min-h-[500px]">
+          <div className="w-full min-h-[600px] overflow-visible">
             <MediaSelector
               onImageSelect={handleImageSelect}
               selectedImageUrl={src}
