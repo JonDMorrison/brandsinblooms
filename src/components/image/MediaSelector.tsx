@@ -239,15 +239,20 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 <div
                   key={index}
                   className="relative group cursor-pointer aspect-square rounded overflow-hidden border-2 border-slate-200 hover:border-primary transition-all"
-                  onClick={() => handleImageSelect(image.url, {
-                    source: 'unsplash',
-                    alt_text: image.alt,
-                    photographer: image.photographer,
-                    photographer_url: image.photographer_url,
-                    unsplash_id: image.id,
-                    thumb: image.thumb,
-                    download_location: image.download_location
-                  })}
+                  onClick={(e) => {
+                    console.log('[MediaSelector] Compact image clicked:', index, image);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleImageSelect(image.url, {
+                      source: 'unsplash',
+                      alt_text: image.alt,
+                      photographer: image.photographer,
+                      photographer_url: image.photographer_url,
+                      unsplash_id: image.id,
+                      thumb: image.thumb,
+                      download_location: image.download_location
+                    });
+                  }}
                 >
                   <img 
                     src={image.thumb} 
@@ -365,15 +370,20 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
               <Card 
                 key={index} 
                 className="cursor-pointer transition-all hover:shadow-lg hover:scale-105 group"
-                onClick={() => handleImageSelect(image.url, {
-                  source: 'unsplash',
-                  alt_text: image.alt,
-                  photographer: image.photographer,
-                  photographer_url: image.photographer_url,
-                  unsplash_id: image.id,
-                  thumb: image.thumb,
-                  download_location: image.download_location
-                })}
+                onClick={(e) => {
+                  console.log('[MediaSelector] Full view image clicked:', index, image);
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleImageSelect(image.url, {
+                    source: 'unsplash',
+                    alt_text: image.alt,
+                    photographer: image.photographer,
+                    photographer_url: image.photographer_url,
+                    unsplash_id: image.id,
+                    thumb: image.thumb,
+                    download_location: image.download_location
+                  });
+                }}
               >
                 <CardContent className="p-0">
                   <div className="relative aspect-square">
