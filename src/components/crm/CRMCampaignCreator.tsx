@@ -293,16 +293,6 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Create Email Campaign</h1>
           <p className="text-muted-foreground">Build and customize your email campaign</p>
-          {sourceContentInfo && (
-            <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm">
-              <p className="font-medium text-blue-900">
-                📄 Source: {sourceContentInfo.campaignTitle}
-              </p>
-              <p className="text-blue-700 mt-1">
-                {sourceContentInfo.contentPreview}
-              </p>
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowPreview(true)}>
