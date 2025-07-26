@@ -54,10 +54,42 @@ export const processNewsletterContent = (content: string, campaignTitle?: string
     // Check if we have proper blocks or need to create them from markdown content
     let finalBlocks = parsedNewsletter.blocks || [];
     
-    // If no blocks found or only empty blocks, create them from newsletter markdown content
-    if (!finalBlocks.length || finalBlocks.every(block => !block.title && !block.body)) {
+    // If no blocks found or blocks are empty/invalid, create them from markdown content
+    console.log('[NEWSLETTER PROCESSOR] Found blocks:', finalBlocks);
+    
+    const hasValidBlocks = finalBlocks.length > 0 && finalBlocks.some(block => 
+      (block.title && block.title.trim()) || (block.body && block.body.trim())
+    );
+    
+    if (!hasValidBlocks) {
       console.log('[NEWSLETTER PROCESSOR] No valid blocks found, creating from markdown content');
       finalBlocks = createBlocksFromMarkdownContent(parsedNewsletter.newsletter_md);
+    } else {
+      console.log('[NEWSLETTER PROCESSOR] Using existing structured blocks');
+      
+      // Add an introduction block from newsletter_md if it doesn't exist
+      const hasIntroduction = finalBlocks.some(block => 
+        block.title?.toLowerCase().includes('welcome') || 
+        block.title?.toLowerCase().includes('introduction')
+      );
+      
+      if (!hasIntroduction && parsedNewsletter.newsletter_md) {
+        const lines = parsedNewsletter.newsletter_md.split('\n');
+        const headerLine = lines.find(line => line.trim().startsWith('#'));
+        const introText = lines.slice(1).join('\n').trim();
+        
+        if (headerLine && introText) {
+          const introBlock = {
+            title: headerLine.replace(/^#+\s*/, '').trim(),
+            body: introText,
+            image_prompt: `${parsedNewsletter.meta?.theme || 'garden'} newsletter header`,
+            alt_text: `Header image for ${headerLine.replace(/^#+\s*/, '').trim()}`,
+            cta: 'Learn More',
+            link: '#'
+          };
+          finalBlocks.unshift(introBlock);
+        }
+      }
     }
     
     return {
