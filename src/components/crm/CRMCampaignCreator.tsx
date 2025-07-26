@@ -13,6 +13,8 @@ import { EmailPreview } from './campaign-composer/EmailPreview';
 import { ContentBlock } from '@/types/emailBuilder';
 import { convertNewsletterToCRM } from '@/utils/newsletterToCrmConverter';
 import { supabase } from '@/integrations/supabase/client';
+import { saveCampaignAsDraft, CampaignData } from '@/utils/crmCampaignService';
+import { SaveIndicator } from '@/components/crm/SaveIndicator';
 
 // Generate appropriate preheader text based on content and campaign name
 const generatePreheaderText = (content: string, campaignName: string): string => {
@@ -77,6 +79,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   const [loading, setLoading] = useState(false);
   const [converting, setConverting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | undefined>();
+  const [saveError, setSaveError] = useState(false);
   const [sourceContentInfo, setSourceContentInfo] = useState<{
     taskId: string;
     campaignTitle: string;
@@ -369,29 +373,85 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
     console.log('✅ Validation passed - proceeding with save');
 
     setLoading(true);
+    setSaveError(false);
     
     try {
-      // Here you would save the campaign to your backend
-      console.log('💾 Saving campaign:', {
+      // Generate HTML content for the campaign
+      const htmlContent = generateEmailHTML();
+      
+      // Convert blocks to the format expected by the campaign service
+      const campaignBlocks = blocks.map((block, index) => ({
+        block_type: block.type as 'header' | 'text' | 'image' | 'button' | 'divider',
+        content: {
+          headline: block.headline,
+          body: block.body,
+          content: block.content,
+          layout: block.layout,
+          imageUrl: block.imageUrl,
+          altText: block.altText,
+          buttonText: block.buttonText,
+          buttonUrl: block.buttonUrl,
+          buttonColor: block.buttonColor,
+          backgroundColor: block.backgroundColor,
+          textAlign: block.textAlign,
+          fontSize: block.fontSize,
+          fontFamily: block.fontFamily
+        },
+        image_url: block.imageUrl,
+        cta_url: block.buttonUrl,
+        cta_text: block.buttonText,
+        source: block.source || 'manual',
+        order_index: index
+      }));
+
+      // Prepare campaign data for saving
+      const campaignData: CampaignData = {
+        name: campaignName,
+        subject: subjectLine,
+        sender_name: 'Brands in Blooms',
+        sender_email: 'hello@brandsinblooms.com',
+        content: htmlContent,
+        preheader: preheaderText,
+        segments: [], // Default empty segments for now
+        schedule: {
+          type: 'immediate'
+        },
+        source_content_id: finalContentTaskId,
+        content_blocks: campaignBlocks,
+        newsletter_sync: finalContentTaskId ? {
+          source_task_id: finalContentTaskId,
+          sync_status: 'synced',
+          original_blocks_count: blocks.length
+        } : undefined
+      };
+
+      console.log('💾 Saving campaign to database:', {
         name: campaignName,
         subject: subjectLine,
         preheader: preheaderText,
         blocks: blocks.length,
-        blocksData: blocks
+        hasSourceContent: !!finalContentTaskId
       });
       
-      console.log('📧 Generated HTML preview:', generateEmailHTML().substring(0, 500) + '...');
+      // Save campaign using the service
+      const result = await saveCampaignAsDraft(campaignData);
+      
+      console.log('✅ Campaign saved successfully:', result);
+      
+      setLastSaved(new Date());
       
       toast({
         title: "Campaign Saved!",
-        description: "Your email campaign has been saved successfully."
+        description: "Your email campaign has been saved as a draft."
       });
       
     } catch (error) {
-      console.error('Error saving campaign:', error);
+      console.error('❌ Error saving campaign:', error);
+      setSaveError(true);
+      
       toast({
         title: "Save Error",
-        description: "Failed to save campaign. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to save campaign. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -424,16 +484,20 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Create Email Campaign</h1>
-          <p className="text-muted-foreground">Build and customize your email campaign</p>
+          <div className="flex items-center gap-3">
+            <p className="text-muted-foreground">Build and customize your email campaign</p>
+            <SaveIndicator 
+              lastSaved={lastSaved} 
+              saving={loading} 
+              error={saveError} 
+            />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setShowPreview(true)}>
             Preview
           </Button>
-          <Button onClick={(e) => {
-            console.log('🎯 BUTTON CLICKED!', e);
-            handleSave();
-          }} disabled={loading}>
+          <Button onClick={handleSave} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
