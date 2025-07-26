@@ -12,21 +12,17 @@ import { ButtonBlock } from './blocks/ButtonBlock';
 import { SocialFollowBlock } from './blocks/SocialFollowBlock';
 import { FooterBlock } from './blocks/FooterBlock';
 import { SaveIndicator } from '@/components/crm/SaveIndicator';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface ClickToEditEmailBuilderProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
+  onOpenAddModal?: (afterIndex?: number) => void;
 }
 
 export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = ({
   blocks,
-  onBlocksChange
+  onBlocksChange,
+  onOpenAddModal
 }) => {
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date>();
@@ -188,80 +184,24 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   };
 
   const AddBlockButton: React.FC<{ afterIndex?: number }> = ({ afterIndex }) => {
-    const handleAddBlock = (type: ContentBlock['type']) => {
-      console.log('Adding block:', type, 'after index:', afterIndex);
-      addBlock(type, afterIndex);
+    const handleAddBlock = () => {
+      console.log('Opening add modal for index:', afterIndex);
+      if (onOpenAddModal) {
+        onOpenAddModal(afterIndex);
+      }
     };
 
     return (
       <div className="flex justify-center py-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-2 bg-background hover:bg-accent"
-            >
-              <Plus className="h-4 w-4" />
-              Add Block
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            className="z-[9999] bg-background border shadow-lg min-w-[160px]" 
-            align="center"
-            side="bottom"
-            sideOffset={4}
-          >
-            <DropdownMenuItem 
-              onClick={() => handleAddBlock('header')}
-              className="cursor-pointer"
-            >
-              📄 Header
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleAddBlock('text')}
-              className="cursor-pointer"
-            >
-              📝 Text
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleAddBlock('image')}
-              className="cursor-pointer"
-            >
-              🖼️ Image
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleAddBlock('image-text')}
-              className="cursor-pointer"
-            >
-              📄 Image + Text
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleAddBlock('button')}
-              className="cursor-pointer"
-            >
-              🔘 Button
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleAddBlock('divider')}
-              className="cursor-pointer"
-            >
-              ➖ Divider
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleAddBlock('social-follow')}
-              className="cursor-pointer"
-            >
-              📱 Social Follow
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleAddBlock('footer')}
-              className="cursor-pointer"
-            >
-              📋 Footer
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-2 bg-background hover:bg-accent"
+          onClick={handleAddBlock}
+        >
+          <Plus className="h-4 w-4" />
+          Add Block
+        </Button>
       </div>
     );
   };

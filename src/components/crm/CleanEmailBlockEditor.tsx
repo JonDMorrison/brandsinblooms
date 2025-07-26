@@ -457,6 +457,7 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
           setInternalBlocks(newBlocks);
           onBlocksChange(newBlocks);
         }}
+        onOpenAddModal={openAddModal}
       />
 
       {/* Empty State */}
