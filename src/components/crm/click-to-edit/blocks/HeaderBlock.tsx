@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { MediaSelectorImage } from '@/components/crm/MediaSelectorImage';
 import { cn } from '@/lib/utils';
 
@@ -121,23 +122,19 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPre
           className="h-32"
         />
         {block.backgroundImageUrl && (
-          <div className="space-y-2">
-            <Label htmlFor="imageOpacity">Image Opacity</Label>
-            <Select
-              value={String(block.backgroundOpacity || 100)}
-              onValueChange={(value) => onUpdate({ backgroundOpacity: Number(value) })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="100">100%</SelectItem>
-                <SelectItem value="80">80%</SelectItem>
-                <SelectItem value="60">60%</SelectItem>
-                <SelectItem value="40">40%</SelectItem>
-                <SelectItem value="20">20%</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="imageOpacity">Image Opacity</Label>
+              <span className="text-sm text-muted-foreground">{block.backgroundOpacity || 100}%</span>
+            </div>
+            <Slider
+              value={[block.backgroundOpacity || 100]}
+              onValueChange={(value) => onUpdate({ backgroundOpacity: value[0] })}
+              max={100}
+              min={1}
+              step={1}
+              className="w-full"
+            />
           </div>
         )}
       </div>
@@ -154,25 +151,19 @@ export const HeaderBlock: React.FC<HeaderBlockProps> = ({ block, onUpdate, isPre
               onChange={(e) => onUpdate({ backgroundColor: e.target.value })}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="colorOpacity">Overlay Opacity</Label>
-            <Select
-              value={String(block.colorOverlayOpacity || 50)}
-              onValueChange={(value) => onUpdate({ colorOverlayOpacity: Number(value) })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">0% (Transparent)</SelectItem>
-                <SelectItem value="20">20%</SelectItem>
-                <SelectItem value="40">40%</SelectItem>
-                <SelectItem value="50">50%</SelectItem>
-                <SelectItem value="60">60%</SelectItem>
-                <SelectItem value="80">80%</SelectItem>
-                <SelectItem value="100">100% (Solid)</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="colorOpacity">Overlay Opacity</Label>
+              <span className="text-sm text-muted-foreground">{block.colorOverlayOpacity || 50}%</span>
+            </div>
+            <Slider
+              value={[block.colorOverlayOpacity || 50]}
+              onValueChange={(value) => onUpdate({ colorOverlayOpacity: value[0] })}
+              max={100}
+              min={1}
+              step={1}
+              className="w-full"
+            />
           </div>
         </div>
       </div>
