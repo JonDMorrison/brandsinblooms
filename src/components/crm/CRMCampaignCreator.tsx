@@ -271,7 +271,12 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
   };
 
   const handleSave = async () => {
+    console.log('🚀 Save button clicked');
+    console.log('📝 Campaign Name:', `"${campaignName}"`);
+    console.log('📝 Subject Line:', `"${subjectLine}"`);
+    
     if (!campaignName.trim() || !subjectLine.trim()) {
+      console.log('❌ Validation failed - missing required fields');
       toast({
         title: "Missing Information",
         description: "Please provide both a campaign name and subject line.",
@@ -279,6 +284,8 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       });
       return;
     }
+    
+    console.log('✅ Validation passed - proceeding with save');
 
     setLoading(true);
     
