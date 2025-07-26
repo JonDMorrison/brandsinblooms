@@ -55,16 +55,16 @@ export const InlineTextEditor: React.FC<InlineTextEditorProps> = ({
   };
 
   return (
-    <Card className={`p-3 shadow-lg border-2 border-primary/20 ${className}`}>
-      <div className="space-y-3">
+    <Card className={`p-3 shadow-lg border-2 border-primary/20 w-full ${className}`}>
+      <div className="space-y-3 w-full">
         <Textarea
           ref={inputRef}
           value={localValue}
           onChange={(e) => setLocalValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          rows={multiline ? 3 : 1}
-          className="resize-none"
+          rows={multiline ? 4 : 1}
+          className="resize-none w-full min-h-[100px]"
         />
         <div className="flex justify-end gap-2">
           <Button variant="outline" size="sm" onClick={handleCancel}>
