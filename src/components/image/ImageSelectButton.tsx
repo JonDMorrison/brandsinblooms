@@ -36,6 +36,12 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
     }
   };
 
+  const handleModalClose = (open: boolean) => {
+    if (!open) {
+      setIsOpen(false);
+    }
+  };
+
   // Inline mode - render MediaSelector directly
   if (mode === "inline") {
     return (
@@ -77,7 +83,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
 
   // Modal mode (default)
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleModalClose}>
       <DialogTrigger asChild>
         <div className={className}>
           {selectedImageUrl ? (
@@ -111,12 +117,19 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
           )}
         </div>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <MediaSelector
-          onImageSelect={handleImageSelect}
-          selectedImageUrl={selectedImageUrl}
-          contentContext={contentContext}
-        />
+      <DialogContent 
+        className="max-w-4xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => {
+          e.preventDefault();
+        }}
+      >
+        <div onClick={(e) => e.stopPropagation()}>
+          <MediaSelector
+            onImageSelect={handleImageSelect}
+            selectedImageUrl={selectedImageUrl}
+            contentContext={contentContext}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

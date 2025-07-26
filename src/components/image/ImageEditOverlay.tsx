@@ -24,6 +24,12 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
     setIsOpen(false);
   };
 
+  const handleModalClose = (open: boolean) => {
+    if (!open) {
+      setIsOpen(false);
+    }
+  };
+
   return (
     <div className={`relative group ${className || ''}`}>
       <img 
@@ -32,7 +38,7 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
         className="w-full h-full object-cover rounded-lg"
       />
       
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={handleModalClose}>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -50,12 +56,19 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
           </Tooltip>
         </TooltipProvider>
         
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <MediaSelector
-            onImageSelect={handleImageSelect}
-            selectedImageUrl={imageUrl}
-            contentContext={contentContext}
-          />
+        <DialogContent 
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
+          onPointerDownOutside={(e) => {
+            e.preventDefault();
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()}>
+            <MediaSelector
+              onImageSelect={handleImageSelect}
+              selectedImageUrl={imageUrl}
+              contentContext={contentContext}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -65,13 +65,15 @@ export const BlogPostLayout = ({
           {showMediaSelector && (
             <div className="absolute top-4 right-4 z-10">
               <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-2 max-w-xs">
-                <MediaSelector
-                  onImageSelect={onImageSelect || (() => {})}
-                  selectedImageUrl={selectedImageUrl}
-                  contentContext={contentContext}
-                  compact={true}
-                  className="w-full"
-                />
+                <div onClick={(e) => e.stopPropagation()}>
+                  <MediaSelector
+                    onImageSelect={onImageSelect || (() => {})}
+                    selectedImageUrl={selectedImageUrl}
+                    contentContext={contentContext}
+                    compact={true}
+                    className="w-full"
+                  />
+                </div>
               </div>
             </div>
           )}
