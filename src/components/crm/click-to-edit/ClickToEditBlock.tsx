@@ -154,10 +154,11 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
       <Card
         ref={blockRef}
         className={cn(
-          "transition-all duration-200 cursor-pointer",
+          "transition-all duration-200",
           isEditing ? "shadow-md ring-2 ring-primary/20" : "hover:shadow-sm",
           block.visible === false && "opacity-60"
         )}
+        style={{ pointerEvents: 'auto' }}
       >
         {isEditing ? (
           <div ref={editingRef} className="p-6">
@@ -178,7 +179,7 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
             })}
           </div>
         ) : (
-          <div onClick={handleBlockClick} className="p-0">
+          <div className="p-0">
             {React.cloneElement(children.preview as React.ReactElement, {
               block: localBlock
             })}
