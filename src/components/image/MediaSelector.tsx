@@ -45,7 +45,10 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
         const defaultQuery = validateImageQuery(rawQuery);
         console.log('[MediaSelector] Loading suggestions with validated query:', defaultQuery, 'from context:', rawQuery);
         const results = await searchImages(defaultQuery);
+        console.log('[MediaSelector] Search results received:', results?.length || 0, 'results');
+        console.log('[MediaSelector] First result sample:', results?.[0]);
         setSearchResults(results.slice(0, 6));
+        console.log('[MediaSelector] Updated searchResults state to:', results.slice(0, 6).length, 'items');
       }
     };
     
@@ -364,6 +367,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           <h4 className="text-sm font-medium text-slate-700">
             {showingSuggestions ? 'Suggested Images' : 'Search Results'}
           </h4>
+          <div className="text-xs text-gray-500">
+            Debug: Found {searchResults.length} results
+          </div>
           
           <div className="grid grid-cols-3 gap-4">
             {searchResults.slice(0, 3).map((image, index) => (
