@@ -308,7 +308,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             />
             
             {/* Show "Select This Image" button when previewing */}
-            {previewImage && !selectedImageUrl && (
+            {previewImage && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                 <div className="text-center space-y-3">
                   <Button 
