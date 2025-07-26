@@ -303,14 +303,24 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
             <div className="grid grid-cols-3 gap-2">
               {searchResults.slice(0, 3).map((image, index) => (
                 <div
-                  key={index}
+                  key={image.id || index}
                   className="relative group cursor-pointer aspect-square rounded overflow-hidden border-2 border-slate-200 hover:border-primary transition-all"
                   onClick={() => handleThumbnailClick(image, index)}
                 >
                   <img 
-                    src={image.thumb} 
-                    alt={image.alt}
+                    src={image.thumb || image.thumb_url || image.url} 
+                    alt={image.alt || 'Image thumbnail'}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error('[MediaSelector] Thumbnail failed to load:', image.thumb || image.thumb_url);
+                      // Fallback to main image URL if thumb fails
+                      if (e.currentTarget.src !== image.url) {
+                        e.currentTarget.src = image.url;
+                      } else {
+                        // Show placeholder
+                        e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2Y1ZjdmYSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMiIgZmlsbD0iIzY2NzM4NSI+SW1hZ2U8L3RleHQ+PC9zdmc+';
+                      }
+                    }}
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Camera className="h-4 w-4 text-white" />
