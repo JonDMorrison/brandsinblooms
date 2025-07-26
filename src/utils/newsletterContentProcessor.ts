@@ -305,10 +305,19 @@ const createEmptyNewsletter = (campaignTitle?: string): ProcessedNewsletter => {
 const extractThemeFromContent = (content: string, campaignTitle?: string): string => {
   const textToAnalyze = (campaignTitle + ' ' + content).toLowerCase();
   
+  // Check for specific plant types first
+  if (textToAnalyze.includes('hydrangea')) return 'Hydrangea Care and Planting';
+  if (textToAnalyze.includes('rose')) return 'Rose Care and Planting';
+  if (textToAnalyze.includes('tomato')) return 'Tomato Growing Guide';
+  if (textToAnalyze.includes('herb')) return 'Herb Garden Care';
+  
+  // Check for seasonal content
   if (textToAnalyze.includes('summer')) return 'Summer Care';
   if (textToAnalyze.includes('spring')) return 'Spring Growth';
   if (textToAnalyze.includes('fall') || textToAnalyze.includes('autumn')) return 'Fall Care';
   if (textToAnalyze.includes('winter')) return 'Winter Protection';
+  
+  // Check for general gardening activities
   if (textToAnalyze.includes('growing')) return 'Growing Success';
   if (textToAnalyze.includes('planting')) return 'Planting Guide';
   

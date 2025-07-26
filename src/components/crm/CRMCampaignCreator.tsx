@@ -14,6 +14,45 @@ import { ContentBlock } from '@/types/emailBuilder';
 import { convertNewsletterToCRM } from '@/utils/newsletterToCrmConverter';
 import { supabase } from '@/integrations/supabase/client';
 
+// Generate appropriate preheader text based on content and campaign name
+const generatePreheaderText = (content: string, campaignName: string): string => {
+  const lowerContent = content.toLowerCase();
+  const lowerCampaign = campaignName.toLowerCase();
+  
+  // Check for specific plant types
+  if (lowerContent.includes('hydrangea') || lowerCampaign.includes('hydrangea')) {
+    return 'Essential tips for planting and caring for beautiful hydrangeas in your garden';
+  }
+  
+  if (lowerContent.includes('rose') || lowerCampaign.includes('rose')) {
+    return 'Expert advice for growing stunning roses all season long';
+  }
+  
+  if (lowerContent.includes('tomato') || lowerCampaign.includes('tomato')) {
+    return 'Everything you need to know for a successful tomato harvest';
+  }
+  
+  // Check for general gardening activities
+  if (lowerContent.includes('planting') || lowerCampaign.includes('planting')) {
+    return 'Professional planting techniques for your garden success';
+  }
+  
+  if (lowerContent.includes('care') || lowerCampaign.includes('care')) {
+    return 'Expert care tips for thriving plants and gardens';
+  }
+  
+  // Seasonal defaults
+  if (lowerContent.includes('summer')) {
+    return 'Summer gardening tips to keep your plants thriving in the heat';
+  }
+  
+  if (lowerContent.includes('spring')) {
+    return 'Spring preparation guides for a successful growing season';
+  }
+  
+  return 'Expert gardening tips delivered to your inbox';
+};
+
 interface CRMCampaignCreatorProps {
   campaignSlug?: string;
   contentTaskId?: string | null;
@@ -133,7 +172,9 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       // Pre-fill campaign settings
       setCampaignName(result.campaignName);
       setSubjectLine(result.subjectLine);
-      setPreheaderText('Expert gardening tips delivered to your inbox');
+      // Generate content-specific preheader
+      const preheaderText = generatePreheaderText(fullContent, result.campaignName);
+      setPreheaderText(preheaderText);
       
       // Set blocks with layout and images
       const crmBlocks = result.blocks;

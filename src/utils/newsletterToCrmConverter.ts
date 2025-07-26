@@ -71,7 +71,18 @@ export const convertNewsletterToCRM = async (
 };
 
 const generateCampaignName = (title: string, processed: any): string => {
-  // Clean up the title
+  // First priority: Use newsletter theme from YAML meta if available
+  if (processed.meta?.theme && processed.meta.theme !== 'Newsletter' && processed.meta.theme !== 'Garden Newsletter') {
+    return `📧 ${processed.meta.theme}`;
+  }
+
+  // Second priority: Extract title from newsletter content
+  const contentTitle = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
+  if (contentTitle && !contentTitle.toLowerCase().includes('newsletter')) {
+    return `📧 ${contentTitle}`;
+  }
+
+  // Third priority: Clean up the URL title
   const cleanTitle = title
     .replace(/Newsletter\s+Campaign\s*-?\s*/i, '')
     .replace(/\+/g, ' ')
@@ -83,38 +94,26 @@ const generateCampaignName = (title: string, processed: any): string => {
     return `📧 ${cleanTitle}`;
   }
 
-  // Fallback to newsletter theme or content
-  if (processed.meta?.theme && processed.meta.theme !== 'Newsletter') {
-    return `📧 ${processed.meta.theme}`;
-  }
-
-  // Extract title from newsletter content
-  const contentTitle = processed.newsletter_md.match(/^#\s+(.+)$/m)?.[1];
-  if (contentTitle) {
-    return `📧 ${contentTitle}`;
-  }
-
   return `📧 Garden Newsletter - ${new Date().toLocaleDateString()}`;
 };
 
 const generateSubjectLine = (processed: any, title: string): string => {
-  // Extract main theme or focus with safe null handling
+  // First priority: Use theme from YAML meta for specific subject line
   const theme = processed.meta?.theme;
+  if (theme && theme !== 'Newsletter' && theme !== 'Garden Newsletter') {
+    return `🌱 ${theme} - Expert Tips Inside`;
+  }
+
+  // Second priority: Try to extract the main header from newsletter content
+  const mainHeader = processed.newsletter_md?.match(/^#\s+(.+)$/m)?.[1];
+  if (mainHeader && !mainHeader.toLowerCase().includes('newsletter')) {
+    return `🌱 ${mainHeader} - Expert Tips Inside`;
+  }
+  
+  // Third priority: Use week focus if meaningful
   const weekFocus = processed.meta?.week_focus;
-  
-  // Try to extract the main header from newsletter content
-  const mainHeader = processed.newsletter_md.match(/^#\s+(.+)$/m)?.[1];
-  
-  if (mainHeader && !mainHeader.includes('Newsletter')) {
-    return `🌱 ${mainHeader}`;
-  }
-  
-  if (weekFocus && weekFocus !== 'Content Update') {
+  if (weekFocus && weekFocus !== 'Content Update' && !weekFocus.toLowerCase().includes('newsletter')) {
     return `🌿 ${weekFocus} - Expert Tips Inside`;
-  }
-  
-  if (theme && theme !== 'Newsletter') {
-    return `🌱 ${theme} - Your Garden Update`;
   }
   
   // Fallback subject lines based on content
