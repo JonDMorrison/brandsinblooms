@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
@@ -11,6 +11,7 @@ import { DividerBlock } from './blocks/DividerBlock';
 import { ButtonBlock } from './blocks/ButtonBlock';
 import { SocialFollowBlock } from './blocks/SocialFollowBlock';
 import { FooterBlock } from './blocks/FooterBlock';
+import { SaveIndicator } from '@/components/crm/SaveIndicator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,6 +28,45 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
   blocks,
   onBlocksChange
 }) => {
+  const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date>();
+  const [saveError, setSaveError] = useState(false);
+
+  // Auto-save to localStorage with debouncing
+  const debouncedSave = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return (blocksToSave: ContentBlock[]) => {
+        clearTimeout(timeoutId);
+        setSaving(true);
+        setSaveError(false);
+        
+        timeoutId = setTimeout(() => {
+          try {
+            localStorage.setItem('emailBuilder_draft', JSON.stringify({
+              blocks: blocksToSave,
+              timestamp: Date.now()
+            }));
+            setLastSaved(new Date());
+            setSaveError(false);
+          } catch (error) {
+            console.warn('Failed to save draft to localStorage:', error);
+            setSaveError(true);
+          } finally {
+            setSaving(false);
+          }
+        }, 500);
+      };
+    })(),
+    []
+  );
+
+  // Auto-save whenever blocks change
+  useEffect(() => {
+    if (blocks.length > 0) {
+      debouncedSave(blocks);
+    }
+  }, [blocks, debouncedSave]);
   const createBlock = (type: ContentBlock['type'], afterIndex?: number): ContentBlock => {
     const id = `block_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const baseBlock: ContentBlock = {
@@ -56,12 +96,12 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
     onBlocksChange(newBlocks);
   };
 
-  const updateBlock = (id: string, updates: Partial<ContentBlock>) => {
+  const updateBlock = useCallback((id: string, updates: Partial<ContentBlock>) => {
     const newBlocks = blocks.map(block =>
       block.id === id ? { ...block, ...updates } : block
     );
     onBlocksChange(newBlocks);
-  };
+  }, [blocks, onBlocksChange]);
 
   const removeBlock = (id: string) => {
     onBlocksChange(blocks.filter(block => block.id !== id));
@@ -188,6 +228,15 @@ export const ClickToEditEmailBuilder: React.FC<ClickToEditEmailBuilderProps> = (
 
   return (
     <div className="max-w-4xl mx-auto space-y-2">
+      {/* Save status indicator */}
+      <div className="flex justify-end mb-4">
+        <SaveIndicator 
+          saving={saving} 
+          lastSaved={lastSaved} 
+          error={saveError}
+        />
+      </div>
+      
       {/* Add block button at top */}
       <AddBlockButton />
 

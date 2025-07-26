@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ContentBlock } from '@/types/emailBuilder';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,15 +38,49 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
   children
 }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [localBlock, setLocalBlock] = useState<ContentBlock>(block);
   const blockRef = useRef<HTMLDivElement>(null);
   const editingRef = useRef<HTMLDivElement>(null);
 
-  // Handle click outside to exit edit mode
+  // Sync local state with props when block changes from parent
+  useEffect(() => {
+    setLocalBlock(block);
+  }, [block]);
+
+  // Debounced update function to avoid excessive API calls
+  const debouncedUpdate = useCallback(
+    (() => {
+      let timeoutId: NodeJS.Timeout;
+      return (updates: Partial<ContentBlock>) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          onUpdate(block.id, updates);
+        }, 300);
+      };
+    })(),
+    [block.id, onUpdate]
+  );
+
+  // Handle immediate local updates for responsive UI
+  const handleLocalUpdate = useCallback((updates: Partial<ContentBlock>) => {
+    const updatedBlock = { ...localBlock, ...updates };
+    setLocalBlock(updatedBlock);
+    // Also update parent immediately for simple changes
+    if (updates.headline || updates.body || updates.content) {
+      onUpdate(block.id, updates);
+    } else {
+      // Debounce for style/layout changes
+      debouncedUpdate(updates);
+    }
+  }, [localBlock, block.id, onUpdate, debouncedUpdate]);
+
+  // Handle click outside to exit edit mode and save changes
   useEffect(() => {
     if (!isEditing) return;
 
     const handleClickOutside = (event: MouseEvent) => {
       if (editingRef.current && !editingRef.current.contains(event.target as Node)) {
+        // Save any pending changes before exiting edit mode
         setIsEditing(false);
       }
     };
@@ -138,11 +172,16 @@ export const ClickToEditBlock: React.FC<ClickToEditBlockProps> = ({
                 </Button>
               </div>
             </div>
-            {children.editor}
+            {React.cloneElement(children.editor as React.ReactElement, {
+              block: localBlock,
+              onUpdate: handleLocalUpdate
+            })}
           </div>
         ) : (
           <div onClick={handleBlockClick} className="p-0">
-            {children.preview}
+            {React.cloneElement(children.preview as React.ReactElement, {
+              block: localBlock
+            })}
           </div>
         )}
       </Card>
