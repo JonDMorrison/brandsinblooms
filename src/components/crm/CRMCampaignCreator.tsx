@@ -430,7 +430,10 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
           <Button variant="outline" onClick={() => setShowPreview(true)}>
             Preview
           </Button>
-          <Button onClick={handleSave} disabled={loading}>
+          <Button onClick={(e) => {
+            console.log('🎯 BUTTON CLICKED!', e);
+            handleSave();
+          }} disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
