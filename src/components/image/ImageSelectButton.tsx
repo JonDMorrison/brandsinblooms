@@ -37,10 +37,10 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
     }
   };
 
-  const handleModalClose = (open: boolean) => {
+  const handleModalClose = (nextOpen: boolean) => {
     // Only allow closing when not in preview mode
-    if (!open && !isPreviewing) {
-      setIsOpen(false);
+    if (!isPreviewing) {
+      setIsOpen(nextOpen);
     }
   };
 
@@ -143,16 +143,16 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
           }
         }}
       >
-        <div onClick={(e) => e.stopPropagation()}>
-            <DialogHeader>
-              <DialogTitle>Select Image</DialogTitle>
-            </DialogHeader>
-            <MediaSelector
-              onImageSelect={handleImageSelect}
-              selectedImageUrl={selectedImageUrl}
-              contentContext={contentContext}
-              onPreviewStateChange={handlePreviewStateChange}
-            />
+        <div className="space-y-4">
+          <DialogHeader>
+            <DialogTitle>Select Image</DialogTitle>
+          </DialogHeader>
+          <MediaSelector
+            onImageSelect={handleImageSelect}
+            selectedImageUrl={selectedImageUrl}
+            contentContext={contentContext}
+            onPreviewStateChange={handlePreviewStateChange}
+          />
         </div>
       </DialogContent>
     </Dialog>

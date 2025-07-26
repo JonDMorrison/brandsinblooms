@@ -25,10 +25,10 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
     setIsOpen(false);
   };
 
-  const handleModalClose = (open: boolean) => {
-    // Only allow closing when not in preview mode
-    if (!open && !isPreviewing) {
-      setIsOpen(false);
+  const handleModalClose = (nextOpen: boolean) => {
+    // Only allow closing when not in preview mode  
+    if (!isPreviewing) {
+      setIsOpen(nextOpen);
     }
   };
 
@@ -81,15 +81,17 @@ export const ImageEditOverlay: React.FC<ImageEditOverlayProps> = ({
             }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>Select Image</DialogTitle>
-          </DialogHeader>
-          <MediaSelector
-            onImageSelect={handleImageSelect}
-            selectedImageUrl={imageUrl}
-            contentContext={contentContext}
-            onPreviewStateChange={handlePreviewStateChange}
-          />
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Select Image</DialogTitle>
+            </DialogHeader>
+            <MediaSelector
+              onImageSelect={handleImageSelect}
+              selectedImageUrl={imageUrl}
+              contentContext={contentContext}
+              onPreviewStateChange={handlePreviewStateChange}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

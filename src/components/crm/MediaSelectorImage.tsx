@@ -28,10 +28,10 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
     setIsOpen(false);
   };
 
-  const handleModalClose = (open: boolean) => {
+  const handleModalClose = (nextOpen: boolean) => {
     // Only allow closing when not in preview mode
-    if (!open && !isPreviewing) {
-      setIsOpen(false);
+    if (!isPreviewing) {
+      setIsOpen(nextOpen);
     }
   };
 
@@ -67,8 +67,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
 
       <Dialog open={isOpen} onOpenChange={handleModalClose}>
         <DialogContent 
-          className="max-w-4xl max-h-[90vh] overflow-y-auto" 
-          aria-describedby="media-selector-desc"
+          className="max-w-4xl max-h-[90vh] overflow-y-auto"
           onPointerDownOutside={(e) => {
             if (isPreviewing) {
               e.preventDefault();
@@ -85,16 +84,18 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
             }
           }}
         >
-          <DialogHeader>
-            <DialogTitle>Select Image</DialogTitle>
-          </DialogHeader>
-          <p id="media-selector-desc" className="sr-only">Browse and select an image from our collection or search for specific content to add to your campaign.</p>
-          <MediaSelector
-            onImageSelect={handleImageSelect}
-            selectedImageUrl={src}
-            contentContext={contentContext}
-            onPreviewStateChange={handlePreviewStateChange}
-          />
+          <div className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Select Image</DialogTitle>
+            </DialogHeader>
+            <p id="media-selector-desc" className="sr-only">Browse and select an image from our collection or search for specific content to add to your campaign.</p>
+            <MediaSelector
+              onImageSelect={handleImageSelect}
+              selectedImageUrl={src}
+              contentContext={contentContext}
+              onPreviewStateChange={handlePreviewStateChange}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </>
