@@ -40,9 +40,9 @@ export const ImageTextBlock: React.FC<ImageTextBlockProps> = ({ block, onUpdate,
               </h2>
             )}
             {block.body && (
-              <p className="text-muted-foreground">
+              <div className="text-muted-foreground whitespace-pre-wrap">
                 {block.body}
-              </p>
+              </div>
             )}
           </div>
 
