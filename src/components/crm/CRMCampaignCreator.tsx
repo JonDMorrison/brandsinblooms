@@ -230,29 +230,110 @@ export const CRMCampaignCreator: React.FC<CRMCampaignCreatorProps> = ({
       
       switch (block.type) {
         case 'header':
+          const headerAlign = block.textAlign || 'center';
           html += `
-            <div style="text-align: ${block.alignment || 'center'}; padding: 20px 0;">
-              <h2 style="color: #1e40af; font-size: 24px; margin: 0 0 10px 0;">${block.headline || ''}</h2>
-              ${block.body ? `<p style="color: #64748b; margin: 0;">${block.body}</p>` : ''}
+            <div style="position: relative; text-align: ${headerAlign}; padding: 40px 20px; margin: 20px 0; border-radius: 8px; overflow: hidden;
+                        ${block.backgroundImageUrl ? `background-image: url(${block.backgroundImageUrl}); background-size: cover; background-position: center;` : ''}
+                        ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : 'background: linear-gradient(135deg, #1e40af, #3b82f6);'}">
+              ${block.backgroundColor ? `<div style="position: absolute; inset: 0; background-color: ${block.backgroundColor}; opacity: ${(block.colorOverlayOpacity || 50) / 100};"></div>` : ''}
+              <div style="position: relative; z-index: 10; color: white;">
+                <h1 style="font-size: 28px; font-weight: bold; margin: 0 0 16px 0;">${block.headline || 'Your Headline Here'}</h1>
+                ${block.body ? `<p style="font-size: 18px; margin: 0; opacity: 0.9;">${block.body}</p>` : ''}
+              </div>
             </div>
           `;
           break;
+
         case 'text':
+          const textAlign = block.textAlign || 'left';
           html += `
-            <div style="margin: 20px 0;">
-              ${block.title ? `<h3 style="color: #1e40af; font-size: 20px; margin: 0 0 10px 0;">${block.title}</h3>` : ''}
-              ${block.content ? `<p style="color: #475569; line-height: 1.6; margin: 0;">${block.content}</p>` : ''}
+            <div style="margin: 20px 0; text-align: ${textAlign}; font-size: ${block.fontSize || '16px'}; font-family: ${block.fontFamily || 'Arial, sans-serif'};">
+              ${block.content ? `<div style="color: #475569; line-height: 1.6; white-space: pre-wrap;">${block.content}</div>` : ''}
             </div>
           `;
           break;
-        case 'button':
+
+        case 'image':
+          const imgAlign = block.textAlign || 'center';
           html += `
-            <div style="text-align: ${block.alignment || 'center'}; margin: 30px 0;">
-              ${block.heading ? `<h3 style="color: #1e40af; margin: 0 0 10px 0;">${block.heading}</h3>` : ''}
-              ${block.body ? `<p style="color: #64748b; margin: 0 0 20px 0;">${block.body}</p>` : ''}
-              <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: #22c55e; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
+            <div style="text-align: ${imgAlign}; margin: 20px 0;">
+              ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="max-width: 100%; height: auto; border-radius: 8px;" />` : 
+                '<div style="background: #f1f5f9; padding: 60px 20px; text-align: center; color: #64748b; border-radius: 8px;">No image selected</div>'}
+            </div>
+          `;
+          break;
+
+        case 'image-text':
+          const isImageLeft = block.layout === 'image-left' || !block.layout;
+          const itTextAlign = block.textAlign || 'left';
+          html += `
+            <div style="margin: 20px 0; padding: 20px; ${block.backgroundColor ? `background-color: ${block.backgroundColor};` : ''} border-radius: 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+                <tr>
+                  ${isImageLeft ? `
+                    <td width="50%" style="padding-right: 20px; vertical-align: top;">
+                      ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px;" />` :
+                        '<div style="background: #f1f5f9; padding: 40px 20px; text-align: center; color: #64748b; border-radius: 8px;">No image</div>'}
+                    </td>
+                    <td width="50%" style="padding-left: 20px; vertical-align: top; text-align: ${itTextAlign};">
+                      ${block.headline ? `<h2 style="font-size: 24px; font-weight: bold; margin: 0 0 16px 0; color: #1e40af;">${block.headline}</h2>` : ''}
+                      ${block.body ? `<p style="color: #64748b; line-height: 1.6; margin: 0; white-space: pre-wrap;">${block.body}</p>` : ''}
+                    </td>
+                  ` : `
+                    <td width="50%" style="padding-right: 20px; vertical-align: top; text-align: ${itTextAlign};">
+                      ${block.headline ? `<h2 style="font-size: 24px; font-weight: bold; margin: 0 0 16px 0; color: #1e40af;">${block.headline}</h2>` : ''}
+                      ${block.body ? `<p style="color: #64748b; line-height: 1.6; margin: 0; white-space: pre-wrap;">${block.body}</p>` : ''}
+                    </td>
+                    <td width="50%" style="padding-left: 20px; vertical-align: top;">
+                      ${block.imageUrl ? `<img src="${block.imageUrl}" alt="${block.altText || ''}" style="width: 100%; height: auto; border-radius: 8px;" />` :
+                        '<div style="background: #f1f5f9; padding: 40px 20px; text-align: center; color: #64748b; border-radius: 8px;">No image</div>'}
+                    </td>
+                  `}
+                </tr>
+              </table>
+            </div>
+          `;
+          break;
+
+        case 'button':
+          const btnAlign = block.textAlign || 'center';
+          html += `
+            <div style="text-align: ${btnAlign}; margin: 30px 0;">
+              ${block.headline ? `<h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 20px;">${block.headline}</h3>` : ''}
+              ${block.body ? `<p style="color: #64748b; margin: 0 0 20px 0; line-height: 1.6;">${block.body}</p>` : ''}
+              <a href="${block.buttonUrl || '#'}" style="display: inline-block; padding: 12px 24px; background: ${block.buttonColor || '#22c55e'}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
                 ${block.buttonText || 'Learn More'}
               </a>
+            </div>
+          `;
+          break;
+
+        case 'divider':
+          html += `
+            <div style="margin: 30px 0;">
+              <hr style="border: none; height: 1px; background: #e2e8f0; margin: 0;" />
+            </div>
+          `;
+          break;
+
+        case 'social-follow':
+          html += `
+            <div style="text-align: center; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 8px;">
+              ${block.headline ? `<h3 style="color: #1e40af; margin: 0 0 10px 0; font-size: 20px;">${block.headline}</h3>` : ''}
+              ${block.body ? `<p style="color: #64748b; margin: 0 0 20px 0;">${block.body}</p>` : ''}
+              <div style="display: inline-block;">
+                <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1877f2; color: white; text-decoration: none; border-radius: 4px;">Facebook</a>
+                <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #1da1f2; color: white; text-decoration: none; border-radius: 4px;">Twitter</a>
+                <a href="#" style="display: inline-block; margin: 0 10px; padding: 8px 16px; background: #e4405f; color: white; text-decoration: none; border-radius: 4px;">Instagram</a>
+              </div>
+            </div>
+          `;
+          break;
+
+        case 'footer':
+          html += `
+            <div style="text-align: center; margin: 30px 0; padding: 20px; background: #f1f5f9; border-radius: 8px; font-size: 14px; color: #64748b;">
+              ${block.content || 'Thanks for reading our newsletter!'}
             </div>
           `;
           break;
