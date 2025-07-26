@@ -26,6 +26,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showSelector, setShowSelector] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     onImageSelect(imageUrl, metadata);
@@ -37,9 +38,15 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
   };
 
   const handleModalClose = (open: boolean) => {
-    if (!open) {
+    // Only allow closing when not in preview mode
+    if (!open && !isPreviewing) {
       setIsOpen(false);
     }
+  };
+
+  const handlePreviewStateChange = (previewing: boolean) => {
+    console.log('[ImageSelectButton] Preview state changed:', previewing);
+    setIsPreviewing(previewing);
   };
 
   // Inline mode - render MediaSelector directly
@@ -75,6 +82,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
             contentContext={contentContext}
             className="w-full"
             compact={compact}
+            onPreviewStateChange={handlePreviewStateChange}
           />
         )}
       </div>
@@ -120,7 +128,19 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
       <DialogContent 
         className="max-w-4xl max-h-[90vh] overflow-y-auto"
         onPointerDownOutside={(e) => {
-          e.preventDefault();
+          if (isPreviewing) {
+            e.preventDefault();
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isPreviewing) {
+            e.preventDefault();
+          }
+        }}
+        onInteractOutside={(e) => {
+          if (isPreviewing) {
+            e.preventDefault();
+          }
         }}
       >
         <div onClick={(e) => e.stopPropagation()}>
@@ -128,6 +148,7 @@ export const ImageSelectButton: React.FC<ImageSelectButtonProps> = ({
             onImageSelect={handleImageSelect}
             selectedImageUrl={selectedImageUrl}
             contentContext={contentContext}
+            onPreviewStateChange={handlePreviewStateChange}
           />
         </div>
       </DialogContent>

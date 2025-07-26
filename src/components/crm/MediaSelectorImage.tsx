@@ -18,6 +18,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   className = ''
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
     console.log('[MediaSelectorImage] Image selected before calling onChange:', imageUrl, metadata);
@@ -28,10 +29,15 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
   };
 
   const handleModalClose = (open: boolean) => {
-    // Only allow closing the modal if explicitly requested (not from thumbnail clicks)
-    if (!open) {
+    // Only allow closing when not in preview mode
+    if (!open && !isPreviewing) {
       setIsOpen(false);
     }
+  };
+
+  const handlePreviewStateChange = (previewing: boolean) => {
+    console.log('[MediaSelectorImage] Preview state changed:', previewing);
+    setIsPreviewing(previewing);
   };
 
   return (
@@ -64,8 +70,19 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
           className="max-w-4xl max-h-[90vh] overflow-y-auto" 
           aria-describedby="media-selector-desc"
           onPointerDownOutside={(e) => {
-            // Prevent closing when clicking inside the dialog content
-            e.preventDefault();
+            if (isPreviewing) {
+              e.preventDefault();
+            }
+          }}
+          onEscapeKeyDown={(e) => {
+            if (isPreviewing) {
+              e.preventDefault();
+            }
+          }}
+          onInteractOutside={(e) => {
+            if (isPreviewing) {
+              e.preventDefault();
+            }
           }}
         >
           <DialogHeader>
@@ -77,6 +94,7 @@ export const MediaSelectorImage: React.FC<MediaSelectorImageProps> = ({
               onImageSelect={handleImageSelect}
               selectedImageUrl={src}
               contentContext={contentContext}
+              onPreviewStateChange={handlePreviewStateChange}
             />
           </div>
         </DialogContent>
