@@ -64,8 +64,11 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   };
 
   const handleImageSelect = (imageUrl: string, metadata?: any) => {
+    console.log('[MediaSelector] handleImageSelect called with:', imageUrl, metadata);
     setSelectedImageMetadata(metadata);
+    console.log('[MediaSelector] About to call onImageSelect prop');
     onImageSelect(imageUrl, metadata);
+    console.log('[MediaSelector] onImageSelect prop called successfully');
   };
 
   const handleDownload = async (image: any, event?: React.MouseEvent) => {
