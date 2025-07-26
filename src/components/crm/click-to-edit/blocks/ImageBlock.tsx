@@ -41,13 +41,14 @@ export const ImageBlock: React.FC<ImageBlockProps> = ({ block, onUpdate, isPrevi
   }
 
   return (
-    <div className="space-y-6 pb-4">
-      <div className="space-y-2">
+    <div className="space-y-6 pb-4 relative">
+      <div className="space-y-2 relative z-10">
         <Label>Image</Label>
-        <div className="w-full">
+        <div className="w-full relative">
           <MediaSelectorImage
             src={block.imageUrl}
             onChange={(imageUrl) => onUpdate({ imageUrl })}
+            contentContext="Email newsletter image"
             className="w-full"
           />
         </div>

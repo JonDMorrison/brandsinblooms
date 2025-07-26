@@ -210,7 +210,7 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
   if (compact) {
     return (
       <div className={cn("w-full space-y-6", className)}>
-        {/* Compact Featured Image */}
+        {/* Featured Image */}
         <div className="space-y-3">
           <h4 className="text-sm font-medium text-gray-700">Featured Image</h4>
           {selectedImageUrl ? (
@@ -299,9 +299,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
           </label>
         </div>
 
-        {/* Image Thumbnails */}
+        {/* Image Thumbnails - FIXED CLICKABLE AREA */}
         {searchResults.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-3 relative z-20">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium text-gray-700">
                 {showingSuggestions ? 'Suggested Images' : 'Search Results'}
@@ -310,9 +310,9 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 {searchResults.length} images found
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-3 min-h-[120px]">
+            <div className="grid grid-cols-3 gap-3 min-h-[200px]">
               {searchResults.slice(0, 3).map((image, index) => {
-                console.log('[MediaSelector] Rendering thumbnail:', index, {
+                console.log('[MediaSelector] Compact - Rendering thumbnail:', index, {
                   id: image.id,
                   thumb: image.thumb,
                   thumb_url: image.thumb_url,
@@ -320,18 +320,25 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                   download_url: image.download_url
                 });
                 return (
-                  <div
+                  <button
                     key={image.id || index}
-                    className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md"
-                    onClick={() => handleThumbnailClick(image, index)}
+                    className="relative group cursor-pointer aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-green-500 transition-all duration-200 bg-white shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      console.log('[MediaSelector] Compact thumbnail clicked:', image.id);
+                      handleThumbnailClick(image, index);
+                    }}
+                    type="button"
+                    tabIndex={0}
                   >
                     <img 
                       src={image.thumb_url || image.thumb || image.download_url || image.url} 
                       alt={image.alt || 'Image thumbnail'}
-                      className="w-full h-full object-cover"
-                      onLoad={() => console.log('[MediaSelector] Image loaded successfully:', image.id)}
+                      className="w-full h-full object-cover pointer-events-none"
+                      onLoad={() => console.log('[MediaSelector] Compact image loaded successfully:', image.id)}
                       onError={(e) => {
-                        console.error('[MediaSelector] Thumbnail failed to load:', {
+                        console.error('[MediaSelector] Compact thumbnail failed to load:', {
                           src: e.currentTarget.src,
                           image: image
                         });
@@ -345,17 +352,17 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                         }
                       }}
                     />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center pointer-events-none">
                       <div className="bg-white rounded-full p-2">
                         <Camera className="h-4 w-4 text-gray-700" />
                       </div>
                     </div>
                     {image.photographer && (
-                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
                         <p className="text-white text-xs truncate">Photo by {image.photographer}</p>
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -381,6 +388,14 @@ export const MediaSelector: React.FC<MediaSelectorProps> = ({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* No Results */}
+        {!unsplashLoading && searchResults.length === 0 && !showingSuggestions && (
+          <div className="text-center py-8">
+            <ImageIcon className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-600">No images found. Try a different search term.</p>
           </div>
         )}
       </div>
