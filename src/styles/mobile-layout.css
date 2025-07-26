@@ -129,14 +129,16 @@
   }
 }
 
-/* Global overflow prevention for all screen sizes */
+/* Global overflow prevention for all screen sizes - FIXED: Allow vertical scroll */
 html, body {
   overflow-x: hidden !important;
+  overflow-y: auto !important;
   max-width: 100vw !important;
 }
 
 .main, main {
   overflow-x: hidden !important;
+  overflow-y: auto !important;
   max-width: 100% !important;
 }
 
