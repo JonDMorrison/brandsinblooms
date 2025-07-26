@@ -280,12 +280,15 @@ export const CleanEmailBlockEditor: React.FC<CleanEmailBlockEditorProps> = ({
     }))
   });
 
-  // Always sync internal state with parent blocks prop
+  // Sync internal state with parent blocks prop only if they're different
   useEffect(() => {
-    console.log("🔄 Syncing blocks - parent has:", blocks.length, "internal has:", internalBlocks.length);
-    setInternalBlocks(blocks);
-    console.log("✅ Synced blocks into internal state:", blocks.length, "blocks");
-  }, [blocks]);
+    // Only sync if blocks actually changed to prevent unnecessary re-renders
+    if (JSON.stringify(blocks) !== JSON.stringify(internalBlocks)) {
+      console.log("🔄 Syncing blocks - parent has:", blocks.length, "internal has:", internalBlocks.length);
+      setInternalBlocks(blocks);
+      console.log("✅ Synced blocks into internal state:", blocks.length, "blocks");
+    }
+  }, [blocks, internalBlocks]);
 
   const addBlockWithLayout = async (layoutType: LayoutType, index?: number) => {
     console.log('🔧 Adding block with layout:', layoutType, 'at index:', index);
